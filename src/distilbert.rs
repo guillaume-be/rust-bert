@@ -13,11 +13,12 @@
 extern crate tch;
 
 use std::path::Path;
-use tch::Tensor;
+use tch::{Tensor, nn};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use serde::{Deserialize, Serialize};
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Activation {
@@ -65,4 +66,9 @@ fn gelu(x: Tensor) -> Tensor {
     &x * 0.5 * (1.0 + (x / ((2.0 as f64).sqrt())).erf())
 }
 
-fn create_sinusoidal_embeddings() {}
+//fn create_sinusoidal_embeddings() {}
+
+struct Embeddings {
+    word_embeddings: nn::Embedding,
+    position_embeddings: nn::Embedding
+}
