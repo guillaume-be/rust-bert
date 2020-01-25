@@ -52,12 +52,13 @@ pub struct DistilBertConfig {
     vocab_size: usize,
 }
 
-pub fn get_config(path: &Path) -> DistilBertConfig {
-    let f = File::open(path).expect("Could not open configuration file.");
-    let br = BufReader::new(f);
-
-    let config: DistilBertConfig = serde_json::from_reader(br).expect("could not parse configuration");
-    config
+impl DistilBertConfig {
+    pub fn from_file(path: &Path) -> DistilBertConfig {
+        let f = File::open(path).expect("Could not open configuration file.");
+        let br = BufReader::new(f);
+        let config: DistilBertConfig = serde_json::from_reader(br).expect("could not parse configuration");
+        config
+    }
 }
 
 fn gelu(x: Tensor) -> Tensor {
