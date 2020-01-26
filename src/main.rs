@@ -6,6 +6,7 @@ use rust_transformers::preprocessing::vocab::base_vocab::Vocab;
 use rust_transformers::bert_tokenizer::BertTokenizer;
 use rust_transformers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use tch::{Device, nn, Tensor};
+
 mod distilbert;
 
 fn main() {
@@ -15,7 +16,8 @@ fn main() {
     let config_path = Path::new(&config_path);
     let config = DistilBertConfig::from_file(config_path);
 //    println!("{:?}", config);
-    let device = Device::cuda_if_available();
+//    let device = Device::cuda_if_available();
+    let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
 
 //    Creation of tokenizer
@@ -24,14 +26,27 @@ fn main() {
     let tokenizer: BertTokenizer = BertTokenizer::from_existing_vocab(vocab.clone());
 
 //    Creation of sample input for testing purposes
-    let input = "Hello, world! This is a tokenization test";
-    let tokenized_input = tokenizer.encode(input, None, 128, &TruncationStrategy::LongestFirst, 0);
+    let input = ["Hello, world! This is a tokenization test", "This is the second sentence", "And a third sentence that is a bit longer"];
+    let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
+    let tokenized_input = tokenized_input.
+        iter().
+        map(|input| input.token_ids.clone()).
+        map(|mut input| {
+            input.extend(vec![0; max_len - input.len()]);
+            input
+        }).
+        map(|input|
+            Tensor::of_slice(&(input))).
+        collect::<Vec<_>>();
+    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Pass tokenized input through embeddings
     let embeddings = embeddings(vs.root(), config);
-    let input_tensor = Tensor::of_slice(&tokenized_input.token_ids).unsqueeze(0).to(device);
 
     let output = input_tensor.apply_t(&embeddings, true);
     println!("{:?}", output);
+    
+//ToDo: check if the input is always padded to max_seq_length
 
 }
