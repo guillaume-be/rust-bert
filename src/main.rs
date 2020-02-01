@@ -1,4 +1,3 @@
-use crate::distilbert::{DistilBertConfig, embeddings};
 use std::path::Path;
 use std::env;
 use std::sync::Arc;
@@ -6,6 +5,9 @@ use rust_transformers::preprocessing::vocab::base_vocab::Vocab;
 use rust_transformers::bert_tokenizer::BertTokenizer;
 use rust_transformers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use tch::{Device, nn, Tensor};
+
+use crate::distilbert::distilbert::DistilBertConfig;
+use crate::distilbert::embeddings::embeddings;
 
 mod distilbert;
 
@@ -46,7 +48,7 @@ fn main() {
 
     let output = input_tensor.apply_t(&embeddings, true);
     println!("{:?}", output);
-    
+
 //ToDo: check if the input is always padded to max_seq_length
 
 }
