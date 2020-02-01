@@ -28,7 +28,7 @@ fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn
 #[derive(Debug)]
 pub struct BertEmbedding {
     word_embeddings: nn::Embedding,
-    pub position_embeddings: nn::Embedding,
+    position_embeddings: nn::Embedding,
     layer_norm: nn::LayerNorm,
     dropout: Dropout,
 }

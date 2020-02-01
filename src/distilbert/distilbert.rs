@@ -28,7 +28,7 @@ pub enum Activation {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DistilBertConfig {
     pub activation: Activation,
-    pub attention_dropout: f32,
+    pub attention_dropout: f64,
     pub dim: i64,
     pub dropout: f64,
     pub hidden_dim: i64,
