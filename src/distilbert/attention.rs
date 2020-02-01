@@ -1,6 +1,8 @@
 use crate::distilbert::dropout::Dropout;
 use tch::{nn, Tensor};
 use crate::distilbert::distilbert::DistilBertConfig;
+use tch::kind::Kind::Float;
+
 
 #[derive(Debug)]
 pub struct MultiHeadSelfAttention {
@@ -43,7 +45,7 @@ impl MultiHeadSelfAttention {
         x.transpose(1, 2).contiguous().view((bs, -1, &self.n_heads * dim_per_head))
     }
 
-    fn forward_t(&self, query: &Tensor, key: &Tensor, value: &Tensor, mask: &Tensor, train: bool) -> Tensor {
+    pub fn forward_t(&self, query: &Tensor, key: &Tensor, value: &Tensor, mask: &Tensor, train: bool) -> (Tensor, Option<Tensor>) {
         let input_size = query.size();
         let (bs, q_length, dim) = (input_size[0], input_size[1], input_size[2]);
         let k_length = key.size()[1];
@@ -56,9 +58,17 @@ impl MultiHeadSelfAttention {
         let q: Tensor = q / (dim_per_head as f64).sqrt();
 
         let scores = q.matmul(&k.transpose(2, 3));
-//    ToDo: add masking calculation
+        let mask = mask.le1(&(mask.zeros_like() + 0.1)).view(mask_reshape).expand_as(&scores);
+        scores.masked_fill(&mask, std::f64::NEG_INFINITY);
 
+        let weights = scores.softmax(-1, Float).apply_t(&self.dropout, train);
 
-        Tensor::new()
+        let context = self.unshape(weights.matmul(&v), bs, dim_per_head).apply(&self.out_lin);
+
+        if !self.output_attentions {
+            (context, None)
+        } else {
+            (context, Some(weights))
+        }
     }
 }
