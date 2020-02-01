@@ -7,7 +7,7 @@ use tch::kind::Kind::Float;
 #[derive(Debug)]
 pub struct MultiHeadSelfAttention {
     n_heads: i64,
-    dim: i64,
+    dim_per_head: i64,
     dropout: Dropout,
     output_attentions: bool,
     q_lin: nn::Linear,
@@ -27,7 +27,7 @@ impl MultiHeadSelfAttention {
 
         MultiHeadSelfAttention {
             n_heads: config.n_heads,
-            dim: config.dim,
+            dim_per_head: config.dim / config.n_heads,
             dropout,
             output_attentions: config.output_attentions,
             q_lin,
@@ -37,33 +37,33 @@ impl MultiHeadSelfAttention {
         }
     }
 
-    fn shape(&self, x: Tensor, bs: i64, dim_per_head: i64) -> Tensor {
+    fn split_heads(&self, x: Tensor, bs: i64, dim_per_head: i64) -> Tensor {
         x.view((bs, -1, self.n_heads, dim_per_head)).transpose(1, 2)
     }
 
-    fn unshape(&self, x: Tensor, bs: i64, dim_per_head: i64) -> Tensor {
+    fn flatten(&self, x: Tensor, bs: i64, dim_per_head: i64) -> Tensor {
         x.transpose(1, 2).contiguous().view((bs, -1, &self.n_heads * dim_per_head))
     }
 
-    pub fn forward_t(&self, query: &Tensor, key: &Tensor, value: &Tensor, mask: &Tensor, train: bool) -> (Tensor, Option<Tensor>) {
-        let input_size = query.size();
-        let (bs, q_length, dim) = (input_size[0], input_size[1], input_size[2]);
+    pub fn forward_t(&self, query: &Tensor, key: &Tensor, value: &Tensor, mask: Option<&Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
+        let bs = query.size()[0];
         let k_length = key.size()[1];
-        let dim_per_head = self.dim / self.n_heads;
-        let mask_reshape = (bs, 1i64, 1i64, k_length);
 
-        let q = self.shape(query.apply(&self.q_lin), bs, dim_per_head);
-        let k = self.shape(key.apply(&self.k_lin), bs, dim_per_head);
-        let v = self.shape(value.apply(&self.v_lin), bs, dim_per_head);
-        let q: Tensor = q / (dim_per_head as f64).sqrt();
+        let q = self.split_heads(query.apply(&self.q_lin), bs, self.dim_per_head);
+        let k = self.split_heads(key.apply(&self.k_lin), bs, self.dim_per_head);
+        let v = self.split_heads(value.apply(&self.v_lin), bs, self.dim_per_head);
+        let q: Tensor = q / (self.dim_per_head as f64).sqrt();
 
-        let scores = q.matmul(&k.transpose(2, 3));
-        let mask = mask.le1(&(mask.zeros_like() + 0.1)).view(mask_reshape).expand_as(&scores);
-        scores.masked_fill(&mask, std::f64::NEG_INFINITY);
+        let scores = if let Some(mask) = mask {
+            let unmasked_scores = q.matmul(&k.transpose(2, 3));
+            let mask = mask.le1(&(mask.zeros_like() + 0.1)).view((bs, 1i64, 1i64, k_length)).expand_as(&unmasked_scores);
+            unmasked_scores.masked_fill(&mask, std::f64::NEG_INFINITY)
+        } else {
+            q.matmul(&k.transpose(2, 3))
+        };
 
         let weights = scores.softmax(-1, Float).apply_t(&self.dropout, train);
-
-        let context = self.unshape(weights.matmul(&v), bs, dim_per_head).apply(&self.out_lin);
+        let context = self.flatten(weights.matmul(&v), bs, self.dim_per_head).apply(&self.out_lin);
 
         if !self.output_attentions {
             (context, None)

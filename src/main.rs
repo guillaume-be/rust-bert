@@ -52,7 +52,9 @@ fn main() {
 //    Pass embeddings in self-attention layer
     let self_attention = MultiHeadSelfAttention::new(vs.root(), &config);
     let attention_mask = input_tensor.ones_like();
-    let output = self_attention.forward_t(&output, &output, &output, &attention_mask, true);
+//    let output = self_attention.forward_t(&output, &output, &output, Some(&attention_mask), true);
+    let output = self_attention.forward_t(&output, &output, &output, None, true);
+
     println!("{:?}", output);
 
 
