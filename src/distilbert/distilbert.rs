@@ -30,7 +30,7 @@ pub struct DistilBertConfig {
     pub activation: Activation,
     pub attention_dropout: f32,
     pub dim: i64,
-    pub dropout: f32,
+    pub dropout: f64,
     pub hidden_dim: i64,
     pub id2label: HashMap<i32, String>,
     pub initializer_range: f32,
@@ -64,6 +64,3 @@ impl DistilBertConfig {
 fn _gelu(x: Tensor) -> Tensor {
     &x * 0.5 * (1.0 + (x / ((2.0 as f64).sqrt())).erf())
 }
-
-//ToDo: add sinusoidal embeddings creation, layernorm and dropout to embeddings
-//ToDo: refactor embeddings layer as a struct with Impl block

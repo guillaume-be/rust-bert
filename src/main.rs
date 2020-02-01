@@ -7,7 +7,7 @@ use rust_transformers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, Tru
 use tch::{Device, nn, Tensor};
 
 use crate::distilbert::distilbert::DistilBertConfig;
-use crate::distilbert::embeddings::embeddings;
+use crate::distilbert::embeddings::BertEmbedding;
 
 mod distilbert;
 
@@ -44,11 +44,11 @@ fn main() {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Pass tokenized input through embeddings
-    let embeddings = embeddings(vs.root(), config);
+    let embeddings = BertEmbedding::new(vs.root(), &config);
 
     let output = input_tensor.apply_t(&embeddings, true);
     println!("{:?}", output);
 
-//ToDo: check if the input is always padded to max_seq_length
 
+//ToDo: check if the input is always padded to max_seq_length
 }
