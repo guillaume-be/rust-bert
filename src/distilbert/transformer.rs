@@ -3,6 +3,7 @@ use crate::distilbert::dropout::Dropout;
 use crate::distilbert::distilbert::{DistilBertConfig, Activation};
 use crate::distilbert::attention::MultiHeadSelfAttention;
 use tch::nn::LayerNorm;
+use std::borrow::BorrowMut;
 
 fn _gelu(x: &Tensor) -> Tensor {
     x * 0.5 * (1.0 + (x / ((2.0 as f64).sqrt())).erf())
@@ -64,5 +65,54 @@ impl TransformerBlock {
         let output = (input + &output).apply(&self.sa_layer_norm);
         let output = (&output + self.ffn.forward_t(&output, train)).apply(&self.output_layer_norm);
         (output, sa_weights)
+    }
+}
+
+pub struct Transformer {
+    output_attentions: bool,
+    output_hidden_states: bool,
+    layers: Vec<TransformerBlock>,
+}
+
+impl Transformer {
+    pub fn new(p: nn::Path, config: &DistilBertConfig) -> Transformer {
+        let output_attentions = config.output_attentions;
+        let output_hidden_states = config.output_hidden_states;
+
+        let mut layers: Vec<TransformerBlock> = vec!();
+        for layer_index in 0..config.n_layers {
+            layers.push(TransformerBlock::new(&p / layer_index, config));
+        };
+
+        Transformer { output_attentions, output_hidden_states, layers }
+    }
+
+    pub fn forward_t(&self, input: &Tensor, mask: Option<&Tensor>, train: bool)
+                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
+
+        let mut hidden_state = input.copy();
+        let mut attention_weights: Option<Tensor>;
+        let mut layers = self.layers.iter();
+        loop {
+            match layers.next() {
+                Some(layer) => {
+                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                        hidden_states.push(hidden_state.as_ref().copy());
+                    };
+
+                    let temp = layer.forward_t(&hidden_state, mask, train);
+                    hidden_state = temp.0;
+                    attention_weights = temp.1;
+                    if let Some(attentions) = all_attentions.borrow_mut() {
+                        attentions.push(attention_weights.as_ref().unwrap().copy());
+                    };
+                }
+                None => break
+            };
+        };
+
+        (hidden_state, all_hidden_states, all_attentions)
     }
 }

@@ -8,7 +8,7 @@ use tch::{Device, nn, Tensor};
 
 use crate::distilbert::distilbert::DistilBertConfig;
 use crate::distilbert::embeddings::BertEmbedding;
-use crate::distilbert::transformer::TransformerBlock;
+use crate::distilbert::transformer::Transformer;
 
 mod distilbert;
 
@@ -49,15 +49,12 @@ fn main() {
     let output = input_tensor.apply_t(&embeddings, true);
     println!("{:?}", output);
 
-//    Pass embeddings in self-attention layer
-//    let self_attention = MultiHeadSelfAttention::new(vs.root(), &config);
-//    let feed_forward_network = FeedForwardNetwork::new(vs.root(), &config);
-//    let (output, _) = self_attention.forward_t(&output, &output, &output, None, false);
-//    let output = feed_forward_network.forward_t(&output, false);
-    let transformer_block = TransformerBlock::new(vs.root(), &config);
-    let output = transformer_block.forward_t(&output, None, false);
+//    Pass embeddings in transformer
+    let transformer = Transformer::new(vs.root(), &config);
+    let (output, all_hidden_states, all_attentions) = transformer.forward_t(&output, None, false);
     println!("{:?}", output);
-
+    println!("{:?}", all_hidden_states);
+    println!("{:?}", all_attentions);
 
 
 //ToDo: check if the input is always padded to max_seq_length
