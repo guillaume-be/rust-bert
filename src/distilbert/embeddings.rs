@@ -1,5 +1,5 @@
 use tch::{nn, Tensor, Kind, Device};
-use tch::nn::{ModuleT, embedding, layer_norm};
+use tch::nn::{ModuleT, embedding, layer_norm, EmbeddingConfig};
 use crate::distilbert::distilbert::DistilBertConfig;
 use crate::distilbert::dropout::Dropout;
 
@@ -16,10 +16,11 @@ fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn
     sinusoidal_embedding.slice(1, 0, config.dim, 2).copy_(&sin_embeddings);
     sinusoidal_embedding.slice(1, 1, config.dim, 2).copy_(&cos_embeddings);
 
+    let embedding_config = EmbeddingConfig { padding_idx: 0, ..Default::default() };
     let mut embeddings = embedding(&nn::VarStore::new(device).root(),
                                    config.max_position_embeddings,
                                    config.dim,
-                                   Default::default());
+                                   embedding_config);
     embeddings.ws = sinusoidal_embedding;
     embeddings
 }
@@ -35,15 +36,18 @@ pub struct BertEmbedding {
 
 impl BertEmbedding {
     pub fn new(p: nn::Path, config: &DistilBertConfig) -> BertEmbedding {
+
+        let embedding_config = EmbeddingConfig { padding_idx: 0, ..Default::default() };
+
         let word_embeddings: nn::Embedding = embedding(&p / "word_embeddings",
                                                        config.vocab_size,
                                                        config.dim,
-                                                       Default::default());
+                                                       embedding_config);
         let position_embeddings: nn::Embedding = match config.sinusoidal_pos_embds {
             false => embedding(&p / "position_embeddings",
                                config.max_position_embeddings,
                                config.dim,
-                               Default::default()),
+                               embedding_config),
 
             true => create_sinusoidal_embeddings(&config, p.device())
         };

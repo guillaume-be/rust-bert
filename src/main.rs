@@ -6,7 +6,7 @@ use rust_transformers::bert_tokenizer::BertTokenizer;
 use rust_transformers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use tch::{Device, nn, Tensor};
 
-use crate::distilbert::distilbert::DistilBertConfig;
+use crate::distilbert::distilbert::{DistilBertConfig, FeedForwardNetwork};
 use crate::distilbert::embeddings::BertEmbedding;
 use crate::distilbert::attention::MultiHeadSelfAttention;
 
@@ -51,10 +51,11 @@ fn main() {
 
 //    Pass embeddings in self-attention layer
     let self_attention = MultiHeadSelfAttention::new(vs.root(), &config);
-    let attention_mask = input_tensor.ones_like();
+    let feed_forward_network = FeedForwardNetwork::new(vs.root(), &config);
+//    let attention_mask = input_tensor.ones_like();
 //    let output = self_attention.forward_t(&output, &output, &output, Some(&attention_mask), true);
-    let output = self_attention.forward_t(&output, &output, &output, None, true);
-
+    let (output, _) = self_attention.forward_t(&output, &output, &output, None, false);
+    let output = feed_forward_network.forward_t(&output, false);
     println!("{:?}", output);
 
 

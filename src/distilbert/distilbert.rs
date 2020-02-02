@@ -18,6 +18,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use serde::{Deserialize, Serialize};
+use self::tch::nn;
+use crate::distilbert::dropout::Dropout;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Activation {
@@ -61,6 +63,34 @@ impl DistilBertConfig {
     }
 }
 
-fn _gelu(x: Tensor) -> Tensor {
-    &x * 0.5 * (1.0 + (x / ((2.0 as f64).sqrt())).erf())
+fn _gelu(x: &Tensor) -> Tensor {
+    x * 0.5 * (1.0 + (x / ((2.0 as f64).sqrt())).erf())
+}
+
+fn _relu(x: &Tensor) -> Tensor {
+    x.relu()
+}
+
+pub struct FeedForwardNetwork {
+    lin1: nn::Linear,
+    lin2: nn::Linear,
+    dropout: Dropout,
+    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+}
+
+impl FeedForwardNetwork {
+    pub fn new(p: nn::Path, config: &DistilBertConfig) -> FeedForwardNetwork {
+        let lin1 = nn::linear(&p / "lin1", config.dim, config.hidden_dim, Default::default());
+        let lin2 = nn::linear(&p / "lin2", config.hidden_dim, config.dim, Default::default());
+        let dropout = Dropout::new(config.dropout);
+        let activation = Box::new(match &config.activation {
+            Activation::Gelu => _gelu,
+            Activation::Relu => _relu
+        });
+        FeedForwardNetwork { lin1, lin2, dropout, activation }
+    }
+
+    pub fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
+        (self.activation)(&input.apply(&self.lin1)).apply(&self.lin2).apply_t(&self.dropout, train)
+    }
 }
