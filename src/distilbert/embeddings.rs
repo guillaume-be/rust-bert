@@ -1,5 +1,5 @@
 use tch::{nn, Tensor, Kind, Device};
-use tch::nn::{ModuleT, embedding, layer_norm, EmbeddingConfig};
+use tch::nn::{ModuleT, embedding, EmbeddingConfig};
 use crate::distilbert::distilbert::DistilBertConfig;
 use crate::distilbert::dropout::Dropout;
 
@@ -51,7 +51,8 @@ impl BertEmbedding {
 
             true => create_sinusoidal_embeddings(&config, p.device())
         };
-        let layer_norm: nn::LayerNorm = layer_norm(&p, vec![config.dim], Default::default());
+        let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
+        let layer_norm: nn::LayerNorm = nn::layer_norm(&p, vec![config.dim], layer_norm_config);
         let dropout: Dropout = Dropout::new(config.dropout);
         BertEmbedding { word_embeddings, position_embeddings, layer_norm, dropout }
     }
