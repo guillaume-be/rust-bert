@@ -45,7 +45,7 @@ impl MultiHeadSelfAttention {
         x.transpose(1, 2).contiguous().view((bs, -1, &self.n_heads * dim_per_head))
     }
 
-    pub fn forward_t(&self, query: &Tensor, key: &Tensor, value: &Tensor, mask: Option<&Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
+    pub fn forward_t(&self, query: &Tensor, key: &Tensor, value: &Tensor, mask: &Option<Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
         let bs = query.size()[0];
         let k_length = key.size()[1];
 

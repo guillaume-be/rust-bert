@@ -17,6 +17,9 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use serde::{Deserialize, Serialize};
+use crate::distilbert::embeddings::BertEmbedding;
+use crate::distilbert::transformer::Transformer;
+use self::tch::{nn, Tensor};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Activation {
@@ -60,4 +63,41 @@ impl DistilBertConfig {
     }
 }
 
+pub struct DistilBertModel {
+    embeddings: BertEmbedding,
+    transformer: Transformer,
+}
+
+impl DistilBertModel {
+    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModel {
+        let embeddings = BertEmbedding::new(p, config);
+        let transformer = Transformer::new(p, config);
+        DistilBertModel { embeddings, transformer }
+    }
+
+    pub fn _get_embeddings(&self) -> &nn::Embedding {
+        self.embeddings._get_word_embeddings()
+    }
+
+    pub fn _set_embeddings(&mut self, new_embeddings: nn::Embedding) {
+        &self.embeddings._set_word_embeddings(new_embeddings);
+    }
+
+    pub fn forward_t(&self, input: Option<Tensor>, mask: Option<Tensor>, input_embeds: Option<Tensor>, train: bool)
+                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let input_embeddings = match input {
+            Some(input_value) => match input_embeds {
+                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
+                None => input_value.apply_t(&self.embeddings, train)
+            }
+            None => match input_embeds {
+                Some(embeds) => embeds.copy(),
+                None => { return Err("Only one of input ids or input embeddings may be set"); }
+            }
+        };
+
+        let transformer_output = (&self.transformer).forward_t(&input_embeddings, mask, train);
+        Ok(transformer_output)
+    }
+}
 

@@ -35,16 +35,15 @@ pub struct BertEmbedding {
 }
 
 impl BertEmbedding {
-    pub fn new(p: nn::Path, config: &DistilBertConfig) -> BertEmbedding {
-
+    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> BertEmbedding {
         let embedding_config = EmbeddingConfig { padding_idx: 0, ..Default::default() };
 
-        let word_embeddings: nn::Embedding = embedding(&p / "word_embeddings",
+        let word_embeddings: nn::Embedding = embedding(p / "word_embeddings",
                                                        config.vocab_size,
                                                        config.dim,
                                                        embedding_config);
         let position_embeddings: nn::Embedding = match config.sinusoidal_pos_embds {
-            false => embedding(&p / "position_embeddings",
+            false => embedding(p / "position_embeddings",
                                config.max_position_embeddings,
                                config.dim,
                                embedding_config),
@@ -52,9 +51,17 @@ impl BertEmbedding {
             true => create_sinusoidal_embeddings(&config, p.device())
         };
         let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let layer_norm: nn::LayerNorm = nn::layer_norm(&p, vec![config.dim], layer_norm_config);
+        let layer_norm: nn::LayerNorm = nn::layer_norm(p, vec![config.dim], layer_norm_config);
         let dropout: Dropout = Dropout::new(config.dropout);
         BertEmbedding { word_embeddings, position_embeddings, layer_norm, dropout }
+    }
+
+    pub fn _get_word_embeddings(&self) -> &nn::Embedding {
+        &self.word_embeddings
+    }
+
+    pub fn _set_word_embeddings(&mut self, new_embeddings: nn::Embedding) {
+        self.word_embeddings = new_embeddings;
     }
 }
 

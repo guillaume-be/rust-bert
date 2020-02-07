@@ -6,9 +6,7 @@ use rust_transformers::bert_tokenizer::BertTokenizer;
 use rust_transformers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use tch::{Device, nn, Tensor};
 
-use crate::distilbert::distilbert::DistilBertConfig;
-use crate::distilbert::embeddings::BertEmbedding;
-use crate::distilbert::transformer::Transformer;
+use crate::distilbert::distilbert::{DistilBertConfig, DistilBertModel};
 
 mod distilbert;
 
@@ -44,14 +42,10 @@ fn main() {
         collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
-//    Pass tokenized input through embeddings
-    let embeddings = BertEmbedding::new(vs.root(), &config);
-    let output = input_tensor.apply_t(&embeddings, true);
-    println!("{:?}", output);
 
-//    Pass embeddings in transformer
-    let transformer = Transformer::new(vs.root(), &config);
-    let (output, all_hidden_states, all_attentions) = transformer.forward_t(&output, None, false);
+    let distil_bert_model = DistilBertModel::new(&vs.root(), &config);
+    let output = distil_bert_model.forward_t(Some(input_tensor), None, None, false);
+    let (output, all_hidden_states, all_attentions) = output.unwrap();
     println!("{:?}", output);
     println!("{:?}", all_hidden_states);
     println!("{:?}", all_attentions);

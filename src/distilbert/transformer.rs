@@ -45,12 +45,12 @@ pub struct TransformerBlock {
 }
 
 impl TransformerBlock {
-    pub fn new(p: nn::Path, config: &DistilBertConfig) -> TransformerBlock {
-        let attention = MultiHeadSelfAttention::new(&p / "attention", &config);
+    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> TransformerBlock {
+        let attention = MultiHeadSelfAttention::new(p / "attention", &config);
         let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let sa_layer_norm = nn::layer_norm(&p, vec![config.dim], layer_norm_config);
-        let ffn = FeedForwardNetwork::new(&p / "FFN", &config);
-        let output_layer_norm = nn::layer_norm(&p, vec![config.dim], layer_norm_config);
+        let sa_layer_norm = nn::layer_norm(p, vec![config.dim], layer_norm_config);
+        let ffn = FeedForwardNetwork::new(p / "FFN", &config);
+        let output_layer_norm = nn::layer_norm(p, vec![config.dim], layer_norm_config);
 
         TransformerBlock {
             attention,
@@ -60,7 +60,7 @@ impl TransformerBlock {
         }
     }
 
-    pub fn forward_t(&self, input: &Tensor, mask: Option<&Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
+    pub fn forward_t(&self, input: &Tensor, mask: &Option<Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
         let (output, sa_weights) = self.attention.forward_t(&input, &input, &input, mask, train);
         let output = (input + &output).apply(&self.sa_layer_norm);
         let output = (&output + self.ffn.forward_t(&output, train)).apply(&self.output_layer_norm);
@@ -75,19 +75,19 @@ pub struct Transformer {
 }
 
 impl Transformer {
-    pub fn new(p: nn::Path, config: &DistilBertConfig) -> Transformer {
+    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> Transformer {
         let output_attentions = config.output_attentions;
         let output_hidden_states = config.output_hidden_states;
 
         let mut layers: Vec<TransformerBlock> = vec!();
         for layer_index in 0..config.n_layers {
-            layers.push(TransformerBlock::new(&p / layer_index, config));
+            layers.push(TransformerBlock::new(&(p / layer_index), config));
         };
 
         Transformer { output_attentions, output_hidden_states, layers }
     }
 
-    pub fn forward_t(&self, input: &Tensor, mask: Option<&Tensor>, train: bool)
+    pub fn forward_t(&self, input: &Tensor, mask: Option<Tensor>, train: bool)
                      -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
         let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
@@ -102,7 +102,7 @@ impl Transformer {
                         hidden_states.push(hidden_state.as_ref().copy());
                     };
 
-                    let temp = layer.forward_t(&hidden_state, mask, train);
+                    let temp = layer.forward_t(&hidden_state, &mask, train);
                     hidden_state = temp.0;
                     attention_weights = temp.1;
                     if let Some(attentions) = all_attentions.borrow_mut() {
