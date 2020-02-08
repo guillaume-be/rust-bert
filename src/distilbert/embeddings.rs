@@ -63,7 +63,7 @@ impl BertEmbedding {
             true => create_sinusoidal_embeddings(&config, p.device())
         };
         let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let layer_norm: nn::LayerNorm = nn::layer_norm(p, vec![config.dim], layer_norm_config);
+        let layer_norm: nn::LayerNorm = nn::layer_norm(p / "LayerNorm", vec![config.dim], layer_norm_config);
         let dropout: Dropout = Dropout::new(config.dropout);
         BertEmbedding { word_embeddings, position_embeddings, layer_norm, dropout }
     }

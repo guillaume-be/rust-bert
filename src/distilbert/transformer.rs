@@ -60,9 +60,9 @@ impl TransformerBlock {
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> TransformerBlock {
         let attention = MultiHeadSelfAttention::new(p / "attention", &config);
         let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let sa_layer_norm = nn::layer_norm(p, vec![config.dim], layer_norm_config);
-        let ffn = FeedForwardNetwork::new(p / "FFN", &config);
-        let output_layer_norm = nn::layer_norm(p, vec![config.dim], layer_norm_config);
+        let sa_layer_norm = nn::layer_norm(p / "sa_layer_norm", vec![config.dim], layer_norm_config);
+        let ffn = FeedForwardNetwork::new(p / "ffn", &config);
+        let output_layer_norm = nn::layer_norm(p / "output_layer_norm", vec![config.dim], layer_norm_config);
 
         TransformerBlock {
             attention,
@@ -88,6 +88,7 @@ pub struct Transformer {
 
 impl Transformer {
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> Transformer {
+        let p = &(p / "layer");
         let output_attentions = config.output_attentions;
         let output_hidden_states = config.output_hidden_states;
 

@@ -12,3 +12,4 @@ rust_transformers = "0.1.0"
 tch = { git = "https://github.com/LaurentMazare/tch-rs"}
 serde_json = "1.0.45"
 serde = {version = "1.0.104", features = ["derive"]}
+failure = "0.1.6"

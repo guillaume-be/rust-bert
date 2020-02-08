@@ -70,8 +70,9 @@ pub struct DistilBertModel {
 
 impl DistilBertModel {
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModel {
-        let embeddings = BertEmbedding::new(p, config);
-        let transformer = Transformer::new(p, config);
+        let p = &(p / "distilbert");
+        let embeddings = BertEmbedding::new(&(p / "embeddings"), config);
+        let transformer = Transformer::new(&(p / "transformer"), config);
         DistilBertModel { embeddings, transformer }
     }
 
