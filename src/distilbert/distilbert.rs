@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::distilbert::embeddings::BertEmbedding;
 use crate::distilbert::transformer::Transformer;
 use self::tch::{nn, Tensor};
+use crate::distilbert::dropout::Dropout;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Activation {
@@ -46,7 +47,7 @@ pub struct DistilBertConfig {
     pub output_hidden_states: bool,
     pub output_past: bool,
     pub qa_dropout: f32,
-    pub seq_classifier_dropout: f32,
+    pub seq_classifier_dropout: f64,
     pub sinusoidal_pos_embds: bool,
     pub tie_weights: bool,
     pub torchscript: bool,
@@ -102,3 +103,38 @@ impl DistilBertModel {
     }
 }
 
+pub struct DistilBertModelClassifier {
+    distil_bert_model: DistilBertModel,
+    pre_classifier: nn::Linear,
+    classifier: nn::Linear,
+    dropout: Dropout,
+}
+
+impl DistilBertModelClassifier {
+    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModelClassifier {
+        let distil_bert_model = DistilBertModel::new(&p, config);
+        let pre_classifier = nn::linear(&(p / "pre_classifier"), config.dim, config.dim, Default::default());
+        let classifier = nn::linear(&(p / "classifier"), config.dim, config.num_labels, Default::default());
+        let dropout = Dropout::new(config.seq_classifier_dropout);
+
+        DistilBertModelClassifier { distil_bert_model, pre_classifier, classifier, dropout }
+    }
+
+    pub fn forward_t(&self, input: Option<Tensor>, mask: Option<Tensor>, input_embeds: Option<Tensor>, train: bool)
+                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+
+        let (output, all_hidden_states, all_attentions) = match self.distil_bert_model.forward_t(input, mask, input_embeds, train) {
+            Ok(value) => value,
+            Err(err) => return Err(err)
+        };
+
+        let output= output
+            .select(1, 0)
+            .apply_t(&self.pre_classifier, train)
+            .relu()
+            .apply_t(&self.dropout, train)
+            .apply_t(&self.classifier, train);
+
+        Ok((output, all_hidden_states, all_attentions))
+    }
+}

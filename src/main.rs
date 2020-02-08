@@ -6,7 +6,7 @@ use rust_transformers::bert_tokenizer::BertTokenizer;
 use rust_transformers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use tch::{Device, nn, Tensor};
 
-use crate::distilbert::distilbert::{DistilBertConfig, DistilBertModel};
+use crate::distilbert::distilbert::{DistilBertConfig, DistilBertModelClassifier};
 #[macro_use]
 extern crate failure;
 mod distilbert;
@@ -24,7 +24,7 @@ fn main()  -> failure::Fallible<()> {
 
 //    Creation of tokenizer
     let vocab_path = "E:/Coding/backup-rust/rust-transformers/resources/vocab/bert-base-uncased-vocab.txt";
-    let weights_path = "E:/Coding/rust-bert/resources/distilbert-base-uncased.ot";
+    let weights_path = "E:/Coding/rust-bert/resources/distilbert-base-uncased-finetuned-sst-2-english-pytorch_model.ot";
     let vocab = Arc::new(rust_transformers::BertVocab::from_file(vocab_path));
     let tokenizer: BertTokenizer = BertTokenizer::from_existing_vocab(vocab.clone());
 
@@ -45,15 +45,14 @@ fn main()  -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 
-    let distil_bert_model = DistilBertModel::new(&vs.root(), &config);
+    let distil_bert_model = DistilBertModelClassifier::new(&vs.root(), &config);
     vs.load(weights_path)?;
     let output = distil_bert_model.forward_t(Some(input_tensor), None, None, false);
     let (output, all_hidden_states, all_attentions) = output.unwrap();
     println!("{:?}", output);
-    output.get(0).get(0).print();
+    output.print();
     println!("{:?}", all_hidden_states);
     println!("{:?}", all_attentions);
-
 
     Ok(())
 
