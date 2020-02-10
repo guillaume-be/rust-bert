@@ -1,6 +1,6 @@
 pub mod distilbert;
-pub mod embeddings;
-pub mod dropout;
-pub mod attention;
-pub mod transformer;
+mod embeddings;
+mod dropout;
+mod attention;
+mod transformer;
 pub mod sentiment;
