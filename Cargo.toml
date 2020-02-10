@@ -3,8 +3,13 @@ name = "rust-bert"
 version = "0.1.0"
 authors = ["Guillaume B <guillaume.becquin@gmail.com>"]
 edition = "2018"
+default-run = "rust-bert"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "convert-tensor"
+path = "src/convert-tensor.rs"
 
 [dependencies]
 rust_transformers = "0.1.0"
