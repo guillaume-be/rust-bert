@@ -17,6 +17,7 @@ An example for sentiment analysis classification is provided:
 
     let output = sentiment_classifier.predict(input.to_vec());
 ```
+(Example courtesy of IMDb (http://www.imdb.com))
 
 Output:
 ```
@@ -38,5 +39,4 @@ The model weights need to be converter to a binary format that can be read by Li
    - Set-up a virtual environment and install dependencies
    - run the conversion script `python /utils/download-dependencies.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert`
 4. Run the example `cargo run --release`
-
 
