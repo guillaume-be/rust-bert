@@ -38,8 +38,8 @@ impl FeedForwardNetwork {
         let lin2 = nn::linear(&p / "lin2", config.hidden_dim, config.dim, Default::default());
         let dropout = Dropout::new(config.dropout);
         let activation = Box::new(match &config.activation {
-            Activation::Gelu => _gelu,
-            Activation::Relu => _relu
+            Activation::gelu => _gelu,
+            Activation::relu => _relu
         });
         FeedForwardNetwork { lin1, lin2, dropout, activation }
     }

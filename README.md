@@ -33,10 +33,10 @@ The model configuration and vocabulary are downloaded directly from Huggingface'
 The model weights need to be converter to a binary format that can be read by Libtorch (the original `.pth` files are pickled and cannot be used directly). A Python script for downloading the required files & running the necessary steps is provided.
 
 1. Install the Rust nightly toolchain (https://www.rust-lang.org/tools/install)
-2. Compile the package : `cargo build --release`
+2. Compile the package: `cargo build --release`
 3. Download the model files & perform necessary conversions
    - Set-up a virtual environment and install dependencies
-   - run the conversion script `python download-dependencies.py --dst="/path/to/model/files"`
+   - run the conversion script `python download-dependencies.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert`
 4. Run the example `cargo run --release`
 
 

@@ -1,19 +1,18 @@
-use std::path::Path;
-use std::env;
+use std::path::PathBuf;
 use tch::Device;
 use rust_bert::distilbert::sentiment::SentimentClassifier;
+
 extern crate failure;
+extern crate dirs;
 
 fn main() -> failure::Fallible<()> {
 
 //    Resources paths
-    let config_path = env::var("distilbert_config_path").unwrap();
-    let vocab_path = env::var("distilbert_vocab_path").unwrap();
-    let weights_path = env::var("distilbert_weights_path").unwrap();
-
-    let config_path = Path::new(&config_path);
-    let vocab_path = Path::new(&vocab_path);
-    let weights_path = Path::new(&weights_path);
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+    let weights_path = &home.as_path().join("model.ot");
 
 //    Set-up classifier
     let device = Device::cuda_if_available();
