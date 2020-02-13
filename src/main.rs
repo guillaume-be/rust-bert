@@ -10,6 +10,7 @@ fn main() -> failure::Fallible<()> {
 //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
+    home.push("distilbert_sst2");
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let weights_path = &home.as_path().join("model.ot");

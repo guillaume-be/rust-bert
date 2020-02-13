@@ -36,23 +36,23 @@ pub struct DistilBertConfig {
     pub dim: i64,
     pub dropout: f64,
     pub hidden_dim: i64,
-    pub id2label: HashMap<i32, String>,
+    pub id2label: Option<HashMap<i32, String>>,
     pub initializer_range: f32,
-    pub is_decoder: bool,
-    pub label2id: HashMap<String, i32>,
+    pub is_decoder: Option<bool>,
+    pub label2id: Option<HashMap<String, i32>>,
     pub max_position_embeddings: i64,
     pub n_heads: i64,
     pub n_layers: i64,
     pub num_labels: i64,
     pub output_attentions: bool,
     pub output_hidden_states: bool,
-    pub output_past: bool,
+    pub output_past: Option<bool>,
     pub qa_dropout: f32,
     pub seq_classif_dropout: f64,
     pub sinusoidal_pos_embds: bool,
     pub tie_weights_: bool,
     pub torchscript: bool,
-    pub use_bfloat16: bool,
+    pub use_bfloat16: Option<bool>,
     pub vocab_size: i64,
 }
 
@@ -134,6 +134,41 @@ impl DistilBertModelClassifier {
             .relu()
             .apply_t(&self.dropout, train)
             .apply_t(&self.classifier, train);
+
+        Ok((output, all_hidden_states, all_attentions))
+    }
+}
+
+pub struct DistilBertModelMaskedLM {
+    distil_bert_model: DistilBertModel,
+    vocab_transform: nn::Linear,
+    vocab_layer_norm: nn::LayerNorm,
+    vocab_projector: nn::Linear,
+}
+
+impl DistilBertModelMaskedLM {
+    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModelMaskedLM {
+        let distil_bert_model = DistilBertModel::new(&p, config);
+        let vocab_transform = nn::linear(&(p / "vocab_transform"), config.dim, config.dim, Default::default());
+        let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
+        let vocab_layer_norm = nn::layer_norm(p / "vocab_layer_norm", vec![config.dim], layer_norm_config);
+        let vocab_projector = nn::linear(&(p / "vocab_projector"), config.dim, config.vocab_size, Default::default());
+
+        DistilBertModelMaskedLM { distil_bert_model, vocab_transform, vocab_layer_norm, vocab_projector }
+    }
+
+    pub fn forward_t(&self, input: Option<Tensor>, mask: Option<Tensor>, input_embeds: Option<Tensor>, train: bool)
+                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (output, all_hidden_states, all_attentions) = match self.distil_bert_model.forward_t(input, mask, input_embeds, train) {
+            Ok(value) => value,
+            Err(err) => return Err(err)
+        };
+
+        let output = output
+            .apply_t(&self.vocab_transform, train)
+            .gelu()
+            .apply_t(&self.vocab_layer_norm, train)
+            .apply_t(&self.vocab_projector, train);
 
         Ok((output, all_hidden_states, all_attentions))
     }
