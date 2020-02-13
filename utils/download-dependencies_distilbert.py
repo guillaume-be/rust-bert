@@ -8,11 +8,11 @@ import numpy as np
 import torch
 import subprocess
 
-config_path = DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP["distilbert-base-uncased-finetuned-sst-2-english"]
+config_path = DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP["distilbert-base-uncased"]
 vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["distilbert-base-uncased"]
-weights_path = DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP["distilbert-base-uncased-finetuned-sst-2-english"]
+weights_path = DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP["distilbert-base-uncased"]
 
-target_path = Path.home() / 'rustbert'
+target_path = Path.home() / 'rustbert' / 'distilbert'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
