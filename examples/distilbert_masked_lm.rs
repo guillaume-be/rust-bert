@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use tch::{Device, Tensor, nn, no_grad};
 use rust_bert::distilbert::distilbert::{DistilBertModelMaskedLM, DistilBertConfig};
-use rust_transformers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
-use rust_transformers::bert_tokenizer::BertTokenizer;
-use rust_transformers::preprocessing::vocab::base_vocab::Vocab;
+use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
+use rust_tokenizers::bert_tokenizer::BertTokenizer;
+use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 
 extern crate failure;
 extern crate dirs;

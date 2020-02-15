@@ -1,9 +1,9 @@
-use rust_transformers::bert_tokenizer::BertTokenizer;
+use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use crate::distilbert::distilbert::{DistilBertModelClassifier, DistilBertConfig};
 use std::path::Path;
 use tch::{Device, Tensor, Kind, no_grad};
 use tch::nn::VarStore;
-use rust_transformers::preprocessing::tokenizer::base_tokenizer::{TruncationStrategy, MultiThreadedTokenizer};
+use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TruncationStrategy, MultiThreadedTokenizer};
 
 
 #[derive(Debug, PartialEq)]
