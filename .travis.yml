@@ -1,0 +1,20 @@
+language: rust
+cache:
+  - cargo
+  - pip
+  - directories:
+    - $HOME/.cache/pip
+    - $HOME/.cache/torch
+    - $HOME/rustbert
+
+jobs:
+  include:
+    - script:
+      - cargo build --verbose
+    - before_script:
+      - sudo apt-get install python3-pip python3-setuptools
+      - pip3 install --upgrade pip
+      - pip3 install -r requirements.txt --progress-bar off
+      - ls ./utils/*.py|xargs -n 1 python3
+      script:
+        - cargo test

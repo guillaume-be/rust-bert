@@ -18,12 +18,17 @@ temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
 temp_weights = get_from_cache(weights_path)
 
-os.makedirs(target_path, exist_ok=True)
-shutil.copy(temp_config, target_path / 'config.json')
-shutil.copy(temp_vocab, target_path / 'vocab.txt')
-shutil.copy(temp_weights, target_path / 'model.bin')
+os.makedirs(str(target_path), exist_ok=True)
 
-weights = torch.load(temp_weights)
+config_path = str(target_path / 'config.json')
+vocab_path = str(target_path / 'vocab.txt')
+model_path = str(target_path / 'model.bin')
+
+shutil.copy(temp_config, config_path)
+shutil.copy(temp_vocab, vocab_path)
+shutil.copy(temp_weights, model_path)
+
+weights = torch.load(temp_weights, map_location='cpu')
 nps = {}
 for k, v in weights.items():
     nps[k] = v.cpu().numpy()
@@ -36,5 +41,4 @@ target = str(target_path / 'model.ot')
 toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
 
 subprocess.call(
-    ['cargo', '+nightly', 'run', '--bin=convert-tensor', f'--manifest-path={toml_location}', '--', source,
-     target])
+    ['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])

@@ -14,8 +14,8 @@ pub enum SentimentPolarity {
 
 #[derive(Debug)]
 pub struct Sentiment {
-    polarity: SentimentPolarity,
-    score: f64,
+    pub polarity: SentimentPolarity,
+    pub score: f64,
 }
 
 pub struct SentimentClassifier {
