@@ -28,7 +28,7 @@ shutil.copy(temp_config, config_path)
 shutil.copy(temp_vocab, vocab_path)
 shutil.copy(temp_weights, model_path)
 
-weights = torch.load(temp_weights)
+weights = torch.load(temp_weights, map_location='cpu')
 nps = {}
 for k, v in weights.items():
     nps[k] = v.cpu().numpy()
