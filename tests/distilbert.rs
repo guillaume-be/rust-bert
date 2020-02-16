@@ -5,6 +5,7 @@ use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, Trunc
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use rust_bert::{SentimentClassifier, SentimentPolarity};
+use rust_bert::common::config::Config;
 
 extern crate failure;
 extern crate dirs;
@@ -45,7 +46,6 @@ fn sentiment_classifier() -> failure::Fallible<()> {
 
     Ok(())
 }
-
 
 
 #[test]

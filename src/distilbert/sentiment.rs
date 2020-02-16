@@ -4,6 +4,7 @@ use std::path::Path;
 use tch::{Device, Tensor, Kind, no_grad};
 use tch::nn::VarStore;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TruncationStrategy, MultiThreadedTokenizer};
+use crate::common::config::Config;
 
 
 #[derive(Debug, PartialEq)]

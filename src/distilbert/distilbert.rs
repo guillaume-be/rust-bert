@@ -12,15 +12,13 @@
 
 extern crate tch;
 
-use std::path::Path;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
 use serde::{Deserialize, Serialize};
 use crate::distilbert::embeddings::BertEmbedding;
 use crate::distilbert::transformer::Transformer;
 use self::tch::{nn, Tensor};
 use crate::distilbert::dropout::Dropout;
+use crate::common::config::Config;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,14 +54,7 @@ pub struct DistilBertConfig {
     pub vocab_size: i64,
 }
 
-impl DistilBertConfig {
-    pub fn from_file(path: &Path) -> DistilBertConfig {
-        let f = File::open(path).expect("Could not open configuration file.");
-        let br = BufReader::new(f);
-        let config: DistilBertConfig = serde_json::from_reader(br).expect("could not parse configuration");
-        config
-    }
-}
+impl Config<DistilBertConfig> for DistilBertConfig {}
 
 pub struct DistilBertModel {
     embeddings: BertEmbedding,
