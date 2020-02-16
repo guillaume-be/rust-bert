@@ -13,7 +13,6 @@
 
 use serde::{Deserialize, Serialize};
 use crate::common::config::Config;
-use tch::Tensor;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,10 +36,7 @@ pub struct BertConfig {
     pub type_vocab_size: i64,
     pub vocab_size: i64,
     pub output_attentions: Option<bool>,
+    pub is_decoder: Option<bool>,
 }
 
 impl Config<BertConfig> for BertConfig {}
-
-pub fn mish(input: &Tensor) -> Tensor {
-    input * (input.softplus().tanh())
-}
