@@ -4,6 +4,7 @@ cache:
   - pip
   - directories:
     - $HOME/.cache/pip
+    - $HOME/.cache/torch
     - $HOME/rustbert
 
 jobs:

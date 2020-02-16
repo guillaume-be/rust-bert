@@ -18,7 +18,7 @@ temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
 temp_weights = get_from_cache(weights_path)
 
-os.makedirs(target_path, exist_ok=True)
+os.makedirs(str(target_path), exist_ok=True)
 shutil.copy(temp_config, target_path / 'config.json')
 shutil.copy(temp_vocab, target_path / 'vocab.txt')
 shutil.copy(temp_weights, target_path / 'model.bin')
