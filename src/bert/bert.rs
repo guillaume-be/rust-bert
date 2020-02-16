@@ -36,6 +36,7 @@ pub struct BertConfig {
     pub num_hidden_layers: i64,
     pub type_vocab_size: i64,
     pub vocab_size: i64,
+    pub output_attentions: Option<bool>,
 }
 
 impl Config<BertConfig> for BertConfig {}
