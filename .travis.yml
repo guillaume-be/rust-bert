@@ -6,8 +6,8 @@ jobs:
     - script:
       - cargo build --verbose
     - before_script:
-      - python -m pip install --upgrade pip
-      - ls *.py|xargs -n 1 python
+      - python -m pip3 install --upgrade pip --user
+      - ls *.py|xargs -n 1 python3
       script:
         - cargo run --example distilbert_masked_lm
 
