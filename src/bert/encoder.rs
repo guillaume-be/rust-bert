@@ -14,6 +14,7 @@
 use tch::{Tensor, nn};
 use crate::BertConfig;
 use crate::bert::attention::{BertAttention, BertIntermediate, BertOutput};
+use std::borrow::BorrowMut;
 
 pub struct BertLayer {
     attention: BertAttention,
@@ -65,5 +66,78 @@ impl BertLayer {
         let output = self.output.forward_t(&output, &attention_output, train);
 
         (output, attention_weights, cross_attention_weights)
+    }
+}
+
+pub struct BertEncoder {
+    output_attentions: bool,
+    output_hidden_states: bool,
+    layers: Vec<BertLayer>,
+}
+
+impl BertEncoder {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertEncoder {
+        let p = &(p / "layer");
+        let output_attentions = if let Some(value) = config.output_attentions { value } else { false };
+        let output_hidden_states = if let Some(value) = config.output_hidden_states { value } else { false };
+
+        let mut layers: Vec<BertLayer> = vec!();
+        for layer_index in 0..config.num_hidden_layers {
+            layers.push(BertLayer::new(&(p / layer_index), config));
+        };
+
+        BertEncoder { output_attentions, output_hidden_states, layers }
+    }
+
+    pub fn forward_t(&self,
+                     hidden_states: &Tensor,
+                     mask: &Option<Tensor>,
+                     encoder_hidden_states: &Option<Tensor>,
+                     encoder_mask: &Option<Tensor>,
+                     train: bool)
+                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
+
+        let mut hidden_state = hidden_states.copy();
+        let mut attention_weights: Option<Tensor>;
+        let mut layers = self.layers.iter();
+        loop {
+            match layers.next() {
+                Some(layer) => {
+                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                        hidden_states.push(hidden_state.as_ref().copy());
+                    };
+
+                    let temp = layer.forward_t(&hidden_state, &mask, encoder_hidden_states, encoder_mask, train);
+                    hidden_state = temp.0;
+                    attention_weights = temp.1;
+                    if let Some(attentions) = all_attentions.borrow_mut() {
+                        attentions.push(attention_weights.as_ref().unwrap().copy());
+                    };
+                }
+                None => break
+            };
+        };
+
+        (hidden_state, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct BertPooler {
+    lin: nn::Linear,
+}
+
+impl BertPooler {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertPooler {
+        let lin = nn::linear(&(p / "dense"), config.hidden_size, config.hidden_size, Default::default());
+        BertPooler { lin }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        hidden_states
+            .select(1, 0)
+            .apply(&self.lin)
+            .tanh()
     }
 }

@@ -36,6 +36,7 @@ pub struct BertConfig {
     pub type_vocab_size: i64,
     pub vocab_size: i64,
     pub output_attentions: Option<bool>,
+    pub output_hidden_states: Option<bool>,
     pub is_decoder: Option<bool>,
 }
 

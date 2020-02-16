@@ -67,7 +67,7 @@ impl BertEmbeddings {
             }
         };
 
-        let seq_length = (&input_embeddings).size()[1].to_owned();
+        let seq_length = input_embeddings.as_ref().size()[1].to_owned();
 
         let position_ids = match position_ids {
             Some(value) => value,
