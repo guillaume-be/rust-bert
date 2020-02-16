@@ -10,7 +10,7 @@ jobs:
     - before_script:
       - sudo apt-get install python3-pip
       - pip3 install --upgrade pip
-      - pip3 install -r requirements.txt
+      - pip3 install -r requirements.txt --progress-bar off
       - ls *.py|xargs -n 1 python3
       script:
         - cargo test
