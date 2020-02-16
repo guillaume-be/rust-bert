@@ -4,6 +4,7 @@ use rust_bert::distilbert::distilbert::{DistilBertModelMaskedLM, DistilBertConfi
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
+use rust_bert::common::config::Config;
 
 extern crate failure;
 extern crate dirs;

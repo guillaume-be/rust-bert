@@ -14,11 +14,11 @@ extern crate tch;
 
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use crate::distilbert::embeddings::BertEmbedding;
+use crate::distilbert::embeddings::DistilBertEmbedding;
 use crate::distilbert::transformer::Transformer;
 use self::tch::{nn, Tensor};
-use crate::distilbert::dropout::Dropout;
 use crate::common::config::Config;
+use crate::common::dropout::Dropout;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -57,14 +57,14 @@ pub struct DistilBertConfig {
 impl Config<DistilBertConfig> for DistilBertConfig {}
 
 pub struct DistilBertModel {
-    embeddings: BertEmbedding,
+    embeddings: DistilBertEmbedding,
     transformer: Transformer,
 }
 
 impl DistilBertModel {
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModel {
         let p = &(p / "distilbert");
-        let embeddings = BertEmbedding::new(&(p / "embeddings"), config);
+        let embeddings = DistilBertEmbedding::new(&(p / "embeddings"), config);
         let transformer = Transformer::new(&(p / "transformer"), config);
         DistilBertModel { embeddings, transformer }
     }

@@ -13,7 +13,7 @@
 use tch::{nn, Tensor, Kind, Device};
 use tch::nn::{ModuleT, embedding, EmbeddingConfig};
 use crate::distilbert::distilbert::DistilBertConfig;
-use crate::distilbert::dropout::Dropout;
+use crate::common::dropout::Dropout;
 
 
 fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn::Embedding {
@@ -39,15 +39,15 @@ fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn
 
 
 #[derive(Debug)]
-pub struct BertEmbedding {
+pub struct DistilBertEmbedding {
     word_embeddings: nn::Embedding,
     position_embeddings: nn::Embedding,
     layer_norm: nn::LayerNorm,
     dropout: Dropout,
 }
 
-impl BertEmbedding {
-    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> BertEmbedding {
+impl DistilBertEmbedding {
+    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertEmbedding {
         let embedding_config = EmbeddingConfig { padding_idx: 0, ..Default::default() };
 
         let word_embeddings: nn::Embedding = embedding(p / "word_embeddings",
@@ -65,7 +65,7 @@ impl BertEmbedding {
         let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
         let layer_norm: nn::LayerNorm = nn::layer_norm(p / "LayerNorm", vec![config.dim], layer_norm_config);
         let dropout: Dropout = Dropout::new(config.dropout);
-        BertEmbedding { word_embeddings, position_embeddings, layer_norm, dropout }
+        DistilBertEmbedding { word_embeddings, position_embeddings, layer_norm, dropout }
     }
 
     pub fn _get_word_embeddings(&self) -> &nn::Embedding {
@@ -77,7 +77,7 @@ impl BertEmbedding {
     }
 }
 
-impl ModuleT for BertEmbedding {
+impl ModuleT for DistilBertEmbedding {
     fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
         let seq_length = (&input).size().last().unwrap().to_owned();
         let position_ids = Tensor::arange(seq_length, (Kind::Int64, input.device()));

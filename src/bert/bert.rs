@@ -1,4 +1,5 @@
 // Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
+// Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 // Copyright 2019 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +13,7 @@
 
 use serde::{Deserialize, Serialize};
 use crate::common::config::Config;
+use tch::Tensor;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,3 +39,7 @@ pub struct BertConfig {
 }
 
 impl Config<BertConfig> for BertConfig {}
+
+pub fn mish(input: &Tensor) -> Tensor {
+    input * (input.softplus().tanh())
+}
