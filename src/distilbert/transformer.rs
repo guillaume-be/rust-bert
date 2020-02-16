@@ -16,14 +16,7 @@ use crate::distilbert::attention::MultiHeadSelfAttention;
 use tch::nn::LayerNorm;
 use std::borrow::BorrowMut;
 use crate::common::dropout::Dropout;
-
-fn _gelu(x: &Tensor) -> Tensor {
-    x * 0.5 * (1.0 + (x / ((2.0 as f64).sqrt())).erf())
-}
-
-fn _relu(x: &Tensor) -> Tensor {
-    x.relu()
-}
+use crate::common::activations::{_gelu, _relu};
 
 pub struct FeedForwardNetwork {
     lin1: nn::Linear,

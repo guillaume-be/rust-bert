@@ -30,7 +30,7 @@ pub struct BertConfig {
     pub hidden_dropout_prob: f64,
     pub hidden_size: i64,
     pub initializer_range: f32,
-    pub intermediate_size: f32,
+    pub intermediate_size: i64,
     pub max_position_embeddings: i64,
     pub num_attention_heads: i64,
     pub num_hidden_layers: i64,

@@ -15,6 +15,8 @@ use crate::common::dropout::Dropout;
 use tch::{nn, Tensor};
 use crate::BertConfig;
 use tch::kind::Kind::Float;
+use crate::bert::bert::Activation;
+use crate::common::activations::{_gelu, _relu, _mish};
 
 #[derive(Debug)]
 pub struct BertSelfAttention {
@@ -107,3 +109,97 @@ impl BertSelfAttention {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct BertSelfOutput {
+    dense: nn::Linear,
+    layer_norm: nn::LayerNorm,
+    dropout: Dropout,
+}
+
+impl BertSelfOutput {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertSelfOutput {
+        let dense = nn::linear(p / "dense", config.hidden_size, config.hidden_size, Default::default());
+        let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
+        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.hidden_size], layer_norm_config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+
+        BertSelfOutput { dense, layer_norm, dropout }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, input_tensor: &Tensor, train: bool) -> Tensor {
+        let hidden_states: Tensor = input_tensor + hidden_states.apply(&self.dense).apply_t(&self.dropout, train);
+        hidden_states.apply(&self.layer_norm)
+    }
+}
+
+#[derive(Debug)]
+pub struct BertAttention {
+    self_attention: BertSelfAttention,
+    output: BertSelfOutput,
+}
+
+impl BertAttention {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertAttention {
+        let self_attention = BertSelfAttention::new(p / "dense", config);
+        let output = BertSelfOutput::new(&(p / "dense"), config);
+        BertAttention { self_attention, output }
+    }
+
+    pub fn forward_t(&self,
+                     hidden_states: &Tensor,
+                     mask: &Option<Tensor>,
+                     encoder_hidden_states: &Option<Tensor>,
+                     encoder_mask: &Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Tensor>) {
+        let (self_output, attention_weights) = self.self_attention.
+            forward_t(hidden_states, mask, encoder_hidden_states, encoder_mask, train);
+
+        let self_output = self.output.forward_t(&self_output, hidden_states, train);
+        (self_output, attention_weights)
+    }
+}
+
+pub struct BertIntermediate {
+    dense: nn::Linear,
+    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+}
+
+impl BertIntermediate {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertIntermediate {
+        let dense = nn::linear(p / "dense", config.hidden_size, config.intermediate_size, Default::default());
+        let activation = Box::new(match &config.hidden_act {
+            Activation::gelu => _gelu,
+            Activation::relu => _relu,
+            Activation::mish => _mish
+        });
+        BertIntermediate { dense, activation }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        (self.activation)(&hidden_states.apply(&self.dense))
+    }
+}
+
+pub struct BertOutput {
+    dense: nn::Linear,
+    layer_norm: nn::LayerNorm,
+    dropout: Dropout,
+}
+
+impl BertOutput {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertOutput {
+        let dense = nn::linear(p / "dense", config.intermediate_size, config.hidden_size, Default::default());
+        let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
+        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.hidden_size], layer_norm_config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+
+        BertOutput { dense, layer_norm, dropout }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, input_tensor: &Tensor, train: bool) -> Tensor {
+        let hidden_states: Tensor = input_tensor + hidden_states.apply(&self.dense).apply_t(&self.dropout, train);
+        hidden_states.apply(&self.layer_norm)
+    }
+}
+
