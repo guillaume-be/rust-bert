@@ -1,14 +1,15 @@
 language: rust
-cache: cargo
+cache:
+  - cargo
+  - pip
 
 jobs:
   include:
     - script:
       - cargo build --verbose
     - before_script:
-      - python -m pip3 install --upgrade pip --user
+      - python3 -m pip install --upgrade pip --user
+      - pip3 install -r requirements.txt
       - ls *.py|xargs -n 1 python3
       script:
-        - cargo run --example distilbert_masked_lm
-
-
+        - cargo test
