@@ -3,6 +3,7 @@ cache:
   - cargo
   - pip
   - directories:
+    - $HOME/.cache/pip
     - $HOME/rustbert
 
 jobs:
