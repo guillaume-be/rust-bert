@@ -36,5 +36,5 @@ target = str(target_path / 'model.ot')
 toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
 
 subprocess.call(
-    ['cargo', '+nightly', 'run', '--bin=convert-tensor', f'--manifest-path={toml_location}', '--', source,
+    ['cargo', 'run', '--bin=convert-tensor', f'--manifest-path={toml_location}', '--', source,
      target])

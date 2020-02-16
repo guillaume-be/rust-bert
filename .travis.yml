@@ -1,0 +1,14 @@
+language: rust
+cache: cargo
+
+jobs:
+  include:
+    - script:
+      - cargo build --verbose
+    - before_script:
+      - python -m pip install --upgrade pip
+      - ls *.py|xargs -n 1 python
+      script:
+        - cargo run --example distilbert_masked_lm
+
+
