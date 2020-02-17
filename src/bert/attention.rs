@@ -117,7 +117,7 @@ impl BertSelfOutput {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertSelfOutput {
         let linear = nn::linear(p / "dense", config.hidden_size, config.hidden_size, Default::default());
         let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.hidden_size], layer_norm_config);
+        let layer_norm = nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
         BertSelfOutput { linear, layer_norm, dropout }
@@ -137,8 +137,8 @@ pub struct BertAttention {
 
 impl BertAttention {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertAttention {
-        let _self = BertSelfAttention::new(p / "dense", config);
-        let output = BertSelfOutput::new(&(p / "dense"), config);
+        let _self = BertSelfAttention::new(p / "self", config);
+        let output = BertSelfOutput::new(&(p / "output"), config);
         BertAttention { _self, output }
     }
 
@@ -187,7 +187,7 @@ impl BertOutput {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertOutput {
         let lin = nn::linear(p / "dense", config.intermediate_size, config.hidden_size, Default::default());
         let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.hidden_size], layer_norm_config);
+        let layer_norm = nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
         BertOutput { lin, layer_norm, dropout }

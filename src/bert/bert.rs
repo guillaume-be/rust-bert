@@ -13,6 +13,9 @@
 
 use serde::{Deserialize, Serialize};
 use crate::common::config::Config;
+use crate::bert::embeddings::BertEmbeddings;
+use crate::bert::encoder::{BertEncoder, BertPooler};
+use tch::{nn, Tensor, Kind};
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,3 +44,81 @@ pub struct BertConfig {
 }
 
 impl Config<BertConfig> for BertConfig {}
+
+pub struct BertModel {
+    embeddings: BertEmbeddings,
+    encoder: BertEncoder,
+    pooler: BertPooler,
+}
+
+impl BertModel {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertModel {
+        let p = &(p / "bert");
+        let embeddings = BertEmbeddings::new(&(p / "embeddings"), config);
+        let encoder = BertEncoder::new(&(p / "encoder"), config);
+        let pooler = BertPooler::new(&(p / "pooler"), config);
+
+        BertModel { embeddings, encoder, pooler }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     encoder_hidden_states: &Option<Tensor>,
+                     _encoder_mask: &Option<Tensor>,
+                     train: bool)
+                     -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (input_shape, device) = match &input_ids {
+            Some(input_value) => match &input_embeds {
+                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
+                None => (input_value.size(), input_value.device())
+            }
+            None => match &input_embeds {
+                Some(embeds) => (vec!(embeds.size()[0], embeds.size()[1]), embeds.device()),
+                None => { return Err("Only one of input ids or input embeddings may be set"); }
+            }
+        };
+
+        let mask = match mask {
+            Some(value) => value,
+            None => Tensor::ones(&input_shape, (Kind::Int64, device))
+        };
+
+
+//        ToDo: handle decoder case
+        let extended_attention_mask = match mask.dim() {
+            3 => mask.unsqueeze(1),
+            2 => mask.unsqueeze(1).unsqueeze(1),
+            _ => { return Err("Invalid attention mask dimension, must be 2 or 3"); }
+        };
+
+        let extended_attention_mask: Tensor = (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
+
+//        ToDo: handle decoder case
+        let encoder_extended_attention_mask: Option<Tensor> = None;
+
+        let embedding_output = match self.embeddings.forward_t(input_ids, token_type_ids, position_ids, input_embeds, train) {
+            Ok(value) => value,
+            Err(e) => { return Err(e); }
+        };
+
+        let (hidden_state, all_hidden_states, all_attentions) =
+            self.encoder.forward_t(&embedding_output,
+                                   &Some(extended_attention_mask),
+                                   encoder_hidden_states,
+                                   &encoder_extended_attention_mask,
+                                   train);
+
+        let pooled_output = self.pooler.forward(&hidden_state);
+
+        Ok((hidden_state, pooled_output, all_hidden_states, all_attentions))
+
+    }
+}
+
+
+
+
