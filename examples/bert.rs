@@ -6,6 +6,7 @@ use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{BertTokenizer, TruncationStrategy, MultiThreadedTokenizer};
 use rust_bert::bert::bert::{BertConfig, BertModel};
 use rust_bert::common::config::Config;
+use tch::kind::Kind::Float;
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
@@ -21,7 +22,8 @@ fn main() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
     let config = BertConfig::from_file(config_path);
-
+    let bert_model = BertModel::new(&vs.root(), &config);
+    vs.load(weights_path)?;
 
 //    Define input
     let input = ["Looks like one thing is missing", "It\'s like comparing oranges to apples"];
@@ -41,12 +43,12 @@ fn main() -> failure::Fallible<()> {
 
 //    Forward pass
 
-    let bert_model = BertModel::new(&vs.root(), &config);
-    vs.load(weights_path)?;
+    let mask = Tensor::of_slice(&[1., 1., 1., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 1., 1., 1., 0., 0., 0., 0., 0.]).view((-1, 11));
+    mask.print();
     let output = no_grad(|| {
         bert_model
             .forward_t(Some(input_tensor),
-                       None,
+                       Some(mask),
                        None,
                        None,
                        None,
