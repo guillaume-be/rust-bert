@@ -7,8 +7,8 @@ use rust_tokenizers::{BertTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::bert::bert::{BertConfig, BertForMaskedLM};
 use rust_bert::common::config::Config;
 
-
-fn main() -> failure::Fallible<()> {
+#[test]
+fn bert_masked_lm() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
@@ -49,10 +49,6 @@ fn main() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-
-//    let mask = Tensor::of_slice(&[1., 1., 1., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 1., 1., 1., 0., 0., 0., 0., 0.]).view((-1, 11));
-//    let encoder_hidden_state = Some(Tensor::ones(&[2, 11, 768], (Float, input_tensor.device())));
-//    mask.print();
     let (output, _, _) = no_grad(|| {
         bert_model
             .forward_t(Some(input_tensor),
@@ -71,8 +67,8 @@ fn main() -> failure::Fallible<()> {
     let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 
-    println!("{}", word_1); // Outputs "person" : "Looks like one [person] is missing"
-    println!("{}", word_2);// Outputs "pear" : "It\'s like comparing [pear] to apples"
+    assert_eq!("person", word_1); // Outputs "person" : "Looks like one [person] is missing"
+    assert_eq!("orange", word_2);// Outputs "pear" : "It\'s like comparing [pear] to apples"
 
     Ok(())
 }

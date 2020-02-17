@@ -16,6 +16,10 @@ use crate::common::config::Config;
 use crate::bert::embeddings::BertEmbeddings;
 use crate::bert::encoder::{BertEncoder, BertPooler};
 use tch::{nn, Tensor, Kind};
+use tch::kind::Kind::Float;
+use crate::common::activations::{_gelu, _relu, _mish};
+use crate::common::linear::{LinearNoBias, linear_no_bias};
+use tch::nn::Init;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,16 +53,21 @@ pub struct BertModel {
     embeddings: BertEmbeddings,
     encoder: BertEncoder,
     pooler: BertPooler,
+    is_decoder: bool,
 }
 
 impl BertModel {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertModel {
         let p = &(p / "bert");
+        let is_decoder = match config.is_decoder {
+            Some(value) => value,
+            None => false
+        };
         let embeddings = BertEmbeddings::new(&(p / "embeddings"), config);
         let encoder = BertEncoder::new(&(p / "encoder"), config);
         let pooler = BertPooler::new(&(p / "pooler"), config);
 
-        BertModel { embeddings, encoder, pooler }
+        BertModel { embeddings, encoder, pooler, is_decoder }
     }
 
     pub fn forward_t(&self,
@@ -68,7 +77,7 @@ impl BertModel {
                      position_ids: Option<Tensor>,
                      input_embeds: Option<Tensor>,
                      encoder_hidden_states: &Option<Tensor>,
-                     _encoder_mask: &Option<Tensor>,
+                     encoder_mask: &Option<Tensor>,
                      train: bool)
                      -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (input_shape, device) = match &input_ids {
@@ -87,18 +96,36 @@ impl BertModel {
             None => Tensor::ones(&input_shape, (Kind::Int64, device))
         };
 
-
-//        ToDo: handle decoder case
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),
-            2 => mask.unsqueeze(1).unsqueeze(1),
+            2 => if self.is_decoder {
+                let seq_ids = Tensor::arange(input_shape[1], (Float, device));
+                let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&vec!(input_shape[0], input_shape[1], 1));
+                let causal_mask = causal_mask.le1(&seq_ids.unsqueeze(0).unsqueeze(-1));
+                causal_mask * mask.unsqueeze(1).unsqueeze(1)
+            } else {
+                mask.unsqueeze(1).unsqueeze(1)
+            },
             _ => { return Err("Invalid attention mask dimension, must be 2 or 3"); }
         };
 
         let extended_attention_mask: Tensor = (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
 
-//        ToDo: handle decoder case
-        let encoder_extended_attention_mask: Option<Tensor> = None;
+        let encoder_extended_attention_mask: Option<Tensor> = if self.is_decoder & encoder_hidden_states.is_some() {
+            let encoder_hidden_states = encoder_hidden_states.as_ref().unwrap();
+            let encoder_hidden_states_shape = encoder_hidden_states.size();
+            let encoder_mask = match encoder_mask {
+                Some(value) => value.copy(),
+                None => Tensor::ones(&[encoder_hidden_states_shape[0], encoder_hidden_states_shape[1]], (Kind::Int64, device))
+            };
+            match encoder_mask.dim() {
+                2 => Some(encoder_mask.unsqueeze(1).unsqueeze(1)),
+                3 => Some(encoder_mask.unsqueeze(1)),
+                _ => { return Err("Invalid encoder attention mask dimension, must be 2 or 3"); }
+            }
+        } else {
+            None
+        };
 
         let embedding_output = match self.embeddings.forward_t(input_ids, token_type_ids, position_ids, input_embeds, train) {
             Ok(value) => value,
@@ -115,10 +142,84 @@ impl BertModel {
         let pooled_output = self.pooler.forward(&hidden_state);
 
         Ok((hidden_state, pooled_output, all_hidden_states, all_attentions))
-
     }
 }
 
 
+pub struct BertPredictionHeadTransform {
+    dense: nn::Linear,
+    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    layer_norm: nn::LayerNorm,
+}
+
+impl BertPredictionHeadTransform {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertPredictionHeadTransform {
+        let dense = nn::linear(p / "dense", config.hidden_size, config.hidden_size, Default::default());
+        let activation = Box::new(match &config.hidden_act {
+            Activation::gelu => _gelu,
+            Activation::relu => _relu,
+            Activation::mish => _mish
+        });
+        let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
+        let layer_norm = nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
+
+        BertPredictionHeadTransform { dense, activation, layer_norm }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        ((&self.activation)(&hidden_states.apply(&self.dense))).apply(&self.layer_norm)
+    }
+}
+
+pub struct BertLMPredictionHead {
+    transform: BertPredictionHeadTransform,
+    decoder: LinearNoBias,
+    bias: Tensor,
+}
+
+impl BertLMPredictionHead {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertLMPredictionHead {
+        let p = &(p / "predictions");
+        let transform = BertPredictionHeadTransform::new(&(p / "transform"), config);
+        let decoder = linear_no_bias(&(p / "decoder"), config.hidden_size, config.vocab_size, Default::default());
+        let bias = p.var("bias", &[config.vocab_size], Init::KaimingUniform);
+
+        BertLMPredictionHead { transform, decoder, bias }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        self.transform.forward(&hidden_states).apply(&self.decoder) + &self.bias
+    }
+}
+
+pub struct BertForMaskedLM {
+    bert: BertModel,
+    cls: BertLMPredictionHead,
+}
+
+impl BertForMaskedLM {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForMaskedLM {
+        let bert = BertModel::new(&p, config);
+        let cls = BertLMPredictionHead::new(&(p / "cls"), config);
+
+        BertForMaskedLM { bert, cls }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     encoder_hidden_states: &Option<Tensor>,
+                     encoder_mask: &Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self.bert.forward_t(input_ids, mask, token_type_ids, position_ids,
+                                                                                       input_embeds, encoder_hidden_states, encoder_mask, train).unwrap();
+
+        let prediction_scores = self.cls.forward(&hidden_state);
+        (prediction_scores, all_hidden_states, all_attentions)
+    }
+}
 
 
