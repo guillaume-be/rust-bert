@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use tch::{Device, Tensor, nn, no_grad};
-use rust_bert::distilbert::distilbert::{DistilBertModelMaskedLM, DistilBertConfig};
+use rust_bert::distilbert::distilbert::{DistilBertModelMaskedLM, DistilBertConfig, DistilBertForQuestionAnswering, DistilBertForTokenClassification};
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
@@ -106,6 +106,105 @@ fn distilbert_masked_lm() -> failure::Fallible<()> {
 
     assert_eq!("person", word_1); // Outputs "person" : "Looks like one [person] is missing"
     assert_eq!("pear", word_2);// Outputs "pear" : "It\'s like comparing [pear] to apples"
+
+    Ok(())
+}
+
+#[test]
+fn distilbert_for_question_answering() -> failure::Fallible<()> {
+
+//    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("distilbert");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+
+//    Set-up masked LM model
+    let device = Device::cuda_if_available();
+    let vs = nn::VarStore::new(device);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
+    let mut config = DistilBertConfig::from_file(config_path);
+    config.output_attentions = true;
+    config.output_hidden_states = true;
+    let distil_bert_model = DistilBertForQuestionAnswering::new(&vs.root(), &config);
+
+//    Define input
+    let input = ["Looks like one thing is missing", "It\'s like comparing oranges to apples"];
+    let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
+    let tokenized_input = tokenized_input.
+        iter().
+        map(|input| input.token_ids.clone()).
+        map(|mut input| {
+            input.extend(vec![0; max_len - input.len()]);
+            input
+        }).
+        map(|input|
+            Tensor::of_slice(&(input))).
+        collect::<Vec<_>>();
+    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
+
+//    Forward pass
+    let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
+        distil_bert_model
+            .forward_t(Some(input_tensor), None, None, false)
+            .unwrap()
+    });
+
+    assert_eq!(start_scores.size(), &[2, 11]);
+    assert_eq!(end_scores.size(), &[2, 11]);
+    assert_eq!(config.n_layers as usize, all_hidden_states.unwrap().len());
+    assert_eq!(config.n_layers as usize, all_attentions.unwrap().len());
+
+    Ok(())
+}
+
+#[test]
+fn distilbert_for_token_classification() -> failure::Fallible<()> {
+
+//    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("distilbert");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+
+//    Set-up masked LM model
+    let device = Device::cuda_if_available();
+    let vs = nn::VarStore::new(device);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
+    let mut config = DistilBertConfig::from_file(config_path);
+    config.output_attentions = true;
+    config.output_hidden_states = true;
+    let distil_bert_model = DistilBertForTokenClassification::new(&vs.root(), &config);
+
+//    Define input
+    let input = ["Looks like one thing is missing", "It\'s like comparing oranges to apples"];
+    let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
+    let tokenized_input = tokenized_input.
+        iter().
+        map(|input| input.token_ids.clone()).
+        map(|mut input| {
+            input.extend(vec![0; max_len - input.len()]);
+            input
+        }).
+        map(|input|
+            Tensor::of_slice(&(input))).
+        collect::<Vec<_>>();
+    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
+
+//    Forward pass
+    let (output, all_hidden_states, all_attentions) = no_grad(|| {
+        distil_bert_model
+            .forward_t(Some(input_tensor), None, None, false)
+            .unwrap()
+    });
+
+    assert_eq!(output.size(), &[2, 11, config.num_labels]);
+    assert_eq!(config.n_layers as usize, all_hidden_states.unwrap().len());
+    assert_eq!(config.n_layers as usize, all_attentions.unwrap().len());
 
     Ok(())
 }

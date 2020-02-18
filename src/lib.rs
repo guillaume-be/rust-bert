@@ -6,3 +6,4 @@ pub use distilbert::distilbert::{DistilBertConfig, DistilBertModel, DistilBertMo
 pub use distilbert::sentiment::{Sentiment, SentimentPolarity, SentimentClassifier};
 
 pub use bert::bert::BertConfig;
+pub use bert::bert::{BertModel, BertForSequenceClassification, BertForMaskedLM, BertForQuestionAnswering, BertForTokenClassification, BertForMultipleChoice};
