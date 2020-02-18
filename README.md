@@ -6,6 +6,16 @@
 
 Rust native BERT implementation. Port of Huggingface's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://https://github.com/guillaume-be/rust-tokenizers). Supports multithreaded tokenization and GPU inference.
 
+The following models are currently implemented:
+
+ | |**DistilBERT**|**BERT**
+:-----:|:-----:|:-----:
+Masked LM|✅ |✅ 
+Sequence classification|✅ |✅ 
+Token classification|✅ |✅ 
+Question answering|✅ |✅ 
+Multiple choices| |✅ 
+
 An example for sentiment analysis classification is provided:
 
 ```rust
