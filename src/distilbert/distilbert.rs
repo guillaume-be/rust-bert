@@ -12,15 +12,13 @@
 
 extern crate tch;
 
-use std::path::Path;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
 use serde::{Deserialize, Serialize};
-use crate::distilbert::embeddings::BertEmbedding;
+use crate::distilbert::embeddings::DistilBertEmbedding;
 use crate::distilbert::transformer::Transformer;
 use self::tch::{nn, Tensor};
-use crate::distilbert::dropout::Dropout;
+use crate::common::config::Config;
+use crate::common::dropout::Dropout;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,7 +45,7 @@ pub struct DistilBertConfig {
     pub output_attentions: bool,
     pub output_hidden_states: bool,
     pub output_past: Option<bool>,
-    pub qa_dropout: f32,
+    pub qa_dropout: f64,
     pub seq_classif_dropout: f64,
     pub sinusoidal_pos_embds: bool,
     pub tie_weights_: bool,
@@ -56,24 +54,17 @@ pub struct DistilBertConfig {
     pub vocab_size: i64,
 }
 
-impl DistilBertConfig {
-    pub fn from_file(path: &Path) -> DistilBertConfig {
-        let f = File::open(path).expect("Could not open configuration file.");
-        let br = BufReader::new(f);
-        let config: DistilBertConfig = serde_json::from_reader(br).expect("could not parse configuration");
-        config
-    }
-}
+impl Config<DistilBertConfig> for DistilBertConfig {}
 
 pub struct DistilBertModel {
-    embeddings: BertEmbedding,
+    embeddings: DistilBertEmbedding,
     transformer: Transformer,
 }
 
 impl DistilBertModel {
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModel {
         let p = &(p / "distilbert");
-        let embeddings = BertEmbedding::new(&(p / "embeddings"), config);
+        let embeddings = DistilBertEmbedding::new(&(p / "embeddings"), config);
         let transformer = Transformer::new(&(p / "transformer"), config);
         DistilBertModel { embeddings, transformer }
     }
@@ -130,10 +121,10 @@ impl DistilBertModelClassifier {
 
         let output = output
             .select(1, 0)
-            .apply_t(&self.pre_classifier, train)
+            .apply(&self.pre_classifier)
             .relu()
             .apply_t(&self.dropout, train)
-            .apply_t(&self.classifier, train);
+            .apply(&self.classifier);
 
         Ok((output, all_hidden_states, all_attentions))
     }
@@ -165,10 +156,82 @@ impl DistilBertModelMaskedLM {
         };
 
         let output = output
-            .apply_t(&self.vocab_transform, train)
+            .apply(&self.vocab_transform)
             .gelu()
-            .apply_t(&self.vocab_layer_norm, train)
-            .apply_t(&self.vocab_projector, train);
+            .apply(&self.vocab_layer_norm)
+            .apply(&self.vocab_projector);
+
+        Ok((output, all_hidden_states, all_attentions))
+    }
+}
+
+
+pub struct DistilBertForQuestionAnswering {
+    distil_bert_model: DistilBertModel,
+    qa_outputs: nn::Linear,
+    dropout: Dropout,
+}
+
+impl DistilBertForQuestionAnswering {
+    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForQuestionAnswering {
+        let distil_bert_model = DistilBertModel::new(&p, config);
+        let qa_outputs = nn::linear(&(p / "qa_output"), config.dim, config.num_labels, Default::default());
+        assert_eq!(config.num_labels, 2, "num_labels should be set to 2 in the configuration provided");
+        let dropout = Dropout::new(config.qa_dropout);
+
+        DistilBertForQuestionAnswering { distil_bert_model, qa_outputs, dropout }
+    }
+
+    pub fn forward_t(&self,
+                     input: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool)
+                     -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (output, all_hidden_states, all_attentions) = match self.distil_bert_model.forward_t(input, mask, input_embeds, train) {
+            Ok(value) => value,
+            Err(err) => return Err(err)
+        };
+
+        let output = output
+            .apply_t(&self.dropout, train)
+            .apply(&self.qa_outputs);
+
+        let logits = output.split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze1(-1);
+        let end_logits = end_logits.squeeze1(-1);
+
+
+        Ok((start_logits, end_logits, all_hidden_states, all_attentions))
+    }
+}
+
+pub struct DistilBertForTokenClassification {
+    distil_bert_model: DistilBertModel,
+    classifier: nn::Linear,
+    dropout: Dropout,
+}
+
+impl DistilBertForTokenClassification {
+    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForTokenClassification {
+        let distil_bert_model = DistilBertModel::new(&p, config);
+        let classifier = nn::linear(&(p / "classifier"), config.dim, config.num_labels, Default::default());
+        let dropout = Dropout::new(config.seq_classif_dropout);
+
+        DistilBertForTokenClassification { distil_bert_model, classifier, dropout }
+    }
+
+    pub fn forward_t(&self, input: Option<Tensor>, mask: Option<Tensor>, input_embeds: Option<Tensor>, train: bool)
+                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (output, all_hidden_states, all_attentions) = match self.distil_bert_model.forward_t(input, mask, input_embeds, train) {
+            Ok(value) => value,
+            Err(err) => return Err(err)
+        };
+
+        let output = output
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
 
         Ok((output, all_hidden_states, all_attentions))
     }

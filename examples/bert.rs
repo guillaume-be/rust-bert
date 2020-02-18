@@ -1,20 +1,18 @@
-use std::path::PathBuf;
-use tch::{Device, Tensor, nn, no_grad};
-use rust_bert::distilbert::distilbert::{DistilBertModelMaskedLM, DistilBertConfig};
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
-use rust_tokenizers::bert_tokenizer::BertTokenizer;
-use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
-use rust_bert::common::config::Config;
-
 extern crate failure;
 extern crate dirs;
 
-fn main() -> failure::Fallible<()> {
+use std::path::PathBuf;
+use tch::{Device, nn, Tensor, no_grad};
+use rust_tokenizers::{BertTokenizer, TruncationStrategy, Tokenizer, Vocab};
+use rust_bert::bert::bert::{BertConfig, BertForMaskedLM};
+use rust_bert::common::config::Config;
 
-//    Resources paths
+
+fn main() -> failure::Fallible<()> {
+    //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
-    home.push("distilbert");
+    home.push("bert");
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let weights_path = &home.as_path().join("model.ot");
@@ -23,8 +21,8 @@ fn main() -> failure::Fallible<()> {
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
-    let config = DistilBertConfig::from_file(config_path);
-    let distil_bert_model = DistilBertModelMaskedLM::new(&vs.root(), &config);
+    let config = BertConfig::from_file(config_path);
+    let bert_model = BertForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -50,12 +48,21 @@ fn main() -> failure::Fallible<()> {
         collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
-
 //    Forward pass
+
+//    let mask = Tensor::of_slice(&[1., 1., 1., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 1., 1., 1., 0., 0., 0., 0., 0.]).view((-1, 11));
+//    let encoder_hidden_state = Some(Tensor::ones(&[2, 11, 768], (Float, input_tensor.device())));
+//    mask.print();
     let (output, _, _) = no_grad(|| {
-        distil_bert_model
-            .forward_t(Some(input_tensor), None, None, false)
-            .unwrap()
+        bert_model
+            .forward_t(Some(input_tensor),
+                       None,
+                       None,
+                       None,
+                       None,
+                       &None,
+                       &None,
+                       false)
     });
 
 //    Print masked tokens

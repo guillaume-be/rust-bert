@@ -1,5 +1,5 @@
-from transformers import DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP
-from transformers.tokenization_distilbert import PRETRAINED_VOCAB_FILES_MAP
+from transformers import BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, BERT_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.tokenization_bert import PRETRAINED_VOCAB_FILES_MAP
 from transformers.file_utils import get_from_cache
 from pathlib import Path
 import shutil
@@ -8,11 +8,11 @@ import numpy as np
 import torch
 import subprocess
 
-config_path = DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP["distilbert-base-uncased"]
-vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["distilbert-base-uncased"]
-weights_path = DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP["distilbert-base-uncased"]
+config_path = BERT_PRETRAINED_CONFIG_ARCHIVE_MAP["bert-base-uncased"]
+vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["bert-base-uncased"]
+weights_path = BERT_PRETRAINED_MODEL_ARCHIVE_MAP["bert-base-uncased"]
 
-target_path = Path.home() / 'rustbert' / 'distilbert'
+target_path = Path.home() / 'rustbert' / 'bert'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
@@ -31,6 +31,7 @@ shutil.copy(temp_weights, model_path)
 weights = torch.load(temp_weights, map_location='cpu')
 nps = {}
 for k, v in weights.items():
+    k = k.replace("gamma", "weight").replace("beta", "bias")
     nps[k] = np.ascontiguousarray(v.cpu().numpy())
 
 np.savez(target_path / 'model.npz', **nps)
