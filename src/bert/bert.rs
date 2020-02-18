@@ -20,6 +20,8 @@ use tch::kind::Kind::Float;
 use crate::common::activations::{_gelu, _relu, _mish};
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 use tch::nn::Init;
+use crate::common::dropout::Dropout;
+use std::collections::HashMap;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,6 +47,9 @@ pub struct BertConfig {
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub is_decoder: Option<bool>,
+    pub id2label: Option<HashMap<i32, String>>,
+    pub label2id: Option<HashMap<String, i32>>,
+    pub num_labels: Option<i64>,
 }
 
 impl Config<BertConfig> for BertConfig {}
@@ -222,4 +227,145 @@ impl BertForMaskedLM {
     }
 }
 
+pub struct BertForSequenceClassification {
+    bert: BertModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
 
+impl BertForSequenceClassification {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForSequenceClassification {
+        let bert = BertModel::new(&p, config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let classifier = nn::linear(p / "classifier", config.hidden_size, num_labels, Default::default());
+
+        BertForSequenceClassification { bert, dropout, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (_, pooled_output, all_hidden_states, all_attentions) = self.bert.forward_t(input_ids, mask, token_type_ids, position_ids,
+                                                                                        input_embeds, &None, &None, train).unwrap();
+
+        let output = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier);
+        (output, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct BertForMultipleChoice {
+    bert: BertModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl BertForMultipleChoice {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForMultipleChoice {
+        let bert = BertModel::new(&p, config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let classifier = nn::linear(p / "classifier", config.hidden_size, 1, Default::default());
+
+        BertForMultipleChoice { bert, dropout, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Tensor,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let num_choices = input_ids.size()[1];
+
+        let input_ids = input_ids.view((-1, *input_ids.size().last().unwrap()));
+        let mask = match mask {
+            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
+            None => None
+        };
+        let token_type_ids = match token_type_ids {
+            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
+            None => None
+        };
+        let position_ids = match position_ids {
+            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
+            None => None
+        };
+
+
+        let (_, pooled_output, all_hidden_states, all_attentions) = self.bert.forward_t(Some(input_ids), mask, token_type_ids, position_ids,
+                                                                                        input_embeds, &None, &None, train).unwrap();
+
+        let output = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier).view((-1, num_choices));
+        (output, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct BertForTokenClassification {
+    bert: BertModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl BertForTokenClassification {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForTokenClassification {
+        let bert = BertModel::new(&p, config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let classifier = nn::linear(p / "classifier", config.hidden_size, num_labels, Default::default());
+
+        BertForTokenClassification { bert, dropout, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self.bert.forward_t(input_ids, mask, token_type_ids, position_ids,
+                                                                                       input_embeds, &None, &None, train).unwrap();
+
+        let sequence_output = hidden_state.apply_t(&self.dropout, train).apply(&self.classifier);
+        (sequence_output, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct BertForQuestionAnswering {
+    bert: BertModel,
+    qa_outputs: nn::Linear,
+}
+
+impl BertForQuestionAnswering {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForQuestionAnswering {
+        let bert = BertModel::new(&p, config);
+        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let qa_outputs = nn::linear(p / "qa_outputs", config.hidden_size, num_labels, Default::default());
+
+        BertForQuestionAnswering { bert, qa_outputs }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self.bert.forward_t(input_ids, mask, token_type_ids, position_ids,
+                                                                                       input_embeds, &None, &None, train).unwrap();
+
+        let sequence_output = hidden_state.apply(&self.qa_outputs);
+        let logits = sequence_output.split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze1(-1);
+        let end_logits = end_logits.squeeze1(-1);
+
+        (start_logits, end_logits, all_hidden_states, all_attentions)
+    }
+}
