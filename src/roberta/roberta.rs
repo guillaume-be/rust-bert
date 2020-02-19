@@ -17,6 +17,7 @@ use crate::common::linear::{linear_no_bias, LinearNoBias};
 use tch::nn::Init;
 use crate::common::activations::_gelu;
 use crate::roberta::embeddings::RobertaEmbeddings;
+use crate::common::dropout::Dropout;
 
 pub struct RobertaLMHead {
     dense: nn::Linear,
@@ -68,5 +69,105 @@ impl RobertaForMaskedLM {
 
         let prediction_scores = self.lm_head.forward(&hidden_state);
         (prediction_scores, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct RobertaClassificationHead {
+    dense: nn::Linear,
+    dropout: Dropout,
+    out_proj: nn::Linear,
+}
+
+impl RobertaClassificationHead {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaClassificationHead {
+        let dense = nn::linear(p / "dense", config.hidden_size, config.hidden_size, Default::default());
+        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let out_proj = nn::linear(p / "out_proj", config.hidden_size, num_labels, Default::default());
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+
+        RobertaClassificationHead { dense, dropout, out_proj }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        hidden_states
+            .select(1, 0)
+            .apply_t(&self.dropout, train)
+            .apply(&self.dense)
+            .tanh()
+            .apply_t(&self.dropout, train)
+            .apply(&self.out_proj)
+    }
+}
+
+pub struct RobertaForSequenceClassification {
+    roberta: BertModel<RobertaEmbeddings>,
+    classifier: RobertaClassificationHead,
+}
+
+impl RobertaForSequenceClassification {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForSequenceClassification {
+        let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
+        let classifier = RobertaClassificationHead::new(&(p / "classifier"), config);
+
+        RobertaForSequenceClassification { roberta, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self.roberta.forward_t(input_ids, mask, token_type_ids, position_ids,
+                                                                                          input_embeds, &None, &None, train).unwrap();
+
+        let output = self.classifier.forward_t(&hidden_state, train);
+        (output, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct RobertaForMultipleChoice {
+    roberta: BertModel<RobertaEmbeddings>,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl RobertaForMultipleChoice {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForMultipleChoice {
+        let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let classifier = nn::linear(p / "classifier", config.hidden_size, 1, Default::default());
+
+        RobertaForMultipleChoice { roberta, dropout, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Tensor,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let num_choices = input_ids.size()[1];
+
+        let flat_input_ids = Some(input_ids.view((-1i64, *input_ids.size().last().unwrap())));
+        let flat_position_ids = match position_ids {
+            Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
+            None => None
+        };
+        let flat_token_type_ids = match token_type_ids {
+            Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
+            None => None
+        };
+        let flat_mask = match mask {
+            Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
+            None => None
+        };
+
+        let (_, pooled_output, all_hidden_states, all_attentions) = self.roberta.forward_t(flat_input_ids, flat_mask, flat_token_type_ids, flat_position_ids,
+                                                                                           None, &None, &None, train).unwrap();
+
+        let output = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier).view((-1, num_choices));
+        (output, all_hidden_states, all_attentions)
     }
 }
