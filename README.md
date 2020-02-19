@@ -8,13 +8,13 @@ Rust native BERT implementation. Port of Huggingface's [Transformers library](ht
 
 The following models are currently implemented:
 
- | |**DistilBERT**|**BERT**
-:-----:|:-----:|:-----:
-Masked LM|✅ |✅ 
-Sequence classification|✅ |✅ 
-Token classification|✅ |✅ 
-Question answering|✅ |✅ 
-Multiple choices| |✅ 
+ | |**DistilBERT**|**BERT**|**RoBERTa**
+:-----:|:-----:|:-----:|:-----:
+Masked LM|✅ |✅ |✅
+Sequence classification|✅ |✅ |✅
+Token classification|✅ |✅ | ✅
+Question answering|✅ |✅ |✅
+Multiple choices| |✅ |✅
 
 An example for sentiment analysis classification is provided:
 

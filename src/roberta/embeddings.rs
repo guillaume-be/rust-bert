@@ -12,33 +12,38 @@
 // limitations under the License.
 
 use tch::{nn, Tensor, Kind};
+use crate::common::dropout::Dropout;
+use crate::bert::embeddings::BertEmbedding;
 use crate::BertConfig;
 use tch::nn::{EmbeddingConfig, embedding};
-use crate::common::dropout::Dropout;
 
 #[derive(Debug)]
-pub struct BertEmbeddings {
+pub struct RobertaEmbeddings {
     word_embeddings: nn::Embedding,
     position_embeddings: nn::Embedding,
     token_type_embeddings: nn::Embedding,
     layer_norm: nn::LayerNorm,
     dropout: Dropout,
+    padding_index: i64,
 }
 
-pub trait BertEmbedding {
-    fn new(p: &nn::Path, config: &BertConfig) -> Self;
+impl RobertaEmbeddings {
+    fn create_position_ids_from_input_ids(&self, x: &Tensor) -> Tensor {
+        let mask: Tensor = x.ne(self.padding_index).to_kind(Kind::Int64);
+        mask.cumsum(1, Kind::Int64) * mask + self.padding_index
+    }
 
-    fn forward_t(&self,
-                 input_ids: Option<Tensor>,
-                 token_type_ids: Option<Tensor>,
-                 position_ids: Option<Tensor>,
-                 input_embeds: Option<Tensor>,
-                 train: bool) -> Result<Tensor, &'static str>;
+    fn create_position_ids_from_embeddings(&self, x: &Tensor) -> Tensor {
+        let input_shape = x.size();
+        let input_shape = vec!(input_shape[0], input_shape[1]);
+        let position_ids: Tensor = Tensor::arange1(self.padding_index + 1, input_shape[0], (Kind::Int64, x.device()));
+        position_ids.unsqueeze(0).expand(&input_shape, true)
+    }
 }
 
-impl BertEmbedding for BertEmbeddings {
-    fn new(p: &nn::Path, config: &BertConfig) -> BertEmbeddings {
-        let embedding_config = EmbeddingConfig { padding_idx: 0, ..Default::default() };
+impl BertEmbedding for RobertaEmbeddings {
+    fn new(p: &nn::Path, config: &BertConfig) -> RobertaEmbeddings {
+        let embedding_config = EmbeddingConfig { padding_idx: 1, ..Default::default() };
 
         let word_embeddings: nn::Embedding = embedding(p / "word_embeddings",
                                                        config.vocab_size,
@@ -58,7 +63,7 @@ impl BertEmbedding for BertEmbeddings {
         let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
         let layer_norm: nn::LayerNorm = nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
         let dropout: Dropout = Dropout::new(config.hidden_dropout_prob);
-        BertEmbeddings { word_embeddings, position_embeddings, token_type_embeddings, layer_norm, dropout }
+        RobertaEmbeddings { word_embeddings, position_embeddings, token_type_embeddings, layer_norm, dropout, padding_index: 1 }
     }
 
     fn forward_t(&self,
@@ -67,24 +72,24 @@ impl BertEmbedding for BertEmbeddings {
                  position_ids: Option<Tensor>,
                  input_embeds: Option<Tensor>,
                  train: bool) -> Result<Tensor, &'static str> {
-        let (input_embeddings, input_shape) = match input_ids {
-            Some(input_value) => match input_embeds {
+        let (input_embeddings, input_shape) = match &input_ids {
+            Some(input_value) => match &input_embeds {
                 Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
                 None => (input_value.apply_t(&self.word_embeddings, train), input_value.size())
             }
-            None => match input_embeds {
+            None => match &input_embeds {
                 Some(embeds) => (embeds.copy(), vec!(embeds.size()[0], embeds.size()[1])),
                 None => { return Err("Only one of input ids or input embeddings may be set"); }
             }
         };
 
-        let seq_length = input_embeddings.as_ref().size()[1].to_owned();
 
         let position_ids = match position_ids {
             Some(value) => value,
-            None => Tensor::arange(seq_length, (Kind::Int64, input_embeddings.device()))
-                .unsqueeze(0).
-                expand(&input_shape, true)
+            None => match input_ids {
+                Some(value) => self.create_position_ids_from_input_ids(&value),
+                None => self.create_position_ids_from_embeddings(&input_embeds.unwrap())
+            }
         };
 
         let token_type_ids = match token_type_ids {

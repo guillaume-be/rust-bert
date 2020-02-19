@@ -13,7 +13,7 @@
 
 use serde::{Deserialize, Serialize};
 use crate::common::config::Config;
-use crate::bert::embeddings::BertEmbeddings;
+use crate::bert::embeddings::{BertEmbeddings, BertEmbedding};
 use crate::bert::encoder::{BertEncoder, BertPooler};
 use tch::{nn, Tensor, Kind};
 use tch::kind::Kind::Float;
@@ -54,21 +54,20 @@ pub struct BertConfig {
 
 impl Config<BertConfig> for BertConfig {}
 
-pub struct BertModel {
-    embeddings: BertEmbeddings,
+pub struct BertModel<T: BertEmbedding> {
+    embeddings: T,
     encoder: BertEncoder,
     pooler: BertPooler,
     is_decoder: bool,
 }
 
-impl BertModel {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertModel {
-        let p = &(p / "bert");
+impl <T: BertEmbedding> BertModel<T> {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> BertModel<T> {
         let is_decoder = match config.is_decoder {
             Some(value) => value,
             None => false
         };
-        let embeddings = BertEmbeddings::new(&(p / "embeddings"), config);
+        let embeddings = T::new(&(p / "embeddings"), config);
         let encoder = BertEncoder::new(&(p / "encoder"), config);
         let pooler = BertPooler::new(&(p / "pooler"), config);
 
@@ -198,13 +197,13 @@ impl BertLMPredictionHead {
 }
 
 pub struct BertForMaskedLM {
-    bert: BertModel,
+    bert: BertModel<BertEmbeddings>,
     cls: BertLMPredictionHead,
 }
 
 impl BertForMaskedLM {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForMaskedLM {
-        let bert = BertModel::new(&p, config);
+        let bert = BertModel::new(&(p / "bert"), config);
         let cls = BertLMPredictionHead::new(&(p / "cls"), config);
 
         BertForMaskedLM { bert, cls }
@@ -228,14 +227,14 @@ impl BertForMaskedLM {
 }
 
 pub struct BertForSequenceClassification {
-    bert: BertModel,
+    bert: BertModel<BertEmbeddings>,
     dropout: Dropout,
     classifier: nn::Linear,
 }
 
 impl BertForSequenceClassification {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForSequenceClassification {
-        let bert = BertModel::new(&p, config);
+        let bert = BertModel::new(&(p / "bert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config.num_labels.expect("num_labels not provided in configuration");
         let classifier = nn::linear(p / "classifier", config.hidden_size, num_labels, Default::default());
@@ -259,14 +258,14 @@ impl BertForSequenceClassification {
 }
 
 pub struct BertForMultipleChoice {
-    bert: BertModel,
+    bert: BertModel<BertEmbeddings>,
     dropout: Dropout,
     classifier: nn::Linear,
 }
 
 impl BertForMultipleChoice {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForMultipleChoice {
-        let bert = BertModel::new(&p, config);
+        let bert = BertModel::new(&(p / "bert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let classifier = nn::linear(p / "classifier", config.hidden_size, 1, Default::default());
 
@@ -306,14 +305,14 @@ impl BertForMultipleChoice {
 }
 
 pub struct BertForTokenClassification {
-    bert: BertModel,
+    bert: BertModel<BertEmbeddings>,
     dropout: Dropout,
     classifier: nn::Linear,
 }
 
 impl BertForTokenClassification {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForTokenClassification {
-        let bert = BertModel::new(&p, config);
+        let bert = BertModel::new(&(p / "bert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config.num_labels.expect("num_labels not provided in configuration");
         let classifier = nn::linear(p / "classifier", config.hidden_size, num_labels, Default::default());
@@ -337,13 +336,13 @@ impl BertForTokenClassification {
 }
 
 pub struct BertForQuestionAnswering {
-    bert: BertModel,
+    bert: BertModel<BertEmbeddings>,
     qa_outputs: nn::Linear,
 }
 
 impl BertForQuestionAnswering {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForQuestionAnswering {
-        let bert = BertModel::new(&p, config);
+        let bert = BertModel::new(&(p / "bert"), config);
         let num_labels = config.num_labels.expect("num_labels not provided in configuration");
         let qa_outputs = nn::linear(p / "qa_outputs", config.hidden_size, num_labels, Default::default());
 
