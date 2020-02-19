@@ -6,7 +6,7 @@ use rust_bert::roberta::roberta::{RobertaForMaskedLM, RobertaForSequenceClassifi
 use rust_bert::common::config::Config;
 
 #[test]
-fn bert_masked_lm() -> failure::Fallible<()> {
+fn roberta_masked_lm() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
