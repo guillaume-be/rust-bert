@@ -1,5 +1,6 @@
 pub mod distilbert;
 pub mod bert;
+pub mod roberta;
 pub mod common;
 
 pub use distilbert::distilbert::{DistilBertConfig, DistilBertModel, DistilBertModelClassifier, DistilBertModelMaskedLM, DistilBertForTokenClassification, DistilBertForQuestionAnswering};
