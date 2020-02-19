@@ -171,3 +171,68 @@ impl RobertaForMultipleChoice {
         (output, all_hidden_states, all_attentions)
     }
 }
+
+pub struct RobertaForTokenClassification {
+    roberta: BertModel<RobertaEmbeddings>,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl RobertaForTokenClassification {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForTokenClassification {
+        let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let classifier = nn::linear(p / "classifier", config.hidden_size, num_labels, Default::default());
+
+        RobertaForTokenClassification { roberta, dropout, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self.roberta.forward_t(input_ids, mask, token_type_ids, position_ids,
+                                                                                          input_embeds, &None, &None, train).unwrap();
+
+        let sequence_output = hidden_state.apply_t(&self.dropout, train).apply(&self.classifier);
+        (sequence_output, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct RobertaForQuestionAnswering {
+    roberta: BertModel<RobertaEmbeddings>,
+    qa_outputs: nn::Linear,
+}
+
+impl RobertaForQuestionAnswering {
+    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForQuestionAnswering {
+        let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
+        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let qa_outputs = nn::linear(p / "qa_outputs", config.hidden_size, num_labels, Default::default());
+
+        RobertaForQuestionAnswering { roberta, qa_outputs }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self.roberta.forward_t(input_ids, mask, token_type_ids, position_ids,
+                                                                                          input_embeds, &None, &None, train).unwrap();
+
+        let sequence_output = hidden_state.apply(&self.qa_outputs);
+        let logits = sequence_output.split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze1(-1);
+        let end_logits = end_logits.squeeze1(-1);
+
+        (start_logits, end_logits, all_hidden_states, all_attentions)
+    }
+}
