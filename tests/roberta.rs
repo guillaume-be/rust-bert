@@ -1,15 +1,12 @@
-extern crate failure;
-extern crate dirs;
-
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor, no_grad};
-use rust_tokenizers::{TruncationStrategy, Tokenizer, Vocab, RobertaTokenizer};
-use rust_bert::bert::bert::BertConfig;
-use rust_bert::common::config::Config;
+use rust_tokenizers::{RobertaTokenizer, TruncationStrategy, Tokenizer, Vocab};
+use rust_bert::BertConfig;
 use rust_bert::roberta::roberta::RobertaForMaskedLM;
+use rust_bert::common::config::Config;
 
-
-fn main() -> failure::Fallible<()> {
+#[test]
+fn bert_masked_lm() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
@@ -69,8 +66,8 @@ fn main() -> failure::Fallible<()> {
     let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 
-    println!("{}", word_1); // Outputs "some" : "Looks like [some] thing is missing"
-    println!("{}", word_2);// Outputs "apple" : "It\'s like comparing [apple] to apples"
+    assert_eq!("Ġsome", word_1); // Outputs "person" : "Looks like [some] thing is missing"
+    assert_eq!("Ġapples", word_2);// Outputs "pear" : "It\'s like comparing [apples] to apples"
 
     Ok(())
 }
