@@ -8,3 +8,5 @@ pub use distilbert::sentiment::{Sentiment, SentimentPolarity, SentimentClassifie
 
 pub use bert::bert::BertConfig;
 pub use bert::bert::{BertModel, BertForSequenceClassification, BertForMaskedLM, BertForQuestionAnswering, BertForTokenClassification, BertForMultipleChoice};
+
+pub use roberta::roberta::{RobertaForSequenceClassification, RobertaForMaskedLM, RobertaForQuestionAnswering, RobertaForTokenClassification, RobertaForMultipleChoice};
