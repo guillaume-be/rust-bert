@@ -1,3 +1,16 @@
+// Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
+// Copyright 2019 Guillaume Becquin
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use crate::distilbert::distilbert::{DistilBertModelClassifier, DistilBertConfig};
 use std::path::Path;
@@ -28,7 +41,7 @@ pub struct SentimentClassifier {
 impl SentimentClassifier {
     pub fn new(vocab_path: &Path, model_config_path: &Path, model_weight_path: &Path, device: Device)
                -> failure::Fallible<SentimentClassifier> {
-        let tokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
+        let tokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
         let mut var_store = VarStore::new(device);
         let config = DistilBertConfig::from_file(model_config_path);
         let distil_bert_classifier = DistilBertModelClassifier::new(&var_store.root(), &config);

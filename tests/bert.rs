@@ -20,7 +20,7 @@ fn bert_masked_lm() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let config = BertConfig::from_file(config_path);
     let bert_model = BertForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
@@ -86,7 +86,7 @@ fn bert_for_sequence_classification() -> failure::Fallible<()> {
 //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
     config.num_labels = Some(42);
     config.output_attentions = Some(true);
@@ -141,7 +141,7 @@ fn bert_for_multiple_choice() -> failure::Fallible<()> {
 //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
@@ -195,7 +195,7 @@ fn bert_for_token_classification() -> failure::Fallible<()> {
 //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
     config.num_labels = Some(7);
     config.output_attentions = Some(true);
@@ -250,7 +250,7 @@ fn bert_for_question_answering() -> failure::Fallible<()> {
 //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap());
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
     config.num_labels = Some(7);
     config.output_attentions = Some(true);
