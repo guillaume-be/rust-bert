@@ -6,6 +6,7 @@ use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{BertTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::bert::bert::{BertConfig, BertForMaskedLM, BertForSequenceClassification, BertForMultipleChoice, BertForTokenClassification, BertForQuestionAnswering};
 use rust_bert::common::config::Config;
+use rust_bert::NERModel;
 
 #[test]
 fn bert_masked_lm() -> failure::Fallible<()> {
@@ -289,6 +290,53 @@ fn bert_for_question_answering() -> failure::Fallible<()> {
     assert_eq!(end_scores.size(), &[2, 11]);
     assert_eq!(config.num_hidden_layers as usize, all_hidden_states.unwrap().len());
     assert_eq!(config.num_hidden_layers as usize, all_attentions.unwrap().len());
+
+    Ok(())
+}
+
+#[test]
+fn bert_pre_trained_ner() -> failure::Fallible<()> {
+    //    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("bert-ner");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+    let weights_path = &home.as_path().join("model.ot");
+
+//    Set-up model
+    let device = Device::cuda_if_available();
+    let ner_model = NERModel::new(vocab_path,
+                                  config_path,
+                                  weights_path, device)?;
+
+//    Define input
+    let input = [
+        "My name is Amy. I live in Paris.",
+        "Paris is a city in France."
+    ];
+
+//    Run model
+    let output = ner_model.predict(input.to_vec());
+
+
+    assert_eq!(output.len(), 4);
+
+    assert_eq!(output[0].word, "Amy");
+    assert!((output[0].score - 0.9986).abs() < 1e-4);
+    assert_eq!(output[0].label, "I-PER");
+
+    assert_eq!(output[1].word, "Paris");
+    assert!((output[1].score - 0.9986).abs() < 1e-4);
+    assert_eq!(output[1].label, "I-LOC");
+
+    assert_eq!(output[2].word, "Paris");
+    assert!((output[2].score - 0.9988).abs() < 1e-4);
+    assert_eq!(output[2].label, "I-LOC");
+
+    assert_eq!(output[3].word, "France");
+    assert!((output[3].score - 0.9994).abs() < 1e-4);
+    assert_eq!(output[3].label, "I-LOC");
 
     Ok(())
 }

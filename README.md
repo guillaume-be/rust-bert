@@ -5,6 +5,7 @@
 ![License](https://img.shields.io/crates/l/rust_bert.svg)
 
 Rust native BERT implementation. Port of Huggingface's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://https://github.com/guillaume-be/rust-tokenizers). Supports multithreaded tokenization and GPU inference.
+This repository exposes the model base architecture, task-specific heads (see below) and ready-to-use pipelines.
 
 The following models are currently implemented:
 
@@ -16,8 +17,11 @@ Token classification|✅ |✅ | ✅
 Question answering|✅ |✅ |✅
 Multiple choices| |✅ |✅
 
-An example for sentiment analysis classification is provided:
+## Ready-to-use pipelines
 
+Leveraging Huggingface's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
+#### 1. Sentiment analysis
+Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 ```rust
     let device = Device::cuda_if_available();
     let sentiment_classifier = SentimentClassifier::new(vocab_path,
@@ -42,15 +46,48 @@ Output:
     Sentiment { polarity: Positive, score: 0.9997248985164333 }
 ]
 ```
+
+#### 2. Named Entity Recognition
+Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
+```rust
+//    Set-up model
+    let device = Device::cuda_if_available();
+    let ner_model = NERModel::new(vocab_path,
+                                  config_path,
+                                  weights_path, device)?;
+
+//    Define input
+    let input = [
+        "My name is Amy. I live in Paris.",
+        "Paris is a city in France."
+    ];
+```
+Output:
+```
+[
+    Entity { word: "Amy", score: 0.9986, label: "I-PER" }
+    Entity { word: "Paris", score: 0.9985, label: "I-LOC" }
+    Entity { word: "Paris", score: 0.9988, label: "I-LOC" }
+    Entity { word: "France", score: 0.9993, label: "I-LOC" }
+]
+```
+
+## Base models
+
+The base model and task-specific heads are also available for users looking to expose their own transformer based models.
+Examples on how to prepare the date using a native tokenizers Rust library are available in `./examples` for BERT, DistilBERT and RoBERTa.
+Note that when importing models from Pytorch, the convention for parameters naming needs to be aligned with the Rust schema. Loading of the pre-trained weights will fail if any of the model parameters weights cannot be found in the weight files.
+If this quality check is to be skipped, an alternative method `load_partial` can be invoked from the variables store.
+
 ## Setup
 
 The model configuration and vocabulary are downloaded directly from Huggingface's repository.
 
-The model weights need to be converter to a binary format that can be read by Libtorch (the original `.pth` files are pickled and cannot be used directly). A Python script for downloading the required files & running the necessary steps is provided.
+The model weights need to be converter to a binary format that can be read by Libtorch (the original `.bin` files are pickles and cannot be used directly). A Python script for downloading the required files & running the necessary steps is provided.
 
 1. Compile the package: `cargo build --release`
 2. Download the model files & perform necessary conversions
    - Set-up a virtual environment and install dependencies
-   - run the conversion script `python /utils/download-dependencies.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert`
+   - run the conversion script `python /utils/download-dependencies_{MODEL_TO_DOWNLOAD}.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert/{}`
 3. Run the example `cargo run --release`
 
