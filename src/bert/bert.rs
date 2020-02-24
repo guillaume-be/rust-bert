@@ -47,8 +47,8 @@ pub struct BertConfig {
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub is_decoder: Option<bool>,
-    pub id2label: Option<HashMap<i32, String>>,
-    pub label2id: Option<HashMap<String, i32>>,
+    pub id2label: Option<HashMap<i64, String>>,
+    pub label2id: Option<HashMap<String, i64>>,
     pub num_labels: Option<i64>,
 }
 

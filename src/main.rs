@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use tch::Device;
-use rust_bert::distilbert::sentiment::SentimentClassifier;
+use rust_bert::pipelines::sentiment::SentimentClassifier;
 
 extern crate failure;
 extern crate dirs;
