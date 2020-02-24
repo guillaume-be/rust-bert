@@ -12,3 +12,4 @@ pub use bert::bert::{BertModel, BertForSequenceClassification, BertForMaskedLM, 
 pub use roberta::roberta::{RobertaForSequenceClassification, RobertaForMaskedLM, RobertaForQuestionAnswering, RobertaForTokenClassification, RobertaForMultipleChoice};
 
 pub use pipelines::sentiment::{Sentiment, SentimentPolarity, SentimentClassifier};
+pub use pipelines::ner::{Entity, NERModel};

@@ -2,8 +2,8 @@ extern crate failure;
 extern crate dirs;
 
 use std::path::PathBuf;
-use rust_bert::pipelines::ner::NERModel;
 use tch::Device;
+use rust_bert::NERModel;
 
 
 fn main() -> failure::Fallible<()> {
