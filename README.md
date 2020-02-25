@@ -20,7 +20,28 @@ Multiple choices| |✅ |✅
 ## Ready-to-use pipelines
 
 Leveraging Huggingface's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
-#### 1. Sentiment analysis
+#### 1. Question Answering
+Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset)
+
+```rust
+    let device = Device::cuda_if_available();
+    let qa_model = QuestionAnsweringModel::new(vocab_path,
+                                               config_path,
+                                               weights_path, device)?;
+                                                        
+    let question = "Where does Amy live ?";
+    let context = "Amy lives in Amsterdam";
+
+    let answers = qa_model.predict(question, context, 1);
+```
+
+Output:
+```
+[Answer { score: 0.9976814985275269, start: 13, end: 21, answer: "Amsterdam" }]
+```
+
+
+#### 2. Sentiment analysis
 Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 ```rust
     let device = Device::cuda_if_available();
@@ -47,20 +68,20 @@ Output:
 ]
 ```
 
-#### 2. Named Entity Recognition
+#### 3. Named Entity Recognition
 Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 ```rust
-//    Set-up model
     let device = Device::cuda_if_available();
     let ner_model = NERModel::new(vocab_path,
                                   config_path,
                                   weights_path, device)?;
 
-//    Define input
     let input = [
         "My name is Amy. I live in Paris.",
         "Paris is a city in France."
     ];
+    
+    let output = ner_model.predict(input.to_vec());
 ```
 Output:
 ```

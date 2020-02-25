@@ -90,6 +90,7 @@ impl DistilBertModel {
             }
         };
 
+
         let transformer_output = (&self.transformer).forward_t(&input_embeddings, mask, train);
         Ok(transformer_output)
     }
@@ -175,7 +176,7 @@ pub struct DistilBertForQuestionAnswering {
 impl DistilBertForQuestionAnswering {
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForQuestionAnswering {
         let distil_bert_model = DistilBertModel::new(&p, config);
-        let qa_outputs = nn::linear(&(p / "qa_output"), config.dim, config.num_labels, Default::default());
+        let qa_outputs = nn::linear(&(p / "qa_outputs"), config.dim, config.num_labels, Default::default());
         assert_eq!(config.num_labels, 2, "num_labels should be set to 2 in the configuration provided");
         let dropout = Dropout::new(config.qa_dropout);
 
