@@ -12,10 +12,7 @@
 
 
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, TokenizedInput};
-//use crate::{DistilBertForQuestionAnswering, DistilBertConfig};
-//use tch::nn::VarStore;
 use tch::{Device, Tensor, no_grad};
-//use crate::common::config::Config;
 use std::path::Path;
 use rust_tokenizers::tokenization_utils::truncate_sequences;
 use std::collections::HashMap;
@@ -23,6 +20,7 @@ use std::cmp::min;
 use crate::{DistilBertForQuestionAnswering, DistilBertConfig};
 use tch::nn::VarStore;
 use crate::common::config::Config;
+use tch::kind::Kind::Float;
 
 #[derive(Debug)]
 pub struct QaExample {
@@ -39,6 +37,14 @@ pub struct QaFeature {
     pub token_to_orig_map: HashMap<i64, i64>,
     pub p_mask: Vec<i8>,
 
+}
+
+#[derive(Debug, Clone)]
+pub struct Answer {
+    pub score: f64,
+    pub start: usize,
+    pub end: usize,
+    pub answer: String,
 }
 
 impl QaExample {
@@ -90,11 +96,11 @@ impl QaExample {
 pub struct QuestionAnsweringModel {
     tokenizer: BertTokenizer,
     pad_idx: i64,
-    cls_idx: i64,
     sep_idx: i64,
     max_seq_len: usize,
     doc_stride: usize,
     max_query_length: usize,
+    max_answer_len: usize,
     distilbert_qa: DistilBertForQuestionAnswering,
     var_store: VarStore,
 }
@@ -104,7 +110,6 @@ impl QuestionAnsweringModel {
                -> failure::Fallible<QuestionAnsweringModel> {
         let tokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), false);
         let pad_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[PAD]").expect("[PAD] token not found in vocabulary");
-        let cls_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[CLS]").expect("[CLS] token not found in vocabulary");
         let sep_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[SEP]").expect("[SEP] token not found in vocabulary");
         let mut var_store = VarStore::new(device);
         let mut config = DistilBertConfig::from_file(model_config_path);
@@ -115,45 +120,103 @@ impl QuestionAnsweringModel {
         Ok(QuestionAnsweringModel {
             tokenizer,
             pad_idx,
-            cls_idx,
             sep_idx,
             max_seq_len: 384,
             doc_stride: 128,
             max_query_length: 64,
+            max_answer_len: 15,
             distilbert_qa,
             var_store,
         })
     }
 
-    fn prepare_for_model(&self, question: &str, context: &str) -> (Tensor, Tensor) {
+    fn prepare_for_model(&self, question: &str, context: &str) -> (QaExample, Vec<QaFeature>, Tensor, Tensor) {
         let qa_example = QaExample::new(question, context);
         let mut input_ids: Vec<Tensor> = vec!();
         let mut attention_masks: Vec<Tensor> = vec!();
 
-        let features = self.generate_features(qa_example, self.max_seq_len, self.doc_stride, self.max_query_length);
-        for feature in features {
+        let features = self.generate_features(&qa_example, self.max_seq_len, self.doc_stride, self.max_query_length);
+        for feature in &features {
             input_ids.push(Tensor::of_slice(&feature.input_ids).to(self.var_store.device()));
             attention_masks.push(Tensor::of_slice(&feature.attention_mask).to(self.var_store.device()));
         }
         let input_ids = Tensor::stack(&input_ids, 0);
         let attention_masks = Tensor::stack(&attention_masks, 0);
-        (input_ids, attention_masks)
+        (qa_example, features, input_ids, attention_masks)
     }
 
-    pub fn predict(&self, question: &str, context: &str) {
-        let (input_ids, attention_mask) = self.prepare_for_model(question, context);
+    pub fn predict(&self, question: &str, context: &str, top_k: i64) -> Vec<Answer> {
+        let (qa_example, qa_features, input_ids, attention_mask) = self.prepare_for_model(question, context);
 
         let (start_logits, end_logits, _, _) = no_grad(|| {
             self.distilbert_qa.forward_t(Some(input_ids), Some(attention_mask), None, false).unwrap()
         });
+        let start_logits = start_logits.to(Device::Cpu);
+        let end_logits = end_logits.to(Device::Cpu);
 
-        println!("{:?}", start_logits);
-        println!("{:?}", end_logits);
+        let mut answers: Vec<Answer> = vec!();
+        for (feature_idx, feature) in (0..start_logits.size()[0]).zip(qa_features) {
+            let start = start_logits.get(feature_idx);
+            let end = end_logits.get(feature_idx);
+            let p_mask = (Tensor::of_slice(&feature.p_mask) - 1).abs();
 
+            let start: Tensor = start.exp() / start.exp().sum(Float) * &p_mask;
+            let end: Tensor = end.exp() / end.exp().sum(Float) * &p_mask;
+
+            let (starts, ends, scores) = self.decode(&start, &end, top_k);
+
+            for idx in 0..starts.len() {
+                let start_pos = feature.token_to_orig_map[&starts[idx]] as usize;
+                let end_pos = feature.token_to_orig_map[&ends[idx]] as usize;
+                let answer = qa_example.doc_tokens[start_pos..end_pos + 1].join(" ");
+
+                let start = qa_example.char_to_word_offset
+                    .iter()
+                    .position(|&v| v as usize == start_pos)
+                    .unwrap();
+
+                let end = qa_example.char_to_word_offset
+                    .iter()
+                    .rposition(|&v| v as usize == end_pos)
+                    .unwrap();
+
+                answers.push(
+                    Answer { score: scores[idx], start, end, answer })
+            }
+        }
+        answers.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+
+        answers[..(top_k as usize)].to_vec()
+    }
+
+    fn decode(&self, start: &Tensor, end: &Tensor, top_k: i64) -> (Vec<i64>, Vec<i64>, Vec<f64>) {
+        let outer = start.unsqueeze(-1).matmul(&end.unsqueeze(0));
+        let start_dim = start.size()[0];
+        let end_dim = end.size()[0];
+        let candidates = outer.triu(0).tril(self.max_answer_len as i64 - 1).flatten(0, -1);
+        let idx_sort = if top_k == 1 {
+            candidates.argmax(0, true)
+        } else if candidates.size()[0] < top_k {
+            candidates.argsort(0, true)
+        } else {
+            candidates.argsort(0, true).slice(0, 0, top_k, 1)
+        };
+
+        let mut start: Vec<i64> = vec!();
+        let mut end: Vec<i64> = vec!();
+        let mut scores: Vec<f64> = vec!();
+
+        for flat_index_position in 0..idx_sort.size()[0] {
+            let flat_index = idx_sort.int64_value(&[flat_index_position]);
+            scores.push(candidates.double_value(&[flat_index]));
+            start.push(flat_index / start_dim);
+            end.push(flat_index % end_dim);
+        }
+        (start, end, scores)
     }
 
 
-    fn generate_features(&self, qa_example: QaExample, max_seq_length: usize, doc_stride: usize, max_query_length: usize) -> Vec<QaFeature> {
+    fn generate_features(&self, qa_example: &QaExample, max_seq_length: usize, doc_stride: usize, max_query_length: usize) -> Vec<QaFeature> {
         let mut tok_to_orig_index: Vec<i64> = vec!();
         let mut all_doc_tokens: Vec<String> = vec!();
 
@@ -239,7 +302,6 @@ impl QuestionAnsweringModel {
     }
 
     fn get_mask(&self, encoded_span: &TokenizedInput) -> Vec<i8> {
-        let cls_index = encoded_span.token_ids.iter().position(|v| v == &self.cls_idx).unwrap();
         let sep_indices: Vec<usize> = encoded_span.token_ids
             .iter()
             .enumerate()
@@ -252,22 +314,9 @@ impl QuestionAnsweringModel {
             .map(|v| min(v, &1i8))
             .map(|&v| 1i8 - v)
             .collect();
-        p_mask[cls_index] = 0;
         for sep_position in sep_indices {
             p_mask[sep_position] = 1;
         }
         p_mask
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
