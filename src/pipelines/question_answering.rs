@@ -113,7 +113,7 @@ impl QuestionAnsweringModel {
         })
     }
 
-    pub fn generate_features(&self, qa_example: QaExample, max_seq_length: usize, doc_stride: usize, max_query_length: usize) {
+    pub fn generate_features(&self, qa_example: QaExample, max_seq_length: usize, doc_stride: usize, max_query_length: usize) -> Vec<QaFeature> {
         let mut tok_to_orig_index: Vec<i64> = vec!();
         let mut all_doc_tokens: Vec<String> = vec!();
 
@@ -146,23 +146,7 @@ impl QuestionAnsweringModel {
                 token_to_orig_map.insert(index as i64, tok_to_orig_index[spans.len() * doc_stride + i] as i64);
             }
 
-            let cls_index = encoded_span.token_ids.iter().position(|v| v == &self.cls_idx).unwrap();
-            let sep_indices: Vec<usize> = encoded_span.token_ids
-                .iter()
-                .enumerate()
-                .filter(|(_, &value)| value == self.sep_idx)
-                .map(|(position, _)| position)
-                .collect();
-
-            let mut p_mask: Vec<i8> = encoded_span.segment_ids
-                .iter()
-                .map(|v| min(v, &1i8))
-                .map(|&v| 1i8 - v)
-                .collect();
-            p_mask[cls_index] = 0;
-            for sep_position in sep_indices {
-                p_mask[sep_position] = 1;
-            }
+            let p_mask = self.get_mask(&encoded_span);
 
             let qa_feature = QaFeature { input_ids: encoded_span.token_ids, token_to_orig_map, p_mask };
 
@@ -172,9 +156,7 @@ impl QuestionAnsweringModel {
             }
             remaining_tokens = encoded_span.overflowing_tokens
         }
-        println!("{:?}", spans);
-
-        ()
+        spans
     }
 
     fn prepare_query(&self, query: &str, max_query_length: usize) -> Vec<i64> {
@@ -212,6 +194,27 @@ impl QuestionAnsweringModel {
             segment_ids.append(&mut vec![0; max_seq_length - segment_ids.len()]);
         }
         TokenizedInput { token_ids, segment_ids, special_tokens_mask, overflowing_tokens, num_truncated_tokens }
+    }
+
+    fn get_mask(&self, encoded_span: &TokenizedInput) -> Vec<i8> {
+        let cls_index = encoded_span.token_ids.iter().position(|v| v == &self.cls_idx).unwrap();
+        let sep_indices: Vec<usize> = encoded_span.token_ids
+            .iter()
+            .enumerate()
+            .filter(|(_, &value)| value == self.sep_idx)
+            .map(|(position, _)| position)
+            .collect();
+
+        let mut p_mask: Vec<i8> = encoded_span.segment_ids
+            .iter()
+            .map(|v| min(v, &1i8))
+            .map(|&v| 1i8 - v)
+            .collect();
+        p_mask[cls_index] = 0;
+        for sep_position in sep_indices {
+            p_mask[sep_position] = 1;
+        }
+        p_mask
     }
 }
 
