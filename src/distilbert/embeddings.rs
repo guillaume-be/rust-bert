@@ -14,25 +14,31 @@ use tch::{nn, Tensor, Kind, Device};
 use tch::nn::{ModuleT, embedding, EmbeddingConfig};
 use crate::distilbert::distilbert::DistilBertConfig;
 use crate::common::dropout::Dropout;
+use tch::kind::Kind::Float;
 
 
 fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn::Embedding {
-    let sinusoidal_embedding = Tensor::arange(config.max_position_embeddings, (Kind::Float, device)).unsqueeze(1);
-    let multiplier: Tensor = Tensor::arange2(0, config.dim, 2, (Kind::Float, device));
-    let multiplier: Tensor = Tensor::from(1.0) / (Tensor::ones(&[1], (Kind::Float, device)) * 10000).pow1(&(multiplier / config.dim));
-    let sinusoidal_embedding: Tensor = sinusoidal_embedding * multiplier;
-    let cos_embeddings: Tensor = sinusoidal_embedding.cos();
-    let sin_embeddings: Tensor = sinusoidal_embedding.sin();
-
-    let sinusoidal_embedding: Tensor = Tensor::ones(&[config.max_position_embeddings, config.dim], (Kind::Float, device));
-    sinusoidal_embedding.slice(1, 0, config.dim, 2).copy_(&sin_embeddings);
-    sinusoidal_embedding.slice(1, 1, config.dim, 2).copy_(&cos_embeddings);
+    let mut sinusoidal_embedding: Vec<Tensor> = Vec::with_capacity(config.max_position_embeddings as usize);
+    for pos in 0..config.max_position_embeddings {
+        let mut temp_vec: Vec<f64> = Vec::with_capacity(config.dim as usize);
+        for j in 0..config.dim {
+            if j % 2 == 0 {
+                temp_vec.push((pos as f64 / 10000f64.powf((2 * (j / 2)) as f64 / config.dim as f64)).sin());
+            } else {
+                temp_vec.push((pos as f64 / 10000f64.powf((2 * (j / 2)) as f64 / config.dim as f64)).cos());
+            }
+        }
+        let temp_vec = Tensor::of_slice(&temp_vec);
+        sinusoidal_embedding.push(temp_vec);
+    }
+    let sinusoidal_embedding = Tensor::stack(&sinusoidal_embedding, 0).to_kind(Float);
 
     let embedding_config = EmbeddingConfig { padding_idx: 0, ..Default::default() };
     let mut embeddings = embedding(&nn::VarStore::new(device).root(),
                                    config.max_position_embeddings,
                                    config.dim,
                                    embedding_config);
+
     embeddings.ws = sinusoidal_embedding;
     embeddings
 }
@@ -86,6 +92,7 @@ impl ModuleT for DistilBertEmbedding {
         let word_embed = input.apply(&self.word_embeddings);
         let position_embed = position_ids.apply(&self.position_embeddings);
 
+//        position_embed.get(0).get(0).print();
         let embeddings = word_embed + position_embed;
         let embeddings = embeddings.apply(&self.layer_norm).apply_t(&self.dropout, train);
 

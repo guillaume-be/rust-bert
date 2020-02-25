@@ -14,12 +14,15 @@
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, TokenizedInput};
 //use crate::{DistilBertForQuestionAnswering, DistilBertConfig};
 //use tch::nn::VarStore;
-use tch::Device;
+use tch::{Device, Tensor, no_grad};
 //use crate::common::config::Config;
 use std::path::Path;
 use rust_tokenizers::tokenization_utils::truncate_sequences;
 use std::collections::HashMap;
 use std::cmp::min;
+use crate::{DistilBertForQuestionAnswering, DistilBertConfig};
+use tch::nn::VarStore;
+use crate::common::config::Config;
 
 #[derive(Debug)]
 pub struct QaExample {
@@ -32,6 +35,7 @@ pub struct QaExample {
 #[derive(Debug)]
 pub struct QaFeature {
     pub input_ids: Vec<i64>,
+    pub attention_mask: Vec<i64>,
     pub token_to_orig_map: HashMap<i64, i64>,
     pub p_mask: Vec<i8>,
 
@@ -88,32 +92,68 @@ pub struct QuestionAnsweringModel {
     pad_idx: i64,
     cls_idx: i64,
     sep_idx: i64,
-//    _distilbert_qa: DistilBertForQuestionAnswering,
-//    _var_store: VarStore,
+    max_seq_len: usize,
+    doc_stride: usize,
+    max_query_length: usize,
+    distilbert_qa: DistilBertForQuestionAnswering,
+    var_store: VarStore,
 }
 
 impl QuestionAnsweringModel {
-    pub fn new(vocab_path: &Path, _model_config_path: &Path, _model_weight_path: &Path, _device: Device)
+    pub fn new(vocab_path: &Path, model_config_path: &Path, model_weight_path: &Path, device: Device)
                -> failure::Fallible<QuestionAnsweringModel> {
         let tokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), false);
         let pad_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[PAD]").expect("[PAD] token not found in vocabulary");
         let cls_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[CLS]").expect("[CLS] token not found in vocabulary");
         let sep_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[SEP]").expect("[SEP] token not found in vocabulary");
-//        let var_store = VarStore::new(device);
-//        let config = DistilBertConfig::from_file(model_config_path);
-//        let distilbert_qa = DistilBertForQuestionAnswering::new(&var_store.root(), &config);
-//        var_store.load(model_weight_path)?;
+        let mut var_store = VarStore::new(device);
+        let mut config = DistilBertConfig::from_file(model_config_path);
+//        The config for the current pre-trained question answering model indicates position embeddings which does not seem accurate
+        config.sinusoidal_pos_embds = false;
+        let distilbert_qa = DistilBertForQuestionAnswering::new(&var_store.root(), &config);
+        var_store.load(model_weight_path)?;
         Ok(QuestionAnsweringModel {
             tokenizer,
             pad_idx,
             cls_idx,
             sep_idx,
-//            _distilbert_qa: distilbert_qa,
-//            _var_store: var_store
+            max_seq_len: 384,
+            doc_stride: 128,
+            max_query_length: 64,
+            distilbert_qa,
+            var_store,
         })
     }
 
-    pub fn generate_features(&self, qa_example: QaExample, max_seq_length: usize, doc_stride: usize, max_query_length: usize) -> Vec<QaFeature> {
+    fn prepare_for_model(&self, question: &str, context: &str) -> (Tensor, Tensor) {
+        let qa_example = QaExample::new(question, context);
+        let mut input_ids: Vec<Tensor> = vec!();
+        let mut attention_masks: Vec<Tensor> = vec!();
+
+        let features = self.generate_features(qa_example, self.max_seq_len, self.doc_stride, self.max_query_length);
+        for feature in features {
+            input_ids.push(Tensor::of_slice(&feature.input_ids).to(self.var_store.device()));
+            attention_masks.push(Tensor::of_slice(&feature.attention_mask).to(self.var_store.device()));
+        }
+        let input_ids = Tensor::stack(&input_ids, 0);
+        let attention_masks = Tensor::stack(&attention_masks, 0);
+        (input_ids, attention_masks)
+    }
+
+    pub fn predict(&self, question: &str, context: &str) {
+        let (input_ids, attention_mask) = self.prepare_for_model(question, context);
+
+        let (start_logits, end_logits, _, _) = no_grad(|| {
+            self.distilbert_qa.forward_t(Some(input_ids), Some(attention_mask), None, false).unwrap()
+        });
+
+        println!("{:?}", start_logits);
+        println!("{:?}", end_logits);
+
+    }
+
+
+    fn generate_features(&self, qa_example: QaExample, max_seq_length: usize, doc_stride: usize, max_query_length: usize) -> Vec<QaFeature> {
         let mut tok_to_orig_index: Vec<i64> = vec!();
         let mut all_doc_tokens: Vec<String> = vec!();
 
@@ -134,7 +174,7 @@ impl QuestionAnsweringModel {
 
         let mut remaining_tokens = self.tokenizer.convert_tokens_to_ids(&all_doc_tokens);
         while (spans.len() * doc_stride as usize) < all_doc_tokens.len() {
-            let encoded_span = self.encode_qa_pair(&truncated_query, &remaining_tokens, max_seq_length, doc_stride, sequence_pair_added_tokens);
+            let (encoded_span, attention_mask) = self.encode_qa_pair(&truncated_query, &remaining_tokens, max_seq_length, doc_stride, sequence_pair_added_tokens);
 
             let paragraph_len = min(
                 all_doc_tokens.len() - spans.len() * doc_stride,
@@ -148,7 +188,7 @@ impl QuestionAnsweringModel {
 
             let p_mask = self.get_mask(&encoded_span);
 
-            let qa_feature = QaFeature { input_ids: encoded_span.token_ids, token_to_orig_map, p_mask };
+            let qa_feature = QaFeature { input_ids: encoded_span.token_ids, attention_mask, token_to_orig_map, p_mask };
 
             spans.push(qa_feature);
             if encoded_span.num_truncated_tokens == 0 {
@@ -175,7 +215,7 @@ impl QuestionAnsweringModel {
                       spans_token_ids: &Vec<i64>,
                       max_seq_length: usize,
                       doc_stride: usize,
-                      sequence_pair_added_tokens: usize) -> TokenizedInput {
+                      sequence_pair_added_tokens: usize) -> (TokenizedInput, Vec<i64>) {
         let len_1 = truncated_query.len();
         let len_2 = spans_token_ids.len();
         let total_len = len_1 + len_2 + sequence_pair_added_tokens;
@@ -189,11 +229,13 @@ impl QuestionAnsweringModel {
                                  max_seq_length - doc_stride - len_1 - sequence_pair_added_tokens).unwrap();
 
         let (mut token_ids, mut segment_ids, special_tokens_mask) = self.tokenizer.build_input_with_special_tokens(truncated_query, truncated_context);
+        let mut attention_mask = vec![1; token_ids.len()];
         if token_ids.len() < max_seq_length {
             token_ids.append(&mut vec![self.pad_idx; max_seq_length - token_ids.len()]);
             segment_ids.append(&mut vec![0; max_seq_length - segment_ids.len()]);
+            attention_mask.append(&mut vec![0; max_seq_length - attention_mask.len()]);
         }
-        TokenizedInput { token_ids, segment_ids, special_tokens_mask, overflowing_tokens, num_truncated_tokens }
+        (TokenizedInput { token_ids, segment_ids, special_tokens_mask, overflowing_tokens, num_truncated_tokens }, attention_mask)
     }
 
     fn get_mask(&self, encoded_span: &TokenizedInput) -> Vec<i8> {

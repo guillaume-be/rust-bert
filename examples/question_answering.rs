@@ -2,7 +2,7 @@ extern crate failure;
 extern crate dirs;
 
 use std::path::PathBuf;
-use rust_bert::pipelines::question_answering::{QaExample, QuestionAnsweringModel};
+use rust_bert::pipelines::question_answering::{QuestionAnsweringModel};
 use tch::Device;
 
 
@@ -22,13 +22,9 @@ fn main() -> failure::Fallible<()> {
 
 //    Define input
     let question = "Where does Amy live ?";
-    let answer = "Amy lives in Amsterdam.";
+    let context = "Amy lives in Amsterdam";
 
-    let qa_example = QaExample::new(question, answer);
-    println!("{:?}", qa_example);
-
-    qa_model.generate_features(qa_example, 384, 128, 64);
+    qa_model.predict(question, context);
 
     Ok(())
 }
-
