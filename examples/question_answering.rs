@@ -2,7 +2,7 @@ extern crate failure;
 extern crate dirs;
 
 use std::path::PathBuf;
-use rust_bert::pipelines::question_answering::{QuestionAnsweringModel};
+use rust_bert::pipelines::question_answering::QuestionAnsweringModel;
 use tch::Device;
 
 
@@ -17,7 +17,9 @@ fn main() -> failure::Fallible<()> {
 
 //    Set-up Question Answering model
     let device = Device::Cpu;
-    let qa_model = QuestionAnsweringModel::new(vocab_path, config_path, weights_path, device)?;
+    let qa_model = QuestionAnsweringModel::new(vocab_path,
+                                               config_path,
+                                               weights_path, device)?;
 
 //    Define input
     let question = "Where does Amy live ?";
