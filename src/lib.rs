@@ -1,6 +1,7 @@
 pub mod distilbert;
 pub mod bert;
 pub mod roberta;
+pub mod gpt2;
 pub mod common;
 pub mod pipelines;
 
