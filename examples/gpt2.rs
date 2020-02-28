@@ -18,6 +18,8 @@ use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, Gpt2Tokenizer};
 use rust_bert::gpt2::gpt2::{Gpt2Config, Gpt2Model};
 use rust_bert::common::config::Config;
+use tch::kind::Kind::Float;
+use rust_bert::gpt2::attention::Attention;
 
 
 fn main() -> failure::Fallible<()> {
@@ -55,6 +57,11 @@ fn main() -> failure::Fallible<()> {
     let _input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
+    let attention = Attention::new(&vs.root(), &config, false);
+    let _input_tensor = Tensor::ones(&[32, 56, 768], (Float, vs.device()));
+
+    let output = attention.forward_t(&_input_tensor, &None, &None, false);
+    println!("{:?}", output);
 
 
 

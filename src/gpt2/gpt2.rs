@@ -61,5 +61,6 @@ impl Gpt2Model {
 
         Gpt2Model { _wte: wte, _wpe: wpe, _drop: drop, _ln_f: ln_f }
     }
+
 }
 
