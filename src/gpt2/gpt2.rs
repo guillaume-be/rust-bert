@@ -142,7 +142,6 @@ impl Gpt2Model {
             None => Tensor::zeros_like(&position_embeds)
         };
         let mut hidden_state: Tensor = (input_embeddings + position_embeds + token_type_embeds).apply_t(&self.drop, train);
-
         let mut all_presents: Option<Vec<Tensor>> = if self.output_past { Some(vec!()) } else { None };
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
         let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
