@@ -91,7 +91,7 @@ impl <T: BertEmbedding> BertModel<T> {
             }
             None => match &input_embeds {
                 Some(embeds) => (vec!(embeds.size()[0], embeds.size()[1]), embeds.device()),
-                None => { return Err("Only one of input ids or input embeddings may be set"); }
+                None => { return Err("At least one of input ids or input embeddings must be set"); }
             }
         };
 

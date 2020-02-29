@@ -14,9 +14,11 @@
 
 use crate::common::config::Config;
 use serde::{Deserialize, Serialize};
-use tch::nn;
+use tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
 use tch::nn::embedding;
+use crate::gpt2::transformer::Block;
+use tch::kind::Kind::Int64;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Gpt2Config {
@@ -40,10 +42,11 @@ pub struct Gpt2Config {
 impl Config<Gpt2Config> for Gpt2Config {}
 
 pub struct Gpt2Model {
-    _wte: nn::Embedding,
-    _wpe: nn::Embedding,
-    _drop: Dropout,
-    _ln_f: nn::LayerNorm,
+    wte: nn::Embedding,
+    wpe: nn::Embedding,
+    drop: Dropout,
+    ln_f: nn::LayerNorm,
+    h: Vec<Block>,
 }
 
 impl Gpt2Model {
@@ -58,9 +61,73 @@ impl Gpt2Model {
         let drop = Dropout::new(embd_pdrop);
         let layer_norm_config = nn::LayerNormConfig { eps: config.layer_norm_epsilon, ..Default::default() };
         let ln_f = nn::layer_norm(p / "ln_f ", vec![config.n_embd], layer_norm_config);
+        let mut h: Vec<Block> = vec!();
+        let h_path = &(p / "h");
+        for layer_index in 0..config.n_layer {
+            h.push(Block::new(&(h_path / layer_index), config, true));
+        };
 
-        Gpt2Model { _wte: wte, _wpe: wpe, _drop: drop, _ln_f: ln_f }
+        Gpt2Model { wte, wpe, drop, ln_f, h }
     }
 
+    pub fn forward_t(&self,
+                     input_ids: &Option<Tensor>,
+                     layer_past: &Option<Vec<Tensor>>,
+                     attention_mask: &Option<Tensor>,
+                     token_type_ids: &Option<Tensor>,
+                     position_ids: &Option<Tensor>,
+                     input_embeds: &Option<Tensor>,
+                     train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (input_embeddings, seq_length) = match input_ids {
+            Some(input_value) => match input_embeds {
+                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
+                None => (input_value.apply(&self.wte), *input_value.size().last().unwrap())
+            }
+            None => match input_embeds {
+                Some(embeds) => (embeds.copy(), embeds.size()[1]),
+                None => { return Err("At least one of input ids or input embeddings must be set"); }
+            }
+        };
+
+        let (layer_past, layer_past_length) = match layer_past {
+            Some(value) => {
+                assert_eq!(value.len(), self.h.len(), "Past activations vector must be of length equal to the number of layers");
+                (&value.iter().map(|&v| Some(v)).collect::<Vec<Option<Tensor>>>(), value[0].size()[3])
+            }
+            None => {
+                let mut out = Vec::with_capacity(self.h.len());
+                out.resize_with(self.h.len(), || None::<Tensor>);
+                (&out, 0)
+            }
+        };
+
+        let position_ids = match position_ids {
+            Some(value) => value,
+            None => &Tensor::arange1(layer_past_length, seq_length + layer_past_length, (Int64, input_embeddings.device())).unsqueeze(0)
+        };
+
+        let attention_mask: &Option<Tensor> = match attention_mask {
+            Some(value) => {
+                &Some(
+                    (value
+                        .view((input_embeddings.size()[0], -1))
+                        .unsqueeze(1)
+                        .unsqueeze(2)
+                        - 1.0
+                    ) * 10000.0)
+            }
+            None => &None
+        };
+
+        let position_embeds = position_ids.apply(&self.wpe);
+        let token_type_embeds = match token_type_ids {
+            Some(value) => value.apply(&self.wte),
+            None => Tensor::zeros_like(&position_embeds)
+        };
+        let hidden_states: Tensor = (input_embeddings + position_embeds + token_type_embeds).apply_t(&self.drop, train);
+
+        
+
+    }
 }
 

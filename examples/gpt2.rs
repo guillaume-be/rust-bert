@@ -57,11 +57,11 @@ fn main() -> failure::Fallible<()> {
     let _input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let attention = Block::new(&vs.root(), &config, false);
+    let gpt2_model = Gpt2Model::new(&vs.root(), &config);
     let _input_tensor = Tensor::ones(&[32, 56, 768], (Float, vs.device()));
 
-    let output = attention.forward_t(&_input_tensor, &None, &None, false);
-    println!("{:?}", output);
+//    let output = attention.forward_t(&_input_tensor, &None, &None, false);
+//    println!("{:?}", output);
 
     Ok(())
 }
