@@ -20,6 +20,7 @@ use tch::nn::embedding;
 use crate::gpt2::transformer::Block;
 use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
+use crate::common::linear::{LinearNoBias, linear_no_bias};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Gpt2Config {
@@ -169,5 +170,42 @@ impl Gpt2Model {
         };
 
         Ok((hidden_state.apply(&self.ln_f), all_presents, all_hidden_states, all_attentions))
+    }
+}
+
+
+pub struct GPT2LMHeadModel {
+    transformer: Gpt2Model,
+    lm_head: LinearNoBias,
+}
+
+impl GPT2LMHeadModel {
+    pub fn new(p: &nn::Path, config: &Gpt2Config) -> GPT2LMHeadModel {
+        let transformer = Gpt2Model::new(&p, config);
+        let lm_head = linear_no_bias(&(p / "lm_head"), config.n_embd, config.vocab_size, Default::default());
+        GPT2LMHeadModel { transformer, lm_head }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: &Option<Tensor>,
+                     layer_past: &Option<Vec<Tensor>>,
+                     attention_mask: &Option<Tensor>,
+                     token_type_ids: &Option<Tensor>,
+                     position_ids: &Option<Tensor>,
+                     input_embeds: &Option<Tensor>,
+                     train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (output,
+            past,
+            all_hidden_states,
+            all_attentions) = self.transformer.forward_t(input_ids,
+                                                         layer_past,
+                                                         attention_mask,
+                                                         token_type_ids,
+                                                         position_ids,
+                                                         input_embeds,
+                                                         train)?;
+
+        let lm_logits = output.apply(&self.lm_head);
+        Ok((lm_logits, past, all_hidden_states, all_attentions))
     }
 }
