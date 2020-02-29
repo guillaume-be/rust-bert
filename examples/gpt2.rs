@@ -18,8 +18,6 @@ use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, Gpt2Tokenizer};
 use rust_bert::gpt2::gpt2::{Gpt2Config, Gpt2Model};
 use rust_bert::common::config::Config;
-use tch::kind::Kind::Float;
-use rust_bert::gpt2::transformer::Block;
 
 
 fn main() -> failure::Fallible<()> {
@@ -30,15 +28,15 @@ fn main() -> failure::Fallible<()> {
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let merges_path = &home.as_path().join("merges.txt");
-    let _weights_path = &home.as_path().join("model.ot");
+    let weights_path = &home.as_path().join("model.ot");
 
 //    Set-up masked LM model
     let device = Device::Cpu;
-    let vs = nn::VarStore::new(device);
+    let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let config = Gpt2Config::from_file(config_path);
     let _gpt2_model = Gpt2Model::new(&vs.root(), &config);
-//    vs.load(weights_path)?;
+    vs.load(weights_path)?;
 
 //    Define input
     let input = ["Looks like one thing is missing", "It\'s like comparing oranges to apples"];
@@ -54,14 +52,20 @@ fn main() -> failure::Fallible<()> {
         map(|input|
             Tensor::of_slice(&(input))).
         collect::<Vec<_>>();
-    let _input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
+    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
     let gpt2_model = Gpt2Model::new(&vs.root(), &config);
-    let _input_tensor = Tensor::ones(&[32, 56, 768], (Float, vs.device()));
 
-//    let output = attention.forward_t(&_input_tensor, &None, &None, false);
-//    println!("{:?}", output);
+    let output = gpt2_model.forward_t(
+        &Some(input_tensor),
+        &None,
+        &None,
+        &None,
+        &None,
+        &None,
+        false);
+    println!("{:?}", output);
 
     Ok(())
 }
