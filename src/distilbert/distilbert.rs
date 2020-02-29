@@ -86,7 +86,7 @@ impl DistilBertModel {
             }
             None => match input_embeds {
                 Some(embeds) => embeds.copy(),
-                None => { return Err("Only one of input ids or input embeddings may be set"); }
+                None => { return Err("At least one of input ids or input embeddings must be set"); }
             }
         };
 

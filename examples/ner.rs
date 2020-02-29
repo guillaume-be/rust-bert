@@ -22,7 +22,7 @@ fn main() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
-    home.push("bert-ner");
+    home.push("rubert");
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let weights_path = &home.as_path().join("model.ot");
@@ -35,8 +35,8 @@ fn main() -> failure::Fallible<()> {
 
 //    Define input
     let input = [
-        "My name is Amy. I live in Paris.",
-        "Paris is a city in France."
+        "Меня зовут Эми. Я живу в Париже.",
+        " Париж это город во Франции."
     ];
 
 //    Run model
