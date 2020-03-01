@@ -36,6 +36,8 @@ weights = torch.load(temp_weights, map_location='cpu')
 nps = {}
 for k, v in weights.items():
     nps[k] = np.ascontiguousarray(v.cpu().numpy())
+    if k == 'tokens_embed.weight':
+        nps['lm_head.weight'] = np.ascontiguousarray(v.cpu().numpy())
 
 np.savez(target_path / 'model.npz', **nps)
 

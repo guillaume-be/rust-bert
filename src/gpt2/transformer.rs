@@ -72,7 +72,6 @@ impl Block {
     pub fn forward_t(&self, x: &Tensor, layer_past: &Option<Tensor>, attention_mask: &Option<Tensor>, train: bool)
                      -> (Tensor, Tensor, Option<Tensor>) {
         let (output, present, attentions) = self.attn.forward_t(&x.apply(&self.ln_1), layer_past, attention_mask, train);
-
         let x = x + output;
         let m = self.mlp.forward_t(&x.apply(&self.ln_2), train);
         let x = x + m;

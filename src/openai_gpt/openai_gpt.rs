@@ -15,11 +15,12 @@
 
 use tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
-use crate::gpt2::transformer::Block;
 use crate::Gpt2Config;
 use tch::nn::embedding;
 use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
+use crate::common::linear::{LinearNoBias, linear_no_bias};
+use crate::openai_gpt::transformer::Block;
 
 
 pub struct OpenAiGptModel {
@@ -111,10 +112,10 @@ impl OpenAiGptModel {
                         hidden_states.push(hidden_state.as_ref().copy());
                     };
 
-                    let temp = layer.forward_t(&hidden_state, &None, &attention_mask, train);
+                    let temp = layer.forward_t(&hidden_state, &attention_mask, train);
                     hidden_state = temp.0;
                     if let Some(attentions) = all_attentions.borrow_mut() {
-                        attentions.push(temp.2.as_ref().unwrap().copy());
+                        attentions.push(temp.1.as_ref().unwrap().copy());
                     };
                 }
                 None => break
@@ -122,5 +123,39 @@ impl OpenAiGptModel {
         };
 
         Ok((hidden_state, all_hidden_states, all_attentions))
+    }
+}
+
+
+pub struct OpenAIGPTLMHeadModel {
+    transformer: OpenAiGptModel,
+    lm_head: LinearNoBias,
+}
+
+impl OpenAIGPTLMHeadModel {
+    pub fn new(p: &nn::Path, config: &Gpt2Config) -> OpenAIGPTLMHeadModel {
+        let transformer = OpenAiGptModel::new(&p, config);
+        let lm_head = linear_no_bias(&(p / "lm_head"), config.n_embd, config.vocab_size, Default::default());
+        OpenAIGPTLMHeadModel { transformer, lm_head }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: &Option<Tensor>,
+                     attention_mask: &Option<Tensor>,
+                     token_type_ids: &Option<Tensor>,
+                     position_ids: &Option<Tensor>,
+                     input_embeds: &Option<Tensor>,
+                     train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (output,
+            all_hidden_states,
+            all_attentions) = self.transformer.forward_t(input_ids,
+                                                         attention_mask,
+                                                         token_type_ids,
+                                                         position_ids,
+                                                         input_embeds,
+                                                         train)?;
+
+        let lm_logits = output.apply(&self.lm_head);
+        Ok((lm_logits, all_hidden_states, all_attentions))
     }
 }

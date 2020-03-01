@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
 use rust_bert::common::config::Config;
-use rust_bert::openai_gpt::openai_gpt::OpenAiGptModel;
+use rust_bert::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
 use rust_bert::Gpt2Config;
 
 
@@ -34,13 +34,13 @@ fn main() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
-    let tokenizer = OpenAiGptTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
+    let tokenizer = OpenAiGptTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let config = Gpt2Config::from_file(config_path);
-    let gpt_model = OpenAiGptModel::new(&vs.root(), &config);
+    let openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
-    let input = ["One two three four five six seven eight nine ten eleven"];
+    let input = ["Wondering what the next word will"];
     let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
     let tokenized_input = tokenized_input.
@@ -53,22 +53,22 @@ fn main() -> failure::Fallible<()> {
         map(|input|
             Tensor::of_slice(&(input))).
         collect::<Vec<_>>();
-    let _input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
+    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-//    let (output, _, _, _) = gpt2_model.forward_t(
-//        &Some(input_tensor),
-//        &None,
-//        &None,
-//        &None,
-//        &None,
-//        &None,
-//        false).unwrap();
-//
-//    let next_word_id = output.get(0).get(-1).argmax(-1, true).int64_value(&[0]);
-//    let next_word = tokenizer.decode(vec!(next_word_id), true, true);
-//    println!("Provided input: {}", input[0]);
-//    println!("Next word: {}", next_word);
+    let (output, _, _) = openai_gpt.forward_t(
+        &Some(input_tensor),
+        &None,
+        &None,
+        &None,
+        &None,
+        false).unwrap();
+
+    let next_word_id = output.get(0).get(-1).argmax(-1, true).int64_value(&[0]);
+    let next_word = tokenizer.decode(vec!(next_word_id), true, true);
+    println!("Output: {:?}", output);
+    println!("Provided input: {}", input[0]);
+    println!("Next word: {}", next_word);
 
     Ok(())
 }
