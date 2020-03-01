@@ -15,8 +15,8 @@
 use crate::gpt2::attention::{GPTConv1D, Attention};
 use tch::{Tensor, nn};
 use crate::common::dropout::Dropout;
-use crate::gpt2::gpt2::Gpt2Config;
-use crate::common::activations::_gelu_new;
+use crate::gpt2::gpt2::{Gpt2Config, GptActivation};
+use crate::common::activations::{_gelu_new, _relu, _swish};
 
 pub struct MLP {
     c_fc: GPTConv1D,
@@ -29,7 +29,14 @@ impl MLP {
     pub fn new(p: &nn::Path, config: &Gpt2Config) -> MLP {
         let c_fc = GPTConv1D::new(&(p / "c_fc"), config.n_embd * 4, config.n_embd);
         let c_proj = GPTConv1D::new(&(p / "c_proj"), config.n_embd, config.n_embd * 4);
-        let activation = Box::new(_gelu_new);
+        let activation = Box::new(match &config.afn {
+            Some(activation_enum) => match activation_enum {
+                GptActivation::gelu => _gelu_new,
+                GptActivation::relu => _relu,
+                GptActivation::swish => _swish,
+            },
+            None => _gelu_new
+        });
         let resid_pdrop = match config.resid_pdrop {
             Some(value) => value,
             None => 0.1
@@ -65,7 +72,6 @@ impl Block {
     pub fn forward_t(&self, x: &Tensor, layer_past: &Option<Tensor>, attention_mask: &Option<Tensor>, train: bool)
                      -> (Tensor, Tensor, Option<Tensor>) {
         let (output, present, attentions) = self.attn.forward_t(&x.apply(&self.ln_1), layer_past, attention_mask, train);
-
         let x = x + output;
         let m = self.mlp.forward_t(&x.apply(&self.ln_2), train);
         let x = x + m;

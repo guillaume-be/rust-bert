@@ -1,15 +1,31 @@
+// Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
+// Copyright 2019 Guillaume Becquin
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+extern crate failure;
+extern crate dirs;
+
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
-use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
-use rust_bert::gpt2::gpt2::{Gpt2Config, GPT2LMHeadModel};
+use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
 use rust_bert::common::config::Config;
+use rust_bert::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
+use rust_bert::Gpt2Config;
 
-#[test]
-fn gpt2_lm_model() -> failure::Fallible<()> {
+
+fn main() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
-    home.push("distilgpt2");
+    home.push("openai-gpt");
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let merges_path = &home.as_path().join("merges.txt");
@@ -18,13 +34,13 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
-    let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
+    let tokenizer = OpenAiGptTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let config = Gpt2Config::from_file(config_path);
-    let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
+    let openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
-    let input = ["One two three four five six seven eight nine ten eleven"];
+    let input = ["Wondering what the next word will"];
     let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
     let tokenized_input = tokenized_input.
@@ -40,9 +56,8 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output, past, _, _) = gpt2_model.forward_t(
+    let (output, _, _) = openai_gpt.forward_t(
         &Some(input_tensor),
-        &None,
         &None,
         &None,
         &None,
@@ -51,14 +66,8 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
 
     let next_word_id = output.get(0).get(-1).argmax(-1, true).int64_value(&[0]);
     let next_word = tokenizer.decode(vec!(next_word_id), true, true);
-
-    assert_eq!(output.size(), vec!(1, 11, 50257));
-    assert!(past.is_some());
-    assert_eq!(past.as_ref().unwrap().len(), config.n_layer as usize);
-    assert_eq!(past.as_ref().unwrap()[0].size(), vec!(2, 1, config.n_head, 11, 64));
-    assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (-48.7065)).abs() < 1e-4);
-    assert_eq!(next_word_id, 14104i64);
-    assert_eq!(next_word, String::from(" twelve"));
+    println!("Provided input: {}", input[0]);
+    println!("Next word: {}", next_word);
 
     Ok(())
 }

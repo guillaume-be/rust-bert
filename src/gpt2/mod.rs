@@ -1,3 +1,3 @@
 pub mod gpt2;
-pub mod attention;
-pub mod transformer;
+pub(crate) mod attention;
+pub(crate) mod transformer;

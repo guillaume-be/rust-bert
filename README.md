@@ -9,14 +9,14 @@ This repository exposes the model base architecture, task-specific heads (see be
 
 The following models are currently implemented:
 
- | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT2**
-:-----:|:-----:|:-----:|:-----:|:-----:
-Masked LM|✅ |✅ |✅ ||
-Sequence classification|✅ |✅ |✅||
-Token classification|✅ |✅ | ✅||
-Question answering|✅ |✅ |✅||
-Multiple choices| |✅ |✅| |
-Next token prediction| | | |✅|
+ | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+Masked LM|✅ |✅ |✅ | | |
+Sequence classification|✅ |✅ |✅| | |
+Token classification|✅ |✅ | ✅| | |
+Question answering|✅ |✅ |✅| | |
+Multiple choices| |✅ |✅| | |
+Next token prediction| | | |✅|✅|
 
 ## Ready-to-use pipelines
 
