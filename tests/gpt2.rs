@@ -56,6 +56,7 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     assert!(past.is_some());
     assert_eq!(past.as_ref().unwrap().len(), config.n_layer as usize);
     assert_eq!(past.as_ref().unwrap()[0].size(), vec!(2, 1, config.n_head, 11, 64));
+    assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (-48.7065)).abs() < 1e-4);
     assert_eq!(next_word_id, 14104i64);
     assert_eq!(next_word, String::from(" twelve"));
 

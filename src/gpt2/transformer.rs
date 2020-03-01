@@ -15,8 +15,8 @@
 use crate::gpt2::attention::{GPTConv1D, Attention};
 use tch::{Tensor, nn};
 use crate::common::dropout::Dropout;
-use crate::gpt2::gpt2::Gpt2Config;
-use crate::common::activations::_gelu_new;
+use crate::gpt2::gpt2::{Gpt2Config, GptActivation};
+use crate::common::activations::{_gelu_new, _relu, _swish};
 
 pub struct MLP {
     c_fc: GPTConv1D,
@@ -29,7 +29,14 @@ impl MLP {
     pub fn new(p: &nn::Path, config: &Gpt2Config) -> MLP {
         let c_fc = GPTConv1D::new(&(p / "c_fc"), config.n_embd * 4, config.n_embd);
         let c_proj = GPTConv1D::new(&(p / "c_proj"), config.n_embd, config.n_embd * 4);
-        let activation = Box::new(_gelu_new);
+        let activation = Box::new(match &config.afn {
+            Some(activation_enum) => match activation_enum {
+                GptActivation::gelu => _gelu_new,
+                GptActivation::relu => _relu,
+                GptActivation::swish => _swish,
+            },
+            None => _gelu_new
+        });
         let resid_pdrop = match config.resid_pdrop {
             Some(value) => value,
             None => 0.1

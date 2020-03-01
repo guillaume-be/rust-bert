@@ -22,11 +22,20 @@ use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 
+#[allow(non_camel_case_types)]
+#[derive(Debug, Serialize, Deserialize)]
+pub enum GptActivation {
+    gelu,
+    relu,
+    swish,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Gpt2Config {
     pub attn_pdrop: Option<f64>,
     pub embd_pdrop: Option<f64>,
     pub hidden_dropout_prob: Option<f64>,
+    pub afn: Option<GptActivation>,
     pub initializer_range: f64,
     pub layer_norm_epsilon: f64,
     pub n_ctx: i64,
