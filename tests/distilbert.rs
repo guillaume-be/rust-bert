@@ -6,7 +6,7 @@ use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use rust_bert::{SentimentClassifier, SentimentPolarity};
 use rust_bert::common::config::Config;
-use rust_bert::pipelines::question_answering::QuestionAnsweringModel;
+use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 
 extern crate failure;
 extern crate dirs;
@@ -226,16 +226,18 @@ fn distilbert_question_answering() -> failure::Fallible<()> {
     let qa_model = QuestionAnsweringModel::new(vocab_path, config_path, weights_path, device)?;
 
 //    Define input
-    let question = "Where does Amy live ?";
-    let context = "Amy lives in Amsterdam";
+    let question = String::from("Where does Amy live ?");
+    let context = String::from("Amy lives in Amsterdam");
+    let qa_input = QaInput { question, context };
 
-    let answers = qa_model.predict(question, context, 1);
+    let answers = qa_model.predict(&vec!(qa_input), 1);
 
     assert_eq!(answers.len(), 1 as usize);
-    assert_eq!(answers[0].start, 13);
-    assert_eq!(answers[0].end, 21);
-    assert!((answers[0].score - 0.9977).abs() < 1e-4);
-    assert_eq!(answers[0].answer, "Amsterdam");
+    assert_eq!(answers[0].len(), 1 as usize);
+    assert_eq!(answers[0][0].start, 13);
+    assert_eq!(answers[0][0].end, 21);
+    assert!((answers[0][0].score - 0.9977).abs() < 1e-4);
+    assert_eq!(answers[0][0].answer, "Amsterdam");
 
     Ok(())
 }

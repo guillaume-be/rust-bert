@@ -22,6 +22,12 @@ use tch::nn::VarStore;
 use crate::common::config::Config;
 use tch::kind::Kind::Float;
 
+pub struct QaInput {
+    pub question: String,
+    pub context: String,
+}
+
+
 #[derive(Debug)]
 pub struct QaExample {
     pub question: String,
@@ -145,48 +151,55 @@ impl QuestionAnsweringModel {
         (qa_example, features, input_ids, attention_masks)
     }
 
-    pub fn predict(&self, question: &str, context: &str, top_k: i64) -> Vec<Answer> {
-        let (qa_example, qa_features, input_ids, attention_mask) = self.prepare_for_model(question, context);
+    pub fn predict(&self, qa_inputs: &Vec<QaInput>, top_k: i64) -> Vec<Vec<Answer>> {
+        let inputs: Vec<(QaExample, Vec<QaFeature>, Tensor, Tensor)> = qa_inputs
+            .iter()
+            .map(|qa_input| self.prepare_for_model(&qa_input.question, &qa_input.context))
+            .collect();
 
-        let (start_logits, end_logits, _, _) = no_grad(|| {
-            self.distilbert_qa.forward_t(Some(input_ids), Some(attention_mask), None, false).unwrap()
-        });
-        let start_logits = start_logits.to(Device::Cpu);
-        let end_logits = end_logits.to(Device::Cpu);
+        let mut all_answers = vec!();
 
-        let mut answers: Vec<Answer> = vec!();
-        for (feature_idx, feature) in (0..start_logits.size()[0]).zip(qa_features) {
-            let start = start_logits.get(feature_idx);
-            let end = end_logits.get(feature_idx);
-            let p_mask = (Tensor::of_slice(&feature.p_mask) - 1).abs();
+        for (qa_example, qa_features, input_ids, attention_mask) in inputs {
+            let (start_logits, end_logits, _, _) = no_grad(|| {
+                self.distilbert_qa.forward_t(Some(input_ids), Some(attention_mask), None, false).unwrap()
+            });
+            let start_logits = start_logits.to(Device::Cpu);
+            let end_logits = end_logits.to(Device::Cpu);
 
-            let start: Tensor = start.exp() / start.exp().sum(Float) * &p_mask;
-            let end: Tensor = end.exp() / end.exp().sum(Float) * &p_mask;
+            let mut answers: Vec<Answer> = vec!();
+            for (feature_idx, feature) in (0..start_logits.size()[0]).zip(qa_features) {
+                let start = start_logits.get(feature_idx);
+                let end = end_logits.get(feature_idx);
+                let p_mask = (Tensor::of_slice(&feature.p_mask) - 1).abs();
 
-            let (starts, ends, scores) = self.decode(&start, &end, top_k);
+                let start: Tensor = start.exp() / start.exp().sum(Float) * &p_mask;
+                let end: Tensor = end.exp() / end.exp().sum(Float) * &p_mask;
 
-            for idx in 0..starts.len() {
-                let start_pos = feature.token_to_orig_map[&starts[idx]] as usize;
-                let end_pos = feature.token_to_orig_map[&ends[idx]] as usize;
-                let answer = qa_example.doc_tokens[start_pos..end_pos + 1].join(" ");
+                let (starts, ends, scores) = self.decode(&start, &end, top_k);
 
-                let start = qa_example.char_to_word_offset
-                    .iter()
-                    .position(|&v| v as usize == start_pos)
-                    .unwrap();
+                for idx in 0..starts.len() {
+                    let start_pos = feature.token_to_orig_map[&starts[idx]] as usize;
+                    let end_pos = feature.token_to_orig_map[&ends[idx]] as usize;
+                    let answer = qa_example.doc_tokens[start_pos..end_pos + 1].join(" ");
 
-                let end = qa_example.char_to_word_offset
-                    .iter()
-                    .rposition(|&v| v as usize == end_pos)
-                    .unwrap();
+                    let start = qa_example.char_to_word_offset
+                        .iter()
+                        .position(|&v| v as usize == start_pos)
+                        .unwrap();
 
-                answers.push(
-                    Answer { score: scores[idx], start, end, answer })
+                    let end = qa_example.char_to_word_offset
+                        .iter()
+                        .rposition(|&v| v as usize == end_pos)
+                        .unwrap();
+
+                    answers.push(
+                        Answer { score: scores[idx], start, end, answer })
+                }
             }
+            answers.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+            all_answers.push(answers[..(top_k as usize)].to_vec());
         }
-        answers.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-
-        answers[..(top_k as usize)].to_vec()
+        all_answers
     }
 
     fn decode(&self, start: &Tensor, end: &Tensor, top_k: i64) -> (Vec<i64>, Vec<i64>, Vec<f64>) {

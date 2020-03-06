@@ -14,7 +14,7 @@ extern crate failure;
 extern crate dirs;
 
 use std::path::PathBuf;
-use rust_bert::pipelines::question_answering::QuestionAnsweringModel;
+use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 use tch::Device;
 
 
@@ -34,11 +34,15 @@ fn main() -> failure::Fallible<()> {
                                                weights_path, device)?;
 
 //    Define input
-    let question = "Where does Amy live ?";
-    let context = "Amy lives in Amsterdam";
+    let question_1 = String::from("Where does Amy live ?");
+    let context_1 = String::from("Amy lives in Amsterdam");
+    let question_2 = String::from("Where does Eric live");
+    let context_2 = String::from("While Amy lives in Amsterdam, Eric is in The Hague.");
+    let qa_input_1 = QaInput { question: question_1, context: context_1 };
+    let qa_input_2 = QaInput { question: question_2, context: context_2 };
 
 //    Get answer
-    let answers = qa_model.predict(question, context, 1);
+    let answers = qa_model.predict(&vec!(qa_input_1, qa_input_2), 1);
     println!("{:?}", answers);
     Ok(())
 }
