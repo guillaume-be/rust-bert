@@ -34,7 +34,8 @@ fn main() -> failure::Fallible<()> {
                                                weights_path, device)?;
 
 //    Define input
-    let mut squad_path = PathBuf::from(env::var("squad_dataset").unwrap());
+    let mut squad_path = PathBuf::from(env::var("squad_dataset")
+        .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));
     squad_path.push("dev-v2.0.json");
     let qa_inputs = squad_processor(squad_path);
 
