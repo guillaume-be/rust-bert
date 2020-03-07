@@ -14,9 +14,9 @@ extern crate failure;
 extern crate dirs;
 
 use std::path::PathBuf;
-use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
+use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, squad_processor};
 use tch::Device;
-
+use std::env;
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
@@ -28,21 +28,20 @@ fn main() -> failure::Fallible<()> {
     let weights_path = &home.as_path().join("model.ot");
 
 //    Set-up Question Answering model
-    let device = Device::Cpu;
+    let device = Device::cuda_if_available();
     let qa_model = QuestionAnsweringModel::new(vocab_path,
                                                config_path,
                                                weights_path, device)?;
 
 //    Define input
-    let question_1 = String::from("Where does Amy live ?");
-    let context_1 = String::from("Amy lives in Amsterdam");
-    let question_2 = String::from("Where does Eric live");
-    let context_2 = String::from("While Amy lives in Amsterdam, Eric is in The Hague.");
-    let qa_input_1 = QaInput { question: question_1, context: context_1 };
-    let qa_input_2 = QaInput { question: question_2, context: context_2 };
+    let mut squad_path = PathBuf::from(env::var("squad_dataset")
+        .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));
+    squad_path.push("dev-v2.0.json");
+    let qa_inputs = squad_processor(squad_path);
 
 //    Get answer
-    let answers = qa_model.predict(&vec!(qa_input_1, qa_input_2), 1, 32);
-    println!("{:?}", answers);
+    let answers = qa_model.predict(&qa_inputs, 1, 64);
+    println!("Sample answer: {:?}", answers.first().unwrap());
+    println!("{}", answers.len());
     Ok(())
 }

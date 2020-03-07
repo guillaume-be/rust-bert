@@ -20,7 +20,7 @@ Next token prediction| | | |✅|✅|
 
 ## Ready-to-use pipelines
 
-Leveraging Huggingface's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
+Based on Huggingface's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
 #### 1. Question Answering
 Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset)
 
@@ -30,10 +30,10 @@ Extractive question answering from a given question and context. DistilBERT mode
                                                config_path,
                                                weights_path, device)?;
                                                         
-    let question = "Where does Amy live ?";
-    let context = "Amy lives in Amsterdam";
+    let question = String::from("Where does Amy live ?");
+    let context = String::from("Amy lives in Amsterdam");
 
-    let answers = qa_model.predict(question, context, 1);
+    let answers = qa_model.predict(QaInput { question, context }, 1, 32);
 ```
 
 Output:
