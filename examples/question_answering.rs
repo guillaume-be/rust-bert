@@ -42,7 +42,7 @@ fn main() -> failure::Fallible<()> {
     let qa_input_2 = QaInput { question: question_2, context: context_2 };
 
 //    Get answer
-    let answers = qa_model.predict(&vec!(qa_input_1, qa_input_2), 1);
+    let answers = qa_model.predict(&vec!(qa_input_1, qa_input_2), 1, 32);
     println!("{:?}", answers);
     Ok(())
 }

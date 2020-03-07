@@ -17,9 +17,10 @@ use std::path::PathBuf;
 use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, squad_processor};
 use tch::Device;
 use std::env;
-
+use std::time::Instant;
 
 fn main() -> failure::Fallible<()> {
+    let now = Instant::now();
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
@@ -40,7 +41,8 @@ fn main() -> failure::Fallible<()> {
     let qa_inputs = squad_processor(squad_path);
 
 //    Get answer
-    let answers = qa_model.predict(&qa_inputs[0..5], 1);
-    println!("{:?}", answers);
+    let answers = qa_model.predict(&qa_inputs, 1, 32);
+    println!("{}", answers.len());
+    println!("{}", now.elapsed().as_secs());
     Ok(())
 }

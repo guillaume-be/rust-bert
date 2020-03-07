@@ -42,6 +42,7 @@ pub struct QaFeature {
     pub attention_mask: Vec<i64>,
     pub token_to_orig_map: HashMap<i64, i64>,
     pub p_mask: Vec<i8>,
+    pub example_index: i64,
 
 }
 
@@ -136,68 +137,124 @@ impl QuestionAnsweringModel {
         })
     }
 
-    fn prepare_for_model(&self, question: &str, context: &str) -> (QaExample, Vec<QaFeature>, Tensor, Tensor) {
-        let qa_example = QaExample::new(question, context);
-        let mut input_ids: Vec<Tensor> = vec!();
-        let mut attention_masks: Vec<Tensor> = vec!();
+//    fn prepare_for_model(&self, question: &str, context: &str, example_index: i64) -> (QaExample, Vec<QaFeature>) {
+//        let qa_example = QaExample::new(question, context);
+////        let mut input_ids: Vec<Tensor> = vec!();
+////        let mut attention_masks: Vec<Tensor> = vec!();
+//
+//        let features = self.generate_features(&qa_example, self.max_seq_len, self.doc_stride, self.max_query_length, example_index);
+////        for feature in &features {
+////            input_ids.push(Tensor::of_slice(&feature.input_ids).to(self.var_store.device()));
+////            attention_masks.push(Tensor::of_slice(&feature.attention_mask).to(self.var_store.device()));
+////        }
+////        let input_ids = Tensor::stack(&input_ids, 0);
+////        let attention_masks = Tensor::stack(&attention_masks, 0);
+//        (qa_example, features)
+//    }
 
-        let features = self.generate_features(&qa_example, self.max_seq_len, self.doc_stride, self.max_query_length);
-        for feature in &features {
-            input_ids.push(Tensor::of_slice(&feature.input_ids).to(self.var_store.device()));
-            attention_masks.push(Tensor::of_slice(&feature.attention_mask).to(self.var_store.device()));
+    fn generate_batch_indices(&self, features: &Vec<QaFeature>, batch_size: usize) -> Vec<(usize, usize)> {
+        let mut example_features_length: HashMap<i64, usize> = HashMap::new();
+        for feature in features {
+            let count = example_features_length.entry(feature.example_index).or_insert(0);
+            *count += 1;
         }
-        let input_ids = Tensor::stack(&input_ids, 0);
-        let attention_masks = Tensor::stack(&attention_masks, 0);
-        (qa_example, features, input_ids, attention_masks)
+
+        let mut batch_indices: Vec<(usize, usize)> = Vec::with_capacity(features.len());
+
+        let mut batch_length = 0usize;
+        let mut start = 0usize;
+        let mut end = 0usize;
+
+        for &feature_length in example_features_length.values() {
+            if batch_length + feature_length <= batch_size {
+                end += feature_length;
+                batch_length += feature_length;
+            } else {
+                batch_indices.push((start, end));
+                start = end;
+                end += feature_length;
+                batch_length = 1usize;
+            }
+        }
+        batch_indices.push((start, end));
+        batch_indices
     }
 
-    pub fn predict(&self, qa_inputs: &[QaInput], top_k: i64) -> Vec<Vec<Answer>> {
-        let inputs: Vec<(QaExample, Vec<QaFeature>, Tensor, Tensor)> = qa_inputs
+    pub fn predict(&self, qa_inputs: &[QaInput], top_k: i64, batch_size: usize) -> Vec<Vec<Answer>> {
+        let examples: Vec<QaExample> = qa_inputs
             .iter()
-            .map(|qa_input| self.prepare_for_model(&qa_input.question, &qa_input.context))
+            .map(|qa_input| QaExample::new(&qa_input.question, &qa_input.context))
             .collect();
 
+        let features: Vec<QaFeature> = examples
+            .iter()
+            .enumerate()
+            .map(|(example_index, qa_example)| self.generate_features(&qa_example, self.max_seq_len, self.doc_stride, self.max_query_length, example_index as i64))
+            .flatten()
+            .collect();
+
+        let batch_indices = self.generate_batch_indices(&features, batch_size);
         let mut all_answers = vec!();
 
-        for (qa_example, qa_features, input_ids, attention_mask) in inputs {
+        for (start, end) in batch_indices {
+            let batch_features = &features[start..end];
+            let mut input_ids: Vec<Tensor> = vec!();
+            let mut attention_masks: Vec<Tensor> = vec!();
+            for feature in batch_features {
+                input_ids.push(Tensor::of_slice(&feature.input_ids));
+                attention_masks.push(Tensor::of_slice(&feature.attention_mask));
+            }
+            let input_ids = Tensor::stack(&input_ids, 0).to(self.var_store.device());
+            let attention_masks = Tensor::stack(&attention_masks, 0).to(self.var_store.device());
+
             let (start_logits, end_logits, _, _) = no_grad(|| {
-                self.distilbert_qa.forward_t(Some(input_ids), Some(attention_mask), None, false).unwrap()
+                self.distilbert_qa.forward_t(Some(input_ids), Some(attention_masks), None, false).unwrap()
             });
             let start_logits = start_logits.to(Device::Cpu);
             let end_logits = end_logits.to(Device::Cpu);
 
-            let mut answers: Vec<Answer> = vec!();
-            for (feature_idx, feature) in (0..start_logits.size()[0]).zip(qa_features) {
-                let start = start_logits.get(feature_idx);
-                let end = end_logits.get(feature_idx);
-                let p_mask = (Tensor::of_slice(&feature.p_mask) - 1).abs();
+            let example_index_to_feature_end_position: Vec<(usize, i64)> = batch_features
+                .iter()
+                .enumerate()
+                .map(|(feature_index, feature)| (feature.example_index as usize, feature_index as i64 + 1))
+                .collect();
 
-                let start: Tensor = start.exp() / start.exp().sum(Float) * &p_mask;
-                let end: Tensor = end.exp() / end.exp().sum(Float) * &p_mask;
+            let mut feature_id_start = 0;
+            for (example_id, max_feature_id) in example_index_to_feature_end_position {
+                let mut answers: Vec<Answer> = vec!();
+                let example = &examples[example_id];
+                for feature_idx in feature_id_start..max_feature_id {
+                    let feature = &batch_features[feature_idx as usize];
+                    let start = start_logits.get(feature_idx);
+                    let end = end_logits.get(feature_idx);
+                    let p_mask = (Tensor::of_slice(&feature.p_mask) - 1).abs();
 
-                let (starts, ends, scores) = self.decode(&start, &end, top_k);
+                    let start: Tensor = start.exp() / start.exp().sum(Float) * &p_mask;
+                    let end: Tensor = end.exp() / end.exp().sum(Float) * &p_mask;
 
-                for idx in 0..starts.len() {
-                    let start_pos = feature.token_to_orig_map[&starts[idx]] as usize;
-                    let end_pos = feature.token_to_orig_map[&ends[idx]] as usize;
-                    let answer = qa_example.doc_tokens[start_pos..end_pos + 1].join(" ");
+                    let (starts, ends, scores) = self.decode(&start, &end, top_k);
 
-                    let start = qa_example.char_to_word_offset
-                        .iter()
-                        .position(|&v| v as usize == start_pos)
-                        .unwrap();
+                    for idx in 0..starts.len() {
+                        let start_pos = feature.token_to_orig_map[&starts[idx]] as usize;
+                        let end_pos = feature.token_to_orig_map[&ends[idx]] as usize;
+                        let answer = example.doc_tokens[start_pos..end_pos + 1].join(" ");
 
-                    let end = qa_example.char_to_word_offset
-                        .iter()
-                        .rposition(|&v| v as usize == end_pos)
-                        .unwrap();
+                        let start = example.char_to_word_offset
+                            .iter()
+                            .position(|&v| v as usize == start_pos)
+                            .unwrap();
 
-                    answers.push(
-                        Answer { score: scores[idx], start, end, answer })
+                        let end = example.char_to_word_offset
+                            .iter()
+                            .rposition(|&v| v as usize == end_pos)
+                            .unwrap();
+
+                        answers.push(Answer { score: scores[idx], start, end, answer });
+                    }
                 }
+                feature_id_start = max_feature_id;
+                all_answers.push(answers[..(top_k as usize)].to_vec());
             }
-            answers.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-            all_answers.push(answers[..(top_k as usize)].to_vec());
         }
         all_answers
     }
@@ -229,7 +286,7 @@ impl QuestionAnsweringModel {
     }
 
 
-    fn generate_features(&self, qa_example: &QaExample, max_seq_length: usize, doc_stride: usize, max_query_length: usize) -> Vec<QaFeature> {
+    fn generate_features(&self, qa_example: &QaExample, max_seq_length: usize, doc_stride: usize, max_query_length: usize, example_index: i64) -> Vec<QaFeature> {
         let mut tok_to_orig_index: Vec<i64> = vec!();
         let mut all_doc_tokens: Vec<String> = vec!();
 
@@ -264,7 +321,7 @@ impl QuestionAnsweringModel {
 
             let p_mask = self.get_mask(&encoded_span);
 
-            let qa_feature = QaFeature { input_ids: encoded_span.token_ids, attention_mask, token_to_orig_map, p_mask };
+            let qa_feature = QaFeature { input_ids: encoded_span.token_ids, attention_mask, token_to_orig_map, p_mask, example_index };
 
             spans.push(qa_feature);
             if encoded_span.num_truncated_tokens == 0 {
