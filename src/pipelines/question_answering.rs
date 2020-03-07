@@ -13,7 +13,7 @@
 
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, TokenizedInput};
 use tch::{Device, Tensor, no_grad};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use rust_tokenizers::tokenization_utils::truncate_sequences;
 use std::collections::HashMap;
 use std::cmp::min;
@@ -21,12 +21,12 @@ use crate::{DistilBertForQuestionAnswering, DistilBertConfig};
 use tch::nn::VarStore;
 use crate::common::config::Config;
 use tch::kind::Kind::Float;
+use std::fs;
 
 pub struct QaInput {
     pub question: String,
     pub context: String,
 }
-
 
 #[derive(Debug)]
 pub struct QaExample {
@@ -151,7 +151,7 @@ impl QuestionAnsweringModel {
         (qa_example, features, input_ids, attention_masks)
     }
 
-    pub fn predict(&self, qa_inputs: &Vec<QaInput>, top_k: i64) -> Vec<Vec<Answer>> {
+    pub fn predict(&self, qa_inputs: &[QaInput], top_k: i64) -> Vec<Vec<Answer>> {
         let inputs: Vec<(QaExample, Vec<QaFeature>, Tensor, Tensor)> = qa_inputs
             .iter()
             .map(|qa_input| self.prepare_for_model(&qa_input.question, &qa_input.context))
@@ -332,4 +332,28 @@ impl QuestionAnsweringModel {
         }
         p_mask
     }
+}
+
+pub fn squad_processor(file_path: PathBuf) -> Vec<QaInput> {
+    let file = fs::File::open(file_path).expect("unable to open file");
+    let json: serde_json::Value = serde_json::from_reader(file).expect("JSON not properly formatted");
+    let data = json
+        .get("data").expect("SQuAD file does not contain data field")
+        .as_array().expect("Data array not properly formatted");
+
+    let mut qa_inputs: Vec<QaInput> = Vec::with_capacity(data.len());
+    for qa_input in data.iter() {
+        let qa_input = qa_input.as_object().unwrap();
+        let paragraphs = qa_input.get("paragraphs").unwrap().as_array().unwrap();
+        for paragraph in paragraphs.iter() {
+            let paragraph = paragraph.as_object().unwrap();
+            let context = paragraph.get("context").unwrap().as_str().unwrap();
+            let qas = paragraph.get("qas").unwrap().as_array().unwrap();
+            for qa in qas.iter() {
+                let question = qa.as_object().unwrap().get("question").unwrap().as_str().unwrap();
+                qa_inputs.push(QaInput { question: question.to_owned(), context: context.to_owned() });
+            }
+        }
+    }
+    qa_inputs
 }
