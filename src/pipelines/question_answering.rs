@@ -137,21 +137,6 @@ impl QuestionAnsweringModel {
         })
     }
 
-//    fn prepare_for_model(&self, question: &str, context: &str, example_index: i64) -> (QaExample, Vec<QaFeature>) {
-//        let qa_example = QaExample::new(question, context);
-////        let mut input_ids: Vec<Tensor> = vec!();
-////        let mut attention_masks: Vec<Tensor> = vec!();
-//
-//        let features = self.generate_features(&qa_example, self.max_seq_len, self.doc_stride, self.max_query_length, example_index);
-////        for feature in &features {
-////            input_ids.push(Tensor::of_slice(&feature.input_ids).to(self.var_store.device()));
-////            attention_masks.push(Tensor::of_slice(&feature.attention_mask).to(self.var_store.device()));
-////        }
-////        let input_ids = Tensor::stack(&input_ids, 0);
-////        let attention_masks = Tensor::stack(&attention_masks, 0);
-//        (qa_example, features)
-//    }
-
     fn generate_batch_indices(&self, features: &Vec<QaFeature>, batch_size: usize) -> Vec<(usize, usize)> {
         let mut example_features_length: HashMap<i64, usize> = HashMap::new();
         for feature in features {
