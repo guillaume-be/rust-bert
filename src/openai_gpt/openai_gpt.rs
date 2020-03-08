@@ -21,6 +21,7 @@ use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::openai_gpt::transformer::Block;
+use crate::gpt2::gpt2::LMHeadModel;
 
 
 pub struct OpenAiGptModel {
@@ -138,14 +139,17 @@ impl OpenAIGPTLMHeadModel {
         let lm_head = linear_no_bias(&(p / "lm_head"), config.n_embd, config.vocab_size, Default::default());
         OpenAIGPTLMHeadModel { transformer, lm_head }
     }
+}
 
-    pub fn forward_t(&self,
-                     input_ids: &Option<Tensor>,
-                     attention_mask: &Option<Tensor>,
-                     token_type_ids: &Option<Tensor>,
-                     position_ids: &Option<Tensor>,
-                     input_embeds: &Option<Tensor>,
-                     train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+impl LMHeadModel for OpenAIGPTLMHeadModel {
+    fn forward_t(&self,
+                 input_ids: &Option<Tensor>,
+                 _layer_past: &Option<Vec<Tensor>>,
+                 attention_mask: &Option<Tensor>,
+                 token_type_ids: &Option<Tensor>,
+                 position_ids: &Option<Tensor>,
+                 input_embeds: &Option<Tensor>,
+                 train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (output,
             all_hidden_states,
             all_attentions) = self.transformer.forward_t(input_ids,
@@ -156,6 +160,6 @@ impl OpenAIGPTLMHeadModel {
                                                          train)?;
 
         let lm_logits = output.apply(&self.lm_head);
-        Ok((lm_logits, all_hidden_states, all_attentions))
+        Ok((lm_logits, None, all_hidden_states, all_attentions))
     }
 }

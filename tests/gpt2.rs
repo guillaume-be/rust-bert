@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
-use rust_bert::gpt2::gpt2::{Gpt2Config, GPT2LMHeadModel};
+use rust_bert::gpt2::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
 use rust_bert::common::config::Config;
 
 #[test]
