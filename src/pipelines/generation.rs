@@ -1,4 +1,6 @@
-// Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
+// Copyright 2018 The Google AI Language Team Authors, Facebook AI Research authors.
+// Copyright 2018 Google AI, Google Brain and Carnegie Mellon University Authors and the HuggingFace Inc. team.
+// Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 // Copyright 2019 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,7 +70,6 @@ impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Genera
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
 }
 
-
 pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
     fn get_model(&self) -> &T;
     fn get_tokenizer(&self) -> &U;
@@ -85,10 +86,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         Tensor::of_slice(&token_ids).unsqueeze(0).to(self.get_var_store().device())
     }
 
-
     fn generate(&self, prompt_text: &str, max_length: usize, do_sample: bool, num_beams: i64, temperature: f64,
                 top_k: i64, top_p: f64, repetition_penalty: f64, length_penalty: f64, num_return_sequences: i64) -> Tensor {
         self.encode_prompt_text(prompt_text, max_length)
-//        Tensor::new()
     }
 }
