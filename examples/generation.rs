@@ -15,14 +15,14 @@ extern crate dirs;
 
 use std::path::PathBuf;
 use tch::Device;
-use rust_bert::pipelines::generation::OpenAIGenerator;
+use rust_bert::pipelines::generation::{LanguageGenerator, GPT2Generator};
 
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
-    home.push("openai-gpt");
+    home.push("gpt2");
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let merges_path = &home.as_path().join("merges.txt");
@@ -31,7 +31,12 @@ fn main() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::Cpu;
 
-    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device);
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
+    let input_context = "The dog";
+    let output = model.generate(input_context, 40, false, 1, 1.0,
+                                50, 1.0, 1.0, 1.0, 1);
+    println!("{:?}", output);
+    output.print();
     Ok(())
 }
