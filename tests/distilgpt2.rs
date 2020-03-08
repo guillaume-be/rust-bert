@@ -5,11 +5,11 @@ use rust_bert::gpt2::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
 use rust_bert::common::config::Config;
 
 #[test]
-fn gpt2_lm_model() -> failure::Fallible<()> {
+fn distilgpt2_lm_model() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
-    home.push("gpt2");
+    home.push("distilgpt2");
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let merges_path = &home.as_path().join("merges.txt");
@@ -24,7 +24,7 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     vs.load(weights_path)?;
 
 //    Define input
-    let input = ["One two three four"];
+    let input = ["One two three four five six seven eight nine ten eleven"];
     let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
     let tokenized_input = tokenized_input.
@@ -52,13 +52,13 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     let next_word_id = output.get(0).get(-1).argmax(-1, true).int64_value(&[0]);
     let next_word = tokenizer.decode(vec!(next_word_id), true, true);
 
-    assert_eq!(output.size(), vec!(1, 4, 50257));
+    assert_eq!(output.size(), vec!(1, 11, 50257));
     assert!(past.is_some());
     assert_eq!(past.as_ref().unwrap().len(), config.n_layer as usize);
-    assert_eq!(past.as_ref().unwrap()[0].size(), vec!(2, 1, config.n_head, 4, 64));
-    assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (-69.4948)).abs() < 1e-4);
-    assert_eq!(next_word_id, 1936i64);
-    assert_eq!(next_word, String::from(" five"));
+    assert_eq!(past.as_ref().unwrap()[0].size(), vec!(2, 1, config.n_head, 11, 64));
+    assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (-48.7065)).abs() < 1e-4);
+    assert_eq!(next_word_id, 14104i64);
+    assert_eq!(next_word, String::from(" twelve"));
 
     Ok(())
 }
