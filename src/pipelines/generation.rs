@@ -93,7 +93,7 @@ impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Genera
 
     fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>) -> (Tensor, Option<Vec<Tensor>>) {
         if past.is_some() {
-            (input_ids.slice(1, input_ids.size()[1] - 1, input_ids.size()[1], 1).unsqueeze(-1), past)
+            (input_ids.select(1, -1).unsqueeze(-1), past)
         } else {
             (input_ids, past)
         }
@@ -123,10 +123,19 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         Tensor::of_slice(&token_ids).unsqueeze(0).to(self.get_var_store().device())
     }
 
-    fn enforce_repetition_penalty(&self, next_token_logits: Tensor, batch_size: i64, num_beams: u64, prev_output_tokens: &Tensor, repetition_penalty: f64) {
+    fn enforce_repetition_penalty(&self, next_token_logits: &mut Tensor, batch_size: i64, num_beams: u64, prev_output_tokens: &Tensor, repetition_penalty: f64) {
+        for i in 0..(batch_size * num_beams as i64) {
+            for token_position in 0..prev_output_tokens.get(i).size()[0] {
+                let token = prev_output_tokens.get(i).int64_value(&[token_position]);
+                let updated_value = &next_token_logits.double_value(&[i, token]);
+                if updated_value < &0f64 {
+                    &next_token_logits.get(i).index_fill_(0, &Tensor::of_slice(&[token]).to_kind(Int64), updated_value * repetition_penalty);
+                } else {
+                    &next_token_logits.get(i).index_fill_(0, &Tensor::of_slice(&[token]).to_kind(Int64), updated_value / repetition_penalty);
+                }
 
-
-
+            }
+        }
     }
 
     fn generate(&self, prompt_text: Option<&str>, max_length: u64, do_sample: bool, num_beams: u64, temperature: f64,
@@ -197,10 +206,10 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
             outputs = temp.0;
             past = temp.1;
-            let next_token_logits = outputs.slice(1, outputs.size()[1] - 1, outputs.size()[1], 1);
+            let mut next_token_logits = outputs.select(1, -1);
 
             if repetition_penalty > 1f64 {
-                self.enforce_repetition_penalty(next_token_logits, batch_size, 1, &input_ids, repetition_penalty)
+                self.enforce_repetition_penalty(&mut next_token_logits, batch_size, 1, &input_ids, repetition_penalty)
             }
 
 

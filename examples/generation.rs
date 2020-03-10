@@ -35,7 +35,7 @@ fn main() -> failure::Fallible<()> {
 
     let input_context = "The dog";
     let output = model.generate(Some(input_context), 40, true, 1, 1.0,
-                                50, 1.0, 1.0, 1.0, 1);
+                                50, 1.0, 1.1, 1.0, 1);
     println!("{:?}", output);
     output.print();
     Ok(())
