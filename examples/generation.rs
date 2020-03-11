@@ -22,7 +22,8 @@ fn main() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
-    home.push("gpt2");
+//    home.push("gpt2");
+    home.push("openai-gpt");
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let merges_path = &home.as_path().join("merges.txt");
@@ -31,10 +32,11 @@ fn main() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::Cpu;
 
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+//    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The dog";
-    let output = model.generate(None, 0, 40, false, false,5, 1.0,
+    let output = model.generate(Some(input_context), 0, 40, true, false,5, 1.0,
                                 50, 1.0, 1.1, 1.0, 0, 3, None);
 //    println!("{:?}", output);
 //    output.print();

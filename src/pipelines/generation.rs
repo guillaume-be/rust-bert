@@ -91,7 +91,7 @@ impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Genera
     fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
     fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
 
-    fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>) -> (Tensor, Option<Vec<Tensor>>) {
+    fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>, _attention_mask: Tensor) -> (Tensor, Option<Vec<Tensor>>) {
         if past.is_some() {
             (input_ids.select(1, -1).unsqueeze(-1), past)
         } else {
@@ -108,7 +108,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
     fn get_eos_ids(&self) -> &Option<Vec<i64>>;
     fn get_pad_id(&self) -> &Option<i64>;
 
-    fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>) -> (Tensor, Option<Vec<Tensor>>) {
+    fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>, _attention_mask: Tensor) -> (Tensor, Option<Vec<Tensor>>) {
         (input_ids, past)
     }
 
@@ -139,8 +139,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
 //    fn top_k_top_p_filtering(&self, logits: &mut Tensor, top_k: u64, top_p: f64, filter_value)
 
-    fn generate(&self, prompt_text: Option<&str>, min_length: u64, max_length: u64, do_sample: bool, early_stopping: bool, num_beams: u64, temperature: f64,
-                top_k: u64, top_p: f64, repetition_penalty: f64, length_penalty: f64, no_repeat_ngram_size: u64, num_return_sequences: u64, attention_mask: Option<Tensor>) -> Tensor {
+    fn generate(&self, prompt_text: Option<&str>, min_length: u64, max_length: u64, do_sample: bool, early_stopping: bool, num_beams: u64, temperature: f64, top_k: u64,
+                top_p: f64, repetition_penalty: f64, length_penalty: f64, no_repeat_ngram_size: u64, num_return_sequences: u64, attention_mask: Option<Tensor>)
+                -> Tensor {
         let input_ids = match prompt_text {
             Some(text) => self.encode_prompt_text(text, max_length),
             None => match self.get_bos_id() {
@@ -167,7 +168,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         let cur_len = *input_ids.size().last().unwrap();
         let batch_size = *input_ids.size().first().unwrap();
         let vocab_size = self.get_tokenizer().vocab().values().len();
-
+        let bos_token_id = *self.get_bos_id();
+        let eos_token_ids = self.get_eos_ids().clone();
 
         let (effective_batch_size, effective_batch_mult) = match do_sample {
             true => (batch_size * num_return_sequences as i64, num_return_sequences as i64),
@@ -186,7 +188,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
         let pad_token_id = match self.get_pad_id() {
             Some(value) => Some(*value),
-            None => match self.get_eos_ids() {
+            None => match &eos_token_ids {
                 Some(eos_ids) => Some(eos_ids[0]),
                 None => None
             }
@@ -208,20 +210,18 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             (input_ids, attention_mask)
         };
 
-
-        attention_mask.print();
-        input_ids.print();
-
-        self.generate_no_beam_search(input_ids, cur_len, max_length, do_sample, temperature,
-                                     top_k, top_p, repetition_penalty, batch_size);
+        self.generate_no_beam_search(input_ids, cur_len, min_length, max_length, do_sample, temperature, top_k, top_p, repetition_penalty,
+                                     no_repeat_ngram_size, bos_token_id, pad_token_id, eos_token_ids, batch_size, attention_mask);
 
         Tensor::new()
     }
 
-    fn generate_no_beam_search(&self, input_ids: Tensor, cur_len: i64, max_len: u64, do_sample: bool, temperature: f64,
-                               top_k: u64, top_p: f64, repetition_penalty: f64, batch_size: i64) {
+    fn generate_no_beam_search(&self, input_ids: Tensor, cur_len: i64, min_length: u64, max_length: u64, do_sample: bool,
+                               temperature: f64, top_k: u64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: u64,
+                               bos_token_id: Option<i64>, pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
+                               batch_size: i64, attention_mask: Tensor) {
         let unfinished_sentences = Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()));
-        let sentence_lengths: Tensor = Tensor::ones(&[batch_size], (Int64, self.get_var_store().device())) * max_len as i64;
+        let sentence_lengths: Tensor = Tensor::ones(&[batch_size], (Int64, self.get_var_store().device())) * max_length as i64;
         let mut past: Option<Vec<Tensor>> = None;
         let mut outputs: Tensor = Tensor::new();
         let mut cur_len = cur_len as u64;
@@ -233,7 +233,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
 //        ToDo: change threshold to while cur_len < max_len
         while cur_len < 1 {
-            let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past);
+            let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
             let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
             outputs = temp.0;
             past = temp.1;
