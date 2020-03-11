@@ -26,9 +26,9 @@ pub struct OpenAIGenerator {
     model: OpenAIGPTLMHeadModel,
     tokenizer: OpenAiGptTokenizer,
     var_store: nn::VarStore,
-    bos_token_id: i64,
-    eos_token_ids: Vec<i64>,
-    pad_token_id: i64,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
 }
 
 impl OpenAIGenerator {
@@ -40,9 +40,9 @@ impl OpenAIGenerator {
         let model = OpenAIGPTLMHeadModel::new(&var_store.root(), &config);
         var_store.load(model_weight_path)?;
 
-        let bos_token_id = 0i64;
-        let eos_token_ids = vec!(0i64);
-        let pad_token_id = 0i64;
+        let bos_token_id = None;
+        let eos_token_ids = None;
+        let pad_token_id = None;
 
         Ok(OpenAIGenerator { model, tokenizer, var_store, bos_token_id, eos_token_ids, pad_token_id })
     }
@@ -52,18 +52,18 @@ impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
     fn get_model(&self) -> &OpenAIGPTLMHeadModel { &self.model }
     fn get_tokenizer(&self) -> &OpenAiGptTokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
-    fn get_bos_id(&self) -> &i64 { &self.bos_token_id }
-    fn get_eos_ids(&self) -> &Vec<i64> { &self.eos_token_ids }
-    fn get_pad_id(&self) -> &i64 { &self.pad_token_id }
+    fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
+    fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
 }
 
 pub struct GPT2Generator {
     model: GPT2LMHeadModel,
     tokenizer: Gpt2Tokenizer,
     var_store: nn::VarStore,
-    bos_token_id: i64,
-    eos_token_ids: Vec<i64>,
-    pad_token_id: i64,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
 }
 
 impl GPT2Generator {
@@ -75,9 +75,9 @@ impl GPT2Generator {
         let model = GPT2LMHeadModel::new(&var_store.root(), &config);
         var_store.load(model_weight_path)?;
 
-        let bos_token_id = tokenizer.vocab().token_to_id(Gpt2Vocab::bos_value());
-        let eos_token_ids = vec!(tokenizer.vocab().token_to_id(Gpt2Vocab::eos_value()));
-        let pad_token_id = tokenizer.vocab().token_to_id(Gpt2Vocab::eos_value());
+        let bos_token_id = Some(tokenizer.vocab().token_to_id(Gpt2Vocab::bos_value()));
+        let eos_token_ids = Some(vec!(tokenizer.vocab().token_to_id(Gpt2Vocab::eos_value())));
+        let pad_token_id = None;
 
         Ok(GPT2Generator { model, tokenizer, var_store, bos_token_id, eos_token_ids, pad_token_id })
     }
@@ -87,9 +87,9 @@ impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Genera
     fn get_model(&self) -> &GPT2LMHeadModel { &self.model }
     fn get_tokenizer(&self) -> &Gpt2Tokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
-    fn get_bos_id(&self) -> &i64 { &self.bos_token_id }
-    fn get_eos_ids(&self) -> &Vec<i64> { &self.eos_token_ids }
-    fn get_pad_id(&self) -> &i64 { &self.pad_token_id }
+    fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
+    fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
 
     fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>) -> (Tensor, Option<Vec<Tensor>>) {
         if past.is_some() {
@@ -104,9 +104,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
     fn get_model(&self) -> &T;
     fn get_tokenizer(&self) -> &U;
     fn get_var_store(&self) -> &nn::VarStore;
-    fn get_bos_id(&self) -> &i64;
-    fn get_eos_ids(&self) -> &Vec<i64>;
-    fn get_pad_id(&self) -> &i64;
+    fn get_bos_id(&self) -> &Option<i64>;
+    fn get_eos_ids(&self) -> &Option<Vec<i64>>;
+    fn get_pad_id(&self) -> &Option<i64>;
 
     fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>) -> (Tensor, Option<Vec<Tensor>>) {
         (input_ids, past)
@@ -133,17 +133,19 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
                 } else {
                     &next_token_logits.get(i).index_fill_(0, &Tensor::of_slice(&[token]).to_kind(Int64), updated_value / repetition_penalty);
                 }
-
             }
         }
     }
 
-    fn generate(&self, prompt_text: Option<&str>, max_length: u64, do_sample: bool, num_beams: u64, temperature: f64,
-                top_k: u64, top_p: f64, repetition_penalty: f64, length_penalty: f64, num_return_sequences: u64) -> Tensor {
+//    fn top_k_top_p_filtering(&self, logits: &mut Tensor, top_k: u64, top_p: f64, filter_value)
+
+    fn generate(&self, prompt_text: Option<&str>, min_length: u64, max_length: u64, do_sample: bool, early_stopping: bool, num_beams: u64, temperature: f64,
+                top_k: u64, top_p: f64, repetition_penalty: f64, length_penalty: f64, no_repeat_ngram_size: u64, num_return_sequences: u64, attention_mask: Option<Tensor>) -> Tensor {
         let input_ids = match prompt_text {
             Some(text) => self.encode_prompt_text(text, max_length),
-            None => {
-                Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *self.get_bos_id()
+            None => match self.get_bos_id() {
+                Some(bos_id) => Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id,
+                None => panic!("A model with a BOS token must be used to start generation with an empty input")
             }
         };
 
@@ -166,21 +168,49 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         let batch_size = *input_ids.size().first().unwrap();
         let vocab_size = self.get_tokenizer().vocab().values().len();
 
+
         let (effective_batch_size, effective_batch_mult) = match do_sample {
             true => (batch_size * num_return_sequences as i64, num_return_sequences as i64),
             false => (batch_size, 1)
         };
 
-        let input_ids = if (num_return_sequences > 1) | (num_beams > 1) {
-            input_ids
-                .unsqueeze(1)
-                .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
-                .contiguous()
-                .view((effective_batch_size * num_beams as i64, cur_len))
-        } else {
-            input_ids
+        let attention_mask = match attention_mask {
+            Some(value) => value,
+            None => {
+                match self.get_pad_id() {
+                    Some(pad_id) => input_ids.ne(*pad_id),
+                    None => input_ids.ones_like()
+                }
+            }
         };
 
+        let pad_token_id = match self.get_pad_id() {
+            Some(value) => Some(*value),
+            None => match self.get_eos_ids() {
+                Some(eos_ids) => Some(eos_ids[0]),
+                None => None
+            }
+        };
+
+        let (input_ids, attention_mask) = if (num_return_sequences > 1) | (num_beams > 1) {
+            (input_ids
+                 .unsqueeze(1)
+                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
+                 .contiguous()
+                 .view((effective_batch_size * num_beams as i64, cur_len)),
+             attention_mask
+                 .unsqueeze(1)
+                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
+                 .contiguous()
+                 .view((effective_batch_size * num_beams as i64, cur_len))
+            )
+        } else {
+            (input_ids, attention_mask)
+        };
+
+
+        attention_mask.print();
+        input_ids.print();
 
         self.generate_no_beam_search(input_ids, cur_len, max_length, do_sample, temperature,
                                      top_k, top_p, repetition_penalty, batch_size);
@@ -201,7 +231,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         let mut input_ids = input_ids.copy();
         let input_ids_back = input_ids.copy();
 
-        while cur_len < max_len {
+//        ToDo: change threshold to while cur_len < max_len
+        while cur_len < 1 {
             let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past);
             let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
             outputs = temp.0;
@@ -211,6 +242,12 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             if repetition_penalty > 1f64 {
                 self.enforce_repetition_penalty(&mut next_token_logits, batch_size, 1, &input_ids, repetition_penalty)
             }
+
+            let next_token = if do_sample {
+                if temperature > 1f64 {
+                    next_token_logits = next_token_logits / temperature;
+                }
+            };
 
 
 //            ToDo: remove when loop is fixed

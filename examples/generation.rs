@@ -15,7 +15,7 @@ extern crate dirs;
 
 use std::path::PathBuf;
 use tch::Device;
-use rust_bert::pipelines::generation::{LanguageGenerator, GPT2Generator};
+use rust_bert::pipelines::generation::{LanguageGenerator, GPT2Generator, OpenAIGenerator};
 
 
 fn main() -> failure::Fallible<()> {
@@ -34,9 +34,9 @@ fn main() -> failure::Fallible<()> {
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The dog";
-    let output = model.generate(Some(input_context), 40, true, 1, 1.0,
-                                50, 1.0, 1.1, 1.0, 1);
-    println!("{:?}", output);
-    output.print();
+    let output = model.generate(None, 0, 40, false, false,5, 1.0,
+                                50, 1.0, 1.1, 1.0, 0, 3, None);
+//    println!("{:?}", output);
+//    output.print();
     Ok(())
 }
