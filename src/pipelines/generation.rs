@@ -139,15 +139,24 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         }
     }
 
-    fn get_banned_tokens(&self, input_ids: Tensor, no_repeat_ngram_size: i64, cur_len: i64) -> Vec<Vec<i64>> {
+    fn get_banned_tokens(&self, input_ids: &Tensor, no_repeat_ngram_size: i64, cur_len: i64) -> Vec<Vec<i64>> {
+//        Ported from hugging face's transformers and fairseq (https://github.com/pytorch/fairseq/blob/master/fairseq/sequence_generator.py)
         if cur_len + 1 < no_repeat_ngram_size {
             vec!(vec!())
         } else {
-            let mut generated_ngrams: Vec<HashMap<Vec<i64>, Vec<i64>>> = vec!();
-            for hypothesis_index in 0..*input_ids.size().first().unwrap() {
+            let num_hypothesis = *input_ids.size().first().unwrap();
+            let mut banned_tokens: Vec<Vec<i64>> = Vec::with_capacity(num_hypothesis as usize);
+            for hypothesis_index in 0..num_hypothesis {
                 let hypothesis_input_ids = input_ids.get(hypothesis_index);
                 let mut generated_ngram: HashMap<Vec<i64>, Vec<i64>> = HashMap::new();
                 let mut input: Vec<i64> = (0..hypothesis_input_ids.size1().unwrap()).collect();
+                let query = hypothesis_input_ids
+                    .slice(0,
+                           cur_len + 1 - no_repeat_ngram_size,
+                           *hypothesis_input_ids.size().last().unwrap(),
+                           1).iter::<i64>()
+                    .unwrap()
+                    .collect::<Vec<i64>>();
                 let ngram_indices: Vec<(i64, i64)> = input
                     .windows(3)
                     .map(|win| (*win.first().unwrap(), *win.last().unwrap()))
@@ -166,10 +175,13 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
                         generated_ngram.insert(key, vec!(value));
                     }
                 }
-                generated_ngrams.push(generated_ngram);
+                let hypothesis_banned_tokens = match generated_ngram.get(&query) {
+                    Some(banned_tokens) => banned_tokens.clone(),
+                    None => vec!()
+                };
+                banned_tokens.push(hypothesis_banned_tokens);
             }
-            println!("{:?}", generated_ngrams);
-            vec!(vec!())
+            banned_tokens
         }
     }
 
@@ -276,8 +288,20 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             past = temp.1;
             let mut next_token_logits = outputs.select(1, -1);
 
+//            Reduce probability for repeated inputs
             if repetition_penalty > 1f64 {
                 self.enforce_repetition_penalty(&mut next_token_logits, batch_size, 1, &input_ids, repetition_penalty)
+            }
+
+//            Get banned tokens and set their probability to 0
+            let banned_tokens = self.get_banned_tokens(&input_ids, no_repeat_ngram_size as i64, cur_len as i64);
+            for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
+                &next_token_logits.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token), std::f64::NEG_INFINITY);
+            }
+
+//            Do not allow eos token if min length is not reached
+            if (eos_token_ids.is_some()) & (cur_len < min_length) {
+                &next_token_logits.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()), std::f64::NEG_INFINITY);
             }
 
             let next_token = if do_sample {
@@ -285,8 +309,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
                     next_token_logits = next_token_logits / temperature;
                 }
             };
-
-            self.get_banned_tokens(input_ids, no_repeat_ngram_size as i64, cur_len as i64);
 
 
 //            ToDo: remove when loop is fixed
