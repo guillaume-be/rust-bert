@@ -36,8 +36,8 @@ fn main() -> failure::Fallible<()> {
 //    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "Dog Dog Dog The The The The Dog Dog";
-    let output = model.generate(Some(input_context), 0, 40, true, false,1, 1.0,
-                                50, 1.0, 1.1, 1.0, 3, 1, None);
+    let output = model.generate(Some(input_context), 0, 40, true, false, 1, 1.0,
+                                0, 0.9, 1.1, 1.0, 3, 1, None);
 //    println!("{:?}", output);
 //    output.print();
     Ok(())

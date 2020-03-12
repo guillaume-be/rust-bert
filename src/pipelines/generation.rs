@@ -20,9 +20,10 @@ use std::path::Path;
 use crate::{Gpt2Config, GPT2LMHeadModel};
 use crate::common::config::Config;
 use rust_tokenizers::tokenization_utils::truncate_sequences;
-use tch::kind::Kind::Int64;
+use tch::kind::Kind::{Int64, Float, Bool};
 use std::collections::HashMap;
 use itertools::Itertools;
+use std::cmp::{min, max};
 
 pub struct OpenAIGenerator {
     model: OpenAIGPTLMHeadModel,
@@ -185,7 +186,33 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         }
     }
 
-//    fn top_k_top_p_filtering(&self, logits: &mut Tensor, top_k: u64, top_p: f64, filter_value)
+    fn top_k_top_p_filtering(&self, logits: &mut Tensor, top_k: i64, top_p: f64, min_tokens_to_keep: i64) {
+//        Nucleus and top-k filtering introduced by Holtzman et al. (http://arxiv.org/abs/1904.09751)
+//        Ported from https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
+        let vocab_size = *logits.size().last().unwrap();
+        if top_k > 0 {
+            let top_k = vocab_size - min(max(top_k, min_tokens_to_keep), vocab_size);
+            let (_, indices_to_remove) = logits.topk(top_k, -1, false, false);
+            for index in 0..*logits.size().first().unwrap() {
+                &logits.get(index).index_fill_(0, &indices_to_remove.get(index), std::f64::NEG_INFINITY);
+            }
+        }
+
+        if top_p < 1f64 {
+            let (sorted_logits, sorted_indices) = logits.sort(-1, true);
+            let cumulative_probabilities = sorted_logits.softmax(-1, Float).cumsum(-1, Float);
+            let mut sorted_indices_to_remove = cumulative_probabilities.ge(top_p).to_kind(Int64);
+            if min_tokens_to_keep > 1 {
+                &sorted_indices_to_remove.index_fill_(1, &Tensor::arange1(0, min_tokens_to_keep + 1, (Int64, logits.device())), 0);
+            }
+            sorted_indices_to_remove.index_copy_(1,
+                                                 &Tensor::arange1(1, vocab_size, (Int64, logits.device())),
+                                                 &sorted_indices_to_remove.slice(1, 0, vocab_size - 1, 1).copy());
+            sorted_indices_to_remove.index_fill_(1, &Tensor::of_slice(&[0]).to_kind(Int64), 0);
+            let indices_to_remove = sorted_indices_to_remove.scatter(1, &sorted_indices, &sorted_indices_to_remove).to_kind(Bool);
+            logits.masked_fill_(&indices_to_remove, std::f64::NEG_INFINITY);
+        }
+    }
 
     fn generate(&self, prompt_text: Option<&str>, min_length: u64, max_length: u64, do_sample: bool, early_stopping: bool, num_beams: u64, temperature: f64, top_k: u64,
                 top_p: f64, repetition_penalty: f64, length_penalty: f64, no_repeat_ngram_size: u64, num_return_sequences: u64, attention_mask: Option<Tensor>)
@@ -308,7 +335,14 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
                 if temperature > 1f64 {
                     next_token_logits = next_token_logits / temperature;
                 }
+                self.top_k_top_p_filtering(&mut next_token_logits, top_k as i64, top_p, 1);
+                let probabilities = next_token_logits.softmax(-1, Float);
+                probabilities.multinomial(1, false).squeeze()
+            } else {
+                next_token_logits.argmax(-1, false)
             };
+
+            
 
 
 //            ToDo: remove when loop is fixed
