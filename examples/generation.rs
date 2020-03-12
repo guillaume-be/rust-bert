@@ -35,9 +35,9 @@ fn main() -> failure::Fallible<()> {
     let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 //    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
-    let input_context = "The dog";
-    let output = model.generate(Some(input_context), 0, 40, true, false,5, 1.0,
-                                50, 1.0, 1.1, 1.0, 0, 3, None);
+    let input_context = "Dog Dog Dog The The The The Dog Dog";
+    let output = model.generate(Some(input_context), 0, 40, true, false,1, 1.0,
+                                50, 1.0, 1.1, 1.0, 3, 1, None);
 //    println!("{:?}", output);
 //    output.print();
     Ok(())
