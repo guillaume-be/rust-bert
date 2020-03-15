@@ -22,7 +22,6 @@ use crate::common::config::Config;
 use rust_tokenizers::tokenization_utils::truncate_sequences;
 use tch::kind::Kind::{Int64, Float, Bool};
 use std::collections::HashMap;
-use itertools::Itertools;
 use std::cmp::{min, max};
 
 pub struct OpenAIGenerator {
@@ -150,7 +149,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             for hypothesis_index in 0..num_hypothesis {
                 let hypothesis_input_ids = input_ids.get(hypothesis_index);
                 let mut generated_ngram: HashMap<Vec<i64>, Vec<i64>> = HashMap::new();
-                let mut input: Vec<i64> = (0..hypothesis_input_ids.size1().unwrap()).collect();
+                let input: Vec<i64> = (0..hypothesis_input_ids.size1().unwrap()).collect();
                 let query = hypothesis_input_ids
                     .slice(0,
                            cur_len + 1 - no_repeat_ngram_size,
@@ -205,16 +204,16 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             if min_tokens_to_keep > 1 {
                 &sorted_indices_to_remove.index_fill_(1, &Tensor::arange1(0, min_tokens_to_keep + 1, (Int64, logits.device())), 0);
             }
-            sorted_indices_to_remove.index_copy_(1,
-                                                 &Tensor::arange1(1, vocab_size, (Int64, logits.device())),
-                                                 &sorted_indices_to_remove.slice(1, 0, vocab_size - 1, 1).copy());
-            sorted_indices_to_remove.index_fill_(1, &Tensor::of_slice(&[0]).to_kind(Int64), 0);
+            let _ = sorted_indices_to_remove.index_copy_(1,
+                                                         &Tensor::arange1(1, vocab_size, (Int64, logits.device())),
+                                                         &sorted_indices_to_remove.slice(1, 0, vocab_size - 1, 1).copy());
+            let _ = sorted_indices_to_remove.index_fill_(1, &Tensor::of_slice(&[0]).to_kind(Int64), 0);
             let indices_to_remove = sorted_indices_to_remove.scatter(1, &sorted_indices, &sorted_indices_to_remove).to_kind(Bool);
-            logits.masked_fill_(&indices_to_remove, std::f64::NEG_INFINITY);
+            let _ = logits.masked_fill_(&indices_to_remove, std::f64::NEG_INFINITY);
         }
     }
 
-    fn generate(&self, prompt_text: Option<&str>, min_length: u64, max_length: u64, do_sample: bool, early_stopping: bool, num_beams: u64, temperature: f64, top_k: u64,
+    fn generate(&self, prompt_text: Option<&str>, min_length: u64, max_length: u64, do_sample: bool, _early_stopping: bool, num_beams: u64, temperature: f64, top_k: u64,
                 top_p: f64, repetition_penalty: f64, length_penalty: f64, no_repeat_ngram_size: u64, num_return_sequences: u64, attention_mask: Option<Tensor>)
                 -> Tensor {
         let input_ids = match prompt_text {
@@ -242,7 +241,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
         let cur_len = *input_ids.size().last().unwrap();
         let batch_size = *input_ids.size().first().unwrap();
-        let vocab_size = self.get_tokenizer().vocab().values().len();
         let bos_token_id = *self.get_bos_id();
         let eos_token_ids = self.get_eos_ids().clone();
 
@@ -293,22 +291,22 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
     fn generate_no_beam_search(&self, input_ids: Tensor, cur_len: i64, min_length: u64, max_length: u64, do_sample: bool,
                                temperature: f64, top_k: u64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: u64,
-                               bos_token_id: Option<i64>, pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
+                               _bos_token_id: Option<i64>, pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
                                batch_size: i64, attention_mask: Tensor) {
-        let unfinished_sentences = Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()));
-        let sentence_lengths: Tensor = Tensor::ones(&[batch_size], (Int64, self.get_var_store().device())) * max_length as i64;
+        let mut unfinished_sentences = Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()));
+        let mut sentence_lengths: Tensor = Tensor::ones(&[batch_size], (Int64, self.get_var_store().device())) * max_length as i64;
+        let mut attention_mask = attention_mask.copy();
         let mut past: Option<Vec<Tensor>> = None;
-        let mut outputs: Tensor = Tensor::new();
+        let mut outputs: Tensor;
         let mut cur_len = cur_len as u64;
 
 
 //        ToDo: remove when loop is fixed
         let mut input_ids = input_ids.copy();
-        let input_ids_back = input_ids.copy();
 
 //        ToDo: change threshold to while cur_len < max_len
         let mut counter = 0;
-        while counter < 1 {
+        while counter < 2 {
             let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
             let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
             outputs = temp.0;
@@ -327,27 +325,49 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             }
 
 //            Do not allow eos token if min length is not reached
-            if (eos_token_ids.is_some()) & (cur_len < min_length) {
+            if (&eos_token_ids.is_some()) & (cur_len < min_length) {
                 &next_token_logits.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()), std::f64::NEG_INFINITY);
             }
 
+//            Top-k and top-p sampling
             let next_token = if do_sample {
                 if temperature > 1f64 {
                     next_token_logits = next_token_logits / temperature;
                 }
                 self.top_k_top_p_filtering(&mut next_token_logits, top_k as i64, top_p, 1);
                 let probabilities = next_token_logits.softmax(-1, Float);
-                probabilities.multinomial(1, false).squeeze()
+                probabilities.multinomial(1, false).squeeze1(1)
             } else {
                 next_token_logits.argmax(-1, false)
             };
 
-            
+//            Add tokens to unfinished sentences
+            let tokens_to_add = match &eos_token_ids {
+                Some(_) => next_token * &unfinished_sentences - pad_token_id.unwrap() * (&unfinished_sentences - 1),
+                None => next_token
+            };
 
+            input_ids = Tensor::cat(&[input_ids, tokens_to_add.unsqueeze(-1)], -1);
 
-//            ToDo: remove when loop is fixed
-            input_ids = input_ids_back.copy();
+            if eos_token_ids.is_some() {
+                for eos_token_id in eos_token_ids.as_ref().unwrap() {
+                    let sentence_with_eos = tokens_to_add.eq(*eos_token_id).to_kind(Int64);
+                    let sentence_with_eos: Tensor = sentence_with_eos * &unfinished_sentences;
+                    let _ = sentence_lengths.masked_fill_(&sentence_with_eos.to_kind(Bool), cur_len as i64 + 1);
+                    unfinished_sentences = -unfinished_sentences * (sentence_with_eos - 1);
+                }
+                if i64::from(unfinished_sentences.max()) == 0 {
+                    break;
+                }
+            }
 
+            attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
+                                                                                 (Int64, attention_mask.device())).as_ref()], -1);
+            cur_len += 1;
+
+            attention_mask.print();
+
+            input_ids.print();
             counter += 1;
         }
     }
