@@ -30,15 +30,18 @@ fn main() -> failure::Fallible<()> {
     let weights_path = &home.as_path().join("model.ot");
 
 //    Set-up masked LM model
-    let device = Device::Cpu;
+    let device = Device::cuda_if_available();
 
 //    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
-    let input_context = "Dog Dog Dog The The The The Dog Dog";
-    let _output = model.generate(Some(input_context), 0, 40, true, false, 1, 1.0,
-                                0, 0.9, 1.1, 1.0, 3, 1, None);
-//    println!("{:?}", output);
-//    output.print();
+    let input_context = "The dog";
+    let output = model.generate(Some(input_context), 0, 40, true, false, 1, 1.0,
+                                 0, 0.9, 1.1, 1.0, 3, 3, None);
+
+    for sentence in output {
+        println!("{:?}", sentence);
+    }
+
     Ok(())
 }
