@@ -3,6 +3,7 @@ use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
 use rust_bert::gpt2::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
 use rust_bert::common::config::Config;
+use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator};
 
 #[test]
 fn gpt2_lm_model() -> failure::Fallible<()> {
@@ -59,6 +60,34 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (-69.4948)).abs() < 1e-4);
     assert_eq!(next_word_id, 1936i64);
     assert_eq!(next_word, String::from(" five"));
+
+    Ok(())
+}
+
+
+#[test]
+fn gpt2_generation_greedy() -> failure::Fallible<()> {
+    //    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("gpt2");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+    let merges_path = &home.as_path().join("merges.txt");
+    let weights_path = &home.as_path().join("model.ot");
+
+//    Set-up masked LM model
+    let device = Device::cuda_if_available();
+
+//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+
+    let input_context = "The cat";
+    let output = model.generate(Some(input_context), 0, 40, true, false, 1, 1.0,
+                                 0, 0.9, 1.1, 1.0, 3, 1, None);
+
+    assert_eq!(output.len(), 1);
+    assert_eq!(output[0], "The cat was found in a field near the town of Keflavik, about 30 miles (48 kilometers) south-east of Moscow.\n\n\n");
 
     Ok(())
 }

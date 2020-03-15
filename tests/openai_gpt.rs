@@ -4,6 +4,7 @@ use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
 use rust_bert::gpt2::gpt2::{Gpt2Config, LMHeadModel};
 use rust_bert::common::config::Config;
 use rust_bert::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
+use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator};
 
 #[test]
 fn openai_gpt_lm_model() -> failure::Fallible<()> {
@@ -57,6 +58,33 @@ fn openai_gpt_lm_model() -> failure::Fallible<()> {
     assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (9.1056)).abs() < 1e-4);
     assert_eq!(next_word_id, 580i64);
     assert_eq!(next_word, String::from("be"));
+
+    Ok(())
+}
+
+#[test]
+fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
+    //    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("openai-gpt");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+    let merges_path = &home.as_path().join("merges.txt");
+    let weights_path = &home.as_path().join("model.ot");
+
+//    Set-up masked LM model
+    let device = Device::cuda_if_available();
+
+//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+
+    let input_context = "It was an intense machine dialogue. ";
+    let output = model.generate(Some(input_context), 0, 40, false, false, 1, 1.0,
+                                 0, 1.0, 1.0, 1.0, 0, 1, None);
+
+    assert_eq!(output.len(), 1);
+    assert_eq!(output[0], "it was an intense machine dialogue. \n \" i 'm sorry, \" i said. \" i 'm not sure what you're talking about. \" \n \" you're not a vampire, \" he said");
 
     Ok(())
 }

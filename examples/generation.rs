@@ -23,7 +23,6 @@ fn main() -> failure::Fallible<()> {
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
     home.push("gpt2");
-//    home.push("openai-gpt");
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let merges_path = &home.as_path().join("merges.txt");
@@ -36,8 +35,8 @@ fn main() -> failure::Fallible<()> {
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The dog";
-    let output = model.generate(Some(input_context), 0, 40, true, false, 1, 1.0,
-                                 0, 0.9, 1.1, 1.0, 3, 3, None);
+    let output = model.generate(Some(input_context), 0, 40, false, false, 1, 1.0,
+                                0, 1.0, 1.0, 1.0, 3, 1, None);
 
     for sentence in output {
         println!("{:?}", sentence);
