@@ -83,11 +83,40 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The cat";
-    let output = model.generate(Some(input_context), 0, 40, true, false, 1, 1.0,
+    let output = model.generate(Some(input_context), 0, 40, false, false, 1, 1.0,
                                  0, 0.9, 1.1, 1.0, 3, 1, None);
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], "The cat was found in a field near the town of Keflavik, about 30 miles (48 kilometers) south-east of Moscow.\n\n\n");
+
+    Ok(())
+}
+
+#[test]
+fn gpt2_generation_beam_search() -> failure::Fallible<()> {
+    //    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("gpt2");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+    let merges_path = &home.as_path().join("merges.txt");
+    let weights_path = &home.as_path().join("model.ot");
+
+//    Set-up masked LM model
+    let device = Device::cuda_if_available();
+
+//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+
+    let input_context = "The dog";
+    let output = model.generate(Some(input_context), 0, 20, false, false, 5, 1.0,
+                                 0, 1.0, 1.0, 1.0, 3, 3, None);
+
+    assert_eq!(output.len(), 3);
+    assert_eq!(output[0], "The dog's owner, who asked not to be named, said the dog had been in the house");
+    assert_eq!(output[1], "The dog\'s owner, who asked not to be named, said the dog had been in a \"");
+    assert_eq!(output[2], "The dog\'s owner, who asked not to be named, said the dog had been in trouble with");
 
     Ok(())
 }

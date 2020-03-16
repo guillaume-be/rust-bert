@@ -245,7 +245,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
         let cur_len = *input_ids.size().last().unwrap();
         let batch_size = *input_ids.size().first().unwrap();
-        let bos_token_id = *self.get_bos_id();
         let eos_token_ids = self.get_eos_ids().clone();
 
         let (effective_batch_size, effective_batch_mult) = match do_sample {
@@ -289,25 +288,23 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
         let decoded = if num_beams > 1 {
             self.generate_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
-                                      no_repeat_ngram_size as i64, bos_token_id, pad_token_id, eos_token_ids, effective_batch_size, num_return_sequences as i64, length_penalty, num_beams as i64, attention_mask)
+                                      no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, num_return_sequences as i64, length_penalty, num_beams as i64, attention_mask)
         } else {
             self.generate_no_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, temperature, top_k as i64, top_p, repetition_penalty,
                                          no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, attention_mask)
         };
 
-//        let num_sequences = *decoded.size().first().unwrap();
-//        let mut output = Vec::with_capacity(num_sequences as usize);
-//        for sequence_index in 0..num_sequences {
-//            output.push(self.get_tokenizer().decode(decoded
-//                                                        .as_ref()
-//                                                        .get(sequence_index)
-//                                                        .iter::<i64>()
-//                                                        .unwrap()
-//                                                        .collect::<Vec<i64>>(), true, true));
-//        }
-//        output
-
-        Vec::new()
+        let num_sequences = *decoded.size().first().unwrap();
+        let mut output = Vec::with_capacity(num_sequences as usize);
+        for sequence_index in 0..num_sequences {
+            output.push(self.get_tokenizer().decode(decoded
+                                                        .as_ref()
+                                                        .get(sequence_index)
+                                                        .iter::<i64>()
+                                                        .unwrap()
+                                                        .collect::<Vec<i64>>(), true, true));
+        }
+        output
     }
 
     fn generate_no_beam_search(&self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool,
@@ -405,14 +402,14 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
     fn generate_beam_search(&self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool, early_stopping: bool,
                             temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
-                            bos_token_id: Option<i64>, pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
+                            pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
                             batch_size: i64, num_return_sequences: i64, length_penalty: f64, num_beams: i64, attention_mask: Tensor) -> Tensor {
         let mut hypotheses = (0..batch_size)
             .map(|_| BeamHypotheses::new(num_beams, max_length, length_penalty, early_stopping))
             .collect::<Vec<BeamHypotheses>>();
 
         let vocab_size = self.get_tokenizer().vocab().values().len() as i64;
-        let mut beam_scores = Tensor::zeros(&[batch_size, num_beams], (Float, self.get_var_store().device()));
+        let beam_scores = Tensor::zeros(&[batch_size, num_beams], (Float, self.get_var_store().device()));
         if !do_sample {
             let _ = beam_scores.slice(1, 1, *beam_scores.size().last().unwrap(), 1).fill_(std::f64::NEG_INFINITY);
         }
@@ -426,11 +423,12 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         let mut attention_mask = attention_mask.copy();
         let mut input_ids = input_ids.copy();
         let mut outputs: Tensor;
-        let current_length = cur_len;
+        let mut current_length = cur_len;
 
 //        ToDo: replace with while current_length < max_length {
-        let mut counter = 0;
-        while counter < 2 {
+//        let mut counter = 0;
+//        while counter < 2 {
+        while current_length < max_length {
             let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
             let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
             outputs = temp.0;
@@ -456,7 +454,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 //            Get banned tokens and set their probability to 0
             let banned_tokens = self.get_banned_tokens(&input_ids, no_repeat_ngram_size as i64, current_length as i64);
             for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
-                &next_token_logits.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
+                &scores.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
             }
 
             let (next_scores, next_tokens) = if do_sample {
@@ -503,11 +501,15 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
                     let effective_beam_id = batch_index * num_beams + beam_id;
 
-                    if eos_token_ids.as_ref().is_some() & eos_token_ids.as_ref().unwrap().contains(&token_id) {
-                        if beam_token_rank > num_beams {
-                            continue;
+                    if eos_token_ids.as_ref().is_some() {
+                        if eos_token_ids.as_ref().unwrap().contains(&token_id) {
+                            if beam_token_rank > num_beams {
+                                continue;
+                            }
+                            hypotheses[batch_index as usize].add(input_ids.get(effective_beam_id).copy(), beam_token_score)
+                        } else {
+                            next_sentence_beam.push((beam_token_score, token_id, effective_beam_id));
                         }
-                        hypotheses[batch_index as usize].add(input_ids.get(effective_beam_id).copy(), beam_token_score)
                     } else {
                         next_sentence_beam.push((beam_token_score, token_id, effective_beam_id));
                     }
@@ -546,11 +548,72 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
             attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
                                                                                  (Int64, attention_mask.device())).as_ref()], -1);
-
-            counter += 1
+            current_length += 1
         }
 
-        Tensor::new()
+        let mut batch_index = 0i64;
+
+        loop {
+            if done[batch_index as usize] {
+                continue;
+            }
+            for beam_index in 0..num_beams {
+                let effective_beam_id = batch_index * num_beams + beam_index;
+                let final_score = f64::from(beam_scores.get(effective_beam_id));
+                let final_tokens = input_ids.get(effective_beam_id);
+                hypotheses[batch_index as usize].add(final_tokens, final_score);
+            }
+            batch_index += 1;
+            if batch_index == batch_size {
+                break;
+            }
+        }
+
+        let (output_batch_size, output_num_return_sequences_per_batch) = if do_sample {
+            (batch_size, 1)
+        } else {
+            (batch_size * num_return_sequences, num_return_sequences)
+        };
+
+        let mut sentence_lengths = Tensor::zeros(&[output_batch_size], (Int64, input_ids.device()));
+        let mut best_ids = vec!();
+
+        for (hypothesis_index, hypothesis) in hypotheses.iter().enumerate() {
+            let mut sorted_hypotheses = hypothesis.clone();
+            &sorted_hypotheses.beams.sort_by_key(|(score, _)| OrderedFloat(*score));
+            for j in 0..output_num_return_sequences_per_batch {
+                let effective_batch_index = output_num_return_sequences_per_batch * hypothesis_index as i64 + j;
+                let (_, best_hyp) = sorted_hypotheses.beams.pop().unwrap();
+                let _ = sentence_lengths.index_fill_(0,
+                                                     &Tensor::of_slice(&[effective_batch_index]).to(sentence_lengths.device()),
+                                                     *best_hyp.size().first().unwrap());
+                best_ids.push(best_hyp);
+            }
+        }
+
+        let decoded = if i64::from(sentence_lengths.max()) != i64::from(sentence_lengths.min()) {
+            let sentence_max_length = min(i64::from(sentence_lengths.max()) + 1, max_length);
+            let decoded: Tensor = Tensor::ones(&[output_batch_size, sentence_max_length], (Int64, input_ids.device())) * pad_token_id.unwrap();
+            for hypothesis_index in 0..best_ids.len() {
+                let _ = decoded
+                    .get(hypothesis_index as i64)
+                    .index_copy_(0,
+                                 &Tensor::arange1(0,
+                                                  i64::from(sentence_lengths.get(hypothesis_index as i64)),
+                                                  (Int64, input_ids.device())),
+                                 &best_ids[hypothesis_index]);
+                let sentence_length = i64::from(sentence_lengths.get(hypothesis_index as i64));
+                if sentence_length < max_length {
+                    let _ = decoded
+                        .get(hypothesis_index as i64)
+                        .index_fill_(0, &Tensor::of_slice(&[sentence_length]), eos_token_ids.as_ref().unwrap()[0]);
+                }
+            }
+            decoded
+        } else {
+            Tensor::stack(&best_ids, 0).to_kind(Int64).to(input_ids.device())
+        };
+        decoded
     }
 
     fn reorder_cache(&self, past: Vec<Tensor>, beam_indices: &Tensor) -> Vec<Tensor> {
@@ -570,6 +633,22 @@ struct BeamHypotheses {
     num_beams: i64,
     beams: Vec<(f64, Tensor)>,
     worst_score: f64,
+}
+
+impl Clone for BeamHypotheses {
+    fn clone(&self) -> Self {
+        BeamHypotheses {
+            max_length: self.max_length,
+            length_penalty: self.length_penalty,
+            early_stopping: self.early_stopping,
+            num_beams: self.num_beams,
+            beams: self.beams
+                .iter()
+                .map(|(score, tensor)| (*score, tensor.copy()))
+                .collect_vec(),
+            worst_score: self.worst_score,
+        }
+    }
 }
 
 impl BeamHypotheses {
