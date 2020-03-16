@@ -425,9 +425,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         let mut outputs: Tensor;
         let mut current_length = cur_len;
 
-//        ToDo: replace with while current_length < max_length {
-//        let mut counter = 0;
-//        while counter < 2 {
         while current_length < max_length {
             let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
             let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
