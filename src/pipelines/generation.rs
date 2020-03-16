@@ -24,7 +24,7 @@ use tch::kind::Kind::{Int64, Float, Bool};
 use std::collections::HashMap;
 use std::cmp::{min, max};
 use self::ordered_float::OrderedFloat;
-use tch::kind::FLOAT_CPU;
+use itertools::Itertools;
 
 extern crate ordered_float;
 
@@ -407,7 +407,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
                             temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
                             bos_token_id: Option<i64>, pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
                             batch_size: i64, num_return_sequences: i64, length_penalty: f64, num_beams: i64, attention_mask: Tensor) -> Tensor {
-        let hypotheses = (0..batch_size)
+        let mut hypotheses = (0..batch_size)
             .map(|_| BeamHypotheses::new(num_beams, max_length, length_penalty, early_stopping))
             .collect::<Vec<BeamHypotheses>>();
 
@@ -416,18 +416,20 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         if !do_sample {
             let _ = beam_scores.slice(1, 1, *beam_scores.size().last().unwrap(), 1).fill_(std::f64::NEG_INFINITY);
         }
-        let beam_scores = beam_scores.view_(&[-1]);
 
+        let mut beam_scores = beam_scores.view_(&[-1]);
+        let mut beam_tokens: Tensor;
+        let mut beam_indices: Tensor;
         let mut past: Option<Vec<Tensor>> = None;
-        let done = vec!(false; batch_size as usize);
+        let mut done = vec!(false; batch_size as usize);
 
         let mut attention_mask = attention_mask.copy();
         let mut input_ids = input_ids.copy();
         let mut outputs: Tensor;
         let current_length = cur_len;
 
+//        ToDo: replace with while current_length < max_length {
         let mut counter = 0;
-
         while counter < 2 {
             let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
             let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
@@ -474,11 +476,89 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
                 next_scores.topk(2 * num_beams, 1, true, true)
             };
 
+
+            let mut next_batch_beam: Vec<(f64, i64, i64)> = vec!();
+
+            for batch_index in 0..batch_size {
+                if done[batch_index as usize] {
+                    assert!(hypotheses[batch_index as usize].len() > num_beams,
+                            "Batch cannot be completed if all beams have not been generated");
+                    assert!(eos_token_ids.is_some() & pad_token_id.is_some(),
+                            "EOS and Padding tokens need to be defined if the number of generated \
+                            beams is greater than the target number fo beams");
+                    next_batch_beam.append(&mut
+                        (0..num_beams).map(|_| (0f64, pad_token_id.unwrap(), 0i64)).collect::<Vec<(f64, i64, i64)>>()
+                    );
+                }
+
+                let mut next_sentence_beam: Vec<(f64, i64, i64)> = vec!();
+
+                let mut beam_token_rank = 0;
+                let beam_token_rank_max_value = *next_tokens.get(batch_index).size().first().unwrap() - 1;
+                loop {
+                    let beam_token_id = next_tokens.int64_value(&[batch_index, beam_token_rank]);
+                    let beam_token_score = next_scores.double_value(&[batch_index, beam_token_rank]);
+                    let beam_id = beam_token_id / vocab_size;
+                    let token_id = beam_token_id % vocab_size;
+
+                    let effective_beam_id = batch_index * num_beams + beam_id;
+
+                    if eos_token_ids.as_ref().is_some() & eos_token_ids.as_ref().unwrap().contains(&token_id) {
+                        if beam_token_rank > num_beams {
+                            continue;
+                        }
+                        hypotheses[batch_index as usize].add(input_ids.get(effective_beam_id).copy(), beam_token_score)
+                    } else {
+                        next_sentence_beam.push((beam_token_score, token_id, effective_beam_id));
+                    }
+
+                    if (next_sentence_beam.len() as i64 == num_beams) |
+                        (beam_token_rank == beam_token_rank_max_value) {
+                        break;
+                    }
+
+                    beam_token_rank += 1;
+                }
+
+                done[batch_index as usize] = done[batch_index as usize] |
+                    hypotheses[batch_index as usize].is_done(
+                        f64::from(next_scores.get(batch_index).max()),
+                        current_length);
+
+                assert_eq!(next_sentence_beam.len() as i64, num_beams, "Beam incomplete");
+                next_batch_beam.append(&mut next_sentence_beam);
+            }
+
+            if done.iter().all(|&x| x) {
+                break;
+            }
+            beam_scores = Tensor::of_slice(&next_batch_beam.iter().map(|(score, _, _)| *score).collect_vec()).to(input_ids.device());
+            beam_tokens = Tensor::of_slice(&next_batch_beam.iter().map(|(_, token, _)| *token).collect_vec()).to(input_ids.device());
+            beam_indices = Tensor::of_slice(&next_batch_beam.iter().map(|(_, _, index)| *index).collect_vec()).to(input_ids.device());
+
+            input_ids = input_ids.index_select(0, &beam_indices);
+            input_ids = Tensor::cat(&[input_ids, beam_tokens.unsqueeze(1)], -1);
+
+            past = match past {
+                Some(past_values) => Some(self.reorder_cache(past_values, &beam_indices)),
+                None => None
+            };
+
+            attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
+                                                                                 (Int64, attention_mask.device())).as_ref()], -1);
+
             counter += 1
         }
 
-
         Tensor::new()
+    }
+
+    fn reorder_cache(&self, past: Vec<Tensor>, beam_indices: &Tensor) -> Vec<Tensor> {
+        let mut reordered_past = vec!();
+        for layer_past in past.iter() {
+            reordered_past.push(layer_past.index_select(1, beam_indices));
+        }
+        reordered_past
     }
 }
 
@@ -524,17 +604,13 @@ impl BeamHypotheses {
         }
     }
 
-    fn is_done(&self, best_sum_log_probabilities: f64, current_length: Option<i64>) -> bool {
+    fn is_done(&self, best_sum_log_probabilities: f64, current_length: i64) -> bool {
         if self.len() < self.num_beams {
             false
         } else if self.early_stopping {
             true
         } else {
-            let current_length = match current_length {
-                Some(value) => value as f64,
-                None => self.max_length as f64
-            };
-            self.worst_score >= best_sum_log_probabilities / current_length.powf(self.length_penalty)
+            self.worst_score >= best_sum_log_probabilities / (current_length as f64).powf(self.length_penalty)
         }
     }
 }
