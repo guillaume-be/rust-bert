@@ -19,6 +19,7 @@ use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
 use rust_bert::common::config::Config;
 use rust_bert::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
 use rust_bert::Gpt2Config;
+use rust_bert::gpt2::gpt2::LMHeadModel;
 
 
 fn main() -> failure::Fallible<()> {
@@ -56,8 +57,9 @@ fn main() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output, _, _) = openai_gpt.forward_t(
+    let (output, _, _, _) = openai_gpt.forward_t(
         &Some(input_tensor),
+        &None,
         &None,
         &None,
         &None,

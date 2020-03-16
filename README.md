@@ -17,6 +17,7 @@ Token classification|✅ |✅ | ✅| | |
 Question answering|✅ |✅ |✅| | |
 Multiple choices| |✅ |✅| | |
 Next token prediction| | | |✅|✅|
+Natural Language Generation| | | |✅|✅|
 
 ## Ready-to-use pipelines
 
@@ -42,7 +43,28 @@ Output:
 ```
 
 
-#### 2. Sentiment analysis
+#### 2. Natural Language Generation
+Generate language based on a prompt. GPT2 and GPT available as base models.
+Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
+```rust
+    let device = Device::cuda_if_available();
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+                                                        
+    let input_context = "The dog";
+
+    let output = model.generate(Some(input_context), 0, 30, true, false, 
+                                5, 1.2, 0, 0.9, 1.0, 1.0, 3, 3, None);
+```
+Example output:
+```
+[
+    "The dog was rescued from a fire in Kennebec County. \"I've never seen anything like this before in my life,\" he said"
+    "The dog's owners, however, did not want to be named. According to the lawsuit, the animal's owner, a 29-year"
+    "The dog had to be removed from the house because he was uncooperative. Police said the dog was left alone with his owner."
+]
+```
+
+#### 3. Sentiment analysis
 Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 ```rust
     let device = Device::cuda_if_available();
@@ -69,7 +91,7 @@ Output:
 ]
 ```
 
-#### 3. Named Entity Recognition
+#### 4. Named Entity Recognition
 Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 ```rust
     let device = Device::cuda_if_available();

@@ -141,7 +141,7 @@ impl Attention {
         let (key, value) = match layer_past {
             Some(past) => {
                 let key = Tensor::cat(&[past.get(0).transpose(-2, -1), key], -1);
-                let value = Tensor::cat(&[past.get(1), value], -1);
+                let value = Tensor::cat(&[past.get(1), value], -2);
                 (key, value)
             }
             None => (key, value)

@@ -194,15 +194,28 @@ impl GPT2LMHeadModel {
         let lm_head = linear_no_bias(&(p / "lm_head"), config.n_embd, config.vocab_size, Default::default());
         GPT2LMHeadModel { transformer, lm_head }
     }
+}
 
-    pub fn forward_t(&self,
-                     input_ids: &Option<Tensor>,
-                     layer_past: &Option<Vec<Tensor>>,
-                     attention_mask: &Option<Tensor>,
-                     token_type_ids: &Option<Tensor>,
-                     position_ids: &Option<Tensor>,
-                     input_embeds: &Option<Tensor>,
-                     train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+pub trait LMHeadModel {
+    fn forward_t(&self,
+                 input_ids: &Option<Tensor>,
+                 layer_past: &Option<Vec<Tensor>>,
+                 attention_mask: &Option<Tensor>,
+                 token_type_ids: &Option<Tensor>,
+                 position_ids: &Option<Tensor>,
+                 input_embeds: &Option<Tensor>,
+                 train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str>;
+}
+
+impl LMHeadModel for GPT2LMHeadModel {
+    fn forward_t(&self,
+                 input_ids: &Option<Tensor>,
+                 layer_past: &Option<Vec<Tensor>>,
+                 attention_mask: &Option<Tensor>,
+                 token_type_ids: &Option<Tensor>,
+                 position_ids: &Option<Tensor>,
+                 input_embeds: &Option<Tensor>,
+                 train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (output,
             past,
             all_hidden_states,
