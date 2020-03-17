@@ -80,7 +80,7 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
     let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "It was an intense machine dialogue. ";
-    let output = model.generate(Some(input_context), 0, 40, false, false, 1, 1.0,
+    let output = model.generate(Some(vec!(input_context)), 0, 40, false, false, 1, 1.0,
                                  0, 1.0, 1.0, 1.0, 0, 1, None);
 
     assert_eq!(output.len(), 1);
@@ -106,14 +106,84 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
 //    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
-    let input_context = "What?!";
-    let output = model.generate(Some(input_context), 0, 20, false, false, 5, 2.0,
-                                 0, 1.0, 1.0, 1.0, 0, 3, None);
+    let input_context = "The dog is";
+    let output = model.generate(Some(vec!(input_context)), 0, 20, false, false, 5, 2.0,
+                                 0, 1.0, 1.0, 1.0, 3, 3, None);
 
     assert_eq!(output.len(), 3);
-    assert_eq!(output[0], "what?! \" i yelled. \" what are you talking about? i don't know what you");
-    assert_eq!(output[1], "what?! \" i yelled. \" what are you talking about? i don't even know what");
-    assert_eq!(output[2], "what?! \" i yelled. \" what are you talking about? i don't understand what you");
+    assert_eq!(output[0], "the dog isn\'t going anywhere. i \'m going to take care of him. i \'ll be right");
+    assert_eq!(output[1], "the dog isn\'t going anywhere. i \'m going to take care of him. i \'ll be back");
+    assert_eq!(output[2], "the dog isn\'t going anywhere. i \'m going to take care of him. \" \n \" i");
+
+    Ok(())
+}
+
+#[test]
+fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failure::Fallible<()> {
+    //    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("openai-gpt");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+    let merges_path = &home.as_path().join("merges.txt");
+    let weights_path = &home.as_path().join("model.ot");
+
+//    Set-up masked LM model
+    let device = Device::cuda_if_available();
+
+//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+
+    let input_context_1 = "The dog is";
+    let input_context_2 = "The cat";
+    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 20, false, false, 5, 2.0,
+                                 0, 1.0, 1.0, 1.0, 3, 3, None);
+
+    assert_eq!(output.len(), 6);
+
+//    Unpadded sequence (generation for `The dog is`) is identical to the
+    assert_eq!(output[0], "the dog isn\'t going anywhere. i \'m going to take care of him. i \'ll be right");
+    assert_eq!(output[1], "the dog isn\'t going anywhere. i \'m going to take care of him. i \'ll be back");
+    assert_eq!(output[2], "the dog isn\'t going anywhere. i \'m going to take care of him. \" \n \" i");
+
+    assert_eq!(output[3], "the cat. \" \n \" i don\'t know what you\'re talking about. i don\'t");
+    assert_eq!(output[4], "the cat. \" \n \" i don\'t know what you\'re talking about. i \'m not");
+    assert_eq!(output[5], "the cat. \" \n \" i don\'t know what you\'re talking about. i do know");
+
+    Ok(())
+}
+
+#[test]
+fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure::Fallible<()> {
+    //    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("openai-gpt");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+    let merges_path = &home.as_path().join("merges.txt");
+    let weights_path = &home.as_path().join("model.ot");
+
+//    Set-up masked LM model
+    let device = Device::cuda_if_available();
+
+//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+
+    let input_context_1 = "The dog is";
+    let input_context_2 = "The cat was in";
+    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 20, false, false, 5, 2.0,
+                                 0, 1.0, 1.0, 1.0, 3, 3, None);
+
+    assert_eq!(output.len(), 6);
+//    Left padding impacts the generated sentences output
+    assert_eq!(output[0], "the dog is a dog. \" \n \" i don\'t know what you\'re talking about.");
+    assert_eq!(output[1], "the dog is a dog. \" \n \" i don\'t know what you\'re talking about,");
+    assert_eq!(output[2], "the dog is a dog. \" \n \" i don\'t know what you\'re talking about!");
+    assert_eq!(output[3], "the cat was in the room with them. \n \" what\'s going on? \" i asked.");
+    assert_eq!(output[4], "the cat was in the room with them. \n \" what\'s going on? \" she asked.");
+    assert_eq!(output[5], "the cat was in the room with them. \n \" what\'s going on? why are you all");
 
     Ok(())
 }

@@ -46,21 +46,28 @@ Output:
 #### 2. Natural Language Generation
 Generate language based on a prompt. GPT2 and GPT available as base models.
 Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
+Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
+This may impact the results and it is recommended to submit prompts of similar length for best results
+
 ```rust
     let device = Device::cuda_if_available();
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
                                                         
-    let input_context = "The dog";
+    let input_context_1 = "The dog";
+    let input_context_2 = "The cat was";
 
-    let output = model.generate(Some(input_context), 0, 30, true, false, 
+    let output = model.generate(Some(input_context_1, input_context_2), 0, 30, true, false, 
                                 5, 1.2, 0, 0.9, 1.0, 1.0, 3, 3, None);
 ```
 Example output:
 ```
 [
-    "The dog was rescued from a fire in Kennebec County. \"I've never seen anything like this before in my life,\" he said"
     "The dog's owners, however, did not want to be named. According to the lawsuit, the animal's owner, a 29-year"
-    "The dog had to be removed from the house because he was uncooperative. Police said the dog was left alone with his owner."
+    "The dog has always been part of the family. \"He was always going to be my dog and he was always looking out for me"
+    "The dog has been able to stay in the home for more than three months now. "It's a very good dog. She's"
+    "The cat was discovered earlier this month in the home of a relative of the deceased. The cat\'s owner, who wished to remain anonymous,"
+    "The cat was pulled from the street by two-year-old Jazmine.\"I didn't know what to do,\" she said"
+    "The cat was attacked by two stray dogs and was taken to a hospital. Two other cats were also injured in the attack and are being treated."
 ]
 ```
 

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::gpt2::gpt2::LMHeadModel;
-use tch::{Tensor, Device, nn};
+use tch::{Tensor, Device, nn, no_grad};
 use rust_tokenizers::{Tokenizer, OpenAiGptTokenizer, OpenAiGptVocab, Vocab, TruncationStrategy, Gpt2Tokenizer, Gpt2Vocab};
 use crate::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
 use std::path::Path;
@@ -118,15 +118,47 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         (input_ids, past)
     }
 
-    fn encode_prompt_text(&self, prompt_text: &str, max_len: u64) -> Tensor {
-        let token_ids = self.get_tokenizer().convert_tokens_to_ids(&self.get_tokenizer().tokenize(prompt_text));
-        let num_truncated_tokens = if token_ids.len() > max_len as usize { token_ids.len() - max_len as usize } else { 0 };
-        let (token_ids, _, _) = truncate_sequences(token_ids,
-                                                   None,
-                                                   num_truncated_tokens,
-                                                   &TruncationStrategy::LongestFirst,
-                                                   0).unwrap();
-        Tensor::of_slice(&token_ids).unsqueeze(0).to(self.get_var_store().device())
+    fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
+        let tokens = self.get_tokenizer().tokenize_list(prompt_text);
+        let token_ids = tokens
+            .into_iter()
+            .map(|prompt_tokens| self.get_tokenizer().convert_tokens_to_ids(&prompt_tokens))
+            .collect::<Vec<Vec<i64>>>();
+
+        let num_truncated_tokens = token_ids
+            .iter()
+            .map(|token_ids| if token_ids.len() > max_len as usize { token_ids.len() - max_len as usize } else { 0 })
+            .collect::<Vec<usize>>();
+
+        let token_ids = token_ids
+            .into_iter()
+            .zip(num_truncated_tokens)
+            .map(|(tokens, num_truncated_tokens)| truncate_sequences(tokens,
+                                                                     None,
+                                                                     num_truncated_tokens,
+                                                                     &TruncationStrategy::LongestFirst,
+                                                                     0).unwrap().0)
+            .collect::<Vec<Vec<i64>>>();
+
+        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+
+        let pad_token = match pad_token_id {
+            Some(value) => value,
+            None => self.get_tokenizer().vocab().token_to_id(V::unknown_value())
+        };
+
+        let token_ids = token_ids
+            .into_iter()
+            .map(|input| {
+                let mut temp = vec![pad_token; max_len - input.len()];
+                temp.extend(input);
+                temp
+            })
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .collect::<Vec<Tensor>>();
+
+        Tensor::stack(&token_ids, 0)
+
     }
 
     fn enforce_repetition_penalty(&self, next_token_logits: &mut Tensor, batch_size: i64, num_beams: u64, prev_output_tokens: &Tensor, repetition_penalty: f64) {
@@ -217,11 +249,21 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         }
     }
 
-    fn generate(&self, prompt_text: Option<&str>, min_length: u64, max_length: u64, do_sample: bool, early_stopping: bool, num_beams: u64, temperature: f64, top_k: u64,
+    fn generate(&self, prompt_text: Option<Vec<&str>>, min_length: u64, max_length: u64, do_sample: bool, early_stopping: bool, num_beams: u64, temperature: f64, top_k: u64,
                 top_p: f64, repetition_penalty: f64, length_penalty: f64, no_repeat_ngram_size: u64, num_return_sequences: u64, attention_mask: Option<Tensor>)
                 -> Vec<String> {
+
+        let eos_token_ids = self.get_eos_ids().clone();
+        let pad_token_id = match self.get_pad_id() {
+            Some(value) => Some(*value),
+            None => match &eos_token_ids {
+                Some(eos_ids) => Some(eos_ids[0]),
+                None => None
+            }
+        };
+
         let input_ids = match prompt_text {
-            Some(text) => self.encode_prompt_text(text, max_length),
+            Some(text) => self.encode_prompt_text(text, max_length, pad_token_id),
             None => match self.get_bos_id() {
                 Some(bos_id) => Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id,
                 None => panic!("A model with a BOS token must be used to start generation with an empty input")
@@ -245,7 +287,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
 
         let cur_len = *input_ids.size().last().unwrap();
         let batch_size = *input_ids.size().first().unwrap();
-        let eos_token_ids = self.get_eos_ids().clone();
 
         let (effective_batch_size, effective_batch_mult) = match do_sample {
             true => (batch_size * num_return_sequences as i64, num_return_sequences as i64),
@@ -262,13 +303,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             }
         };
 
-        let pad_token_id = match self.get_pad_id() {
-            Some(value) => Some(*value),
-            None => match &eos_token_ids {
-                Some(eos_ids) => Some(eos_ids[0]),
-                None => None
-            }
-        };
+
 
         let (input_ids, attention_mask) = if (num_return_sequences > 1) | (num_beams > 1) {
             (input_ids
@@ -286,13 +321,15 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             (input_ids, attention_mask)
         };
 
-        let decoded = if num_beams > 1 {
-            self.generate_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
-                                      no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, num_return_sequences as i64, length_penalty, num_beams as i64, attention_mask)
-        } else {
-            self.generate_no_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, temperature, top_k as i64, top_p, repetition_penalty,
-                                         no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, attention_mask)
-        };
+        let decoded = no_grad(|| {
+            if num_beams > 1 {
+                self.generate_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
+                                          no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, num_return_sequences as i64, length_penalty, num_beams as i64, attention_mask)
+            } else {
+                self.generate_no_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, temperature, top_k as i64, top_p, repetition_penalty,
+                                             no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, attention_mask)
+            }
+        });
 
         let num_sequences = *decoded.size().first().unwrap();
         let mut output = Vec::with_capacity(num_sequences as usize);
