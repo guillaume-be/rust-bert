@@ -17,7 +17,6 @@ use std::path::PathBuf;
 use tch::Device;
 use rust_bert::pipelines::generation::{LanguageGenerator, GPT2Generator};
 
-
 fn main() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
@@ -34,12 +33,12 @@ fn main() -> failure::Fallible<()> {
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The dog";
-    let output = model.generate(Some(input_context), 0, 30, true, false, 5, 1.2,
+    let second_input_context = "The cat was";
+    let output = model.generate(Some(vec!(input_context, second_input_context)), 0, 30, true, false, 5, 1.2,
                                 0, 0.9, 1.0, 1.0, 3, 3, None);
 
     for sentence in output {
         println!("{:?}", sentence);
     }
-
     Ok(())
 }

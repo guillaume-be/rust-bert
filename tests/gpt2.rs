@@ -83,7 +83,7 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The cat";
-    let output = model.generate(Some(input_context), 0, 40, false, false, 1, 1.0,
+    let output = model.generate(Some(vec!(input_context)), 0, 40, false, false, 1, 1.0,
                                  0, 0.9, 1.1, 1.0, 3, 1, None);
 
     assert_eq!(output.len(), 1);
@@ -110,13 +110,79 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The dog";
-    let output = model.generate(Some(input_context), 0, 20, false, false, 5, 1.0,
-                                 0, 1.0, 1.0, 1.0, 3, 3, None);
+    let output = model.generate(Some(vec!(input_context)), 0, 20, false, false, 5, 1.2,
+                                 0, 0.9, 1.0, 1.0, 3, 3, None);
 
     assert_eq!(output.len(), 3);
-    assert_eq!(output[0], "The dog's owner, who asked not to be named, said the dog had been in the house");
-    assert_eq!(output[1], "The dog\'s owner, who asked not to be named, said the dog had been in a \"");
-    assert_eq!(output[2], "The dog\'s owner, who asked not to be named, said the dog had been in trouble with");
+    assert_eq!(output[0], "The dog was found in the backyard of a home in the 6200 block of South Main Street.");
+    assert_eq!(output[1], "The dog was found in the backyard of a home in the 6500 block of South Main Street.");
+    assert_eq!(output[2], "The dog was found in the backyard of a home in the 6200 block of South Main Street,");
+
+    Ok(())
+}
+
+#[test]
+fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fallible<()> {
+    //    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("gpt2");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+    let merges_path = &home.as_path().join("merges.txt");
+    let weights_path = &home.as_path().join("model.ot");
+
+//    Set-up masked LM model
+    let device = Device::cuda_if_available();
+
+//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+
+    let input_context_1 = "The dog";
+    let input_context_2 = "The cat";
+    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 20, false, false, 5, 1.2,
+                                 0, 0.9, 1.0, 1.0, 3, 3, None);
+
+    assert_eq!(output.len(), 6);
+    assert_eq!(output[0], "The dog was found in the backyard of a home in the 6200 block of South Main Street.");
+    assert_eq!(output[1], "The dog was found in the backyard of a home in the 6500 block of South Main Street.");
+    assert_eq!(output[2], "The dog was found in the backyard of a home in the 6200 block of South Main Street,");
+    assert_eq!(output[3], "The cat-and-mouse game.\n\n\"I think it\'s going to be interesting to");
+    assert_eq!(output[4], "The cat-and-mouse game.\n\n\"I think it\'s going to be a very");
+    assert_eq!(output[5], "The cat-and-mouse game.\n\n\"I think it\'s going to be very interesting");
+
+    Ok(())
+}
+
+#[test]
+fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Fallible<()> {
+    //    Resources paths
+    let mut home: PathBuf = dirs::home_dir().unwrap();
+    home.push("rustbert");
+    home.push("gpt2");
+    let config_path = &home.as_path().join("config.json");
+    let vocab_path = &home.as_path().join("vocab.txt");
+    let merges_path = &home.as_path().join("merges.txt");
+    let weights_path = &home.as_path().join("model.ot");
+
+//    Set-up masked LM model
+    let device = Device::cuda_if_available();
+
+//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+
+    let input_context_1 = "The dog";
+    let input_context_2 = "The cat was";
+    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 20, false, false, 5, 1.2,
+                                 0, 0.9, 1.0, 1.0, 3, 3, None);
+
+    assert_eq!(output.len(), 6);
+    assert_eq!(output[0], "The dog was found dead on the side of the road in the middle of the night.\n");
+    assert_eq!(output[1], "The dog was found dead on the side of the road in the middle of the night on Sunday");
+    assert_eq!(output[2], "The dog was found dead on the side of the road in the middle of the night on Saturday");
+    assert_eq!(output[3], "The cat was taken to a local hospital, where it was treated and released.\n\nPolice said");
+    assert_eq!(output[4], "The cat was taken to a local hospital, where it was treated and released.\n\n\"It");
+    assert_eq!(output[5], "The cat was taken to a local hospital, where it was treated and released.\n\n\"We");
 
     Ok(())
 }
