@@ -16,6 +16,8 @@ extern crate dirs;
 use std::path::PathBuf;
 use tch::Device;
 use rust_bert::pipelines::generation::{LanguageGenerator, GPT2Generator};
+use failure::err_msg;
+
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
@@ -26,6 +28,13 @@ fn main() -> failure::Fallible<()> {
     let vocab_path = &home.as_path().join("vocab.txt");
     let merges_path = &home.as_path().join("merges.txt");
     let weights_path = &home.as_path().join("model.ot");
+
+    if !config_path.is_file() | !vocab_path.is_file() | !merges_path.is_file() | !weights_path.is_file() {
+        return Err(
+            err_msg("Could not find required resources to run example. \
+                          Please run ../utils/download_dependencies_gpt2.py \
+                          in a Python environment with dependencies listed in ../requirements.txt"));
+    }
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();

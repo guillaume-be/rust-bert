@@ -17,6 +17,8 @@ use std::path::PathBuf;
 use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, squad_processor};
 use tch::Device;
 use std::env;
+use failure::err_msg;
+
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
@@ -26,6 +28,13 @@ fn main() -> failure::Fallible<()> {
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let weights_path = &home.as_path().join("model.ot");
+
+    if !config_path.is_file() | !vocab_path.is_file() | !weights_path.is_file() {
+        return Err(
+            err_msg("Could not find required resources to run example. \
+                          Please run ../utils/download_dependencies_distilbert-qa.py \
+                          in a Python environment with dependencies listed in ../requirements.txt"));
+    }
 
 //    Set-up Question Answering model
     let device = Device::cuda_if_available();

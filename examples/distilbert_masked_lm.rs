@@ -9,6 +9,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+extern crate failure;
+extern crate dirs;
 
 use std::path::PathBuf;
 use tch::{Device, Tensor, nn, no_grad};
@@ -17,9 +19,9 @@ use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, Trunc
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use rust_bert::common::config::Config;
+use failure::err_msg;
 
-extern crate failure;
-extern crate dirs;
+
 
 fn main() -> failure::Fallible<()> {
 
@@ -30,6 +32,13 @@ fn main() -> failure::Fallible<()> {
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let weights_path = &home.as_path().join("model.ot");
+
+    if !config_path.is_file() | !vocab_path.is_file() | !weights_path.is_file() {
+        return Err(
+            err_msg("Could not find required resources to run example. \
+                          Please run ../utils/download_dependencies_distilbert.py \
+                          in a Python environment with dependencies listed in ../requirements.txt"));
+    }
 
 //    Set-up masked LM model
     let device = Device::Cpu;
