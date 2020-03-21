@@ -12,12 +12,12 @@
 // limitations under the License.
 
 use tch::{nn, Tensor};
-use crate::{BertConfig, BertModel};
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use tch::nn::Init;
 use crate::common::activations::_gelu;
 use crate::roberta::embeddings::RobertaEmbeddings;
 use crate::common::dropout::Dropout;
+use crate::bert::bert::{BertConfig, BertModel};
 
 pub struct RobertaLMHead {
     dense: nn::Linear,

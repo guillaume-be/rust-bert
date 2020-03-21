@@ -15,13 +15,12 @@
 
 use tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
-use crate::Gpt2Config;
 use tch::nn::embedding;
 use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::openai_gpt::transformer::Block;
-use crate::gpt2::gpt2::LMHeadModel;
+use crate::gpt2::gpt2::{LMHeadModel, Gpt2Config};
 
 
 pub struct OpenAiGptModel {

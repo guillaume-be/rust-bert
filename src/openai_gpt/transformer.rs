@@ -15,7 +15,7 @@
 use crate::gpt2::attention::Attention;
 use tch::{Tensor, nn};
 use crate::gpt2::transformer::MLP;
-use crate::Gpt2Config;
+use crate::gpt2::gpt2::Gpt2Config;
 
 pub struct Block {
     ln_1: nn::LayerNorm,

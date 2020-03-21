@@ -15,8 +15,8 @@ extern crate dirs;
 
 use std::path::PathBuf;
 use tch::Device;
-use rust_bert::pipelines::generation::{LanguageGenerator, GPT2Generator};
 use failure::err_msg;
+use rust_bert::{GPT2Generator, LanguageGenerator};
 
 
 fn main() -> failure::Fallible<()> {

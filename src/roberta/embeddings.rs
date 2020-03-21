@@ -14,8 +14,8 @@
 use tch::{nn, Tensor, Kind};
 use crate::common::dropout::Dropout;
 use crate::bert::embeddings::BertEmbedding;
-use crate::BertConfig;
 use tch::nn::{EmbeddingConfig, embedding};
+use crate::bert::bert::BertConfig;
 
 #[derive(Debug)]
 pub struct RobertaEmbeddings {

@@ -14,14 +14,11 @@ extern crate dirs;
 
 use std::path::PathBuf;
 use tch::{Device, Tensor, nn, no_grad};
-use rust_bert::distilbert::distilbert::{DistilBertModelMaskedLM, DistilBertConfig};
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
-use rust_bert::common::config::Config;
 use failure::err_msg;
-
-
+use rust_bert::{Config, DistilBertConfig, DistilBertModelMaskedLM};
 
 fn main() -> failure::Fallible<()> {
 

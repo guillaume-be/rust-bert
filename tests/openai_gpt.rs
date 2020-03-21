@@ -1,10 +1,7 @@
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
-use rust_bert::gpt2::gpt2::{Gpt2Config, LMHeadModel};
-use rust_bert::common::config::Config;
-use rust_bert::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
-use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator};
+use rust_bert::{Gpt2Config, OpenAIGPTLMHeadModel, Config, LMHeadModel, OpenAIGenerator, LanguageGenerator};
 
 #[test]
 fn openai_gpt_lm_model() -> failure::Fallible<()> {

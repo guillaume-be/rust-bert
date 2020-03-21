@@ -14,10 +14,10 @@ extern crate failure;
 extern crate dirs;
 
 use std::path::PathBuf;
-use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, squad_processor};
 use tch::Device;
 use std::env;
 use failure::err_msg;
+use rust_bert::{QuestionAnsweringModel, squad_processor};
 
 
 fn main() -> failure::Fallible<()> {

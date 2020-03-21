@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{RobertaTokenizer, TruncationStrategy, Tokenizer, Vocab};
-use rust_bert::BertConfig;
-use rust_bert::roberta::roberta::{RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering};
-use rust_bert::common::config::Config;
+use rust_bert::{BertConfig, Config, RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering};
 
 #[test]
 fn roberta_masked_lm() -> failure::Fallible<()> {

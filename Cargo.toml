@@ -3,7 +3,6 @@ name = "rust-bert"
 version = "0.5.2"
 authors = ["Guillaume Becquin <guillaume.becquin@gmail.com>"]
 edition = "2018"
-default-run = "rust-bert"
 description = "Native (Distil)BERT implementation for Rust"
 repository = "https://github.com/guillaume-be/rust-bert"
 license = "Apache-2.0"

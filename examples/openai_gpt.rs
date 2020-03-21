@@ -16,10 +16,7 @@ extern crate dirs;
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
-use rust_bert::common::config::Config;
-use rust_bert::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
-use rust_bert::Gpt2Config;
-use rust_bert::gpt2::gpt2::LMHeadModel;
+use rust_bert::{Gpt2Config, Config, OpenAIGPTLMHeadModel, LMHeadModel};
 use failure::err_msg;
 
 

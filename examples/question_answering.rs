@@ -14,9 +14,9 @@ extern crate failure;
 extern crate dirs;
 
 use std::path::PathBuf;
-use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 use tch::Device;
 use failure::err_msg;
+use rust_bert::{QuestionAnsweringModel, QaInput};
 
 
 fn main() -> failure::Fallible<()> {

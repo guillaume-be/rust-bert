@@ -1,12 +1,9 @@
 use std::path::PathBuf;
 use tch::{Device, Tensor, nn, no_grad};
-use rust_bert::distilbert::distilbert::{DistilBertModelMaskedLM, DistilBertConfig, DistilBertForQuestionAnswering, DistilBertForTokenClassification};
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
-use rust_bert::{SentimentClassifier, SentimentPolarity};
-use rust_bert::common::config::Config;
-use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
+use rust_bert::{SentimentClassifier, SentimentPolarity, DistilBertConfig, DistilBertModelMaskedLM, Config, DistilBertForQuestionAnswering, DistilBertForTokenClassification, QuestionAnsweringModel, QaInput};
 
 extern crate failure;
 extern crate dirs;

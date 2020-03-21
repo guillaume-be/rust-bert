@@ -12,9 +12,9 @@
 // limitations under the License.
 
 use tch::{Tensor, nn};
-use crate::BertConfig;
 use crate::bert::attention::{BertAttention, BertIntermediate, BertOutput};
 use std::borrow::BorrowMut;
+use crate::bert::bert::BertConfig;
 
 pub struct BertLayer {
     attention: BertAttention,

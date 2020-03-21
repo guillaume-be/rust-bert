@@ -12,9 +12,9 @@
 // limitations under the License.
 
 use tch::{nn, Tensor, Kind};
-use crate::BertConfig;
 use tch::nn::{EmbeddingConfig, embedding};
 use crate::common::dropout::Dropout;
+use crate::bert::bert::BertConfig;
 
 #[derive(Debug)]
 pub struct BertEmbeddings {

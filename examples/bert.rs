@@ -16,9 +16,8 @@ extern crate dirs;
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{BertTokenizer, TruncationStrategy, Tokenizer, Vocab};
-use rust_bert::bert::bert::{BertConfig, BertForMaskedLM};
-use rust_bert::common::config::Config;
 use failure::err_msg;
+use rust_bert::{BertConfig, BertForMaskedLM, Config};
 
 
 fn main() -> failure::Fallible<()> {
