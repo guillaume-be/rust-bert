@@ -15,11 +15,11 @@ use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use std::path::Path;
 use tch::nn::VarStore;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TruncationStrategy, MultiThreadedTokenizer};
-use crate::{BertForTokenClassification, BertConfig};
 use std::collections::HashMap;
 use crate::common::config::Config;
 use tch::{Tensor, no_grad, Device};
 use tch::kind::Kind::Float;
+use crate::bert::bert::{BertForTokenClassification, BertConfig};
 
 
 #[derive(Debug)]
@@ -67,8 +67,8 @@ impl NERModel {
         Tensor::stack(tokenized_input.as_slice(), 0).to(self.var_store.device())
     }
 
-    pub fn predict(&self, input: Vec<&str>) -> Vec<Entity> {
-        let input_tensor = self.prepare_for_model(input);
+    pub fn predict(&self, input: &[&str]) -> Vec<Entity> {
+        let input_tensor = self.prepare_for_model(input.to_vec());
         let (output, _, _) = no_grad(|| {
             self.bert_sequence_classifier
                 .forward_t(Some(input_tensor.copy()),

@@ -17,7 +17,9 @@ use std::path::PathBuf;
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, Vocab, RobertaTokenizer};
 use failure::err_msg;
-use rust_bert::{BertConfig, RobertaForMaskedLM, Config};
+use rust_bert::bert::bert::BertConfig;
+use rust_bert::roberta::roberta::RobertaForMaskedLM;
+use rust_bert::Config;
 
 
 fn main() -> failure::Fallible<()> {

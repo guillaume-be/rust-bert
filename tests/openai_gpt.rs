@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
-use rust_bert::{Gpt2Config, OpenAIGPTLMHeadModel, Config, LMHeadModel, OpenAIGenerator, LanguageGenerator};
+use rust_bert::gpt2::gpt2::{Gpt2Config, LMHeadModel};
+use rust_bert::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
+use rust_bert::Config;
+use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator};
 
 #[test]
 fn openai_gpt_lm_model() -> failure::Fallible<()> {
@@ -73,7 +76,6 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
 
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "It was an intense machine dialogue. ";
@@ -100,7 +102,6 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
 
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The dog is";
@@ -129,7 +130,6 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
 
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context_1 = "The dog is";
@@ -165,7 +165,6 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure:
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
 
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context_1 = "The dog is";

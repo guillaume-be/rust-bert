@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
-use rust_bert::{Gpt2Config, GPT2LMHeadModel, Config, LMHeadModel, GPT2Generator, LanguageGenerator};
+use rust_bert::gpt2::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
+use rust_bert::Config;
+use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator};
 
 #[test]
 fn gpt2_lm_model() -> failure::Fallible<()> {
@@ -77,7 +79,6 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
 
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The cat";
@@ -104,7 +105,6 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
 
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context = "The dog";
@@ -166,7 +166,6 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
 
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
 
     let input_context_1 = "The dog";

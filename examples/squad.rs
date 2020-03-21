@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use tch::Device;
 use std::env;
 use failure::err_msg;
-use rust_bert::{QuestionAnsweringModel, squad_processor};
+use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, squad_processor};
 
 
 fn main() -> failure::Fallible<()> {

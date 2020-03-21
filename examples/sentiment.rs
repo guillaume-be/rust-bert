@@ -15,8 +15,8 @@ extern crate dirs;
 
 use std::path::PathBuf;
 use tch::Device;
-use rust_bert::SentimentClassifier;
 use failure::err_msg;
+use rust_bert::pipelines::sentiment::SentimentClassifier;
 
 
 fn main() -> failure::Fallible<()> {
@@ -49,7 +49,7 @@ fn main() -> failure::Fallible<()> {
     ];
 
 //    Run model
-    let output = sentiment_classifier.predict(input.to_vec());
+    let output = sentiment_classifier.predict(&input);
     for sentiment in output {
         println!("{:?}", sentiment);
     }

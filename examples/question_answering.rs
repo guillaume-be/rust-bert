@@ -16,7 +16,7 @@ extern crate dirs;
 use std::path::PathBuf;
 use tch::Device;
 use failure::err_msg;
-use rust_bert::{QuestionAnsweringModel, QaInput};
+use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 
 
 fn main() -> failure::Fallible<()> {

@@ -3,7 +3,10 @@ use tch::{Device, Tensor, nn, no_grad};
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
-use rust_bert::{SentimentClassifier, SentimentPolarity, DistilBertConfig, DistilBertModelMaskedLM, Config, DistilBertForQuestionAnswering, DistilBertForTokenClassification, QuestionAnsweringModel, QaInput};
+use rust_bert::pipelines::sentiment::{SentimentClassifier, SentimentPolarity};
+use rust_bert::distilbert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification};
+use rust_bert::Config;
+use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 
 extern crate failure;
 extern crate dirs;
@@ -32,7 +35,7 @@ fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
         "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
     ];
 
-    let output = sentiment_classifier.predict(input.to_vec());
+    let output = sentiment_classifier.predict(&input);
 
     assert_eq!(output.len(), 3 as usize);
     assert_eq!(output[0].polarity, SentimentPolarity::Positive);

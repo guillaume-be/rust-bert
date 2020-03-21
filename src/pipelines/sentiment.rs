@@ -12,12 +12,12 @@
 
 
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
-use crate::distilbert::distilbert::{DistilBertModelClassifier, DistilBertConfig};
 use std::path::Path;
 use tch::{Device, Tensor, Kind, no_grad};
 use tch::nn::VarStore;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TruncationStrategy, MultiThreadedTokenizer};
 use crate::common::config::Config;
+use crate::distilbert::distilbert::{DistilBertConfig, DistilBertModelClassifier};
 
 
 #[derive(Debug, PartialEq)]
@@ -68,8 +68,8 @@ impl SentimentClassifier {
         Tensor::stack(tokenized_input.as_slice(), 0).to(self.var_store.device())
     }
 
-    pub fn predict(&self, input: Vec<&str>) -> Vec<Sentiment> {
-        let input_tensor = self.prepare_for_model(input);
+    pub fn predict(&self, input: &[&str]) -> Vec<Sentiment> {
+        let input_tensor = self.prepare_for_model(input.to_vec());
         let (output, _, _) = no_grad(|| {
             self.distil_bert_classifier
                 .forward_t(Some(input_tensor),

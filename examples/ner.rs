@@ -15,8 +15,8 @@ extern crate dirs;
 
 use std::path::PathBuf;
 use tch::Device;
-use rust_bert::NERModel;
 use failure::err_msg;
+use rust_bert::pipelines::ner::NERModel;
 
 
 fn main() -> failure::Fallible<()> {
@@ -48,7 +48,7 @@ fn main() -> failure::Fallible<()> {
     ];
 
 //    Run model
-    let output = ner_model.predict(input.to_vec());
+    let output = ner_model.predict(&input);
     for entity in output {
         println!("{:?}", entity);
     }

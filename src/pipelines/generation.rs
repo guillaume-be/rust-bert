@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::gpt2::gpt2::LMHeadModel;
+use crate::gpt2::gpt2::{LMHeadModel, Gpt2Config, GPT2LMHeadModel};
 use tch::{Tensor, Device, nn, no_grad};
 use rust_tokenizers::{Tokenizer, OpenAiGptTokenizer, OpenAiGptVocab, Vocab, TruncationStrategy, Gpt2Tokenizer, Gpt2Vocab};
 use crate::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
 use std::path::Path;
-use crate::{Gpt2Config, GPT2LMHeadModel};
 use crate::common::config::Config;
 use rust_tokenizers::tokenization_utils::truncate_sequences;
 use tch::kind::Kind::{Int64, Float, Bool};

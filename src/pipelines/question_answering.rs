@@ -17,11 +17,11 @@ use std::path::{Path, PathBuf};
 use rust_tokenizers::tokenization_utils::truncate_sequences;
 use std::collections::HashMap;
 use std::cmp::min;
-use crate::{DistilBertForQuestionAnswering, DistilBertConfig};
 use tch::nn::VarStore;
-use crate::common::config::Config;
 use tch::kind::Kind::Float;
 use std::fs;
+use crate::distilbert::distilbert::{DistilBertForQuestionAnswering, DistilBertConfig};
+use crate::Config;
 
 pub struct QaInput {
     pub question: String,
