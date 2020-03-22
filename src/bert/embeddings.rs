@@ -16,15 +16,8 @@ use tch::nn::{EmbeddingConfig, embedding};
 use crate::common::dropout::Dropout;
 use crate::bert::bert::BertConfig;
 
-#[derive(Debug)]
-pub struct BertEmbeddings {
-    word_embeddings: nn::Embedding,
-    position_embeddings: nn::Embedding,
-    token_type_embeddings: nn::Embedding,
-    layer_norm: nn::LayerNorm,
-    dropout: Dropout,
-}
-
+/// # BertEmbedding trait (for use in BertModel or RoBERTaModel)
+/// Defines an interface for the embedding layers in BERT-based models
 pub trait BertEmbedding {
     fn new(p: &nn::Path, config: &BertConfig) -> Self;
 
@@ -36,7 +29,40 @@ pub trait BertEmbedding {
                  train: bool) -> Result<Tensor, &'static str>;
 }
 
+#[derive(Debug)]
+/// # BertEmbeddings implementation for BERT model
+/// Implementation of the `BertEmbedding` trait for BERT models
+pub struct BertEmbeddings {
+    word_embeddings: nn::Embedding,
+    position_embeddings: nn::Embedding,
+    token_type_embeddings: nn::Embedding,
+    layer_norm: nn::LayerNorm,
+    dropout: Dropout,
+}
+
 impl BertEmbedding for BertEmbeddings {
+    /// Build a new `BertEmbeddings`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BertEmbeddings model
+    /// * `config` - `BertConfig` object defining the model architecture and vocab/hidden size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertEmbeddings, BertEmbedding};
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let bert_embeddings = BertEmbeddings::new(&(&p.root() / "bert_embeddings"), &config);
+    /// ```
+    ///
     fn new(p: &nn::Path, config: &BertConfig) -> BertEmbeddings {
         let embedding_config = EmbeddingConfig { padding_idx: 0, ..Default::default() };
 
@@ -61,6 +87,49 @@ impl BertEmbedding for BertEmbeddings {
         BertEmbeddings { word_embeddings, position_embeddings, token_type_embeddings, layer_norm, dropout }
     }
 
+    /// Forward pass through the embedding layer
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see *input_embeds*)
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see *input_ids*)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `embedded_output` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::{BertConfig, BertEmbeddings, BertEmbedding};
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let bert_embeddings = BertEmbeddings::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let embedded_output = no_grad(|| {
+    ///    bert_embeddings
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false).unwrap()
+    ///    });
+    /// ```
+    ///
     fn forward_t(&self,
                  input_ids: Option<Tensor>,
                  token_type_ids: Option<Tensor>,

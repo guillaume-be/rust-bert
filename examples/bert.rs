@@ -19,6 +19,7 @@ use rust_tokenizers::{BertTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use failure::err_msg;
 use rust_bert::Config;
 use rust_bert::bert::{BertConfig, BertForMaskedLM};
+use tch::kind::Kind::Int64;
 
 
 fn main() -> failure::Fallible<()> {

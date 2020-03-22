@@ -173,7 +173,6 @@ fn bert_for_multiple_choice() -> failure::Fallible<()> {
                        None,
                        None,
                        None,
-                       None,
                        false)
     });
 
