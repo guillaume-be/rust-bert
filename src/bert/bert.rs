@@ -12,7 +12,6 @@
 // limitations under the License.
 
 use serde::{Deserialize, Serialize};
-use crate::common::config::Config;
 use crate::bert::embeddings::{BertEmbeddings, BertEmbedding};
 use crate::bert::encoder::{BertEncoder, BertPooler};
 use tch::{nn, Tensor, Kind};
@@ -22,6 +21,7 @@ use crate::common::linear::{LinearNoBias, linear_no_bias};
 use tch::nn::Init;
 use crate::common::dropout::Dropout;
 use std::collections::HashMap;
+use crate::Config;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]

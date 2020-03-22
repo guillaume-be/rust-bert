@@ -20,8 +20,8 @@ use std::cmp::min;
 use tch::nn::VarStore;
 use tch::kind::Kind::Float;
 use std::fs;
-use crate::distilbert::distilbert::{DistilBertForQuestionAnswering, DistilBertConfig};
 use crate::Config;
+use crate::distilbert::{DistilBertForQuestionAnswering, DistilBertConfig};
 
 pub struct QaInput {
     pub question: String,

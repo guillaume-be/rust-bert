@@ -1,2 +1,4 @@
-pub mod embeddings;
-pub mod roberta;
+mod embeddings;
+mod roberta;
+
+pub use roberta::{RobertaForMaskedLM, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering, RobertaForSequenceClassification};

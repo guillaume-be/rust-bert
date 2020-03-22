@@ -3,9 +3,9 @@ use tch::{Device, Tensor, nn, no_grad};
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
-use rust_bert::pipelines::sentiment::{SentimentClassifier, SentimentPolarity};
-use rust_bert::distilbert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification};
 use rust_bert::Config;
+use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification};
+use rust_bert::pipelines::sentiment::{SentimentClassifier, SentimentPolarity};
 use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 
 extern crate failure;

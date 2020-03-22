@@ -16,10 +16,10 @@ use std::path::Path;
 use tch::nn::VarStore;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TruncationStrategy, MultiThreadedTokenizer};
 use std::collections::HashMap;
-use crate::common::config::Config;
 use tch::{Tensor, no_grad, Device};
 use tch::kind::Kind::Float;
-use crate::bert::bert::{BertForTokenClassification, BertConfig};
+use crate::bert::{BertForTokenClassification, BertConfig};
+use crate::Config;
 
 
 #[derive(Debug)]

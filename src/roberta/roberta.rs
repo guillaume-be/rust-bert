@@ -17,7 +17,7 @@ use tch::nn::Init;
 use crate::common::activations::_gelu;
 use crate::roberta::embeddings::RobertaEmbeddings;
 use crate::common::dropout::Dropout;
-use crate::bert::bert::{BertConfig, BertModel};
+use crate::bert::{BertConfig, BertModel};
 
 pub struct RobertaLMHead {
     dense: nn::Linear,

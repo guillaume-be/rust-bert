@@ -18,8 +18,8 @@ use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, Trunc
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use failure::err_msg;
-use rust_bert::distilbert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM};
 use rust_bert::Config;
+use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM};
 
 
 fn main() -> failure::Fallible<()> {

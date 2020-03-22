@@ -20,7 +20,7 @@ use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::openai_gpt::transformer::Block;
-use crate::gpt2::gpt2::{LMHeadModel, Gpt2Config};
+use crate::gpt2::{Gpt2Config, LMHeadModel};
 
 
 pub struct OpenAiGptModel {

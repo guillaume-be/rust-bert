@@ -17,8 +17,8 @@ use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, Gpt2Tokenizer};
 use failure::err_msg;
-use rust_bert::gpt2::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
 use rust_bert::Config;
+use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
 
 
 fn main() -> failure::Fallible<()> {

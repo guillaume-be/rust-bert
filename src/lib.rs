@@ -1,4 +1,4 @@
-//! Ready-to-use NLP pipelines and Transformer-based models
+//! # Ready-to-use NLP pipelines and Transformer-based models
 //!
 //! Rust native Transformer-based models implementation. Port of the [Transformers](https://github.com/huggingface/transformers) library, using the tch-rs crate and pre-processing from rust-tokenizers.
 //! Supports multithreaded tokenization and GPU inference. This repository exposes the model base architecture, task-specific heads (see below) and ready-to-use pipelines.
@@ -59,7 +59,6 @@
 //! 3. Run the example cargo run --release
 //!
 
-
 pub mod distilbert;
 pub mod bert;
 pub mod roberta;
@@ -68,4 +67,4 @@ pub mod gpt2;
 mod common;
 pub mod pipelines;
 
-pub use common::config::Config;
+pub use common::Config;

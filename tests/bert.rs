@@ -4,9 +4,10 @@ extern crate dirs;
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{BertTokenizer, TruncationStrategy, Tokenizer, Vocab};
-use rust_bert::bert::bert::{BertConfig, BertForMaskedLM, BertForSequenceClassification, BertForMultipleChoice, BertForTokenClassification, BertForQuestionAnswering};
 use rust_bert::Config;
+use rust_bert::bert::{BertConfig, BertForMaskedLM, BertForSequenceClassification, BertForMultipleChoice, BertForTokenClassification, BertForQuestionAnswering};
 use rust_bert::pipelines::ner::NERModel;
+
 
 #[test]
 fn bert_masked_lm() -> failure::Fallible<()> {

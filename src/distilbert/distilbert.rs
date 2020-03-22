@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 use crate::distilbert::embeddings::DistilBertEmbedding;
 use crate::distilbert::transformer::Transformer;
 use self::tch::{nn, Tensor};
-use crate::common::config::Config;
 use crate::common::dropout::Dropout;
+use crate::Config;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]

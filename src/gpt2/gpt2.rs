@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::config::Config;
 use serde::{Deserialize, Serialize};
 use tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
@@ -21,6 +20,7 @@ use crate::gpt2::transformer::Block;
 use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
+use crate::Config;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
