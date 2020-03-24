@@ -812,7 +812,7 @@ impl BertForQuestionAnswering {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (start_positions, end_positions, _, _) = no_grad(|| {
+    ///  let (start_scores, end_scores, _, _) = no_grad(|| {
     ///    bert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),

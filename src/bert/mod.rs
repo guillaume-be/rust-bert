@@ -1,6 +1,6 @@
 //! # BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding (Devlin et al.)
 //!
-//! Implementation of the BERT language model (https://arxiv.org/abs/1810.04805 Devlin, Chang, Lee, Toutanova, 2018).
+//! Implementation of the BERT language model ([https://arxiv.org/abs/1810.04805](https://arxiv.org/abs/1810.04805) Devlin, Chang, Lee, Toutanova, 2018).
 //! The base model is implemented in the `bert::BertModel` struct. Several language model heads have also been implemented, including:
 //! - Masked language model: `bert::BertForMaskedLM`
 //! - Multiple choices: `bert:BertForMultipleChoice`
@@ -14,7 +14,7 @@
 //! The example below illustrate a Masked language model example, the structure is similar for other models.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
-//! - Model weights is expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
+//! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
 //! - `BertTokenizer` using a `vocab.txt` vocabulary
 //!
 //! ```no_run
