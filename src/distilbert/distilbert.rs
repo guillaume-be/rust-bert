@@ -182,7 +182,7 @@ impl DistilBertModelClassifier {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the DistilBERT model
+    /// * `p` - Variable store path for the root of the DistilBertModelClassifier model
     /// * `config` - `DistilBertConfig` object defining the model architecture and decoder status
     ///
     /// # Example
@@ -290,7 +290,7 @@ impl DistilBertModelMaskedLM {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the DistilBERT model
+    /// * `p` - Variable store path for the root of the DistilBertModelMaskedLM model
     /// * `config` - `DistilBertConfig` object defining the model architecture and decoder status
     ///
     /// # Example
@@ -396,7 +396,7 @@ impl DistilBertForQuestionAnswering {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the DistilBERT model
+    /// * `p` - Variable store path for the root of the DistilBertForQuestionAnswering model
     /// * `config` - `DistilBertConfig` object defining the model architecture and decoder status
     ///
     /// # Example
@@ -509,7 +509,7 @@ impl DistilBertForTokenClassification {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the DistilBERT model
+    /// * `p` - Variable store path for the root of the DistilBertForTokenClassification model
     /// * `config` - `DistilBertConfig` object defining the model architecture and decoder status
     ///
     /// # Example

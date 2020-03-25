@@ -17,6 +17,8 @@ use tch::nn::{EmbeddingConfig, embedding};
 use crate::bert::{BertConfig, BertEmbedding};
 
 #[derive(Debug)]
+/// # BertEmbeddings implementation for RoBERTa model
+/// Implementation of the `BertEmbedding` trait for RoBERTa models
 pub struct RobertaEmbeddings {
     word_embeddings: nn::Embedding,
     position_embeddings: nn::Embedding,
@@ -41,6 +43,29 @@ impl RobertaEmbeddings {
 }
 
 impl BertEmbedding for RobertaEmbeddings {
+    /// Build a new `RobertaEmbeddings`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BertEmbeddings model
+    /// * `config` - `BertConfig` object defining the model architecture and vocab/hidden size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertEmbedding};
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::roberta::RobertaEmbeddings;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let robert_embeddings = RobertaEmbeddings::new(&(&p.root() / "bert_embeddings"), &config);
+    /// ```
+    ///
     fn new(p: &nn::Path, config: &BertConfig) -> RobertaEmbeddings {
         let embedding_config = EmbeddingConfig { padding_idx: 1, ..Default::default() };
 
@@ -65,6 +90,51 @@ impl BertEmbedding for RobertaEmbeddings {
         RobertaEmbeddings { word_embeddings, position_embeddings, token_type_embeddings, layer_norm, dropout, padding_index: 1 }
     }
 
+    /// Forward pass through the embedding layer.
+    /// This differs from the original BERT embeddings in how the position ids are calculated when not provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see *input_embeds*)
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see *input_ids*)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `embedded_output` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::{BertConfig, BertEmbedding};
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::roberta::RobertaEmbeddings;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let roberta_embeddings = RobertaEmbeddings::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let embedded_output = no_grad(|| {
+    ///    roberta_embeddings
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false).unwrap()
+    ///    });
+    /// ```
+    ///
     fn forward_t(&self,
                  input_ids: Option<Tensor>,
                  token_type_ids: Option<Tensor>,

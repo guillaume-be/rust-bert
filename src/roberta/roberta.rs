@@ -42,12 +42,40 @@ impl RobertaLMHead {
     }
 }
 
+/// # RoBERTa for masked language model
+/// Base RoBERTa model with a RoBERTa masked language model head to predict missing tokens, for example `"Looks like one [MASK] is missing" -> "person"`
+/// It is made of the following blocks:
+/// - `roberta`: Base BertModel with RoBERTa embeddings
+/// - `lm_head`: RoBERTa LM prediction head
 pub struct RobertaForMaskedLM {
     roberta: BertModel<RobertaEmbeddings>,
     lm_head: RobertaLMHead,
 }
 
 impl RobertaForMaskedLM {
+    /// Build a new `RobertaForMaskedLM`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the RobertaForMaskedLM model
+    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::BertConfig;
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::roberta::RobertaForMaskedLM;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let roberta = RobertaForMaskedLM::new(&(&p.root() / "bert"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForMaskedLM {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let lm_head = RobertaLMHead::new(&(p / "lm_head"), config);
@@ -55,6 +83,60 @@ impl RobertaForMaskedLM {
         RobertaForMaskedLM { roberta, lm_head }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see *input_embeds*)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *</s>*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see *input_ids*)
+    /// * `encoder_hidden_states` - Optional encoder hidden state of shape (*batch size*, *encoder_sequence_length*, *hidden_size*). If the model is defined as a decoder and the *encoder_hidden_states* is not None, used in the cross-attention layer as keys and values (query from the decoder).
+    /// * `encoder_mask` - Optional encoder attention mask of shape (*batch size*, *encoder_sequence_length*). If the model is defined as a decoder and the *encoder_hidden_states* is not None, used to mask encoder values. Positions with value 0 will be masked.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *num_labels*, *vocab_size*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::BertConfig;
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::roberta::RobertaForMaskedLM;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let roberta_model = RobertaForMaskedLM::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, _, _) = no_grad(|| {
+    ///    roberta_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    &None,
+    ///                    &None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -99,12 +181,40 @@ impl RobertaClassificationHead {
     }
 }
 
+/// # RoBERTa for sequence classification
+/// Base RoBERTa model with a classifier head to perform sentence or document-level classification
+/// It is made of the following blocks:
+/// - `roberta`: Base RoBERTa model
+/// - `classifier`: RoBERTa classification head made of 2 linear layers
 pub struct RobertaForSequenceClassification {
     roberta: BertModel<RobertaEmbeddings>,
     classifier: RobertaClassificationHead,
 }
 
 impl RobertaForSequenceClassification {
+    /// Build a new `RobertaForSequenceClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the RobertaForSequenceClassification model
+    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::BertConfig;
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::roberta::RobertaForSequenceClassification;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let roberta = RobertaForSequenceClassification::new(&(&p.root() / "bert"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForSequenceClassification {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let classifier = RobertaClassificationHead::new(&(p / "classifier"), config);
@@ -112,6 +222,56 @@ impl RobertaForSequenceClassification {
         RobertaForSequenceClassification { roberta, classifier }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *</s>*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `labels` - `Tensor` of shape (*batch size*, *num_labels*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::BertConfig;
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::roberta::RobertaForSequenceClassification;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let roberta_model = RobertaForSequenceClassification::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (labels, _, _) = no_grad(|| {
+    ///    roberta_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -127,6 +287,13 @@ impl RobertaForSequenceClassification {
     }
 }
 
+/// # RoBERTa for multiple choices
+/// Multiple choices model using a RoBERTa base model and a linear classifier.
+/// Input should be in the form `<s> Context </s> Possible choice </s>`. The choice is made along the batch axis,
+/// assuming all elements of the batch are alternatives to be chosen from for a given context.
+/// It is made of the following blocks:
+/// - `roberta`: Base RoBERTa model
+/// - `classifier`: Linear layer for multiple choices
 pub struct RobertaForMultipleChoice {
     roberta: BertModel<RobertaEmbeddings>,
     dropout: Dropout,
@@ -134,6 +301,29 @@ pub struct RobertaForMultipleChoice {
 }
 
 impl RobertaForMultipleChoice {
+    /// Build a new `RobertaForMultipleChoice`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the RobertaForMultipleChoice model
+    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::BertConfig;
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::roberta::RobertaForMultipleChoice;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let roberta = RobertaForMultipleChoice::new(&(&p.root() / "bert"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForMultipleChoice {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
@@ -142,6 +332,54 @@ impl RobertaForMultipleChoice {
         RobertaForMultipleChoice { roberta, dropout, classifier }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Input tensor of shape (*batch size*, *sequence_length*).
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *</s>*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*1*, *batch size*) containing the logits for each of the alternatives given
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::BertConfig;
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::roberta::RobertaForMultipleChoice;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let roberta_model = RobertaForMultipleChoice::new(&vs.root(), &config);
+    ///  let (num_choices, sequence_length) = (3, 128);
+    ///  let input_tensor = Tensor::rand(&[num_choices, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[num_choices, sequence_length], true);
+    ///
+    ///  let (choices, _, _) = no_grad(|| {
+    ///    roberta_model
+    ///         .forward_t(input_tensor,
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Tensor,
                      mask: Option<Tensor>,
@@ -172,6 +410,12 @@ impl RobertaForMultipleChoice {
     }
 }
 
+/// # RoBERTa for token classification (e.g. NER, POS)
+/// Token-level classifier predicting a label for each token provided. Note that because of bpe tokenization, the labels predicted are
+/// not necessarily aligned with words in the sentence.
+/// It is made of the following blocks:
+/// - `roberta`: Base RoBERTa model
+/// - `classifier`: Linear layer for token classification
 pub struct RobertaForTokenClassification {
     roberta: BertModel<RobertaEmbeddings>,
     dropout: Dropout,
@@ -179,6 +423,29 @@ pub struct RobertaForTokenClassification {
 }
 
 impl RobertaForTokenClassification {
+    /// Build a new `RobertaForTokenClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the RobertaForTokenClassification model
+    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::BertConfig;
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::roberta::RobertaForTokenClassification;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let roberta = RobertaForTokenClassification::new(&(&p.root() / "bert"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForTokenClassification {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
@@ -188,6 +455,56 @@ impl RobertaForTokenClassification {
         RobertaForTokenClassification { roberta, dropout, classifier }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *</s>*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) containing the logits for each of the input tokens and classes
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::BertConfig;
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::roberta::RobertaForTokenClassification;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (token_labels, _, _) = no_grad(|| {
+    ///    roberta_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -203,12 +520,42 @@ impl RobertaForTokenClassification {
     }
 }
 
+/// # RoBERTa for question answering
+/// Extractive question-answering model based on a RoBERTa language model. Identifies the segment of a context that answers a provided question.
+/// Please note that a significant amount of pre- and post-processing is required to perform end-to-end question answering.
+/// See the question answering pipeline (also provided in this crate) for more details.
+/// It is made of the following blocks:
+/// - `roberta`: Base RoBERTa model
+/// - `qa_outputs`: Linear layer for question answering
 pub struct RobertaForQuestionAnswering {
     roberta: BertModel<RobertaEmbeddings>,
     qa_outputs: nn::Linear,
 }
 
 impl RobertaForQuestionAnswering {
+    /// Build a new `RobertaForQuestionAnswering`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the RobertaForQuestionAnswering model
+    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::BertConfig;
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::roberta::RobertaForQuestionAnswering;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let roberta = RobertaForQuestionAnswering::new(&(&p.root() / "bert"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForQuestionAnswering {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let num_labels = config.num_labels.expect("num_labels not provided in configuration");
@@ -217,6 +564,57 @@ impl RobertaForQuestionAnswering {
         RobertaForQuestionAnswering { roberta, qa_outputs }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *</s>*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `start_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    /// * `end_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::BertConfig;
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::roberta::RobertaForQuestionAnswering;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let roberta_model = RobertaForQuestionAnswering::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (start_scores, end_scores, _, _) = no_grad(|| {
+    ///    roberta_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,

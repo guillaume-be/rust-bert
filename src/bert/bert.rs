@@ -506,7 +506,7 @@ impl BertForSequenceClassification {
 
 /// # BERT for multiple choices
 /// Multiple choices model using a BERT base model and a linear classifier.
-/// Input should be in the form `[CLS] Context [SEP] Possible choice`. The choice is made along the batch axis,
+/// Input should be in the form `[CLS] Context [SEP] Possible choice [SEP]`. The choice is made along the batch axis,
 /// assuming all elements of the batch are alternatives to be chosen from for a given context.
 /// It is made of the following blocks:
 /// - `bert`: Base BertModel
@@ -642,7 +642,7 @@ impl BertForTokenClassification {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BertForMultipleChoice model
+    /// * `p` - Variable store path for the root of the BertForTokenClassification model
     /// * `config` - `BertConfig` object defining the model architecture, number of output labels and label mapping
     ///
     /// # Example
@@ -749,7 +749,7 @@ impl BertForQuestionAnswering {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BertForMultipleChoice model
+    /// * `p` - Variable store path for the root of the BertForQuestionAnswering model
     /// * `config` - `BertConfig` object defining the model architecture
     ///
     /// # Example
