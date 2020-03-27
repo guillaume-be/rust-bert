@@ -34,7 +34,7 @@ Extractive question answering from a given question and context. DistilBERT mode
     let question = String::from("Where does Amy live ?");
     let context = String::from("Amy lives in Amsterdam");
 
-    let answers = qa_model.predict(vec!(QaInput { question, context }), 1, 32);
+    let answers = qa_model.predict(&vec!(QaInput { question, context }), 1, 32);
 ```
 
 Output:
@@ -56,7 +56,7 @@ This may impact the results and it is recommended to submit prompts of similar l
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";
 
-    let output = model.generate(Some(input_context_1, input_context_2), 0, 30, true, false, 
+    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 30, true, false, 
                                 5, 1.2, 0, 0.9, 1.0, 1.0, 3, 3, None);
 ```
 Example output:
@@ -85,9 +85,9 @@ Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-
         "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
     ];
 
-    let output = sentiment_classifier.predict(input.to_vec());
+    let output = sentiment_classifier.predict(&input);
 ```
-(Example courtesy of IMDb (http://www.imdb.com))
+(Example courtesy of [IMDb](http://www.imdb.com))
 
 Output:
 ```
@@ -111,7 +111,7 @@ Extracts entities (Person, Location, Organization, Miscellaneous) from text. BER
         "Paris is a city in France."
     ];
     
-    let output = ner_model.predict(input.to_vec());
+    let output = ner_model.predict(&input);
 ```
 Output:
 ```

@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
-use rust_bert::gpt2::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
-use rust_bert::common::config::Config;
-use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator};
+use rust_bert::Config;
+use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig};
+use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
 
 #[test]
 fn gpt2_lm_model() -> failure::Fallible<()> {
@@ -78,13 +78,19 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
-
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let generate_config = GenerateConfig {
+        max_length: 40,
+        do_sample: false,
+        num_beams: 1,
+        temperature: 1.1,
+        repetition_penalty: 1.1,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+                                   generate_config, device)?;
 
     let input_context = "The cat";
-    let output = model.generate(Some(vec!(input_context)), 0, 40, false, false, 1, 1.0,
-                                 0, 0.9, 1.1, 1.0, 3, 1, None);
+    let output = model.generate(Some(vec!(input_context)), None);
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], "The cat was found in a field near the town of Keflavik, about 30 miles (48 kilometers) south-east of Moscow.\n\n\n");
@@ -105,13 +111,19 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
-
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let generate_config = GenerateConfig {
+        max_length: 20,
+        do_sample: false,
+        num_beams: 5,
+        temperature: 1.2,
+        num_return_sequences: 3,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+                                   generate_config, device)?;
 
     let input_context = "The dog";
-    let output = model.generate(Some(vec!(input_context)), 0, 20, false, false, 5, 1.2,
-                                 0, 0.9, 1.0, 1.0, 3, 3, None);
+    let output = model.generate(Some(vec!(input_context)), None);
 
     assert_eq!(output.len(), 3);
     assert_eq!(output[0], "The dog was found in the backyard of a home in the 6200 block of South Main Street.");
@@ -136,12 +148,20 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fa
     let device = Device::cuda_if_available();
 
 //    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let generate_config = GenerateConfig {
+        max_length: 20,
+        do_sample: false,
+        num_beams: 5,
+        temperature: 1.2,
+        num_return_sequences: 3,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+                                   generate_config, device)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat";
-    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 20, false, false, 5, 1.2,
-                                 0, 0.9, 1.0, 1.0, 3, 3, None);
+    let output = model.generate(Some(vec!(input_context_1, input_context_2)), None);
 
     assert_eq!(output.len(), 6);
     assert_eq!(output[0], "The dog was found in the backyard of a home in the 6200 block of South Main Street.");
@@ -167,14 +187,20 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
-
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let generate_config = GenerateConfig {
+        max_length: 20,
+        do_sample: false,
+        num_beams: 5,
+        temperature: 1.2,
+        num_return_sequences: 3,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+                                   generate_config, device)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";
-    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 20, false, false, 5, 1.2,
-                                 0, 0.9, 1.0, 1.0, 3, 3, None);
+    let output = model.generate(Some(vec!(input_context_1, input_context_2)), None);
 
     assert_eq!(output.len(), 6);
     assert_eq!(output[0], "The dog was found dead on the side of the road in the middle of the night.\n");

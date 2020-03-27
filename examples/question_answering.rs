@@ -14,8 +14,9 @@ extern crate failure;
 extern crate dirs;
 
 use std::path::PathBuf;
-use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 use tch::Device;
+use failure::err_msg;
+use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 
 
 fn main() -> failure::Fallible<()> {
@@ -26,6 +27,13 @@ fn main() -> failure::Fallible<()> {
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let weights_path = &home.as_path().join("model.ot");
+
+    if !config_path.is_file() | !vocab_path.is_file() | !weights_path.is_file() {
+        return Err(
+            err_msg("Could not find required resources to run example. \
+                          Please run ../utils/download_dependencies_distilbert-qa.py \
+                          in a Python environment with dependencies listed in ../requirements.txt"));
+    }
 
 //    Set-up Question Answering model
     let device = Device::Cpu;

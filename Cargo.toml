@@ -1,11 +1,11 @@
 [package]
 name = "rust-bert"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Guillaume Becquin <guillaume.becquin@gmail.com>"]
 edition = "2018"
-default-run = "rust-bert"
-description = "Native (Distil)BERT implementation for Rust"
+description = "Ready-to-use NLP pipelines and transformer-based models (BERT, DistilBERT, GPT2,...)"
 repository = "https://github.com/guillaume-be/rust-bert"
+documentation = "https://docs.rs/rust-bert"
 license = "Apache-2.0"
 readme = "README.md"
 keywords = ["nlp", "deep-learning", "machine-learning", "bert", "transformers"]
@@ -20,6 +20,13 @@ crate-type = ["lib"]
 [[bin]]
 name = "convert-tensor"
 path = "src/convert-tensor.rs"
+doc = false
+
+[features]
+doc-only = ["tch/doc-only"]
+
+[package.metadata.docs.rs]
+features = [ "doc-only" ]
 
 [dependencies]
 rust_tokenizers = "2.0.3"

@@ -13,9 +13,8 @@
 
 use crate::common::dropout::Dropout;
 use tch::{nn, Tensor};
-use crate::BertConfig;
 use tch::kind::Kind::Float;
-use crate::bert::bert::Activation;
+use crate::bert::bert::{Activation, BertConfig};
 use crate::common::activations::{_gelu, _relu, _mish};
 
 #[derive(Debug)]

@@ -12,7 +12,6 @@
 // limitations under the License.
 
 use serde::{Deserialize, Serialize};
-use crate::common::config::Config;
 use crate::bert::embeddings::{BertEmbeddings, BertEmbedding};
 use crate::bert::encoder::{BertEncoder, BertPooler};
 use tch::{nn, Tensor, Kind};
@@ -22,16 +21,23 @@ use crate::common::linear::{LinearNoBias, linear_no_bias};
 use tch::nn::Init;
 use crate::common::dropout::Dropout;
 use std::collections::HashMap;
+use crate::Config;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
+/// # Activation function used in the attention layer and masked language model head
 pub enum Activation {
+    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
     gelu,
+    /// Rectified Linear Unit
     relu,
+    /// Mish ([Misra, 2019](https://arxiv.org/abs/1908.08681))
     mish,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// # BERT model configuration
+/// Defines the BERT model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct BertConfig {
     pub hidden_act: Activation,
     pub attention_probs_dropout_prob: f64,
@@ -54,6 +60,13 @@ pub struct BertConfig {
 
 impl Config<BertConfig> for BertConfig {}
 
+/// # BERT Base model
+/// Base architecture for BERT models. Task-specific models will be built from this common base model
+/// It is made of the following blocks:
+/// - `embeddings`: `token`, `position` and `segment_id` embeddings
+/// - `encoder`: Encoder (transformer) made of a vector of layers. Each layer is made of a self-attention layer, an intermediate (linear) and output (linear + layer norm) layers
+/// - `pooler`: linear layer applied to the first element of the sequence (*[MASK]* token)
+/// - `is_decoder`: Flag indicating if the model is used as a decoder. If set to true, a causal mask will be applied to hide future positions that should not be attended to.
 pub struct BertModel<T: BertEmbedding> {
     embeddings: T,
     encoder: BertEncoder,
@@ -61,7 +74,32 @@ pub struct BertModel<T: BertEmbedding> {
     is_decoder: bool,
 }
 
-impl <T: BertEmbedding> BertModel<T> {
+/// Defines the implementation of the BertModel. The BERT model shares many similarities with RoBERTa, main difference being the embeddings.
+/// Therefore the forward pass of the model is shared and the type of embedding used is abstracted away. This allows to create
+/// `BertModel<RobertaEmbeddings>` or `BertModel<BertEmbeddings>` for each model type.
+impl<T: BertEmbedding> BertModel<T> {
+    /// Build a new `BertModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BERT model
+    /// * `config` - `BertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertModel, BertConfig, BertEmbeddings};
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let bert: BertModel<BertEmbeddings> = BertModel::new(&(&p.root() / "bert"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertModel<T> {
         let is_decoder = match config.is_decoder {
             Some(value) => value,
@@ -74,6 +112,60 @@ impl <T: BertEmbedding> BertModel<T> {
         BertModel { embeddings, encoder, pooler, is_decoder }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `encoder_hidden_states` - Optional encoder hidden state of shape (*batch size*, *encoder_sequence_length*, *hidden_size*). If the model is defined as a decoder and the `encoder_hidden_states` is not None, used in the cross-attention layer as keys and values (query from the decoder).
+    /// * `encoder_mask` - Optional encoder attention mask of shape (*batch size*, *encoder_sequence_length*). If the model is defined as a decoder and the `encoder_hidden_states` is not None, used to mask encoder values. Positions with value 0 will be masked.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `pooled_output` - `Tensor` of shape (*batch size*, *hidden_size*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::{BertModel, BertConfig, BertEmbeddings};
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let bert_model: BertModel<BertEmbeddings> = BertModel::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, pooled_output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    bert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    &None,
+    ///                    &None,
+    ///                    false).unwrap()
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -196,12 +288,39 @@ impl BertLMPredictionHead {
     }
 }
 
+/// # BERT for masked language model
+/// Base BERT model with a masked language model head to predict missing tokens, for example `"Looks like one [MASK] is missing" -> "person"`
+/// It is made of the following blocks:
+/// - `bert`: Base BertModel
+/// - `cls`: BERT LM prediction head
 pub struct BertForMaskedLM {
     bert: BertModel<BertEmbeddings>,
     cls: BertLMPredictionHead,
 }
 
 impl BertForMaskedLM {
+    /// Build a new `BertForMaskedLM`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BertForMaskedLM model
+    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertForMaskedLM};
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let bert = BertForMaskedLM::new(&(&p.root() / "bert"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForMaskedLM {
         let bert = BertModel::new(&(p / "bert"), config);
         let cls = BertLMPredictionHead::new(&(p / "cls"), config);
@@ -209,6 +328,59 @@ impl BertForMaskedLM {
         BertForMaskedLM { bert, cls }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see *input_embeds*)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see *input_ids*)
+    /// * `encoder_hidden_states` - Optional encoder hidden state of shape (*batch size*, *encoder_sequence_length*, *hidden_size*). If the model is defined as a decoder and the *encoder_hidden_states* is not None, used in the cross-attention layer as keys and values (query from the decoder).
+    /// * `encoder_mask` - Optional encoder attention mask of shape (*batch size*, *encoder_sequence_length*). If the model is defined as a decoder and the *encoder_hidden_states* is not None, used to mask encoder values. Positions with value 0 will be masked.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *num_labels*, *vocab_size*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::{BertForMaskedLM, BertConfig};
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let bert_model = BertForMaskedLM::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    bert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    &None,
+    ///                    &None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -226,6 +398,11 @@ impl BertForMaskedLM {
     }
 }
 
+/// # BERT for sequence classification
+/// Base BERT model with a classifier head to perform sentence or document-level classification
+/// It is made of the following blocks:
+/// - `bert`: Base BertModel
+/// - `classifier`: BERT linear layer for classification
 pub struct BertForSequenceClassification {
     bert: BertModel<BertEmbeddings>,
     dropout: Dropout,
@@ -233,6 +410,27 @@ pub struct BertForSequenceClassification {
 }
 
 impl BertForSequenceClassification {
+    /// Build a new `BertForSequenceClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BertForSequenceClassification model
+    /// * `config` - `BertConfig` object defining the model architecture and number of classes
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertForSequenceClassification};
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let bert = BertForSequenceClassification::new(&(&p.root() / "bert"), &config);
+    /// ```
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForSequenceClassification {
         let bert = BertModel::new(&(p / "bert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
@@ -242,6 +440,55 @@ impl BertForSequenceClassification {
         BertForSequenceClassification { bert, dropout, classifier }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `labels` - `Tensor` of shape (*batch size*, *num_labels*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::{BertForSequenceClassification, BertConfig};
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let bert_model = BertForSequenceClassification::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (labels, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    bert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -257,6 +504,13 @@ impl BertForSequenceClassification {
     }
 }
 
+/// # BERT for multiple choices
+/// Multiple choices model using a BERT base model and a linear classifier.
+/// Input should be in the form `[CLS] Context [SEP] Possible choice [SEP]`. The choice is made along the batch axis,
+/// assuming all elements of the batch are alternatives to be chosen from for a given context.
+/// It is made of the following blocks:
+/// - `bert`: Base BertModel
+/// - `classifier`: Linear layer for multiple choices
 pub struct BertForMultipleChoice {
     bert: BertModel<BertEmbeddings>,
     dropout: Dropout,
@@ -264,6 +518,27 @@ pub struct BertForMultipleChoice {
 }
 
 impl BertForMultipleChoice {
+    /// Build a new `BertForMultipleChoice`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BertForMultipleChoice model
+    /// * `config` - `BertConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertForMultipleChoice};
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let bert = BertForMultipleChoice::new(&(&p.root() / "bert"), &config);
+    /// ```
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForMultipleChoice {
         let bert = BertModel::new(&(p / "bert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
@@ -272,12 +547,58 @@ impl BertForMultipleChoice {
         BertForMultipleChoice { bert, dropout, classifier }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Input tensor of shape (*batch size*, *sequence_length*).
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*1*, *batch size*) containing the logits for each of the alternatives given
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::{BertForMultipleChoice, BertConfig};
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let bert_model = BertForMultipleChoice::new(&vs.root(), &config);
+    ///  let (num_choices, sequence_length) = (3, 128);
+    ///  let input_tensor = Tensor::rand(&[num_choices, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[num_choices, sequence_length], true);
+    ///
+    ///  let (choices, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    bert_model
+    ///         .forward_t(input_tensor,
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Tensor,
                      mask: Option<Tensor>,
                      token_type_ids: Option<Tensor>,
                      position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
                      train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let num_choices = input_ids.size()[1];
 
@@ -297,13 +618,19 @@ impl BertForMultipleChoice {
 
 
         let (_, pooled_output, all_hidden_states, all_attentions) = self.bert.forward_t(Some(input_ids), mask, token_type_ids, position_ids,
-                                                                                        input_embeds, &None, &None, train).unwrap();
+                                                                                        None, &None, &None, train).unwrap();
 
         let output = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier).view((-1, num_choices));
         (output, all_hidden_states, all_attentions)
     }
 }
 
+/// # BERT for token classification (e.g. NER, POS)
+/// Token-level classifier predicting a label for each token provided. Note that because of wordpiece tokenization, the labels predicted are
+/// not necessarily aligned with words in the sentence.
+/// It is made of the following blocks:
+/// - `bert`: Base BertModel
+/// - `classifier`: Linear layer for token classification
 pub struct BertForTokenClassification {
     bert: BertModel<BertEmbeddings>,
     dropout: Dropout,
@@ -311,6 +638,27 @@ pub struct BertForTokenClassification {
 }
 
 impl BertForTokenClassification {
+    /// Build a new `BertForTokenClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BertForTokenClassification model
+    /// * `config` - `BertConfig` object defining the model architecture, number of output labels and label mapping
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertForTokenClassification};
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let bert = BertForTokenClassification::new(&(&p.root() / "bert"), &config);
+    /// ```
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForTokenClassification {
         let bert = BertModel::new(&(p / "bert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
@@ -320,6 +668,55 @@ impl BertForTokenClassification {
         BertForTokenClassification { bert, dropout, classifier }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) containing the logits for each of the input tokens and classes
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::{BertForTokenClassification, BertConfig};
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let bert_model = BertForTokenClassification::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (token_labels, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    bert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -335,12 +732,40 @@ impl BertForTokenClassification {
     }
 }
 
+/// # BERT for question answering
+/// Extractive question-answering model based on a BERT language model. Identifies the segment of a context that answers a provided question.
+/// Please note that a significant amount of pre- and post-processing is required to perform end-to-end question answering.
+/// See the question answering pipeline (also provided in this crate) for more details.
+/// It is made of the following blocks:
+/// - `bert`: Base BertModel
+/// - `qa_outputs`: Linear layer for question answering
 pub struct BertForQuestionAnswering {
     bert: BertModel<BertEmbeddings>,
     qa_outputs: nn::Linear,
 }
 
 impl BertForQuestionAnswering {
+    /// Build a new `BertForQuestionAnswering`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BertForQuestionAnswering model
+    /// * `config` - `BertConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertForQuestionAnswering};
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let bert = BertForQuestionAnswering::new(&(&p.root() / "bert"), &config);
+    /// ```
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForQuestionAnswering {
         let bert = BertModel::new(&(p / "bert"), config);
         let num_labels = config.num_labels.expect("num_labels not provided in configuration");
@@ -349,6 +774,56 @@ impl BertForQuestionAnswering {
         BertForQuestionAnswering { bert, qa_outputs }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `start_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    /// * `end_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use rust_bert::bert::{BertForQuestionAnswering, BertConfig};
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = BertConfig::from_file(config_path);
+    ///# let bert_model = BertForQuestionAnswering::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    bert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,

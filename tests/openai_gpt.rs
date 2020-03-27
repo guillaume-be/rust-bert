@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
-use rust_bert::gpt2::gpt2::{Gpt2Config, LMHeadModel};
-use rust_bert::common::config::Config;
-use rust_bert::openai_gpt::openai_gpt::OpenAIGPTLMHeadModel;
-use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator};
+use rust_bert::Config;
+use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator, GenerateConfig};
+use rust_bert::gpt2::{Gpt2Config, LMHeadModel};
+use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
 
 #[test]
 fn openai_gpt_lm_model() -> failure::Fallible<()> {
@@ -75,13 +75,20 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
-
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
-    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let generate_config = GenerateConfig {
+        max_length: 40,
+        do_sample: false,
+        num_beams: 1,
+        top_p: 1.0,
+        no_repeat_ngram_size: 1,
+        temperature: 1.1,
+        ..Default::default()
+    };
+    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
+                                     generate_config, device)?;
 
     let input_context = "It was an intense machine dialogue. ";
-    let output = model.generate(Some(vec!(input_context)), 0, 40, false, false, 1, 1.0,
-                                 0, 1.0, 1.0, 1.0, 0, 1, None);
+    let output = model.generate(Some(vec!(input_context)), None);
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], "it was an intense machine dialogue. \n \" i 'm sorry, \" i said. \" i 'm not sure what you're talking about. \" \n \" you're not a vampire, \" he said");
@@ -102,13 +109,19 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
-
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
-    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let generate_config = GenerateConfig {
+        max_length: 20,
+        do_sample: false,
+        num_beams: 5,
+        temperature: 2.0,
+        num_return_sequences: 3,
+        ..Default::default()
+    };
+    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
+                                     generate_config, device)?;
 
     let input_context = "The dog is";
-    let output = model.generate(Some(vec!(input_context)), 0, 20, false, false, 5, 2.0,
-                                 0, 1.0, 1.0, 1.0, 3, 3, None);
+    let output = model.generate(Some(vec!(input_context)), None);
 
     assert_eq!(output.len(), 3);
     assert_eq!(output[0], "the dog isn\'t going anywhere. i \'m going to take care of him. i \'ll be right");
@@ -131,14 +144,20 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
-
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
-    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let generate_config = GenerateConfig {
+        max_length: 20,
+        do_sample: false,
+        num_beams: 5,
+        temperature: 2.0,
+        num_return_sequences: 3,
+        ..Default::default()
+    };
+    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
+                                     generate_config, device)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat";
-    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 20, false, false, 5, 2.0,
-                                 0, 1.0, 1.0, 1.0, 3, 3, None);
+    let output = model.generate(Some(vec!(input_context_1, input_context_2)), None);
 
     assert_eq!(output.len(), 6);
 
@@ -167,14 +186,20 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure:
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
-
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
-    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let generate_config = GenerateConfig {
+        max_length: 20,
+        do_sample: false,
+        num_beams: 5,
+        temperature: 2.0,
+        num_return_sequences: 3,
+        ..Default::default()
+    };
+    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
+                                     generate_config, device)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat was in";
-    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 20, false, false, 5, 2.0,
-                                 0, 1.0, 1.0, 1.0, 3, 3, None);
+    let output = model.generate(Some(vec!(input_context_1, input_context_2)), None);
 
     assert_eq!(output.len(), 6);
 //    Left padding impacts the generated sentences output

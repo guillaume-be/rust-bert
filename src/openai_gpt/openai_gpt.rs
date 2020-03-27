@@ -15,15 +15,21 @@
 
 use tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
-use crate::Gpt2Config;
 use tch::nn::embedding;
 use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::openai_gpt::transformer::Block;
-use crate::gpt2::gpt2::LMHeadModel;
+use crate::gpt2::{Gpt2Config, LMHeadModel};
 
-
+/// # GPT Base model
+/// Base architecture for GPT model. Usually complemented with a task-specific head, such as a language model head. As opposed to GPT2, GPT does not give the possibility to re-use past activations as an input.
+/// It is made of the following blocks:
+/// - `tokens_embed`: `token` embeddings
+/// - `positions_embed`: `position` embeddings
+/// - `h`: Encoder (transformer) made of a vector of layers. Each layer is made of a multi-head attention layer, layer-normalization layers and a MLP made of linear layers.
+/// - `output_hidden_states`: flag indicating if the model should return all hidden states (as opposed to only the last layer)
+/// - `output_attentions`: flag indicating if the model should return activation weights
 pub struct OpenAiGptModel {
     tokens_embed: nn::Embedding,
     positions_embed: nn::Embedding,
@@ -35,6 +41,29 @@ pub struct OpenAiGptModel {
 
 
 impl OpenAiGptModel {
+    /// Build a new `OpenAiGptModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the GPT model
+    /// * `config` - `Gpt2Config` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::gpt2::Gpt2Config;
+    /// use rust_bert::openai_gpt::OpenAiGptModel;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = Gpt2Config::from_file(config_path);
+    /// let gpt2: OpenAiGptModel = OpenAiGptModel::new(&(&p.root() / "gpt"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &Gpt2Config) -> OpenAiGptModel {
         let tokens_embed = embedding(&(p / "tokens_embed"), config.vocab_size, config.n_embd, Default::default());
         let positions_embed = embedding(&(p / "positions_embed"), config.n_positions, config.n_embd, Default::default());
@@ -60,6 +89,56 @@ impl OpenAiGptModel {
         OpenAiGptModel { tokens_embed, positions_embed, drop, h, output_hidden_states, output_attentions }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*) representing the activations of the last hidden state
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::gpt2::Gpt2Config;
+    /// use rust_bert::openai_gpt::OpenAiGptModel;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = Gpt2Config::from_file(config_path);
+    ///# let gpt_model: OpenAiGptModel = OpenAiGptModel::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, hidden_states, attentions) = no_grad(|| {
+    ///    gpt_model
+    ///         .forward_t(&Some(input_tensor),
+    ///                    &Some(attention_mask),
+    ///                    &Some(token_type_ids),
+    ///                    &Some(position_ids),
+    ///                    &None,
+    ///                    false).unwrap()
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: &Option<Tensor>,
                      attention_mask: &Option<Tensor>,
@@ -127,13 +206,40 @@ impl OpenAiGptModel {
     }
 }
 
-
+/// # GPT Language Modeling head
+/// GPT model with a decoding head (linear layer without bias). The weights of the linear layer are tied to the word embeddings
+/// It is made of the following blocks:
+/// - `transformer`: Base Gpt2Model
+/// - `lm_head`: Linear layer without bias tied to the weights of the token id embeddings
 pub struct OpenAIGPTLMHeadModel {
     transformer: OpenAiGptModel,
     lm_head: LinearNoBias,
 }
 
 impl OpenAIGPTLMHeadModel {
+    /// Build a new `OpenAIGPTLMHeadModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the GPT model
+    /// * `config` - `Gpt2Config` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::gpt2::Gpt2Config;
+    /// use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = Gpt2Config::from_file(config_path);
+    /// let gpt2: OpenAIGPTLMHeadModel = OpenAIGPTLMHeadModel::new(&(&p.root() / "gpt"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &Gpt2Config) -> OpenAIGPTLMHeadModel {
         let transformer = OpenAiGptModel::new(&p, config);
         let lm_head = linear_no_bias(&(p / "lm_head"), config.n_embd, config.vocab_size, Default::default());
@@ -142,6 +248,56 @@ impl OpenAIGPTLMHeadModel {
 }
 
 impl LMHeadModel for OpenAIGPTLMHeadModel {
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::gpt2::Gpt2Config;
+    /// use rust_bert::openai_gpt::OpenAiGptModel;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = Gpt2Config::from_file(config_path);
+    ///# let gpt_model: OpenAiGptModel = OpenAiGptModel::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, hidden_states, attentions) = no_grad(|| {
+    ///    gpt_model
+    ///         .forward_t(&Some(input_tensor),
+    ///                    &Some(attention_mask),
+    ///                    &Some(token_type_ids),
+    ///                    &Some(position_ids),
+    ///                    &None,
+    ///                    false).unwrap()
+    ///    });
+    ///
+    /// ```
+    ///
     fn forward_t(&self,
                  input_ids: &Option<Tensor>,
                  _layer_past: &Option<Vec<Tensor>>,

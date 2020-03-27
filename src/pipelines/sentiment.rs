@@ -10,28 +10,78 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # Sentiment Analysis pipeline
+//! Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
+//! All resources for this model can be downloaded using the Python utility script included in this repository.
+//! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
+//! 2. Run the conversion script python /utils/download-dependencies_sst2_sentiment.py.
+//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/distilbert_sst2
+//!
+//! ```no_run
+//!# use std::path::PathBuf;
+//!# use tch::Device;
+//! use rust_bert::pipelines::sentiment::SentimentClassifier;
+//!# fn main() -> failure::Fallible<()> {
+//!# let mut home: PathBuf = dirs::home_dir().unwrap();
+//!# home.push("rustbert");
+//!# home.push("distilbert_sst2");
+//!# let config_path = &home.as_path().join("config.json");
+//!# let vocab_path = &home.as_path().join("vocab.txt");
+//!# let weights_path = &home.as_path().join("model.ot");
+//! let device = Device::cuda_if_available();
+//! let sentiment_classifier = SentimentClassifier::new(vocab_path,
+//!                                                     config_path,
+//!                                                     weights_path, device)?;
+//! let input = [
+//!     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
+//!     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
+//!     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
+//! ];
+//! let output = sentiment_classifier.predict(&input);
+//!# Ok(())
+//!# }
+//! ```
+//! (Example courtesy of [IMDb](http://www.imdb.com))
+//!
+//! Output: \
+//! ```no_run
+//!# use rust_bert::pipelines::sentiment::Sentiment;
+//!# use rust_bert::pipelines::sentiment::SentimentPolarity::{Positive, Negative};
+//!# let output =
+//! [
+//!    Sentiment { polarity: Positive, score: 0.998 },
+//!    Sentiment { polarity: Negative, score: 0.992 },
+//!    Sentiment { polarity: Positive, score: 0.999 }
+//! ]
+//!# ;
+//! ```
 
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
-use crate::distilbert::distilbert::{DistilBertModelClassifier, DistilBertConfig};
 use std::path::Path;
 use tch::{Device, Tensor, Kind, no_grad};
 use tch::nn::VarStore;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TruncationStrategy, MultiThreadedTokenizer};
-use crate::common::config::Config;
+use crate::distilbert::{DistilBertModelClassifier, DistilBertConfig};
+use crate::Config;
 
 
 #[derive(Debug, PartialEq)]
+/// Enum with the possible sentiment polarities. Note that the pre-trained SST2 model does not include neutral sentiment.
 pub enum SentimentPolarity {
     Positive,
     Negative,
 }
 
 #[derive(Debug)]
+/// Sentiment returned by the model.
 pub struct Sentiment {
+    /// Polarity of the sentiment
     pub polarity: SentimentPolarity,
+    /// Confidence score
     pub score: f64,
 }
 
+/// # SentimentClassifier to perform sentiment analysis
 pub struct SentimentClassifier {
     tokenizer: BertTokenizer,
     distil_bert_classifier: DistilBertModelClassifier,
@@ -39,13 +89,43 @@ pub struct SentimentClassifier {
 }
 
 impl SentimentClassifier {
-    pub fn new(vocab_path: &Path, model_config_path: &Path, model_weight_path: &Path, device: Device)
+    /// Build a new `SentimentClassifier`
+    ///
+    /// # Arguments
+    ///
+    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
+    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# fn main() -> failure::Fallible<()> {
+    /// use tch::Device;
+    /// use std::path::{Path, PathBuf};
+    /// use rust_bert::pipelines::sentiment::SentimentClassifier;
+    ///
+    /// let mut home: PathBuf = dirs::home_dir().unwrap();
+    /// let config_path = &home.as_path().join("config.json");
+    /// let vocab_path = &home.as_path().join("vocab.txt");
+    /// let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::Cpu;
+    /// let sentiment_model =  SentimentClassifier::new(vocab_path,
+    ///                                                 config_path,
+    ///                                                 weights_path,
+    ///                                                 device)?;
+    ///# Ok(())
+    ///# }
+    /// ```
+    ///
+    pub fn new(vocab_path: &Path, config_path: &Path, weights_path: &Path, device: Device)
                -> failure::Fallible<SentimentClassifier> {
         let tokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
         let mut var_store = VarStore::new(device);
-        let config = DistilBertConfig::from_file(model_config_path);
+        let config = DistilBertConfig::from_file(config_path);
         let distil_bert_classifier = DistilBertModelClassifier::new(&var_store.root(), &config);
-        var_store.load(model_weight_path)?;
+        var_store.load(weights_path)?;
         Ok(SentimentClassifier { tokenizer, distil_bert_classifier, var_store })
     }
 
@@ -68,8 +148,46 @@ impl SentimentClassifier {
         Tensor::stack(tokenized_input.as_slice(), 0).to(self.var_store.device())
     }
 
-    pub fn predict(&self, input: Vec<&str>) -> Vec<Sentiment> {
-        let input_tensor = self.prepare_for_model(input);
+    /// Extract sentiment form an array of text inputs
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - `&[&str]` Array of texts to extract the sentiment from.
+    ///
+    /// # Returns
+    /// * `Vec<Sentiment>` Sentiments extracted from texts.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# fn main() -> failure::Fallible<()> {
+    /// use tch::Device;
+    /// use std::path::{Path, PathBuf};
+    /// use rust_bert::pipelines::sentiment::SentimentClassifier;
+    ///
+    /// let mut home: PathBuf = dirs::home_dir().unwrap();
+    /// let config_path = &home.as_path().join("config.json");
+    /// let vocab_path = &home.as_path().join("vocab.txt");
+    /// let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::Cpu;
+    /// let sentiment_classifier =  SentimentClassifier::new(vocab_path,
+    ///                                                      config_path,
+    ///                                                      weights_path,
+    ///                                                      device)?;
+    ///
+    /// let input = [
+    ///     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
+    ///     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
+    ///     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
+    /// ];
+    ///
+    /// let output = sentiment_classifier.predict(&input);
+    ///# Ok(())
+    ///# }
+    /// ```
+    ///
+    pub fn predict(&self, input: &[&str]) -> Vec<Sentiment> {
+        let input_tensor = self.prepare_for_model(input.to_vec());
         let (output, _, _) = no_grad(|| {
             self.distil_bert_classifier
                 .forward_t(Some(input_tensor),
