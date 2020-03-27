@@ -73,7 +73,7 @@ impl RobertaForMaskedLM {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForMaskedLM::new(&(&p.root() / "bert"), &config);
+    /// let roberta = RobertaForMaskedLM::new(&(&p.root() / "roberta"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForMaskedLM {
@@ -123,7 +123,7 @@ impl RobertaForMaskedLM {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, _, _) = no_grad(|| {
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
     ///    roberta_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -212,7 +212,7 @@ impl RobertaForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForSequenceClassification::new(&(&p.root() / "bert"), &config);
+    /// let roberta = RobertaForSequenceClassification::new(&(&p.root() / "roberta"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForSequenceClassification {
@@ -260,7 +260,7 @@ impl RobertaForSequenceClassification {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (labels, _, _) = no_grad(|| {
+    ///  let (labels, all_hidden_states, all_attentions) = no_grad(|| {
     ///    roberta_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -321,7 +321,7 @@ impl RobertaForMultipleChoice {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForMultipleChoice::new(&(&p.root() / "bert"), &config);
+    /// let roberta = RobertaForMultipleChoice::new(&(&p.root() / "roberta"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForMultipleChoice {
@@ -369,7 +369,7 @@ impl RobertaForMultipleChoice {
     ///  let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[num_choices, sequence_length], true);
     ///
-    ///  let (choices, _, _) = no_grad(|| {
+    ///  let (choices, all_hidden_states, all_attentions) = no_grad(|| {
     ///    roberta_model
     ///         .forward_t(input_tensor,
     ///                    Some(mask),
@@ -443,7 +443,7 @@ impl RobertaForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForTokenClassification::new(&(&p.root() / "bert"), &config);
+    /// let roberta = RobertaForTokenClassification::new(&(&p.root() / "roberta"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForTokenClassification {
@@ -493,7 +493,7 @@ impl RobertaForTokenClassification {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (token_labels, _, _) = no_grad(|| {
+    ///  let (token_labels, all_hidden_states, all_attentions) = no_grad(|| {
     ///    roberta_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -553,7 +553,7 @@ impl RobertaForQuestionAnswering {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForQuestionAnswering::new(&(&p.root() / "bert"), &config);
+    /// let roberta = RobertaForQuestionAnswering::new(&(&p.root() / "roberta"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForQuestionAnswering {
@@ -603,7 +603,7 @@ impl RobertaForQuestionAnswering {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (start_scores, end_scores, _, _) = no_grad(|| {
+    ///  let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
     ///    roberta_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),

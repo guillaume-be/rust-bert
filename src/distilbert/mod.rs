@@ -1,6 +1,6 @@
 //! # DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter (Sanh et al.)
 //!
-//! Implementation of the DilstilBERT language model ([https://arxiv.org/abs/1910.01108](https://arxiv.org/abs/1910.01108) Sanh, Debut, Chaumond, Wolf, 2019).
+//! Implementation of the DistilBERT language model ([https://arxiv.org/abs/1910.01108](https://arxiv.org/abs/1910.01108) Sanh, Debut, Chaumond, Wolf, 2019).
 //! The base model is implemented in the `distilbert::DistilBertModel` struct. Several language model heads have also been implemented, including:
 //! - Masked language model: `distilbert::DistilBertForMaskedLM`
 //! - Question answering: `distilbert::DistilBertForQuestionAnswering`

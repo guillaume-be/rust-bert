@@ -78,7 +78,7 @@ impl DistilBertModel {
     /// # Arguments
     ///
     /// * `p` - Variable store path for the root of the DistilBERT model
-    /// * `config` - `DistilBertConfig` object defining the model architecture and decoder status
+    /// * `config` - `DistilBertConfig` object defining the model architecture
     ///
     /// # Example
     ///
@@ -92,7 +92,7 @@ impl DistilBertModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert: DistilBertModel = DistilBertModel::new(&(&p.root() / "bert"), &config);
+    /// let distil_bert: DistilBertModel = DistilBertModel::new(&(&p.root() / "distilbert"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModel {
@@ -135,7 +135,7 @@ impl DistilBertModel {
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (output, _, _) = no_grad(|| {
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
     ///    distilbert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -183,7 +183,7 @@ impl DistilBertModelClassifier {
     /// # Arguments
     ///
     /// * `p` - Variable store path for the root of the DistilBertModelClassifier model
-    /// * `config` - `DistilBertConfig` object defining the model architecture and decoder status
+    /// * `config` - `DistilBertConfig` object defining the model architecture
     ///
     /// # Example
     ///
@@ -197,7 +197,7 @@ impl DistilBertModelClassifier {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert: DistilBertModelClassifier = DistilBertModelClassifier::new(&(&p.root() / "bert"), &config);
+    /// let distil_bert: DistilBertModelClassifier = DistilBertModelClassifier::new(&(&p.root() / "distilbert"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModelClassifier {
@@ -242,7 +242,7 @@ impl DistilBertModelClassifier {
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (output, _, _) = no_grad(|| {
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
     ///    distilbert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -291,7 +291,7 @@ impl DistilBertModelMaskedLM {
     /// # Arguments
     ///
     /// * `p` - Variable store path for the root of the DistilBertModelMaskedLM model
-    /// * `config` - `DistilBertConfig` object defining the model architecture and decoder status
+    /// * `config` - `DistilBertConfig` object defining the model architecture
     ///
     /// # Example
     ///
@@ -305,7 +305,7 @@ impl DistilBertModelMaskedLM {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertModelMaskedLM::new(&(&p.root() / "bert"), &config);
+    /// let distil_bert = DistilBertModelMaskedLM::new(&(&p.root() / "distilbert"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModelMaskedLM {
@@ -351,7 +351,7 @@ impl DistilBertModelMaskedLM {
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (output, _, _) = no_grad(|| {
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
     ///    distilbert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -397,7 +397,7 @@ impl DistilBertForQuestionAnswering {
     /// # Arguments
     ///
     /// * `p` - Variable store path for the root of the DistilBertForQuestionAnswering model
-    /// * `config` - `DistilBertConfig` object defining the model architecture and decoder status
+    /// * `config` - `DistilBertConfig` object defining the model architecture
     ///
     /// # Example
     ///
@@ -411,7 +411,7 @@ impl DistilBertForQuestionAnswering {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertForQuestionAnswering::new(&(&p.root() / "bert"), &config);
+    /// let distil_bert = DistilBertForQuestionAnswering::new(&(&p.root() / "distilbert"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForQuestionAnswering {
@@ -457,7 +457,7 @@ impl DistilBertForQuestionAnswering {
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (start_scores, end_score, _, _) = no_grad(|| {
+    ///  let (start_scores, end_score, all_hidden_states, all_attentions) = no_grad(|| {
     ///    distilbert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -510,7 +510,7 @@ impl DistilBertForTokenClassification {
     /// # Arguments
     ///
     /// * `p` - Variable store path for the root of the DistilBertForTokenClassification model
-    /// * `config` - `DistilBertConfig` object defining the model architecture and decoder status
+    /// * `config` - `DistilBertConfig` object defining the model architecture
     ///
     /// # Example
     ///
@@ -524,7 +524,7 @@ impl DistilBertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertForTokenClassification::new(&(&p.root() / "bert"), &config);
+    /// let distil_bert = DistilBertForTokenClassification::new(&(&p.root() / "distilbert"), &config);
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForTokenClassification {
@@ -568,7 +568,7 @@ impl DistilBertForTokenClassification {
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (output, _, _) = no_grad(|| {
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
     ///    distilbert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),

@@ -152,7 +152,7 @@ impl<T: BertEmbedding> BertModel<T> {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, _, _, _) = no_grad(|| {
+    ///  let (output, pooled_output, all_hidden_states, all_attentions) = no_grad(|| {
     ///    bert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -367,7 +367,7 @@ impl BertForMaskedLM {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, _, _) = no_grad(|| {
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
     ///    bert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -477,7 +477,7 @@ impl BertForSequenceClassification {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (labels, _, _) = no_grad(|| {
+    ///  let (labels, all_hidden_states, all_attentions) = no_grad(|| {
     ///    bert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -583,7 +583,7 @@ impl BertForMultipleChoice {
     ///  let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[num_choices, sequence_length], true);
     ///
-    ///  let (choices, _, _) = no_grad(|| {
+    ///  let (choices, all_hidden_states, all_attentions) = no_grad(|| {
     ///    bert_model
     ///         .forward_t(input_tensor,
     ///                    Some(mask),
@@ -705,7 +705,7 @@ impl BertForTokenClassification {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (token_labels, _, _) = no_grad(|| {
+    ///  let (token_labels, all_hidden_states, all_attentions) = no_grad(|| {
     ///    bert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -812,7 +812,7 @@ impl BertForQuestionAnswering {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (start_scores, end_scores, _, _) = no_grad(|| {
+    ///  let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
     ///    bert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
