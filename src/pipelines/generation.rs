@@ -808,7 +808,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
     ///# use std::path::PathBuf;
     ///# use tch::Device;
     ///# fn main() -> failure::Fallible<()> {
-    /// use rust_bert::pipelines::generation::{GenerateConfig, GPT2Generator};
+    /// use rust_bert::pipelines::generation::{GenerateConfig, GPT2Generator, LanguageGenerator};
     ///# let mut home: PathBuf = dirs::home_dir().unwrap();
     ///# home.push("rustbert");
     ///# home.push("gpt2");
@@ -829,7 +829,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
     ///                                         generate_config, device)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
-    /// let output = model.generate(Some(vec!(input_context, second_input_context)), None);
+    /// let output = gpt2_generator.generate(Some(vec!(input_context, second_input_context)), None);
     ///# Ok(())
     ///# }
     /// ```
