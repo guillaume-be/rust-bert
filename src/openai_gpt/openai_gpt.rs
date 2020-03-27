@@ -45,7 +45,7 @@ impl OpenAiGptModel {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BERT model
+    /// * `p` - Variable store path for the root of the GPT model
     /// * `config` - `Gpt2Config` object defining the model architecture
     ///
     /// # Example
@@ -221,7 +221,7 @@ impl OpenAIGPTLMHeadModel {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BERT model
+    /// * `p` - Variable store path for the root of the GPT model
     /// * `config` - `Gpt2Config` object defining the model architecture
     ///
     /// # Example

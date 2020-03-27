@@ -85,7 +85,7 @@ impl Gpt2Model {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BERT model
+    /// * `p` - Variable store path for the root of the GPT2 model
     /// * `config` - `Gpt2Config` object defining the model architecture
     ///
     /// # Example
@@ -291,7 +291,7 @@ impl GPT2LMHeadModel {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BERT model
+    /// * `p` - Variable store path for the root of the GPT2 model
     /// * `config` - `Gpt2Config` object defining the model architecture
     ///
     /// # Example

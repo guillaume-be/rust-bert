@@ -5,7 +5,7 @@
 //! #### 1. Question Answering
 //! Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset)
 //!
-//! ```
+//! ```no_run
 //!# use std::path::PathBuf;
 //!# use tch::Device;
 //! use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
@@ -30,7 +30,20 @@
 //! ```
 //!
 //! Output: \
-//! `[Answer { score: 0.9976814985275269, start: 13, end: 21, answer: "Amsterdam" }]`
+//! ```no_run
+//!# use rust_bert::pipelines::question_answering::Answer;
+//!# let output =
+//! [
+//!     Answer {
+//!         score: 0.9976,
+//!         start: 13,
+//!         end: 21,
+//!         answer: "Amsterdam"
+//!# .to_owned()
+//!     }
+//! ]
+//!# ;
+//! ```
 //!
 //! #### 2. Natural Language Generation
 //! Generate language based on a prompt. GPT2 and GPT available as base models.
@@ -38,7 +51,7 @@
 //! Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
 //! This may impact the results and it is recommended to submit prompts of similar length for best results. Additional information on the input parameters for generation is provided in this module's documentation.
 //!
-//! ```
+//! ```no_run
 //!# use std::path::PathBuf;
 //!# use tch::Device;
 //! use rust_bert::pipelines::generation::GPT2Generator;
@@ -52,28 +65,30 @@
 //!# let merges_path = &home.as_path().join("merges.txt");
 //!# let weights_path = &home.as_path().join("model.ot");
 //! let device = Device::cuda_if_available();
-//! let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+//! let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, Default::default(), device)?;
 //! let input_context_1 = "The dog";
 //! let input_context_2 = "The cat was";
-//! let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 30, true, false,
-//!                                 5, 1.2, 0, 0.9, 1.0, 1.0, 3, 3, None);
+//! let output = model.generate(Some(vec!(input_context_1, input_context_2)), None);
 //!# Ok(())
 //!# }
 //! ```
 //! Example output: \
-//! [  \
-//!      "The dog's owners, however, did not want to be named. According to the lawsuit, the animal's owner, a 29-year" \
-//!     "The dog has always been part of the family. \"He was always going to be my dog and he was always looking out for me" \
-//!     "The dog has been able to stay in the home for more than three months now. "It's a very good dog. She's" \
-//!     "The cat was discovered earlier this month in the home of a relative of the deceased. The cat\'s owner, who wished to remain anonymous," \
-//!     "The cat was pulled from the street by two-year-old Jazmine.\"I didn't know what to do,\" she said" \
-//!     "The cat was attacked by two stray dogs and was taken to a hospital. Two other cats were also injured in the attack and are being treated." \
+//! ```no_run
+//!# let output =
+//! [
+//!     "The dog's owners, however, did not want to be named. According to the lawsuit, the animal's owner, a 29-year",
+//!     "The dog has always been part of the family. \"He was always going to be my dog and he was always looking out for me",
+//!     "The dog has been able to stay in the home for more than three months now. \"It's a very good dog. She's",
+//!     "The cat was discovered earlier this month in the home of a relative of the deceased. The cat\'s owner, who wished to remain anonymous,",
+//!     "The cat was pulled from the street by two-year-old Jazmine.\"I didn't know what to do,\" she said",
+//!     "The cat was attacked by two stray dogs and was taken to a hospital. Two other cats were also injured in the attack and are being treated."
 //! ]
-//!
+//!# ;
+//!```
 //!
 //! #### 3. Sentiment analysis
 //! Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
-//! ```
+//! ```no_run
 //!# use std::path::PathBuf;
 //!# use tch::Device;
 //! use rust_bert::pipelines::sentiment::SentimentClassifier;
@@ -97,14 +112,24 @@
 //!# Ok(())
 //!# }
 //! ```
-//! (Example courtesy of IMDb (http://www.imdb.com))
+//! (Example courtesy of [IMDb](http://www.imdb.com))
 //!
 //! Output: \
-//! `[ Sentiment { polarity: Positive, score: 0.998 },Sentiment { polarity: Negative, score: 0.992 },Sentiment { polarity: Positive, score: 0.999 } ]`
+//! ```no_run
+//!# use rust_bert::pipelines::sentiment::Sentiment;
+//!# use rust_bert::pipelines::sentiment::SentimentPolarity::{Positive, Negative};
+//!# let output =
+//! [
+//!    Sentiment { polarity: Positive, score: 0.998 },
+//!    Sentiment { polarity: Negative, score: 0.992 },
+//!    Sentiment { polarity: Positive, score: 0.999 }
+//! ]
+//!# ;
+//! ```
 //!
 //! #### 4. Named Entity Recognition
 //! Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
-//! ```
+//! ```no_run
 //!# use std::path::PathBuf;
 //!# use tch::Device;
 //! use rust_bert::pipelines::ner::NERModel;
@@ -128,9 +153,19 @@
 //!# }
 //! ```
 //! Output: \
-//! `[ Entity { word: "Amy", score: 0.9986, label: "I-PER" }, Entity { word: "Paris", score: 0.9985, label: "I-LOC" }, Entity { word: "Paris", score: 0.9988, label: "I-LOC" }, Entity { word: "France", score: 0.9993, label: "I-LOC" }]`
+//! ```no_run
+//!# use rust_bert::pipelines::question_answering::Answer;
+//!# use rust_bert::pipelines::ner::Entity;
+//!# let output =
+//! [
+//!    Entity { word: String::from("Amy"), score: 0.9986, label: String::from("I-PER") },
+//!    Entity { word: String::from("Paris"), score: 0.9985, label: String::from("I-LOC") },
+//!    Entity { word: String::from("Paris"), score: 0.9988, label: String::from("I-LOC") },
+//!    Entity { word: String::from("France"), score: 0.9993, label: String::from("I-LOC") },
+//! ]
+//!# ;
+//! ```
 //!
-
 
 pub mod sentiment;
 pub mod ner;

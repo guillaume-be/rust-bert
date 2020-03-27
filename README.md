@@ -87,7 +87,7 @@ Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-
 
     let output = sentiment_classifier.predict(&input);
 ```
-(Example courtesy of IMDb (http://www.imdb.com))
+(Example courtesy of [IMDb](http://www.imdb.com))
 
 Output:
 ```

@@ -10,6 +10,52 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # Question Answering pipeline
+//! Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset).
+//! All resources for this model can be downloaded using the Python utility script included in this repository.
+//! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
+//! 2. Run the conversion script python /utils/download-dependencies_distilbert-qa.py.
+//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/distilbert-qa
+//!
+//! ```no_run
+//!# use std::path::PathBuf;
+//!# use tch::Device;
+//! use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
+//!# fn main() -> failure::Fallible<()> {
+//!# let mut home: PathBuf = dirs::home_dir().unwrap();
+//!# home.push("rustbert");
+//!# home.push("distilbert-qa");
+//!# let config_path = &home.as_path().join("config.json");
+//!# let vocab_path = &home.as_path().join("vocab.txt");
+//!# let weights_path = &home.as_path().join("model.ot");
+//! let device = Device::cuda_if_available();
+//! let qa_model = QuestionAnsweringModel::new(vocab_path,
+//!                                            config_path,
+//!                                            weights_path, device)?;
+//!
+//! let question = String::from("Where does Amy live ?");
+//! let context = String::from("Amy lives in Amsterdam");
+//!
+//! let answers = qa_model.predict(&vec!(QaInput { question, context }), 1, 32);
+//!# Ok(())
+//!# }
+//! ```
+//!
+//! Output: \
+//! ```no_run
+//!# use rust_bert::pipelines::question_answering::Answer;
+//!# let output =
+//! [
+//!     Answer {
+//!         score: 0.9976,
+//!         start: 13,
+//!         end: 21,
+//!         answer: "Amsterdam"
+//!# .to_owned()
+//!     }
+//! ]
+//!# ;
+//! ```
 
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, TokenizedInput};
 use tch::{Device, Tensor, no_grad};
@@ -23,13 +69,17 @@ use std::fs;
 use crate::Config;
 use crate::distilbert::{DistilBertForQuestionAnswering, DistilBertConfig};
 
+/// # Input for Question Answering
+/// Includes a context (containing the answer) and question strings
 pub struct QaInput {
+    /// Question string
     pub question: String,
+    /// Context or query
     pub context: String,
 }
 
 #[derive(Debug)]
-pub struct QaExample {
+struct QaExample {
     pub question: String,
     pub context: String,
     pub doc_tokens: Vec<String>,
@@ -37,7 +87,7 @@ pub struct QaExample {
 }
 
 #[derive(Debug)]
-pub struct QaFeature {
+struct QaFeature {
     pub input_ids: Vec<i64>,
     pub attention_mask: Vec<i64>,
     pub token_to_orig_map: HashMap<i64, i64>,
@@ -47,10 +97,15 @@ pub struct QaFeature {
 }
 
 #[derive(Debug, Clone)]
+/// # Output for Question Answering
 pub struct Answer {
+    /// Confidence score
     pub score: f64,
+    /// Start position of answer span
     pub start: usize,
+    /// End position of answer span
     pub end: usize,
+    /// Answer span
     pub answer: String,
 }
 
@@ -100,6 +155,7 @@ impl QaExample {
     }
 }
 
+/// # QuestionAnsweringModel to perform extractive question answering
 pub struct QuestionAnsweringModel {
     tokenizer: BertTokenizer,
     pad_idx: i64,
@@ -113,17 +169,47 @@ pub struct QuestionAnsweringModel {
 }
 
 impl QuestionAnsweringModel {
-    pub fn new(vocab_path: &Path, model_config_path: &Path, model_weight_path: &Path, device: Device)
+    /// Build a new `QuestionAnsweringModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
+    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# fn main() -> failure::Fallible<()> {
+    /// use tch::Device;
+    /// use std::path::{Path, PathBuf};
+    /// use rust_bert::pipelines::question_answering::QuestionAnsweringModel;
+    ///
+    /// let mut home: PathBuf = dirs::home_dir().unwrap();
+    /// let config_path = &home.as_path().join("config.json");
+    /// let vocab_path = &home.as_path().join("vocab.txt");
+    /// let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::Cpu;
+    /// let qa_model =  QuestionAnsweringModel::new(vocab_path,
+    ///                                             config_path,
+    ///                                             weights_path,
+    ///                                             device)?;
+    ///# Ok(())
+    ///# }
+    /// ```
+    ///
+    pub fn new(vocab_path: &Path, config_path: &Path, weights_path: &Path, device: Device)
                -> failure::Fallible<QuestionAnsweringModel> {
         let tokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), false);
         let pad_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[PAD]").expect("[PAD] token not found in vocabulary");
         let sep_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[SEP]").expect("[SEP] token not found in vocabulary");
         let mut var_store = VarStore::new(device);
-        let mut config = DistilBertConfig::from_file(model_config_path);
+        let mut config = DistilBertConfig::from_file(config_path);
 //        The config for the current pre-trained question answering model indicates position embeddings which does not seem accurate
         config.sinusoidal_pos_embds = false;
         let distilbert_qa = DistilBertForQuestionAnswering::new(&var_store.root(), &config);
-        var_store.load(model_weight_path)?;
+        var_store.load(weights_path)?;
         Ok(QuestionAnsweringModel {
             tokenizer,
             pad_idx,
@@ -165,6 +251,48 @@ impl QuestionAnsweringModel {
         batch_indices
     }
 
+    /// Perform extractive question answering given a list of `QaInputs`
+    ///
+    /// # Arguments
+    ///
+    /// * `qa_inputs` - `&[QaInput]` Array of Question Answering inputs (context and question pairs)
+    /// * `top_k` - return the top-k answers for each QaInput. Set to 1 to return only the best answer.
+    /// * `batch_size` - maximum batch size for the model forward pass.
+    ///
+    /// # Returns
+    /// * `Vec<Vec<Answer>>` Vector (same length as `qa_inputs`) of vectors (each of length `top_k`) containing the extracted answers.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# fn main() -> failure::Fallible<()> {
+    /// use tch::Device;
+    /// use std::path::{Path, PathBuf};
+    /// use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
+    ///
+    /// let mut home: PathBuf = dirs::home_dir().unwrap();
+    /// let config_path = &home.as_path().join("config.json");
+    /// let vocab_path = &home.as_path().join("vocab.txt");
+    /// let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::Cpu;
+    /// let qa_model =  QuestionAnsweringModel::new(vocab_path,
+    ///                                             config_path,
+    ///                                             weights_path,
+    ///                                             device)?;
+    ///
+    /// let question_1 = String::from("Where does Amy live ?");
+    /// let context_1 = String::from("Amy lives in Amsterdam");
+    /// let question_2 = String::from("Where does Eric live");
+    /// let context_2 = String::from("While Amy lives in Amsterdam, Eric is in The Hague.");
+    ///
+    /// let qa_input_1 = QaInput { question: question_1, context: context_1 };
+    /// let qa_input_2 = QaInput { question: question_2, context: context_2 };
+    /// let answers = qa_model.predict(&[qa_input_1, qa_input_2], 1, 32);
+    ///
+    ///# Ok(())
+    ///# }
+    /// ```
+    ///
     pub fn predict(&self, qa_inputs: &[QaInput], top_k: i64, batch_size: usize) -> Vec<Vec<Answer>> {
         let examples: Vec<QaExample> = qa_inputs
             .iter()
