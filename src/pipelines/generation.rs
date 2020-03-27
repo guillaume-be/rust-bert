@@ -13,17 +13,15 @@
 // limitations under the License.
 
 use tch::{Tensor, Device, nn, no_grad};
-use rust_tokenizers::{Tokenizer, OpenAiGptTokenizer, OpenAiGptVocab, Vocab, TruncationStrategy, Gpt2Tokenizer, Gpt2Vocab};
+use rust_tokenizers::{Tokenizer, OpenAiGptTokenizer, OpenAiGptVocab, Vocab, Gpt2Tokenizer, Gpt2Vocab};
 use std::path::Path;
-use rust_tokenizers::tokenization_utils::truncate_sequences;
-use tch::kind::Kind::{Int64, Float, Bool};
-use std::collections::HashMap;
-use std::cmp::{min, max};
+use tch::kind::Kind::Int64;
 use self::ordered_float::OrderedFloat;
 use itertools::Itertools;
 use crate::openai_gpt::OpenAIGPTLMHeadModel;
 use crate::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
 use crate::Config;
+use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
 
 extern crate ordered_float;
 
@@ -53,7 +51,7 @@ impl OpenAIGenerator {
     }
 }
 
-impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer> for OpenAIGenerator {
+impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer> for OpenAIGenerator {
     fn get_model(&self) -> &OpenAIGPTLMHeadModel { &self.model }
     fn get_tokenizer(&self) -> &OpenAiGptTokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
@@ -61,6 +59,8 @@ impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
     fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
     fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
 }
+
+impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer> for OpenAIGenerator {}
 
 pub struct GPT2Generator {
     model: GPT2LMHeadModel,
@@ -88,7 +88,7 @@ impl GPT2Generator {
     }
 }
 
-impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {
+impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {
     fn get_model(&self) -> &GPT2LMHeadModel { &self.model }
     fn get_tokenizer(&self) -> &Gpt2Tokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
@@ -105,7 +105,19 @@ impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Genera
     }
 }
 
-pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
+mod private_generation_utils {
+    use crate::gpt2::LMHeadModel;
+    use rust_tokenizers::{Vocab, Tokenizer, TruncationStrategy};
+    use tch::{nn, Tensor};
+    use rust_tokenizers::preprocessing::tokenizer::tokenization_utils::truncate_sequences;
+    use std::collections::HashMap;
+    use tch::kind::Kind::{Int64, Float, Bool};
+    use std::cmp::{min, max};
+    use crate::pipelines::generation::BeamHypotheses;
+    use itertools::Itertools;
+    use super::ordered_float::OrderedFloat;
+
+    pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
     fn get_model(&self) -> &T;
     fn get_tokenizer(&self) -> &U;
     fn get_var_store(&self) -> &nn::VarStore;
@@ -157,7 +169,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             .collect::<Vec<Tensor>>();
 
         Tensor::stack(&token_ids, 0)
-
     }
 
     fn enforce_repetition_penalty(&self, next_token_logits: &mut Tensor, batch_size: i64, num_beams: u64, prev_output_tokens: &Tensor, repetition_penalty: f64) {
@@ -246,101 +257,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             let indices_to_remove = sorted_indices_to_remove.scatter(1, &sorted_indices, &sorted_indices_to_remove).to_kind(Bool);
             let _ = logits.masked_fill_(&indices_to_remove, std::f64::NEG_INFINITY);
         }
-    }
-
-    fn generate(&self, prompt_text: Option<Vec<&str>>, min_length: u64, max_length: u64, do_sample: bool, early_stopping: bool, num_beams: u64, temperature: f64, top_k: u64,
-                top_p: f64, repetition_penalty: f64, length_penalty: f64, no_repeat_ngram_size: u64, num_return_sequences: u64, attention_mask: Option<Tensor>)
-                -> Vec<String> {
-
-        let eos_token_ids = self.get_eos_ids().clone();
-        let pad_token_id = match self.get_pad_id() {
-            Some(value) => Some(*value),
-            None => match &eos_token_ids {
-                Some(eos_ids) => Some(eos_ids[0]),
-                None => None
-            }
-        };
-
-        let input_ids = match prompt_text {
-            Some(text) => self.encode_prompt_text(text, max_length, pad_token_id),
-            None => match self.get_bos_id() {
-                Some(bos_id) => Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id,
-                None => panic!("A model with a BOS token must be used to start generation with an empty input")
-            }
-        };
-
-        assert!(temperature > 0f64, "temperature must positive");
-        assert!((top_p >= 0f64) & (top_p <= 1f64), "top_p must be 0 and 1");
-        assert!(repetition_penalty >= 1f64, "repetition_penalty must be greater than 1");
-        assert!(length_penalty > 0f64, "length_penalty must be strictly greater than 1");
-        assert!(num_return_sequences > 0u64, "num_return_sequences must be strictly greater than 0");
-        assert!(num_beams > 0u64, "num_beams must be strictly greater than 0");
-
-        if !do_sample {
-            if num_beams == 1 {
-                assert_eq!(num_return_sequences, 1, "num_return_sequences must be set to 1 for greedy decoding")
-            } else {
-                assert!(num_beams >= num_return_sequences, "num_return_sequences must be lower than the number of beams")
-            }
-        }
-
-        let cur_len = *input_ids.size().last().unwrap();
-        let batch_size = *input_ids.size().first().unwrap();
-
-        let (effective_batch_size, effective_batch_mult) = match do_sample {
-            true => (batch_size * num_return_sequences as i64, num_return_sequences as i64),
-            false => (batch_size, 1)
-        };
-
-        let attention_mask = match attention_mask {
-            Some(value) => value,
-            None => {
-                match self.get_pad_id() {
-                    Some(pad_id) => input_ids.ne(*pad_id),
-                    None => input_ids.ones_like()
-                }
-            }
-        };
-
-
-
-        let (input_ids, attention_mask) = if (num_return_sequences > 1) | (num_beams > 1) {
-            (input_ids
-                 .unsqueeze(1)
-                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
-                 .contiguous()
-                 .view((effective_batch_size * num_beams as i64, cur_len)),
-             attention_mask
-                 .unsqueeze(1)
-                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
-                 .contiguous()
-                 .view((effective_batch_size * num_beams as i64, cur_len))
-            )
-        } else {
-            (input_ids, attention_mask)
-        };
-
-        let decoded = no_grad(|| {
-            if num_beams > 1 {
-                self.generate_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
-                                          no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, num_return_sequences as i64, length_penalty, num_beams as i64, attention_mask)
-            } else {
-                self.generate_no_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, temperature, top_k as i64, top_p, repetition_penalty,
-                                             no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, attention_mask)
-            }
-        });
-
-        let num_sequences = *decoded.size().first().unwrap();
-        let mut output = Vec::with_capacity(num_sequences as usize);
-        for sequence_index in 0..num_sequences {
-            output.push(self.get_tokenizer().decode(decoded
-                                                        .as_ref()
-                                                        .get(sequence_index)
-                                                        .iter::<i64>()
-                                                        .unwrap()
-                                                        .collect::<Vec<i64>>(), true, true));
-        }
-        output
     }
 
     fn generate_no_beam_search(&self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool,
@@ -655,6 +571,105 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
             reordered_past.push(layer_past.index_select(1, beam_indices));
         }
         reordered_past
+    }
+}
+
+}
+
+impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {}
+
+pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateLanguageGenerator<T, V, U> {
+    fn generate(&self, prompt_text: Option<Vec<&str>>, min_length: u64, max_length: u64, do_sample: bool, early_stopping: bool, num_beams: u64, temperature: f64, top_k: u64,
+                top_p: f64, repetition_penalty: f64, length_penalty: f64, no_repeat_ngram_size: u64, num_return_sequences: u64, attention_mask: Option<Tensor>)
+                -> Vec<String> {
+        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
+        let pad_token_id = match self.get_pad_id() {
+            Some(value) => Some(*value),
+            None => match &eos_token_ids {
+                Some(eos_ids) => Some(eos_ids[0]),
+                None => None
+            }
+        };
+
+        let input_ids = match prompt_text {
+            Some(text) => self.encode_prompt_text(text, max_length, pad_token_id),
+            None => match self.get_bos_id() {
+                Some(bos_id) => Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id,
+                None => panic!("A model with a BOS token must be used to start generation with an empty input")
+            }
+        };
+
+        assert!(temperature > 0f64, "temperature must positive");
+        assert!((top_p >= 0f64) & (top_p <= 1f64), "top_p must be 0 and 1");
+        assert!(repetition_penalty >= 1f64, "repetition_penalty must be greater than 1");
+        assert!(length_penalty > 0f64, "length_penalty must be strictly greater than 1");
+        assert!(num_return_sequences > 0u64, "num_return_sequences must be strictly greater than 0");
+        assert!(num_beams > 0u64, "num_beams must be strictly greater than 0");
+
+        if !do_sample {
+            if num_beams == 1 {
+                assert_eq!(num_return_sequences, 1, "num_return_sequences must be set to 1 for greedy decoding")
+            } else {
+                assert!(num_beams >= num_return_sequences, "num_return_sequences must be lower than the number of beams")
+            }
+        }
+
+        let cur_len = *input_ids.size().last().unwrap();
+        let batch_size = *input_ids.size().first().unwrap();
+
+        let (effective_batch_size, effective_batch_mult) = match do_sample {
+            true => (batch_size * num_return_sequences as i64, num_return_sequences as i64),
+            false => (batch_size, 1)
+        };
+
+        let attention_mask = match attention_mask {
+            Some(value) => value,
+            None => {
+                match self.get_pad_id() {
+                    Some(pad_id) => input_ids.ne(*pad_id),
+                    None => input_ids.ones_like()
+                }
+            }
+        };
+
+
+        let (input_ids, attention_mask) = if (num_return_sequences > 1) | (num_beams > 1) {
+            (input_ids
+                 .unsqueeze(1)
+                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
+                 .contiguous()
+                 .view((effective_batch_size * num_beams as i64, cur_len)),
+             attention_mask
+                 .unsqueeze(1)
+                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
+                 .contiguous()
+                 .view((effective_batch_size * num_beams as i64, cur_len))
+            )
+        } else {
+            (input_ids, attention_mask)
+        };
+
+        let decoded = no_grad(|| {
+            if num_beams > 1 {
+                self.generate_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
+                                          no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, num_return_sequences as i64, length_penalty, num_beams as i64, attention_mask)
+            } else {
+                self.generate_no_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, temperature, top_k as i64, top_p, repetition_penalty,
+                                             no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, attention_mask)
+            }
+        });
+
+        let num_sequences = *decoded.size().first().unwrap();
+        let mut output = Vec::with_capacity(num_sequences as usize);
+        for sequence_index in 0..num_sequences {
+            output.push(self.get_tokenizer().decode(decoded
+                                                        .as_ref()
+                                                        .get(sequence_index)
+                                                        .iter::<i64>()
+                                                        .unwrap()
+                                                        .collect::<Vec<i64>>(), true, true));
+        }
+        output
     }
 }
 

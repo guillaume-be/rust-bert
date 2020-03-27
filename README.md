@@ -85,7 +85,7 @@ Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-
         "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
     ];
 
-    let output = sentiment_classifier.predict(input.to_vec());
+    let output = sentiment_classifier.predict(&input);
 ```
 (Example courtesy of IMDb (http://www.imdb.com))
 
@@ -111,7 +111,7 @@ Extracts entities (Person, Location, Organization, Miscellaneous) from text. BER
         "Paris is a city in France."
     ];
     
-    let output = ner_model.predict(input.to_vec());
+    let output = ner_model.predict(&input);
 ```
 Output:
 ```
