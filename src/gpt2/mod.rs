@@ -2,7 +2,7 @@
 //!
 //! Implementation of the GPT2 language model ([Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) Radford, Wu, Child, Luan, Amodei, Sutskever 2019).
 //! The base model is implemented in the `gpt2::Gpt2Model` struct. The model also includes a language model head: `gpt2::GPT2LMHeadModel`
-//! implementing the common `gpt2::LMHeadModel` trait shared between the models used fro generation (see `pipelines` for more information).
+//! implementing the common `gpt2::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!
@@ -32,7 +32,7 @@
 //! let mut vs = nn::VarStore::new(device);
 //! let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
 //! let config = Gpt2Config::from_file(config_path);
-//! let bert_model = GPT2LMHeadModel::new(&vs.root(), &config);
+//! let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
 //!# Ok(())
