@@ -64,6 +64,7 @@ pub mod bert;
 pub mod roberta;
 pub mod openai_gpt;
 pub mod gpt2;
+pub mod bart;
 mod common;
 pub mod pipelines;
 
