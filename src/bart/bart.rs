@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::Config;
 use tch::Tensor;
-use tch::kind::Kind::Int64;
+use tch::kind::Kind::{Int64, Float};
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -82,7 +82,40 @@ pub struct BartConfig {
 
 impl Config<BartConfig> for BartConfig {}
 
-pub fn shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
+fn _prepare_bart_decoder_inputs(config: BartConfig,
+                               input_ids: &Tensor,
+                               decoder_input_ids: Option<Tensor>,
+                               decoder_padding_mask: Option<Tensor>)
+                               -> (Tensor, Option<Tensor>, Tensor) {
+    let pad_token_id = config.pad_token_id
+        .expect("pad_token_id must be provided for generation tasks");
+
+    let decoder_input_ids = match decoder_input_ids {
+        Some(value) => value,
+        None => _shift_tokens_right(input_ids, pad_token_id)
+    };
+
+    let decoder_padding_mask = match decoder_padding_mask {
+        Some(value) => Some(value.eq(0).to_kind(Int64)),
+        None => {
+            let padding_mask = decoder_input_ids.eq(pad_token_id);
+            if i64::from(padding_mask.any()) == 0 {
+                None
+            } else {
+                Some(padding_mask)
+            }
+        }
+    };
+    let length = *input_ids.size().last().unwrap();
+    let causal_mask = Tensor::empty(&[length, length], (Float, input_ids.device()))
+        .fill_(std::f64::NEG_INFINITY)
+        .triu(1);
+
+    (decoder_input_ids, decoder_padding_mask, causal_mask)
+}
+
+
+fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
     let index_eos: Tensor = input_ids.ne(pad_token_id).sum1(&[-1], true, Int64) - 1;
     let output = input_ids.empty_like().to_kind(Int64);
     output

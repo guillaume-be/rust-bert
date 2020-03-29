@@ -14,13 +14,11 @@ extern crate failure;
 extern crate dirs;
 
 use std::path::PathBuf;
-use tch::{Device, nn, Tensor};
+use tch::{Device, nn};
 use rust_tokenizers::RobertaTokenizer;
 use failure::err_msg;
 use rust_bert::bart::BartConfig;
 use rust_bert::Config;
-use tch::kind::Kind::{Float, Int64};
-use rust_bert::bart::bart::shift_tokens_right;
 
 
 fn main() -> failure::Fallible<()> {
@@ -44,7 +42,7 @@ fn main() -> failure::Fallible<()> {
     let device = Device::Cpu;
     let _vs = nn::VarStore::new(device);
     let _tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
-    let config = BartConfig::from_file(config_path);
+    let _config = BartConfig::from_file(config_path);
 //    let bert_model = BertForMaskedLM::new(&vs.root(), &config);
 //    vs.load(weights_path)?;
 //
@@ -80,12 +78,6 @@ fn main() -> failure::Fallible<()> {
 //        collect::<Vec<_>>();
 //    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
-    let input_id = Tensor::randint1(2, 25, &[2, 10], (Float, device));
-    let _ = input_id.get(0).index_fill_(0, &Tensor::of_slice(&[7, 8, 9]).to_kind(Int64), 1);
-    let _ = input_id.get(1).index_fill_(0, &Tensor::of_slice(&[5, 6, 7, 8, 9]).to_kind(Int64), 1);
-    input_id.print();
-    let output = shift_tokens_right(&input_id, config.pad_token_id.unwrap());
-    output.print();
 
 ////    Forward pass
 //    let (output, _, _) = no_grad(|| {
