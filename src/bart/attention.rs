@@ -30,6 +30,7 @@ pub struct SelfAttention {
     dropout: Dropout,
     scaling: f64,
     encoder_decoder_attention: bool,
+    output_attentions: bool,
     prev_state: Option<LayerState>,
     k_proj: nn::Linear,
     v_proj: nn::Linear,
@@ -39,7 +40,7 @@ pub struct SelfAttention {
 
 impl SelfAttention {
     pub fn new(p: nn::Path, embed_dim: i64, num_heads: i64, dropout: f64,
-               encoder_decoder_attention: bool, store_cache: bool) -> SelfAttention {
+               encoder_decoder_attention: bool, store_cache: bool, output_attentions: bool) -> SelfAttention {
         let k_proj = nn::linear(&p / "k_proj", embed_dim, embed_dim, Default::default());
         let v_proj = nn::linear(&p / "v_proj", embed_dim, embed_dim, Default::default());
         let q_proj = nn::linear(&p / "q_proj", embed_dim, embed_dim, Default::default());
@@ -60,6 +61,7 @@ impl SelfAttention {
             dropout,
             scaling,
             encoder_decoder_attention,
+            output_attentions,
             prev_state,
             k_proj,
             v_proj,
@@ -73,7 +75,7 @@ impl SelfAttention {
     }
 
     pub fn forward_t(&mut self, query: &Tensor, key: &Option<Tensor>, key_padding_mask: &Option<Tensor>,
-                     attention_mask: &Option<Tensor>, output_attentions: bool, train: bool) -> (Tensor, Option<Tensor>) {
+                     attention_mask: &Option<Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
         let query_size = query.size();
         let (target_sequence_length, bs) = (query_size[0], query_size[1]);
         let q: Tensor = self.flatten(query.as_ref().apply(&self.q_proj) * self.scaling, target_sequence_length, bs);
@@ -146,7 +148,7 @@ impl SelfAttention {
             .view((target_sequence_length, bs, self.num_heads * self.head_dim))
             .apply(&self.out_proj);
 
-        let attention_weights = if output_attentions {
+        let attention_weights = if self.output_attentions {
             Some(attention_weights.view((bs, self.num_heads, target_sequence_length, source_sequence_length)))
         } else { None };
 
