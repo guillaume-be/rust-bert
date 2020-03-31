@@ -17,6 +17,9 @@ use crate::common::dropout::Dropout;
 use crate::bart::BartConfig;
 use crate::bart::bart::Activation;
 use crate::common::activations::{_gelu, _relu, _swish, _gelu_new, _tanh};
+use crate::bart::embeddings::PositionalEmbedding;
+use tch::kind::Kind::Int64;
+use std::borrow::BorrowMut;
 
 pub struct EncoderLayer {
     self_attention: SelfAttention,
@@ -37,12 +40,12 @@ impl EncoderLayer {
             None => false
         };
         let self_attention = SelfAttention::new(&p / "self_attn ",
-                                                    config.d_model,
-                                                    config.encoder_attention_heads,
-                                                    config.attention_dropout,
-                                                    false,
-                                                    false,
-                                                    output_attention);
+                                                config.d_model,
+                                                config.encoder_attention_heads,
+                                                config.attention_dropout,
+                                                false,
+                                                false,
+                                                output_attention);
         let self_attention_layer_norm = nn::layer_norm(&p / "self_attn_layer_norm",
                                                        vec![config.d_model],
                                                        layer_norm_config);
@@ -82,5 +85,106 @@ impl EncoderLayer {
             .apply_t(&self.dropout, train);
         let output: Tensor = output + residual;
         (output.apply(&self.final_layer_norm), attention_weights)
+    }
+}
+
+pub struct BartEncoder<'a> {
+    dropout: Dropout,
+    layer_norm_embedding: nn::LayerNorm,
+    layers: Vec<EncoderLayer>,
+    embed_positions: PositionalEmbedding,
+    embed_tokens: &'a nn::Embedding,
+    output_attentions: bool,
+    output_hidden_states: bool,
+}
+
+impl<'a> BartEncoder<'a> {
+    pub fn new(p: nn::Path, config: &BartConfig, embed_tokens: &'a nn::Embedding) -> BartEncoder<'a> {
+        let output_attentions = match config.output_attentions {
+            Some(value) => value,
+            None => false
+        };
+        let output_hidden_states = match config.output_hidden_states {
+            Some(value) => value,
+            None => false
+        };
+
+        let dropout = Dropout::new(config.dropout);
+
+        let layer_norm_config = nn::LayerNormConfig { eps: 1e-5, ..Default::default() };
+        let layer_norm_embedding = nn::layer_norm(&p / "layernorm_embedding",
+                                                  vec![config.d_model],
+                                                  layer_norm_config);
+
+        let pad_token_id = match config.pad_token_id {
+            Some(value) => value,
+            None => 1
+        };
+
+        let embed_positions = PositionalEmbedding::new(&p / "embed_positions",
+                                                       config.max_position_embeddings,
+                                                       config.d_model,
+                                                       pad_token_id);
+
+        let mut layers: Vec<EncoderLayer> = vec!();
+        let p_layers = &p / "layer";
+        for layer_index in 0..config.encoder_layers {
+            layers.push(EncoderLayer::new(&p_layers / layer_index, config));
+        };
+
+        BartEncoder {
+            dropout,
+            layer_norm_embedding,
+            layers,
+            embed_positions,
+            embed_tokens,
+            output_attentions,
+            output_hidden_states,
+        }
+    }
+
+    pub fn forward(&mut self, input_ids: Tensor, attention_mask: Option<Tensor>, train: bool)
+                   -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let attention_mask = match attention_mask {
+            Some(mask) => Some(mask.eq(0).to_kind(Int64)),
+            None => None
+        };
+
+        let x = input_ids.as_ref().apply(self.embed_tokens);
+        let x: Tensor = x + &self.embed_positions.forward(&input_ids, false);
+        let x = x
+            .apply(&self.layer_norm_embedding)
+            .apply_t(&self.dropout, train)
+            .transpose(0, 1);
+
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
+
+        let mut hidden_state = x.copy();
+        let mut attention_weights: Option<Tensor>;
+        let mut layers = self.layers.iter_mut();
+
+        loop {
+            match layers.next() {
+                Some(layer) => {
+                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                        hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
+                    };
+
+                    let temp = layer.forward_t(&hidden_state, &attention_mask, train);
+                    hidden_state = temp.0;
+                    attention_weights = temp.1;
+                    if let Some(attentions) = all_attentions.borrow_mut() {
+                        attentions.push(attention_weights.as_ref().unwrap().copy());
+                    };
+                }
+                None => break
+            };
+        };
+        if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+            hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
+        };
+
+        (hidden_state, all_hidden_states, all_attentions)
     }
 }
