@@ -88,18 +88,18 @@ impl EncoderLayer {
     }
 }
 
-pub struct BartEncoder<'a> {
+pub struct BartEncoder {
     dropout: Dropout,
     layer_norm_embedding: nn::LayerNorm,
     layers: Vec<EncoderLayer>,
     embed_positions: PositionalEmbedding,
-    embed_tokens: &'a nn::Embedding,
+    embed_tokens: nn::Embedding,
     output_attentions: bool,
     output_hidden_states: bool,
 }
 
-impl<'a> BartEncoder<'a> {
-    pub fn new(p: nn::Path, config: &BartConfig, embed_tokens: &'a nn::Embedding) -> BartEncoder<'a> {
+impl BartEncoder {
+    pub fn new(p: nn::Path, config: &BartConfig, embed_tokens: nn::Embedding) -> BartEncoder {
         let output_attentions = match config.output_attentions {
             Some(value) => value,
             None => false
@@ -110,7 +110,6 @@ impl<'a> BartEncoder<'a> {
         };
 
         let dropout = Dropout::new(config.dropout);
-
         let layer_norm_config = nn::LayerNormConfig { eps: 1e-5, ..Default::default() };
         let layer_norm_embedding = nn::layer_norm(&p / "layernorm_embedding",
                                                   vec![config.d_model],
@@ -127,7 +126,7 @@ impl<'a> BartEncoder<'a> {
                                                        pad_token_id);
 
         let mut layers: Vec<EncoderLayer> = vec!();
-        let p_layers = &p / "layer";
+        let p_layers = &p / "layers";
         for layer_index in 0..config.encoder_layers {
             layers.push(EncoderLayer::new(&p_layers / layer_index, config));
         };
@@ -143,7 +142,7 @@ impl<'a> BartEncoder<'a> {
         }
     }
 
-    pub fn forward(&mut self,
+    pub fn forward_t(&mut self,
                    input_ids: &Tensor,
                    attention_mask: Option<&Tensor>,
                    train: bool)
@@ -153,7 +152,7 @@ impl<'a> BartEncoder<'a> {
             None => None
         };
 
-        let x = input_ids.apply(self.embed_tokens);
+        let x = input_ids.apply(&self.embed_tokens);
         let x: Tensor = x + &self.embed_positions.forward(input_ids, false);
         let x = x
             .apply(&self.layer_norm_embedding)

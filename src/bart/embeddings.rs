@@ -24,7 +24,7 @@ pub struct PositionalEmbedding {
 
 impl PositionalEmbedding {
     pub fn new(p: nn::Path, num_embeddings: i64, embedding_dim: i64, padding_index: i64) -> PositionalEmbedding {
-        let embedding_config = EmbeddingConfig { padding_idx: 0, ..Default::default() };
+        let embedding_config = EmbeddingConfig { padding_idx: padding_index, ..Default::default() };
         let num_embeddings = num_embeddings + padding_index + 1;
 
         let embedding: nn::Embedding = embedding(p,

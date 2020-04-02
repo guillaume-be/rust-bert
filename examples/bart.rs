@@ -19,6 +19,7 @@ use rust_tokenizers::RobertaTokenizer;
 use failure::err_msg;
 use rust_bert::bart::BartConfig;
 use rust_bert::Config;
+use rust_bert::bart::bart::BartModel;
 
 
 fn main() -> failure::Fallible<()> {
@@ -40,11 +41,11 @@ fn main() -> failure::Fallible<()> {
 
 //    Set-up masked LM model
     let device = Device::Cpu;
-    let _vs = nn::VarStore::new(device);
+    let mut vs = nn::VarStore::new(device);
     let _tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
-    let _config = BartConfig::from_file(config_path);
-//    let bert_model = BertForMaskedLM::new(&vs.root(), &config);
-//    vs.load(weights_path)?;
+    let config = BartConfig::from_file(config_path);
+    let bart_model = BartModel::new(&vs.root(), &config, false);
+    vs.load(weights_path)?;
 //
 ////    Define input
 //    let input = ["New York (CNN)When Liana Barrientos was 23 years old, she got married in Westchester County, New York.

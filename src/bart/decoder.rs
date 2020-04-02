@@ -48,7 +48,7 @@ impl DecoderLayer {
                                                 false,
                                                 true,
                                                 output_attention);
-        let encoder_attention = SelfAttention::new(&p / "encoder_attn ",
+        let encoder_attention = SelfAttention::new(&p / "encoder_attn",
                                                    config.d_model,
                                                    config.decoder_attention_heads,
                                                    config.attention_dropout,
@@ -58,7 +58,7 @@ impl DecoderLayer {
         let self_attention_layer_norm = nn::layer_norm(&p / "self_attn_layer_norm",
                                                        vec![config.d_model],
                                                        layer_norm_config);
-        let encoder_attention_layer_norm = nn::layer_norm(&p / "self_attn_layer_norm",
+        let encoder_attention_layer_norm = nn::layer_norm(&p / "encoder_attn_layer_norm",
                                                           vec![config.d_model],
                                                           layer_norm_config);
 
@@ -124,20 +124,20 @@ impl DecoderLayer {
     }
 }
 
-pub struct BartDecoder<'a> {
+pub struct BartDecoder {
     dropout: Dropout,
     layer_norm_embedding: nn::LayerNorm,
     layers: Vec<DecoderLayer>,
     embed_positions: PositionalEmbedding,
-    embed_tokens: &'a nn::Embedding,
+    embed_tokens: nn::Embedding,
     output_attentions: bool,
     output_hidden_states: bool,
     output_past: bool,
     generation_mode: bool,
 }
 
-impl<'a> BartDecoder<'a> {
-    pub fn new(p: nn::Path, config: &BartConfig, embed_tokens: &'a nn::Embedding, generation_mode: bool) -> BartDecoder<'a> {
+impl BartDecoder {
+    pub fn new(p: nn::Path, config: &BartConfig, embed_tokens: nn::Embedding, generation_mode: bool) -> BartDecoder {
         let output_past = match config.output_past {
             Some(value) => value,
             None => false
@@ -169,7 +169,7 @@ impl<'a> BartDecoder<'a> {
                                                        pad_token_id);
 
         let mut layers: Vec<DecoderLayer> = vec!();
-        let p_layers = &p / "layer";
+        let p_layers = &p / "layers";
         for layer_index in 0..config.decoder_layers {
             layers.push(DecoderLayer::new(&p_layers / layer_index, config));
         };
@@ -187,7 +187,7 @@ impl<'a> BartDecoder<'a> {
         }
     }
 
-    pub fn forward(&mut self,
+    pub fn forward_t(&mut self,
                    input_ids: &Tensor,
                    encoder_hidden_states: &Tensor,
                    encoder_padding_mask: Option<&Tensor>,
@@ -211,7 +211,7 @@ impl<'a> BartDecoder<'a> {
             (input_ids.copy(), positions.copy())
         };
 
-        let x: Tensor = input_ids.as_ref().apply(self.embed_tokens) + positions;
+        let x: Tensor = input_ids.as_ref().apply(&self.embed_tokens) + positions;
         let x = x
             .apply(&self.layer_norm_embedding)
             .apply_t(&self.dropout, train)
