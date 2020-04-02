@@ -19,7 +19,7 @@ use rust_tokenizers::{RobertaTokenizer, TruncationStrategy, Tokenizer};
 use failure::err_msg;
 use rust_bert::bart::BartConfig;
 use rust_bert::Config;
-use rust_bert::bart::bart::BartModel;
+use rust_bert::bart::bart::BartForConditionalGeneration;
 
 
 fn main() -> failure::Fallible<()> {
@@ -44,7 +44,7 @@ fn main() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = BartConfig::from_file(config_path);
-    let mut bart_model = BartModel::new(&vs.root(), &config, false);
+    let mut bart_model = BartForConditionalGeneration::new(&vs.root(), &config, false);
     vs.load(weights_path)?;
 
 //    Define input
@@ -80,7 +80,7 @@ If convicted, Barrientos faces up to four years in prison.  Her next court appea
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (decoder_output, encoder_output) = no_grad(|| {
+    let (decoder_output, _, _, encoder_output, _, _) = no_grad(|| {
         bart_model
             .forward_t(&input_tensor,
                        None,

@@ -21,6 +21,8 @@ use crate::bart::encoder::BartEncoder;
 use crate::bart::decoder::BartDecoder;
 use tch::nn::{embedding, EmbeddingConfig};
 use crate::bart::attention::LayerState;
+use std::borrow::BorrowMut;
+use crate::common::dropout::Dropout;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -82,6 +84,7 @@ pub struct BartConfig {
     pub top_k: i64,
     pub top_p: f64,
     pub vocab_size: i64,
+    pub eos_token_id: Option<i64>,
 }
 
 impl Config<BartConfig> for BartConfig {}
@@ -165,28 +168,129 @@ impl BartModel {
                      encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
                      decoder_attention_mask: Option<&Tensor>,
                      train: bool) ->
-                     ((Tensor, (Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>), Option<Vec<Tensor>>, Option<Vec<Tensor>>),
-                      (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)) {
+                     (Tensor, (Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>), Option<Vec<Tensor>>, Option<Vec<Tensor>>,
+                      Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let (decoder_input_ids, decoder_padding_mask, causal_mask) = if self.generation_mode {
             (decoder_input_ids.unwrap().copy(), None, None)
         } else {
             _prepare_bart_decoder_inputs(self.pad_token_id, input_ids, decoder_input_ids, decoder_attention_mask)
         };
 
-        let encoder_outputs = match encoder_outputs {
+        let (encoder_hidden_states,
+            all_encoder_hidden_states,
+            all_encoder_attentions) = match encoder_outputs {
             Some(value) => value,
             None => {
                 self.encoder.forward_t(input_ids, attention_mask, train)
             }
         };
 
-        let decoder_outputs = self.decoder.forward_t(&decoder_input_ids,
-                                                     &encoder_outputs.0,
-                                                     attention_mask,
-                                                     decoder_padding_mask.as_ref(),
-                                                     causal_mask.as_ref(),
-                                                     train);
+        let (decoder_outputs,
+            decoder_cache,
+            all_decoder_hidden_states,
+            all_decoder_attentions) = self.decoder.forward_t(&decoder_input_ids,
+                                                             &encoder_hidden_states,
+                                                             attention_mask,
+                                                             decoder_padding_mask.as_ref(),
+                                                             causal_mask.as_ref(),
+                                                             train);
+        (decoder_outputs, decoder_cache, all_decoder_hidden_states, all_decoder_attentions,
+         encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions)
+    }
+}
 
-        (decoder_outputs, encoder_outputs)
+pub struct BartForConditionalGeneration {
+    base_model: BartModel,
+}
+
+impl BartForConditionalGeneration {
+    pub fn new(p: &nn::Path, config: &BartConfig, generation_mode: bool) -> BartForConditionalGeneration {
+        let base_model = BartModel::new(p, config, generation_mode);
+        BartForConditionalGeneration { base_model }
+    }
+
+    pub fn forward_t(&mut self,
+                     input_ids: &Tensor,
+                     attention_mask: Option<&Tensor>,
+                     encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+                     decoder_input_ids: Option<&Tensor>,
+                     decoder_attention_mask: Option<&Tensor>,
+                     train: bool)
+                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>,
+                         Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)
+    {
+        let (decoder_outputs, _, all_decoder_hidden_states, all_decoder_attentions,
+            encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions) =
+            self.borrow_mut().base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, train);
+
+        let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.encoder.embed_tokens.ws, None);
+        (lm_logits, all_decoder_hidden_states, all_decoder_attentions, encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions)
+    }
+}
+
+pub struct BartClassificationHead {
+    dense: nn::Linear,
+    dropout: Dropout,
+    out_proj: nn::Linear,
+}
+
+impl BartClassificationHead {
+    pub fn new(p: &nn::Path, config: &BartConfig) -> BartClassificationHead {
+        let dense = nn::linear(&(p / "dense"), config.d_model, config.d_model, Default::default());
+        let dropout = Dropout::new(config.classif_dropout);
+        let out_proj = nn::linear(&(p / "out_proj"), config.d_model, config.num_labels.unwrap(), Default::default());
+
+        BartClassificationHead { dense, dropout, out_proj }
+    }
+
+    pub fn forward_t(&self, x: &Tensor, train: bool) -> Tensor {
+        x
+            .apply_t(&self.dropout, train)
+            .apply(&self.dense)
+            .tanh()
+            .apply_t(&self.dropout, train)
+            .apply(&self.out_proj)
+    }
+}
+
+pub struct BartForSequenceClassification {
+    base_model: BartModel,
+    classification_head: BartClassificationHead,
+    eos_token_id: i64,
+}
+
+
+impl BartForSequenceClassification {
+    pub fn new(p: &nn::Path, config: &BartConfig, generation_mode: bool) -> BartForSequenceClassification {
+        let base_model = BartModel::new(p, config, generation_mode);
+        let classification_head = BartClassificationHead::new(&(p / "classification_head"), config);
+        let eos_token_id = match config.eos_token_id {
+            Some(value) => value,
+            None => 3
+        };
+        BartForSequenceClassification { base_model, classification_head, eos_token_id }
+    }
+
+    pub fn forward_t(&mut self,
+                     input_ids: &Tensor,
+                     attention_mask: Option<&Tensor>,
+                     encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+                     decoder_input_ids: Option<&Tensor>,
+                     decoder_attention_mask: Option<&Tensor>,
+                     train: bool)
+                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>,
+                         Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (decoder_outputs, _, all_decoder_hidden_states, all_decoder_attentions,
+            encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions) =
+            self.borrow_mut().base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, train);
+
+        let eos_mask = input_ids.eq(self.eos_token_id);
+        let sentence_representation = decoder_outputs
+            .index_select(0, &eos_mask)
+            .view((decoder_outputs.size()[0], -1, *decoder_outputs.size().last().unwrap()))
+            .select(1, -1);
+
+        let logits = self.classification_head.forward_t(&sentence_representation, train);
+        (logits, all_decoder_hidden_states, all_decoder_attentions, encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions)
     }
 }

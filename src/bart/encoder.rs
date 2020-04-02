@@ -93,7 +93,7 @@ pub struct BartEncoder {
     layer_norm_embedding: nn::LayerNorm,
     layers: Vec<EncoderLayer>,
     embed_positions: PositionalEmbedding,
-    embed_tokens: nn::Embedding,
+    pub embed_tokens: nn::Embedding,
     output_attentions: bool,
     output_hidden_states: bool,
 }
