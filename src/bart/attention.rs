@@ -74,12 +74,14 @@ impl SelfAttention {
         x.contiguous().view((dim_0, bs * self.num_heads, self.head_dim)).transpose(0, 1)
     }
 
-    pub fn forward_t(&mut self, query: &Tensor, key: Option<&Tensor>, key_padding_mask: Option<&Tensor>,
-                     attention_mask: Option<&Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
+    pub fn forward_t(&mut self, query: &Tensor,
+                     key: Option<&Tensor>,
+                     key_padding_mask: Option<&Tensor>,
+                     attention_mask: Option<&Tensor>,
+                     train: bool) -> (Tensor, Option<Tensor>) {
         let query_size = query.size();
         let (target_sequence_length, bs) = (query_size[0], query_size[1]);
         let q: Tensor = self.flatten(query.as_ref().apply(&self.q_proj) * self.scaling, target_sequence_length, bs);
-
         let key = match &self.prev_state {
             Some(prev_state) => {
                 if prev_state.prev_key.is_some() & self.encoder_decoder_attention {
@@ -187,7 +189,13 @@ impl SelfAttention {
                                                                        k.size()[1]);
                 (k, v, key_padding_mask)
             }
-            None => (k.unwrap(), v.unwrap(), Some(key_padding_mask.as_ref().unwrap().copy()))
+            None => {
+                let key_padding_mask = match key_padding_mask {
+                    Some(value) => Some(value.copy()),
+                    None => None
+                };
+                (k.unwrap(), v.unwrap(), key_padding_mask)
+            }
         }
     }
 

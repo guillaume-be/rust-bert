@@ -106,9 +106,8 @@ impl DecoderLayer {
         let (output, attention_weights) = self.self_attention.forward_t(x, Some(x), decoder_padding_mask, causal_mask, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
         let output = output.apply(&self.self_attention_layer_norm);
-
         let residual = output.copy();
-        let (output, _) = self.encoder_attention.forward_t(x, Some(encoder_hidden_states), encoder_attn_mask, None, train);
+        let (output, _) = self.encoder_attention.forward_t(&output, Some(encoder_hidden_states), encoder_attn_mask, None, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + residual;
         let output = output.apply(&self.encoder_attention_layer_norm);
 
@@ -195,7 +194,7 @@ impl BartDecoder {
                    decoder_causal_mask: Option<&Tensor>,
                    train: bool)
                    -> (Tensor,
-                       (Tensor, Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>),
+                       (Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>),
                        Option<Vec<Tensor>>,
                        Option<Vec<Tensor>>) {
         let encoder_padding_mask = match encoder_padding_mask {
@@ -203,15 +202,17 @@ impl BartDecoder {
             None => None
         };
 
-        let positions = &self.embed_positions.forward(input_ids, self.generation_mode);
+        let positions = self.embed_positions.forward(input_ids, self.generation_mode);
+
         let (input_ids, positions) = if self.generation_mode {
             let end = input_ids.size()[1];
             (input_ids.slice(1, end - 1, end, 1), positions.slice(1, end - 1, end, 1))
         } else {
-            (input_ids.copy(), positions.copy())
+            (input_ids.copy(), positions)
         };
 
         let x: Tensor = input_ids.as_ref().apply(&self.embed_tokens) + positions;
+
         let x = x
             .apply(&self.layer_norm_embedding)
             .apply_t(&self.dropout, train)
@@ -231,8 +232,9 @@ impl BartDecoder {
                     let temp = layer.forward_t(&hidden_state,
                                                encoder_hidden_states,
                                                encoder_padding_mask.as_ref(),
+                                               decoder_causal_mask,
                                                decoder_padding_mask,
-                                               decoder_causal_mask, train);
+                                               train);
                     hidden_state = temp.0;
                     attention_weights = temp.1;
                     if let Some(hidden_states) = all_hidden_states.borrow_mut() {
@@ -250,7 +252,7 @@ impl BartDecoder {
         };
 
         (hidden_state.transpose(0, 1),
-         (encoder_hidden_states.copy(), encoder_padding_mask, next_decoder_cache),
+         (encoder_padding_mask, next_decoder_cache),
          all_hidden_states,
          all_attentions)
     }

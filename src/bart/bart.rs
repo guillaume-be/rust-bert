@@ -165,7 +165,7 @@ impl BartModel {
                      encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
                      decoder_attention_mask: Option<&Tensor>,
                      train: bool) ->
-                     ((Tensor, (Tensor, Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>), Option<Vec<Tensor>>, Option<Vec<Tensor>>),
+                     ((Tensor, (Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>), Option<Vec<Tensor>>, Option<Vec<Tensor>>),
                       (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)) {
         let (decoder_input_ids, decoder_padding_mask, causal_mask) = if self.generation_mode {
             (decoder_input_ids.unwrap().copy(), None, None)
