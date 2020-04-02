@@ -16,7 +16,7 @@ use tch::{nn, Tensor};
 use tch::kind::Kind::Float;
 
 #[derive(Debug)]
-struct LayerState {
+pub struct LayerState {
     prev_key: Option<Tensor>,
     prev_value: Option<Tensor>,
     prev_key_padding_mask: Option<Tensor>,
@@ -31,7 +31,7 @@ pub struct SelfAttention {
     scaling: f64,
     encoder_decoder_attention: bool,
     output_attentions: bool,
-    prev_state: Option<LayerState>,
+    pub(crate) prev_state: Option<LayerState>,
     k_proj: nn::Linear,
     v_proj: nn::Linear,
     q_proj: nn::Linear,
@@ -74,8 +74,8 @@ impl SelfAttention {
         x.contiguous().view((dim_0, bs * self.num_heads, self.head_dim)).transpose(0, 1)
     }
 
-    pub fn forward_t(&mut self, query: &Tensor, key: &Option<Tensor>, key_padding_mask: &Option<Tensor>,
-                     attention_mask: &Option<Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
+    pub fn forward_t(&mut self, query: &Tensor, key: Option<&Tensor>, key_padding_mask: Option<&Tensor>,
+                     attention_mask: Option<&Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
         let query_size = query.size();
         let (target_sequence_length, bs) = (query_size[0], query_size[1]);
         let q: Tensor = self.flatten(query.as_ref().apply(&self.q_proj) * self.scaling, target_sequence_length, bs);
@@ -83,7 +83,7 @@ impl SelfAttention {
         let key = match &self.prev_state {
             Some(prev_state) => {
                 if prev_state.prev_key.is_some() & self.encoder_decoder_attention {
-                    &None
+                    None
                 } else {
                     key
                 }
@@ -155,7 +155,7 @@ impl SelfAttention {
         (output, attention_weights)
     }
 
-    fn use_saved_state(&self, k: Option<Tensor>, v: Option<Tensor>, key_padding_mask: &Option<Tensor>, bs: i64)
+    fn use_saved_state(&self, k: Option<Tensor>, v: Option<Tensor>, key_padding_mask: Option<&Tensor>, bs: i64)
                        -> (Tensor, Tensor, Option<Tensor>) {
         match &self.prev_state {
             Some(prev_state) => {
@@ -191,7 +191,7 @@ impl SelfAttention {
         }
     }
 
-    fn use_saved_key_padding_mask(&self, key_padding_mask: &Option<Tensor>, prev_key_padding_mask: &Option<Tensor>,
+    fn use_saved_key_padding_mask(&self, key_padding_mask: Option<&Tensor>, prev_key_padding_mask: &Option<Tensor>,
                                   bs: i64, sequence_length: i64) -> Option<Tensor> {
         if prev_key_padding_mask.is_some() {
             if self.encoder_decoder_attention {

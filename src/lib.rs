@@ -6,7 +6,13 @@
 //! # Quick Start
 //!
 //! This crate can be used in two different ways:
-//! - Ready-to-use NLP pipelines for Sentiment Analysis, Named Entity Recognition, Question-Answering or Language Generation. More information on these can be found in the `pipelines` module.
+//! - Ready-to-use NLP pipelines for:
+//!     - Sentiment Analysis
+//!     - Named Entity Recognition
+//!     - Question-Answering
+//!     - Language Generation.
+//!
+//! More information on these can be found in the [`pipelines` module](https://docs.rs/rust-bert/0.5.3/rust_bert/pipelines/index.html)
 //! ```no_run
 //! use tch::Device;
 //! use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
