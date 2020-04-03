@@ -69,7 +69,7 @@
 
 
 use tch::{Tensor, Device, nn, no_grad};
-use rust_tokenizers::{Tokenizer, OpenAiGptTokenizer, OpenAiGptVocab, Vocab, Gpt2Tokenizer, Gpt2Vocab};
+use rust_tokenizers::{Tokenizer, OpenAiGptTokenizer, OpenAiGptVocab, Vocab, Gpt2Tokenizer, Gpt2Vocab, RobertaTokenizer, RobertaVocab, TruncationStrategy};
 use std::path::Path;
 use tch::kind::Kind::Int64;
 use self::ordered_float::OrderedFloat;
@@ -78,6 +78,8 @@ use crate::openai_gpt::OpenAIGPTLMHeadModel;
 use crate::gpt2::{Gpt2Config, GPT2LMHeadModel};
 use crate::Config;
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
+use crate::bart::BartConfig;
+use crate::bart::bart::BartForConditionalGeneration;
 
 extern crate ordered_float;
 
@@ -312,105 +314,154 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
     fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
 
-    fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>, _attention_mask: Tensor) -> (Tensor, Option<Vec<Tensor>>) {
+    fn prepare_inputs_for_generation<'a>(&self,
+                                         input_ids: Tensor,
+                                         _encoder_outputs: Option<&'a Tensor>,
+                                         past: Option<Vec<Tensor>>,
+                                         _attention_mask: Tensor)
+                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
         if past.is_some() {
-            (input_ids.select(1, -1).unsqueeze(-1), past)
+            (Some(input_ids.select(1, -1).unsqueeze(-1)), None, None, past)
         } else {
-            (input_ids, past)
+            (Some(input_ids), None, None, past)
         }
     }
 }
 
-///// # Language generation model based on the Bart architecture
-//pub struct BartGenerator {
-//    model: BartForConditionalGeneration,
-//    tokenizer: RobertaTokenizer,
-//    var_store: nn::VarStore,
-//    generate_config: GenerateConfig,
-//    bos_token_id: Option<i64>,
-//    eos_token_ids: Option<Vec<i64>>,
-//    pad_token_id: Option<i64>,
-//    is_encoder_decoder: bool,
-//}
-//
-//impl BartGenerator {
-//    /// Build a new `BartGenerator`
-//    ///
-//    /// # Arguments
-//    ///
-//    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-//    /// * `merges_path` - Path to the bpe merges, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-//    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-//    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
-//    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
-//    ///
-//    /// # Example
-//    ///
-//    /// ```no_run
-//    ///# use std::path::PathBuf;
-//    ///# use tch::Device;
-//    ///# fn main() -> failure::Fallible<()> {
-//    /// use rust_bert::pipelines::generation::{GenerateConfig, OpenAIGenerator, BartGenerator};
-//    ///# let mut home: PathBuf = dirs::home_dir().unwrap();
-//    ///# home.push("rustbert");
-//    ///# home.push("openai-gpt");
-//    ///# let config_path = &home.as_path().join("config.json");
-//    ///# let vocab_path = &home.as_path().join("vocab.txt");
-//    ///# let merges_path = &home.as_path().join("merges.txt");
-//    ///# let weights_path = &home.as_path().join("model.ot");
-//    /// let device = Device::cuda_if_available();
-//    /// let generate_config = GenerateConfig {
-//    ///    max_length: 30,
-//    ///    do_sample: true,
-//    ///    num_beams: 5,
-//    ///    temperature: 1.1,
-//    ///    num_return_sequences: 3,
-//    ///    ..Default::default()
-//    /// };
-//    /// let bart_generator = BartGenerator::new(vocab_path, merges_path, config_path, weights_path,
-//    ///                                          generate_config, device)?;
-//    ///# Ok(())
-//    ///# }
-//    /// ```
-//    ///
-//    pub fn new(vocab_path: &Path, merges_path: &Path, config_path: &Path, weight_path: &Path,
-//               generate_config: GenerateConfig, device: Device)
-//               -> failure::Fallible<BartGenerator> {
-//        generate_config.validate();
-//        let mut var_store = nn::VarStore::new(device);
-//        let tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
-//        let config = BartConfig::from_file(config_path);
-//        let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
-//        var_store.load(weight_path)?;
-//
-//        let bos_token_id = Some(match config.bos_token_id {
-//            Some(value) => value,
-//            None => 0
-//        });
-//        let eos_token_ids = Some(match config.eos_token_id {
-//            Some(value) => vec!(value),
-//            None => vec!(2)
-//        });
-//        let pad_token_id = Some(match config.pad_token_id {
-//            Some(value) => value,
-//            None => 1
-//        });
-//        let is_encoder_decoder = true;
-//
-//        Ok(BartGenerator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id, is_encoder_decoder })
-//    }
-//}
-//
-//impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer> for BartGenerator {
-//    fn get_model(&self) -> &BartForConditionalGeneration { &self.model }
-//    fn get_tokenizer(&self) -> &RobertaTokenizer { &self.tokenizer }
-//    fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
-//    fn get_config(&self) -> &GenerateConfig { &self.generate_config }
-//    fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
-//    fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
-//    fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
-//    fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
-//}
+impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {}
+
+/// # Language generation model based on the Bart architecture
+pub struct BartGenerator {
+    model: BartForConditionalGeneration,
+    tokenizer: RobertaTokenizer,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+}
+
+impl BartGenerator {
+    /// Build a new `BartGenerator`
+    ///
+    /// # Arguments
+    ///
+    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `merges_path` - Path to the bpe merges, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
+    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use std::path::PathBuf;
+    ///# use tch::Device;
+    ///# fn main() -> failure::Fallible<()> {
+    /// use rust_bert::pipelines::generation::{GenerateConfig, OpenAIGenerator, BartGenerator};
+    ///# let mut home: PathBuf = dirs::home_dir().unwrap();
+    ///# home.push("rustbert");
+    ///# home.push("openai-gpt");
+    ///# let config_path = &home.as_path().join("config.json");
+    ///# let vocab_path = &home.as_path().join("vocab.txt");
+    ///# let merges_path = &home.as_path().join("merges.txt");
+    ///# let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::cuda_if_available();
+    /// let generate_config = GenerateConfig {
+    ///    max_length: 30,
+    ///    do_sample: true,
+    ///    num_beams: 5,
+    ///    temperature: 1.1,
+    ///    num_return_sequences: 3,
+    ///    ..Default::default()
+    /// };
+    /// let bart_generator = BartGenerator::new(vocab_path, merges_path, config_path, weights_path,
+    ///                                          generate_config, device)?;
+    ///# Ok(())
+    ///# }
+    /// ```
+    ///
+    pub fn new(vocab_path: &Path, merges_path: &Path, config_path: &Path, weight_path: &Path,
+               generate_config: GenerateConfig, device: Device)
+               -> failure::Fallible<BartGenerator> {
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
+        let config = BartConfig::from_file(config_path);
+        let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
+        var_store.load(weight_path)?;
+
+        let bos_token_id = Some(2);
+        let eos_token_ids = Some(match config.eos_token_id {
+            Some(value) => vec!(value),
+            None => vec!(2)
+        });
+        let pad_token_id = Some(match config.pad_token_id {
+            Some(value) => value,
+            None => 1
+        });
+        let is_encoder_decoder = true;
+
+        Ok(BartGenerator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id, is_encoder_decoder })
+    }
+}
+
+impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer> for BartGenerator {
+    fn get_model(&mut self) -> &mut BartForConditionalGeneration { &mut self.model }
+    fn get_tokenizer(&self) -> &RobertaTokenizer { &self.tokenizer }
+    fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
+    fn get_config(&self) -> &GenerateConfig { &self.generate_config }
+    fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
+    fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
+    fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
+    fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+        Some(self.get_model().encode(input_ids, attention_mask))
+    }
+
+    fn prepare_inputs_for_generation<'a>(&self,
+                                         input_ids: Tensor,
+                                         encoder_outputs: Option<&'a Tensor>,
+                                         _past: Option<Vec<Tensor>>,
+                                         _attention_mask: Tensor)
+                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
+        (None, encoder_outputs, Some(input_ids), None)
+    }
+
+    fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
+        let tokens = self.get_tokenizer().encode_list(prompt_text,
+                                                      max_len as usize,
+                                                      &TruncationStrategy::LongestFirst,
+                                                      0);
+        let token_ids = tokens
+            .into_iter()
+            .map(|tokenized_input| tokenized_input.token_ids)
+            .collect::<Vec<Vec<i64>>>();
+
+
+        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+
+        let pad_token = match pad_token_id {
+            Some(value) => value,
+            None => self.get_tokenizer().vocab().token_to_id(RobertaVocab::unknown_value())
+        };
+
+        let token_ids = token_ids
+            .into_iter()
+            .map(|input| {
+                let mut temp = vec![pad_token; max_len - input.len()];
+                temp.extend(input);
+                temp
+            })
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .collect::<Vec<Tensor>>();
+
+        Tensor::stack(&token_ids, 0)
+    }
+}
+
+impl LanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer> for BartGenerator {}
 
 mod private_generation_utils {
     use rust_tokenizers::{Vocab, Tokenizer, TruncationStrategy};
@@ -432,9 +483,15 @@ mod private_generation_utils {
         fn get_eos_ids(&self) -> &Option<Vec<i64>>;
         fn get_pad_id(&self) -> &Option<i64>;
         fn is_encoder_decoder(&self) -> bool;
+        fn encode(&mut self, _input_ids: &Tensor, _attention_mask: Option<&Tensor>) -> Option<Tensor> { None }
 
-        fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>, _attention_mask: Tensor) -> (Tensor, Option<Vec<Tensor>>) {
-            (input_ids, past)
+        fn prepare_inputs_for_generation<'a>(&self,
+                                             input_ids: Tensor,
+                                             _encoder_outputs: Option<&'a Tensor>,
+                                             past: Option<Vec<Tensor>>,
+                                             _attention_mask: Tensor)
+                                             -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
+            (Some(input_ids), None, None, past)
         }
 
         fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
@@ -567,7 +624,8 @@ mod private_generation_utils {
             }
         }
 
-        fn generate_no_beam_search(&mut self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool,
+        fn generate_no_beam_search(&mut self, input_ids: Tensor, encoder_outputs: Option<Tensor>,
+                                   cur_len: i64, min_length: i64, max_length: i64, do_sample: bool,
                                    temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
                                    pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
                                    batch_size: i64, attention_mask: Tensor) -> Tensor {
@@ -580,20 +638,25 @@ mod private_generation_utils {
             let mut current_length = cur_len;
 
             while current_length < max_length {
-                let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
-                let temp = self.get_model().forward_t(&Some(prepared_input),
+                let (prepared_input,
+                    prepared_encoder_output,
+                    prepared_decoder_input,
+                    prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(),
+                                                                        encoder_outputs.as_ref(),
+                                                                        past,
+                                                                        attention_mask.copy());
+                let temp = self.get_model().forward_t(&prepared_input,
                                                       &prepared_past,
                                                       &None,
                                                       &None,
                                                       &None,
                                                       &None,
-                                                      &None,
-                                                      &None,
+                                                      prepared_encoder_output,
+                                                      &prepared_decoder_input,
                                                       false).unwrap();
                 outputs = temp.0;
                 past = temp.2;
                 let mut next_token_logits = outputs.select(1, -1);
-
 //            Reduce probability for repeated inputs
                 if repetition_penalty > 1f64 {
                     self.enforce_repetition_penalty(&mut next_token_logits, batch_size, 1, &input_ids, repetition_penalty)
@@ -629,7 +692,6 @@ mod private_generation_utils {
                 };
 
                 input_ids = Tensor::cat(&[input_ids, tokens_to_add.unsqueeze(-1)], -1);
-
                 if eos_token_ids.is_some() {
                     for eos_token_id in eos_token_ids.as_ref().unwrap() {
                         let sentence_with_eos = tokens_to_add.eq(*eos_token_id).to_kind(Int64);
@@ -668,7 +730,8 @@ mod private_generation_utils {
             decoded
         }
 
-        fn generate_beam_search(&mut self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool, early_stopping: bool,
+        fn generate_beam_search(&mut self, input_ids: Tensor, encoder_outputs: Option<Tensor>,
+                                cur_len: i64, min_length: i64, max_length: i64, do_sample: bool, early_stopping: bool,
                                 temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
                                 pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
                                 batch_size: i64, num_return_sequences: i64, length_penalty: f64, num_beams: i64, attention_mask: Tensor) -> Tensor {
@@ -694,15 +757,21 @@ mod private_generation_utils {
             let mut current_length = cur_len;
 
             while current_length < max_length {
-                let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
-                let temp = self.get_model().forward_t(&Some(prepared_input),
+                let (prepared_input,
+                    prepared_encoder_output,
+                    prepared_decoder_input,
+                    prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(),
+                                                                        encoder_outputs.as_ref(),
+                                                                        past,
+                                                                        attention_mask.copy());
+                let temp = self.get_model().forward_t(&prepared_input,
                                                       &prepared_past,
                                                       &None,
                                                       &None,
                                                       &None,
                                                       &None,
-                                                      &None,
-                                                      &None,
+                                                      prepared_encoder_output,
+                                                      &prepared_decoder_input,
                                                       false).unwrap();
                 outputs = temp.0;
                 past = temp.2;
@@ -899,8 +968,6 @@ mod private_generation_utils {
     }
 }
 
-impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {}
-
 /// # Common trait for text generation models.
 /// Main API for text generation
 pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateLanguageGenerator<T, V, U> {
@@ -969,6 +1036,11 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
         let num_beams = config.num_beams;
         let min_length = config.min_length;
         let max_length = config.max_length;
+        let encoding_max_len = if self.is_encoder_decoder() {
+            1024u64
+        } else {
+            max_length
+        };
         let early_stopping = config.early_stopping;
         let temperature = config.temperature;
         let top_k = config.top_k;
@@ -987,14 +1059,14 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
         };
 
         let input_ids = match prompt_texts {
-            Some(text) => self.encode_prompt_text(text, max_length, pad_token_id),
+            Some(text) => self.encode_prompt_text(text, encoding_max_len, pad_token_id),
             None => match self.get_bos_id() {
                 Some(bos_id) => Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id,
                 None => panic!("A model with a BOS token must be used to start generation with an empty input")
             }
         };
 
-        let cur_len = *input_ids.size().last().unwrap();
+        let cur_len = if !self.is_encoder_decoder() { *input_ids.size().last().unwrap() } else { 1 };
         let batch_size = *input_ids.size().first().unwrap();
 
         let (effective_batch_size, effective_batch_mult) = match do_sample {
@@ -1006,34 +1078,52 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
             Some(value) => value,
             None => {
                 match self.get_pad_id() {
-                    Some(pad_id) => input_ids.ne(*pad_id),
+                    Some(pad_id) => input_ids.ne(*pad_id).to_kind(Int64),
                     None => input_ids.ones_like()
                 }
             }
         };
 
-        let (input_ids, attention_mask) = if (num_return_sequences > 1) | (num_beams > 1) {
-            (input_ids
-                 .unsqueeze(1)
-                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
-                 .contiguous()
-                 .view((effective_batch_size * num_beams as i64, cur_len)),
-             attention_mask
-                 .unsqueeze(1)
-                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
-                 .contiguous()
-                 .view((effective_batch_size * num_beams as i64, cur_len))
-            )
+        let encoder_outputs = if self.is_encoder_decoder() {
+            let encoder_outputs = self.encode(&input_ids, Some(&attention_mask)).unwrap();
+            let expanded_batch_indices = Tensor::arange(batch_size, (Int64, input_ids.device()))
+                .view((-1, 1))
+                .repeat(&[1, num_beams as i64 * effective_batch_mult])
+                .view(-1);
+            Some(encoder_outputs.index_select(0, &expanded_batch_indices))
         } else {
+            None
+        };
+
+        let (input_ids, attention_mask) = if !self.is_encoder_decoder() {
+            if (num_return_sequences > 1) | (num_beams > 1) {
+                (input_ids
+                     .unsqueeze(1)
+                     .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
+                     .contiguous()
+                     .view((effective_batch_size * num_beams as i64, cur_len)),
+                 attention_mask
+                     .unsqueeze(1)
+                     .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
+                     .contiguous()
+                     .view((effective_batch_size * num_beams as i64, cur_len))
+                )
+            } else {
+                (input_ids, attention_mask)
+            }
+        } else {
+            let decoder_start_token_id = self.get_bos_id().expect("BOS token id must be specified for encoder decoders");
+            let input_ids = Tensor::full(&[effective_batch_size * num_beams as i64, 1], decoder_start_token_id, (Int64, input_ids.device()));
             (input_ids, attention_mask)
         };
 
+
         let decoded = no_grad(|| {
             if num_beams > 1 {
-                self.generate_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
+                self.generate_beam_search(input_ids, encoder_outputs, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
                                           no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, num_return_sequences as i64, length_penalty, num_beams as i64, attention_mask)
             } else {
-                self.generate_no_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, temperature, top_k as i64, top_p, repetition_penalty,
+                self.generate_no_beam_search(input_ids, encoder_outputs, cur_len, min_length as i64, max_length as i64, do_sample, temperature, top_k as i64, top_p, repetition_penalty,
                                              no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, attention_mask)
             }
         });
@@ -1176,7 +1266,7 @@ pub trait LMHeadModel {
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),
     ///                    &None,
-    ///                    &None,
+    ///                    None,
     ///                    &None,
     ///                    false).unwrap()
     ///    });
@@ -1190,7 +1280,7 @@ pub trait LMHeadModel {
                  token_type_ids: &Option<Tensor>,
                  position_ids: &Option<Tensor>,
                  input_embeds: &Option<Tensor>,
-                 encoder_outputs: &Option<Tensor>,
+                 encoder_outputs: Option<&Tensor>,
                  decoder_input_ids: &Option<Tensor>,
                  train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str>;
 }

@@ -306,7 +306,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
                  token_type_ids: &Option<Tensor>,
                  position_ids: &Option<Tensor>,
                  input_embeds: &Option<Tensor>,
-                 _encoder_outputs: &Option<Tensor>,
+                 _encoder_outputs: Option<&Tensor>,
                  _decoder_input_ids: &Option<Tensor>,
                  train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (output,

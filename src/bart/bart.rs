@@ -235,6 +235,11 @@ impl BartForConditionalGeneration {
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
     }
+
+    pub fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
+        let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, false);
+        encoder_hidden_states
+    }
 }
 
 pub struct BartClassificationHead {
@@ -308,7 +313,7 @@ impl BartForSequenceClassification {
     }
 }
 
-impl LMHeadModel for &mut BartForConditionalGeneration {
+impl LMHeadModel for BartForConditionalGeneration {
     fn forward_t(&mut self,
                  input_ids: &Option<Tensor>,
                  _layer_past: &Option<Vec<Tensor>>,
@@ -316,7 +321,7 @@ impl LMHeadModel for &mut BartForConditionalGeneration {
                  _token_type_ids: &Option<Tensor>,
                  _position_ids: &Option<Tensor>,
                  _input_embeds: &Option<Tensor>,
-                 encoder_outputs: &Option<Tensor>,
+                 encoder_outputs: Option<&Tensor>,
                  decoder_input_ids: &Option<Tensor>,
                  train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (decoder_output, encoder_hidden_states, _, _, _, _, _) = self.base_model.forward_t(input_ids.as_ref(),

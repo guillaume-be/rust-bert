@@ -72,7 +72,7 @@ fn main() -> failure::Fallible<()> {
         &None,
         &None,
         &None,
-        &None,
+        None,
         &None,
         false).unwrap();
 

@@ -48,7 +48,7 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
         &None,
         &None,
         &None,
-        &None,
+        None,
         &None,
         false).unwrap();
 

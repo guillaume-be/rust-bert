@@ -18,7 +18,7 @@ use crate::bart::BartConfig;
 use crate::bart::bart::Activation;
 use crate::common::activations::{_gelu, _relu, _swish, _gelu_new, _tanh};
 use crate::bart::embeddings::PositionalEmbedding;
-use tch::kind::Kind::Int64;
+use tch::kind::Kind::Bool;
 use std::borrow::BorrowMut;
 
 pub struct EncoderLayer {
@@ -143,12 +143,12 @@ impl BartEncoder {
     }
 
     pub fn forward_t(&mut self,
-                   input_ids: &Tensor,
-                   attention_mask: Option<&Tensor>,
-                   train: bool)
-                   -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+                     input_ids: &Tensor,
+                     attention_mask: Option<&Tensor>,
+                     train: bool)
+                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let attention_mask = match attention_mask {
-            Some(mask) => Some(mask.eq(0).to_kind(Int64)),
+            Some(mask) => Some(mask.eq(0).to_kind(Bool)),
             None => None
         };
 
