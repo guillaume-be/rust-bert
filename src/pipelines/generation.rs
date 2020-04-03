@@ -43,7 +43,7 @@
 //!    num_return_sequences: 3,
 //!    ..Default::default()
 //! };
-//! let gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+//! let mut gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
 //!                                         generate_config, device)?;
 //!
 //! let input_context = "The dog";
@@ -75,7 +75,7 @@ use tch::kind::Kind::Int64;
 use self::ordered_float::OrderedFloat;
 use itertools::Itertools;
 use crate::openai_gpt::OpenAIGPTLMHeadModel;
-use crate::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
+use crate::gpt2::{Gpt2Config, GPT2LMHeadModel};
 use crate::Config;
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
 
@@ -156,6 +156,7 @@ pub struct OpenAIGenerator {
     bos_token_id: Option<i64>,
     eos_token_ids: Option<Vec<i64>>,
     pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
 }
 
 impl OpenAIGenerator {
@@ -211,19 +212,21 @@ impl OpenAIGenerator {
         let bos_token_id = None;
         let eos_token_ids = None;
         let pad_token_id = None;
+        let is_encoder_decoder = false;
 
-        Ok(OpenAIGenerator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id })
+        Ok(OpenAIGenerator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id, is_encoder_decoder })
     }
 }
 
 impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer> for OpenAIGenerator {
-    fn get_model(&self) -> &OpenAIGPTLMHeadModel { &self.model }
+    fn get_model(&mut self) -> &mut OpenAIGPTLMHeadModel { &mut self.model }
     fn get_tokenizer(&self) -> &OpenAiGptTokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
     fn get_config(&self) -> &GenerateConfig { &self.generate_config }
     fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
     fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
     fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
+    fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
 }
 
 impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer> for OpenAIGenerator {}
@@ -237,6 +240,7 @@ pub struct GPT2Generator {
     bos_token_id: Option<i64>,
     eos_token_ids: Option<Vec<i64>>,
     pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
 }
 
 impl GPT2Generator {
@@ -292,19 +296,21 @@ impl GPT2Generator {
         let bos_token_id = Some(tokenizer.vocab().token_to_id(Gpt2Vocab::bos_value()));
         let eos_token_ids = Some(vec!(tokenizer.vocab().token_to_id(Gpt2Vocab::eos_value())));
         let pad_token_id = None;
+        let is_encoder_decoder = false;
 
-        Ok(GPT2Generator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id })
+        Ok(GPT2Generator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id, is_encoder_decoder })
     }
 }
 
 impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {
-    fn get_model(&self) -> &GPT2LMHeadModel { &self.model }
+    fn get_model(&mut self) -> &mut GPT2LMHeadModel { &mut self.model }
     fn get_tokenizer(&self) -> &Gpt2Tokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
     fn get_config(&self) -> &GenerateConfig { &self.generate_config }
     fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
     fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
     fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
+    fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
 
     fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>, _attention_mask: Tensor) -> (Tensor, Option<Vec<Tensor>>) {
         if past.is_some() {
@@ -315,26 +321,117 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     }
 }
 
+///// # Language generation model based on the Bart architecture
+//pub struct BartGenerator {
+//    model: BartForConditionalGeneration,
+//    tokenizer: RobertaTokenizer,
+//    var_store: nn::VarStore,
+//    generate_config: GenerateConfig,
+//    bos_token_id: Option<i64>,
+//    eos_token_ids: Option<Vec<i64>>,
+//    pad_token_id: Option<i64>,
+//    is_encoder_decoder: bool,
+//}
+//
+//impl BartGenerator {
+//    /// Build a new `BartGenerator`
+//    ///
+//    /// # Arguments
+//    ///
+//    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+//    /// * `merges_path` - Path to the bpe merges, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+//    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+//    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
+//    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+//    ///
+//    /// # Example
+//    ///
+//    /// ```no_run
+//    ///# use std::path::PathBuf;
+//    ///# use tch::Device;
+//    ///# fn main() -> failure::Fallible<()> {
+//    /// use rust_bert::pipelines::generation::{GenerateConfig, OpenAIGenerator, BartGenerator};
+//    ///# let mut home: PathBuf = dirs::home_dir().unwrap();
+//    ///# home.push("rustbert");
+//    ///# home.push("openai-gpt");
+//    ///# let config_path = &home.as_path().join("config.json");
+//    ///# let vocab_path = &home.as_path().join("vocab.txt");
+//    ///# let merges_path = &home.as_path().join("merges.txt");
+//    ///# let weights_path = &home.as_path().join("model.ot");
+//    /// let device = Device::cuda_if_available();
+//    /// let generate_config = GenerateConfig {
+//    ///    max_length: 30,
+//    ///    do_sample: true,
+//    ///    num_beams: 5,
+//    ///    temperature: 1.1,
+//    ///    num_return_sequences: 3,
+//    ///    ..Default::default()
+//    /// };
+//    /// let bart_generator = BartGenerator::new(vocab_path, merges_path, config_path, weights_path,
+//    ///                                          generate_config, device)?;
+//    ///# Ok(())
+//    ///# }
+//    /// ```
+//    ///
+//    pub fn new(vocab_path: &Path, merges_path: &Path, config_path: &Path, weight_path: &Path,
+//               generate_config: GenerateConfig, device: Device)
+//               -> failure::Fallible<BartGenerator> {
+//        generate_config.validate();
+//        let mut var_store = nn::VarStore::new(device);
+//        let tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
+//        let config = BartConfig::from_file(config_path);
+//        let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
+//        var_store.load(weight_path)?;
+//
+//        let bos_token_id = Some(match config.bos_token_id {
+//            Some(value) => value,
+//            None => 0
+//        });
+//        let eos_token_ids = Some(match config.eos_token_id {
+//            Some(value) => vec!(value),
+//            None => vec!(2)
+//        });
+//        let pad_token_id = Some(match config.pad_token_id {
+//            Some(value) => value,
+//            None => 1
+//        });
+//        let is_encoder_decoder = true;
+//
+//        Ok(BartGenerator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id, is_encoder_decoder })
+//    }
+//}
+//
+//impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer> for BartGenerator {
+//    fn get_model(&self) -> &BartForConditionalGeneration { &self.model }
+//    fn get_tokenizer(&self) -> &RobertaTokenizer { &self.tokenizer }
+//    fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
+//    fn get_config(&self) -> &GenerateConfig { &self.generate_config }
+//    fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
+//    fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
+//    fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
+//    fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
+//}
+
 mod private_generation_utils {
-    use crate::gpt2::LMHeadModel;
     use rust_tokenizers::{Vocab, Tokenizer, TruncationStrategy};
     use tch::{nn, Tensor};
     use rust_tokenizers::preprocessing::tokenizer::tokenization_utils::truncate_sequences;
     use std::collections::HashMap;
     use tch::kind::Kind::{Int64, Float, Bool};
     use std::cmp::{min, max};
-    use crate::pipelines::generation::{BeamHypotheses, GenerateConfig};
+    use crate::pipelines::generation::{BeamHypotheses, GenerateConfig, LMHeadModel};
     use itertools::Itertools;
     use super::ordered_float::OrderedFloat;
 
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
-        fn get_model(&self) -> &T;
+        fn get_model(&mut self) -> &mut T;
         fn get_tokenizer(&self) -> &U;
         fn get_var_store(&self) -> &nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
         fn get_bos_id(&self) -> &Option<i64>;
         fn get_eos_ids(&self) -> &Option<Vec<i64>>;
         fn get_pad_id(&self) -> &Option<i64>;
+        fn is_encoder_decoder(&self) -> bool;
 
         fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>, _attention_mask: Tensor) -> (Tensor, Option<Vec<Tensor>>) {
             (input_ids, past)
@@ -470,7 +567,7 @@ mod private_generation_utils {
             }
         }
 
-        fn generate_no_beam_search(&self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool,
+        fn generate_no_beam_search(&mut self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool,
                                    temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
                                    pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
                                    batch_size: i64, attention_mask: Tensor) -> Tensor {
@@ -484,9 +581,17 @@ mod private_generation_utils {
 
             while current_length < max_length {
                 let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
-                let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
+                let temp = self.get_model().forward_t(&Some(prepared_input),
+                                                      &prepared_past,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      false).unwrap();
                 outputs = temp.0;
-                past = temp.1;
+                past = temp.2;
                 let mut next_token_logits = outputs.select(1, -1);
 
 //            Reduce probability for repeated inputs
@@ -563,7 +668,7 @@ mod private_generation_utils {
             decoded
         }
 
-        fn generate_beam_search(&self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool, early_stopping: bool,
+        fn generate_beam_search(&mut self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool, early_stopping: bool,
                                 temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
                                 pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
                                 batch_size: i64, num_return_sequences: i64, length_penalty: f64, num_beams: i64, attention_mask: Tensor) -> Tensor {
@@ -590,9 +695,17 @@ mod private_generation_utils {
 
             while current_length < max_length {
                 let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
-                let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
+                let temp = self.get_model().forward_t(&Some(prepared_input),
+                                                      &prepared_past,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      false).unwrap();
                 outputs = temp.0;
-                past = temp.1;
+                past = temp.2;
                 let mut next_token_logits = outputs.select(1, -1);
 
 //            Reduce probability for repeated inputs
@@ -791,7 +904,6 @@ impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Genera
 /// # Common trait for text generation models.
 /// Main API for text generation
 pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateLanguageGenerator<T, V, U> {
-
     /// Generate text based on a vector of promp texts.
     ///
     /// # Arguments
@@ -825,7 +937,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
     ///    num_return_sequences: 3,
     ///    ..Default::default()
     /// };
-    /// let gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+    /// let mut gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
     ///                                         generate_config, device)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
@@ -847,7 +959,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
     ///# ;
     ///```
     ///
-    fn generate(&self, prompt_texts: Option<Vec<&str>>, attention_mask: Option<Tensor>)
+    fn generate(&mut self, prompt_texts: Option<Vec<&str>>, attention_mask: Option<Tensor>)
                 -> Vec<String> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
@@ -1007,4 +1119,78 @@ impl BeamHypotheses {
             self.worst_score >= best_sum_log_probabilities / (current_length as f64).powf(self.length_penalty)
         }
     }
+}
+
+/// # Language Model trait
+/// Shared trait between language generation models (e.g. GPT2, GPT, BART) used in language generation pipelines.
+pub trait LMHeadModel {
+    /// Forward pass through the model. Example provided for GPT2.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `layer_past` - Optional vector of size *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*). When provided, these are concatenated with the current input keys and values.
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    /// * `past` - `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
+    /// use rust_bert::pipelines::generation::LMHeadModel;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = Gpt2Config::from_file(config_path);
+    ///# let mut gpt2_model: GPT2LMHeadModel = GPT2LMHeadModel::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
+    ///  for _ in 0..config.n_layer as usize {
+    ///    past.push(Tensor::rand(&[2, batch_size, config.n_head, past_sequence_length, config.n_embd / config.n_head], (Double, device)))
+    /// }
+    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, encoder_output, past, hidden_states, attentions) = no_grad(|| {
+    ///    gpt2_model
+    ///         .forward_t(&Some(input_tensor),
+    ///                    &Some(past),
+    ///                    &Some(attention_mask),
+    ///                    &Some(token_type_ids),
+    ///                    &Some(position_ids),
+    ///                    &None,
+    ///                    &None,
+    ///                    &None,
+    ///                    false).unwrap()
+    ///    });
+    ///
+    /// ```
+    ///
+    fn forward_t(&mut self,
+                 input_ids: &Option<Tensor>,
+                 layer_past: &Option<Vec<Tensor>>,
+                 attention_mask: &Option<Tensor>,
+                 token_type_ids: &Option<Tensor>,
+                 position_ids: &Option<Tensor>,
+                 input_embeds: &Option<Tensor>,
+                 encoder_outputs: &Option<Tensor>,
+                 decoder_input_ids: &Option<Tensor>,
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str>;
 }

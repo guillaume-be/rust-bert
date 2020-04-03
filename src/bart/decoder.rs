@@ -221,7 +221,7 @@ impl BartDecoder {
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
         let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
         let mut next_decoder_cache: Option<Vec<(&LayerState, &LayerState)>> = if self.output_past { Some(vec!()) } else { None };
-
+        let encoder_hidden_states = encoder_hidden_states.transpose(0, 1);
         let mut hidden_state = x.copy();
         let mut attention_weights: Option<Tensor>;
         let mut layers = self.layers.iter_mut();
@@ -230,7 +230,7 @@ impl BartDecoder {
             match layers.next() {
                 Some(layer) => {
                     let temp = layer.forward_t(&hidden_state,
-                                               encoder_hidden_states,
+                                               &encoder_hidden_states,
                                                encoder_padding_mask.as_ref(),
                                                decoder_causal_mask,
                                                decoder_padding_mask,

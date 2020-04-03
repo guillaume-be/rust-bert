@@ -46,7 +46,7 @@ fn main() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
                                    generate_config, device)?;
 
     let input_context = "The dog";

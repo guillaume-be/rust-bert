@@ -65,7 +65,7 @@
 //!# let merges_path = &home.as_path().join("merges.txt");
 //!# let weights_path = &home.as_path().join("model.ot");
 //! let device = Device::cuda_if_available();
-//! let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, Default::default(), device)?;
+//! let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, Default::default(), device)?;
 //! let input_context_1 = "The dog";
 //! let input_context_2 = "The cat was";
 //! let output = model.generate(Some(vec!(input_context_1, input_context_2)), None);

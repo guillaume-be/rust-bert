@@ -80,9 +80,9 @@ If convicted, Barrientos faces up to four years in prison.  Her next court appea
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (decoder_output, _, _, encoder_output, _, _) = no_grad(|| {
+    let (decoder_output, encoder_output, _, _, _, _) = no_grad(|| {
         bart_model
-            .forward_t(&input_tensor,
+            .forward_t(Some(&input_tensor),
                        None,
                        None,
                        None,
@@ -93,6 +93,5 @@ If convicted, Barrientos faces up to four years in prison.  Her next court appea
 //    Print masked tokens
     println!("{:?}", encoder_output);
     println!("{:?}", decoder_output);
-
     Ok(())
 }

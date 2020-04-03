@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
 use rust_bert::Config;
-use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig};
-use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
+use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig, LMHeadModel};
+use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
 
 #[test]
 fn gpt2_lm_model() -> failure::Fallible<()> {
@@ -21,7 +21,7 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = Gpt2Config::from_file(config_path);
-    let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
+    let mut gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -41,8 +41,10 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output, past, _, _) = gpt2_model.forward_t(
+    let (output, _, past, _, _) = gpt2_model.forward_t(
         &Some(input_tensor),
+        &None,
+        &None,
         &None,
         &None,
         &None,
@@ -86,7 +88,7 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
         repetition_penalty: 1.1,
         ..Default::default()
     };
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
                                    generate_config, device)?;
 
     let input_context = "The cat";
@@ -119,7 +121,7 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
                                    generate_config, device)?;
 
     let input_context = "The dog";
@@ -156,7 +158,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fa
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
                                    generate_config, device)?;
 
     let input_context_1 = "The dog";
@@ -195,7 +197,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
                                    generate_config, device)?;
 
     let input_context_1 = "The dog";

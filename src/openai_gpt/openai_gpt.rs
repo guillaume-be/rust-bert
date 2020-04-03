@@ -20,7 +20,8 @@ use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::openai_gpt::transformer::Block;
-use crate::gpt2::{Gpt2Config, LMHeadModel};
+use crate::gpt2::Gpt2Config;
+use crate::pipelines::generation::LMHeadModel;
 
 /// # GPT Base model
 /// Base architecture for GPT model. Usually complemented with a task-specific head, such as a language model head. As opposed to GPT2, GPT does not give the possibility to re-use past activations as an input.
@@ -298,14 +299,16 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///
     /// ```
     ///
-    fn forward_t(&self,
+    fn forward_t(&mut self,
                  input_ids: &Option<Tensor>,
                  _layer_past: &Option<Vec<Tensor>>,
                  attention_mask: &Option<Tensor>,
                  token_type_ids: &Option<Tensor>,
                  position_ids: &Option<Tensor>,
                  input_embeds: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+                 _encoder_outputs: &Option<Tensor>,
+                 _decoder_input_ids: &Option<Tensor>,
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (output,
             all_hidden_states,
             all_attentions) = self.transformer.forward_t(input_ids,
@@ -316,6 +319,6 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
                                                          train)?;
 
         let lm_logits = output.apply(&self.lm_head);
-        Ok((lm_logits, None, all_hidden_states, all_attentions))
+        Ok((lm_logits, None, None, all_hidden_states, all_attentions))
     }
 }

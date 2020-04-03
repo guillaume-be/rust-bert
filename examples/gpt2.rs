@@ -18,7 +18,8 @@ use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, Gpt2Tokenizer};
 use failure::err_msg;
 use rust_bert::Config;
-use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
+use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
+use rust_bert::pipelines::generation::LMHeadModel;
 
 
 fn main() -> failure::Fallible<()> {
@@ -43,7 +44,7 @@ fn main() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = Gpt2Config::from_file(config_path);
-    let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
+    let mut gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -63,8 +64,10 @@ fn main() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output, _, _, _) = gpt2_model.forward_t(
+    let (output, _, _, _, _) = gpt2_model.forward_t(
         &Some(input_tensor),
+        &None,
+        &None,
         &None,
         &None,
         &None,

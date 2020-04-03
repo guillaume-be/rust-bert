@@ -187,6 +187,6 @@ impl BartEncoder {
             hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
         };
 
-        (hidden_state, all_hidden_states, all_attentions)
+        (hidden_state.transpose(0, 1), all_hidden_states, all_attentions)
     }
 }
