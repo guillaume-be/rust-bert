@@ -93,7 +93,7 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
     let output = model.generate(Some(vec!(input_context)), None);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], "it was an intense machine dialogue. \n \" i 'm sorry, \" i said. \" i 'm not sure what you're talking about. \" \n \" you're not a vampire, \" he said");
+    assert_eq!(output[0], "it was an intense machine dialogue. \n \" i \'m sorry, but we have to go now! the police are on their way and they\'re going after you - or at least that\'s what my");
 
     Ok(())
 }

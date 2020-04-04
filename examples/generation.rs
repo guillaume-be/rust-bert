@@ -39,7 +39,7 @@ fn main() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
-        max_length: 30,
+        max_length: 20,
         do_sample: true,
         num_beams: 5,
         temperature: 1.1,
