@@ -332,7 +332,6 @@ impl LMHeadModel for BartForConditionalGeneration {
                                                                                                train);
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.encoder.embed_tokens.ws, None);
-
-        Ok((lm_logits, Some(encoder_hidden_states), None, None, None))
+         Ok((lm_logits, Some(encoder_hidden_states), None, None, None))
     }
 }

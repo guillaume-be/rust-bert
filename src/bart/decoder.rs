@@ -203,21 +203,20 @@ impl BartDecoder {
         };
 
         let positions = self.embed_positions.forward(input_ids, self.generation_mode);
-
         let (input_ids, positions) = if self.generation_mode {
-            let end = input_ids.size()[1];
-            (input_ids.slice(1, end - 1, end, 1), positions.slice(1, end - 1, end, 1))
+            let end_inputs = input_ids.size()[1];
+            let end_positions = positions.size()[1];
+            (input_ids.slice(1, end_inputs - 1, end_inputs, 1),
+             positions.slice(1, end_positions - 1, end_positions, 1))
         } else {
             (input_ids.copy(), positions)
         };
-
         let x: Tensor = input_ids.as_ref().apply(&self.embed_tokens) + positions;
 
         let x = x
             .apply(&self.layer_norm_embedding)
             .apply_t(&self.dropout, train)
             .transpose(0, 1);
-
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
         let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
         let mut next_decoder_cache: Option<Vec<(&LayerState, &LayerState)>> = if self.output_past { Some(vec!()) } else { None };

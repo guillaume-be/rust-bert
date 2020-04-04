@@ -359,7 +359,7 @@ impl BartGenerator {
     ///# use std::path::PathBuf;
     ///# use tch::Device;
     ///# fn main() -> failure::Fallible<()> {
-    /// use rust_bert::pipelines::generation::{GenerateConfig, OpenAIGenerator, BartGenerator};
+    /// use rust_bert::pipelines::generation::{GenerateConfig, BartGenerator};
     ///# let mut home: PathBuf = dirs::home_dir().unwrap();
     ///# home.push("rustbert");
     ///# home.push("openai-gpt");
@@ -665,7 +665,7 @@ mod private_generation_utils {
 
 //            Do not allow eos token if min length is not reached
                 if (&eos_token_ids.is_some()) & (current_length < min_length) {
-                    &next_token_logits.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()), std::f64::NEG_INFINITY);
+                    &next_token_logits.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()).to(next_token_logits.device()), std::f64::NEG_INFINITY);
                 }
 
 //            Top-k and top-p sampling
@@ -783,7 +783,7 @@ mod private_generation_utils {
                 let mut scores = next_token_logits.log_softmax(-1, Float);
 //            Do not allow eos token if min length is not reached
                 if (&eos_token_ids.is_some()) & (current_length < min_length) {
-                    &scores.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()), std::f64::NEG_INFINITY);
+                    &scores.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()).to(scores.device()), std::f64::NEG_INFINITY);
                 }
 //            Get banned tokens and set their probability to 0
                 let banned_tokens = self.get_banned_tokens(&input_ids, no_repeat_ngram_size as i64, current_length as i64);
