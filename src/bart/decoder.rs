@@ -96,6 +96,9 @@ impl DecoderLayer {
         }
     }
 
+    pub fn get_self_attention(&mut self) -> &mut SelfAttention { &mut self.self_attention }
+    pub fn get_encoder_attention(&mut self) -> &mut SelfAttention { &mut self.encoder_attention }
+
     pub fn forward_t(&mut self,
                      x: &Tensor,
                      encoder_hidden_states: &Tensor,
@@ -186,17 +189,19 @@ impl BartDecoder {
         }
     }
 
+    pub fn get_layers(&mut self) -> &mut Vec<DecoderLayer> { &mut self.layers }
+
     pub fn forward_t(&mut self,
-                   input_ids: &Tensor,
-                   encoder_hidden_states: &Tensor,
-                   encoder_padding_mask: Option<&Tensor>,
-                   decoder_padding_mask: Option<&Tensor>,
-                   decoder_causal_mask: Option<&Tensor>,
-                   train: bool)
-                   -> (Tensor,
-                       (Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>),
-                       Option<Vec<Tensor>>,
-                       Option<Vec<Tensor>>) {
+                     input_ids: &Tensor,
+                     encoder_hidden_states: &Tensor,
+                     encoder_padding_mask: Option<&Tensor>,
+                     decoder_padding_mask: Option<&Tensor>,
+                     decoder_causal_mask: Option<&Tensor>,
+                     train: bool)
+                     -> (Tensor,
+                         (Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>),
+                         Option<Vec<Tensor>>,
+                         Option<Vec<Tensor>>) {
         let encoder_padding_mask = match encoder_padding_mask {
             Some(mask) => Some(mask.eq(0).to_kind(Int64)),
             None => None

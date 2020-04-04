@@ -162,6 +162,8 @@ impl BartModel {
         BartModel { encoder, decoder, generation_mode, pad_token_id }
     }
 
+    pub fn get_decoder(&mut self) -> &mut BartDecoder { &mut self.decoder }
+
     pub fn forward_t(&mut self,
                      input_ids: Option<&Tensor>,
                      attention_mask: Option<&Tensor>,
@@ -235,6 +237,8 @@ impl BartForConditionalGeneration {
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
     }
+
+    pub fn get_base_model(&mut self) -> &mut BartModel { &mut self.base_model }
 
     pub fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
         let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, false);
@@ -332,6 +336,6 @@ impl LMHeadModel for BartForConditionalGeneration {
                                                                                                train);
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.encoder.embed_tokens.ws, None);
-         Ok((lm_logits, Some(encoder_hidden_states), None, None, None))
+        Ok((lm_logits, Some(encoder_hidden_states), None, None, None))
     }
 }

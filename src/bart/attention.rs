@@ -17,9 +17,23 @@ use tch::kind::Kind::Float;
 
 #[derive(Debug)]
 pub struct LayerState {
-    prev_key: Option<Tensor>,
-    prev_value: Option<Tensor>,
-    prev_key_padding_mask: Option<Tensor>,
+    pub prev_key: Option<Tensor>,
+    pub prev_value: Option<Tensor>,
+    pub prev_key_padding_mask: Option<Tensor>,
+}
+
+impl LayerState {
+    pub fn reorder_cache(&mut self, new_indices: &Tensor) {
+        if self.prev_key.is_some() {
+            self.prev_key = Some(self.prev_key.as_ref().unwrap().index_select(0, new_indices));
+        }
+        if self.prev_value.is_some() {
+            self.prev_value = Some(self.prev_value.as_ref().unwrap().index_select(0, new_indices));
+        }
+        if self.prev_key_padding_mask.is_some() {
+            self.prev_key_padding_mask = Some(self.prev_key_padding_mask.as_ref().unwrap().index_select(0, new_indices));
+        }
+    }
 }
 
 
@@ -112,8 +126,8 @@ impl SelfAttention {
 
         self.prev_state = match &self.prev_state {
             Some(_) => Some(LayerState {
-                prev_key: Some(k.copy()),
-                prev_value: Some(v.copy()),
+                prev_key: Some(k.copy().view((bs, self.num_heads, -1, self.head_dim))),
+                prev_value: Some(v.copy().view((bs, self.num_heads, -1, self.head_dim))),
                 prev_key_padding_mask: match key_padding_mask.as_ref() {
                     Some(tensor) => Some(tensor.copy()),
                     None => None

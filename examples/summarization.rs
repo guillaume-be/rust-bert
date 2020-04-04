@@ -40,12 +40,12 @@ fn main() -> failure::Fallible<()> {
     let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
         max_length: 142,
-        do_sample: true,
+        do_sample: false,
         num_beams: 3,
         temperature: 1.0,
         top_k: 50,
         top_p: 1.0,
-        length_penalty: 2.0,
+        length_penalty: 1.0,
         min_length: 56,
         num_return_sequences: 1,
         ..Default::default()
