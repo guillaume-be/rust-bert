@@ -39,14 +39,14 @@ fn main() -> failure::Fallible<()> {
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
-        max_length: 30,
+        max_length: 20,
         do_sample: true,
         num_beams: 5,
         temperature: 1.1,
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
                                    generate_config, device)?;
 
     let input_context = "The dog";

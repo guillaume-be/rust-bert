@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
 use rust_bert::Config;
-use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator, GenerateConfig};
-use rust_bert::gpt2::{Gpt2Config, LMHeadModel};
+use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator, GenerateConfig, LMHeadModel};
+use rust_bert::gpt2::Gpt2Config;
 use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
 
 #[test]
@@ -22,7 +22,7 @@ fn openai_gpt_lm_model() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer = OpenAiGptTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let config = Gpt2Config::from_file(config_path);
-    let openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
+    let mut openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -42,12 +42,14 @@ fn openai_gpt_lm_model() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output, _, _, _) = openai_gpt.forward_t(
+    let (output,_,  _, _, _) = openai_gpt.forward_t(
         &Some(input_tensor),
         &None,
         &None,
         &None,
         &None,
+        &None,
+        None,
         &None,
         false).unwrap();
 
@@ -84,14 +86,14 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
         temperature: 1.1,
         ..Default::default()
     };
-    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
                                      generate_config, device)?;
 
     let input_context = "It was an intense machine dialogue. ";
     let output = model.generate(Some(vec!(input_context)), None);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], "it was an intense machine dialogue. \n \" i 'm sorry, \" i said. \" i 'm not sure what you're talking about. \" \n \" you're not a vampire, \" he said");
+    assert_eq!(output[0], "it was an intense machine dialogue. \n \" i \'m sorry, but we have to go now! the police are on their way and they\'re going after you - or at least that\'s what my");
 
     Ok(())
 }
@@ -117,7 +119,7 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
                                      generate_config, device)?;
 
     let input_context = "The dog is";
@@ -152,7 +154,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
                                      generate_config, device)?;
 
     let input_context_1 = "The dog is";
@@ -194,7 +196,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure:
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
+    let mut model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
                                      generate_config, device)?;
 
     let input_context_1 = "The dog is";

@@ -2,7 +2,8 @@ use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
 use rust_bert::Config;
-use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
+use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
+use rust_bert::pipelines::generation::LMHeadModel;
 
 #[test]
 fn distilgpt2_lm_model() -> failure::Fallible<()> {
@@ -20,7 +21,7 @@ fn distilgpt2_lm_model() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = Gpt2Config::from_file(config_path);
-    let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
+    let mut gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -40,12 +41,14 @@ fn distilgpt2_lm_model() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output, past, _, _) = gpt2_model.forward_t(
+    let (output, _, past, _, _) = gpt2_model.forward_t(
         &Some(input_tensor),
         &None,
         &None,
         &None,
         &None,
+        &None,
+        None,
         &None,
         false).unwrap();
 

@@ -43,7 +43,7 @@
 //!    num_return_sequences: 3,
 //!    ..Default::default()
 //! };
-//! let gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+//! let mut gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
 //!                                         generate_config, device)?;
 //!
 //! let input_context = "The dog";
@@ -69,15 +69,16 @@
 
 
 use tch::{Tensor, Device, nn, no_grad};
-use rust_tokenizers::{Tokenizer, OpenAiGptTokenizer, OpenAiGptVocab, Vocab, Gpt2Tokenizer, Gpt2Vocab};
+use rust_tokenizers::{Tokenizer, OpenAiGptTokenizer, OpenAiGptVocab, Vocab, Gpt2Tokenizer, Gpt2Vocab, RobertaTokenizer, RobertaVocab, TruncationStrategy};
 use std::path::Path;
 use tch::kind::Kind::Int64;
 use self::ordered_float::OrderedFloat;
 use itertools::Itertools;
 use crate::openai_gpt::OpenAIGPTLMHeadModel;
-use crate::gpt2::{Gpt2Config, GPT2LMHeadModel, LMHeadModel};
+use crate::gpt2::{Gpt2Config, GPT2LMHeadModel};
 use crate::Config;
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
+use crate::bart::{BartConfig, BartForConditionalGeneration};
 
 extern crate ordered_float;
 
@@ -156,6 +157,9 @@ pub struct OpenAIGenerator {
     bos_token_id: Option<i64>,
     eos_token_ids: Option<Vec<i64>>,
     pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
 }
 
 impl OpenAIGenerator {
@@ -211,19 +215,25 @@ impl OpenAIGenerator {
         let bos_token_id = None;
         let eos_token_ids = None;
         let pad_token_id = None;
+        let is_encoder_decoder = false;
+        let vocab_size = config.vocab_size;
+        let decoder_start_id = None;
 
-        Ok(OpenAIGenerator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id })
+        Ok(OpenAIGenerator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id, is_encoder_decoder, vocab_size, decoder_start_id })
     }
 }
 
 impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer> for OpenAIGenerator {
-    fn get_model(&self) -> &OpenAIGPTLMHeadModel { &self.model }
+    fn get_model(&mut self) -> &mut OpenAIGPTLMHeadModel { &mut self.model }
     fn get_tokenizer(&self) -> &OpenAiGptTokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
     fn get_config(&self) -> &GenerateConfig { &self.generate_config }
     fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
     fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
     fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
+    fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
+    fn get_vocab_size(&self) -> i64 { self.vocab_size }
+    fn get_decoder_start_id(&self) -> Option<i64> { self.decoder_start_id }
 }
 
 impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer> for OpenAIGenerator {}
@@ -237,6 +247,9 @@ pub struct GPT2Generator {
     bos_token_id: Option<i64>,
     eos_token_ids: Option<Vec<i64>>,
     pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
 }
 
 impl GPT2Generator {
@@ -292,52 +305,244 @@ impl GPT2Generator {
         let bos_token_id = Some(tokenizer.vocab().token_to_id(Gpt2Vocab::bos_value()));
         let eos_token_ids = Some(vec!(tokenizer.vocab().token_to_id(Gpt2Vocab::eos_value())));
         let pad_token_id = None;
+        let is_encoder_decoder = false;
+        let vocab_size = config.vocab_size;
+        let decoder_start_id = None;
 
-        Ok(GPT2Generator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id })
+        Ok(GPT2Generator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id, is_encoder_decoder, vocab_size, decoder_start_id })
     }
 }
 
 impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {
-    fn get_model(&self) -> &GPT2LMHeadModel { &self.model }
+    fn get_model(&mut self) -> &mut GPT2LMHeadModel { &mut self.model }
     fn get_tokenizer(&self) -> &Gpt2Tokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
     fn get_config(&self) -> &GenerateConfig { &self.generate_config }
     fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
     fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
     fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
+    fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
+    fn get_vocab_size(&self) -> i64 { self.vocab_size }
+    fn get_decoder_start_id(&self) -> Option<i64> { self.decoder_start_id }
 
-    fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>, _attention_mask: Tensor) -> (Tensor, Option<Vec<Tensor>>) {
+    fn prepare_inputs_for_generation<'a>(&self,
+                                         input_ids: Tensor,
+                                         _encoder_outputs: Option<&'a Tensor>,
+                                         past: Option<Vec<Tensor>>,
+                                         _attention_mask: Tensor)
+                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
         if past.is_some() {
-            (input_ids.select(1, -1).unsqueeze(-1), past)
+            (Some(input_ids.select(1, -1).unsqueeze(-1)), None, None, past)
         } else {
-            (input_ids, past)
+            (Some(input_ids), None, None, past)
         }
     }
 }
 
+impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {}
+
+/// # Language generation model based on the Bart architecture
+pub struct BartGenerator {
+    model: BartForConditionalGeneration,
+    tokenizer: RobertaTokenizer,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl BartGenerator {
+    /// Build a new `BartGenerator`
+    ///
+    /// # Arguments
+    ///
+    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `merges_path` - Path to the bpe merges, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
+    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use std::path::PathBuf;
+    ///# use tch::Device;
+    ///# fn main() -> failure::Fallible<()> {
+    /// use rust_bert::pipelines::generation::{GenerateConfig, BartGenerator};
+    ///# let mut home: PathBuf = dirs::home_dir().unwrap();
+    ///# home.push("rustbert");
+    ///# home.push("openai-gpt");
+    ///# let config_path = &home.as_path().join("config.json");
+    ///# let vocab_path = &home.as_path().join("vocab.txt");
+    ///# let merges_path = &home.as_path().join("merges.txt");
+    ///# let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::cuda_if_available();
+    /// let generate_config = GenerateConfig {
+    ///    max_length: 30,
+    ///    do_sample: true,
+    ///    num_beams: 5,
+    ///    temperature: 1.1,
+    ///    num_return_sequences: 3,
+    ///    ..Default::default()
+    /// };
+    /// let bart_generator = BartGenerator::new(vocab_path, merges_path, config_path, weights_path,
+    ///                                          generate_config, device)?;
+    ///# Ok(())
+    ///# }
+    /// ```
+    ///
+    pub fn new(vocab_path: &Path, merges_path: &Path, config_path: &Path, weight_path: &Path,
+               generate_config: GenerateConfig, device: Device)
+               -> failure::Fallible<BartGenerator> {
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
+        let config = BartConfig::from_file(config_path);
+        let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
+        var_store.load(weight_path)?;
+
+        let bos_token_id = Some(0);
+        let eos_token_ids = Some(match config.eos_token_id {
+            Some(value) => vec!(value),
+            None => vec!(2)
+        });
+        let pad_token_id = Some(match config.pad_token_id {
+            Some(value) => value,
+            None => 1
+        });
+        let vocab_size = config.vocab_size;
+        let is_encoder_decoder = true;
+        let decoder_start_id = Some(2);
+
+        Ok(BartGenerator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id, is_encoder_decoder, vocab_size, decoder_start_id })
+    }
+
+    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
+        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
+            .filter(|pos| !token_ids.contains(pos))
+            .collect();
+        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
+        let _ = scores.index_fill_(1, &impossible_tokens, std::f64::NEG_INFINITY);
+    }
+}
+
+impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer> for BartGenerator {
+    fn get_model(&mut self) -> &mut BartForConditionalGeneration { &mut self.model }
+    fn get_tokenizer(&self) -> &RobertaTokenizer { &self.tokenizer }
+    fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
+    fn get_config(&self) -> &GenerateConfig { &self.generate_config }
+    fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
+    fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
+    fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
+    fn get_vocab_size(&self) -> i64 { self.vocab_size }
+    fn get_decoder_start_id(&self) -> Option<i64> { self.decoder_start_id }
+
+    fn prepare_scores_for_generation(&self, scores: &mut Tensor, current_length: i64, max_length: i64) {
+        if current_length == 1 {
+            self.force_token_id_generation(scores, &vec!(self.get_bos_id().unwrap()));
+        } else if current_length == max_length - 1 {
+            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+        }
+    }
+
+    fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+        Some(self.get_model().encode(input_ids, attention_mask))
+    }
+
+    fn prepare_inputs_for_generation<'a>(&self,
+                                         input_ids: Tensor,
+                                         encoder_outputs: Option<&'a Tensor>,
+                                         _past: Option<Vec<Tensor>>,
+                                         _attention_mask: Tensor)
+                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
+        (None, encoder_outputs, Some(input_ids), None)
+    }
+
+    fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
+        let tokens = self.get_tokenizer().encode_list(prompt_text,
+                                                      max_len as usize,
+                                                      &TruncationStrategy::LongestFirst,
+                                                      0);
+        let token_ids = tokens
+            .into_iter()
+            .map(|tokenized_input| tokenized_input.token_ids)
+            .collect::<Vec<Vec<i64>>>();
+
+
+        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+
+        let pad_token = match pad_token_id {
+            Some(value) => value,
+            None => self.get_tokenizer().vocab().token_to_id(RobertaVocab::unknown_value())
+        };
+
+        let token_ids = token_ids
+            .into_iter()
+            .map(|input| {
+                let mut temp = vec![pad_token; max_len - input.len()];
+                temp.extend(input);
+                temp
+            })
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .collect::<Vec<Tensor>>();
+
+        Tensor::stack(&token_ids, 0)
+    }
+
+    fn reorder_cache(&mut self, _past: Option<Vec<Tensor>>, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> (Option<Vec<Tensor>>, Option<Tensor>) {
+        let encoder_outputs = match encoder_outputs {
+            Some(value) => Some(value.index_select(0, beam_indices)),
+            None => None
+        };
+        for layer in self.get_model().get_base_model().get_decoder().get_layers() {
+            layer.get_self_attention().prev_state.as_mut().unwrap().reorder_cache(beam_indices);
+            layer.get_encoder_attention().prev_state.as_mut().unwrap().reorder_cache(beam_indices);
+        };
+        (None, encoder_outputs)
+    }
+}
+
+impl LanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer> for BartGenerator {}
+
 mod private_generation_utils {
-    use crate::gpt2::LMHeadModel;
     use rust_tokenizers::{Vocab, Tokenizer, TruncationStrategy};
-    use tch::{nn, Tensor};
+    use tch::{nn, Tensor, Device};
     use rust_tokenizers::preprocessing::tokenizer::tokenization_utils::truncate_sequences;
     use std::collections::HashMap;
     use tch::kind::Kind::{Int64, Float, Bool};
     use std::cmp::{min, max};
-    use crate::pipelines::generation::{BeamHypotheses, GenerateConfig};
+    use crate::pipelines::generation::{BeamHypotheses, GenerateConfig, LMHeadModel};
     use itertools::Itertools;
     use super::ordered_float::OrderedFloat;
 
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
-        fn get_model(&self) -> &T;
+        fn get_model(&mut self) -> &mut T;
         fn get_tokenizer(&self) -> &U;
         fn get_var_store(&self) -> &nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
         fn get_bos_id(&self) -> &Option<i64>;
         fn get_eos_ids(&self) -> &Option<Vec<i64>>;
         fn get_pad_id(&self) -> &Option<i64>;
+        fn is_encoder_decoder(&self) -> bool;
+        fn get_vocab_size(&self) -> i64;
+        fn get_decoder_start_id(&self) -> Option<i64>;
 
-        fn prepare_inputs_for_generation(&self, input_ids: Tensor, past: Option<Vec<Tensor>>, _attention_mask: Tensor) -> (Tensor, Option<Vec<Tensor>>) {
-            (input_ids, past)
+        fn prepare_scores_for_generation(&self, _scores: &mut Tensor, _current_length: i64, _max_length: i64) {}
+
+        fn encode(&mut self, _input_ids: &Tensor, _attention_mask: Option<&Tensor>) -> Option<Tensor> { None }
+
+        fn prepare_inputs_for_generation<'a>(&self,
+                                             input_ids: Tensor,
+                                             _encoder_outputs: Option<&'a Tensor>,
+                                             past: Option<Vec<Tensor>>,
+                                             _attention_mask: Tensor)
+                                             -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
+            (Some(input_ids), None, None, past)
         }
 
         fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
@@ -401,30 +606,25 @@ mod private_generation_utils {
             if cur_len + 1 < no_repeat_ngram_size {
                 vec!(vec!())
             } else {
+                let input_ids = input_ids.to(Device::Cpu);
                 let num_hypothesis = *input_ids.size().first().unwrap();
                 let mut banned_tokens: Vec<Vec<i64>> = Vec::with_capacity(num_hypothesis as usize);
                 for hypothesis_index in 0..num_hypothesis {
                     let hypothesis_input_ids = input_ids.get(hypothesis_index);
                     let mut generated_ngram: HashMap<Vec<i64>, Vec<i64>> = HashMap::new();
                     let input: Vec<i64> = (0..hypothesis_input_ids.size1().unwrap()).collect();
-                    let query = hypothesis_input_ids
-                        .slice(0,
-                               cur_len + 1 - no_repeat_ngram_size,
-                               *hypothesis_input_ids.size().last().unwrap(),
-                               1).iter::<i64>()
+                    let hypothesis_input_ids = hypothesis_input_ids
+                        .iter::<i64>()
                         .unwrap()
                         .collect::<Vec<i64>>();
+                    let query = &hypothesis_input_ids[cur_len as usize + 1 - no_repeat_ngram_size as usize..].to_vec();
                     let ngram_indices: Vec<(i64, i64)> = input
-                        .windows(3)
+                        .windows(no_repeat_ngram_size as usize)
                         .map(|win| (*win.first().unwrap(), *win.last().unwrap()))
                         .collect();
                     for ngram in ngram_indices.into_iter() {
-                        let ngram = hypothesis_input_ids
-                            .slice(0, ngram.0, ngram.1 + 1, 1)
-                            .iter::<i64>()
-                            .unwrap()
-                            .collect::<Vec<i64>>();
-                        let key = ngram[..ngram.len() - 1].to_vec();
+                        let ngram = &hypothesis_input_ids[ngram.0 as usize..ngram.1 as usize + 1];
+                        let key = ngram[..no_repeat_ngram_size as usize - 1].to_vec();
                         let value = *ngram.last().unwrap();
                         if generated_ngram.contains_key(&key) {
                             generated_ngram.get_mut(&key).unwrap().push(value)
@@ -432,7 +632,7 @@ mod private_generation_utils {
                             generated_ngram.insert(key, vec!(value));
                         }
                     }
-                    let hypothesis_banned_tokens = match generated_ngram.get(&query) {
+                    let hypothesis_banned_tokens = match generated_ngram.get(query) {
                         Some(banned_tokens) => banned_tokens.clone(),
                         None => vec!()
                     };
@@ -470,7 +670,8 @@ mod private_generation_utils {
             }
         }
 
-        fn generate_no_beam_search(&self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool,
+        fn generate_no_beam_search(&mut self, input_ids: Tensor, encoder_outputs: Option<Tensor>,
+                                   cur_len: i64, min_length: i64, max_length: i64, do_sample: bool,
                                    temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
                                    pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
                                    batch_size: i64, attention_mask: Tensor) -> Tensor {
@@ -483,26 +684,37 @@ mod private_generation_utils {
             let mut current_length = cur_len;
 
             while current_length < max_length {
-                let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
-                let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
+                let (prepared_input,
+                    prepared_encoder_output,
+                    prepared_decoder_input,
+                    prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(),
+                                                                        encoder_outputs.as_ref(),
+                                                                        past,
+                                                                        attention_mask.copy());
+                let temp = self.get_model().forward_t(&prepared_input,
+                                                      &prepared_past,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      prepared_encoder_output,
+                                                      &prepared_decoder_input,
+                                                      false).unwrap();
                 outputs = temp.0;
-                past = temp.1;
+                past = temp.2;
                 let mut next_token_logits = outputs.select(1, -1);
-
 //            Reduce probability for repeated inputs
                 if repetition_penalty > 1f64 {
                     self.enforce_repetition_penalty(&mut next_token_logits, batch_size, 1, &input_ids, repetition_penalty)
                 }
-
 //            Get banned tokens and set their probability to 0
                 let banned_tokens = self.get_banned_tokens(&input_ids, no_repeat_ngram_size as i64, current_length as i64);
                 for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
                     &next_token_logits.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
                 }
-
 //            Do not allow eos token if min length is not reached
                 if (&eos_token_ids.is_some()) & (current_length < min_length) {
-                    &next_token_logits.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()), std::f64::NEG_INFINITY);
+                    &next_token_logits.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()).to(next_token_logits.device()), std::f64::NEG_INFINITY);
                 }
 
 //            Top-k and top-p sampling
@@ -524,7 +736,6 @@ mod private_generation_utils {
                 };
 
                 input_ids = Tensor::cat(&[input_ids, tokens_to_add.unsqueeze(-1)], -1);
-
                 if eos_token_ids.is_some() {
                     for eos_token_id in eos_token_ids.as_ref().unwrap() {
                         let sentence_with_eos = tokens_to_add.eq(*eos_token_id).to_kind(Int64);
@@ -536,9 +747,10 @@ mod private_generation_utils {
                         break;
                     }
                 }
-
-                attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
-                                                                                     (Int64, attention_mask.device())).as_ref()], -1);
+                if !self.is_encoder_decoder() {
+                    attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
+                                                                                         (Int64, attention_mask.device())).as_ref()], -1);
+                }
                 current_length += 1;
             }
 
@@ -563,7 +775,8 @@ mod private_generation_utils {
             decoded
         }
 
-        fn generate_beam_search(&self, input_ids: Tensor, cur_len: i64, min_length: i64, max_length: i64, do_sample: bool, early_stopping: bool,
+        fn generate_beam_search(&mut self, input_ids: Tensor, encoder_outputs: Option<Tensor>,
+                                cur_len: i64, min_length: i64, max_length: i64, do_sample: bool, early_stopping: bool,
                                 temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
                                 pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
                                 batch_size: i64, num_return_sequences: i64, length_penalty: f64, num_beams: i64, attention_mask: Tensor) -> Tensor {
@@ -571,10 +784,10 @@ mod private_generation_utils {
                 .map(|_| BeamHypotheses::new(num_beams, max_length, length_penalty, early_stopping))
                 .collect::<Vec<BeamHypotheses>>();
 
-            let vocab_size = self.get_tokenizer().vocab().values().len() as i64;
+            let vocab_size = self.get_vocab_size();
             let beam_scores = Tensor::zeros(&[batch_size, num_beams], (Float, self.get_var_store().device()));
             if !do_sample {
-                let _ = beam_scores.slice(1, 1, *beam_scores.size().last().unwrap(), 1).fill_(std::f64::NEG_INFINITY);
+                let _ = beam_scores.slice(1, 1, *beam_scores.size().last().unwrap(), 1).fill_(-1e9);
             }
 
             let mut beam_scores = beam_scores.view_(&[-1]);
@@ -586,13 +799,29 @@ mod private_generation_utils {
             let mut attention_mask = attention_mask.copy();
             let mut input_ids = input_ids.copy();
             let mut outputs: Tensor;
+            let mut encoder_outputs = encoder_outputs;
             let mut current_length = cur_len;
 
             while current_length < max_length {
-                let (prepared_input, prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(), past, attention_mask.copy());
-                let temp = self.get_model().forward_t(&Some(prepared_input), &prepared_past, &None, &None, &None, &None, false).unwrap();
+                let (prepared_input,
+                    prepared_encoder_output,
+                    prepared_decoder_input,
+                    prepared_past) = self.prepare_inputs_for_generation(input_ids.copy(),
+                                                                        encoder_outputs.as_ref(),
+                                                                        past,
+                                                                        attention_mask.copy());
+                let temp = self.get_model().forward_t(&prepared_input,
+                                                      &prepared_past,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      &None,
+                                                      prepared_encoder_output,
+                                                      &prepared_decoder_input,
+                                                      false).unwrap();
                 outputs = temp.0;
-                past = temp.1;
+                encoder_outputs = temp.1;
+                past = temp.2;
                 let mut next_token_logits = outputs.select(1, -1);
 
 //            Reduce probability for repeated inputs
@@ -603,20 +832,19 @@ mod private_generation_utils {
                 if temperature > 1f64 {
                     next_token_logits = next_token_logits / temperature;
                 }
-
                 let mut scores = next_token_logits.log_softmax(-1, Float);
-
+                if self.is_encoder_decoder() & !do_sample {
+                    self.prepare_scores_for_generation(&mut scores, current_length, max_length);
+                }
 //            Do not allow eos token if min length is not reached
                 if (&eos_token_ids.is_some()) & (current_length < min_length) {
-                    &scores.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()), std::f64::NEG_INFINITY);
+                    &scores.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()).to(scores.device()), std::f64::NEG_INFINITY);
                 }
-
 //            Get banned tokens and set their probability to 0
                 let banned_tokens = self.get_banned_tokens(&input_ids, no_repeat_ngram_size as i64, current_length as i64);
                 for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
                     &scores.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
                 }
-
                 let (next_scores, next_tokens) = if do_sample {
                     let mut _scores: Tensor = &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
                     self.top_k_top_p_filtering(&mut _scores, top_k as i64, top_p, 2);
@@ -633,10 +861,7 @@ mod private_generation_utils {
                     let next_scores = next_scores.contiguous().view((batch_size, num_beams * vocab_size));
                     next_scores.topk(2 * num_beams, 1, true, true)
                 };
-
-
                 let mut next_batch_beam: Vec<(f64, i64, i64)> = vec!();
-
                 for batch_index in 0..batch_size {
                     if done[batch_index as usize] {
                         assert!(hypotheses[batch_index as usize].len() >= num_beams,
@@ -647,6 +872,7 @@ mod private_generation_utils {
                         next_batch_beam.append(&mut
                             (0..num_beams).map(|_| (0f64, pad_token_id.unwrap(), 0i64)).collect::<Vec<(f64, i64, i64)>>()
                         );
+                        continue;
                     }
 
                     let mut next_sentence_beam: Vec<(f64, i64, i64)> = vec!();
@@ -663,7 +889,8 @@ mod private_generation_utils {
 
                         if eos_token_ids.as_ref().is_some() {
                             if eos_token_ids.as_ref().unwrap().contains(&token_id) {
-                                if beam_token_rank > num_beams {
+                                if beam_token_rank >= num_beams {
+                                    beam_token_rank += 1;
                                     continue;
                                 }
                                 hypotheses[batch_index as usize].add(input_ids.get(effective_beam_id).copy(), beam_token_score)
@@ -678,7 +905,6 @@ mod private_generation_utils {
                             (beam_token_rank == beam_token_rank_max_value) {
                             break;
                         }
-
                         beam_token_rank += 1;
                     }
 
@@ -690,7 +916,6 @@ mod private_generation_utils {
                     assert_eq!(next_sentence_beam.len() as i64, num_beams, "Beam incomplete");
                     next_batch_beam.append(&mut next_sentence_beam);
                 }
-
                 if done.iter().all(|&x| x) {
                     break;
                 }
@@ -700,21 +925,24 @@ mod private_generation_utils {
 
                 input_ids = input_ids.index_select(0, &beam_indices);
                 input_ids = Tensor::cat(&[input_ids, beam_tokens.unsqueeze(1)], -1);
-
-                past = match past {
-                    Some(past_values) => Some(self.reorder_cache(past_values, &beam_indices)),
-                    None => None
-                };
-
-                attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
-                                                                                     (Int64, attention_mask.device())).as_ref()], -1);
-                current_length += 1
+                let temp_past = self.reorder_cache(past, encoder_outputs, &beam_indices);
+                past = temp_past.0;
+                encoder_outputs = temp_past.1;
+                if !self.is_encoder_decoder() {
+                    attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
+                                                                                         (Int64, attention_mask.device())).as_ref()], -1);
+                }
+                current_length += 1;
             }
 
             let mut batch_index = 0i64;
 
             loop {
+                if batch_index == batch_size {
+                    break;
+                }
                 if done[batch_index as usize] {
+                    batch_index += 1;
                     continue;
                 }
                 for beam_index in 0..num_beams {
@@ -724,9 +952,6 @@ mod private_generation_utils {
                     hypotheses[batch_index as usize].add(final_tokens, final_score);
                 }
                 batch_index += 1;
-                if batch_index == batch_size {
-                    break;
-                }
             }
 
             let (output_batch_size, output_num_return_sequences_per_batch) = if do_sample {
@@ -776,22 +1001,24 @@ mod private_generation_utils {
             decoded
         }
 
-        fn reorder_cache(&self, past: Vec<Tensor>, beam_indices: &Tensor) -> Vec<Tensor> {
-            let mut reordered_past = vec!();
-            for layer_past in past.iter() {
-                reordered_past.push(layer_past.index_select(1, beam_indices));
+        fn reorder_cache(&mut self, past: Option<Vec<Tensor>>, _encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> (Option<Vec<Tensor>>, Option<Tensor>) {
+            match past {
+                Some(value) => {
+                    let mut reordered_past = vec!();
+                    for layer_past in value.iter() {
+                        reordered_past.push(layer_past.index_select(1, beam_indices));
+                    }
+                    (Some(reordered_past), None)
+                }
+                None => (None, None)
             }
-            reordered_past
         }
     }
 }
 
-impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {}
-
 /// # Common trait for text generation models.
 /// Main API for text generation
 pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateLanguageGenerator<T, V, U> {
-
     /// Generate text based on a vector of promp texts.
     ///
     /// # Arguments
@@ -825,7 +1052,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
     ///    num_return_sequences: 3,
     ///    ..Default::default()
     /// };
-    /// let gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
+    /// let mut gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
     ///                                         generate_config, device)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
@@ -847,7 +1074,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
     ///# ;
     ///```
     ///
-    fn generate(&self, prompt_texts: Option<Vec<&str>>, attention_mask: Option<Tensor>)
+    fn generate(&mut self, prompt_texts: Option<Vec<&str>>, attention_mask: Option<Tensor>)
                 -> Vec<String> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
@@ -857,6 +1084,11 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
         let num_beams = config.num_beams;
         let min_length = config.min_length;
         let max_length = config.max_length;
+        let encoding_max_len = if self.is_encoder_decoder() {
+            1024u64
+        } else {
+            max_length
+        };
         let early_stopping = config.early_stopping;
         let temperature = config.temperature;
         let top_k = config.top_k;
@@ -875,14 +1107,14 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
         };
 
         let input_ids = match prompt_texts {
-            Some(text) => self.encode_prompt_text(text, max_length, pad_token_id),
+            Some(text) => self.encode_prompt_text(text, encoding_max_len, pad_token_id),
             None => match self.get_bos_id() {
                 Some(bos_id) => Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id,
                 None => panic!("A model with a BOS token must be used to start generation with an empty input")
             }
         };
 
-        let cur_len = *input_ids.size().last().unwrap();
+        let cur_len = if !self.is_encoder_decoder() { *input_ids.size().last().unwrap() } else { 1 };
         let batch_size = *input_ids.size().first().unwrap();
 
         let (effective_batch_size, effective_batch_mult) = match do_sample {
@@ -894,34 +1126,52 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
             Some(value) => value,
             None => {
                 match self.get_pad_id() {
-                    Some(pad_id) => input_ids.ne(*pad_id),
+                    Some(pad_id) => input_ids.ne(*pad_id).to_kind(Int64),
                     None => input_ids.ones_like()
                 }
             }
         };
 
-        let (input_ids, attention_mask) = if (num_return_sequences > 1) | (num_beams > 1) {
-            (input_ids
-                 .unsqueeze(1)
-                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
-                 .contiguous()
-                 .view((effective_batch_size * num_beams as i64, cur_len)),
-             attention_mask
-                 .unsqueeze(1)
-                 .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
-                 .contiguous()
-                 .view((effective_batch_size * num_beams as i64, cur_len))
-            )
+        let encoder_outputs = if self.is_encoder_decoder() {
+            let encoder_outputs = self.encode(&input_ids, Some(&attention_mask)).unwrap();
+            let expanded_batch_indices = Tensor::arange(batch_size, (Int64, input_ids.device()))
+                .view((-1, 1))
+                .repeat(&[1, num_beams as i64 * effective_batch_mult])
+                .view(-1);
+            Some(encoder_outputs.index_select(0, &expanded_batch_indices))
         } else {
+            None
+        };
+
+        let (input_ids, attention_mask) = if !self.is_encoder_decoder() {
+            if (num_return_sequences > 1) | (num_beams > 1) {
+                (input_ids
+                     .unsqueeze(1)
+                     .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
+                     .contiguous()
+                     .view((effective_batch_size * num_beams as i64, cur_len)),
+                 attention_mask
+                     .unsqueeze(1)
+                     .expand(&[batch_size, effective_batch_mult * num_beams as i64, cur_len], true)
+                     .contiguous()
+                     .view((effective_batch_size * num_beams as i64, cur_len))
+                )
+            } else {
+                (input_ids, attention_mask)
+            }
+        } else {
+            let decoder_start_token_id = self.get_decoder_start_id().expect("decoder start id must be specified for encoder decoders");
+            let input_ids = Tensor::full(&[effective_batch_size * num_beams as i64, 1], decoder_start_token_id, (Int64, input_ids.device()));
             (input_ids, attention_mask)
         };
 
+
         let decoded = no_grad(|| {
             if num_beams > 1 {
-                self.generate_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
+                self.generate_beam_search(input_ids, encoder_outputs, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
                                           no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, num_return_sequences as i64, length_penalty, num_beams as i64, attention_mask)
             } else {
-                self.generate_no_beam_search(input_ids, cur_len, min_length as i64, max_length as i64, do_sample, temperature, top_k as i64, top_p, repetition_penalty,
+                self.generate_no_beam_search(input_ids, encoder_outputs, cur_len, min_length as i64, max_length as i64, do_sample, temperature, top_k as i64, top_p, repetition_penalty,
                                              no_repeat_ngram_size as i64, pad_token_id, eos_token_ids, effective_batch_size, attention_mask)
             }
         });
@@ -1007,4 +1257,78 @@ impl BeamHypotheses {
             self.worst_score >= best_sum_log_probabilities / (current_length as f64).powf(self.length_penalty)
         }
     }
+}
+
+/// # Language Model trait
+/// Shared trait between language generation models (e.g. GPT2, GPT, BART) used in language generation pipelines.
+pub trait LMHeadModel {
+    /// Forward pass through the model. Example provided for GPT2.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `layer_past` - Optional vector of size *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*). When provided, these are concatenated with the current input keys and values.
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    /// * `past` - `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
+    /// use rust_bert::pipelines::generation::LMHeadModel;
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let vocab_path = Path::new("path/to/vocab.txt");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = Gpt2Config::from_file(config_path);
+    ///# let mut gpt2_model: GPT2LMHeadModel = GPT2LMHeadModel::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
+    ///  for _ in 0..config.n_layer as usize {
+    ///    past.push(Tensor::rand(&[2, batch_size, config.n_head, past_sequence_length, config.n_embd / config.n_head], (Double, device)))
+    /// }
+    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, encoder_output, past, hidden_states, attentions) = no_grad(|| {
+    ///    gpt2_model
+    ///         .forward_t(&Some(input_tensor),
+    ///                    &Some(past),
+    ///                    &Some(attention_mask),
+    ///                    &Some(token_type_ids),
+    ///                    &Some(position_ids),
+    ///                    &None,
+    ///                    None,
+    ///                    &None,
+    ///                    false).unwrap()
+    ///    });
+    ///
+    /// ```
+    ///
+    fn forward_t(&mut self,
+                 input_ids: &Option<Tensor>,
+                 layer_past: &Option<Vec<Tensor>>,
+                 attention_mask: &Option<Tensor>,
+                 token_type_ids: &Option<Tensor>,
+                 position_ids: &Option<Tensor>,
+                 input_embeds: &Option<Tensor>,
+                 encoder_outputs: Option<&Tensor>,
+                 decoder_input_ids: &Option<Tensor>,
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str>;
 }

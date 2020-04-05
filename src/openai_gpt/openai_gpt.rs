@@ -20,7 +20,8 @@ use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::openai_gpt::transformer::Block;
-use crate::gpt2::{Gpt2Config, LMHeadModel};
+use crate::gpt2::Gpt2Config;
+use crate::pipelines::generation::LMHeadModel;
 
 /// # GPT Base model
 /// Base architecture for GPT model. Usually complemented with a task-specific head, such as a language model head. As opposed to GPT2, GPT does not give the possibility to re-use past activations as an input.
@@ -253,15 +254,21 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     /// # Arguments
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `_layer_past` - Unused for GPT
     /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `_encoder_outputs` - Unused for GPT
+    /// * `_decoder_input_ids` - Unused for GPT
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
     ///
     /// # Returns
     ///
     /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    /// * `encoder_hidden_states` - None
+    /// * `past` - None
     /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
@@ -273,39 +280,45 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::Gpt2Config;
-    /// use rust_bert::openai_gpt::OpenAiGptModel;
+    /// use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
+    /// use rust_bert::pipelines::generation::LMHeadModel;
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = Gpt2Config::from_file(config_path);
-    ///# let gpt_model: OpenAiGptModel = OpenAiGptModel::new(&vs.root(), &config);
+    ///# let mut gpt_model: OpenAIGPTLMHeadModel = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, hidden_states, attentions) = no_grad(|| {
+    ///  let (output, _, _, hidden_states, attentions) = no_grad(|| {
     ///    gpt_model
     ///         .forward_t(&Some(input_tensor),
+    ///                    &None,
     ///                    &Some(attention_mask),
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),
+    ///                    &None,
+    ///                    None,
     ///                    &None,
     ///                    false).unwrap()
     ///    });
     ///
     /// ```
     ///
-    fn forward_t(&self,
+    fn forward_t(&mut self,
                  input_ids: &Option<Tensor>,
                  _layer_past: &Option<Vec<Tensor>>,
                  attention_mask: &Option<Tensor>,
                  token_type_ids: &Option<Tensor>,
                  position_ids: &Option<Tensor>,
                  input_embeds: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+                 _encoder_outputs: Option<&Tensor>,
+                 _decoder_input_ids: &Option<Tensor>,
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (output,
             all_hidden_states,
             all_attentions) = self.transformer.forward_t(input_ids,
@@ -316,6 +329,6 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
                                                          train)?;
 
         let lm_logits = output.apply(&self.lm_head);
-        Ok((lm_logits, None, all_hidden_states, all_attentions))
+        Ok((lm_logits, None, None, all_hidden_states, all_attentions))
     }
 }

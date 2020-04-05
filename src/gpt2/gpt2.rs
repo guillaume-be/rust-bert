@@ -21,6 +21,7 @@ use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::Config;
+use crate::pipelines::generation::LMHeadModel;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -316,75 +317,6 @@ impl GPT2LMHeadModel {
     }
 }
 
-/// # Language Model trait
-/// Shared trait between language generation models (e.g. GPT2 and GPT) used in language generation pipelines.
-pub trait LMHeadModel {
-    /// Forward pass through the model. Example provided for GPT2.
-    ///
-    /// # Arguments
-    ///
-    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
-    /// * `layer_past` - Optional vector of size *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*). When provided, these are concatenated with the current input keys and values.
-    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
-    /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
-    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
-    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
-    ///
-    /// # Returns
-    ///
-    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
-    /// * `past` - `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt2::{Gpt2Model, Gpt2Config};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = Gpt2Config::from_file(config_path);
-    ///# let gpt2_model: Gpt2Model = Gpt2Model::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
-    ///  for _ in 0..config.n_layer as usize {
-    ///    past.push(Tensor::rand(&[2, batch_size, config.n_head, past_sequence_length, config.n_embd / config.n_head], (Double, device)))
-    /// }
-    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
-    ///
-    ///  let (output, past, hidden_states, attentions) = no_grad(|| {
-    ///    gpt2_model
-    ///         .forward_t(&Some(input_tensor),
-    ///                    &Some(past),
-    ///                    &Some(attention_mask),
-    ///                    &Some(token_type_ids),
-    ///                    &Some(position_ids),
-    ///                    &None,
-    ///                    false).unwrap()
-    ///    });
-    ///
-    /// ```
-    ///
-    fn forward_t(&self,
-                 input_ids: &Option<Tensor>,
-                 layer_past: &Option<Vec<Tensor>>,
-                 attention_mask: &Option<Tensor>,
-                 token_type_ids: &Option<Tensor>,
-                 position_ids: &Option<Tensor>,
-                 input_embeds: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str>;
-}
-
 impl LMHeadModel for GPT2LMHeadModel {
     /// Forward pass through the model
     ///
@@ -396,11 +328,15 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `_encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*). Unused for GPT2
+    /// * `_decoder_input_ids` - Optional tensor of shape (*batch size*, *target_sequence_length*). Unused for GPT2
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
     ///
     /// # Returns
     ///
     /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    /// * `encoder_hidden_states` - None
     /// * `past` - `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
     /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
@@ -412,13 +348,14 @@ impl LMHeadModel for GPT2LMHeadModel {
     ///# use rust_bert::Config;
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt2::{Gpt2Model, Gpt2Config};
+    /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
+    /// use rust_bert::pipelines::generation::LMHeadModel;
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = Gpt2Config::from_file(config_path);
-    ///# let gpt2_model: Gpt2Model = Gpt2Model::new(&vs.root(), &config);
+    ///# let mut gpt2_model: GPT2LMHeadModel = GPT2LMHeadModel::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
@@ -429,7 +366,7 @@ impl LMHeadModel for GPT2LMHeadModel {
     ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, past, hidden_states, attentions) = no_grad(|| {
+    ///  let (output, _, past, hidden_states, attentions) = no_grad(|| {
     ///    gpt2_model
     ///         .forward_t(&Some(input_tensor),
     ///                    &Some(past),
@@ -437,19 +374,23 @@ impl LMHeadModel for GPT2LMHeadModel {
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),
     ///                    &None,
+    ///                    None,
+    ///                    &None,
     ///                    false).unwrap()
     ///    });
     ///
     /// ```
     ///
-    fn forward_t(&self,
+    fn forward_t(&mut self,
                  input_ids: &Option<Tensor>,
                  layer_past: &Option<Vec<Tensor>>,
                  attention_mask: &Option<Tensor>,
                  token_type_ids: &Option<Tensor>,
                  position_ids: &Option<Tensor>,
                  input_embeds: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+                 _encoder_outputs: Option<&Tensor>,
+                 _decoder_input_ids: &Option<Tensor>,
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (output,
             past,
             all_hidden_states,
@@ -462,6 +403,6 @@ impl LMHeadModel for GPT2LMHeadModel {
                                                          train)?;
 
         let lm_logits = output.apply(&self.lm_head);
-        Ok((lm_logits, past, all_hidden_states, all_attentions))
+        Ok((lm_logits, None, past, all_hidden_states, all_attentions))
     }
 }

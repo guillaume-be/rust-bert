@@ -6,7 +6,14 @@
 //! # Quick Start
 //!
 //! This crate can be used in two different ways:
-//! - Ready-to-use NLP pipelines for Sentiment Analysis, Named Entity Recognition, Question-Answering or Language Generation. More information on these can be found in the `pipelines` module.
+//! - Ready-to-use NLP pipelines for:
+//!     - Summarization
+//!     - Sentiment Analysis
+//!     - Named Entity Recognition
+//!     - Question-Answering
+//!     - Language Generation.
+//!
+//! More information on these can be found in the [`pipelines` module](./pipelines/index.html)
 //! ```no_run
 //! use tch::Device;
 //! use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
@@ -33,15 +40,16 @@
 //! ```
 //! - Transformer models base architectures with customized heads. These allow to load pre-trained models for customized inference in Rust
 //!
-//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**
-//! :-----:|:-----:|:-----:|:-----:|:-----:|:-----:
-//! Masked LM|✅ |✅ |✅ | | |
-//! Sequence classification|✅ |✅ |✅| | |
-//! Token classification|✅ |✅ | ✅| | |
-//! Question answering|✅ |✅ |✅| | |
-//! Multiple choices| |✅ |✅| | |
-//! Next token prediction| | | |✅|✅|
-//! Natural Language Generation| | | |✅|✅|
+//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**
+//! :-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+//! Masked LM|✅ |✅ |✅ | | | |
+//! Sequence classification|✅ |✅ |✅| | | |
+//! Token classification|✅ |✅ | ✅| | | |
+//! Question answering|✅ |✅ |✅| | | |
+//! Multiple choices| |✅ |✅| | | |
+//! Next token prediction| | | |✅|✅| |
+//! Natural Language Generation| | | |✅|✅| |
+//! Summarization| | | |✅|✅|✅|
 //!
 //! # Loading pre-trained models
 //!
@@ -64,6 +72,7 @@ pub mod bert;
 pub mod roberta;
 pub mod openai_gpt;
 pub mod gpt2;
+pub mod bart;
 mod common;
 pub mod pipelines;
 
