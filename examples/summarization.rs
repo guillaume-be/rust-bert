@@ -16,7 +16,7 @@ extern crate dirs;
 use std::path::PathBuf;
 use tch::Device;
 use failure::err_msg;
-use rust_bert::pipelines::generation::{LanguageGenerator, GenerateConfig, BartGenerator};
+use rust_bert::pipelines::summarization::{SummarizationModel, SummarizationConfig};
 
 
 fn main() -> failure::Fallible<()> {
@@ -32,45 +32,45 @@ fn main() -> failure::Fallible<()> {
     if !config_path.is_file() | !vocab_path.is_file() | !merges_path.is_file() | !weights_path.is_file() {
         return Err(
             err_msg("Could not find required resources to run example. \
-                          Please run ../utils/download_dependencies_bart.py \
+                          Please run ../utils/download_dependencies_bart_cnn.py \
                           in a Python environment with dependencies listed in ../requirements.txt"));
     }
 
-//    Set-up masked LM model
+//    Set-up summarization
     let device = Device::cuda_if_available();
-    let generate_config = GenerateConfig {
-        max_length: 142,
-        do_sample: false,
-        num_beams: 3,
-        temperature: 1.0,
-        top_k: 50,
-        top_p: 1.0,
-        length_penalty: 1.0,
-        min_length: 56,
-        num_return_sequences: 1,
+
+    let summarization_config = SummarizationConfig {
+        num_beams: 1,
         ..Default::default()
     };
-    let mut model = BartGenerator::new(vocab_path, merges_path, config_path, weights_path,
-                                       generate_config, device)?;
 
-    let input = ["New York (CNN)When Liana Barrientos was 23 years old, she got married in Westchester County, New York.
-A year later, she got married again in Westchester County, but to a different man and without divorcing her first husband.
-Only 18 days after that marriage, she got hitched yet again. Then, Barrientos declared \"I do\" five more times, sometimes only within two weeks of each other. \
-In 2010, she married once more, this time in the Bronx. In an application for a marriage license, she stated it was her \"first and only\" marriage. \
-Barrientos, now 39, is facing two criminal counts of \"offering a false instrument for filing in the first degree,\" referring to her false statements on the
-2010 marriage license application, according to court documents.
-Prosecutors said the marriages were part of an immigration scam.
-On Friday, she pleaded not guilty at State Supreme Court in the Bronx, according to her attorney, Christopher Wright, who declined to comment further.
-After leaving court, Barrientos was arrested and charged with theft of service and criminal trespass for allegedly sneaking into the New York subway through an emergency exit, said Detective
-Annette Markowski, a police spokeswoman. In total, Barrientos has been married 10 times, with nine of her marriages occurring between 1999 and 2002.
-All occurred either in Westchester County, Long Island, New Jersey or the Bronx. She is believed to still be married to four men, and at one time, she was married to eight men at once, prosecutors say.
-Prosecutors said the immigration scam involved some of her husbands, who filed for permanent residence status shortly after the marriages.
-Any divorces happened only after such filings were approved. It was unclear whether any of the men will be prosecuted.
-The case was referred to the Bronx District Attorney\'s Office by Immigration and Customs Enforcement and the Department of Homeland Security\'s \
-Investigation Division. Seven of the men are from so-called \"red-flagged\" countries, including Egypt, Turkey, Georgia, Pakistan and Mali.
-Her eighth husband, Rashid Rajput, was deported in 2006 to his native Pakistan after an investigation by the Joint Terrorism Task Force.
-If convicted, Barrientos faces up to four years in prison.  Her next court appearance is scheduled for May 18."];
-    let output = model.generate(Some(input.to_vec()), None);
+    let mut summarization_model = SummarizationModel::new(vocab_path, merges_path, config_path, weights_path,
+                                                          summarization_config, device)?;
+
+    let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
+from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
+from University College London (UCL), the presence of water vapour was confirmed in the atmosphere of K2-18b, \
+a planet circling a star in the constellation Leo. This is the first such discovery in a planet in its star's \
+habitable zone — not too hot and not too cold for liquid water to exist. The Montreal team, led by Björn Benneke, \
+used data from the NASA's Hubble telescope to assess changes in the light coming from K2-18b's star as the planet \
+passed between it and Earth. They found that certain wavelengths of light, which are usually absorbed by water, \
+weakened when the planet was in the way, indicating not only does K2-18b have an atmosphere, but the atmosphere \
+contains water in vapour form. The team from UCL then analyzed the Montreal team's data using their own software \
+and confirmed their conclusion. This was not the first time scientists have found signs of water on an exoplanet, \
+but previous discoveries were made on planets with high temperatures or other pronounced differences from Earth. \
+\"This is the first potentially habitable planet where the temperature is right and where we now know there is water,\" \
+said UCL astronomer Angelos Tsiaras. \"It's the best candidate for habitability right now.\" \"It's a good sign\", \
+said Ryan Cloutier of the Harvard–Smithsonian Center for Astrophysics, who was not one of either study's authors. \
+\"Overall,\" he continued, \"the presence of water in its atmosphere certainly improves the prospect of K2-18b being \
+a potentially habitable planet, but further observations will be required to say for sure. \"
+K2-18b was first identified in 2015 by the Kepler space telescope. It is about 110 light-years from Earth and larger \
+but less dense. Its star, a red dwarf, is cooler than the Sun, but the planet's orbit is much closer, such that a year \
+on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optimistic that NASA's James Webb space \
+telescope — scheduled for launch in 2021 — and the European Space Agency's 2028 ARIEL program, could reveal more \
+about exoplanets like K2-18b."];
+
+//    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
+    let output = summarization_model.summarize(&input);
 
     for sentence in output {
         println!("{:?}", sentence);
