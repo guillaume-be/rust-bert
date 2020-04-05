@@ -91,7 +91,7 @@
 //!# Ok(())
 //!# }
 //! ```
-//! (New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
+//! (example from: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
 //!
 //! Example output: \
 //! ```no_run

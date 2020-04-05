@@ -131,7 +131,6 @@ pub struct BartDecoder {
     layer_norm_embedding: nn::LayerNorm,
     layers: Vec<DecoderLayer>,
     embed_positions: PositionalEmbedding,
-    embed_tokens: nn::Embedding,
     output_attentions: bool,
     output_hidden_states: bool,
     output_past: bool,
@@ -139,7 +138,7 @@ pub struct BartDecoder {
 }
 
 impl BartDecoder {
-    pub fn new(p: nn::Path, config: &BartConfig, embed_tokens: nn::Embedding, generation_mode: bool) -> BartDecoder {
+    pub fn new(p: nn::Path, config: &BartConfig, generation_mode: bool) -> BartDecoder {
         let output_past = match config.output_past {
             Some(value) => value,
             None => false
@@ -181,7 +180,6 @@ impl BartDecoder {
             layer_norm_embedding,
             layers,
             embed_positions,
-            embed_tokens,
             output_attentions,
             output_hidden_states,
             output_past,
@@ -197,6 +195,7 @@ impl BartDecoder {
                      encoder_padding_mask: Option<&Tensor>,
                      decoder_padding_mask: Option<&Tensor>,
                      decoder_causal_mask: Option<&Tensor>,
+                     embeddings: &nn::Embedding,
                      train: bool)
                      -> (Tensor,
                          (Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>),
@@ -216,7 +215,7 @@ impl BartDecoder {
         } else {
             (input_ids.copy(), positions)
         };
-        let x: Tensor = input_ids.as_ref().apply(&self.embed_tokens) + positions;
+        let x: Tensor = input_ids.as_ref().apply(embeddings) + positions;
 
         let x = x
             .apply(&self.layer_norm_embedding)
