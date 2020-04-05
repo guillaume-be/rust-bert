@@ -1,4 +1,5 @@
 language: rust
+dist: bionic
 cache:
   - directories:
     - $HOME/.cache/torch
