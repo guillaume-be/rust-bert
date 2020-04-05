@@ -1,7 +1,6 @@
-// Copyright 2018 The Google AI Language Team Authors, Facebook AI Research authors.
-// Copyright 2018 Google AI, Google Brain and Carnegie Mellon University Authors and the HuggingFace Inc. team.
-// Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
-// Copyright 2019 Guillaume Becquin
+// Copyright 2020 The Facebook AI Research Team Authors
+// Copyright 2020-present, the HuggingFace Inc. team.
+// Copyright 2020 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
