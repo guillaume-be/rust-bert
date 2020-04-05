@@ -93,13 +93,12 @@ pub struct BartEncoder {
     layer_norm_embedding: nn::LayerNorm,
     layers: Vec<EncoderLayer>,
     embed_positions: PositionalEmbedding,
-    pub embed_tokens: nn::Embedding,
     output_attentions: bool,
     output_hidden_states: bool,
 }
 
 impl BartEncoder {
-    pub fn new(p: nn::Path, config: &BartConfig, embed_tokens: nn::Embedding) -> BartEncoder {
+    pub fn new(p: nn::Path, config: &BartConfig) -> BartEncoder {
         let output_attentions = match config.output_attentions {
             Some(value) => value,
             None => false
@@ -136,7 +135,6 @@ impl BartEncoder {
             layer_norm_embedding,
             layers,
             embed_positions,
-            embed_tokens,
             output_attentions,
             output_hidden_states,
         }
@@ -145,6 +143,7 @@ impl BartEncoder {
     pub fn forward_t(&mut self,
                      input_ids: &Tensor,
                      attention_mask: Option<&Tensor>,
+                     embeddings: &nn::Embedding,
                      train: bool)
                      -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let attention_mask = match attention_mask {
@@ -152,7 +151,7 @@ impl BartEncoder {
             None => None
         };
 
-        let x = input_ids.apply(&self.embed_tokens);
+        let x = input_ids.apply(embeddings);
         let x: Tensor = x + &self.embed_positions.forward(input_ids, false);
         let x = x
             .apply(&self.layer_norm_embedding)

@@ -24,6 +24,7 @@ doc = false
 
 [features]
 doc-only = ["tch/doc-only"]
+all-tests = []
 
 [package.metadata.docs.rs]
 features = [ "doc-only" ]

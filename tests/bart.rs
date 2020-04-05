@@ -6,7 +6,7 @@ use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 
 #[test]
-#[cfg_attr(not(feature = "expensive_tests"), ignore)]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_lm_model() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
@@ -63,7 +63,7 @@ fn bart_lm_model() -> failure::Fallible<()> {
 
 
 #[test]
-#[cfg_attr(not(feature = "expensive_tests"), ignore)]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_greedy() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
@@ -117,7 +117,7 @@ about exoplanets like K2-18b."];
 }
 
 #[test]
-#[cfg_attr(not(feature = "expensive_tests"), ignore)]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_beam_search() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();

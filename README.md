@@ -80,8 +80,7 @@ about exoplanets like K2-18b."];
 
     let output = summarization_model.summarize(&input);
 ```
-
-New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
+(example from: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
 
 Output:
 ```

@@ -37,11 +37,7 @@ weights = torch.load(temp_weights, map_location='cpu')
 nps = {}
 for k, v in weights.items():
     k = k.replace("gamma", "weight").replace("beta", "bias")
-    if '.shared' in k:
-        nps[k.replace('.shared', '.shared_encoder')] = np.ascontiguousarray(v.cpu().numpy())
-        nps[k.replace('.shared', '.shared_decoder')] = np.ascontiguousarray(v.cpu().numpy())
-    else:
-        nps[k] = np.ascontiguousarray(v.cpu().numpy())
+    nps[k] = np.ascontiguousarray(v.cpu().numpy())
 
 np.savez(target_path / 'model.npz', **nps)
 

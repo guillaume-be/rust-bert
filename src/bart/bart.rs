@@ -143,6 +143,7 @@ fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
 pub struct BartModel {
     encoder: BartEncoder,
     decoder: BartDecoder,
+    embeddings: nn::Embedding,
     generation_mode: bool,
     pad_token_id: i64,
 }
@@ -179,19 +180,15 @@ impl BartModel {
             None => 1
         };
         let embedding_config = EmbeddingConfig { padding_idx: pad_token_id, ..Default::default() };
-        let embed_tokens_encoder: nn::Embedding = embedding(p / "shared_encoder",
-                                                            config.vocab_size,
-                                                            config.d_model,
-                                                            embedding_config);
-        let embed_tokens_decoder: nn::Embedding = embedding(p / "shared_decoder",
+        let embeddings: nn::Embedding = embedding(p / "shared",
                                                             config.vocab_size,
                                                             config.d_model,
                                                             embedding_config);
 
-        let encoder = BartEncoder::new(p / "encoder", config, embed_tokens_encoder);
-        let decoder = BartDecoder::new(p / "decoder", config, embed_tokens_decoder, generation_mode);
+        let encoder = BartEncoder::new(p / "encoder", config);
+        let decoder = BartDecoder::new(p / "decoder", config, generation_mode);
 
-        BartModel { encoder, decoder, generation_mode, pad_token_id }
+        BartModel { encoder, decoder, generation_mode, pad_token_id, embeddings }
     }
 
     pub(crate) fn get_decoder(&mut self) -> &mut BartDecoder { &mut self.decoder }
@@ -277,7 +274,7 @@ impl BartModel {
             Some(value) => value,
             None => {
                 assert!(input_ids.is_some(), "input_ids must be provided when encoder output is not pre-computed");
-                self.encoder.forward_t(input_ids.unwrap(), attention_mask, train)
+                self.encoder.forward_t(input_ids.unwrap(), attention_mask, &self.embeddings, train)
             }
         };
 
@@ -289,6 +286,7 @@ impl BartModel {
                                                              attention_mask,
                                                              decoder_padding_mask.as_ref(),
                                                              causal_mask.as_ref(),
+                                                             &self.embeddings,
                                                              train);
         (decoder_outputs, encoder_hidden_states, decoder_cache,
          all_decoder_hidden_states, all_decoder_attentions,
@@ -406,7 +404,7 @@ impl BartForConditionalGeneration {
             all_encoder_hidden_states, all_encoder_attentions) =
             self.borrow_mut().base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, train);
 
-        let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.encoder.embed_tokens.ws, None);
+        let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
         (lm_logits, encoder_hidden_states,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
@@ -415,7 +413,7 @@ impl BartForConditionalGeneration {
     pub(crate) fn get_base_model(&mut self) -> &mut BartModel { &mut self.base_model }
 
     pub fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
-        let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, false);
+        let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, &self.base_model.embeddings, false);
         encoder_hidden_states
     }
 }
@@ -657,7 +655,7 @@ impl LMHeadModel for BartForConditionalGeneration {
                                                                                                None,
                                                                                                train);
 
-        let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.encoder.embed_tokens.ws, None);
+        let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None);
         Ok((lm_logits, Some(encoder_hidden_states), None, None, None))
     }
 }
