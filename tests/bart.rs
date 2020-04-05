@@ -2,8 +2,7 @@ use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, RobertaTokenizer};
 use rust_bert::Config;
-use rust_bert::bart::BartConfig;
-use rust_bert::bart::bart::BartForConditionalGeneration;
+use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 
 #[test]
@@ -74,7 +73,7 @@ fn bart_summarization_greedy() -> failure::Fallible<()> {
     let weights_path = &home.as_path().join("model.ot");
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
+    let device = Device::Cpu;
     let summarization_config = SummarizationConfig {
         num_beams: 1,
         ..Default::default()
@@ -127,7 +126,7 @@ fn bart_summarization_beam_search() -> failure::Fallible<()> {
     let weights_path = &home.as_path().join("model.ot");
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
+    let device = Device::Cpu;
     let summarization_config = SummarizationConfig {
         num_beams: 3,
         ..Default::default()

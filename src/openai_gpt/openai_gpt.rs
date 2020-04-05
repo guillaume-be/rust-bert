@@ -254,15 +254,21 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     /// # Arguments
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `_layer_past` - Unused for GPT
     /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `_encoder_outputs` - Unused for GPT
+    /// * `_decoder_input_ids` - Unused for GPT
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
     ///
     /// # Returns
     ///
     /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    /// * `encoder_hidden_states` - None
+    /// * `past` - None
     /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
@@ -274,25 +280,29 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::Gpt2Config;
-    /// use rust_bert::openai_gpt::OpenAiGptModel;
+    /// use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
+    /// use rust_bert::pipelines::generation::LMHeadModel;
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = Gpt2Config::from_file(config_path);
-    ///# let gpt_model: OpenAiGptModel = OpenAiGptModel::new(&vs.root(), &config);
+    ///# let mut gpt_model: OpenAIGPTLMHeadModel = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, hidden_states, attentions) = no_grad(|| {
+    ///  let (output, _, _, hidden_states, attentions) = no_grad(|| {
     ///    gpt_model
     ///         .forward_t(&Some(input_tensor),
+    ///                    &None,
     ///                    &Some(attention_mask),
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),
+    ///                    &None,
+    ///                    None,
     ///                    &None,
     ///                    false).unwrap()
     ///    });

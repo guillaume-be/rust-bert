@@ -7,12 +7,13 @@
 //!
 //! This crate can be used in two different ways:
 //! - Ready-to-use NLP pipelines for:
+//!     - Summarization
 //!     - Sentiment Analysis
 //!     - Named Entity Recognition
 //!     - Question-Answering
 //!     - Language Generation.
 //!
-//! More information on these can be found in the [`pipelines` module](https://docs.rs/rust-bert/0.5.3/rust_bert/pipelines/index.html)
+//! More information on these can be found in the [`pipelines` module](./pipelines/index.html)
 //! ```no_run
 //! use tch::Device;
 //! use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
@@ -39,15 +40,16 @@
 //! ```
 //! - Transformer models base architectures with customized heads. These allow to load pre-trained models for customized inference in Rust
 //!
-//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**
-//! :-----:|:-----:|:-----:|:-----:|:-----:|:-----:
-//! Masked LM|✅ |✅ |✅ | | |
-//! Sequence classification|✅ |✅ |✅| | |
-//! Token classification|✅ |✅ | ✅| | |
-//! Question answering|✅ |✅ |✅| | |
-//! Multiple choices| |✅ |✅| | |
-//! Next token prediction| | | |✅|✅|
-//! Natural Language Generation| | | |✅|✅|
+//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**
+//! :-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+//! Masked LM|✅ |✅ |✅ | | | |
+//! Sequence classification|✅ |✅ |✅| | | |
+//! Token classification|✅ |✅ | ✅| | | |
+//! Question answering|✅ |✅ |✅| | | |
+//! Multiple choices| |✅ |✅| | | |
+//! Next token prediction| | | |✅|✅| |
+//! Natural Language Generation| | | |✅|✅| |
+//! Summarization| | | |✅|✅|✅|
 //!
 //! # Loading pre-trained models
 //!

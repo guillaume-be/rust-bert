@@ -16,14 +16,19 @@ use tch::{nn, Tensor};
 use tch::kind::Kind::Float;
 
 #[derive(Debug)]
+/// # Cache for BART attention layers
+/// Stores the cached value of key, value and key padding mask to avoid recalculation (e.g. at each generation step)
 pub struct LayerState {
+    /// Cached keys
     pub prev_key: Option<Tensor>,
+    /// Cached values
     pub prev_value: Option<Tensor>,
+    /// Cached keys padding mask
     pub prev_key_padding_mask: Option<Tensor>,
 }
 
 impl LayerState {
-    pub fn reorder_cache(&mut self, new_indices: &Tensor) {
+    pub(crate) fn reorder_cache(&mut self, new_indices: &Tensor) {
         if self.prev_key.is_some() {
             self.prev_key = Some(self.prev_key.as_ref().unwrap().index_select(0, new_indices));
         }

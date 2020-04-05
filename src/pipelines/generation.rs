@@ -78,8 +78,7 @@ use crate::openai_gpt::OpenAIGPTLMHeadModel;
 use crate::gpt2::{Gpt2Config, GPT2LMHeadModel};
 use crate::Config;
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
-use crate::bart::BartConfig;
-use crate::bart::bart::BartForConditionalGeneration;
+use crate::bart::{BartConfig, BartForConditionalGeneration};
 
 extern crate ordered_float;
 

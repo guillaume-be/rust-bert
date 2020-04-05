@@ -2,11 +2,11 @@
 //!
 //! Implementation of the GPT2 language model ([Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) Radford, Wu, Child, Luan, Amodei, Sutskever 2019).
 //! The base model is implemented in the `gpt2::Gpt2Model` struct. The model also includes a language model head: `gpt2::GPT2LMHeadModel`
-//! implementing the common `gpt2::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! implementing the common `generation::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/gpt2.rs`, run with `cargo run --example gpt2`.
+//! A full working example is provided in `examples/summarization.rs`, run with `cargo run --example gpt2`.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
