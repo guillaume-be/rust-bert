@@ -505,6 +505,13 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         };
         (None, encoder_outputs)
     }
+
+    fn reset_cache(&mut self) {
+        for layer in self.get_model().get_base_model().get_decoder().get_layers() {
+            layer.get_self_attention().prev_state.as_mut().unwrap().reset_cache();
+            layer.get_encoder_attention().prev_state.as_mut().unwrap().reset_cache();
+        };
+    }
 }
 
 impl LanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer> for BartGenerator {}
@@ -1013,6 +1020,8 @@ mod private_generation_utils {
                 None => (None, None)
             }
         }
+
+        fn reset_cache(&mut self) {}
     }
 }
 
@@ -1165,7 +1174,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
             (input_ids, attention_mask)
         };
 
-
+        self.reset_cache();
         let decoded = no_grad(|| {
             if num_beams > 1 {
                 self.generate_beam_search(input_ids, encoder_outputs, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,

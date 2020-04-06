@@ -16,45 +16,49 @@ extern crate dirs;
 use std::path::PathBuf;
 use tch::Device;
 use failure::err_msg;
-use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig};
+use rust_bert::pipelines::sentiment::{SentimentClassifier, ss2_processor};
+use std::env;
 
 
 fn main() -> failure::Fallible<()> {
-    //    Resources paths
+//    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
-    home.push("gpt2");
+    home.push("distilbert_sst2");
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
     let weights_path = &home.as_path().join("model.ot");
 
-    if !config_path.is_file() | !vocab_path.is_file() | !merges_path.is_file() | !weights_path.is_file() {
+    if !config_path.is_file() | !vocab_path.is_file() | !weights_path.is_file() {
         return Err(
             err_msg("Could not find required resources to run example. \
-                          Please run ../utils/download_dependencies_gpt2.py \
+                          Please run ../utils/download_dependencies_sst2_sentiment.py \
                           in a Python environment with dependencies listed in ../requirements.txt"));
     }
 
-//    Set-up masked LM model
+//    Set-up classifier
     let device = Device::cuda_if_available();
-    let generate_config = GenerateConfig {
-        max_length: 30,
-        do_sample: true,
-        num_beams: 5,
-        temperature: 1.1,
-        num_return_sequences: 3,
-        ..Default::default()
-    };
-    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-                                   generate_config, device)?;
+    let sentiment_classifier = SentimentClassifier::new(vocab_path,
+                                                        config_path,
+                                                        weights_path, device)?;
 
-    let input_context = "The dog";
-    let second_input_context = "The cat was";
-    let output = model.generate(Some(vec!(input_context, second_input_context)), None);
+//    Define input
+    let mut sst2_path = PathBuf::from(env::var("SST2_PATH")
+        .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));
+    sst2_path.push("train.tsv");
+    let inputs = ss2_processor(sst2_path).unwrap();
 
-    for sentence in output {
-        println!("{:?}", sentence);
+//    Run model
+    let batch_size = 64;
+    let mut output = vec!();
+    for batch in inputs.chunks(batch_size) {
+        output.push(sentiment_classifier.predict(batch.iter().map(|v| v.as_str()).collect::<Vec<&str>>().as_slice()));
     }
+    let mut flat_outputs = vec!();
+    for batch_output in output.iter_mut() {
+        flat_outputs.append(batch_output);
+    }
+    println!("{:?}", flat_outputs.len());
+
     Ok(())
 }
