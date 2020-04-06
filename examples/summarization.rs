@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use tch::Device;
 use failure::err_msg;
 use rust_bert::pipelines::summarization::{SummarizationModel, SummarizationConfig};
+use std::time::Instant;
 
 
 fn main() -> failure::Fallible<()> {
@@ -40,7 +41,7 @@ fn main() -> failure::Fallible<()> {
     let device = Device::cuda_if_available();
 
     let summarization_config = SummarizationConfig {
-        num_beams: 1,
+        num_beams: 3,
         ..Default::default()
     };
 
@@ -62,7 +63,7 @@ but previous discoveries were made on planets with high temperatures or other pr
 said UCL astronomer Angelos Tsiaras. \"It's the best candidate for habitability right now.\" \"It's a good sign\", \
 said Ryan Cloutier of the Harvard–Smithsonian Center for Astrophysics, who was not one of either study's authors. \
 \"Overall,\" he continued, \"the presence of water in its atmosphere certainly improves the prospect of K2-18b being \
-a potentially habitable planet, but further observations will be required to say for sure. \"
+a potentially habitable planet, but further observations will be required to say for sure. \" \
 K2-18b was first identified in 2015 by the Kepler space telescope. It is about 110 light-years from Earth and larger \
 but less dense. Its star, a red dwarf, is cooler than the Sun, but the planet's orbit is much closer, such that a year \
 on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optimistic that NASA's James Webb space \
@@ -70,13 +71,19 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
 //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let output = summarization_model.summarize(&input);
-    for sentence in output {
-        println!("{:?}", sentence);
+
+    let num_iterations = 3;
+    let mut all_iteration_times = Vec::with_capacity(num_iterations);
+
+    for _ in 0..num_iterations {
+        let start_iteration = Instant::now();
+        let output = summarization_model.summarize(&input);
+        for sentence in output {
+            println!("{:?}", sentence);
+        }
+        println!("iteration total time {:?}", start_iteration.elapsed().as_millis());
+        all_iteration_times.push(start_iteration.elapsed().as_millis())
     }
-    let output = summarization_model.summarize(&input);
-    for sentence in output {
-        println!("{:?}", sentence);
-    }
+    println!("average total time {:?}", all_iteration_times.iter().sum::<u128>() / all_iteration_times.len() as u128);
     Ok(())
 }
