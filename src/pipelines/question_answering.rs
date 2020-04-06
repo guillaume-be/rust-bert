@@ -311,63 +311,66 @@ impl QuestionAnsweringModel {
 
         for (start, end) in batch_indices {
             let batch_features = &features[start..end];
-            let mut input_ids: Vec<Tensor> = vec!();
-            let mut attention_masks: Vec<Tensor> = vec!();
-            for feature in batch_features {
-                input_ids.push(Tensor::of_slice(&feature.input_ids));
-                attention_masks.push(Tensor::of_slice(&feature.attention_mask));
-            }
-            let input_ids = Tensor::stack(&input_ids, 0).to(self.var_store.device());
-            let attention_masks = Tensor::stack(&attention_masks, 0).to(self.var_store.device());
+            let mut input_ids = Vec::with_capacity(batch_features.len());
+            let mut attention_masks = Vec::with_capacity(batch_features.len());
 
-            let (start_logits, end_logits, _, _) = no_grad(|| {
-                self.distilbert_qa.forward_t(Some(input_ids), Some(attention_masks), None, false).unwrap()
-            });
-            let start_logits = start_logits.to(Device::Cpu);
-            let end_logits = end_logits.to(Device::Cpu);
-
-            let example_index_to_feature_end_position: Vec<(usize, i64)> = batch_features
-                .iter()
-                .enumerate()
-                .map(|(feature_index, feature)| (feature.example_index as usize, feature_index as i64 + 1))
-                .collect();
-
-            let mut feature_id_start = 0;
-            for (example_id, max_feature_id) in example_index_to_feature_end_position {
-                let mut answers: Vec<Answer> = vec!();
-                let example = &examples[example_id];
-                for feature_idx in feature_id_start..max_feature_id {
-                    let feature = &batch_features[feature_idx as usize];
-                    let start = start_logits.get(feature_idx);
-                    let end = end_logits.get(feature_idx);
-                    let p_mask = (Tensor::of_slice(&feature.p_mask) - 1).abs();
-
-                    let start: Tensor = start.exp() / start.exp().sum(Float) * &p_mask;
-                    let end: Tensor = end.exp() / end.exp().sum(Float) * &p_mask;
-
-                    let (starts, ends, scores) = self.decode(&start, &end, top_k);
-
-                    for idx in 0..starts.len() {
-                        let start_pos = feature.token_to_orig_map[&starts[idx]] as usize;
-                        let end_pos = feature.token_to_orig_map[&ends[idx]] as usize;
-                        let answer = example.doc_tokens[start_pos..end_pos + 1].join(" ");
-
-                        let start = example.char_to_word_offset
-                            .iter()
-                            .position(|&v| v as usize == start_pos)
-                            .unwrap();
-
-                        let end = example.char_to_word_offset
-                            .iter()
-                            .rposition(|&v| v as usize == end_pos)
-                            .unwrap();
-
-                        answers.push(Answer { score: scores[idx], start, end, answer });
-                    }
+            no_grad(|| {
+                for feature in batch_features {
+                    input_ids.push(Tensor::of_slice(&feature.input_ids));
+                    attention_masks.push(Tensor::of_slice(&feature.attention_mask));
                 }
-                feature_id_start = max_feature_id;
-                all_answers.push(answers[..(top_k as usize)].to_vec());
-            }
+
+                let input_ids = Tensor::stack(&input_ids, 0).to(self.var_store.device());
+                let attention_masks = Tensor::stack(&attention_masks, 0).to(self.var_store.device());
+
+                let (start_logits, end_logits, _, _) = self.distilbert_qa.forward_t(Some(input_ids), Some(attention_masks), None, false).unwrap();
+
+                let start_logits = start_logits.detach();
+                let end_logits = end_logits.detach();
+                let example_index_to_feature_end_position: Vec<(usize, i64)> = batch_features
+                    .iter()
+                    .enumerate()
+                    .map(|(feature_index, feature)| (feature.example_index as usize, feature_index as i64 + 1))
+                    .collect();
+
+                let mut feature_id_start = 0;
+
+                for (example_id, max_feature_id) in example_index_to_feature_end_position {
+                    let mut answers: Vec<Answer> = vec!();
+                    let example = &examples[example_id];
+                    for feature_idx in feature_id_start..max_feature_id {
+                        let feature = &batch_features[feature_idx as usize];
+                        let start = start_logits.get(feature_idx);
+                        let end = end_logits.get(feature_idx);
+                        let p_mask = (Tensor::of_slice(&feature.p_mask) - 1).abs().to_device(start.device());
+
+                        let start: Tensor = start.exp() / start.exp().sum(Float) * &p_mask;
+                        let end: Tensor = end.exp() / end.exp().sum(Float) * &p_mask;
+
+                        let (starts, ends, scores) = self.decode(&start, &end, top_k);
+
+                        for idx in 0..starts.len() {
+                            let start_pos = feature.token_to_orig_map[&starts[idx]] as usize;
+                            let end_pos = feature.token_to_orig_map[&ends[idx]] as usize;
+                            let answer = example.doc_tokens[start_pos..end_pos + 1].join(" ");
+
+                            let start = example.char_to_word_offset
+                                .iter()
+                                .position(|&v| v as usize == start_pos)
+                                .unwrap();
+
+                            let end = example.char_to_word_offset
+                                .iter()
+                                .rposition(|&v| v as usize == end_pos)
+                                .unwrap();
+
+                            answers.push(Answer { score: scores[idx], start, end, answer });
+                        }
+                    }
+                    feature_id_start = max_feature_id;
+                    all_answers.push(answers[..(top_k as usize)].to_vec());
+                }
+            });
         }
         all_answers
     }
@@ -384,11 +387,9 @@ impl QuestionAnsweringModel {
         } else {
             candidates.argsort(0, true).slice(0, 0, top_k, 1)
         };
-
         let mut start: Vec<i64> = vec!();
         let mut end: Vec<i64> = vec!();
         let mut scores: Vec<f64> = vec!();
-
         for flat_index_position in 0..idx_sort.size()[0] {
             let flat_index = idx_sort.int64_value(&[flat_index_position]);
             scores.push(candidates.double_value(&[flat_index]));

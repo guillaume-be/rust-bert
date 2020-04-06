@@ -57,13 +57,15 @@
 //! ```
 
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tch::{Device, Tensor, Kind, no_grad};
 use tch::nn::VarStore;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TruncationStrategy, MultiThreadedTokenizer};
 use crate::distilbert::{DistilBertModelClassifier, DistilBertConfig};
 use crate::Config;
-
+use std::fs;
+use serde::Deserialize;
+use std::error::Error;
 
 #[derive(Debug, PartialEq)]
 /// Enum with the possible sentiment polarities. Note that the pre-trained SST2 model does not include neutral sentiment.
@@ -188,23 +190,43 @@ impl SentimentClassifier {
     ///
     pub fn predict(&self, input: &[&str]) -> Vec<Sentiment> {
         let input_tensor = self.prepare_for_model(input.to_vec());
-        let (output, _, _) = no_grad(|| {
-            self.distil_bert_classifier
+        let output = no_grad(|| {
+            let (output, _, _) = self.distil_bert_classifier
                 .forward_t(Some(input_tensor),
                            None,
                            None,
                            false)
-                .unwrap()
+                .unwrap();
+            output.softmax(-1, Kind::Float).detach().to(Device::Cpu)
         });
-        let output = output.softmax(-1, Kind::Float);
 
         let mut sentiments: Vec<Sentiment> = vec!();
-        for record_index in 0..output.size()[0] {
-            let mut score = output.double_value(&[record_index, 0]);
-            let polarity = if score < 0.5 {SentimentPolarity::Positive} else {SentimentPolarity::Negative};
-            if &SentimentPolarity::Positive == &polarity {score = 1.0 - score};
-            sentiments.push(Sentiment {polarity, score})
+        let scores = output.select(1, 0).iter::<f64>().unwrap().collect::<Vec<f64>>();
+        for score in scores {
+            let polarity = if score < 0.5 { SentimentPolarity::Positive } else { SentimentPolarity::Negative };
+            let score = if &SentimentPolarity::Positive == &polarity { 1.0 - score } else { score };
+            sentiments.push(Sentiment { polarity, score })
         };
         sentiments
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct Record {
+    sentence: String,
+    label: i8,
+}
+
+pub fn ss2_processor(file_path: PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
+    let file = fs::File::open(file_path).expect("unable to open file");
+    let mut csv = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .delimiter(b'\t')
+        .from_reader(file);
+    let mut records = Vec::new();
+    for result in csv.deserialize() {
+        let record: Record = result?;
+        records.push(record.sentence);
+    }
+    Ok(records)
 }

@@ -39,6 +39,12 @@ impl LayerState {
             self.prev_key_padding_mask = Some(self.prev_key_padding_mask.as_ref().unwrap().index_select(0, new_indices));
         }
     }
+
+    pub(crate) fn reset_cache(&mut self) {
+        self.prev_key = None;
+        self.prev_value = None;
+        self.prev_key_padding_mask = None;
+    }
 }
 
 
