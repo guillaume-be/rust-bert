@@ -507,10 +507,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     }
 
     fn reset_cache(&mut self) {
-        for layer in self.get_model().get_base_model().get_decoder().get_layers() {
-            layer.get_self_attention().prev_state.as_mut().unwrap().reset_cache();
-            layer.get_encoder_attention().prev_state.as_mut().unwrap().reset_cache();
-        };
+        self.get_model().reset_cache();
     }
 }
 

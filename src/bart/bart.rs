@@ -181,9 +181,9 @@ impl BartModel {
         };
         let embedding_config = EmbeddingConfig { padding_idx: pad_token_id, ..Default::default() };
         let embeddings: nn::Embedding = embedding(p / "shared",
-                                                            config.vocab_size,
-                                                            config.d_model,
-                                                            embedding_config);
+                                                  config.vocab_size,
+                                                  config.d_model,
+                                                  embedding_config);
 
         let encoder = BartEncoder::new(p / "encoder", config);
         let decoder = BartDecoder::new(p / "decoder", config, generation_mode);
@@ -291,6 +291,14 @@ impl BartModel {
         (decoder_outputs, encoder_hidden_states, decoder_cache,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
+    }
+
+    /// Resets the decoder cached keys and values. Should be run for every new generation using the model.
+    pub fn reset_cache(&mut self) {
+        for layer in self.get_decoder().get_layers() {
+            layer.get_self_attention().prev_state.as_mut().unwrap().reset_cache();
+            layer.get_encoder_attention().prev_state.as_mut().unwrap().reset_cache();
+        };
     }
 }
 
@@ -415,6 +423,11 @@ impl BartForConditionalGeneration {
     pub fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
         let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, &self.base_model.embeddings, false);
         encoder_hidden_states
+    }
+
+    /// Resets the decoder cached keys and values. Should be run for every new generation using the model.
+    pub fn reset_cache(&mut self) {
+        self.get_base_model().reset_cache()
     }
 }
 
@@ -570,6 +583,13 @@ impl BartForSequenceClassification {
         (logits, encoder_hidden_states,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
+    }
+
+    pub(crate) fn get_base_model(&mut self) -> &mut BartModel { &mut self.base_model }
+
+    /// Resets the decoder cached keys and values. Should be run for every new generation using the model.
+    pub fn reset_cache(&mut self) {
+        self.get_base_model().reset_cache()
     }
 }
 
