@@ -17,7 +17,6 @@ use std::path::PathBuf;
 use tch::Device;
 use failure::err_msg;
 use rust_bert::pipelines::summarization::{SummarizationModel, SummarizationConfig};
-use std::time::Instant;
 
 
 fn main() -> failure::Fallible<()> {
@@ -71,19 +70,9 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
 //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-
-    let num_iterations = 3;
-    let mut all_iteration_times = Vec::with_capacity(num_iterations);
-
-    for _ in 0..num_iterations {
-        let start_iteration = Instant::now();
-        let output = summarization_model.summarize(&input);
-        for sentence in output {
-            println!("{:?}", sentence);
-        }
-        println!("iteration total time {:?}", start_iteration.elapsed().as_millis());
-        all_iteration_times.push(start_iteration.elapsed().as_millis())
+    let output = summarization_model.summarize(&input);
+    for sentence in output {
+        println!("{:?}", sentence);
     }
-    println!("average total time {:?}", all_iteration_times.iter().sum::<u128>() / all_iteration_times.len() as u128);
     Ok(())
 }
