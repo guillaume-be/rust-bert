@@ -74,9 +74,5 @@ about exoplanets like K2-18b."];
     for sentence in output {
         println!("{:?}", sentence);
     }
-    let output = summarization_model.summarize(&input);
-    for sentence in output {
-        println!("{:?}", sentence);
-    }
     Ok(())
 }
