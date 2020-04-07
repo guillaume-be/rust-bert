@@ -5,7 +5,7 @@
 [![Documentation](https://docs.rs/rust-bert/badge.svg)](https://docs.rs/rust-bert)
 ![License](https://img.shields.io/crates/l/rust_bert.svg)
 
-Rust native BERT implementation. Port of Huggingface's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://https://github.com/guillaume-be/rust-tokenizers). Supports multithreaded tokenization and GPU inference.
+Rust native Transformer-based models implementation. Port of Huggingface's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://https://github.com/guillaume-be/rust-tokenizers). Supports multithreaded tokenization and GPU inference.
 This repository exposes the model base architecture, task-specific heads (see below) and ready-to-use pipelines.
 
 The following models are currently implemented:
@@ -110,7 +110,7 @@ Example output:
 [
     "The dog's owners, however, did not want to be named. According to the lawsuit, the animal's owner, a 29-year"
     "The dog has always been part of the family. \"He was always going to be my dog and he was always looking out for me"
-    "The dog has been able to stay in the home for more than three months now. "It's a very good dog. She's"
+    "The dog has been able to stay in the home for more than three months now. \"It's a very good dog. She's"
     "The cat was discovered earlier this month in the home of a relative of the deceased. The cat\'s owner, who wished to remain anonymous,"
     "The cat was pulled from the street by two-year-old Jazmine.\"I didn't know what to do,\" she said"
     "The cat was attacked by two stray dogs and was taken to a hospital. Two other cats were also injured in the attack and are being treated."
