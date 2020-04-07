@@ -137,8 +137,8 @@ impl SelfAttention {
 
         self.prev_state = match &self.prev_state {
             Some(_) => Some(LayerState {
-                prev_key: Some(k.copy().view((bs, self.num_heads, -1, self.head_dim))),
-                prev_value: Some(v.copy().view((bs, self.num_heads, -1, self.head_dim))),
+                prev_key: Some(k.view((bs, self.num_heads, -1, self.head_dim))),
+                prev_value: Some(v.view((bs, self.num_heads, -1, self.head_dim))),
                 prev_key_padding_mask: match key_padding_mask.as_ref() {
                     Some(tensor) => Some(tensor.copy()),
                     None => None

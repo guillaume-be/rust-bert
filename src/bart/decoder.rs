@@ -109,20 +109,16 @@ impl DecoderLayer {
         let (output, attention_weights) = self.self_attention.forward_t(x, Some(x), decoder_padding_mask, causal_mask, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
         let output = output.apply(&self.self_attention_layer_norm);
-        let residual = output.copy();
-        let (output, _) = self.encoder_attention.forward_t(&output, Some(encoder_hidden_states), encoder_attn_mask, None, train);
-        let output: Tensor = output.apply_t(&self.dropout, train) + residual;
-        let output = output.apply(&self.encoder_attention_layer_norm);
-
-        let residual = output.copy();
-        let output = (self.activation)(&output.apply(&self.fc1));
-        let output = output
+        let (output1, _) = self.encoder_attention.forward_t(&output, Some(encoder_hidden_states), encoder_attn_mask, None, train);
+        let output1: Tensor = output1.apply_t(&self.dropout, train) + output;
+        let output1 = output1.apply(&self.encoder_attention_layer_norm);
+        let output2 = (self.activation)(&output1.apply(&self.fc1));
+        let output2 = output2
             .apply_t(&self.activation_dropout, train)
             .apply(&self.fc2)
             .apply_t(&self.dropout, train);
-        let output: Tensor = output + residual;
-
-        (output.apply(&self.final_layer_norm), attention_weights)
+        let output2: Tensor = output2 + output1;
+        (output2.apply(&self.final_layer_norm), attention_weights)
     }
 }
 

@@ -153,7 +153,7 @@ impl DistilBertModel {
                 None => input_value.apply_t(&self.embeddings, train)
             }
             None => match input_embeds {
-                Some(embeds) => embeds.copy(),
+                Some(embeds) => embeds,
                 None => { return Err("At least one of input ids or input embeddings must be set"); }
             }
         };

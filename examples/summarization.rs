@@ -40,7 +40,7 @@ fn main() -> failure::Fallible<()> {
     let device = Device::cuda_if_available();
 
     let summarization_config = SummarizationConfig {
-        num_beams: 1,
+        num_beams: 3,
         ..Default::default()
     };
 
@@ -62,7 +62,7 @@ but previous discoveries were made on planets with high temperatures or other pr
 said UCL astronomer Angelos Tsiaras. \"It's the best candidate for habitability right now.\" \"It's a good sign\", \
 said Ryan Cloutier of the Harvard–Smithsonian Center for Astrophysics, who was not one of either study's authors. \
 \"Overall,\" he continued, \"the presence of water in its atmosphere certainly improves the prospect of K2-18b being \
-a potentially habitable planet, but further observations will be required to say for sure. \"
+a potentially habitable planet, but further observations will be required to say for sure. \" \
 K2-18b was first identified in 2015 by the Kepler space telescope. It is about 110 light-years from Earth and larger \
 but less dense. Its star, a red dwarf, is cooler than the Sun, but the planet's orbit is much closer, such that a year \
 on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optimistic that NASA's James Webb space \

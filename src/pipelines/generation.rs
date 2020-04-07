@@ -826,6 +826,7 @@ mod private_generation_utils {
                 outputs = temp.0;
                 encoder_outputs = temp.1;
                 past = temp.2;
+
                 let mut next_token_logits = outputs.select(1, -1);
 
 //            Reduce probability for repeated inputs
@@ -849,6 +850,7 @@ mod private_generation_utils {
                 for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
                     &scores.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
                 }
+
                 let (next_scores, next_tokens) = if do_sample {
                     let mut _scores: Tensor = &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
                     self.top_k_top_p_filtering(&mut _scores, top_k as i64, top_p, 2);
@@ -865,6 +867,7 @@ mod private_generation_utils {
                     let next_scores = next_scores.contiguous().view((batch_size, num_beams * vocab_size));
                     next_scores.topk(2 * num_beams, 1, true, true)
                 };
+
                 let mut next_batch_beam: Vec<(f64, i64, i64)> = vec!();
                 for batch_index in 0..batch_size {
                     if done[batch_index as usize] {
@@ -923,6 +926,7 @@ mod private_generation_utils {
                 if done.iter().all(|&x| x) {
                     break;
                 }
+
                 beam_scores = Tensor::of_slice(&next_batch_beam.iter().map(|(score, _, _)| *score).collect_vec()).to(input_ids.device());
                 beam_tokens = Tensor::of_slice(&next_batch_beam.iter().map(|(_, token, _)| *token).collect_vec()).to(input_ids.device());
                 beam_indices = Tensor::of_slice(&next_batch_beam.iter().map(|(_, _, index)| *index).collect_vec()).to(input_ids.device());
@@ -1002,6 +1006,7 @@ mod private_generation_utils {
             } else {
                 Tensor::stack(&best_ids, 0).to_kind(Int64).to(input_ids.device())
             };
+
             decoded
         }
 
