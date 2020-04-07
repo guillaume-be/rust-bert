@@ -523,7 +523,6 @@ mod private_generation_utils {
     use crate::pipelines::generation::{BeamHypotheses, GenerateConfig, LMHeadModel};
     use itertools::Itertools;
     use super::ordered_float::OrderedFloat;
-    use std::time::Instant;
 
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         fn get_model(&mut self) -> &mut T;
@@ -807,16 +806,7 @@ mod private_generation_utils {
             let mut encoder_outputs = encoder_outputs;
             let mut current_length = cur_len;
 
-            let mut all_forwards = Vec::with_capacity(max_length as usize);
-            let mut all_repetition_penalty_time = Vec::with_capacity(max_length as usize);
-            let mut all_banned_tokens_time = Vec::with_capacity(max_length as usize);
-            let mut all_sample_time = Vec::with_capacity(max_length as usize);
-            let mut all_beam_decoding_time = Vec::with_capacity(max_length as usize);
-            let mut all_cache_reorder_time = Vec::with_capacity(max_length as usize);
-
-
             while current_length < max_length {
-                let start_iter = Instant::now();
                 let (prepared_input,
                     prepared_encoder_output,
                     prepared_decoder_input,
@@ -837,19 +827,13 @@ mod private_generation_utils {
                 encoder_outputs = temp.1;
                 past = temp.2;
 
-                let forward_time = Instant::now();
-                let elapsed_forward_time = (forward_time - start_iter).as_millis();
-                all_forwards.push(elapsed_forward_time);
-
                 let mut next_token_logits = outputs.select(1, -1);
 
 //            Reduce probability for repeated inputs
                 if repetition_penalty > 1f64 {
                     self.enforce_repetition_penalty(&mut next_token_logits, batch_size, 1, &input_ids, repetition_penalty)
                 }
-                let repetition_penalty_time = Instant::now();
-                let elapsed_repetition_penalty_time = (repetition_penalty_time - forward_time).as_millis();
-                all_repetition_penalty_time.push(elapsed_repetition_penalty_time);
+
                 if temperature > 1f64 {
                     next_token_logits = next_token_logits / temperature;
                 }
@@ -866,9 +850,7 @@ mod private_generation_utils {
                 for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
                     &scores.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
                 }
-                let banned_tokens_time = Instant::now();
-                let elapsed_banned_tokens_time = (banned_tokens_time - repetition_penalty_time).as_millis();
-                all_banned_tokens_time.push(elapsed_banned_tokens_time);
+
                 let (next_scores, next_tokens) = if do_sample {
                     let mut _scores: Tensor = &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
                     self.top_k_top_p_filtering(&mut _scores, top_k as i64, top_p, 2);
@@ -885,9 +867,7 @@ mod private_generation_utils {
                     let next_scores = next_scores.contiguous().view((batch_size, num_beams * vocab_size));
                     next_scores.topk(2 * num_beams, 1, true, true)
                 };
-                let sample_time = Instant::now();
-                let elapsed_sample_time = (sample_time - banned_tokens_time).as_millis();
-                all_sample_time.push(elapsed_sample_time);
+
                 let mut next_batch_beam: Vec<(f64, i64, i64)> = vec!();
                 for batch_index in 0..batch_size {
                     if done[batch_index as usize] {
@@ -946,9 +926,6 @@ mod private_generation_utils {
                 if done.iter().all(|&x| x) {
                     break;
                 }
-                let beam_decoding_time = Instant::now();
-                let elapsed_beam_decoding_time = (beam_decoding_time - sample_time).as_millis();
-                all_beam_decoding_time.push(elapsed_beam_decoding_time);
 
                 beam_scores = Tensor::of_slice(&next_batch_beam.iter().map(|(score, _, _)| *score).collect_vec()).to(input_ids.device());
                 beam_tokens = Tensor::of_slice(&next_batch_beam.iter().map(|(_, token, _)| *token).collect_vec()).to(input_ids.device());
@@ -963,9 +940,6 @@ mod private_generation_utils {
                     attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
                                                                                          (Int64, attention_mask.device())).as_ref()], -1);
                 }
-                let cache_reorder_time = Instant::now();
-                let elapsed_cache_reorder_time = (cache_reorder_time - beam_decoding_time).as_millis();
-                all_cache_reorder_time.push(elapsed_cache_reorder_time);
                 current_length += 1;
             }
 
@@ -1033,12 +1007,6 @@ mod private_generation_utils {
                 Tensor::stack(&best_ids, 0).to_kind(Int64).to(input_ids.device())
             };
 
-            println!(" Total forward time {:?}", all_forwards.iter().sum::<u128>());
-            println!(" Total repetition time {:?}", all_repetition_penalty_time.iter().sum::<u128>());
-            println!(" Total banned tokens time {:?}", all_banned_tokens_time.iter().sum::<u128>());
-            println!(" Total sample time {:?}", all_sample_time.iter().sum::<u128>());
-            println!(" Total beam decoding time {:?}", all_beam_decoding_time.iter().sum::<u128>());
-            println!(" Total cache reorder time {:?}", all_cache_reorder_time.iter().sum::<u128>());
             decoded
         }
 
