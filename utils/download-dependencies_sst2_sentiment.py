@@ -12,7 +12,7 @@ config_path = DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP["distilbert-base-uncased-
 vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["distilbert-base-uncased"]
 weights_path = DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP["distilbert-base-uncased-finetuned-sst-2-english"]
 
-target_path = Path.home() / 'rustbert' / 'distilbert_sst2'
+target_path = Path.home() / 'rustbert' / 'distilbert-sst2'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
@@ -42,3 +42,6 @@ toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve(
 
 subprocess.call(
     ['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])
+
+os.remove(str(target_path / 'model.bin'))
+os.remove(str(target_path / 'model.npz'))

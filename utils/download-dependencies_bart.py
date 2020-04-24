@@ -48,3 +48,6 @@ toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve(
 
 subprocess.call(
     ['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])
+
+os.remove(str(target_path / 'model.bin'))
+os.remove(str(target_path / 'model.npz'))
