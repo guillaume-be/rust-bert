@@ -43,5 +43,5 @@
 mod openai_gpt;
 mod transformer;
 
-pub use openai_gpt::{OpenAiGptModelDependencies, OpenAiGptConfigDependencies, OpenAiGptVocabDependencies, OpenAiGptMergesDependencies,
+pub use openai_gpt::{OpenAiGptModelResources, OpenAiGptConfigResources, OpenAiGptVocabResources, OpenAiGptMergesResources,
                      OpenAiGptModel, OpenAIGPTLMHeadModel};

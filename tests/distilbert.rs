@@ -3,10 +3,10 @@ use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, Trunc
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use rust_bert::Config;
-use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification, DistilBertModelDependencies, DistilBertConfigDependencies, DistilBertVocabDependencies};
+use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification, DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources};
 use rust_bert::pipelines::sentiment::{SentimentClassifier, SentimentPolarity};
 use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
-use rust_bert::common::resources::{Dependency, RemoteDependency, download_dependency};
+use rust_bert::common::resources::{Resource, RemoteResource, download_resource};
 use std::collections::HashMap;
 
 extern crate failure;
@@ -16,12 +16,12 @@ extern crate dirs;
 fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
 
 //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT_SST2));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertVocabDependencies::DISTIL_BERT_SST2));
-    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertModelDependencies::DISTIL_BERT_SST2));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let weights_path = download_dependency(&weights_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2));
+    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up classifier
     let device = Device::cuda_if_available();
@@ -54,12 +54,12 @@ fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
 fn distilbert_masked_lm() -> failure::Fallible<()> {
 
 //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertVocabDependencies::DISTIL_BERT));
-    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertModelDependencies::DISTIL_BERT));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let weights_path = download_dependency(&weights_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT));
+    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -116,10 +116,10 @@ fn distilbert_masked_lm() -> failure::Fallible<()> {
 fn distilbert_for_question_answering() -> failure::Fallible<()> {
 
 //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT_SQUAD));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertVocabDependencies::DISTIL_BERT_SQUAD));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SQUAD));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SQUAD));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -165,10 +165,10 @@ fn distilbert_for_question_answering() -> failure::Fallible<()> {
 fn distilbert_for_token_classification() -> failure::Fallible<()> {
 
 //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertVocabDependencies::DISTIL_BERT));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -219,12 +219,12 @@ fn distilbert_for_token_classification() -> failure::Fallible<()> {
 fn distilbert_question_answering() -> failure::Fallible<()> {
 
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT_SQUAD));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertVocabDependencies::DISTIL_BERT_SQUAD));
-    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertModelDependencies::DISTIL_BERT_SQUAD));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let weights_path = download_dependency(&weights_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SQUAD));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SQUAD));
+    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SQUAD));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;

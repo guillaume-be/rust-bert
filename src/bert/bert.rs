@@ -23,23 +23,23 @@ use crate::common::dropout::Dropout;
 use std::collections::HashMap;
 use crate::Config;
 
-pub struct BertModelDependencies;
+pub struct BertModelResources;
 
-pub struct BertConfigDependencies;
+pub struct BertConfigResources;
 
-pub struct BertVocabDependencies;
+pub struct BertVocabResources;
 
-impl BertModelDependencies {
+impl BertModelResources {
     pub const BERT: (&'static str, &'static str) = ("bert/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-rust_model.ot");
     pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/rust_model.ot");
 }
 
-impl BertConfigDependencies {
+impl BertConfigResources {
     pub const BERT: (&'static str, &'static str) = ("bert/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-config.json");
     pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/config.json");
 }
 
-impl BertVocabDependencies {
+impl BertVocabResources {
     pub const BERT: (&'static str, &'static str) = ("bert/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt");
     pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/vocab.txt");
 }

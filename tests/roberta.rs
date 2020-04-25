@@ -2,21 +2,21 @@ use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{RobertaTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::Config;
 use rust_bert::bert::BertConfig;
-use rust_bert::roberta::{RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering, RobertaConfigDependencies, RobertaVocabDependencies, RobertaMergesDependencies, RobertaModelDependencies};
+use rust_bert::roberta::{RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering, RobertaConfigResources, RobertaVocabResources, RobertaMergesResources, RobertaModelResources};
 use std::collections::HashMap;
-use rust_bert::common::resources::{RemoteDependency, Dependency, download_dependency};
+use rust_bert::common::resources::{RemoteResource, Resource, download_resource};
 
 #[test]
 fn roberta_masked_lm() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
-    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
-    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaModelDependencies::ROBERTA));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let merges_path = download_dependency(&merges_dependency)?;
-    let weights_path = download_dependency(&weights_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaModelResources::ROBERTA));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let merges_path = download_resource(&merges_dependency)?;
+    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
@@ -77,12 +77,12 @@ fn roberta_masked_lm() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_sequence_classification() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
-    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let merges_path = download_dependency(&merges_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let merges_path = download_resource(&merges_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -136,12 +136,12 @@ fn roberta_for_sequence_classification() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_multiple_choice() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
-    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let merges_path = download_dependency(&merges_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let merges_path = download_resource(&merges_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -189,12 +189,12 @@ fn roberta_for_multiple_choice() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_token_classification() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
-    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let merges_path = download_dependency(&merges_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let merges_path = download_resource(&merges_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -249,12 +249,12 @@ fn roberta_for_token_classification() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_question_answering() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
-    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let merges_path = download_dependency(&merges_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let merges_path = download_resource(&merges_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;

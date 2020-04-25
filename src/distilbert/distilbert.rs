@@ -20,25 +20,25 @@ use self::tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
 use crate::Config;
 
-pub struct DistilBertModelDependencies;
+pub struct DistilBertModelResources;
 
-pub struct DistilBertConfigDependencies;
+pub struct DistilBertConfigResources;
 
-pub struct DistilBertVocabDependencies;
+pub struct DistilBertVocabResources;
 
-impl DistilBertModelDependencies {
+impl DistilBertModelResources {
     pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot");
     pub const DISTIL_BERT: (&'static str, &'static str) = ("distilbert/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-rust_model.ot");
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = ("distilbert-qa/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-cased-distilled-squad-rust_model.ot");
 }
 
-impl DistilBertConfigDependencies {
+impl DistilBertConfigResources {
     pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-config.json");
     pub const DISTIL_BERT: (&'static str, &'static str) = ("distilbert/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-config.json");
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = ("distilbert-qa/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-cased-distilled-squad-config.json");
 }
 
-impl DistilBertVocabDependencies {
+impl DistilBertVocabResources {
     pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-vocab.txt");
     pub const DISTIL_BERT: (&'static str, &'static str) = ("distilbert/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt");
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = ("distilbert-qa/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-cased-vocab.txt");

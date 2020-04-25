@@ -49,7 +49,7 @@ mod embeddings;
 mod attention;
 mod encoder;
 
-pub use bert::{BertModelDependencies, BertConfigDependencies, BertVocabDependencies,
+pub use bert::{BertModelResources, BertConfigResources, BertVocabResources,
                BertConfig, Activation, BertModel, BertForTokenClassification, BertForMultipleChoice,
                BertForMaskedLM, BertForSequenceClassification, BertForQuestionAnswering};
 pub use embeddings::{BertEmbedding, BertEmbeddings};

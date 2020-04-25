@@ -22,27 +22,27 @@ use crate::openai_gpt::transformer::Block;
 use crate::gpt2::Gpt2Config;
 use crate::pipelines::generation::LMHeadModel;
 
-pub struct OpenAiGptModelDependencies;
+pub struct OpenAiGptModelResources;
 
-pub struct OpenAiGptConfigDependencies;
+pub struct OpenAiGptConfigResources;
 
-pub struct OpenAiGptVocabDependencies;
+pub struct OpenAiGptVocabResources;
 
-pub struct OpenAiGptMergesDependencies;
+pub struct OpenAiGptMergesResources;
 
-impl OpenAiGptModelDependencies {
+impl OpenAiGptModelResources {
     pub const GPT: (&'static str, &'static str) = ("openai-gpt/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-rust_model.ot");
 }
 
-impl OpenAiGptConfigDependencies {
+impl OpenAiGptConfigResources {
     pub const GPT: (&'static str, &'static str) = ("openai-gpt/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-config.json");
 }
 
-impl OpenAiGptVocabDependencies {
+impl OpenAiGptVocabResources {
     pub const GPT: (&'static str, &'static str) = ("openai-gpt/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-vocab.json");
 }
 
-impl OpenAiGptMergesDependencies {
+impl OpenAiGptMergesResources {
     pub const GPT: (&'static str, &'static str) = ("openai-gpt/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-merges.txt");
 }
 

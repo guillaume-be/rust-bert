@@ -5,21 +5,21 @@ use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{BertTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::Config;
 use rust_bert::bert::{BertConfig, BertForMaskedLM, BertForSequenceClassification, BertForMultipleChoice, BertForTokenClassification, BertForQuestionAnswering,
-                      BertConfigDependencies, BertVocabDependencies, BertModelDependencies};
+                      BertConfigResources, BertVocabResources, BertModelResources};
 use rust_bert::pipelines::ner::NERModel;
-use rust_bert::common::resources::{Dependency, RemoteDependency, download_dependency};
+use rust_bert::common::resources::{Resource, RemoteResource, download_resource};
 use std::collections::HashMap;
 
 
 #[test]
 fn bert_masked_lm() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertConfigDependencies::BERT));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertVocabDependencies::BERT));
-    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertModelDependencies::BERT));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let weights_path = download_dependency(&weights_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
@@ -80,10 +80,10 @@ fn bert_masked_lm() -> failure::Fallible<()> {
 #[test]
 fn bert_for_sequence_classification() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertConfigDependencies::BERT));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertVocabDependencies::BERT));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -137,10 +137,10 @@ fn bert_for_sequence_classification() -> failure::Fallible<()> {
 #[test]
 fn bert_for_multiple_choice() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertConfigDependencies::BERT));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertVocabDependencies::BERT));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -187,10 +187,10 @@ fn bert_for_multiple_choice() -> failure::Fallible<()> {
 #[test]
 fn bert_for_token_classification() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertConfigDependencies::BERT));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertVocabDependencies::BERT));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -245,10 +245,10 @@ fn bert_for_token_classification() -> failure::Fallible<()> {
 #[test]
 fn bert_for_question_answering() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertConfigDependencies::BERT));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertVocabDependencies::BERT));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -297,12 +297,12 @@ fn bert_for_question_answering() -> failure::Fallible<()> {
 #[test]
 fn bert_pre_trained_ner() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertConfigDependencies::BERT_NER));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertVocabDependencies::BERT_NER));
-    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BertModelDependencies::BERT_NER));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let weights_path = download_dependency(&weights_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER));
+    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_NER));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up model
     let device = Device::cuda_if_available();

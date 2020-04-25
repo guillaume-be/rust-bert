@@ -49,6 +49,6 @@ mod embeddings;
 mod attention;
 mod transformer;
 
-pub use distilbert::{DistilBertModelDependencies, DistilBertConfigDependencies, DistilBertVocabDependencies,
+pub use distilbert::{DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources,
                      DistilBertConfig, Activation, DistilBertModel, DistilBertForQuestionAnswering, DistilBertForTokenClassification,
                      DistilBertModelMaskedLM, DistilBertModelClassifier};

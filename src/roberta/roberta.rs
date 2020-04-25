@@ -19,27 +19,27 @@ use crate::roberta::embeddings::RobertaEmbeddings;
 use crate::common::dropout::Dropout;
 use crate::bert::{BertConfig, BertModel};
 
-pub struct RobertaModelDependencies;
+pub struct RobertaModelResources;
 
-pub struct RobertaConfigDependencies;
+pub struct RobertaConfigResources;
 
-pub struct RobertaVocabDependencies;
+pub struct RobertaVocabResources;
 
-pub struct RobertaMergesDependencies;
+pub struct RobertaMergesResources;
 
-impl RobertaModelDependencies {
+impl RobertaModelResources {
     pub const ROBERTA: (&'static str, &'static str) = ("roberta/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-rust_model.ot");
 }
 
-impl RobertaConfigDependencies {
+impl RobertaConfigResources {
     pub const ROBERTA: (&'static str, &'static str) = ("roberta/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-config.json");
 }
 
-impl RobertaVocabDependencies {
+impl RobertaVocabResources {
     pub const ROBERTA: (&'static str, &'static str) = ("roberta/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-vocab.json");
 }
 
-impl RobertaMergesDependencies {
+impl RobertaMergesResources {
     pub const ROBERTA: (&'static str, &'static str) = ("roberta/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-merges.txt");
 }
 

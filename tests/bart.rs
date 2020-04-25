@@ -1,30 +1,29 @@
-use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, RobertaTokenizer};
 use rust_bert::Config;
-use rust_bert::bart::{BartConfig, BartForConditionalGeneration, BartConfigDependencies, BartVocabDependencies, BartModelDependencies, BartMergesDependencies};
+use rust_bert::bart::{BartConfig, BartConfigResources, BartVocabResources, BartModelResources, BartMergesResources, BartModel};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
-use rust_bert::common::resources::{Dependency, RemoteDependency, download_dependency};
+use rust_bert::common::resources::{Resource, RemoteResource, download_resource};
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartConfigDependencies::BART));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartVocabDependencies::BART));
-    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartMergesDependencies::BART));
-    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartModelDependencies::BART));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let merges_path = download_dependency(&merges_dependency)?;
-    let weights_path = download_dependency(&weights_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
+    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
+    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let merges_path = download_resource(&merges_dependency)?;
+    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
+    let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = BartConfig::from_file(config_path);
-    let mut bart_model = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    let mut bart_model = BartModel::new(&vs.root(), &config, false);
     vs.load(weights_path)?;
 
 //    Define input
@@ -44,7 +43,7 @@ fn bart_lm_model() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output, encoder_outputs, _, _, _, _) = bart_model.forward_t(
+    let (output, encoder_outputs, _, _, _, _, _) = bart_model.forward_t(
         Some(&input_tensor),
         None,
         None,
@@ -52,14 +51,9 @@ fn bart_lm_model() -> failure::Fallible<()> {
         None,
         false);
 
-    let next_word_id = output.get(0).get(-1).argmax(-1, true).int64_value(&[0]);
-    let next_word = tokenizer.decode(vec!(next_word_id), true, true);
-
-    assert_eq!(output.size(), vec!(1, 6, 50264));
+    assert_eq!(output.size(), vec!(1, 6, 1024));
     assert_eq!(encoder_outputs.size(), vec!(1, 6, 1024));
-    assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - 10.7903).abs()< 1e-4);
-    assert_eq!(next_word_id, 4i64);
-    assert_eq!(next_word, String::from("."));
+    assert!((output.double_value(&[0, output.size()[1] - 1, 0]) - (-0.2420)).abs()< 1e-4);
     Ok(())
 }
 
@@ -68,17 +62,17 @@ fn bart_lm_model() -> failure::Fallible<()> {
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_greedy() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartConfigDependencies::BART_CNN));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartVocabDependencies::BART_CNN));
-    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartMergesDependencies::BART_CNN));
-    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartModelDependencies::BART_CNN));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let merges_path = download_dependency(&merges_dependency)?;
-    let weights_path = download_dependency(&weights_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART_CNN));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART_CNN));
+    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART_CNN));
+    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART_CNN));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let merges_path = download_resource(&merges_dependency)?;
+    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
+    let device = Device::Cpu;
     let summarization_config = SummarizationConfig {
         num_beams: 1,
         ..Default::default()
@@ -123,17 +117,17 @@ about exoplanets like K2-18b."];
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_beam_search() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartConfigDependencies::BART_CNN));
-    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartVocabDependencies::BART_CNN));
-    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartMergesDependencies::BART_CNN));
-    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartModelDependencies::BART_CNN));
-    let config_path = download_dependency(&config_dependency)?;
-    let vocab_path = download_dependency(&vocab_dependency)?;
-    let merges_path = download_dependency(&merges_dependency)?;
-    let weights_path = download_dependency(&weights_dependency)?;
+    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART_CNN));
+    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART_CNN));
+    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART_CNN));
+    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART_CNN));
+    let config_path = download_resource(&config_dependency)?;
+    let vocab_path = download_resource(&vocab_dependency)?;
+    let merges_path = download_resource(&merges_dependency)?;
+    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
+    let device = Device::Cpu;
     let summarization_config = SummarizationConfig {
         num_beams: 3,
         ..Default::default()
