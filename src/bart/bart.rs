@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::Config;
@@ -24,6 +23,34 @@ use crate::bart::attention::LayerState;
 use std::borrow::BorrowMut;
 use crate::common::dropout::Dropout;
 use crate::pipelines::generation::LMHeadModel;
+
+pub struct BartModelDependencies;
+
+pub struct BartConfigDependencies;
+
+pub struct BartVocabDependencies;
+
+pub struct BartMergesDependencies;
+
+impl BartModelDependencies {
+    pub const BART: (&'static str, &'static str) = ("bart/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large/rust_model.ot");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large-cnn/rust_model.ot");
+}
+
+impl BartConfigDependencies {
+    pub const BART: (&'static str, &'static str) = ("bart/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large/config.json");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large-cnn/config.json");
+}
+
+impl BartVocabDependencies {
+    pub const BART: (&'static str, &'static str) = ("bart/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-vocab.json");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-vocab.json");
+}
+
+impl BartMergesDependencies {
+    pub const BART: (&'static str, &'static str) = ("bart/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-merges.txt");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-merges.txt");
+}
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,9 +82,7 @@ pub struct BartConfig {
     pub decoder_layerdrop: f64,
     pub decoder_layers: i64,
     pub decoder_start_token_id: Option<i64>,
-    pub do_sample: bool,
     pub dropout: f64,
-    pub early_stopping: bool,
     pub encoder_attention_heads: i64,
     pub encoder_ffn_dim: i64,
     pub encoder_layerdrop: f64,
@@ -70,21 +95,13 @@ pub struct BartConfig {
     pub init_std: f64,
     pub is_decoder: Option<bool>,
     pub is_encoder_decoder: Option<bool>,
-    pub length_penalty: f64,
-    pub max_length: i64,
     pub max_position_embeddings: i64,
     pub min_length: Option<i64>,
     pub no_repeat_ngram_size: Option<i64>,
-    pub num_beams: i64,
     pub num_hidden_layers: i64,
-    pub num_return_sequences: i64,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub output_past: Option<bool>,
-    pub repetition_penalty: f64,
-    pub temperature: f64,
-    pub top_k: i64,
-    pub top_p: f64,
     pub vocab_size: i64,
 }
 

@@ -46,5 +46,6 @@ mod encoder;
 mod decoder;
 mod embeddings;
 
-pub use bart::{BartConfig, Activation, BartModel, BartForSequenceClassification, BartForConditionalGeneration};
+pub use bart::{BartModelDependencies, BartConfigDependencies, BartVocabDependencies, BartMergesDependencies,
+               BartConfig, Activation, BartModel, BartForSequenceClassification, BartForConditionalGeneration};
 pub use attention::LayerState;

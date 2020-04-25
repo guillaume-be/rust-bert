@@ -24,8 +24,10 @@ use std::collections::HashMap;
 use crate::Config;
 
 pub struct BertModelDependencies;
+
 pub struct BertConfigDependencies;
-pub struct BertTokenizerDependencies;
+
+pub struct BertVocabDependencies;
 
 impl BertModelDependencies {
     pub const BERT: (&'static str, &'static str) = ("bert/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-rust_model.ot");
@@ -37,12 +39,10 @@ impl BertConfigDependencies {
     pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/config.json");
 }
 
-impl BertTokenizerDependencies {
+impl BertVocabDependencies {
     pub const BERT: (&'static str, &'static str) = ("bert/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt");
     pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/vocab.txt");
 }
-
-
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]

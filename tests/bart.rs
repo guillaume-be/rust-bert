@@ -2,23 +2,25 @@ use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, RobertaTokenizer};
 use rust_bert::Config;
-use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
+use rust_bert::bart::{BartConfig, BartForConditionalGeneration, BartConfigDependencies, BartVocabDependencies, BartModelDependencies, BartMergesDependencies};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
+use rust_bert::common::resources::{Dependency, RemoteDependency, download_dependency};
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bart-large-cnn");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartConfigDependencies::BART));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartVocabDependencies::BART));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartMergesDependencies::BART));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartModelDependencies::BART));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
-    let device = Device::Cpu;
+    let device = Device::cuda_if_available();
     let mut vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = BartConfig::from_file(config_path);
@@ -66,16 +68,17 @@ fn bart_lm_model() -> failure::Fallible<()> {
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_greedy() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bart-large-cnn");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartConfigDependencies::BART_CNN));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartVocabDependencies::BART_CNN));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartMergesDependencies::BART_CNN));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartModelDependencies::BART_CNN));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
-    let device = Device::Cpu;
+    let device = Device::cuda_if_available();
     let summarization_config = SummarizationConfig {
         num_beams: 1,
         ..Default::default()
@@ -120,16 +123,17 @@ about exoplanets like K2-18b."];
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_beam_search() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bart-large-cnn");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartConfigDependencies::BART_CNN));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartVocabDependencies::BART_CNN));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartMergesDependencies::BART_CNN));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(BartModelDependencies::BART_CNN));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
-    let device = Device::Cpu;
+    let device = Device::cuda_if_available();
     let summarization_config = SummarizationConfig {
         num_beams: 3,
         ..Default::default()
