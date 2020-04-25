@@ -49,5 +49,6 @@
 mod embeddings;
 mod roberta;
 
-pub use roberta::{RobertaForMaskedLM, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering, RobertaForSequenceClassification};
+pub use roberta::{RobertaModelDependencies, RobertaConfigDependencies, RobertaVocabDependencies, RobertaMergesDependencies,
+                  RobertaForMaskedLM, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering, RobertaForSequenceClassification};
 pub use embeddings::RobertaEmbeddings;

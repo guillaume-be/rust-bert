@@ -1,21 +1,22 @@
-use std::path::PathBuf;
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{RobertaTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::Config;
 use rust_bert::bert::BertConfig;
-use rust_bert::roberta::{RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering};
+use rust_bert::roberta::{RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering, RobertaConfigDependencies, RobertaVocabDependencies, RobertaMergesDependencies, RobertaModelDependencies};
 use std::collections::HashMap;
+use rust_bert::common::resources::{RemoteDependency, Dependency, download_dependency};
 
 #[test]
 fn roberta_masked_lm() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaModelDependencies::ROBERTA));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
@@ -76,13 +77,12 @@ fn roberta_masked_lm() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_sequence_classification() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -126,7 +126,7 @@ fn roberta_for_sequence_classification() -> failure::Fallible<()> {
                        false)
     });
 
-    assert_eq!(output.size(), &[2, 42]);
+    assert_eq!(output.size(), &[2, 3]);
     assert_eq!(config.num_hidden_layers as usize, all_hidden_states.unwrap().len());
     assert_eq!(config.num_hidden_layers as usize, all_attentions.unwrap().len());
 
@@ -136,12 +136,12 @@ fn roberta_for_sequence_classification() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_multiple_choice() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -189,13 +189,12 @@ fn roberta_for_multiple_choice() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_token_classification() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -211,7 +210,6 @@ fn roberta_for_token_classification() -> failure::Fallible<()> {
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
     let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config);
-
 
 //    Define input
     let input = ["Looks like one thing is missing", "It\'s like comparing oranges to apples"];
@@ -240,7 +238,7 @@ fn roberta_for_token_classification() -> failure::Fallible<()> {
                        false)
     });
 
-    assert_eq!(output.size(), &[2, 9, 7]);
+    assert_eq!(output.size(), &[2, 9, 4]);
     assert_eq!(config.num_hidden_layers as usize, all_hidden_states.unwrap().len());
     assert_eq!(config.num_hidden_layers as usize, all_attentions.unwrap().len());
 
@@ -251,13 +249,12 @@ fn roberta_for_token_classification() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_question_answering() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaConfigDependencies::ROBERTA));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaVocabDependencies::ROBERTA));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(RobertaMergesDependencies::ROBERTA));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
 
 //    Set-up model
     let device = Device::Cpu;
