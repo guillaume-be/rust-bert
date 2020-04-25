@@ -39,3 +39,6 @@ dirs = "2.0.0"
 itertools = "0.9.0"
 ordered-float = "1.0.2"
 csv = "1.1.3"
+reqwest = "0.10.4"
+lazy_static = "1.4.0"
+tokio = { version = "0.2.19", features = ["full"] }
