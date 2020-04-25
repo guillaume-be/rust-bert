@@ -20,6 +20,22 @@ use self::tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
 use crate::Config;
 
+pub struct DistilBertModelDependencies;
+pub struct DistilBertConfigDependencies;
+pub struct DistilBertTokenizerDependencies;
+
+impl DistilBertModelDependencies {
+    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot");
+}
+
+impl DistilBertConfigDependencies {
+    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-config.json");
+}
+
+impl DistilBertTokenizerDependencies {
+    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-vocab.txt");
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
 /// # Activation function used in the feed-forward layer in the transformer blocks

@@ -4,9 +4,10 @@ use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, Trunc
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use rust_bert::Config;
-use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification};
+use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification, DistilBertModelDependencies};
 use rust_bert::pipelines::sentiment::{SentimentClassifier, SentimentPolarity};
 use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
+use rust_bert::common::resources::Dependency;
 
 extern crate failure;
 extern crate dirs;
