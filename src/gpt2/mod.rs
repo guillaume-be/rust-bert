@@ -43,4 +43,5 @@ mod gpt2;
 pub(crate) mod attention;
 pub(crate) mod transformer;
 
-pub use gpt2::{Gpt2Config, Gpt2Model, GptActivation, GPT2LMHeadModel};
+pub use gpt2::{Gpt2ModelDependencies, Gpt2ConfigDependencies, Gpt2VocabDependencies, Gpt2MergesDependencies,
+               Gpt2Config, Gpt2Model, GptActivation, GPT2LMHeadModel};

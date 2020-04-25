@@ -1,20 +1,21 @@
-use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
 use rust_bert::Config;
 use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig, LMHeadModel};
-use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
+use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, Gpt2ConfigDependencies, Gpt2MergesDependencies, Gpt2VocabDependencies, Gpt2ModelDependencies};
+use rust_bert::common::resources::{RemoteDependency, Dependency, download_dependency};
 
 #[test]
 fn gpt2_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("gpt2");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ConfigDependencies::GPT2));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2VocabDependencies::GPT2));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2MergesDependencies::GPT2));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ModelDependencies::GPT2));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
@@ -70,13 +71,14 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
 #[test]
 fn gpt2_generation_greedy() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("gpt2");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ConfigDependencies::GPT2));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2VocabDependencies::GPT2));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2MergesDependencies::GPT2));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ModelDependencies::GPT2));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -89,7 +91,7 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
         ..Default::default()
     };
     let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-                                   generate_config, device)?;
+                                       generate_config, device)?;
 
     let input_context = "The cat";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -103,13 +105,14 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
 #[test]
 fn gpt2_generation_beam_search() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("gpt2");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ConfigDependencies::GPT2));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2VocabDependencies::GPT2));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2MergesDependencies::GPT2));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ModelDependencies::GPT2));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -122,7 +125,7 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
         ..Default::default()
     };
     let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-                                   generate_config, device)?;
+                                       generate_config, device)?;
 
     let input_context = "The dog";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -138,13 +141,14 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
 #[test]
 fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("gpt2");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ConfigDependencies::GPT2));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2VocabDependencies::GPT2));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2MergesDependencies::GPT2));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ModelDependencies::GPT2));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -159,7 +163,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fa
         ..Default::default()
     };
     let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-                                   generate_config, device)?;
+                                       generate_config, device)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat";
@@ -179,13 +183,14 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fa
 #[test]
 fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("gpt2");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ConfigDependencies::GPT2));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2VocabDependencies::GPT2));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2MergesDependencies::GPT2));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(Gpt2ModelDependencies::GPT2));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -198,7 +203,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
         ..Default::default()
     };
     let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-                                   generate_config, device)?;
+                                       generate_config, device)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";

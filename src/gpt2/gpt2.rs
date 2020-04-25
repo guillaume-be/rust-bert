@@ -23,6 +23,30 @@ use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::Config;
 use crate::pipelines::generation::LMHeadModel;
 
+pub struct Gpt2ModelDependencies;
+
+pub struct Gpt2ConfigDependencies;
+
+pub struct Gpt2VocabDependencies;
+
+pub struct Gpt2MergesDependencies;
+
+impl Gpt2ModelDependencies {
+    pub const GPT2: (&'static str, &'static str) = ("gpt2/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-rust_model.ot");
+}
+
+impl Gpt2ConfigDependencies {
+    pub const GPT2: (&'static str, &'static str) = ("gpt2/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-config.json");
+}
+
+impl Gpt2VocabDependencies {
+    pub const GPT2: (&'static str, &'static str) = ("gpt2/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json");
+}
+
+impl Gpt2MergesDependencies {
+    pub const GPT2: (&'static str, &'static str) = ("gpt2/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt");
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
 /// # Activation function used in the fully connected layers of the transformer block
