@@ -4,6 +4,7 @@ use rust_tokenizers::{RobertaTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::Config;
 use rust_bert::bert::BertConfig;
 use rust_bert::roberta::{RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering};
+use std::collections::HashMap;
 
 #[test]
 fn roberta_masked_lm() -> failure::Fallible<()> {
@@ -88,7 +89,11 @@ fn roberta_for_sequence_classification() -> failure::Fallible<()> {
     let vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
-    config.num_labels = Some(42);
+    let mut dummy_label_mapping = HashMap::new();
+    dummy_label_mapping.insert(0, String::from("Positive"));
+    dummy_label_mapping.insert(1, String::from("Negative"));
+    dummy_label_mapping.insert(3, String::from("Neutral"));
+    config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
     let roberta_model = RobertaForSequenceClassification::new(&vs.root(), &config);
@@ -137,7 +142,6 @@ fn roberta_for_multiple_choice() -> failure::Fallible<()> {
     let config_path = &home.as_path().join("config.json");
     let vocab_path = &home.as_path().join("vocab.txt");
     let merges_path = &home.as_path().join("merges.txt");
-
 
 //    Set-up model
     let device = Device::Cpu;
@@ -198,7 +202,12 @@ fn roberta_for_token_classification() -> failure::Fallible<()> {
     let vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
-    config.num_labels = Some(7);
+    let mut dummy_label_mapping = HashMap::new();
+    dummy_label_mapping.insert(0, String::from("O"));
+    dummy_label_mapping.insert(1, String::from("LOC"));
+    dummy_label_mapping.insert(2, String::from("PER"));
+    dummy_label_mapping.insert(3, String::from("ORG"));
+    config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
     let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config);
@@ -255,7 +264,11 @@ fn roberta_for_question_answering() -> failure::Fallible<()> {
     let vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
-    config.num_labels = Some(7);
+    let mut dummy_label_mapping = HashMap::new();
+    dummy_label_mapping.insert(0, String::from("Positive"));
+    dummy_label_mapping.insert(1, String::from("Negative"));
+    dummy_label_mapping.insert(3, String::from("Neutral"));
+    config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
     let roberta_model = RobertaForQuestionAnswering::new(&vs.root(), &config);

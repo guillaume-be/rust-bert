@@ -23,6 +23,27 @@ use crate::common::dropout::Dropout;
 use std::collections::HashMap;
 use crate::Config;
 
+pub struct BertModelDependencies;
+pub struct BertConfigDependencies;
+pub struct BertTokenizerDependencies;
+
+impl BertModelDependencies {
+    pub const BERT: (&'static str, &'static str) = ("bert/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-rust_model.ot");
+    pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/rust_model.ot");
+}
+
+impl BertConfigDependencies {
+    pub const BERT: (&'static str, &'static str) = ("bert/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-config.json");
+    pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/config.json");
+}
+
+impl BertTokenizerDependencies {
+    pub const BERT: (&'static str, &'static str) = ("bert/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt");
+    pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/vocab.txt");
+}
+
+
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
 /// # Activation function used in the attention layer and masked language model head
@@ -55,7 +76,6 @@ pub struct BertConfig {
     pub is_decoder: Option<bool>,
     pub id2label: Option<HashMap<i64, String>>,
     pub label2id: Option<HashMap<String, i64>>,
-    pub num_labels: Option<i64>,
 }
 
 impl Config<BertConfig> for BertConfig {}
@@ -434,7 +454,7 @@ impl BertForSequenceClassification {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForSequenceClassification {
         let bert = BertModel::new(&(p / "bert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
-        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
         let classifier = nn::linear(p / "classifier", config.hidden_size, num_labels, Default::default());
 
         BertForSequenceClassification { bert, dropout, classifier }
@@ -662,7 +682,7 @@ impl BertForTokenClassification {
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForTokenClassification {
         let bert = BertModel::new(&(p / "bert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
-        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
         let classifier = nn::linear(p / "classifier", config.hidden_size, num_labels, Default::default());
 
         BertForTokenClassification { bert, dropout, classifier }
@@ -768,7 +788,7 @@ impl BertForQuestionAnswering {
     /// ```
     pub fn new(p: &nn::Path, config: &BertConfig) -> BertForQuestionAnswering {
         let bert = BertModel::new(&(p / "bert"), config);
-        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let num_labels = 2;
         let qa_outputs = nn::linear(p / "qa_outputs", config.hidden_size, num_labels, Default::default());
 
         BertForQuestionAnswering { bert, qa_outputs }

@@ -15,6 +15,7 @@ extern crate dirs;
 #[test]
 fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
 
+//    Resources paths
     let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT_SST2));
     let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertTokenizerDependencies::DISTIL_BERT_SST2));
     let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertModelDependencies::DISTIL_BERT_SST2));
