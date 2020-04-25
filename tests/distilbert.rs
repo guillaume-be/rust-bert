@@ -1,13 +1,13 @@
-use std::path::PathBuf;
 use tch::{Device, Tensor, nn, no_grad};
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use rust_bert::Config;
-use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification, DistilBertModelDependencies};
+use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification, DistilBertModelDependencies, DistilBertConfigDependencies, DistilBertTokenizerDependencies};
 use rust_bert::pipelines::sentiment::{SentimentClassifier, SentimentPolarity};
 use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
-use rust_bert::common::resources::Dependency;
+use rust_bert::common::resources::{Dependency, RemoteDependency, download_dependency};
+use std::collections::HashMap;
 
 extern crate failure;
 extern crate dirs;
@@ -15,13 +15,12 @@ extern crate dirs;
 #[test]
 fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
 
-//    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert-sst2");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT_SST2));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertTokenizerDependencies::DISTIL_BERT_SST2));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertModelDependencies::DISTIL_BERT_SST2));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up classifier
     let device = Device::cuda_if_available();
@@ -54,12 +53,12 @@ fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
 fn distilbert_masked_lm() -> failure::Fallible<()> {
 
 //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertTokenizerDependencies::DISTIL_BERT));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertModelDependencies::DISTIL_BERT));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -116,19 +115,18 @@ fn distilbert_masked_lm() -> failure::Fallible<()> {
 fn distilbert_for_question_answering() -> failure::Fallible<()> {
 
 //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT_SQUAD));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertTokenizerDependencies::DISTIL_BERT_SQUAD));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let mut config = DistilBertConfig::from_file(config_path);
-    config.output_attentions = true;
-    config.output_hidden_states = true;
+    config.output_attentions = Some(true);
+    config.output_hidden_states = Some(true);
     let distil_bert_model = DistilBertForQuestionAnswering::new(&vs.root(), &config);
 
 //    Define input
@@ -166,19 +164,24 @@ fn distilbert_for_question_answering() -> failure::Fallible<()> {
 fn distilbert_for_token_classification() -> failure::Fallible<()> {
 
 //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertTokenizerDependencies::DISTIL_BERT));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let mut config = DistilBertConfig::from_file(config_path);
-    config.output_attentions = true;
-    config.output_hidden_states = true;
+    config.output_attentions = Some(true);
+    config.output_hidden_states = Some(true);
+    let mut dummy_label_mapping = HashMap::new();
+    dummy_label_mapping.insert(0, String::from("O"));
+    dummy_label_mapping.insert(1, String::from("LOC"));
+    dummy_label_mapping.insert(2, String::from("PER"));
+    dummy_label_mapping.insert(3, String::from("ORG"));
+    config.id2label = Some(dummy_label_mapping);
     let distil_bert_model = DistilBertForTokenClassification::new(&vs.root(), &config);
 
 //    Define input
@@ -204,7 +207,7 @@ fn distilbert_for_token_classification() -> failure::Fallible<()> {
             .unwrap()
     });
 
-    assert_eq!(output.size(), &[2, 11, config.num_labels]);
+    assert_eq!(output.size(), &[2, 11, 4]);
     assert_eq!(config.n_layers as usize, all_hidden_states.unwrap().len());
     assert_eq!(config.n_layers as usize, all_attentions.unwrap().len());
 
@@ -215,12 +218,12 @@ fn distilbert_for_token_classification() -> failure::Fallible<()> {
 fn distilbert_question_answering() -> failure::Fallible<()> {
 
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert-qa");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertConfigDependencies::DISTIL_BERT_SQUAD));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertTokenizerDependencies::DISTIL_BERT_SQUAD));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(DistilBertModelDependencies::DISTIL_BERT_SQUAD));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;

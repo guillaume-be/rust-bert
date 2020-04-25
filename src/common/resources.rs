@@ -56,11 +56,11 @@ fn _get_cache_directory() -> PathBuf {
 }
 
 #[tokio::main]
-pub async fn download_dependency(dependency: Dependency) -> failure::Fallible<()> {
+pub async fn download_dependency(dependency: &Dependency) -> failure::Fallible<&PathBuf> {
     match dependency {
-        Dependency::Remote(dependency) => {
-            let target = dependency.local_path;
-            let url = dependency.url;
+        Dependency::Remote(remote_dependency) => {
+            let target = &remote_dependency.local_path;
+            let url = &remote_dependency.url;
             if !target.exists() {
                 fs::create_dir_all(target.parent().unwrap())?;
 
@@ -71,10 +71,10 @@ pub async fn download_dependency(dependency: Dependency) -> failure::Fallible<()
                     output_file.write_all(&chunk).await?;
                 }
             }
-            Ok(())
+            Ok(dependency.get_local_path())
         }
         Dependency::Local(_) => {
-            Ok(())
+            Ok(dependency.get_local_path())
         }
     }
 }
