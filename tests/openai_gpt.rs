@@ -1,21 +1,22 @@
-use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
 use rust_bert::Config;
 use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator, GenerateConfig, LMHeadModel};
 use rust_bert::gpt2::Gpt2Config;
-use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
+use rust_bert::openai_gpt::{OpenAIGPTLMHeadModel, OpenAiGptConfigDependencies, OpenAiGptVocabDependencies, OpenAiGptMergesDependencies, OpenAiGptModelDependencies};
+use rust_bert::common::resources::{RemoteDependency, Dependency, download_dependency};
 
 #[test]
 fn openai_gpt_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("openai-gpt");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptConfigDependencies::GPT));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptVocabDependencies::GPT));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptMergesDependencies::GPT));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptModelDependencies::GPT));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
@@ -67,13 +68,14 @@ fn openai_gpt_lm_model() -> failure::Fallible<()> {
 #[test]
 fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("openai-gpt");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptConfigDependencies::GPT));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptVocabDependencies::GPT));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptMergesDependencies::GPT));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptModelDependencies::GPT));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -101,13 +103,14 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
 #[test]
 fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("openai-gpt");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptConfigDependencies::GPT));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptVocabDependencies::GPT));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptMergesDependencies::GPT));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptModelDependencies::GPT));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -136,13 +139,14 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
 #[test]
 fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("openai-gpt");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptConfigDependencies::GPT));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptVocabDependencies::GPT));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptMergesDependencies::GPT));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptModelDependencies::GPT));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -178,13 +182,14 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
 #[test]
 fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("openai-gpt");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptConfigDependencies::GPT));
+    let vocab_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptVocabDependencies::GPT));
+    let merges_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptMergesDependencies::GPT));
+    let weights_dependency = Dependency::Remote(RemoteDependency::from_pretrained(OpenAiGptModelDependencies::GPT));
+    let config_path = download_dependency(&config_dependency)?;
+    let vocab_path = download_dependency(&vocab_dependency)?;
+    let merges_path = download_dependency(&merges_dependency)?;
+    let weights_path = download_dependency(&weights_dependency)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();

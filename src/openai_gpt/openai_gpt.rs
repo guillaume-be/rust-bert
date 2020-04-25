@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
 use tch::nn::embedding;
@@ -22,6 +21,30 @@ use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::openai_gpt::transformer::Block;
 use crate::gpt2::Gpt2Config;
 use crate::pipelines::generation::LMHeadModel;
+
+pub struct OpenAiGptModelDependencies;
+
+pub struct OpenAiGptConfigDependencies;
+
+pub struct OpenAiGptVocabDependencies;
+
+pub struct OpenAiGptMergesDependencies;
+
+impl OpenAiGptModelDependencies {
+    pub const GPT: (&'static str, &'static str) = ("openai-gpt/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-rust_model.ot");
+}
+
+impl OpenAiGptConfigDependencies {
+    pub const GPT: (&'static str, &'static str) = ("openai-gpt/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-config.json");
+}
+
+impl OpenAiGptVocabDependencies {
+    pub const GPT: (&'static str, &'static str) = ("openai-gpt/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-vocab.json");
+}
+
+impl OpenAiGptMergesDependencies {
+    pub const GPT: (&'static str, &'static str) = ("openai-gpt/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-merges.txt");
+}
 
 /// # GPT Base model
 /// Base architecture for GPT model. Usually complemented with a task-specific head, such as a language model head. As opposed to GPT2, GPT does not give the possibility to re-use past activations as an input.
@@ -39,7 +62,6 @@ pub struct OpenAiGptModel {
     output_hidden_states: bool,
     output_attentions: bool,
 }
-
 
 impl OpenAiGptModel {
     /// Build a new `OpenAiGptModel`
