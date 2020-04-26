@@ -5,7 +5,7 @@
 [![Documentation](https://docs.rs/rust-bert/badge.svg)](https://docs.rs/rust-bert)
 ![License](https://img.shields.io/crates/l/rust_bert.svg)
 
-Rust native Transformer-based models implementation. Port of Huggingface's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://https://github.com/guillaume-be/rust-tokenizers). Supports multithreaded tokenization and GPU inference.
+Rust native Transformer-based models implementation. Port of Huggingface's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers). Supports multithreaded tokenization and GPU inference.
 This repository exposes the model base architecture, task-specific heads (see below) and ready-to-use pipelines.
 
 The following models are currently implemented:
