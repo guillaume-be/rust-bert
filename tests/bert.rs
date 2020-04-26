@@ -296,19 +296,8 @@ fn bert_for_question_answering() -> failure::Fallible<()> {
 
 #[test]
 fn bert_pre_trained_ner() -> failure::Fallible<()> {
-    //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_NER));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
-
 //    Set-up model
-    let device = Device::cuda_if_available();
-    let ner_model = NERModel::new(vocab_path,
-                                  config_path,
-                                  weights_path, device)?;
+    let ner_model = NERModel::new(Default::default())?;
 
 //    Define input
     let input = [

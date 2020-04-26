@@ -145,14 +145,14 @@ impl QaExample {
     }
 }
 
-/// # Configuration for sentiment classification
+/// # Configuration for question answering
 /// Contains information regarding the model to load and device to place the model on.
 pub struct QuestionAnsweringConfig {
-    /// Model weights resource (default: pretrained DistilBERT model on SST-2)
+    /// Model weights resource (default: pretrained DistilBERT model on SQuAD)
     pub model_resource: Resource,
-    /// Config resource (default: pretrained DistilBERT model on SST-2)
+    /// Config resource (default: pretrained DistilBERT model on SQuAD)
     pub config_resource: Resource,
-    /// Vocab resource (default: pretrained DistilBERT model on SST-2)
+    /// Vocab resource (default: pretrained DistilBERT model on SQuAD)
     pub vocab_resource: Resource,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
