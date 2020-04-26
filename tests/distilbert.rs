@@ -6,7 +6,7 @@ use rust_bert::Config;
 use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification, DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources};
 use rust_bert::pipelines::sentiment::{SentimentModel, SentimentPolarity};
 use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
-use rust_bert::common::resources::{Resource, RemoteResource, download_resource};
+use rust_bert::resources::{Resource, RemoteResource, download_resource};
 use std::collections::HashMap;
 
 extern crate failure;

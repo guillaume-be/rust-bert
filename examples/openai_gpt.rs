@@ -14,11 +14,11 @@ extern crate failure;
 
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
-use rust_bert::Config;
 use rust_bert::gpt2::Gpt2Config;
 use rust_bert::openai_gpt::{OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptVocabResources, OpenAiGptMergesResources, OpenAiGptModelResources};
 use rust_bert::pipelines::generation::LMHeadModel;
-use rust_bert::common::resources::{Resource, download_resource, RemoteResource};
+use rust_bert::resources::{Resource, download_resource, RemoteResource};
+use rust_bert::Config;
 
 
 fn main() -> failure::Fallible<()> {

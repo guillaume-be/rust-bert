@@ -17,7 +17,7 @@ use rust_tokenizers::{TruncationStrategy, Tokenizer, Vocab, RobertaTokenizer};
 use rust_bert::Config;
 use rust_bert::bert::BertConfig;
 use rust_bert::roberta::{RobertaForMaskedLM, RobertaVocabResources, RobertaConfigResources, RobertaMergesResources, RobertaModelResources};
-use rust_bert::common::resources::{Resource, download_resource, RemoteResource};
+use rust_bert::resources::{Resource, download_resource, RemoteResource};
 
 
 fn main() -> failure::Fallible<()> {

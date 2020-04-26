@@ -3,7 +3,7 @@ use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
 use rust_bert::Config;
 use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig, LMHeadModel};
 use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, Gpt2ConfigResources, Gpt2MergesResources, Gpt2VocabResources, Gpt2ModelResources};
-use rust_bert::common::resources::{RemoteResource, Resource, download_resource};
+use rust_bert::resources::{RemoteResource, Resource, download_resource};
 
 #[test]
 fn gpt2_lm_model() -> failure::Fallible<()> {

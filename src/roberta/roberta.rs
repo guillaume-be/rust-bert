@@ -19,12 +19,16 @@ use crate::roberta::embeddings::RobertaEmbeddings;
 use crate::common::dropout::Dropout;
 use crate::bert::{BertConfig, BertModel};
 
+/// # RoBERTa Pretrained model weight files
 pub struct RobertaModelResources;
 
+/// # RoBERTa Pretrained model config files
 pub struct RobertaConfigResources;
 
+/// # RoBERTa Pretrained model vocab files
 pub struct RobertaVocabResources;
 
+/// # RoBERTa Pretrained model merges files
 pub struct RobertaMergesResources;
 
 impl RobertaModelResources {

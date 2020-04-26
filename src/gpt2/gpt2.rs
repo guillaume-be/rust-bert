@@ -23,12 +23,16 @@ use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::Config;
 use crate::pipelines::generation::LMHeadModel;
 
+/// # GPT2 Pretrained model weight files
 pub struct Gpt2ModelResources;
 
+/// # GPT2 Pretrained model config files
 pub struct Gpt2ConfigResources;
 
+/// # GPT2 Pretrained model vocab files
 pub struct Gpt2VocabResources;
 
+/// # GPT2 Pretrained model merges files
 pub struct Gpt2MergesResources;
 
 impl Gpt2ModelResources {

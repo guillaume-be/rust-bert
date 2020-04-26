@@ -22,12 +22,16 @@ use crate::openai_gpt::transformer::Block;
 use crate::gpt2::Gpt2Config;
 use crate::pipelines::generation::LMHeadModel;
 
+/// # GPT Pretrained model weight files
 pub struct OpenAiGptModelResources;
 
+/// # GPT Pretrained model config files
 pub struct OpenAiGptConfigResources;
 
+/// # GPT Pretrained model vocab files
 pub struct OpenAiGptVocabResources;
 
+/// # GPT Pretrained model merges files
 pub struct OpenAiGptMergesResources;
 
 impl OpenAiGptModelResources {

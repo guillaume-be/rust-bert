@@ -24,12 +24,16 @@ use std::borrow::BorrowMut;
 use crate::common::dropout::Dropout;
 use crate::pipelines::generation::LMHeadModel;
 
+/// # BART Pretrained model weight files
 pub struct BartModelResources;
 
+/// # BART Pretrained model config files
 pub struct BartConfigResources;
 
+/// # BART Pretrained model vocab files
 pub struct BartVocabResources;
 
+/// # BART Pretrained model merges files
 pub struct BartMergesResources;
 
 impl BartModelResources {

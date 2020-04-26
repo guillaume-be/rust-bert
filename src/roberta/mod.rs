@@ -27,7 +27,7 @@
 //! use rust_bert::bert::BertConfig;
 //! use rust_bert::Config;
 //! use rust_bert::roberta::RobertaForMaskedLM;
-//! use rust_bert::common::resources::{Resource, download_resource, LocalResource};
+//! use rust_bert::resources::{Resource, download_resource, LocalResource};
 //!
 //! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
 //! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});

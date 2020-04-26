@@ -23,10 +23,13 @@ use crate::common::dropout::Dropout;
 use std::collections::HashMap;
 use crate::Config;
 
+/// # BERT Pretrained model weight files
 pub struct BertModelResources;
 
+/// # BERT Pretrained model config files
 pub struct BertConfigResources;
 
+/// # BERT Pretrained model vocab files
 pub struct BertVocabResources;
 
 impl BertModelResources {

@@ -28,10 +28,7 @@ Based on Huggingface's pipelines, ready to use end-to-end NLP pipelines are avai
 Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset)
 
 ```rust
-    let device = Device::cuda_if_available();
-    let qa_model = QuestionAnsweringModel::new(vocab_path,
-                                               config_path,
-                                               weights_path, device)?;
+    let qa_model = QuestionAnsweringModel::new(Default::default())?;
                                                         
     let question = String::from("Where does Amy live ?");
     let context = String::from("Amy lives in Amsterdam");
@@ -48,13 +45,7 @@ Output:
 Abstractive summarization using a pretrained BART model.
 
 ```rust
-    let device = Device::cuda_if_available();
-    let summarization_model = SummarizationModel::new(vocab_path, 
-                                                      merges_path, 
-                                                      config_path, 
-                                                      weights_path,
-                                                      summarization_config, 
-                                                      device)?;
+    let summarization_model = SummarizationModel::new(Default::default())?;
                                                         
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
@@ -96,8 +87,7 @@ Supports batch generation of sentences from several prompts. Sequences will be l
 This may impact the results and it is recommended to submit prompts of similar length for best results
 
 ```rust
-    let device = Device::cuda_if_available();
-    let model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, device)?;
+    let model = GPT2Generator::new(Default::default())?;
                                                         
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";
@@ -120,10 +110,7 @@ Example output:
 #### 4. Sentiment analysis
 Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 ```rust
-    let device = Device::cuda_if_available();
-    let sentiment_classifier = SentimentClassifier::new(vocab_path,
-                                                        config_path,
-                                                        weights_path, device)?;
+    let sentiment_classifier = SentimentModel::new(Default::default())?;
                                                         
     let input = [
         "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
@@ -147,10 +134,7 @@ Output:
 #### 5. Named Entity Recognition
 Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 ```rust
-    let device = Device::cuda_if_available();
-    let ner_model = NERModel::new(vocab_path,
-                                  config_path,
-                                  weights_path, device)?;
+    let ner_model = NERModel::new(default::default())?;
 
     let input = [
         "My name is Amy. I live in Paris.",
@@ -178,13 +162,17 @@ If this quality check is to be skipped, an alternative method `load_partial` can
 
 ## Setup
 
-The model configuration and vocabulary are downloaded directly from Huggingface's repository.
+A number of pretrained model configuration, weights and vocabulary are downloaded directly from [Huggingface's model repository](https://huggingface.co/models).
+The list of models available with Rust-compatible weights is available in the example ./examples/download_all_dependencies.rs. Additional models can be added if of interest, please raise an issue.
 
-The model weights need to be converter to a binary format that can be read by Libtorch (the original `.bin` files are pickles and cannot be used directly). A Python script for downloading the required files & running the necessary steps is provided.
+In order to load custom weights to the library, these need to be converter to a binary format that can be read by Libtorch (the original `.bin` files are pickles and cannot be used directly).
+Several Python scripts to load Pytorch weights and convert them to the appropriate format are provided and can be adapted based on the model needs.
 
 1. Compile the package: `cargo build --release`
 2. Download the model files & perform necessary conversions
    - Set-up a virtual environment and install dependencies
-   - run the conversion script `python /utils/download-dependencies_{MODEL_TO_DOWNLOAD}.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert/{}`
+   - run the conversion script `python /utils/download-dependencies_{MODEL_TO_DOWNLOAD}.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert/{}`.
+   Alternatively you may load local weight files and run the conversion directly.
+
 3. Run the example `cargo run --release`
 

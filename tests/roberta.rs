@@ -4,7 +4,7 @@ use rust_bert::Config;
 use rust_bert::bert::BertConfig;
 use rust_bert::roberta::{RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering, RobertaConfigResources, RobertaVocabResources, RobertaMergesResources, RobertaModelResources};
 use std::collections::HashMap;
-use rust_bert::common::resources::{RemoteResource, Resource, download_resource};
+use rust_bert::resources::{RemoteResource, Resource, download_resource};
 
 #[test]
 fn roberta_masked_lm() -> failure::Fallible<()> {

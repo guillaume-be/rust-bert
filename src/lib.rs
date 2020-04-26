@@ -41,13 +41,13 @@
 //!
 //! # Loading pre-trained models
 //!
-//! The architectures defined in this crate are compatible with model trained in the [Transformers](https://github.com/huggingface/transformers) library.
-//! The model configuration and vocabulary are downloaded directly from Huggingface's repository.
-//! The model weights need to be converter to a binary format that can be read by Libtorch (the original .bin files are pickles and cannot be used directly).
-//! A Python script for downloading the required files & running the necessary steps is provided for all models classes in this library.
-//! Further models can be loaded by extending the python scripts to point to the desired model.
+//! A number of pretrained model configuration, weights and vocabulary are downloaded directly from [Huggingface's model repository](https://huggingface.co/models).
+//! The list of models available with Rust-compatible weights is available in the example ./examples/download_all_dependencies.rs. Additional models can be added if of interest, please raise an issue.
 //!
+//! In order to load custom weights to the library, these need to be converter to a binary format that can be read by Libtorch (the original `.bin` files are pickles and cannot be used directly).
+//! Several Python scripts to load Pytorch weights and convert them to the appropriate format are provided and can be adapted based on the model needs.
 //!
+//! The procedure for building custom weights or re-building pretrained weights is as follows:
 //! 1. Compile the package: cargo build --release
 //! 2. Download the model files & perform necessary conversions
 //!     - Set-up a virtual environment and install dependencies
@@ -61,7 +61,8 @@ pub mod roberta;
 pub mod openai_gpt;
 pub mod gpt2;
 pub mod bart;
-pub mod common;
+mod common;
 pub mod pipelines;
 
 pub use common::Config;
+pub use common::resources;

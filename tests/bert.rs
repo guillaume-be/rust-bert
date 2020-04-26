@@ -7,7 +7,7 @@ use rust_bert::Config;
 use rust_bert::bert::{BertConfig, BertForMaskedLM, BertForSequenceClassification, BertForMultipleChoice, BertForTokenClassification, BertForQuestionAnswering,
                       BertConfigResources, BertVocabResources, BertModelResources};
 use rust_bert::pipelines::ner::NERModel;
-use rust_bert::common::resources::{Resource, RemoteResource, download_resource};
+use rust_bert::resources::{Resource, RemoteResource, download_resource};
 use std::collections::HashMap;
 
 

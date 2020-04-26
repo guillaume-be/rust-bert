@@ -3,7 +3,7 @@ use rust_tokenizers::{TruncationStrategy, Tokenizer, RobertaTokenizer};
 use rust_bert::Config;
 use rust_bert::bart::{BartConfig, BartConfigResources, BartVocabResources, BartModelResources, BartMergesResources, BartModel};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
-use rust_bert::common::resources::{Resource, RemoteResource, download_resource};
+use rust_bert::resources::{Resource, RemoteResource, download_resource};
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]

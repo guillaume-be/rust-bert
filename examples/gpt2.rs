@@ -14,10 +14,10 @@ extern crate failure;
 
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, Gpt2Tokenizer};
-use rust_bert::Config;
 use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, Gpt2ConfigResources, Gpt2VocabResources, Gpt2MergesResources, Gpt2ModelResources};
 use rust_bert::pipelines::generation::LMHeadModel;
-use rust_bert::common::resources::{Resource, download_resource, RemoteResource};
+use rust_bert::resources::{Resource, download_resource, RemoteResource};
+use rust_bert::Config;
 
 
 fn main() -> failure::Fallible<()> {

@@ -20,10 +20,13 @@ use self::tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
 use crate::Config;
 
+/// # DistilBERT Pretrained model weight files
 pub struct DistilBertModelResources;
 
+/// # DistilBERT Pretrained model config files
 pub struct DistilBertConfigResources;
 
+/// # DistilBERT Pretrained model vocab files
 pub struct DistilBertVocabResources;
 
 impl DistilBertModelResources {

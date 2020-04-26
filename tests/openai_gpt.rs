@@ -4,7 +4,7 @@ use rust_bert::Config;
 use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator, GenerateConfig, LMHeadModel};
 use rust_bert::gpt2::Gpt2Config;
 use rust_bert::openai_gpt::{OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptVocabResources, OpenAiGptMergesResources, OpenAiGptModelResources};
-use rust_bert::common::resources::{RemoteResource, Resource, download_resource};
+use rust_bert::resources::{RemoteResource, Resource, download_resource};
 
 #[test]
 fn openai_gpt_lm_model() -> failure::Fallible<()> {

@@ -25,7 +25,7 @@
 //!# use std::path::PathBuf;
 //! use rust_bert::Config;
 //! use rust_bert::distilbert::{DistilBertModelMaskedLM, DistilBertConfig, DistilBertConfigResources, DistilBertVocabResources, DistilBertModelResources};
-//! use rust_bert::common::resources::{Resource, download_resource, RemoteResource, LocalResource};
+//! use rust_bert::resources::{Resource, download_resource, RemoteResource, LocalResource};
 //!
 //! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
 //! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});

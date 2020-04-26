@@ -1,12 +1,12 @@
 extern crate failure;
 
-use rust_bert::common::resources::{Resource, download_resource, RemoteResource};
 use rust_bert::gpt2::{Gpt2ConfigResources, Gpt2VocabResources, Gpt2MergesResources, Gpt2ModelResources};
 use rust_bert::distilbert::{DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources};
 use rust_bert::openai_gpt::{OpenAiGptConfigResources, OpenAiGptVocabResources, OpenAiGptMergesResources, OpenAiGptModelResources};
 use rust_bert::roberta::{RobertaConfigResources, RobertaVocabResources, RobertaMergesResources, RobertaModelResources};
 use rust_bert::bert::{BertConfigResources, BertVocabResources, BertModelResources};
 use rust_bert::bart::{BartConfigResources, BartVocabResources, BartMergesResources, BartModelResources};
+use rust_bert::resources::{Resource, download_resource, RemoteResource};
 
 /// This example downloads and caches all dependencies used in model tests. This allows for safe
 /// multi threaded testing (two test using the same resource would otherwise download the file to
