@@ -8,14 +8,14 @@ use rust_bert::common::resources::{Resource, RemoteResource, download_resource};
 #[test]
 fn distilgpt2_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::DISTIL_GPT2));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::DISTIL_GPT2));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::DISTIL_GPT2));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::DISTIL_GPT2));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::DISTIL_GPT2));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::DISTIL_GPT2));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::DISTIL_GPT2));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::DISTIL_GPT2));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;

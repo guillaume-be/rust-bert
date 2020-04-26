@@ -11,39 +11,31 @@
 // limitations under the License.
 
 extern crate failure;
-extern crate dirs;
 
-use std::path::PathBuf;
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{RobertaTokenizer, TruncationStrategy, Tokenizer};
-use failure::err_msg;
-use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
+use rust_bert::bart::{BartConfig, BartConfigResources, BartVocabResources, BartMergesResources, BartModelResources, BartModel};
 use rust_bert::Config;
+use rust_bert::common::resources::{Resource, download_resource, RemoteResource};
 
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bart-large-cnn");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
-
-    if !config_path.is_file() | !vocab_path.is_file() | !merges_path.is_file() | !weights_path.is_file() {
-        return Err(
-            err_msg("Could not find required resources to run example. \
-                          Please run ../utils/download_dependencies_bart.py \
-                          in a Python environment with dependencies listed in ../requirements.txt"));
-    }
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let mut vs = nn::VarStore::new(device);
     let tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = BartConfig::from_file(config_path);
-    let mut bart_model = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    let mut bart_model = BartModel::new(&vs.root(), &config, false);
     vs.load(weights_path)?;
 
 //    Define input
@@ -86,7 +78,7 @@ about exoplanets like K2-18b."];
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (decoder_output, encoder_output, _, _, _, _) = no_grad(|| {
+    let (decoder_output, encoder_output, _, _, _, _, _) = no_grad(|| {
         bart_model
             .forward_t(Some(&input_tensor),
                        None,

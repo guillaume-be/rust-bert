@@ -11,31 +11,22 @@
 // limitations under the License.
 
 extern crate failure;
-extern crate dirs;
 
-use std::path::PathBuf;
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{BertTokenizer, TruncationStrategy, Tokenizer, Vocab};
-use failure::err_msg;
 use rust_bert::Config;
-use rust_bert::bert::{BertConfig, BertForMaskedLM};
+use rust_bert::bert::{BertConfig, BertForMaskedLM, BertConfigResources, BertVocabResources, BertModelResources};
+use rust_bert::common::resources::{Resource, download_resource, RemoteResource};
 
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bert");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
-
-    if !config_path.is_file() | !vocab_path.is_file() | !weights_path.is_file() {
-        return Err(
-            err_msg("Could not find required resources to run example. \
-                          Please run ../utils/download_dependencies_bert.py \
-                          in a Python environment with dependencies listed in ../requirements.txt"));
-    }
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;

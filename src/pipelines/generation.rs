@@ -23,18 +23,9 @@
 //! The dependencies will be downloaded to the user's home directory, under ~/rustbert/gpt2 (~/rustbert/openai-gpt respectively)
 //!
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
 //!# fn main() -> failure::Fallible<()> {
 //! use rust_bert::pipelines::generation::{GenerateConfig, GPT2Generator, LanguageGenerator};
-//!# let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("gpt2");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let merges_path = &home.as_path().join("merges.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
+//!
 //! let generate_config = GenerateConfig {
 //!    max_length: 30,
 //!    do_sample: true,
@@ -43,8 +34,7 @@
 //!    num_return_sequences: 3,
 //!    ..Default::default()
 //! };
-//! let mut gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-//!                                         generate_config, device)?;
+//! let mut gpt2_generator = GPT2Generator::new(generate_config)?;
 //!
 //! let input_context = "The dog";
 //! let second_input_context = "The cat was";
@@ -70,20 +60,28 @@
 
 use tch::{Tensor, Device, nn, no_grad};
 use rust_tokenizers::{Tokenizer, OpenAiGptTokenizer, OpenAiGptVocab, Vocab, Gpt2Tokenizer, Gpt2Vocab, RobertaTokenizer, RobertaVocab, TruncationStrategy};
-use std::path::Path;
 use tch::kind::Kind::Int64;
 use self::ordered_float::OrderedFloat;
 use itertools::Itertools;
-use crate::openai_gpt::OpenAIGPTLMHeadModel;
-use crate::gpt2::{Gpt2Config, GPT2LMHeadModel};
+use crate::openai_gpt::{OpenAIGPTLMHeadModel, OpenAiGptModelResources, OpenAiGptConfigResources, OpenAiGptVocabResources, OpenAiGptMergesResources};
+use crate::gpt2::{Gpt2Config, GPT2LMHeadModel, Gpt2ModelResources, Gpt2ConfigResources, Gpt2VocabResources, Gpt2MergesResources};
 use crate::Config;
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
-use crate::bart::{BartConfig, BartForConditionalGeneration};
+use crate::bart::{BartConfig, BartForConditionalGeneration, BartModelResources, BartConfigResources, BartVocabResources, BartMergesResources};
+use crate::common::resources::{Resource, RemoteResource, download_resource};
 
 extern crate ordered_float;
 
 /// # Configuration for text generation
 pub struct GenerateConfig {
+    /// Model weights resource (default: pretrained GPT2 model)
+    pub model_resource: Resource,
+    /// Config resource (default: pretrained GPT2 model)
+    pub config_resource: Resource,
+    /// Vocab resource (default: pretrained GPT2 model)
+    pub vocab_resource: Resource,
+    /// Merges resource (default: pretrained GPT2 model)
+    pub merges_resource: Resource,
     /// Minimum sequence length (default: 0)
     pub min_length: u64,
     /// Maximum sequence length (default: 20)
@@ -108,11 +106,17 @@ pub struct GenerateConfig {
     pub no_repeat_ngram_size: u64,
     /// Number of sequences to return for each prompt text (default: 1)
     pub num_return_sequences: u64,
+    /// Device to place the model on (default: CUDA/GPU when available)
+    pub device: Device,
 }
 
 impl Default for GenerateConfig {
     fn default() -> GenerateConfig {
         GenerateConfig {
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)),
+            merges_resource: Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2)),
             min_length: 0,
             max_length: 20,
             do_sample: true,
@@ -125,6 +129,7 @@ impl Default for GenerateConfig {
             length_penalty: 1.0,
             no_repeat_ngram_size: 3,
             num_return_sequences: 1,
+            device: Device::cuda_if_available(),
         }
     }
 }
@@ -167,27 +172,13 @@ impl OpenAIGenerator {
     ///
     /// # Arguments
     ///
-    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `merges_path` - Path to the bpe merges, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
-    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
     ///
     /// # Example
     ///
     /// ```no_run
-    ///# use std::path::PathBuf;
-    ///# use tch::Device;
     ///# fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::generation::{GenerateConfig, OpenAIGenerator};
-    ///# let mut home: PathBuf = dirs::home_dir().unwrap();
-    ///# home.push("rustbert");
-    ///# home.push("openai-gpt");
-    ///# let config_path = &home.as_path().join("config.json");
-    ///# let vocab_path = &home.as_path().join("vocab.txt");
-    ///# let merges_path = &home.as_path().join("merges.txt");
-    ///# let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
     ///    max_length: 30,
     ///    do_sample: true,
@@ -196,21 +187,50 @@ impl OpenAIGenerator {
     ///    num_return_sequences: 3,
     ///    ..Default::default()
     /// };
-    /// let gpt_generator = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
-    ///                                          generate_config, device)?;
+    /// let gpt_generator = OpenAIGenerator::new(generate_config)?;
     ///# Ok(())
     ///# }
     /// ```
     ///
-    pub fn new(vocab_path: &Path, merges_path: &Path, config_path: &Path, weight_path: &Path,
-               generate_config: GenerateConfig, device: Device)
-               -> failure::Fallible<OpenAIGenerator> {
+    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<OpenAIGenerator> {
         generate_config.validate();
+
+//        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
+        let model_resource = if &generate_config.model_resource == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)) {
+            Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT))
+        } else {
+            generate_config.model_resource.clone()
+        };
+
+        let config_resource = if &generate_config.config_resource == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)) {
+            Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT))
+        } else {
+            generate_config.config_resource.clone()
+        };
+
+        let vocab_resource = if &generate_config.vocab_resource == &Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)) {
+            Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT))
+        } else {
+            generate_config.vocab_resource.clone()
+        };
+
+        let merges_resource = if &generate_config.merges_resource == &Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2)) {
+            Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT))
+        } else {
+            generate_config.merges_resource.clone()
+        };
+
+        let config_path = download_resource(&config_resource)?;
+        let vocab_path = download_resource(&vocab_resource)?;
+        let merges_path = download_resource(&merges_resource)?;
+        let weights_path = download_resource(&model_resource)?;
+        let device = generate_config.device;
+
         let mut var_store = nn::VarStore::new(device);
         let tokenizer = OpenAiGptTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
         let config = Gpt2Config::from_file(config_path);
         let model = OpenAIGPTLMHeadModel::new(&var_store.root(), &config);
-        var_store.load(weight_path)?;
+        var_store.load(weights_path)?;
 
         let bos_token_id = None;
         let eos_token_ids = None;
@@ -257,27 +277,14 @@ impl GPT2Generator {
     ///
     /// # Arguments
     ///
-    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `merges_path` - Path to the bpe merges, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
-    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
     ///
     /// # Example
     ///
     /// ```no_run
-    ///# use std::path::PathBuf;
-    ///# use tch::Device;
     ///# fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::generation::{GenerateConfig, GPT2Generator};
-    ///# let mut home: PathBuf = dirs::home_dir().unwrap();
-    ///# home.push("rustbert");
-    ///# home.push("gpt2");
-    ///# let config_path = &home.as_path().join("config.json");
-    ///# let vocab_path = &home.as_path().join("vocab.txt");
-    ///# let merges_path = &home.as_path().join("merges.txt");
-    ///# let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::cuda_if_available();
+    ///
     /// let generate_config = GenerateConfig {
     ///    max_length: 30,
     ///    do_sample: true,
@@ -286,21 +293,24 @@ impl GPT2Generator {
     ///    num_return_sequences: 3,
     ///    ..Default::default()
     /// };
-    /// let gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-    ///                                         generate_config, device)?;
+    /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     ///# Ok(())
     ///# }
     /// ```
     ///
-    pub fn new(vocab_path: &Path, merges_path: &Path, config_path: &Path, weight_path: &Path,
-               generate_config: GenerateConfig, device: Device)
-               -> failure::Fallible<GPT2Generator> {
+    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<GPT2Generator> {
+        let config_path = download_resource(&generate_config.config_resource)?;
+        let vocab_path = download_resource(&generate_config.vocab_resource)?;
+        let merges_path = download_resource(&generate_config.merges_resource)?;
+        let weights_path = download_resource(&generate_config.model_resource)?;
+        let device = generate_config.device;
+
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
         let config = Gpt2Config::from_file(config_path);
         let model = GPT2LMHeadModel::new(&var_store.root(), &config);
-        var_store.load(weight_path)?;
+        var_store.load(weights_path)?;
 
         let bos_token_id = Some(tokenizer.vocab().token_to_id(Gpt2Vocab::bos_value()));
         let eos_token_ids = Some(vec!(tokenizer.vocab().token_to_id(Gpt2Vocab::eos_value())));
@@ -389,21 +399,50 @@ impl BartGenerator {
     ///    num_return_sequences: 3,
     ///    ..Default::default()
     /// };
-    /// let bart_generator = BartGenerator::new(vocab_path, merges_path, config_path, weights_path,
-    ///                                          generate_config, device)?;
+    /// let bart_generator = BartGenerator::new(generate_config)?;
     ///# Ok(())
     ///# }
     /// ```
     ///
-    pub fn new(vocab_path: &Path, merges_path: &Path, config_path: &Path, weight_path: &Path,
-               generate_config: GenerateConfig, device: Device)
-               -> failure::Fallible<BartGenerator> {
+    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<BartGenerator> {
+
+//        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
+        let model_resource = if &generate_config.model_resource == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)) {
+            Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART))
+        } else {
+            generate_config.model_resource.clone()
+        };
+
+        let config_resource = if &generate_config.config_resource == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)) {
+            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART))
+        } else {
+            generate_config.config_resource.clone()
+        };
+
+        let vocab_resource = if &generate_config.vocab_resource == &Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)) {
+            Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART))
+        } else {
+            generate_config.vocab_resource.clone()
+        };
+
+        let merges_resource = if &generate_config.merges_resource == &Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2)) {
+            Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART))
+        } else {
+            generate_config.merges_resource.clone()
+        };
+
+        let config_path = download_resource(&config_resource)?;
+        let vocab_path = download_resource(&vocab_resource)?;
+        let merges_path = download_resource(&merges_resource)?;
+        let weights_path = download_resource(&model_resource)?;
+        let device = generate_config.device;
+
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
         let config = BartConfig::from_file(config_path);
         let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
-        var_store.load(weight_path)?;
+        var_store.load(weights_path)?;
 
         let bos_token_id = Some(0);
         let eos_token_ids = Some(match config.eos_token_id {
@@ -1063,8 +1102,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
     ///    num_return_sequences: 3,
     ///    ..Default::default()
     /// };
-    /// let mut gpt2_generator = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-    ///                                         generate_config, device)?;
+    /// let mut gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
     /// let output = gpt2_generator.generate(Some(vec!(input_context, second_input_context)), None);

@@ -8,14 +8,14 @@ use rust_bert::common::resources::{RemoteResource, Resource, download_resource};
 #[test]
 fn gpt2_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
@@ -70,19 +70,18 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
 
 #[test]
 fn gpt2_generation_greedy() -> failure::Fallible<()> {
-    //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    //    Resources definition
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         max_length: 40,
         do_sample: false,
         num_beams: 1,
@@ -90,8 +89,7 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
         repetition_penalty: 1.1,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-                                       generate_config, device)?;
+    let mut model = GPT2Generator::new(generate_config)?;
 
     let input_context = "The cat";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -104,19 +102,18 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
 
 #[test]
 fn gpt2_generation_beam_search() -> failure::Fallible<()> {
-    //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    //    Resources definition
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         max_length: 20,
         do_sample: false,
         num_beams: 5,
@@ -124,8 +121,7 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-                                       generate_config, device)?;
+    let mut model = GPT2Generator::new(generate_config)?;
 
     let input_context = "The dog";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -140,21 +136,18 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
 
 #[test]
 fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fallible<()> {
-    //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    //    Resources definition
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
-
-//    let model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path, device)?;
     let generate_config = GenerateConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         max_length: 20,
         do_sample: false,
         num_beams: 5,
@@ -162,8 +155,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fa
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-                                       generate_config, device)?;
+    let mut model = GPT2Generator::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat";
@@ -182,19 +174,18 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fa
 
 #[test]
 fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Fallible<()> {
-    //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    //    Resources definition
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         max_length: 20,
         do_sample: false,
         num_beams: 5,
@@ -202,8 +193,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path,
-                                       generate_config, device)?;
+    let mut model = GPT2Generator::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";

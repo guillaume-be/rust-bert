@@ -15,22 +15,10 @@
 //!
 //! More information on these can be found in the [`pipelines` module](./pipelines/index.html)
 //! ```no_run
-//! use tch::Device;
 //! use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
-//!# use std::path::PathBuf;
 //!
 //!# fn main() -> failure::Fallible<()> {
-//!# let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("distilbert-qa");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//!
-//! let device = Device::cuda_if_available();
-//! let qa_model = QuestionAnsweringModel::new(vocab_path,
-//!                                            config_path,
-//!                                            weights_path, device)?;
+//! let qa_model = QuestionAnsweringModel::new(Default::default())?;
 //!
 //! let question = String::from("Where does Amy live ?");
 //! let context = String::from("Amy lives in Amsterdam");

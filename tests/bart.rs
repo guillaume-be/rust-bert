@@ -9,14 +9,14 @@ use rust_bert::common::resources::{Resource, RemoteResource, download_resource};
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;

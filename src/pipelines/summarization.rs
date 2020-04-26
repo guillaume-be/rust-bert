@@ -65,7 +65,7 @@
 
 use crate::pipelines::generation::{BartGenerator, GenerateConfig, LanguageGenerator};
 use tch::Device;
-use crate::common::resources::{Resource, RemoteResource, download_resource};
+use crate::common::resources::{Resource, RemoteResource};
 use crate::bart::{BartModelResources, BartConfigResources, BartVocabResources, BartMergesResources};
 
 /// # Configuration for text summarization
@@ -158,6 +158,10 @@ impl SummarizationModel {
     pub fn new(summarization_config: SummarizationConfig)
                -> failure::Fallible<SummarizationModel> {
         let generate_config = GenerateConfig {
+            model_resource: summarization_config.model_resource,
+            config_resource: summarization_config.config_resource,
+            merges_resource: summarization_config.merges_resource,
+            vocab_resource: summarization_config.vocab_resource,
             min_length: summarization_config.min_length,
             max_length: summarization_config.max_length,
             do_sample: summarization_config.do_sample,
@@ -170,16 +174,10 @@ impl SummarizationModel {
             length_penalty: summarization_config.length_penalty,
             no_repeat_ngram_size: summarization_config.no_repeat_ngram_size,
             num_return_sequences: summarization_config.num_return_sequences,
-
+            device: summarization_config.device,
         };
 
-        let config_path = download_resource(&summarization_config.config_resource)?;
-        let vocab_path = download_resource(&summarization_config.vocab_resource)?;
-        let merges_path = download_resource(&summarization_config.merges_resource)?;
-        let weights_path = download_resource(&summarization_config.model_resource)?;
-        let device = summarization_config.device;
-        let model = BartGenerator::new(vocab_path, merges_path, config_path, weights_path,
-                                       generate_config, device)?;
+        let model = BartGenerator::new(generate_config)?;
 
         Ok(SummarizationModel { model })
     }

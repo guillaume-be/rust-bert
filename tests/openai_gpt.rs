@@ -9,14 +9,14 @@ use rust_bert::common::resources::{RemoteResource, Resource, download_resource};
 #[test]
 fn openai_gpt_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
@@ -43,7 +43,7 @@ fn openai_gpt_lm_model() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output,_,  _, _, _) = openai_gpt.forward_t(
+    let (output, _, _, _, _) = openai_gpt.forward_t(
         &Some(input_tensor),
         &None,
         &None,
@@ -68,18 +68,17 @@ fn openai_gpt_lm_model() -> failure::Fallible<()> {
 #[test]
 fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         max_length: 40,
         do_sample: false,
         num_beams: 1,
@@ -88,8 +87,7 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
         temperature: 1.1,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
-                                     generate_config, device)?;
+    let mut model = OpenAIGenerator::new(generate_config)?;
 
     let input_context = "It was an intense machine dialogue. ";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -103,18 +101,17 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
 #[test]
 fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         max_length: 20,
         do_sample: false,
         num_beams: 5,
@@ -122,8 +119,7 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
-                                     generate_config, device)?;
+    let mut model = OpenAIGenerator::new(generate_config)?;
 
     let input_context = "The dog is";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -139,18 +135,17 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
 #[test]
 fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         max_length: 20,
         do_sample: false,
         num_beams: 5,
@@ -158,8 +153,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
-                                     generate_config, device)?;
+    let mut model = OpenAIGenerator::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat";
@@ -182,18 +176,17 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
 #[test]
 fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure::Fallible<()> {
     //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
 
 //    Set-up masked LM model
-    let device = Device::cuda_if_available();
     let generate_config = GenerateConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         max_length: 20,
         do_sample: false,
         num_beams: 5,
@@ -201,8 +194,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure:
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(vocab_path, merges_path, config_path, weights_path,
-                                     generate_config, device)?;
+    let mut model = OpenAIGenerator::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat was in";

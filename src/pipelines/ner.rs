@@ -19,20 +19,10 @@
 //! The dependencies will be downloaded to the user's home directory, under ~/rustbert/bert-ner
 //!
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
 //! use rust_bert::pipelines::ner::NERModel;
 //!# fn main() -> failure::Fallible<()> {
-//!# let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("bert-ner");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
-//! let ner_model = NERModel::new(vocab_path,
-//!                               config_path,
-//!                               weights_path, device)?;
+//! let ner_model = NERModel::new(Default::default())?;
+//! 
 //! let input = [
 //!     "My name is Amy. I live in Paris.",
 //!     "Paris is a city in France."

@@ -6,6 +6,7 @@ use tokio::prelude::*;
 
 extern crate dirs;
 
+#[derive(PartialEq, Clone)]
 pub enum Resource {
     Local(LocalResource),
     Remote(RemoteResource),
@@ -20,10 +21,12 @@ impl Resource {
     }
 }
 
+#[derive(PartialEq, Clone)]
 pub struct LocalResource {
     pub local_path: PathBuf
 }
 
+#[derive(PartialEq, Clone)]
 pub struct RemoteResource {
     pub url: String,
     pub local_path: PathBuf,
@@ -62,6 +65,7 @@ pub async fn download_resource(resource: &Resource) -> failure::Fallible<&PathBu
             let target = &remote_resource.local_path;
             let url = &remote_resource.url;
             if !target.exists() {
+                println!("Downloading {} to {:?}", url, target);
                 fs::create_dir_all(target.parent().unwrap())?;
 
                 let client = Client::new();
