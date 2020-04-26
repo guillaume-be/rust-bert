@@ -23,6 +23,38 @@ use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::Config;
 use crate::pipelines::generation::LMHeadModel;
 
+/// # GPT2 Pretrained model weight files
+pub struct Gpt2ModelResources;
+
+/// # GPT2 Pretrained model config files
+pub struct Gpt2ConfigResources;
+
+/// # GPT2 Pretrained model vocab files
+pub struct Gpt2VocabResources;
+
+/// # GPT2 Pretrained model merges files
+pub struct Gpt2MergesResources;
+
+impl Gpt2ModelResources {
+    pub const GPT2: (&'static str, &'static str) = ("gpt2/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-rust_model.ot");
+    pub const DISTIL_GPT2: (&'static str, &'static str) = ("distilgpt2/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/distilgpt2-rust_model.ot");
+}
+
+impl Gpt2ConfigResources {
+    pub const GPT2: (&'static str, &'static str) = ("gpt2/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-config.json");
+    pub const DISTIL_GPT2: (&'static str, &'static str) = ("distilgpt2/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/distilgpt2-config.json");
+}
+
+impl Gpt2VocabResources {
+    pub const GPT2: (&'static str, &'static str) = ("gpt2/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json");
+    pub const DISTIL_GPT2: (&'static str, &'static str) = ("distilgpt2/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/distilgpt2-vocab.json");
+}
+
+impl Gpt2MergesResources {
+    pub const GPT2: (&'static str, &'static str) = ("gpt2/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt");
+    pub const DISTIL_GPT2: (&'static str, &'static str) = ("distilgpt2/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/distilgpt2-merges.txt");
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
 /// # Activation function used in the fully connected layers of the transformer block

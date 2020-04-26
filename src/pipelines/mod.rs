@@ -6,20 +6,9 @@
 //! Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset)
 //!
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
 //! use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 //!# fn main() -> failure::Fallible<()> {
-//!# let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("distilbert-qa");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
-//! let qa_model = QuestionAnsweringModel::new(vocab_path,
-//!                                            config_path,
-//!                                            weights_path, device)?;
+//! let qa_model = QuestionAnsweringModel::new(Default::default())?;
 //!
 //! let question = String::from("Where does Amy live ?");
 //! let context = String::from("Amy lives in Amsterdam");
@@ -50,20 +39,11 @@
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //!
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
 //!# fn main() -> failure::Fallible<()> {
 //!# use rust_bert::pipelines::generation::LanguageGenerator;
 //! use rust_bert::pipelines::summarization::SummarizationModel;
-//! let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("bart-large-cnn");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let merges_path = &home.as_path().join("merges.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
-//! let mut model = SummarizationModel::new(vocab_path, merges_path, config_path, weights_path, Default::default(), device)?;
+//!
+//! let mut model = SummarizationModel::new(Default::default())?;
 //!
 //! let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists
 //!from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team
@@ -110,20 +90,10 @@
 //! This may impact the results and it is recommended to submit prompts of similar length for best results. Additional information on the input parameters for generation is provided in this module's documentation.
 //!
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
 //! use rust_bert::pipelines::generation::GPT2Generator;
 //!# fn main() -> failure::Fallible<()> {
 //!# use rust_bert::pipelines::generation::LanguageGenerator;
-//! let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("gpt2");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let merges_path = &home.as_path().join("merges.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
-//! let mut model = GPT2Generator::new(vocab_path, merges_path, config_path, weights_path, Default::default(), device)?;
+//! let mut model = GPT2Generator::new(Default::default())?;
 //! let input_context_1 = "The dog";
 //! let input_context_2 = "The cat was";
 //! let output = model.generate(Some(vec!(input_context_1, input_context_2)), None);
@@ -147,26 +117,15 @@
 //! #### 4. Sentiment analysis
 //! Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
-//! use rust_bert::pipelines::sentiment::SentimentClassifier;
+//! use rust_bert::pipelines::sentiment::SentimentModel;
 //!# fn main() -> failure::Fallible<()> {
-//!# let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("distilbert_sst2");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
-//! let sentiment_classifier = SentimentClassifier::new(vocab_path,
-//!                                                     config_path,
-//!                                                     weights_path, device)?;
+//! let sentiment_model = SentimentModel::new(Default::default())?;
 //! let input = [
 //!     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
 //!     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
 //!     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
 //! ];
-//! let output = sentiment_classifier.predict(&input);
+//! let output = sentiment_model.predict(&input);
 //!# Ok(())
 //!# }
 //! ```
@@ -188,20 +147,9 @@
 //! #### 5. Named Entity Recognition
 //! Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
 //! use rust_bert::pipelines::ner::NERModel;
 //!# fn main() -> failure::Fallible<()> {
-//!# let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("bert-ner");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
-//! let ner_model = NERModel::new(vocab_path,
-//!                               config_path,
-//!                               weights_path, device)?;
+//! let ner_model = NERModel::new(Default::default())?;
 //! let input = [
 //!     "My name is Amy. I live in Paris.",
 //!     "Paris is a city in France."

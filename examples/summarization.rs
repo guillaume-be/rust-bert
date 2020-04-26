@@ -11,41 +11,12 @@
 // limitations under the License.
 
 extern crate failure;
-extern crate dirs;
 
-use std::path::PathBuf;
-use tch::Device;
-use failure::err_msg;
-use rust_bert::pipelines::summarization::{SummarizationModel, SummarizationConfig};
+use rust_bert::pipelines::summarization::SummarizationModel;
 
 
 fn main() -> failure::Fallible<()> {
-    //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bart-large-cnn");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
-
-    if !config_path.is_file() | !vocab_path.is_file() | !merges_path.is_file() | !weights_path.is_file() {
-        return Err(
-            err_msg("Could not find required resources to run example. \
-                          Please run ../utils/download_dependencies_bart_cnn.py \
-                          in a Python environment with dependencies listed in ../requirements.txt"));
-    }
-
-//    Set-up summarization
-    let device = Device::cuda_if_available();
-
-    let summarization_config = SummarizationConfig {
-        num_beams: 3,
-        ..Default::default()
-    };
-
-    let mut summarization_model = SummarizationModel::new(vocab_path, merges_path, config_path, weights_path,
-                                                          summarization_config, device)?;
+    let mut summarization_model = SummarizationModel::new(Default::default())?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \

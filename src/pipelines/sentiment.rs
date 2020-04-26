@@ -11,27 +11,16 @@
 // limitations under the License.
 
 //! # Sentiment Analysis pipeline
-//! Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
-//! All resources for this model can be downloaded using the Python utility script included in this repository.
-//! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
-//! 2. Run the conversion script python /utils/download-dependencies_sst2_sentiment.py.
-//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/distilbert_sst2
+//! Predicts the binary sentiment for a sentence. By default, the dependencies for this
+//! model will be downloaded for a DistilBERT model finetuned on SST-2.
+//! Customized DistilBERT models can be loaded by overwriting the resources in the configuration.
+//! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/distilbert-sst2
 //!
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
-//! use rust_bert::pipelines::sentiment::SentimentClassifier;
+//! use rust_bert::pipelines::sentiment::SentimentModel;
+//!
 //!# fn main() -> failure::Fallible<()> {
-//!# let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("distilbert_sst2");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
-//! let sentiment_classifier = SentimentClassifier::new(vocab_path,
-//!                                                     config_path,
-//!                                                     weights_path, device)?;
+//! let sentiment_classifier = SentimentModel::new(Default::default())?;
 //! let input = [
 //!     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
 //!     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
@@ -57,15 +46,16 @@
 //! ```
 
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tch::{Device, Tensor, Kind, no_grad};
 use tch::nn::VarStore;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TruncationStrategy, MultiThreadedTokenizer};
-use crate::distilbert::{DistilBertModelClassifier, DistilBertConfig};
+use crate::distilbert::{DistilBertModelClassifier, DistilBertConfig, DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources};
 use crate::Config;
 use std::fs;
 use serde::Deserialize;
 use std::error::Error;
+use crate::common::resources::{Resource, download_resource, RemoteResource};
 
 #[derive(Debug, PartialEq)]
 /// Enum with the possible sentiment polarities. Note that the pre-trained SST2 model does not include neutral sentiment.
@@ -83,52 +73,67 @@ pub struct Sentiment {
     pub score: f64,
 }
 
+/// # Configuration for sentiment classification
+/// Contains information regarding the model to load and device to place the model on.
+pub struct SentimentConfig {
+    /// Model weights resource (default: pretrained DistilBERT model on SST-2)
+    pub model_resource: Resource,
+    /// Config resource (default: pretrained DistilBERT model on SST-2)
+    pub config_resource: Resource,
+    /// Vocab resource (default: pretrained DistilBERT model on SST-2)
+    pub vocab_resource: Resource,
+    /// Device to place the model on (default: CUDA/GPU when available)
+    pub device: Device,
+}
+
+impl Default for SentimentConfig {
+    fn default() -> SentimentConfig {
+        SentimentConfig {
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2)),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2)),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2)),
+            device: Device::cuda_if_available(),
+        }
+    }
+}
+
 /// # SentimentClassifier to perform sentiment analysis
-pub struct SentimentClassifier {
+pub struct SentimentModel {
     tokenizer: BertTokenizer,
     distil_bert_classifier: DistilBertModelClassifier,
     var_store: VarStore,
 }
 
-impl SentimentClassifier {
-    /// Build a new `SentimentClassifier`
+impl SentimentModel {
+    /// Build a new `SentimentModel`
     ///
     /// # Arguments
     ///
-    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
-    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    /// * `sentiment_config` - `SentimentConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
     ///
     /// # Example
     ///
     /// ```no_run
     ///# fn main() -> failure::Fallible<()> {
-    /// use tch::Device;
-    /// use std::path::{Path, PathBuf};
-    /// use rust_bert::pipelines::sentiment::SentimentClassifier;
+    /// use rust_bert::pipelines::sentiment::SentimentModel;
     ///
-    /// let mut home: PathBuf = dirs::home_dir().unwrap();
-    /// let config_path = &home.as_path().join("config.json");
-    /// let vocab_path = &home.as_path().join("vocab.txt");
-    /// let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::Cpu;
-    /// let sentiment_model =  SentimentClassifier::new(vocab_path,
-    ///                                                 config_path,
-    ///                                                 weights_path,
-    ///                                                 device)?;
+    /// let sentiment_model =  SentimentModel::new(Default::default())?;
     ///# Ok(())
     ///# }
     /// ```
     ///
-    pub fn new(vocab_path: &Path, config_path: &Path, weights_path: &Path, device: Device)
-               -> failure::Fallible<SentimentClassifier> {
+    pub fn new(sentiment_config: SentimentConfig) -> failure::Fallible<SentimentModel> {
+        let config_path = download_resource(&sentiment_config.config_resource)?;
+        let vocab_path = download_resource(&sentiment_config.vocab_resource)?;
+        let weights_path = download_resource(&sentiment_config.model_resource)?;
+        let device = sentiment_config.device;
+
         let tokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
         let mut var_store = VarStore::new(device);
         let config = DistilBertConfig::from_file(config_path);
         let distil_bert_classifier = DistilBertModelClassifier::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
-        Ok(SentimentClassifier { tokenizer, distil_bert_classifier, var_store })
+        Ok(SentimentModel { tokenizer, distil_bert_classifier, var_store })
     }
 
     fn prepare_for_model(&self, input: Vec<&str>) -> Tensor {
@@ -163,19 +168,9 @@ impl SentimentClassifier {
     ///
     /// ```no_run
     ///# fn main() -> failure::Fallible<()> {
-    /// use tch::Device;
-    /// use std::path::{Path, PathBuf};
-    /// use rust_bert::pipelines::sentiment::SentimentClassifier;
+    /// use rust_bert::pipelines::sentiment::SentimentModel;
     ///
-    /// let mut home: PathBuf = dirs::home_dir().unwrap();
-    /// let config_path = &home.as_path().join("config.json");
-    /// let vocab_path = &home.as_path().join("vocab.txt");
-    /// let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::Cpu;
-    /// let sentiment_classifier =  SentimentClassifier::new(vocab_path,
-    ///                                                      config_path,
-    ///                                                      weights_path,
-    ///                                                      device)?;
+    /// let sentiment_classifier =  SentimentModel::new(Default::default())?;
     ///
     /// let input = [
     ///     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",

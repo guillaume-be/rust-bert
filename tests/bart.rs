@@ -1,28 +1,29 @@
-use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, RobertaTokenizer};
 use rust_bert::Config;
-use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
+use rust_bert::bart::{BartConfig, BartConfigResources, BartVocabResources, BartModelResources, BartMergesResources, BartModel};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
+use rust_bert::resources::{Resource, RemoteResource, download_resource};
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bart-large-cnn");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = BartConfig::from_file(config_path);
-    let mut bart_model = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    let mut bart_model = BartModel::new(&vs.root(), &config, false);
     vs.load(weights_path)?;
 
 //    Define input
@@ -42,7 +43,7 @@ fn bart_lm_model() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output, encoder_outputs, _, _, _, _) = bart_model.forward_t(
+    let (output, encoder_outputs, _, _, _, _, _) = bart_model.forward_t(
         Some(&input_tensor),
         None,
         None,
@@ -50,14 +51,9 @@ fn bart_lm_model() -> failure::Fallible<()> {
         None,
         false);
 
-    let next_word_id = output.get(0).get(-1).argmax(-1, true).int64_value(&[0]);
-    let next_word = tokenizer.decode(vec!(next_word_id), true, true);
-
-    assert_eq!(output.size(), vec!(1, 6, 50264));
+    assert_eq!(output.size(), vec!(1, 6, 1024));
     assert_eq!(encoder_outputs.size(), vec!(1, 6, 1024));
-    assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - 10.7903).abs()< 1e-4);
-    assert_eq!(next_word_id, 4i64);
-    assert_eq!(next_word, String::from("."));
+    assert!((output.double_value(&[0, output.size()[1] - 1, 0]) - (-0.2420)).abs() < 1e-4);
     Ok(())
 }
 
@@ -65,23 +61,14 @@ fn bart_lm_model() -> failure::Fallible<()> {
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_greedy() -> failure::Fallible<()> {
-    //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bart-large-cnn");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
 
 //    Set-up masked LM model
-    let device = Device::Cpu;
     let summarization_config = SummarizationConfig {
         num_beams: 1,
+        device: Device::Cpu,
         ..Default::default()
     };
-    let mut model = SummarizationModel::new(vocab_path, merges_path, config_path, weights_path,
-                                                          summarization_config, device)?;
+    let mut model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
@@ -119,23 +106,14 @@ about exoplanets like K2-18b."];
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_beam_search() -> failure::Fallible<()> {
-    //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bart-large-cnn");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
 
 //    Set-up masked LM model
-    let device = Device::Cpu;
     let summarization_config = SummarizationConfig {
         num_beams: 3,
+        device: Device::Cpu,
         ..Default::default()
     };
-    let mut model = SummarizationModel::new(vocab_path, merges_path, config_path, weights_path,
-                                                          summarization_config, device)?;
+    let mut model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \

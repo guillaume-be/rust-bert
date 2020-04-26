@@ -12,22 +12,26 @@
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
 //! - `RobertaTokenizer` using a `vocab.txt` vocabulary and `merges.txt` 2-gram merges
+//! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
 //!# fn main() -> failure::Fallible<()> {
 //!#
-//!# let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("bart-large-cnn");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let merges_path = &home.as_path().join("merges.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
 //! use rust_tokenizers::RobertaTokenizer;
 //! use tch::{nn, Device};
 //!# use std::path::PathBuf;
 //! use rust_bert::Config;
 //! use rust_bert::bart::{BartConfig, BartModel};
+//! use rust_bert::resources::{Resource, download_resource, LocalResource};
+//!
+//! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
+//! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
+//! let merges_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
+//! let weights_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot")});
+//! let config_path = download_resource(&config_resource)?;
+//! let vocab_path = download_resource(&vocab_resource)?;
+//! let merges_path = download_resource(&merges_resource)?;
+//! let weights_path = download_resource(&weights_resource)?;
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
@@ -46,5 +50,6 @@ mod encoder;
 mod decoder;
 mod embeddings;
 
-pub use bart::{BartConfig, Activation, BartModel, BartForSequenceClassification, BartForConditionalGeneration};
+pub use bart::{BartModelResources, BartConfigResources, BartVocabResources, BartMergesResources,
+               BartConfig, Activation, BartModel, BartForSequenceClassification, BartForConditionalGeneration};
 pub use attention::LayerState;

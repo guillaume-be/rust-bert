@@ -37,11 +37,16 @@ impl MultiHeadSelfAttention {
 
         let dropout = Dropout::new(config.attention_dropout);
 
+        let output_attentions = match config.output_attentions {
+            Some(value) => value,
+            None => false
+        };
+
         MultiHeadSelfAttention {
             n_heads: config.n_heads,
             dim_per_head: config.dim / config.n_heads,
             dropout,
-            output_attentions: config.output_attentions,
+            output_attentions,
             q_lin,
             k_lin,
             v_lin,

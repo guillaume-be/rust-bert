@@ -1,20 +1,21 @@
-use std::path::PathBuf;
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
 use rust_bert::Config;
-use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
+use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, Gpt2ConfigResources, Gpt2VocabResources, Gpt2MergesResources, Gpt2ModelResources};
 use rust_bert::pipelines::generation::LMHeadModel;
+use rust_bert::resources::{Resource, download_resource, RemoteResource};
 
 #[test]
 fn distilgpt2_lm_model() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilgpt2");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::DISTIL_GPT2));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::DISTIL_GPT2));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::DISTIL_GPT2));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::DISTIL_GPT2));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;

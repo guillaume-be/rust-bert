@@ -10,34 +10,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 extern crate failure;
-extern crate dirs;
 
-use std::path::PathBuf;
 use tch::{Device, Tensor, nn, no_grad};
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
-use failure::err_msg;
 use rust_bert::Config;
-use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM};
+use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertConfigResources, DistilBertVocabResources, DistilBertModelResources};
+use rust_bert::resources::{Resource, download_resource, RemoteResource};
 
 
 fn main() -> failure::Fallible<()> {
-
 //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
-
-    if !config_path.is_file() | !vocab_path.is_file() | !weights_path.is_file() {
-        return Err(
-            err_msg("Could not find required resources to run example. \
-                          Please run ../utils/download_dependencies_distilbert.py \
-                          in a Python environment with dependencies listed in ../requirements.txt"));
-    }
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;

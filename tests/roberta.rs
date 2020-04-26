@@ -1,20 +1,22 @@
-use std::path::PathBuf;
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{RobertaTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::Config;
 use rust_bert::bert::BertConfig;
-use rust_bert::roberta::{RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering};
+use rust_bert::roberta::{RobertaForMaskedLM, RobertaForSequenceClassification, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering, RobertaConfigResources, RobertaVocabResources, RobertaMergesResources, RobertaModelResources};
+use std::collections::HashMap;
+use rust_bert::resources::{RemoteResource, Resource, download_resource};
 
 #[test]
 fn roberta_masked_lm() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaModelResources::ROBERTA));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
@@ -75,20 +77,23 @@ fn roberta_masked_lm() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_sequence_classification() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
 
 //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
-    config.num_labels = Some(42);
+    let mut dummy_label_mapping = HashMap::new();
+    dummy_label_mapping.insert(0, String::from("Positive"));
+    dummy_label_mapping.insert(1, String::from("Negative"));
+    dummy_label_mapping.insert(3, String::from("Neutral"));
+    config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
     let roberta_model = RobertaForSequenceClassification::new(&vs.root(), &config);
@@ -121,7 +126,7 @@ fn roberta_for_sequence_classification() -> failure::Fallible<()> {
                        false)
     });
 
-    assert_eq!(output.size(), &[2, 42]);
+    assert_eq!(output.size(), &[2, 3]);
     assert_eq!(config.num_hidden_layers as usize, all_hidden_states.unwrap().len());
     assert_eq!(config.num_hidden_layers as usize, all_attentions.unwrap().len());
 
@@ -131,13 +136,12 @@ fn roberta_for_sequence_classification() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_multiple_choice() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
 
 //    Set-up model
     let device = Device::Cpu;
@@ -185,24 +189,27 @@ fn roberta_for_multiple_choice() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_token_classification() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
 
 //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
-    config.num_labels = Some(7);
+    let mut dummy_label_mapping = HashMap::new();
+    dummy_label_mapping.insert(0, String::from("O"));
+    dummy_label_mapping.insert(1, String::from("LOC"));
+    dummy_label_mapping.insert(2, String::from("PER"));
+    dummy_label_mapping.insert(3, String::from("ORG"));
+    config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
     let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config);
-
 
 //    Define input
     let input = ["Looks like one thing is missing", "It\'s like comparing oranges to apples"];
@@ -231,7 +238,7 @@ fn roberta_for_token_classification() -> failure::Fallible<()> {
                        false)
     });
 
-    assert_eq!(output.size(), &[2, 9, 7]);
+    assert_eq!(output.size(), &[2, 9, 4]);
     assert_eq!(config.num_hidden_layers as usize, all_hidden_states.unwrap().len());
     assert_eq!(config.num_hidden_layers as usize, all_attentions.unwrap().len());
 
@@ -242,20 +249,23 @@ fn roberta_for_token_classification() -> failure::Fallible<()> {
 #[test]
 fn roberta_for_question_answering() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("roberta");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let merges_path = &home.as_path().join("merges.txt");
-
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let merges_path = download_resource(&merges_resource)?;
 
 //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let mut config = BertConfig::from_file(config_path);
-    config.num_labels = Some(7);
+    let mut dummy_label_mapping = HashMap::new();
+    dummy_label_mapping.insert(0, String::from("Positive"));
+    dummy_label_mapping.insert(1, String::from("Negative"));
+    dummy_label_mapping.insert(3, String::from("Neutral"));
+    config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
     let roberta_model = RobertaForQuestionAnswering::new(&vs.root(), &config);

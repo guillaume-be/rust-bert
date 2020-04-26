@@ -31,7 +31,9 @@ fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn
         let temp_vec = Tensor::of_slice(&temp_vec);
         sinusoidal_embedding.push(temp_vec);
     }
-    let sinusoidal_embedding = Tensor::stack(&sinusoidal_embedding, 0).to_kind(Float);
+    let sinusoidal_embedding = Tensor::stack(&sinusoidal_embedding, 0)
+        .to_kind(Float)
+        .to_device(device);
 
     let embedding_config = EmbeddingConfig { padding_idx: 0, ..Default::default() };
     let mut embeddings = embedding(&nn::VarStore::new(device).root(),

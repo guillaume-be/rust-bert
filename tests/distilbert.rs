@@ -1,32 +1,20 @@
-use std::path::PathBuf;
 use tch::{Device, Tensor, nn, no_grad};
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use rust_bert::Config;
-use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification};
-use rust_bert::pipelines::sentiment::{SentimentClassifier, SentimentPolarity};
+use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification, DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources};
+use rust_bert::pipelines::sentiment::{SentimentModel, SentimentPolarity};
 use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
+use rust_bert::resources::{Resource, RemoteResource, download_resource};
+use std::collections::HashMap;
 
 extern crate failure;
-extern crate dirs;
 
 #[test]
 fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
-
-//    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert_sst2");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
-
 //    Set-up classifier
-    let device = Device::cuda_if_available();
-    let sentiment_classifier = SentimentClassifier::new(vocab_path,
-                                                        config_path,
-                                                        weights_path, device)?;
+    let sentiment_classifier = SentimentModel::new(Default::default())?;
 
 //    Get sentiments
     let input = [
@@ -51,14 +39,13 @@ fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
 
 #[test]
 fn distilbert_masked_lm() -> failure::Fallible<()> {
-
 //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -115,19 +102,18 @@ fn distilbert_masked_lm() -> failure::Fallible<()> {
 fn distilbert_for_question_answering() -> failure::Fallible<()> {
 
 //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SQUAD));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SQUAD));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let mut config = DistilBertConfig::from_file(config_path);
-    config.output_attentions = true;
-    config.output_hidden_states = true;
+    config.output_attentions = Some(true);
+    config.output_hidden_states = Some(true);
     let distil_bert_model = DistilBertForQuestionAnswering::new(&vs.root(), &config);
 
 //    Define input
@@ -165,19 +151,24 @@ fn distilbert_for_question_answering() -> failure::Fallible<()> {
 fn distilbert_for_token_classification() -> failure::Fallible<()> {
 
 //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT));
+    let config_path = download_resource(&config_resource)?;
+    let vocab_path = download_resource(&vocab_resource)?;
 
 //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let mut config = DistilBertConfig::from_file(config_path);
-    config.output_attentions = true;
-    config.output_hidden_states = true;
+    config.output_attentions = Some(true);
+    config.output_hidden_states = Some(true);
+    let mut dummy_label_mapping = HashMap::new();
+    dummy_label_mapping.insert(0, String::from("O"));
+    dummy_label_mapping.insert(1, String::from("LOC"));
+    dummy_label_mapping.insert(2, String::from("PER"));
+    dummy_label_mapping.insert(3, String::from("ORG"));
+    config.id2label = Some(dummy_label_mapping);
     let distil_bert_model = DistilBertForTokenClassification::new(&vs.root(), &config);
 
 //    Define input
@@ -203,7 +194,7 @@ fn distilbert_for_token_classification() -> failure::Fallible<()> {
             .unwrap()
     });
 
-    assert_eq!(output.size(), &[2, 11, config.num_labels]);
+    assert_eq!(output.size(), &[2, 11, 4]);
     assert_eq!(config.n_layers as usize, all_hidden_states.unwrap().len());
     assert_eq!(config.n_layers as usize, all_attentions.unwrap().len());
 
@@ -212,18 +203,8 @@ fn distilbert_for_token_classification() -> failure::Fallible<()> {
 
 #[test]
 fn distilbert_question_answering() -> failure::Fallible<()> {
-
-    //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert-qa");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
-
-//    Set-up masked LM model
-    let device = Device::Cpu;
-    let qa_model = QuestionAnsweringModel::new(vocab_path, config_path, weights_path, device)?;
+//    Set-up question answering model
+    let qa_model = QuestionAnsweringModel::new(Default::default())?;
 
 //    Define input
     let question = String::from("Where does Amy live ?");

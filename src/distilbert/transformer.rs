@@ -82,8 +82,14 @@ pub struct Transformer {
 impl Transformer {
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> Transformer {
         let p = &(p / "layer");
-        let output_attentions = config.output_attentions;
-        let output_hidden_states = config.output_hidden_states;
+        let output_attentions = match config.output_attentions {
+            Some(value) => value,
+            None => false
+        };
+        let output_hidden_states = match config.output_hidden_states {
+            Some(value) => value,
+            None => false
+        };
 
         let mut layers: Vec<TransformerBlock> = vec!();
         for layer_index in 0..config.n_layers {

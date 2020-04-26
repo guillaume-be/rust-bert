@@ -1,17 +1,16 @@
 language: rust
 dist: bionic
-cache:
-  - directories:
-    - $HOME/.cache/torch
 
 jobs:
   include:
     - script:
       - cargo build --verbose
-    - before_script:
+    - script:
       - sudo apt-get install python3-pip python3-setuptools
       - pip3 install --upgrade pip
       - pip3 install -r requirements.txt --progress-bar off
-      - ls ./utils/*.py|xargs -n 1 python3
+      - python3 ./utils/download-dependencies_distilbert.py
+    - before_script:
+      - cargo run --example download_all_dependencies
       script:
         - cargo test

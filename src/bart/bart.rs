@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::Config;
@@ -24,6 +23,38 @@ use crate::bart::attention::LayerState;
 use std::borrow::BorrowMut;
 use crate::common::dropout::Dropout;
 use crate::pipelines::generation::LMHeadModel;
+
+/// # BART Pretrained model weight files
+pub struct BartModelResources;
+
+/// # BART Pretrained model config files
+pub struct BartConfigResources;
+
+/// # BART Pretrained model vocab files
+pub struct BartVocabResources;
+
+/// # BART Pretrained model merges files
+pub struct BartMergesResources;
+
+impl BartModelResources {
+    pub const BART: (&'static str, &'static str) = ("bart/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large/rust_model.ot");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large-cnn/rust_model.ot");
+}
+
+impl BartConfigResources {
+    pub const BART: (&'static str, &'static str) = ("bart/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large/config.json");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large-cnn/config.json");
+}
+
+impl BartVocabResources {
+    pub const BART: (&'static str, &'static str) = ("bart/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-vocab.json");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-vocab.json");
+}
+
+impl BartMergesResources {
+    pub const BART: (&'static str, &'static str) = ("bart/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-merges.txt");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-merges.txt");
+}
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,9 +86,7 @@ pub struct BartConfig {
     pub decoder_layerdrop: f64,
     pub decoder_layers: i64,
     pub decoder_start_token_id: Option<i64>,
-    pub do_sample: bool,
     pub dropout: f64,
-    pub early_stopping: bool,
     pub encoder_attention_heads: i64,
     pub encoder_ffn_dim: i64,
     pub encoder_layerdrop: f64,
@@ -70,21 +99,13 @@ pub struct BartConfig {
     pub init_std: f64,
     pub is_decoder: Option<bool>,
     pub is_encoder_decoder: Option<bool>,
-    pub length_penalty: f64,
-    pub max_length: i64,
     pub max_position_embeddings: i64,
     pub min_length: Option<i64>,
     pub no_repeat_ngram_size: Option<i64>,
-    pub num_beams: i64,
     pub num_hidden_layers: i64,
-    pub num_return_sequences: i64,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub output_past: Option<bool>,
-    pub repetition_penalty: f64,
-    pub temperature: f64,
-    pub top_k: i64,
-    pub top_p: f64,
     pub vocab_size: i64,
 }
 
@@ -174,7 +195,6 @@ impl BartModel {
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &BartConfig, generation_mode: bool) -> BartModel {
-        let p = &(p / "model");
         let pad_token_id = match config.pad_token_id {
             Some(value) => value,
             None => 1
@@ -337,7 +357,7 @@ impl BartForConditionalGeneration {
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &BartConfig, generation_mode: bool) -> BartForConditionalGeneration {
-        let base_model = BartModel::new(p, config, generation_mode);
+        let base_model = BartModel::new(&(p / "model"), config, generation_mode);
         BartForConditionalGeneration { base_model }
     }
 
@@ -494,7 +514,7 @@ impl BartForSequenceClassification {
     /// ```
     ///
     pub fn new(p: &nn::Path, config: &BartConfig) -> BartForSequenceClassification {
-        let base_model = BartModel::new(p, config, false);
+        let base_model = BartModel::new(&(p / "model"), config, false);
         let classification_head = BartClassificationHead::new(&(p / "classification_head"), config);
         let eos_token_id = match config.eos_token_id {
             Some(value) => value,

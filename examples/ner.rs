@@ -11,35 +11,12 @@
 // limitations under the License.
 
 extern crate failure;
-extern crate dirs;
 
-use std::path::PathBuf;
-use tch::Device;
-use failure::err_msg;
 use rust_bert::pipelines::ner::NERModel;
 
-
 fn main() -> failure::Fallible<()> {
-    //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("bert-ner");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
-
-    if !config_path.is_file() | !vocab_path.is_file() | !weights_path.is_file() {
-        return Err(
-            err_msg("Could not find required resources to run example. \
-                          Please run ../utils/download_dependencies_bert_ner.py \
-                          in a Python environment with dependencies listed in ../requirements.txt"));
-    }
-
 //    Set-up model
-    let device = Device::cuda_if_available();
-    let ner_model = NERModel::new(vocab_path,
-                                  config_path,
-                                  weights_path, device)?;
+    let ner_model = NERModel::new(Default::default())?;
 
 //    Define input
     let input = [

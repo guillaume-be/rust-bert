@@ -20,6 +20,33 @@ use self::tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
 use crate::Config;
 
+/// # DistilBERT Pretrained model weight files
+pub struct DistilBertModelResources;
+
+/// # DistilBERT Pretrained model config files
+pub struct DistilBertConfigResources;
+
+/// # DistilBERT Pretrained model vocab files
+pub struct DistilBertVocabResources;
+
+impl DistilBertModelResources {
+    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot");
+    pub const DISTIL_BERT: (&'static str, &'static str) = ("distilbert/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-rust_model.ot");
+    pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = ("distilbert-qa/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-cased-distilled-squad-rust_model.ot");
+}
+
+impl DistilBertConfigResources {
+    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-config.json");
+    pub const DISTIL_BERT: (&'static str, &'static str) = ("distilbert/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-config.json");
+    pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = ("distilbert-qa/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-cased-distilled-squad-config.json");
+}
+
+impl DistilBertVocabResources {
+    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-vocab.txt");
+    pub const DISTIL_BERT: (&'static str, &'static str) = ("distilbert/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt");
+    pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = ("distilbert-qa/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-cased-vocab.txt");
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Serialize, Deserialize)]
 /// # Activation function used in the feed-forward layer in the transformer blocks
@@ -46,15 +73,14 @@ pub struct DistilBertConfig {
     pub max_position_embeddings: i64,
     pub n_heads: i64,
     pub n_layers: i64,
-    pub num_labels: i64,
-    pub output_attentions: bool,
-    pub output_hidden_states: bool,
+    pub output_attentions: Option<bool>,
+    pub output_hidden_states: Option<bool>,
     pub output_past: Option<bool>,
     pub qa_dropout: f64,
     pub seq_classif_dropout: f64,
     pub sinusoidal_pos_embds: bool,
     pub tie_weights_: bool,
-    pub torchscript: bool,
+    pub torchscript: Option<bool>,
     pub use_bfloat16: Option<bool>,
     pub vocab_size: i64,
 }
@@ -202,8 +228,11 @@ impl DistilBertModelClassifier {
     ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModelClassifier {
         let distil_bert_model = DistilBertModel::new(&p, config);
+
+        let num_labels = config.id2label.as_ref().expect("id2label must be provided for classifiers").len() as i64;
+
         let pre_classifier = nn::linear(&(p / "pre_classifier"), config.dim, config.dim, Default::default());
-        let classifier = nn::linear(&(p / "classifier"), config.dim, config.num_labels, Default::default());
+        let classifier = nn::linear(&(p / "classifier"), config.dim, num_labels, Default::default());
         let dropout = Dropout::new(config.seq_classif_dropout);
 
         DistilBertModelClassifier { distil_bert_model, pre_classifier, classifier, dropout }
@@ -416,8 +445,7 @@ impl DistilBertForQuestionAnswering {
     ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForQuestionAnswering {
         let distil_bert_model = DistilBertModel::new(&p, config);
-        let qa_outputs = nn::linear(&(p / "qa_outputs"), config.dim, config.num_labels, Default::default());
-        assert_eq!(config.num_labels, 2, "num_labels should be set to 2 in the configuration provided");
+        let qa_outputs = nn::linear(&(p / "qa_outputs"), config.dim, 2, Default::default());
         let dropout = Dropout::new(config.qa_dropout);
 
         DistilBertForQuestionAnswering { distil_bert_model, qa_outputs, dropout }
@@ -529,7 +557,10 @@ impl DistilBertForTokenClassification {
     ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForTokenClassification {
         let distil_bert_model = DistilBertModel::new(&p, config);
-        let classifier = nn::linear(&(p / "classifier"), config.dim, config.num_labels, Default::default());
+
+        let num_labels = config.id2label.as_ref().expect("id2label must be provided for classifiers").len() as i64;
+
+        let classifier = nn::linear(&(p / "classifier"), config.dim, num_labels, Default::default());
         let dropout = Dropout::new(config.seq_classif_dropout);
 
         DistilBertForTokenClassification { distil_bert_model, classifier, dropout }

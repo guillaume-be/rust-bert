@@ -19,6 +19,34 @@ use crate::roberta::embeddings::RobertaEmbeddings;
 use crate::common::dropout::Dropout;
 use crate::bert::{BertConfig, BertModel};
 
+/// # RoBERTa Pretrained model weight files
+pub struct RobertaModelResources;
+
+/// # RoBERTa Pretrained model config files
+pub struct RobertaConfigResources;
+
+/// # RoBERTa Pretrained model vocab files
+pub struct RobertaVocabResources;
+
+/// # RoBERTa Pretrained model merges files
+pub struct RobertaMergesResources;
+
+impl RobertaModelResources {
+    pub const ROBERTA: (&'static str, &'static str) = ("roberta/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-rust_model.ot");
+}
+
+impl RobertaConfigResources {
+    pub const ROBERTA: (&'static str, &'static str) = ("roberta/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-config.json");
+}
+
+impl RobertaVocabResources {
+    pub const ROBERTA: (&'static str, &'static str) = ("roberta/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-vocab.json");
+}
+
+impl RobertaMergesResources {
+    pub const ROBERTA: (&'static str, &'static str) = ("roberta/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-merges.txt");
+}
+
 pub struct RobertaLMHead {
     dense: nn::Linear,
     decoder: LinearNoBias,
@@ -163,7 +191,7 @@ pub struct RobertaClassificationHead {
 impl RobertaClassificationHead {
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaClassificationHead {
         let dense = nn::linear(p / "dense", config.hidden_size, config.hidden_size, Default::default());
-        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
         let out_proj = nn::linear(p / "out_proj", config.hidden_size, num_labels, Default::default());
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
@@ -449,7 +477,7 @@ impl RobertaForTokenClassification {
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForTokenClassification {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
-        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
         let classifier = nn::linear(p / "classifier", config.hidden_size, num_labels, Default::default());
 
         RobertaForTokenClassification { roberta, dropout, classifier }
@@ -558,7 +586,7 @@ impl RobertaForQuestionAnswering {
     ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForQuestionAnswering {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
-        let num_labels = config.num_labels.expect("num_labels not provided in configuration");
+        let num_labels = 2;
         let qa_outputs = nn::linear(p / "qa_outputs", config.hidden_size, num_labels, Default::default());
 
         RobertaForQuestionAnswering { roberta, qa_outputs }
