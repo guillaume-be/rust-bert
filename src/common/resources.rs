@@ -46,6 +46,7 @@ impl Resource {
     ///
     /// ```no_run
     /// use rust_bert::resources::{Resource, LocalResource};
+    /// use std::path::PathBuf;
     /// let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
     /// let config_path = config_resource.get_local_path();
     /// ```
@@ -91,6 +92,7 @@ impl RemoteResource {
     ///
     /// ```no_run
     /// use rust_bert::resources::{Resource, RemoteResource};
+    /// use std::path::PathBuf;
     /// let config_resource = Resource::Remote(RemoteResource::new("http://config_json_location", PathBuf::from("path/to/config.json")));
     /// ```
     ///
