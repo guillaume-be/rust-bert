@@ -11,11 +11,10 @@
 // limitations under the License.
 
 //! # Sentiment Analysis pipeline
-//! Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
-//! All resources for this model can be downloaded using the Python utility script included in this repository.
-//! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
-//! 2. Run the conversion script python /utils/download-dependencies_sst2_sentiment.py.
-//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/distilbert_sst2
+//! Predicts the binary sentiment for a sentence. By default, the dependencies for this
+//! model will be downloaded for a DistilBERT model finetuned on SST-2.
+//! Customized DistilBERT models can be loaded by overwriting the resources in the configuration.
+//! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/distilbert-sst2
 //!
 //! ```no_run
 //! use rust_bert::pipelines::sentiment::SentimentModel;

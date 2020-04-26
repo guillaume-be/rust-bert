@@ -11,27 +11,16 @@
 // limitations under the License.
 
 //! # Question Answering pipeline
-//! Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset).
-//! All resources for this model can be downloaded using the Python utility script included in this repository.
-//! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
-//! 2. Run the conversion script python /utils/download-dependencies_distilbert-qa.py.
-//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/distilbert-qa
+//! Extractive question answering from a given question and context. By default, the dependencies for this
+//! model will be downloaded for a DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset).
+//! Customized DistilBERT models can be loaded by overwriting the resources in the configuration.
+//! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/distilbert-qa
 //!
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
 //! use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
+//!
 //!# fn main() -> failure::Fallible<()> {
-//!# let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("distilbert-qa");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
-//! let qa_model = QuestionAnsweringModel::new(vocab_path,
-//!                                            config_path,
-//!                                            weights_path, device)?;
+//! let qa_model = QuestionAnsweringModel::new(Default::default())?;
 //!
 //! let question = String::from("Where does Amy live ?");
 //! let context = String::from("Amy lives in Amsterdam");
@@ -59,7 +48,7 @@
 
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, TokenizedInput};
 use tch::{Device, Tensor, no_grad};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use rust_tokenizers::tokenization_utils::truncate_sequences;
 use std::collections::HashMap;
 use std::cmp::min;
@@ -67,7 +56,8 @@ use tch::nn::VarStore;
 use tch::kind::Kind::Float;
 use std::fs;
 use crate::Config;
-use crate::distilbert::{DistilBertForQuestionAnswering, DistilBertConfig};
+use crate::distilbert::{DistilBertForQuestionAnswering, DistilBertConfig, DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources};
+use crate::common::resources::{Resource, RemoteResource, download_resource};
 
 /// # Input for Question Answering
 /// Includes a context (containing the answer) and question strings
@@ -155,6 +145,30 @@ impl QaExample {
     }
 }
 
+/// # Configuration for sentiment classification
+/// Contains information regarding the model to load and device to place the model on.
+pub struct QuestionAnsweringConfig {
+    /// Model weights resource (default: pretrained DistilBERT model on SST-2)
+    pub model_resource: Resource,
+    /// Config resource (default: pretrained DistilBERT model on SST-2)
+    pub config_resource: Resource,
+    /// Vocab resource (default: pretrained DistilBERT model on SST-2)
+    pub vocab_resource: Resource,
+    /// Device to place the model on (default: CUDA/GPU when available)
+    pub device: Device,
+}
+
+impl Default for QuestionAnsweringConfig {
+    fn default() -> QuestionAnsweringConfig {
+        QuestionAnsweringConfig {
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SQUAD)),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SQUAD)),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SQUAD)),
+            device: Device::cuda_if_available(),
+        }
+    }
+}
+
 /// # QuestionAnsweringModel to perform extractive question answering
 pub struct QuestionAnsweringModel {
     tokenizer: BertTokenizer,
@@ -173,34 +187,25 @@ impl QuestionAnsweringModel {
     ///
     /// # Arguments
     ///
-    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
-    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    /// * `question_answering_config` - `QuestionAnsweringConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
     ///
     /// # Example
     ///
     /// ```no_run
     ///# fn main() -> failure::Fallible<()> {
-    /// use tch::Device;
-    /// use std::path::{Path, PathBuf};
     /// use rust_bert::pipelines::question_answering::QuestionAnsweringModel;
     ///
-    /// let mut home: PathBuf = dirs::home_dir().unwrap();
-    /// let config_path = &home.as_path().join("config.json");
-    /// let vocab_path = &home.as_path().join("vocab.txt");
-    /// let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::Cpu;
-    /// let qa_model =  QuestionAnsweringModel::new(vocab_path,
-    ///                                             config_path,
-    ///                                             weights_path,
-    ///                                             device)?;
+    /// let qa_model =  QuestionAnsweringModel::new(Default::default())?;
     ///# Ok(())
     ///# }
     /// ```
     ///
-    pub fn new(vocab_path: &Path, config_path: &Path, weights_path: &Path, device: Device)
-               -> failure::Fallible<QuestionAnsweringModel> {
+    pub fn new(question_answering_config: QuestionAnsweringConfig) -> failure::Fallible<QuestionAnsweringModel> {
+        let config_path = download_resource(&question_answering_config.config_resource)?;
+        let vocab_path = download_resource(&question_answering_config.vocab_resource)?;
+        let weights_path = download_resource(&question_answering_config.model_resource)?;
+        let device = question_answering_config.device;
+
         let tokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), false);
         let pad_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[PAD]").expect("[PAD] token not found in vocabulary");
         let sep_idx = *Tokenizer::vocab(&tokenizer).special_values.get("[SEP]").expect("[SEP] token not found in vocabulary");
@@ -266,19 +271,9 @@ impl QuestionAnsweringModel {
     ///
     /// ```no_run
     ///# fn main() -> failure::Fallible<()> {
-    /// use tch::Device;
-    /// use std::path::{Path, PathBuf};
     /// use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
     ///
-    /// let mut home: PathBuf = dirs::home_dir().unwrap();
-    /// let config_path = &home.as_path().join("config.json");
-    /// let vocab_path = &home.as_path().join("vocab.txt");
-    /// let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::Cpu;
-    /// let qa_model =  QuestionAnsweringModel::new(vocab_path,
-    ///                                             config_path,
-    ///                                             weights_path,
-    ///                                             device)?;
+    /// let qa_model =  QuestionAnsweringModel::new(Default::default())?;
     ///
     /// let question_1 = String::from("Where does Amy live ?");
     /// let context_1 = String::from("Amy lives in Amsterdam");

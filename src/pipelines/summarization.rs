@@ -15,10 +15,9 @@
 //! # Summarization pipeline
 //! Abstractive summarization of texts based on the BART encoder-decoder architecture
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
-//! All resources for this model can be downloaded using the Python utility script included in this repository.
-//! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
-//! 2. Run the conversion script python /utils/download-dependencies_gpt2.py (or /utils/download-dependencies_bart_cnn.py)
-//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/gpt2 (~/rustbert/bart-large-cnn respectively)
+//! By default, the dependencies for this model will be downloaded for a BART model finetuned on CNN/DM.
+//! Customized BART models can be loaded by overwriting the resources in the configuration.
+//! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/bart-cnn
 //!
 //!
 //! ```no_run

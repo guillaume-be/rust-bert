@@ -205,18 +205,8 @@ fn distilbert_for_token_classification() -> failure::Fallible<()> {
 
 #[test]
 fn distilbert_question_answering() -> failure::Fallible<()> {
-
-    //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SQUAD));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SQUAD));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SQUAD));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
-
-//    Set-up masked LM model
-    let device = Device::Cpu;
-    let qa_model = QuestionAnsweringModel::new(vocab_path, config_path, weights_path, device)?;
+//    Set-up question answering model
+    let qa_model = QuestionAnsweringModel::new(Default::default())?;
 
 //    Define input
     let question = String::from("Where does Amy live ?");
