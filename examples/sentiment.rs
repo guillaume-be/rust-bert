@@ -11,35 +11,13 @@
 // limitations under the License.
 
 extern crate failure;
-extern crate dirs;
 
-use std::path::PathBuf;
-use tch::Device;
-use failure::err_msg;
-use rust_bert::pipelines::sentiment::SentimentClassifier;
+use rust_bert::pipelines::sentiment::SentimentModel;
 
 
 fn main() -> failure::Fallible<()> {
-//    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("distilbert-sst2");
-    let config_path = &home.as_path().join("config.json");
-    let vocab_path = &home.as_path().join("vocab.txt");
-    let weights_path = &home.as_path().join("model.ot");
-
-    if !config_path.is_file() | !vocab_path.is_file() | !weights_path.is_file() {
-        return Err(
-            err_msg("Could not find required resources to run example. \
-                          Please run ../utils/download_dependencies_sst2_sentiment.py \
-                          in a Python environment with dependencies listed in ../requirements.txt"));
-    }
-
 //    Set-up classifier
-    let device = Device::cuda_if_available();
-    let sentiment_classifier = SentimentClassifier::new(vocab_path,
-                                                        config_path,
-                                                        weights_path, device)?;
+    let sentiment_classifier = SentimentModel::new(Default::default())?;
 
 //    Define input
     let input = [

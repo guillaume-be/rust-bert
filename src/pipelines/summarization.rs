@@ -22,20 +22,10 @@
 //!
 //!
 //! ```no_run
-//!# use std::path::PathBuf;
-//!# use tch::Device;
 //!# fn main() -> failure::Fallible<()> {
 //!# use rust_bert::pipelines::generation::LanguageGenerator;
 //! use rust_bert::pipelines::summarization::SummarizationModel;
-//! let mut home: PathBuf = dirs::home_dir().unwrap();
-//!# home.push("rustbert");
-//!# home.push("bart-large-cnn");
-//!# let config_path = &home.as_path().join("config.json");
-//!# let vocab_path = &home.as_path().join("vocab.txt");
-//!# let merges_path = &home.as_path().join("merges.txt");
-//!# let weights_path = &home.as_path().join("model.ot");
-//! let device = Device::cuda_if_available();
-//! let mut model = SummarizationModel::new(vocab_path, merges_path, config_path, weights_path, Default::default(), device)?;
+//! let mut model = SummarizationModel::new(Default::default())?;
 //!
 //! let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists
 //!from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team
@@ -75,12 +65,22 @@
 //!```
 
 use crate::pipelines::generation::{BartGenerator, GenerateConfig, LanguageGenerator};
-use std::path::Path;
 use tch::Device;
+use crate::common::resources::{Resource, RemoteResource, download_resource};
+use crate::bart::{BartModelResources, BartConfigResources, BartVocabResources, BartMergesResources};
 
 /// # Configuration for text summarization
-/// Mirrors the GenerationConfig, with a different set of default parameters
+/// Contains information regarding the model to load, mirrors the GenerationConfig, with a
+/// different set of default parameters and sets the device to place the model on.
 pub struct SummarizationConfig {
+    /// Model weights resource (default: pretrained BART model on CNN-DM)
+    pub model_resource: Resource,
+    /// Config resource (default: pretrained BART model on CNN-DM)
+    pub config_resource: Resource,
+    /// Vocab resource (default: pretrained BART model on CNN-DM)
+    pub vocab_resource: Resource,
+    /// Merges resource (default: pretrained BART model on CNN-DM)
+    pub merges_resource: Resource,
     /// Minimum sequence length (default: 0)
     pub min_length: u64,
     /// Maximum sequence length (default: 20)
@@ -105,11 +105,17 @@ pub struct SummarizationConfig {
     pub no_repeat_ngram_size: u64,
     /// Number of sequences to return for each prompt text (default: 1)
     pub num_return_sequences: u64,
+    /// Device to place the model on (default: CUDA/GPU when available)
+    pub device: Device,
 }
 
 impl Default for SummarizationConfig {
     fn default() -> SummarizationConfig {
         SummarizationConfig {
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART_CNN)),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART_CNN)),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART_CNN)),
+            merges_resource: Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART_CNN)),
             min_length: 56,
             max_length: 142,
             do_sample: false,
@@ -122,6 +128,7 @@ impl Default for SummarizationConfig {
             length_penalty: 1.0,
             no_repeat_ngram_size: 3,
             num_return_sequences: 1,
+            device: Device::cuda_if_available(),
         }
     }
 }
@@ -136,37 +143,20 @@ impl SummarizationModel {
     ///
     /// # Arguments
     ///
-    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
-    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    /// * `summarization_config` - `SummarizationConfig` object containing the resource references (model, vocabulary, configuration), summarization options and device placement (CPU/GPU)
     ///
     /// # Example
     ///
     /// ```no_run
     ///# fn main() -> failure::Fallible<()> {
-    /// use tch::Device;
-    /// use std::path::{Path, PathBuf};
     /// use rust_bert::pipelines::summarization::SummarizationModel;
     ///
-    /// let mut home: PathBuf = dirs::home_dir().unwrap();
-    /// let config_path = &home.as_path().join("config.json");
-    /// let vocab_path = &home.as_path().join("vocab.txt");
-    /// let merges_path = &home.as_path().join("merges.txt");
-    /// let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::cuda_if_available();
-    /// let mut summarization_model =  SummarizationModel::new(vocab_path,
-    ///                                                        merges_path,
-    ///                                                        config_path,
-    ///                                                        weights_path,
-    ///                                                        Default::default(),
-    ///                                                        device)?;
+    /// let mut summarization_model =  SummarizationModel::new(Default::default())?;
     ///# Ok(())
     ///# }
     /// ```
     ///
-    pub fn new(vocab_path: &Path, merges_path: &Path, config_path: &Path, weights_path: &Path,
-               summarization_config: SummarizationConfig, device: Device)
+    pub fn new(summarization_config: SummarizationConfig)
                -> failure::Fallible<SummarizationModel> {
         let generate_config = GenerateConfig {
             min_length: summarization_config.min_length,
@@ -183,8 +173,14 @@ impl SummarizationModel {
             num_return_sequences: summarization_config.num_return_sequences,
 
         };
+
+        let config_path = download_resource(&summarization_config.config_resource)?;
+        let vocab_path = download_resource(&summarization_config.vocab_resource)?;
+        let merges_path = download_resource(&summarization_config.merges_resource)?;
+        let weights_path = download_resource(&summarization_config.model_resource)?;
+        let device = summarization_config.device;
         let model = BartGenerator::new(vocab_path, merges_path, config_path, weights_path,
-                                           generate_config, device)?;
+                                       generate_config, device)?;
 
         Ok(SummarizationModel { model })
     }
@@ -201,20 +197,10 @@ impl SummarizationModel {
     /// # Example
     ///
     /// ```no_run
-    ///# use std::path::PathBuf;
-    ///# use tch::Device;
     ///# fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::generation::LanguageGenerator;
     /// use rust_bert::pipelines::summarization::SummarizationModel;
-    /// let mut home: PathBuf = dirs::home_dir().unwrap();
-    /// home.push("rustbert");
-    /// home.push("bart-large-cnn");
-    /// let config_path = &home.as_path().join("config.json");
-    /// let vocab_path = &home.as_path().join("vocab.txt");
-    /// let merges_path = &home.as_path().join("merges.txt");
-    /// let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::cuda_if_available();
-    /// let mut model = SummarizationModel::new(vocab_path, merges_path, config_path, weights_path, Default::default(), device)?;
+    /// let mut model = SummarizationModel::new(Default::default())?;
     ///
     /// let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists
     ///from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team

@@ -4,7 +4,7 @@ use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use rust_bert::Config;
 use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification, DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources};
-use rust_bert::pipelines::sentiment::{SentimentClassifier, SentimentPolarity};
+use rust_bert::pipelines::sentiment::{SentimentModel, SentimentPolarity};
 use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
 use rust_bert::common::resources::{Resource, RemoteResource, download_resource};
 use std::collections::HashMap;
@@ -14,20 +14,8 @@ extern crate dirs;
 
 #[test]
 fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
-
-//    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
-
 //    Set-up classifier
-    let device = Device::cuda_if_available();
-    let sentiment_classifier = SentimentClassifier::new(vocab_path,
-                                                        config_path,
-                                                        weights_path, device)?;
+    let sentiment_classifier = SentimentModel::new(Default::default())?;
 
 //    Get sentiments
     let input = [

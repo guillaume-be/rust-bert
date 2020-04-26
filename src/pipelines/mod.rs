@@ -149,7 +149,7 @@
 //! ```no_run
 //!# use std::path::PathBuf;
 //!# use tch::Device;
-//! use rust_bert::pipelines::sentiment::SentimentClassifier;
+//! use rust_bert::pipelines::sentiment::SentimentModel;
 //!# fn main() -> failure::Fallible<()> {
 //!# let mut home: PathBuf = dirs::home_dir().unwrap();
 //!# home.push("rustbert");
@@ -158,7 +158,7 @@
 //!# let vocab_path = &home.as_path().join("vocab.txt");
 //!# let weights_path = &home.as_path().join("model.ot");
 //! let device = Device::cuda_if_available();
-//! let sentiment_classifier = SentimentClassifier::new(vocab_path,
+//! let sentiment_classifier = SentimentModel::new(vocab_path,
 //!                                                     config_path,
 //!                                                     weights_path, device)?;
 //! let input = [

@@ -53,7 +53,7 @@ fn bart_lm_model() -> failure::Fallible<()> {
 
     assert_eq!(output.size(), vec!(1, 6, 1024));
     assert_eq!(encoder_outputs.size(), vec!(1, 6, 1024));
-    assert!((output.double_value(&[0, output.size()[1] - 1, 0]) - (-0.2420)).abs()< 1e-4);
+    assert!((output.double_value(&[0, output.size()[1] - 1, 0]) - (-0.2420)).abs() < 1e-4);
     Ok(())
 }
 
@@ -61,24 +61,14 @@ fn bart_lm_model() -> failure::Fallible<()> {
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_greedy() -> failure::Fallible<()> {
-    //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART_CNN));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART_CNN));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART_CNN));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART_CNN));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up masked LM model
-    let device = Device::Cpu;
     let summarization_config = SummarizationConfig {
         num_beams: 1,
+        device: Device::Cpu,
         ..Default::default()
     };
-    let mut model = SummarizationModel::new(vocab_path, merges_path, config_path, weights_path,
-                                                          summarization_config, device)?;
+    let mut model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
@@ -116,24 +106,14 @@ about exoplanets like K2-18b."];
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_beam_search() -> failure::Fallible<()> {
-    //    Resources paths
-    let config_dependency = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART_CNN));
-    let vocab_dependency = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART_CNN));
-    let merges_dependency = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART_CNN));
-    let weights_dependency = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART_CNN));
-    let config_path = download_resource(&config_dependency)?;
-    let vocab_path = download_resource(&vocab_dependency)?;
-    let merges_path = download_resource(&merges_dependency)?;
-    let weights_path = download_resource(&weights_dependency)?;
 
 //    Set-up masked LM model
-    let device = Device::Cpu;
     let summarization_config = SummarizationConfig {
         num_beams: 3,
+        device: Device::Cpu,
         ..Default::default()
     };
-    let mut model = SummarizationModel::new(vocab_path, merges_path, config_path, weights_path,
-                                                          summarization_config, device)?;
+    let mut model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
