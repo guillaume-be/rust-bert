@@ -61,6 +61,7 @@ pub mod roberta;
 pub mod openai_gpt;
 pub mod gpt2;
 pub mod bart;
+pub mod electra;
 mod common;
 pub mod pipelines;
 
