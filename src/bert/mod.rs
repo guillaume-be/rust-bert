@@ -49,7 +49,7 @@
 mod bert;
 mod embeddings;
 mod attention;
-mod encoder;
+pub(crate) mod encoder;
 
 pub use bert::{BertModelResources, BertConfigResources, BertVocabResources,
                BertConfig, Activation, BertModel, BertForTokenClassification, BertForMultipleChoice,

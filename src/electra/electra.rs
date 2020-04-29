@@ -14,8 +14,11 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::bert::Activation;
+use crate::bert::{Activation, BertConfig};
 use crate::Config;
+use crate::electra::embeddings::ElectraEmbeddings;
+use tch::{nn, Tensor, Kind};
+use crate::bert::encoder::BertEncoder;
 
 #[derive(Debug, Serialize, Deserialize)]
 /// # Electra model configuration
@@ -43,3 +46,90 @@ pub struct ElectraConfig {
 }
 
 impl Config<ElectraConfig> for ElectraConfig {}
+
+pub struct ElectraModel {
+    embeddings: ElectraEmbeddings,
+    embeddings_project: Option<nn::Linear>,
+    encoder: BertEncoder,
+}
+
+impl ElectraModel {
+    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraModel {
+        let embeddings = ElectraEmbeddings::new(&(p / "embeddings"), config);
+        let embeddings_project = if config.embedding_size != config.hidden_size {
+            Some(nn::linear(&(p / "embeddings_project"), config.embedding_size, config.hidden_size, Default::default()))
+        } else {
+            None
+        };
+        let bert_config = BertConfig {
+            hidden_act: config.hidden_act.clone(),
+            attention_probs_dropout_prob: config.attention_probs_dropout_prob,
+            hidden_dropout_prob: config.hidden_dropout_prob,
+            hidden_size: config.hidden_size,
+            initializer_range: config.initializer_range,
+            intermediate_size: config.intermediate_size,
+            max_position_embeddings: config.max_position_embeddings,
+            num_attention_heads: config.num_attention_heads,
+            num_hidden_layers: config.num_hidden_layers,
+            type_vocab_size: config.type_vocab_size,
+            vocab_size: config.vocab_size,
+            output_attentions: config.output_attentions,
+            output_hidden_states: config.output_hidden_states,
+            is_decoder: None,
+            id2label: config.id2label.clone(),
+            label2id: config.label2id.clone(),
+        };
+        let encoder = BertEncoder::new(&(p / "encoder"), &bert_config);
+        ElectraModel { embeddings, embeddings_project, encoder }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool)
+                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (input_shape, device) = match &input_ids {
+            Some(input_value) => match &input_embeds {
+                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
+                None => (input_value.size(), input_value.device())
+            }
+            None => match &input_embeds {
+                Some(embeds) => (vec!(embeds.size()[0], embeds.size()[1]), embeds.device()),
+                None => { return Err("At least one of input ids or input embeddings must be set"); }
+            }
+        };
+
+        let mask = match mask {
+            Some(value) => value,
+            None => Tensor::ones(&input_shape, (Kind::Int64, device))
+        };
+
+        let extended_attention_mask = match mask.dim() {
+            3 => mask.unsqueeze(1),
+            2 => mask.unsqueeze(1).unsqueeze(1),
+            _ => { return Err("Invalid attention mask dimension, must be 2 or 3"); }
+        };
+
+        let hidden_states = match self.embeddings.forward_t(input_ids, token_type_ids, position_ids, input_embeds, train) {
+            Ok(value) => value,
+            Err(e) => { return Err(e); }
+        };
+
+        let hidden_states = match &self.embeddings_project {
+            Some(layer) => hidden_states.apply(layer),
+            None => hidden_states
+        };
+
+        let (hidden_state, all_hidden_states, all_attentions) =
+            self.encoder.forward_t(&hidden_states,
+                                   &Some(extended_attention_mask),
+                                   &None,
+                                   &None,
+                                   train);
+
+        Ok((hidden_state, all_hidden_states, all_attentions))
+    }
+}

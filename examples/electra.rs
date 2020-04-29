@@ -15,10 +15,10 @@
 
 use rust_bert::resources::{LocalResource, Resource, download_resource};
 use std::path::PathBuf;
-use rust_bert::electra::electra::ElectraConfig;
+use rust_bert::electra::electra::{ElectraConfig, ElectraModel};
 use rust_bert::Config;
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy};
-use tch::{Tensor, Device};
+use tch::{Tensor, Device, nn, no_grad};
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
@@ -31,12 +31,15 @@ fn main() -> failure::Fallible<()> {
     let weights_resource = Resource::Local(LocalResource {local_path: home.as_path().join("model.ot")});
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
-    let _weights_path = download_resource(&weights_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
 //    Set-up masked LM model
     let device = Device::Cpu;
+    let mut vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
-    let _config = ElectraConfig::from_file(config_path);
+    let config = ElectraConfig::from_file(config_path);
+    let electra_model = ElectraModel::new(&(&vs.root() / "electra"), &config);
+    vs.load(weights_path)?;
 
 //    Define input
     let input = ["Looks like one [MASK] is missing", "It was a very nice and [MASK] day"];
@@ -52,8 +55,19 @@ fn main() -> failure::Fallible<()> {
         map(|input|
             Tensor::of_slice(&(input))).
         collect::<Vec<_>>();
-    let _input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
+    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
+    //    Forward pass
+    let (output, _, _) = no_grad(|| {
+        electra_model
+            .forward_t(Some(input_tensor),
+                       None,
+                       None,
+                       None,
+                       None,
+                       false)
+            .unwrap()
+    });
 
     Ok(())
 }
