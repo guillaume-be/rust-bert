@@ -69,5 +69,7 @@ fn main() -> failure::Fallible<()> {
             .unwrap()
     });
 
+    output.print();
+
     Ok(())
 }
