@@ -15,9 +15,9 @@
 
 use rust_bert::resources::{LocalResource, Resource, download_resource};
 use std::path::PathBuf;
-use rust_bert::electra::electra::{ElectraConfig, ElectraModel};
+use rust_bert::electra::electra::{ElectraConfig, ElectraForMaskedLM};
 use rust_bert::Config;
-use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
 use tch::{Tensor, Device, nn, no_grad};
 
 fn main() -> failure::Fallible<()> {
@@ -38,7 +38,7 @@ fn main() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let config = ElectraConfig::from_file(config_path);
-    let electra_model = ElectraModel::new(&(&vs.root() / "electra"), &config);
+    let electra_model = ElectraForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -66,10 +66,16 @@ fn main() -> failure::Fallible<()> {
                        None,
                        None,
                        false)
-            .unwrap()
     });
 
-    output.print();
+//    Print masked tokens
+    let index_1 = output.get(0).get(4).argmax(0, false);
+    let index_2 = output.get(1).get(7).argmax(0, false);
+    let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
+    let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
+
+    println!("{}", word_1); // Outputs "thing" : "Looks like one [thing] is missing"
+    println!("{}", word_2);// Outputs "sunny" : "It was a very nice and [sunny] day"
 
     Ok(())
 }

@@ -1,5 +1,3 @@
-from transformers import ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP, ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP
-from transformers.tokenization_electra import PRETRAINED_VOCAB_FILES_MAP
 from transformers.file_utils import get_from_cache
 from pathlib import Path
 import shutil
@@ -8,11 +6,11 @@ import numpy as np
 import torch
 import subprocess
 
-config_path = ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP["google/electra-base-generator"]
-vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["google/electra-base-generator"]
-weights_path = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP["google/electra-base-generator"]
+config_path = "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/electra-large-discriminator-finetuned-conll03-english/config.json"
+vocab_path = "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/electra-large-discriminator-finetuned-conll03-english/vocab.txt"
+weights_path = "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/electra-large-discriminator-finetuned-conll03-english/pytorch_model.bin"
 
-target_path = Path.home() / 'rustbert' / 'electra'
+target_path = Path.home() / 'rustbert' / 'electra-ner'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)

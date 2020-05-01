@@ -181,3 +181,37 @@ impl ElectraGeneratorHead {
         output.apply(&self.layer_norm)
     }
 }
+
+pub struct ElectraForMaskedLM {
+    electra: ElectraModel,
+    generator_head: ElectraGeneratorHead,
+    lm_head: nn::Linear,
+}
+
+impl ElectraForMaskedLM {
+    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraForMaskedLM {
+        let electra = ElectraModel::new(&(p / "electra"), config);
+        let generator_head = ElectraGeneratorHead::new(&(p / "generator_predictions"), config);
+        let lm_head = nn::linear(&(p / "generator_lm_head"), config.embedding_size, config.vocab_size, Default::default());
+
+        ElectraForMaskedLM { electra, generator_head, lm_head }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool)
+                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_states,
+            all_hidden_states,
+            all_attentions) = self.electra
+            .forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train)
+            .unwrap();
+        let hidden_states = self.generator_head.forward(&hidden_states);
+        let hidden_states = hidden_states.apply(&self.lm_head);
+        (hidden_states, all_hidden_states, all_attentions)
+    }
+}
