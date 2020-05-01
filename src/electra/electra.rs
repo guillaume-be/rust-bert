@@ -20,6 +20,7 @@ use crate::electra::embeddings::ElectraEmbeddings;
 use tch::{nn, Tensor, Kind};
 use crate::bert::encoder::BertEncoder;
 use crate::common::activations::{_gelu, _relu, _mish};
+use crate::common::dropout::Dropout;
 
 #[derive(Debug, Serialize, Deserialize)]
 /// # Electra model configuration
@@ -213,5 +214,41 @@ impl ElectraForMaskedLM {
         let hidden_states = self.generator_head.forward(&hidden_states);
         let hidden_states = hidden_states.apply(&self.lm_head);
         (hidden_states, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct ElectraForTokenClassification {
+    electra: ElectraModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl ElectraForTokenClassification {
+    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraForTokenClassification {
+        let electra = ElectraModel::new(&(p / "electra"), config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config.id2label.as_ref().expect("id2label must be provided for classifiers").len() as i64;
+        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, num_labels, Default::default());
+
+        ElectraForTokenClassification { electra, dropout, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool)
+                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_states,
+            all_hidden_states,
+            all_attentions) = self.electra
+            .forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train)
+            .unwrap();
+        let output = hidden_states
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
+        (output, all_hidden_states, all_attentions)
     }
 }
