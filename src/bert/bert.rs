@@ -33,18 +33,24 @@ pub struct BertConfigResources;
 pub struct BertVocabResources;
 
 impl BertModelResources {
-    pub const BERT: (&'static str, &'static str) = ("bert/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-rust_model.ot");
-    pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/rust_model.ot");
+    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/bert. Modified with conversion to C-array format.
+    pub const BERT: (&'static str, &'static str) = ("bert/model.ot", "https://cdn.huggingface.co/bert-base-uncased-rust_model.ot");
+    /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at https://github.com/dbmdz/berts. Modified with conversion to C-array format.
+    pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/model.ot", "https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/rust_model.ot");
 }
 
 impl BertConfigResources {
-    pub const BERT: (&'static str, &'static str) = ("bert/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-config.json");
-    pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/config.json");
+    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/bert. Modified with conversion to C-array format.
+    pub const BERT: (&'static str, &'static str) = ("bert/config.json", "https://cdn.huggingface.co/bert-base-uncased-config.json");
+    /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at https://github.com/dbmdz/berts. Modified with conversion to C-array format.
+    pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/config.json", "https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/config.json");
 }
 
 impl BertVocabResources {
-    pub const BERT: (&'static str, &'static str) = ("bert/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt");
-    pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/dbmdz/bert-large-cased-finetuned-conll03-english/vocab.txt");
+    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/bert. Modified with conversion to C-array format.
+    pub const BERT: (&'static str, &'static str) = ("bert/vocab.txt", "https://cdn.huggingface.co/bert-base-uncased-vocab.txt");
+    /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at https://github.com/dbmdz/berts. Modified with conversion to C-array format.
+    pub const BERT_NER: (&'static str, &'static str) = ("bert-ner/vocab.txt", "https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/vocab.txt");
 }
 
 #[allow(non_camel_case_types)]
