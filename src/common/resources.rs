@@ -20,7 +20,7 @@
 use lazy_static::lazy_static;
 use std::path::PathBuf;
 use reqwest::Client;
-use std::fs;
+use std::{fs, env};
 use tokio::prelude::*;
 
 extern crate dirs;
@@ -118,7 +118,7 @@ impl RemoteResource {
     /// use rust_bert::resources::{Resource, RemoteResource};
     /// let model_resource = Resource::Remote(RemoteResource::from_pretrained(
     ///     ("distilbert-sst2/model.ot",
-    ///     "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot"
+    ///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot"
     ///     )
     /// ));
     /// ```
@@ -135,13 +135,21 @@ impl RemoteResource {
 lazy_static! {
     #[derive(Copy, Clone, Debug)]
 /// # Global cache directory
+/// If the environment variable `RUSTBERT_CACHE` is set, will save the cache model files at that
+/// location. Otherwise defaults to `~/.cache/.rustbert`.
     pub static ref CACHE_DIRECTORY: PathBuf = _get_cache_directory();
 }
 
 fn _get_cache_directory() -> PathBuf {
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push(".cache");
-    home.push(".rustbert");
+    let home = match env::var("RUSTBERT_CACHE") {
+        Ok(value) => PathBuf::from(value),
+        Err(_) => {
+            let mut home = dirs::home_dir().unwrap();
+            home.push(".cache");
+            home.push(".rustbert");
+            home
+        }
+    };
     home
 }
 
@@ -164,7 +172,7 @@ fn _get_cache_directory() -> PathBuf {
 /// use rust_bert::resources::{Resource, RemoteResource, download_resource};
 /// let model_resource = Resource::Remote(RemoteResource::from_pretrained(
 ///     ("distilbert-sst2/model.ot",
-///     "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot"
+///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot"
 ///     )
 /// ));
 /// let local_path = download_resource(&model_resource);
