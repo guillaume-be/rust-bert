@@ -135,16 +135,19 @@ impl RemoteResource {
 lazy_static! {
     #[derive(Copy, Clone, Debug)]
 /// # Global cache directory
+/// If the environment variable `RUSTBERT_CACHE` is set, will save the cache model files at that
+/// location. Otherwise defaults to `~/.cache/.rustbert`.
     pub static ref CACHE_DIRECTORY: PathBuf = _get_cache_directory();
 }
 
 fn _get_cache_directory() -> PathBuf {
-    let mut home = match env::var("RUSTBERT_CACHE") {
+    let home = match env::var("RUSTBERT_CACHE") {
         Ok(value) => PathBuf::from(value),
         Err(_) => {
             let mut home = dirs::home_dir().unwrap();
             home.push(".cache");
             home.push(".rustbert");
+            home
         }
     };
     home
