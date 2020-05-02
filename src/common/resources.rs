@@ -20,7 +20,7 @@
 use lazy_static::lazy_static;
 use std::path::PathBuf;
 use reqwest::Client;
-use std::fs;
+use std::{fs, env};
 use tokio::prelude::*;
 
 extern crate dirs;
@@ -139,9 +139,14 @@ lazy_static! {
 }
 
 fn _get_cache_directory() -> PathBuf {
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push(".cache");
-    home.push(".rustbert");
+    let mut home = match env::var("RUSTBERT_CACHE") {
+        Ok(value) => PathBuf::from(value),
+        Err(_) => {
+            let mut home = dirs::home_dir().unwrap();
+            home.push(".cache");
+            home.push(".rustbert");
+        }
+    };
     home
 }
 
