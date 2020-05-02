@@ -32,19 +32,19 @@ pub struct RobertaVocabResources;
 pub struct RobertaMergesResources;
 
 impl RobertaModelResources {
-    pub const ROBERTA: (&'static str, &'static str) = ("roberta/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-rust_model.ot");
+    pub const ROBERTA: (&'static str, &'static str) = ("roberta/model.ot", "https://cdn.huggingface.co/roberta-base-rust_model.ot");
 }
 
 impl RobertaConfigResources {
-    pub const ROBERTA: (&'static str, &'static str) = ("roberta/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-config.json");
+    pub const ROBERTA: (&'static str, &'static str) = ("roberta/config.json", "https://cdn.huggingface.co/roberta-base-config.json");
 }
 
 impl RobertaVocabResources {
-    pub const ROBERTA: (&'static str, &'static str) = ("roberta/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-vocab.json");
+    pub const ROBERTA: (&'static str, &'static str) = ("roberta/vocab.txt", "https://cdn.huggingface.co/roberta-base-vocab.json");
 }
 
 impl RobertaMergesResources {
-    pub const ROBERTA: (&'static str, &'static str) = ("roberta/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-base-merges.txt");
+    pub const ROBERTA: (&'static str, &'static str) = ("roberta/merges.txt", "https://cdn.huggingface.co/roberta-base-merges.txt");
 }
 
 pub struct RobertaLMHead {

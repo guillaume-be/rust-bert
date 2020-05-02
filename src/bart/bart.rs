@@ -37,23 +37,23 @@ pub struct BartVocabResources;
 pub struct BartMergesResources;
 
 impl BartModelResources {
-    pub const BART: (&'static str, &'static str) = ("bart/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large/rust_model.ot");
-    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large-cnn/rust_model.ot");
+    pub const BART: (&'static str, &'static str) = ("bart/model.ot", "https://cdn.huggingface.co/facebook/bart-large/rust_model.ot");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/model.ot", "https://cdn.huggingface.co/facebook/bart-large-cnn/rust_model.ot");
 }
 
 impl BartConfigResources {
-    pub const BART: (&'static str, &'static str) = ("bart/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large/config.json");
-    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/facebook/bart-large-cnn/config.json");
+    pub const BART: (&'static str, &'static str) = ("bart/config.json", "https://cdn.huggingface.co/facebook/bart-large/config.json");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/config.json", "https://cdn.huggingface.co/facebook/bart-large-cnn/config.json");
 }
 
 impl BartVocabResources {
-    pub const BART: (&'static str, &'static str) = ("bart/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-vocab.json");
-    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-vocab.json");
+    pub const BART: (&'static str, &'static str) = ("bart/vocab.txt", "https://cdn.huggingface.co/roberta-large-vocab.json");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/vocab.txt", "https://cdn.huggingface.co/roberta-large-vocab.json");
 }
 
 impl BartMergesResources {
-    pub const BART: (&'static str, &'static str) = ("bart/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-merges.txt");
-    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-merges.txt");
+    pub const BART: (&'static str, &'static str) = ("bart/merges.txt", "https://cdn.huggingface.co/roberta-large-merges.txt");
+    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/merges.txt", "https://cdn.huggingface.co/roberta-large-merges.txt");
 }
 
 #[allow(non_camel_case_types)]

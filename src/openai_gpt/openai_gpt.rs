@@ -35,19 +35,19 @@ pub struct OpenAiGptVocabResources;
 pub struct OpenAiGptMergesResources;
 
 impl OpenAiGptModelResources {
-    pub const GPT: (&'static str, &'static str) = ("openai-gpt/model.ot", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-rust_model.ot");
+    pub const GPT: (&'static str, &'static str) = ("openai-gpt/model.ot", "https://cdn.huggingface.co/openai-gpt-rust_model.ot");
 }
 
 impl OpenAiGptConfigResources {
-    pub const GPT: (&'static str, &'static str) = ("openai-gpt/config.json", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-config.json");
+    pub const GPT: (&'static str, &'static str) = ("openai-gpt/config.json", "https://cdn.huggingface.co/openai-gpt-config.json");
 }
 
 impl OpenAiGptVocabResources {
-    pub const GPT: (&'static str, &'static str) = ("openai-gpt/vocab.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-vocab.json");
+    pub const GPT: (&'static str, &'static str) = ("openai-gpt/vocab.txt", "https://cdn.huggingface.co/openai-gpt-vocab.json");
 }
 
 impl OpenAiGptMergesResources {
-    pub const GPT: (&'static str, &'static str) = ("openai-gpt/merges.txt", "https://s3.amazonaws.com/models.huggingface.co/bert/openai-gpt-merges.txt");
+    pub const GPT: (&'static str, &'static str) = ("openai-gpt/merges.txt", "https://cdn.huggingface.co/openai-gpt-merges.txt");
 }
 
 /// # GPT Base model
