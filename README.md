@@ -163,18 +163,19 @@ If this quality check is to be skipped, an alternative method `load_partial` can
 ## Setup
 
 A number of pretrained model configuration, weights and vocabulary are downloaded directly from [Huggingface's model repository](https://huggingface.co/models).
-The list of models available with Rust-compatible weights is available in the example ./examples/download_all_dependencies.rs. Additional models can be added if of interest, please raise an issue.
+The list of models available with Rust-compatible weights is available at [https://huggingface.co/models?filter=rust](https://huggingface.co/models?filter=rust).
+The models will be downloaded to the environment variable `RUSTBERT_CACHE` if it exists, otherwise to `~/.cache/.rustbert`.
+Additional models can be added if of interest, please raise an issue.
 
 In order to load custom weights to the library, these need to be converter to a binary format that can be read by Libtorch (the original `.bin` files are pickles and cannot be used directly).
 Several Python scripts to load Pytorch weights and convert them to the appropriate format are provided and can be adapted based on the model needs.
 
-1. Compile the package: `cargo build --release`
+1. Compile the package: `cargo build`
 2. Download the model files & perform necessary conversions
    - Set-up a virtual environment and install dependencies
    - run the conversion script `python /utils/download-dependencies_{MODEL_TO_DOWNLOAD}.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert/{}`.
    Alternatively you may load local weight files and run the conversion directly.
 
-3. Run the example `cargo run --release`
 
 ## Acknowledgements
 
