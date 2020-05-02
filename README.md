@@ -176,3 +176,8 @@ Several Python scripts to load Pytorch weights and convert them to the appropria
 
 3. Run the example `cargo run --release`
 
+## Acknowledgements
+
+Thank you to [Hugging Face](https://huggingface.co) for hosting a set of weights compatible with this Rust library.
+The list of ready-to-use pretrained models is listed at [https://huggingface.co/models?filter=rust](https://huggingface.co/models?filter=rust).
+
