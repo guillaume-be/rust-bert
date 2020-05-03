@@ -15,20 +15,20 @@
 
 use rust_bert::resources::{LocalResource, Resource, download_resource};
 use std::path::PathBuf;
-use rust_bert::electra::electra::{ElectraConfig, ElectraForMaskedLM};
+use rust_bert::electra::electra::{ElectraConfig, ElectraDiscriminator};
 use rust_bert::Config;
-use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
+use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy};
 use tch::{Tensor, Device, nn, no_grad};
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
-    home.push("electra");
+    home.push("electra-discriminator");
 
-    let config_resource = Resource::Local(LocalResource {local_path: home.as_path().join("config.json")});
-    let vocab_resource = Resource::Local(LocalResource {local_path: home.as_path().join("vocab.txt")});
-    let weights_resource = Resource::Local(LocalResource {local_path: home.as_path().join("model.ot")});
+    let config_resource = Resource::Local(LocalResource { local_path: home.as_path().join("config.json") });
+    let vocab_resource = Resource::Local(LocalResource { local_path: home.as_path().join("vocab.txt") });
+    let weights_resource = Resource::Local(LocalResource { local_path: home.as_path().join("model.ot") });
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
     let weights_path = download_resource(&weights_resource)?;
@@ -38,14 +38,14 @@ fn main() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let config = ElectraConfig::from_file(config_path);
-    let electra_model = ElectraForMaskedLM::new(&vs.root(), &config);
+    let electra_model = ElectraDiscriminator::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
-    let input = ["Looks like one [MASK] is missing", "It was a very nice and [MASK] day"];
+    let input = ["One Two Three Ten Five Six Seven Eight"];
     let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
-    let tokenized_input = tokenized_input.
+    let encoded_input = tokenized_input.
         iter().
         map(|input| input.token_ids.clone()).
         map(|mut input| {
@@ -55,7 +55,7 @@ fn main() -> failure::Fallible<()> {
         map(|input|
             Tensor::of_slice(&(input))).
         collect::<Vec<_>>();
-    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
+    let input_tensor = Tensor::stack(encoded_input.as_slice(), 0).to(device);
 
     //    Forward pass
     let (output, _, _) = no_grad(|| {
@@ -68,14 +68,18 @@ fn main() -> failure::Fallible<()> {
                        false)
     });
 
-//    Print masked tokens
-    let index_1 = output.get(0).get(4).argmax(0, false);
-    let index_2 = output.get(1).get(7).argmax(0, false);
-    let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
-    let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
+//    Print model predictions
+    for (position, token) in tokenized_input[0].token_ids.iter().enumerate() {
+        let probability = output.double_value(&[position as i64]);
+        let generated = if probability > 0.5 { "generated" } else { "original" };
+        println!("{:?}: {} ({:.1}%)",
+                 tokenizer.decode([*token].to_vec(),
+                                  false,
+                                  false),
+                 generated,
+                 100f64 * probability)
+    }
 
-    println!("{}", word_1); // Outputs "thing" : "Looks like one [thing] is missing"
-    println!("{}", word_2);// Outputs "sunny" : "It was a very nice and [sunny] day"
 
     Ok(())
 }

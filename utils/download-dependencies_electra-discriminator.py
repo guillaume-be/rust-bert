@@ -8,11 +8,11 @@ import numpy as np
 import torch
 import subprocess
 
-config_path = ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP["google/electra-base-generator"]
-vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["google/electra-base-generator"]
-weights_path = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP["google/electra-base-generator"]
+config_path = ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP["google/electra-base-discriminator"]
+vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["google/electra-base-discriminator"]
+weights_path = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP["google/electra-base-discriminator"]
 
-target_path = Path.home() / 'rustbert' / 'electra'
+target_path = Path.home() / 'rustbert' / 'electra-discriminator'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
@@ -32,6 +32,7 @@ weights = torch.load(temp_weights, map_location='cpu')
 nps = {}
 for k, v in weights.items():
     k = k.replace("gamma", "weight").replace("beta", "bias")
+    print(k)
     nps[k] = np.ascontiguousarray(v.cpu().numpy())
 
 np.savez(target_path / 'model.npz', **nps)

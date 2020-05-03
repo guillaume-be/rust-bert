@@ -15,22 +15,20 @@
 
 use rust_bert::resources::{LocalResource, Resource, download_resource};
 use std::path::PathBuf;
-use rust_bert::electra::electra::{ElectraConfig, ElectraForTokenClassification};
+use rust_bert::electra::electra::{ElectraConfig, ElectraForMaskedLM};
 use rust_bert::Config;
-use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
 use tch::{Tensor, Device, nn, no_grad};
-use rust_bert::pipelines::ner::Entity;
-use tch::kind::Kind::Float;
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
     let mut home: PathBuf = dirs::home_dir().unwrap();
     home.push("rustbert");
-    home.push("electra-ner");
+    home.push("electra-generator");
 
-    let config_resource = Resource::Local(LocalResource { local_path: home.as_path().join("config.json") });
-    let vocab_resource = Resource::Local(LocalResource { local_path: home.as_path().join("vocab.txt") });
-    let weights_resource = Resource::Local(LocalResource { local_path: home.as_path().join("model.ot") });
+    let config_resource = Resource::Local(LocalResource {local_path: home.as_path().join("config.json")});
+    let vocab_resource = Resource::Local(LocalResource {local_path: home.as_path().join("vocab.txt")});
+    let weights_resource = Resource::Local(LocalResource {local_path: home.as_path().join("model.ot")});
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
     let weights_path = download_resource(&weights_resource)?;
@@ -40,11 +38,11 @@ fn main() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
     let config = ElectraConfig::from_file(config_path);
-    let electra_model = ElectraForTokenClassification::new(&vs.root(), &config);
+    let electra_model = ElectraForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
-    let input = ["My name is Amy. I live in Paris.", "Paris is a city in France."];
+    let input = ["Looks like one [MASK] is missing", "It was a very nice and [MASK] day"];
     let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
     let tokenized_input = tokenized_input.
@@ -62,7 +60,7 @@ fn main() -> failure::Fallible<()> {
     //    Forward pass
     let (output, _, _) = no_grad(|| {
         electra_model
-            .forward_t(Some(input_tensor.copy()),
+            .forward_t(Some(input_tensor),
                        None,
                        None,
                        None,
@@ -71,27 +69,13 @@ fn main() -> failure::Fallible<()> {
     });
 
 //    Print masked tokens
-    let output = output.detach().to(Device::Cpu);
-    let score: Tensor = output.exp() / output.exp().sum1(&[-1], true, Float);
-    let labels_idx = &score.argmax(-1, true);
-    let label_mapping = config.id2label.expect("No label dictionary (id2label) provided in configuration file");
-    let mut entities: Vec<Entity> = vec!();
-    for sentence_idx in 0..labels_idx.size()[0] {
-        let labels = labels_idx.get(sentence_idx);
-        for position_idx in 0..labels.size()[0] {
-            let label = labels.int64_value(&[position_idx]);
-            if label_mapping.get(&label).expect("Index out of vocabulary bounds.").to_owned() != String::from("O") {
-                entities.push(Entity {
-                    word: rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Tokenizer::decode(&tokenizer, vec!(input_tensor.int64_value(&[sentence_idx, position_idx])), true, true),
-                    score: score.double_value(&[sentence_idx, position_idx, label]),
-                    label: label_mapping.get(&label).expect("Index out of vocabulary bounds.").to_owned(),
-                });
-            }
-        }
-    }
-    for entity in entities {
-        println!("{:?}", entity);
-    }
+    let index_1 = output.get(0).get(4).argmax(0, false);
+    let index_2 = output.get(1).get(7).argmax(0, false);
+    let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
+    let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
+
+    println!("{}", word_1); // Outputs "thing" : "Looks like one [thing] is missing"
+    println!("{}", word_2);// Outputs "sunny" : "It was a very nice and [sunny] day"
 
     Ok(())
 }

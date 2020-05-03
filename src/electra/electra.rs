@@ -252,3 +252,34 @@ impl ElectraForTokenClassification {
         (output, all_hidden_states, all_attentions)
     }
 }
+
+pub struct ElectraDiscriminator {
+    electra: ElectraModel,
+    discriminator_head: ElectraDiscriminatorHead,
+}
+
+impl ElectraDiscriminator {
+    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraDiscriminator {
+        let electra = ElectraModel::new(&(p / "electra"), config);
+        let discriminator_head = ElectraDiscriminatorHead::new(&(p / "discriminator_predictions"), config);
+
+        ElectraDiscriminator { electra, discriminator_head }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool)
+                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_states,
+            all_hidden_states,
+            all_attentions) = self.electra
+            .forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train)
+            .unwrap();
+        let probabilities = self.discriminator_head.forward(&hidden_states).sigmoid();
+        (probabilities, all_hidden_states, all_attentions)
+    }
+}
