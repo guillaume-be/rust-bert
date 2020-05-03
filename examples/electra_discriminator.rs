@@ -14,7 +14,7 @@
 
 
 use rust_bert::resources::{Resource, download_resource, RemoteResource};
-use rust_bert::electra::electra::{ElectraConfig, ElectraDiscriminator, ElectraConfigResources, ElectraVocabResources, ElectraModelResources};
+use rust_bert::electra::{ElectraConfig, ElectraDiscriminator, ElectraConfigResources, ElectraVocabResources, ElectraModelResources};
 use rust_bert::Config;
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy};
 use tch::{Tensor, Device, nn, no_grad};

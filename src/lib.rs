@@ -28,16 +28,16 @@
 //! ```
 //! - Transformer models base architectures with customized heads. These allow to load pre-trained models for customized inference in Rust
 //!
-//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**
-//! :-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
-//! Masked LM|✅ |✅ |✅ | | | |
-//! Sequence classification|✅ |✅ |✅| | | |
-//! Token classification|✅ |✅ | ✅| | | |
-//! Question answering|✅ |✅ |✅| | | |
-//! Multiple choices| |✅ |✅| | | |
-//! Next token prediction| | | |✅|✅| |
-//! Natural Language Generation| | | |✅|✅| |
-//! Summarization| | | |✅|✅|✅|
+//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**
+//! :-----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:
+//! Masked LM|✅ |✅ |✅ | | | |✅|
+//! Sequence classification|✅ |✅ |✅| | | | |
+//! Token classification|✅ |✅ | ✅| | | |✅|
+//! Question answering|✅ |✅ |✅| | | | |
+//! Multiple choices| |✅ |✅| | | | |
+//! Next token prediction| | | |✅|✅| | |
+//! Natural Language Generation| | | |✅|✅| | |
+//! Summarization| | | |✅|✅|✅| |
 //!
 //! # Loading pre-trained models
 //!

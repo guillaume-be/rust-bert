@@ -14,7 +14,7 @@
 
 
 use rust_bert::resources::{Resource, download_resource, RemoteResource};
-use rust_bert::electra::electra::{ElectraConfig, ElectraForMaskedLM, ElectraModelResources, ElectraConfigResources, ElectraVocabResources};
+use rust_bert::electra::{ElectraConfig, ElectraForMaskedLM, ElectraModelResources, ElectraConfigResources, ElectraVocabResources};
 use rust_bert::Config;
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
 use tch::{Tensor, Device, nn, no_grad};

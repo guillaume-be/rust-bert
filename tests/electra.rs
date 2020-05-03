@@ -1,5 +1,5 @@
 use rust_bert::resources::{Resource, download_resource, RemoteResource};
-use rust_bert::electra::electra::{ElectraConfigResources, ElectraVocabResources, ElectraModelResources, ElectraConfig, ElectraForMaskedLM, ElectraDiscriminator};
+use rust_bert::electra::{ElectraConfigResources, ElectraVocabResources, ElectraModelResources, ElectraConfig, ElectraForMaskedLM, ElectraDiscriminator};
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{BertTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::Config;
