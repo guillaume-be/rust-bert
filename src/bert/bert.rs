@@ -54,7 +54,7 @@ impl BertVocabResources {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// # Activation function used in the attention layer and masked language model head
 pub enum Activation {
     /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
@@ -147,7 +147,7 @@ impl<T: BertEmbedding> BertModel<T> {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `encoder_hidden_states` - Optional encoder hidden state of shape (*batch size*, *encoder_sequence_length*, *hidden_size*). If the model is defined as a decoder and the `encoder_hidden_states` is not None, used in the cross-attention layer as keys and values (query from the decoder).
@@ -170,7 +170,6 @@ impl<T: BertEmbedding> BertModel<T> {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::Int64;
     ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BertConfig::from_file(config_path);
@@ -385,7 +384,6 @@ impl BertForMaskedLM {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::Int64;
     ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BertConfig::from_file(config_path);
@@ -495,7 +493,6 @@ impl BertForSequenceClassification {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::Int64;
     ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BertConfig::from_file(config_path);
@@ -601,7 +598,6 @@ impl BertForMultipleChoice {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::Int64;
     ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BertConfig::from_file(config_path);
@@ -723,7 +719,6 @@ impl BertForTokenClassification {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::Int64;
     ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BertConfig::from_file(config_path);
@@ -830,7 +825,6 @@ impl BertForQuestionAnswering {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::Int64;
     ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BertConfig::from_file(config_path);

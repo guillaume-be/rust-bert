@@ -10,16 +10,16 @@ This repository exposes the model base architecture, task-specific heads (see be
 
 The following models are currently implemented:
 
- | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**
-:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
-Masked LM|✅ |✅ |✅ | | | |
-Sequence classification|✅ |✅ |✅| | | |
-Token classification|✅ |✅ | ✅| | | |
-Question answering|✅ |✅ |✅| | | |
-Multiple choices| |✅ |✅| | | |
-Next token prediction| | | |✅|✅|✅|
-Natural Language Generation| | | |✅|✅|✅|
-Summarization | | | | | |✅|
+ | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**
+:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
+Masked LM|✅ |✅ |✅ | | | |✅|
+Sequence classification|✅ |✅ |✅| | | | |
+Token classification|✅ |✅ | ✅| | | |✅|
+Question answering|✅ |✅ |✅| | | | |
+Multiple choices| |✅ |✅| | | | |
+Next token prediction| | | |✅|✅|✅| |
+Natural Language Generation| | | |✅|✅|✅| |
+Summarization | | | | | |✅| |
 
 ## Ready-to-use pipelines
 
