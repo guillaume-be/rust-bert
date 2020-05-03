@@ -13,22 +13,17 @@
 // limitations under the License.
 
 
-use rust_bert::resources::{LocalResource, Resource, download_resource};
-use std::path::PathBuf;
-use rust_bert::electra::electra::{ElectraConfig, ElectraDiscriminator};
+use rust_bert::resources::{Resource, download_resource, RemoteResource};
+use rust_bert::electra::electra::{ElectraConfig, ElectraDiscriminator, ElectraConfigResources, ElectraVocabResources, ElectraModelResources};
 use rust_bert::Config;
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy};
 use tch::{Tensor, Device, nn, no_grad};
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
-    let mut home: PathBuf = dirs::home_dir().unwrap();
-    home.push("rustbert");
-    home.push("electra-discriminator");
-
-    let config_resource = Resource::Local(LocalResource { local_path: home.as_path().join("config.json") });
-    let vocab_resource = Resource::Local(LocalResource { local_path: home.as_path().join("vocab.txt") });
-    let weights_resource = Resource::Local(LocalResource { local_path: home.as_path().join("model.ot") });
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraConfigResources::BASE_DISCRIMINATOR));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraVocabResources::BASE_DISCRIMINATOR));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraModelResources::BASE_DISCRIMINATOR));
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
     let weights_path = download_resource(&weights_resource)?;

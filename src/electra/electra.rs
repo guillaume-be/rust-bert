@@ -22,6 +22,36 @@ use crate::bert::encoder::BertEncoder;
 use crate::common::activations::{_gelu, _relu, _mish};
 use crate::common::dropout::Dropout;
 
+/// # Electra Pretrained model weight files
+pub struct ElectraModelResources;
+
+/// # Electra Pretrained model config files
+pub struct ElectraConfigResources;
+
+/// # Electra Pretrained model vocab files
+pub struct ElectraVocabResources;
+
+impl ElectraModelResources {
+    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    pub const BASE_GENERATOR: (&'static str, &'static str) = ("electra-base-generator/model.ot", "https://cdn.huggingface.co/google/electra-base-generator/rust_model.ot");
+    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = ("electra-base-discriminator/model.ot", "https://cdn.huggingface.co/google/electra-base-discriminator/rust_model.ot");
+}
+
+impl ElectraConfigResources {
+    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    pub const BASE_GENERATOR: (&'static str, &'static str) = ("electra-base-generator/config.json", "https://cdn.huggingface.co/google/electra-base-generator/config.json");
+    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = ("electra-base-discriminator/config.json", "https://cdn.huggingface.co/google/electra-base-discriminator/config.json");
+}
+
+impl ElectraVocabResources {
+    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    pub const BASE_GENERATOR: (&'static str, &'static str) = ("electra-base-generator/vocab.txt", "https://cdn.huggingface.co/google/electra-base-generator/vocab.txt");
+    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = ("electra-base-discriminator/vocab.txt", "https://cdn.huggingface.co/google/electra-base-discriminator/vocab.txt");
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 /// # Electra model configuration
 /// Defines the Electra model architecture (e.g. number of layers, hidden layer size, label mapping...)

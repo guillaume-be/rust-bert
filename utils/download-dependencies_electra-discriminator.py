@@ -32,7 +32,6 @@ weights = torch.load(temp_weights, map_location='cpu')
 nps = {}
 for k, v in weights.items():
     k = k.replace("gamma", "weight").replace("beta", "bias")
-    print(k)
     nps[k] = np.ascontiguousarray(v.cpu().numpy())
 
 np.savez(target_path / 'model.npz', **nps)
