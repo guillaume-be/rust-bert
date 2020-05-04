@@ -75,19 +75,12 @@ pub struct Token {
     /// Token position index
     pub index: u16,
 
-    /// Character offset (relative to begin of sentence)
-    pub char_offset: Option<u16>,
-
-    /// Word index
+    /// Word index, relative to the sentence index
     pub word_index: Option<u8>,
 
     /// Continuation marker: marks this token as a continuation of the previous one
     #[serde(default)]
     pub continuation: bool,
-
-    /// Is this token followed by a space (false) or not (true) ?
-    #[serde(default)]
-    pub space: bool
 }
 
 /// # Configuration for TokenClassificationModel
@@ -401,12 +394,11 @@ impl TokenClassificationModel {
         for sentence_idx in 0..labels_idx.size()[0] {
             let labels = labels_idx.get(sentence_idx);
             let mut word_idx: u8 = 0;
-            let mut char_offset: u16 = 0;
             for position_idx in 0..labels.size()[0] {
                 let label_id = labels.int64_value(&[position_idx]);
                 let token = {
                     let token_id = input_tensor.int64_value(&[sentence_idx, position_idx]);
-                    self.decode_token(token_id, label_id, &score, sentence_idx, position_idx, &mut word_idx, &input, &mut char_offset)
+                    self.decode_token(token_id, label_id, &score, sentence_idx, position_idx, &mut word_idx)
                 };
                 if let Some(token) = token {
                     if !ignore_first_label || label_id != 0 {
@@ -418,8 +410,7 @@ impl TokenClassificationModel {
         tokens
     }
 
-    pub fn decode_token(&self, token_id: i64, label_id: i64, score: &Tensor, sentence_idx: i64, position_idx: i64, word_idx: &mut u8, input: &[&str], char_offset: &mut u16) -> Option<Token> {
-        let input: &str = input[sentence_idx as usize];
+    pub fn decode_token(&self, token_id: i64, label_id: i64, score: &Tensor, sentence_idx: i64, position_idx: i64, word_idx: &mut u8) -> Option<Token> {
         let mut text = match self.tokenizer {
             TokenizerOption::Bert(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
             TokenizerOption::Roberta(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
@@ -462,32 +453,6 @@ impl TokenClassificationModel {
             *word_idx += 1;
         }
 
-        let mut space: bool = !continuation;
-        let (_, input_remainder) = input.split_at(*char_offset as usize); //may panic if not at a valid utf-8 boundary!
-        let token_start: Option<u16> = if let Some(index) = input_remainder.find(text.as_str()) {
-            if index > 0 {
-                eprintln!("Warning: {} bytes skipped in alignment of token #{} in sentence {}", index, position_idx, sentence_idx);
-            }
-            let token_start = Some(*char_offset + index as u16);
-            //increment character offset for next round
-            *char_offset += text.len() as u16;
-            //test next split
-            let (_, input_remainder) = input.split_at(*char_offset as usize); //may panic if not at a valid utf-8 boundary!
-            //check if we have whitespace after this token
-            if let Some(nextchar) = input_remainder.chars().next() {
-                space = nextchar.is_whitespace();
-                if space {
-                    *char_offset += 1;
-                }
-            }
-            token_start
-        } else {
-            if !special_value {
-                eprintln!("Warning: unable to align token #{} in sentence {}!", position_idx, sentence_idx);
-            }
-            None
-        };
-
         if special_value {
             None
         } else {
@@ -498,9 +463,7 @@ impl TokenClassificationModel {
                 sentence: sentence_idx as usize,
                 index: position_idx as u16,
                 word_index: Some(*word_idx - 1), //0 indexed
-                char_offset: token_start,
                 continuation: continuation,
-                space: space,
             })
         }
     }
