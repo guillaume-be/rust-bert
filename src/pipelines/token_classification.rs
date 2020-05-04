@@ -192,10 +192,10 @@ impl ConfigOption {
         }
     }
 
-    pub fn take_label_mapping(self) -> LabelMapping {
+    pub fn get_label_mapping(self) -> HashMap<i64,String> {
         match self {
-            Self::Bert(config) => LabelMapping::Bert(config.id2label.expect("No label dictionary (id2label) provided in configuration file")),
-            Self::DistilBert(config) => LabelMapping::DistilBert(config.id2label.expect("No label dictionary (id2label) provided in configuration file")),
+            Self::Bert(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
+            Self::DistilBert(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
         }
     }
 }
@@ -291,28 +291,12 @@ impl TokenClassificationOption {
 
 }
 
-/// # Holds the label mapping for the model, supports different model types.
-pub enum LabelMapping {
-    Bert(HashMap<i64, String>),
-    DistilBert(HashMap<i32, String>),
-}
-
-impl LabelMapping {
-    /// Interface method to HashMap.get()
-    fn get(&self, label: &i64) -> Option<&String> {
-        match *self {
-            Self::Bert(ref map) => map.get(label),
-            Self::DistilBert(ref map) => map.get(&(*label as i32)),
-        }
-    }
-}
-
 
 /// # TokenClassificationModel for Named Entity Recognition or Part-of-Speech tagging
 pub struct TokenClassificationModel {
     tokenizer: TokenizerOption,
     token_sequence_classifier: TokenClassificationOption, //e.g. BertForTokenClassification,
-    label_mapping: LabelMapping,
+    label_mapping: HashMap<i64,String>,
     var_store: VarStore,
 }
 
@@ -349,7 +333,7 @@ impl TokenClassificationModel {
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let token_sequence_classifier = TokenClassificationOption::new(config.model_type, &var_store.root(), &model_config);
-        let label_mapping = model_config.take_label_mapping();
+        let label_mapping = model_config.get_label_mapping();
         var_store.load(weights_path)?;
         Ok(TokenClassificationModel { tokenizer, token_sequence_classifier, label_mapping, var_store })
     }
