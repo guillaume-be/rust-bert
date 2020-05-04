@@ -1,5 +1,6 @@
 // Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
-// Copyright 2019 Guillaume Becquin
+// Copyright 2019-2020 Guillaume Becquin
+// Copyright 2020 Maarten van Gompel
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,28 +15,39 @@
 //! More generic token classification pipeline, works with multiple models (Bert, Roberta)
 //!
 //! ```no_run
-//! use rust_bert::pipelines::token_classification::TokenClassificationModel;
+//! use rust_bert::pipelines::token_classification::{ModelType,TokenClassificationModel,TokenClassificationConfig};
+//! use rust_bert::resources::{Resource,RemoteResource};
 //!# fn main() -> failure::Fallible<()> {
-//! let ner_model = TokenClassificationModel::new(Default::default())?;
+//!
+//! //Load a configuration
+//! let config = TokenClassificationConfig::new(ModelType::Bert,
+//!    Resource::Remote(RemoteResource::from_pretrained( ("bert-large-cased-finetuned-conll03-english/rust_model.ot","https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/rust_model.ot" ) )),
+//!    Resource::Remote(RemoteResource::from_pretrained( ("bert-large-cased-finetuned-conll03-english/config.json","https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/config.json" ) )),
+//!    Resource::Remote(RemoteResource::from_pretrained( ("bert-large-cased-finetuned-conll03-english/vocab.txt","https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/vocab.txt" ) )),
+//!    None, //merges resource only relevant with ModelType::Roberta
+//!    false, //lowercase
+//! );
+//!
+//! //Create the model
+//! let ner_model = TokenClassificationModel::new(config)?;
 //!
 //! let input = [
 //!     "My name is Amy. I live in Paris.",
 //!     "Paris is a city in France."
 //! ];
-//! let output = ner_model.predict(&input, true);
+//! let output = ner_model.predict(&input, true); //ignore_first_label = true (only returns the NER parts, ignoring first label O)
 //!# Ok(())
 //!# }
 //! ```
 //! Output: \
 //! ```no_run
-//!# use rust_bert::pipelines::question_answering::Answer;
 //!# use rust_bert::pipelines::token_classification::Token;
 //!# let output =
 //! [
-//!    Token { text: String::from("Amy"), score: 0.9986, label: String::from("I-PER") },
-//!    Token { text: String::from("Paris"), score: 0.9985, label: String::from("I-LOC") },
-//!    Token { text: String::from("Paris"), score: 0.9988, label: String::from("I-LOC") },
-//!    Token { text: String::from("France"), score: 0.9993, label: String::from("I-LOC") },
+//!    Token { text: String::from("Amy"), score: 0.9986, label: String::from("I-PER"), sentence: 0, index: 0, word_index: Some(3), continuation: false },
+//!    Token { text: String::from("Paris"), score: 0.9985, label: String::from("I-LOC"), sentence: 0, index: 9 , word_index: Some(8), continuation: false},
+//!    Token { text: String::from("Paris"), score: 0.9988, label: String::from("I-LOC"), sentence: 1, index: 1, word_index: Some(0), continuation: false},
+//!    Token { text: String::from("France"), score: 0.9993, label: String::from("I-LOC"), sentence: 1, index: 6, word_index: Some(5), continuation: false},
 //! ]
 //!# ;
 //! ```
@@ -410,7 +422,7 @@ impl TokenClassificationModel {
         tokens
     }
 
-    pub fn decode_token(&self, token_id: i64, label_id: i64, score: &Tensor, sentence_idx: i64, position_idx: i64, word_idx: &mut u8) -> Option<Token> {
+    fn decode_token(&self, token_id: i64, label_id: i64, score: &Tensor, sentence_idx: i64, position_idx: i64, word_idx: &mut u8) -> Option<Token> {
         let mut text = match self.tokenizer {
             TokenizerOption::Bert(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
             TokenizerOption::Roberta(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
