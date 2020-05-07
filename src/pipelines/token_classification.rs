@@ -20,22 +20,23 @@
 //!# fn main() -> failure::Fallible<()> {
 //!
 //! //Load a configuration
+//! use rust_bert::bert::{BertModelResources, BertVocabResources, BertConfigResources};
 //! let config = TokenClassificationConfig::new(ModelType::Bert,
-//!    Resource::Remote(RemoteResource::from_pretrained( ("bert-large-cased-finetuned-conll03-english/rust_model.ot","https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/rust_model.ot" ) )),
-//!    Resource::Remote(RemoteResource::from_pretrained( ("bert-large-cased-finetuned-conll03-english/config.json","https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/config.json" ) )),
-//!    Resource::Remote(RemoteResource::from_pretrained( ("bert-large-cased-finetuned-conll03-english/vocab.txt","https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/vocab.txt" ) )),
+//!    Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_NER)),
+//!    Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER)),
+//!    Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER)),
 //!    None, //merges resource only relevant with ModelType::Roberta
 //!    false, //lowercase
 //! );
 //!
 //! //Create the model
-//! let ner_model = TokenClassificationModel::new(config)?;
+//! let token_classification_model = TokenClassificationModel::new(config)?;
 //!
 //! let input = [
 //!     "My name is Amy. I live in Paris.",
 //!     "Paris is a city in France."
 //! ];
-//! let output = ner_model.predict(&input, true); //ignore_first_label = true (only returns the NER parts, ignoring first label O)
+//! let output = token_classification_model.predict(&input, true); //ignore_first_label = true (only returns the NER parts, ignoring first label O)
 //!# Ok(())
 //!# }
 //! ```
@@ -53,7 +54,7 @@
 //! ```
 
 use rust_tokenizers::bert_tokenizer::{BertTokenizer};
-use rust_tokenizers::{RobertaTokenizer, RobertaVocab, BertVocab};
+use rust_tokenizers::{RobertaTokenizer};
 use tch::nn::VarStore;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer,TokenizedInput,TruncationStrategy};
 use std::path::Path;
@@ -86,13 +87,6 @@ pub struct Token {
 
     /// Token position index
     pub index: u16,
-
-    // Word index, relative to the sentence index
-    //pub word_index: Option<u8>,
-
-    // Continuation marker: marks this token as a continuation of the previous one
-    //#[serde(default)]
-    //pub continuation: bool,
 }
 
 /// # Configuration for TokenClassificationModel
@@ -108,7 +102,7 @@ pub struct TokenClassificationConfig {
     pub vocab_resource: Resource,
     /// Merges resource (default: pretrained BERT model on CoNLL)
     pub merges_resource: Option<Resource>,
-    /// Automatically lower case all input upon tokenisation (assumes a lower-cased model)
+    /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
@@ -124,7 +118,7 @@ impl TokenClassificationConfig {
     /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     ///
     pub fn new(model_type: ModelType, model: Resource, config: Resource, vocab: Resource, merges: Option<Resource>, lower_case: bool) -> TokenClassificationConfig {
         TokenClassificationConfig {
@@ -423,14 +417,13 @@ impl TokenClassificationModel {
     }
 
     fn decode_token(&self, token_id: i64, label_id: i64, score: &Tensor, sentence_idx: i64, position_idx: i64) -> Option<Token> {
-            //, word_idx: &mut u8) -> Option<Token> {
         let text = match self.tokenizer {
             TokenizerOption::Bert(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
             TokenizerOption::Roberta(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
         };
 
         Some(Token {
-            text: text,
+            text,
             score: score.double_value(&[sentence_idx, position_idx, label_id]),
             label: self.label_mapping.get(&label_id).expect("Index out of vocabulary bounds.").to_owned(),
             sentence: sentence_idx as usize,
