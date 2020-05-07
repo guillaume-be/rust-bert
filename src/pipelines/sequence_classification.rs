@@ -10,87 +10,81 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-//! # Token classification pipeline (Named Entity Recognition, Part-of-Speech tagging)
-//! More generic token classification pipeline, works with multiple models (Bert, Roberta)
+//! # Sequence classification pipeline (e.g. Sentiment Analysis)
+//! More generic sequence classification pipeline, works with multiple models (Bert, Roberta)
 //!
 //! ```no_run
-//! use rust_bert::pipelines::token_classification::{TokenClassificationModel,TokenClassificationConfig};
-//! use rust_bert::resources::{Resource,RemoteResource};
-//! use rust_bert::bert::{BertModelResources, BertVocabResources, BertConfigResources};
+//! use rust_bert::pipelines::sequence_classification::SequenceClassificationConfig;
+//! use rust_bert::resources::{RemoteResource, Resource};
+//! use rust_bert::distilbert::{DistilBertModelResources, DistilBertVocabResources, DistilBertConfigResources};
+//! use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
 //! use rust_bert::pipelines::common::ModelType;
 //!# fn main() -> failure::Fallible<()> {
 //!
 //! //Load a configuration
-//! let config = TokenClassificationConfig::new(ModelType::Bert,
-//!    Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_NER)),
-//!    Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER)),
-//!    Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER)),
+//! let config = SequenceClassificationConfig::new(ModelType::DistilBert,
+//!    Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2)),
+//!    Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2)),
+//!    Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2)),
 //!    None, //merges resource only relevant with ModelType::Roberta
-//!    false, //lowercase
+//!    true, //lowercase
 //! );
 //!
 //! //Create the model
-//! let token_classification_model = TokenClassificationModel::new(config)?;
+//! let sequence_classification_model = SequenceClassificationModel::new(config)?;
 //!
 //! let input = [
-//!     "My name is Amy. I live in Paris.",
-//!     "Paris is a city in France."
+//!     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
+//!     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
+//!     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
 //! ];
-//! let output = token_classification_model.predict(&input, true); //ignore_first_label = true (only returns the NER parts, ignoring first label O)
+//! let output = sequence_classification_model.predict(&input);
 //!# Ok(())
 //!# }
 //! ```
+//! (Example courtesy of [IMDb](http://www.imdb.com))
+//!
 //! Output: \
 //! ```no_run
-//!# use rust_bert::pipelines::token_classification::Token;
-//!# let output =
+//!# use rust_bert::pipelines::sequence_classification::Label;
+//! let output =
 //! [
-//!    Token { text: String::from("Amy"), score: 0.9986, label: String::from("I-PER"), sentence: 0, index: 0},
-//!    Token { text: String::from("Paris"), score: 0.9985, label: String::from("I-LOC"), sentence: 0, index: 9},
-//!    Token { text: String::from("Paris"), score: 0.9988, label: String::from("I-LOC"), sentence: 1, index: 1},
-//!    Token { text: String::from("France"), score: 0.9993, label: String::from("I-LOC"), sentence: 1, index: 6}
+//!    Label { text: String::from("POSITIVE"), score: 0.9986, id: 1, sentence: 0},
+//!    Label { text: String::from("NEGATIVE"), score: 0.9985, id: 0, sentence: 1},
+//!    Label { text: String::from("POSITIVE"), score: 0.9988, id: 1, sentence: 12},
 //! ]
 //!# ;
 //! ```
-
+//!
 use tch::nn::VarStore;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TokenizedInput, TruncationStrategy};
+use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TokenizedInput, TruncationStrategy};
 use std::collections::HashMap;
-use tch::{Tensor, no_grad, Device};
-use tch::kind::Kind::Float;
-use crate::bert::{BertForTokenClassification, BertModelResources, BertConfigResources, BertVocabResources};
-use crate::roberta::RobertaForTokenClassification;
-use crate::distilbert::DistilBertForTokenClassification;
+use tch::{Tensor, no_grad, Device, Kind};
+use crate::bert::BertForSequenceClassification;
+use crate::roberta::RobertaForSequenceClassification;
+use crate::distilbert::{DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources, DistilBertModelClassifier};
 use crate::common::resources::{Resource, RemoteResource, download_resource};
 use serde::{Serialize, Deserialize};
 use crate::pipelines::common::{ModelType, ConfigOption, TokenizerOption};
-use crate::electra::ElectraForTokenClassification;
 
 
 #[derive(Debug, Serialize, Deserialize)]
-/// # Token generated by a `TokenClassificationModel`
-pub struct Token {
-    /// String representation of the Token
+/// # Label generated by a `SequenceClassificationModel`
+pub struct Label {
+    /// Label String representation
     pub text: String,
-
     /// Confidence score
     pub score: f64,
-
-    /// Token label (e.g. ORG, LOC in case of NER)
-    pub label: String,
-
+    /// Label ID
+    pub id: i64,
     /// Sentence index
     #[serde(default)]
     pub sentence: usize,
-
-    /// Token position index
-    pub index: u16,
 }
 
-/// # Configuration for TokenClassificationModel
+/// # Configuration for SequenceClassificationModel
 /// Contains information regarding the model to load and device to place the model on.
-pub struct TokenClassificationConfig {
+pub struct SequenceClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
@@ -107,8 +101,8 @@ pub struct TokenClassificationConfig {
     pub device: Device,
 }
 
-impl TokenClassificationConfig {
-    /// Instantiate a new token classification configuration of the supplied type.
+impl SequenceClassificationConfig {
+    /// Instantiate a new sequence classification configuration of the supplied type.
     ///
     /// # Arguments
     ///
@@ -117,10 +111,10 @@ impl TokenClassificationConfig {
     /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
     ///
-    pub fn new(model_type: ModelType, model_resource: Resource, config_resource: Resource, vocab_resource: Resource, merges_resource: Option<Resource>, lower_case: bool) -> TokenClassificationConfig {
-        TokenClassificationConfig {
+    pub fn new(model_type: ModelType, model_resource: Resource, config_resource: Resource, vocab_resource: Resource, merges_resource: Option<Resource>, lower_case: bool) -> SequenceClassificationConfig {
+        SequenceClassificationConfig {
             model_type,
             model_resource,
             config_resource,
@@ -132,35 +126,33 @@ impl TokenClassificationConfig {
     }
 }
 
-impl Default for TokenClassificationConfig {
-    /// Provides a default CONLL-2003 NER model (English)
-    fn default() -> TokenClassificationConfig {
-        TokenClassificationConfig {
-            model_type: ModelType::Bert,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_NER)),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER)),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER)),
+impl Default for SequenceClassificationConfig {
+    /// Provides a defaultSST-2 sentiment analysis model (English)
+    fn default() -> SequenceClassificationConfig {
+        SequenceClassificationConfig {
+            model_type: ModelType::DistilBert,
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2)),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2)),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2)),
             merges_resource: None,
-            lower_case: false,
+            lower_case: true,
             device: Device::cuda_if_available(),
         }
     }
 }
 
 /// # Abstraction that holds one particular token sequence classifier model, for any of the supported models
-pub enum TokenClassificationOption {
-    /// Bert for Token Classification
-    Bert(BertForTokenClassification),
-    /// DistilBert for Token Classification
-    DistilBert(DistilBertForTokenClassification),
-    /// Roberta for Token Classification
-    Roberta(RobertaForTokenClassification),
-    /// Electra for Token Classification
-    Electra(ElectraForTokenClassification),
+pub enum SequenceClassificationOption {
+    /// Bert for Sequence Classification
+    Bert(BertForSequenceClassification),
+    /// DistilBert for Sequence Classification
+    DistilBert(DistilBertModelClassifier),
+    /// Roberta for Sequence Classification
+    Roberta(RobertaForSequenceClassification),
 }
 
-impl TokenClassificationOption {
-    /// Instantiate a new token sequence classification model of the supplied type.
+impl SequenceClassificationOption {
+    /// Instantiate a new sequence classification model of the supplied type.
     ///
     /// # Arguments
     ///
@@ -173,42 +165,35 @@ impl TokenClassificationOption {
         match model_type {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
-                    TokenClassificationOption::Bert(BertForTokenClassification::new(p, config))
+                    SequenceClassificationOption::Bert(BertForSequenceClassification::new(p, config))
                 } else {
                     panic!("You can only supply a BertConfig for Bert!");
                 }
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
-                    TokenClassificationOption::DistilBert(DistilBertForTokenClassification::new(p, config))
+                    SequenceClassificationOption::DistilBert(DistilBertModelClassifier::new(p, config))
                 } else {
                     panic!("You can only supply a DistilBertConfig for DistilBert!");
                 }
             }
             ModelType::Roberta => {
                 if let ConfigOption::Bert(config) = config {
-                    TokenClassificationOption::Roberta(RobertaForTokenClassification::new(p, config))
+                    SequenceClassificationOption::Roberta(RobertaForSequenceClassification::new(p, config))
                 } else {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
-            ModelType::Electra => {
-                if let ConfigOption::Electra(config) = config {
-                    TokenClassificationOption::Electra(ElectraForTokenClassification::new(p, config))
-                } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
-                }
-            }
+            ModelType::Electra => {panic!("SequenceClassification not implemented for Electra!");}
         }
     }
 
-    /// Returns the `ModelType` for this TokenClassificationOption
+    /// Returns the `ModelType` for this SequenceClassificationOption
     pub fn model_type(&self) -> ModelType {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
-            Self::DistilBert(_) => ModelType::DistilBert,
-            Self::Electra(_) => ModelType::Electra
+            Self::DistilBert(_) => ModelType::DistilBert
         }
     }
 
@@ -224,40 +209,38 @@ impl TokenClassificationOption {
             Self::Bert(ref model) => model.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train),
             Self::DistilBert(ref model) => model.forward_t(input_ids, mask, input_embeds, train).expect("Error in distilbert forward_t"),
             Self::Roberta(ref model) => model.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train),
-            Self::Electra(ref model) => model.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train),
         }
     }
 }
 
 
-/// # TokenClassificationModel for Named Entity Recognition or Part-of-Speech tagging
-pub struct TokenClassificationModel {
+/// # SequenceClassificationModel for Classification (e.g. Sentiment Analysis)
+pub struct SequenceClassificationModel {
     tokenizer: TokenizerOption,
-    token_sequence_classifier: TokenClassificationOption,
-    //e.g. BertForTokenClassification,
+    sequence_classifier: SequenceClassificationOption,
     label_mapping: HashMap<i64, String>,
     var_store: VarStore,
 }
 
-impl TokenClassificationModel {
-    /// Build a new `TokenClassificationModel`
+impl SequenceClassificationModel {
+    /// Build a new `SequenceClassificationModel`
     ///
     /// # Arguments
     ///
-    /// * `config` - `TokenClassificationConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `config` - `SequenceClassificationConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
     ///
     /// # Example
     ///
     /// ```no_run
     ///# fn main() -> failure::Fallible<()> {
-    /// use rust_bert::pipelines::token_classification::TokenClassificationModel;
+    /// use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
     ///
-    /// let model = TokenClassificationModel::new(Default::default())?;
+    /// let model = SequenceClassificationModel::new(Default::default())?;
     ///# Ok(())
     ///# }
     /// ```
     ///
-    pub fn new(config: TokenClassificationConfig) -> failure::Fallible<TokenClassificationModel> {
+    pub fn new(config: SequenceClassificationConfig) -> failure::Fallible<SequenceClassificationModel> {
         let config_path = download_resource(&config.config_resource)?;
         let vocab_path = download_resource(&config.vocab_resource)?;
         let weights_path = download_resource(&config.model_resource)?;
@@ -271,10 +254,10 @@ impl TokenClassificationModel {
         let tokenizer = TokenizerOption::from_file(config.model_type, vocab_path.to_str().unwrap(), merges_path.map(|path| path.to_str().unwrap()), config.lower_case);
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
-        let token_sequence_classifier = TokenClassificationOption::new(config.model_type, &var_store.root(), &model_config);
+        let sequence_classifier = SequenceClassificationOption::new(config.model_type, &var_store.root(), &model_config);
         let label_mapping = model_config.get_label_mapping();
         var_store.load(weights_path)?;
-        Ok(TokenClassificationModel { tokenizer, token_sequence_classifier, label_mapping, var_store })
+        Ok(SequenceClassificationModel { tokenizer, sequence_classifier, label_mapping, var_store })
     }
 
     fn prepare_for_model(&self, input: Vec<&str>) -> Tensor {
@@ -296,78 +279,60 @@ impl TokenClassificationModel {
         Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())
     }
 
-    /// Extract entities from a text
+    /// Classify texts
     ///
     /// # Arguments
     ///
-    /// * `input` - `&[&str]` Array of texts to extract entities from.
+    /// * `input` - `&[&str]` Array of texts to classify.
     ///
     /// # Returns
     ///
-    /// * `Vec<Entity>` containing extracted entities
+    /// * `Vec<Label>` containing labels for input texts
     ///
     /// # Example
     ///
     /// ```no_run
     ///# fn main() -> failure::Fallible<()> {
-    ///# use rust_bert::pipelines::token_classification::TokenClassificationModel;
+    ///# use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
     ///
-    /// let ner_model =  TokenClassificationModel::new(Default::default())?;
+    /// let sequence_classification_model =  SequenceClassificationModel::new(Default::default())?;
     /// let input = [
-    ///     "My name is Amy. I live in Paris.",
-    ///     "Paris is a city in France."
+    ///     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
+    ///     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
+    ///     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
     /// ];
-    /// let output = ner_model.predict(&input, true);
+    /// let output = sequence_classification_model.predict(&input);
     ///# Ok(())
     ///# }
     /// ```
-    pub fn predict(&self, input: &[&str], ignore_first_label: bool) -> Vec<Token> {
+    pub fn predict(&self, input: &[&str]) -> Vec<Label> {
         let input_tensor = self.prepare_for_model(input.to_vec());
-        let (output, _, _) = no_grad(|| {
-            self.token_sequence_classifier
+        let output = no_grad(|| {
+            let (output, _, _) = self.sequence_classifier
                 .forward_t(Some(input_tensor.copy()),
                            None,
                            None,
                            None,
                            None,
-                           false)
+                           false);
+            output.softmax(-1, Kind::Float).detach().to(Device::Cpu)
         });
-        let output = output.detach().to(Device::Cpu);
-        let score: Tensor = output.exp() / output.exp().sum1(&[-1], true, Float);
-        let labels_idx = &score.argmax(-1, true);
+        let label_indices = output.as_ref().argmax(-1, true).squeeze();
+        let scores = output.gather(1, &label_indices.unsqueeze(1), false).squeeze();
+        let label_indices = label_indices.iter::<i64>().unwrap().collect::<Vec<i64>>();
+        let scores = scores.iter::<f64>().unwrap().collect::<Vec<f64>>();
 
-        let mut tokens: Vec<Token> = vec!();
-        for sentence_idx in 0..labels_idx.size()[0] {
-            let labels = labels_idx.get(sentence_idx);
-            //let mut word_idx: u8 = 0;
-            for position_idx in 0..labels.size()[0] {
-                let label_id = labels.int64_value(&[position_idx]);
-                let token = {
-                    let token_id = input_tensor.int64_value(&[sentence_idx, position_idx]);
-                    self.decode_token(token_id, label_id, &score, sentence_idx, position_idx) //, &mut word_idx)
-                };
-                if let Some(token) = token {
-                    if !ignore_first_label || label_id != 0 {
-                        tokens.push(token);
-                    }
-                }
-            }
+        let mut labels: Vec<Label> = vec!();
+        for sentence_idx in 0..label_indices.len() {
+            let label_string = self.label_mapping.get(&label_indices[sentence_idx]).unwrap().clone();
+            let label = Label {
+                text: label_string,
+                score: scores[sentence_idx],
+                id: label_indices[sentence_idx],
+                sentence: sentence_idx,
+            };
+            labels.push(label)
         }
-        tokens
-    }
-
-    fn decode_token(&self, token_id: i64, label_id: i64, score: &Tensor, sentence_idx: i64, position_idx: i64) -> Option<Token> {
-        let text = match self.tokenizer {
-            TokenizerOption::Bert(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
-            TokenizerOption::Roberta(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
-        };
-
-        Some(Token {
-            text,
-            score: score.double_value(&[sentence_idx, position_idx, label_id]),
-            label: self.label_mapping.get(&label_id).expect("Index out of vocabulary bounds.").to_owned(),
-            sentence: sentence_idx as usize,
-            index: position_idx as u16,
-        })
+        labels
     }
 }
