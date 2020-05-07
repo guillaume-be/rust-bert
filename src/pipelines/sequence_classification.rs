@@ -10,20 +10,62 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use rust_tokenizers::bert_tokenizer::BertTokenizer;
-use rust_tokenizers::RobertaTokenizer;
+//! # Sequence classification pipeline (e.g. Sentiment Analysis)
+//! More generic sequence classification pipeline, works with multiple models (Bert, Roberta)
+//!
+//! ```no_run
+//! use rust_bert::pipelines::sequence_classification::SequenceClassificationConfig;
+//! use rust_bert::resources::{RemoteResource, Resource};
+//! use rust_bert::distilbert::{DistilBertModelResources, DistilBertVocabResources, DistilBertConfigResources};
+//! use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
+//! use rust_bert::pipelines::common::ModelType;
+//!# fn main() -> failure::Fallible<()> {
+//!
+//! //Load a configuration
+//! let config = SequenceClassificationConfig::new(ModelType::DistilBert,
+//!    Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2)),
+//!    Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2)),
+//!    Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2)),
+//!    None, //merges resource only relevant with ModelType::Roberta
+//!    true, //lowercase
+//! );
+//!
+//! //Create the model
+//! let sequence_classification_model = SequenceClassificationModel::new(config)?;
+//!
+//! let input = [
+//!     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
+//!     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
+//!     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
+//! ];
+//! let output = sequence_classification_model.predict(&input);
+//!# Ok(())
+//!# }
+//! ```
+//! (Example courtesy of [IMDb](http://www.imdb.com))
+//!
+//! Output: \
+//! ```no_run
+//!# use rust_bert::pipelines::sequence_classification::Label;
+//! let output =
+//! [
+//!    Label { text: String::from("POSITIVE"), score: 0.9986, id: 1, sentence: 0},
+//!    Label { text: String::from("NEGATIVE"), score: 0.9985, id: 0, sentence: 1},
+//!    Label { text: String::from("POSITIVE"), score: 0.9988, id: 1, sentence: 12},
+//! ]
+//!# ;
+//! ```
+//!
 use tch::nn::VarStore;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TokenizedInput, TruncationStrategy};
-use std::path::Path;
+use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{TokenizedInput, TruncationStrategy};
 use std::collections::HashMap;
 use tch::{Tensor, no_grad, Device, Kind};
-use crate::bert::{BertConfig, BertForSequenceClassification};
+use crate::bert::BertForSequenceClassification;
 use crate::roberta::RobertaForSequenceClassification;
-use crate::distilbert::{DistilBertConfig, DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources, DistilBertModelClassifier};
-use crate::Config;
+use crate::distilbert::{DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources, DistilBertModelClassifier};
 use crate::common::resources::{Resource, RemoteResource, download_resource};
 use serde::{Serialize, Deserialize};
+use crate::pipelines::common::{ModelType, ConfigOption, TokenizerOption};
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -93,34 +135,10 @@ impl Default for SequenceClassificationConfig {
             config_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2)),
             vocab_resource: Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2)),
             merges_resource: None,
-            lower_case: false,
+            lower_case: true,
             device: Device::cuda_if_available(),
         }
     }
-}
-
-#[derive(Clone, Copy, Serialize, Deserialize)]
-/// # Identifies the type of model
-pub enum ModelType {
-    Bert,
-    DistilBert,
-    Roberta,
-}
-
-/// # Abstraction that holds a model configuration, can be of any of the supported models
-pub enum ConfigOption {
-    /// Bert configuration
-    Bert(BertConfig),
-    /// DistilBert configuration
-    DistilBert(DistilBertConfig),
-}
-
-/// # Abstraction that holds a particular tokenizer, can be of any of the supported models
-pub enum TokenizerOption {
-    /// Bert Tokenizer
-    Bert(BertTokenizer),
-    /// Roberta Tokenizer
-    Roberta(RobertaTokenizer),
 }
 
 /// # Abstraction that holds one particular token sequence classifier model, for any of the supported models
@@ -132,50 +150,6 @@ pub enum SequenceClassificationOption {
     /// Roberta for Sequence Classification
     Roberta(RobertaForSequenceClassification),
 }
-
-impl ConfigOption {
-    /// Interface method to load a configuration from file
-    pub fn from_file(model_type: ModelType, path: &Path) -> Self {
-        match model_type {
-            ModelType::Bert | ModelType::Roberta => ConfigOption::Bert(BertConfig::from_file(path)),
-            ModelType::DistilBert => ConfigOption::DistilBert(DistilBertConfig::from_file(path))
-        }
-    }
-
-    pub fn get_label_mapping(self) -> HashMap<i64, String> {
-        match self {
-            Self::Bert(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
-            Self::DistilBert(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
-        }
-    }
-}
-
-impl TokenizerOption {
-    /// Interface method to load a tokenizer from file
-    pub fn from_file(model_type: ModelType, vocab_path: &str, merges_path: Option<&str>, lower_case: bool) -> Self {
-        match model_type {
-            ModelType::Bert | ModelType::DistilBert => TokenizerOption::Bert(BertTokenizer::from_file(vocab_path, lower_case)),
-            ModelType::Roberta => TokenizerOption::Roberta(RobertaTokenizer::from_file(vocab_path, merges_path.expect("No merges specified!"), lower_case)),
-        }
-    }
-
-    /// Returns the model type
-    pub fn model_type(&self) -> ModelType {
-        match *self {
-            Self::Bert(_) => ModelType::Bert,
-            Self::Roberta(_) => ModelType::Roberta
-        }
-    }
-
-    /// Interface method
-    pub fn encode_list(&self, text_list: Vec<&str>, max_len: usize, truncation_strategy: &TruncationStrategy, stride: usize) -> Vec<TokenizedInput> {
-        match *self {
-            Self::Bert(ref tokenizer) => tokenizer.encode_list(text_list, max_len, truncation_strategy, stride),
-            Self::Roberta(ref tokenizer) => tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-        }
-    }
-}
-
 
 impl SequenceClassificationOption {
     /// Instantiate a new sequence classification model of the supplied type.

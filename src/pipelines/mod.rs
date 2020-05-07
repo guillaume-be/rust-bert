@@ -174,6 +174,7 @@
 //!
 
 pub mod sentiment;
+pub mod common;
 pub mod token_classification;
 pub mod sequence_classification;
 pub mod ner;
