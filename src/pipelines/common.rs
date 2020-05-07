@@ -25,6 +25,7 @@ use std::path::Path;
 use crate::Config;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
+use crate::electra::ElectraConfig;
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 /// # Identifies the type of model
@@ -32,6 +33,7 @@ pub enum ModelType {
     Bert,
     DistilBert,
     Roberta,
+    Electra,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -40,6 +42,8 @@ pub enum ConfigOption {
     Bert(BertConfig),
     /// DistilBert configuration
     DistilBert(DistilBertConfig),
+    /// Electra configuration
+    Electra(ElectraConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -55,7 +59,8 @@ impl ConfigOption {
     pub fn from_file(model_type: ModelType, path: &Path) -> Self {
         match model_type {
             ModelType::Bert | ModelType::Roberta => ConfigOption::Bert(BertConfig::from_file(path)),
-            ModelType::DistilBert => ConfigOption::DistilBert(DistilBertConfig::from_file(path))
+            ModelType::DistilBert => ConfigOption::DistilBert(DistilBertConfig::from_file(path)),
+            ModelType::Electra => ConfigOption::Electra(ElectraConfig::from_file(path))
         }
     }
 
@@ -63,6 +68,7 @@ impl ConfigOption {
         match self {
             Self::Bert(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
             Self::DistilBert(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Electra(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
         }
     }
 }
@@ -71,7 +77,7 @@ impl TokenizerOption {
     /// Interface method to load a tokenizer from file
     pub fn from_file(model_type: ModelType, vocab_path: &str, merges_path: Option<&str>, lower_case: bool) -> Self {
         match model_type {
-            ModelType::Bert | ModelType::DistilBert => TokenizerOption::Bert(BertTokenizer::from_file(vocab_path, lower_case)),
+            ModelType::Bert | ModelType::DistilBert | ModelType::Electra => TokenizerOption::Bert(BertTokenizer::from_file(vocab_path, lower_case)),
             ModelType::Roberta => TokenizerOption::Roberta(RobertaTokenizer::from_file(vocab_path, merges_path.expect("No merges specified!"), lower_case)),
         }
     }

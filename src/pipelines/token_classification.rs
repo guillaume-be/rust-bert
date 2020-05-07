@@ -65,6 +65,7 @@ use crate::distilbert::DistilBertForTokenClassification;
 use crate::common::resources::{Resource, RemoteResource, download_resource};
 use serde::{Serialize, Deserialize};
 use crate::pipelines::common::{ModelType, ConfigOption, TokenizerOption};
+use crate::electra::ElectraForTokenClassification;
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -154,6 +155,8 @@ pub enum TokenClassificationOption {
     DistilBert(DistilBertForTokenClassification),
     /// Roberta for Token Classification
     Roberta(RobertaForTokenClassification),
+    /// Electra for Token Classification
+    Electra(ElectraForTokenClassification),
 }
 
 impl TokenClassificationOption {
@@ -189,6 +192,13 @@ impl TokenClassificationOption {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
+            ModelType::Electra => {
+                if let ConfigOption::Electra(config) = config {
+                    TokenClassificationOption::Electra(ElectraForTokenClassification::new(p, config))
+                } else {
+                    panic!("You can only supply a BertConfig for Roberta!");
+                }
+            }
         }
     }
 
@@ -197,7 +207,8 @@ impl TokenClassificationOption {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
-            Self::DistilBert(_) => ModelType::DistilBert
+            Self::DistilBert(_) => ModelType::DistilBert,
+            Self::Electra(_) => ModelType::Electra
         }
     }
 
@@ -213,6 +224,7 @@ impl TokenClassificationOption {
             Self::Bert(ref model) => model.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train),
             Self::DistilBert(ref model) => model.forward_t(input_ids, mask, input_embeds, train).expect("Error in distilbert forward_t"),
             Self::Roberta(ref model) => model.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train),
+            Self::Electra(ref model) => model.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train),
         }
     }
 }

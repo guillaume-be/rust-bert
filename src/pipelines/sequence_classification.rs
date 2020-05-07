@@ -184,6 +184,7 @@ impl SequenceClassificationOption {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
+            ModelType::Electra => {panic!("SequenceClassification not implemented for Electra!");}
         }
     }
 
