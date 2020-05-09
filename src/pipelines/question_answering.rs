@@ -410,7 +410,7 @@ impl QuestionAnsweringModel {
 
         let truncated_query = self.prepare_query(&qa_example.question, max_query_length);
 
-        let sequence_added_tokens = self.tokenizer.build_input_with_special_tokens(vec!(), None,vec!(),None,vec!(),None).0.len();
+        let sequence_added_tokens = self.tokenizer.build_input_with_special_tokens(vec!(), None, vec!(), None, vec!(), None).0.len();
         let sequence_pair_added_tokens = self.tokenizer.build_input_with_special_tokens(vec!(), Some(vec!()), vec!(), Some(vec!()), vec!(), Some(vec!())).0.len();
 
         let mut spans: Vec<QaFeature> = vec!();
@@ -445,15 +445,15 @@ impl QuestionAnsweringModel {
     fn prepare_query(&self, query: &str, max_query_length: usize) -> Vec<i64> {
         let truncated_query = self.tokenizer.convert_tokens_to_ids(&self.tokenizer.tokenize(&query));
         let num_query_tokens_to_remove = if truncated_query.len() > max_query_length as usize { truncated_query.len() - max_query_length } else { 0 };
-        let (truncated_query, _, _,_,_,_,_,_) = truncate_sequences(truncated_query,
-                                                         None,
-                                                         vec!(),
-                                                         None,
-                                                         vec!(),
-                                                         None,
-                                                         num_query_tokens_to_remove,
-                                                         &TruncationStrategy::OnlyFirst,
-                                                         0).unwrap();
+        let (truncated_query, _, _, _, _, _, _, _) = truncate_sequences(truncated_query,
+                                                                        None,
+                                                                        vec!(),
+                                                                        None,
+                                                                        vec!(),
+                                                                        None,
+                                                                        num_query_tokens_to_remove,
+                                                                        &TruncationStrategy::OnlyFirst,
+                                                                        0).unwrap();
         truncated_query
     }
 
@@ -468,7 +468,7 @@ impl QuestionAnsweringModel {
         let total_len = len_1 + len_2 + sequence_pair_added_tokens;
         let num_truncated_tokens = if total_len > max_seq_length { total_len - max_seq_length } else { 0 };
 
-        let (truncated_query, truncated_context, _,_,_,_,overflowing_tokens,_)
+        let (truncated_query, truncated_context, _, _, _, _, overflowing_tokens, _)
             = truncate_sequences(truncated_query.clone(),
                                  Some(spans_token_ids.clone()),
                                  vec!(),

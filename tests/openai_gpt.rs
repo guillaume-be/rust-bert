@@ -93,7 +93,7 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
     let output = model.generate(Some(vec!(input_context)), None);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], "it was an intense machine dialogue. \n \" i \'m sorry, but we have to go now! the police are on their way and they\'re going after you - or at least that\'s what my");
+    assert_eq!(output[0], "it was an intense machine dialogue. \n \" i\'m sorry, but we have to go now! the police are on their way and they\'re going after you - or at least that\'s what my");
 
     Ok(())
 }
@@ -125,9 +125,9 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
     let output = model.generate(Some(vec!(input_context)), None);
 
     assert_eq!(output.len(), 3);
-    assert_eq!(output[0], "the dog isn\'t going anywhere. i \'m going to take care of him. i \'ll be right");
-    assert_eq!(output[1], "the dog isn\'t going anywhere. i \'m going to take care of him. i \'ll be back");
-    assert_eq!(output[2], "the dog isn\'t going anywhere. i \'m going to take care of him. \" \n \" i");
+    assert_eq!(output[0], "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be right");
+    assert_eq!(output[1], "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be back");
+    assert_eq!(output[2], "the dog isn\'t going anywhere. i\'m going to take care of him. \" \n \" i");
 
     Ok(())
 }
@@ -162,12 +162,12 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
     assert_eq!(output.len(), 6);
 
 //    Unpadded sequence (generation for `The dog is`) is identical to the
-    assert_eq!(output[0], "the dog isn\'t going anywhere. i \'m going to take care of him. i \'ll be right");
-    assert_eq!(output[1], "the dog isn\'t going anywhere. i \'m going to take care of him. i \'ll be back");
-    assert_eq!(output[2], "the dog isn\'t going anywhere. i \'m going to take care of him. \" \n \" i");
+    assert_eq!(output[0], "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be right");
+    assert_eq!(output[1], "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be back");
+    assert_eq!(output[2], "the dog isn\'t going anywhere. i\'m going to take care of him. \" \n \" i");
 
     assert_eq!(output[3], "the cat. \" \n \" i don\'t know what you\'re talking about. i don\'t");
-    assert_eq!(output[4], "the cat. \" \n \" i don\'t know what you\'re talking about. i \'m not");
+    assert_eq!(output[4], "the cat. \" \n \" i don\'t know what you\'re talking about. i\'m not");
     assert_eq!(output[5], "the cat. \" \n \" i don\'t know what you\'re talking about. i do know");
 
     Ok(())
