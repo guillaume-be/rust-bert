@@ -605,6 +605,10 @@ mod private_generation_utils {
                 .zip(num_truncated_tokens)
                 .map(|(tokens, num_truncated_tokens)| truncate_sequences(tokens,
                                                                          None,
+                                                                         vec!(),
+                                                                         None,
+                                                                         vec!(),
+                                                                         None,
                                                                          num_truncated_tokens,
                                                                          &TruncationStrategy::LongestFirst,
                                                                          0).unwrap().0)
