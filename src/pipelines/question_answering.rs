@@ -47,6 +47,7 @@
 //! ```
 
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, TokenizedInput};
+use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Mask;
 use tch::{Device, Tensor, no_grad};
 use std::path::PathBuf;
 use rust_tokenizers::tokenization_utils::truncate_sequences;
@@ -409,8 +410,8 @@ impl QuestionAnsweringModel {
 
         let truncated_query = self.prepare_query(&qa_example.question, max_query_length);
 
-        let sequence_added_tokens = self.tokenizer.build_input_with_special_tokens(vec!(), None).0.len();
-        let sequence_pair_added_tokens = self.tokenizer.build_input_with_special_tokens(vec!(), Some(vec!())).0.len();
+        let sequence_added_tokens = self.tokenizer.build_input_with_special_tokens(vec!(), None, vec!(), None, vec!(), None).0.len();
+        let sequence_pair_added_tokens = self.tokenizer.build_input_with_special_tokens(vec!(), Some(vec!()), vec!(), Some(vec!()), vec!(), Some(vec!())).0.len();
 
         let mut spans: Vec<QaFeature> = vec!();
 
@@ -444,11 +445,15 @@ impl QuestionAnsweringModel {
     fn prepare_query(&self, query: &str, max_query_length: usize) -> Vec<i64> {
         let truncated_query = self.tokenizer.convert_tokens_to_ids(&self.tokenizer.tokenize(&query));
         let num_query_tokens_to_remove = if truncated_query.len() > max_query_length as usize { truncated_query.len() - max_query_length } else { 0 };
-        let (truncated_query, _, _) = truncate_sequences(truncated_query,
-                                                         None,
-                                                         num_query_tokens_to_remove,
-                                                         &TruncationStrategy::OnlyFirst,
-                                                         0).unwrap();
+        let (truncated_query, _, _, _, _, _, _, _) = truncate_sequences(truncated_query,
+                                                                        None,
+                                                                        vec!(),
+                                                                        None,
+                                                                        vec!(),
+                                                                        None,
+                                                                        num_query_tokens_to_remove,
+                                                                        &TruncationStrategy::OnlyFirst,
+                                                                        0).unwrap();
         truncated_query
     }
 
@@ -463,21 +468,27 @@ impl QuestionAnsweringModel {
         let total_len = len_1 + len_2 + sequence_pair_added_tokens;
         let num_truncated_tokens = if total_len > max_seq_length { total_len - max_seq_length } else { 0 };
 
-        let (truncated_query, truncated_context, overflowing_tokens)
+        let (truncated_query, truncated_context, _, _, _, _, overflowing_tokens, _)
             = truncate_sequences(truncated_query.clone(),
                                  Some(spans_token_ids.clone()),
+                                 vec!(),
+                                 None,
+                                 vec!(),
+                                 None,
                                  num_truncated_tokens,
                                  &TruncationStrategy::OnlySecond,
                                  max_seq_length - doc_stride - len_1 - sequence_pair_added_tokens).unwrap();
 
-        let (mut token_ids, mut segment_ids, special_tokens_mask) = self.tokenizer.build_input_with_special_tokens(truncated_query, truncated_context);
+        let (mut token_ids, mut segment_ids, special_tokens_mask, mut token_offsets, mut mask) = self.tokenizer.build_input_with_special_tokens(truncated_query, truncated_context, vec!(), None, vec!(), None);
         let mut attention_mask = vec![1; token_ids.len()];
         if token_ids.len() < max_seq_length {
             token_ids.append(&mut vec![self.pad_idx; max_seq_length - token_ids.len()]);
             segment_ids.append(&mut vec![0; max_seq_length - segment_ids.len()]);
             attention_mask.append(&mut vec![0; max_seq_length - attention_mask.len()]);
+            token_offsets.append(&mut vec![None; max_seq_length - token_offsets.len()]);
+            mask.append(&mut vec![Mask::Special; max_seq_length - mask.len()]);
         }
-        (TokenizedInput { token_ids, segment_ids, special_tokens_mask, overflowing_tokens, num_truncated_tokens }, attention_mask)
+        (TokenizedInput { token_ids, segment_ids, special_tokens_mask, overflowing_tokens, num_truncated_tokens, token_offsets, mask }, attention_mask)
     }
 
     fn get_mask(&self, encoded_span: &TokenizedInput) -> Vec<i8> {
