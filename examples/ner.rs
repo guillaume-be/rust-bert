@@ -20,7 +20,7 @@ fn main() -> failure::Fallible<()> {
 
 //    Define input
     let input = [
-        "My name is Amélie. I live in 北京市.",
+        "My name is Amélie. I live in Москва.",
         "Chongqing is a city in China."
     ];
 
