@@ -37,19 +37,23 @@
 //!     "My name is Amy. I live in Paris.",
 //!     "Paris is a city in France."
 //! ];
-//! let output = token_classification_model.predict(&input, true); //ignore_first_label = true (only returns the NER parts, ignoring first label O)
+//! let output = token_classification_model.predict(&input, true, true); //ignore_first_label = true (only returns the NER parts, ignoring first label O)
 //!# Ok(())
 //!# }
 //! ```
 //! Output: \
 //! ```no_run
 //!# use rust_bert::pipelines::token_classification::Token;
+//! use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Mask::Special;
+//! use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Offset, Mask};
 //!# let output =
 //! [
-//!    Token { text: String::from("Amy"), score: 0.9986, label: String::from("I-PER"), sentence: 0, index: 0},
-//!    Token { text: String::from("Paris"), score: 0.9985, label: String::from("I-LOC"), sentence: 0, index: 9},
-//!    Token { text: String::from("Paris"), score: 0.9988, label: String::from("I-LOC"), sentence: 1, index: 1},
-//!    Token { text: String::from("France"), score: 0.9993, label: String::from("I-LOC"), sentence: 1, index: 6}
+//!    Token { text: String::from("[CLS]"), score: 0.9995001554489136, label: String::from("O"), sentence: 0, index: 0, word_index: 0, offset: None, mask: Special },
+//!    Token { text: String::from("My"), score: 0.9980450868606567, label: String::from("O"), sentence: 0, index: 1, word_index: 1, offset: Some(Offset { begin: 0, end: 2 }), mask: Mask::None },
+//!    Token { text: String::from("name"), score: 0.9995062351226807, label: String::from("O"), sentence: 0, index: 2, word_index: 2, offset: Some(Offset { begin: 3, end: 7 }), mask: Mask::None },
+//!    Token { text: String::from("is"), score: 0.9997343420982361, label: String::from("O"), sentence: 0, index: 3, word_index: 3, offset: Some(Offset { begin: 8, end: 10 }), mask: Mask::None },
+//!    Token { text: String::from("Amélie"), score: 0.9913727683112525, label: String::from("I-PER"), sentence: 0, index: 4, word_index: 4, offset: Some(Offset { begin: 11, end: 17 }), mask: Mask::None }
+//!    // ...
 //! ]
 //!# ;
 //! ```
@@ -146,8 +150,8 @@ impl Default for TokenClassificationConfig {
         TokenClassificationConfig {
             model_type: ModelType::Bert,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_NER)),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER)),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER)),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER)),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER)),
             merges_resource: None,
             lower_case: false,
             device: Device::cuda_if_available(),
@@ -309,6 +313,8 @@ impl TokenClassificationModel {
     /// # Arguments
     ///
     /// * `input` - `&[&str]` Array of texts to extract entities from.
+    /// * `consolidate_subtokens` - bool flag indicating if subtokens should be consolidated at the token level
+    /// * `return_special` - bool flag indicating if labels for special tokens should be returned
     ///
     /// # Returns
     ///
@@ -325,7 +331,7 @@ impl TokenClassificationModel {
     ///     "My name is Amy. I live in Paris.",
     ///     "Paris is a city in France."
     /// ];
-    /// let output = ner_model.predict(&input, true);
+    /// let output = ner_model.predict(&input, true, true);
     ///# Ok(())
     ///# }
     /// ```
@@ -354,13 +360,14 @@ impl TokenClassificationModel {
                 if (mask == Mask::Special) & (!return_special) {
                     continue;
                 }
-                let token = {
-                    self.decode_token(&original_chars, sentence_tokens, &input_tensor, &labels, &score, sentence_idx, position_idx as i64, word_idx)
-                };
-                tokens.push(token);
-                if !(mask == Mask::Continuation) || !(mask == Mask::InexactContinuation) {
+                if !(mask == Mask::Continuation) & !
+                    (mask == Mask::InexactContinuation) {
                     word_idx += 1;
                 }
+                let token = {
+                    self.decode_token(&original_chars, sentence_tokens, &input_tensor, &labels, &score, sentence_idx, position_idx as i64, word_idx - 1)
+                };
+                tokens.push(token);
             }
         }
         if consolidate_subtokens {
