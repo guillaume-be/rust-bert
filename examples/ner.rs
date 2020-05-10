@@ -20,8 +20,8 @@ fn main() -> failure::Fallible<()> {
 
 //    Define input
     let input = [
-        "My name is Amy. I live in Paris.",
-        "Paris is a city in France."
+        "My name is Amélie. I live in 北京市.",
+        "Chongqing is a city in China."
     ];
 
 //    Run model
