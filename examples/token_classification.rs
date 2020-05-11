@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use rust_bert::pipelines::token_classification::{TokenClassificationModel, TokenClassificationConfig};
+use rust_bert::pipelines::token_classification::{TokenClassificationModel, TokenClassificationConfig, LabelAggregationOption};
 use rust_bert::resources::{Resource, RemoteResource};
 use rust_bert::bert::{BertModelResources, BertVocabResources, BertConfigResources};
 use rust_bert::pipelines::common::ModelType;
@@ -24,6 +24,7 @@ fn main() -> failure::Fallible<()> {
                                                 Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER)),
                                                 None, //merges resource only relevant with ModelType::Roberta
                                                 false, //lowercase
+                                                LabelAggregationOption::Mode,
     );
 
 //    Create the model
