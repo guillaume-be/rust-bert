@@ -45,7 +45,7 @@
 //!# ;
 //! ```
 
-use crate::pipelines::token_classification::{TokenClassificationModel,TokenClassificationConfig};
+use crate::pipelines::token_classification::{TokenClassificationModel, TokenClassificationConfig};
 
 
 #[derive(Debug)]
@@ -58,6 +58,7 @@ pub struct Entity {
     /// Entity label (e.g. ORG, LOC...)
     pub label: String,
 }
+
 //type alias for some backward compatibility
 type NERConfig = TokenClassificationConfig;
 
@@ -86,7 +87,7 @@ impl NERModel {
     ///
     pub fn new(ner_config: NERConfig) -> failure::Fallible<NERModel> {
         let model = TokenClassificationModel::new(ner_config)?;
-        Ok(NERModel { token_classification_model: model})
+        Ok(NERModel { token_classification_model: model })
     }
 
     /// Extract entities from a text
@@ -116,12 +117,16 @@ impl NERModel {
     /// ```
     ///
     pub fn predict(&self, input: &[&str]) -> Vec<Entity> {
-        self.token_classification_model.predict(input, true).into_iter().map(|token| {
-            Entity {
-                word: token.text,
-                score: token.score,
-                label: token.label,
-            }
-        }).collect()
+        self.token_classification_model
+            .predict(input, true, false)
+            .into_iter()
+            .filter(|token| token.label != "O")
+            .map(|token| {
+                Entity {
+                    word: token.text,
+                    score: token.score,
+                    label: token.label,
+                }
+            }).collect()
     }
 }
