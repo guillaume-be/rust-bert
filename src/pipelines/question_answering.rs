@@ -282,7 +282,7 @@ impl QuestionAnsweringModel {
                 }
                 start = end;
                 end += feature_length;
-                batch_length = 0usize;
+                batch_length = feature_length;
             }
         }
         batch_indices.push((start, end));
@@ -338,7 +338,6 @@ impl QuestionAnsweringModel {
         let mut example_top_k_answers_map: HashMap<usize, Vec<Answer>> = HashMap::new();
 
         for (start, end) in batch_indices {
-            println! {"{:?}", end};
             let batch_features = &features[start..end];
             let mut input_ids = Vec::with_capacity(batch_features.len());
             let mut attention_masks = Vec::with_capacity(batch_features.len());
