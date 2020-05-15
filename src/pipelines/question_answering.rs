@@ -100,6 +100,26 @@ pub struct Answer {
     pub answer: String,
 }
 
+impl PartialEq for Answer {
+    fn eq(&self, other: &Self) -> bool {
+        (self.start == other.start) &&
+            (self.end == other.end) &&
+            (self.answer == other.answer)
+    }
+}
+
+fn remove_duplicates<T: PartialEq + Clone>(vector: &mut Vec<T>) -> &mut Vec<T> {
+    let mut potential_duplicates = vec!();
+    vector.retain(|item| if potential_duplicates.contains(item) {
+        false
+    } else {
+        potential_duplicates.push(item.clone());
+        true
+    });
+    vector
+}
+
+
 impl QaExample {
     pub fn new(question: &str, context: &str) -> QaExample {
         let question = question.to_owned();
@@ -243,14 +263,26 @@ impl QuestionAnsweringModel {
         let mut end = 0usize;
 
         for &feature_length in example_features_length.values() {
-            if batch_length + feature_length <= batch_size {
+            if feature_length > batch_size {
+                let mut remaining_length = feature_length;
+                while remaining_length > batch_size {
+                    end += batch_size;
+                    batch_indices.push((start, end));
+                    start = end;
+                    remaining_length -= batch_size;
+                }
+                end += remaining_length;
+                batch_length += remaining_length;
+            } else if batch_length + feature_length <= batch_size {
                 end += feature_length;
                 batch_length += feature_length;
             } else {
-                batch_indices.push((start, end));
+                if start != end {
+                    batch_indices.push((start, end));
+                }
                 start = end;
                 end += feature_length;
-                batch_length = 1usize;
+                batch_length = feature_length;
             }
         }
         batch_indices.push((start, end));
@@ -303,13 +335,12 @@ impl QuestionAnsweringModel {
             .collect();
 
         let batch_indices = self.generate_batch_indices(&features, batch_size);
-        let mut all_answers = vec!();
+        let mut example_top_k_answers_map: HashMap<usize, Vec<Answer>> = HashMap::new();
 
         for (start, end) in batch_indices {
             let batch_features = &features[start..end];
             let mut input_ids = Vec::with_capacity(batch_features.len());
             let mut attention_masks = Vec::with_capacity(batch_features.len());
-
             no_grad(|| {
                 for feature in batch_features {
                     input_ids.push(Tensor::of_slice(&feature.input_ids));
@@ -364,9 +395,15 @@ impl QuestionAnsweringModel {
                         }
                     }
                     feature_id_start = max_feature_id;
-                    all_answers.push(answers[..(top_k as usize)].to_vec());
+                    let example_answers = example_top_k_answers_map.entry(example_id).or_insert(vec!());
+                    example_answers.extend(answers);
                 }
             });
+        }
+        let mut all_answers = vec!();
+        for (_, answers) in example_top_k_answers_map.iter_mut() {
+            remove_duplicates(answers).sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+            all_answers.push(answers[..(top_k as usize)].to_vec());
         }
         all_answers
     }
