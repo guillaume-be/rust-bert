@@ -249,45 +249,6 @@ impl QuestionAnsweringModel {
         })
     }
 
-    fn generate_batch_indices(&self, features: &Vec<QaFeature>, batch_size: usize) -> Vec<(usize, usize)> {
-        let mut example_features_length: HashMap<i64, usize> = HashMap::new();
-        for feature in features {
-            let count = example_features_length.entry(feature.example_index).or_insert(0);
-            *count += 1;
-        }
-
-        let mut batch_indices: Vec<(usize, usize)> = Vec::with_capacity(features.len());
-
-        let mut batch_length = 0usize;
-        let mut start = 0usize;
-        let mut end = 0usize;
-
-        for &feature_length in example_features_length.values() {
-            if feature_length > batch_size {
-                let mut remaining_length = feature_length;
-                while remaining_length > batch_size {
-                    end += batch_size;
-                    batch_indices.push((start, end));
-                    start = end;
-                    remaining_length -= batch_size;
-                }
-                end += remaining_length;
-                batch_length += remaining_length;
-            } else if batch_length + feature_length <= batch_size {
-                end += feature_length;
-                batch_length += feature_length;
-            } else {
-                if start != end {
-                    batch_indices.push((start, end));
-                }
-                start = end;
-                end += feature_length;
-                batch_length = feature_length;
-            }
-        }
-        batch_indices.push((start, end));
-        batch_indices
-    }
 
     /// Perform extractive question answering given a list of `QaInputs`
     ///
@@ -332,10 +293,13 @@ impl QuestionAnsweringModel {
             .map(|(example_index, qa_example)| self.generate_features(&qa_example, self.max_seq_len, self.doc_stride, self.max_query_length, example_index as i64))
             .flatten()
             .collect();
-        let batch_indices = self.generate_batch_indices(&features, batch_size);
-        let mut example_top_k_answers_map: HashMap<usize, Vec<Answer>> = HashMap::new();
 
-        for (start, end) in batch_indices {
+        let mut example_top_k_answers_map: HashMap<usize, Vec<Answer>> = HashMap::new();
+        let mut start = 0usize;
+        let len_features = features.len();
+
+        while start < len_features {
+            let end = start + min(len_features - start, batch_size);
             let batch_features = &features[start..end];
             let mut input_ids = Vec::with_capacity(batch_features.len());
             let mut attention_masks = Vec::with_capacity(batch_features.len());
@@ -397,11 +361,16 @@ impl QuestionAnsweringModel {
                     example_answers.extend(answers);
                 }
             });
+            start = end;
         }
         let mut all_answers = vec!();
-        for (_, answers) in example_top_k_answers_map.iter_mut() {
-            remove_duplicates(answers).sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-            all_answers.push(answers[..min(answers.len(), top_k as usize)].to_vec());
+        for example_id in 0..examples.len() {
+            if let Some(answers) = example_top_k_answers_map.get_mut(&example_id) {
+                remove_duplicates(answers).sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+                all_answers.push(answers[..min(answers.len(), top_k as usize)].to_vec());
+            } else {
+                all_answers.push(vec!());
+            }
         }
         all_answers
     }
