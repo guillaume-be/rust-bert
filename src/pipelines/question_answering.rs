@@ -326,14 +326,12 @@ impl QuestionAnsweringModel {
             .iter()
             .map(|qa_input| QaExample::new(&qa_input.question, &qa_input.context))
             .collect();
-
         let features: Vec<QaFeature> = examples
             .iter()
             .enumerate()
             .map(|(example_index, qa_example)| self.generate_features(&qa_example, self.max_seq_len, self.doc_stride, self.max_query_length, example_index as i64))
             .flatten()
             .collect();
-
         let batch_indices = self.generate_batch_indices(&features, batch_size);
         let mut example_top_k_answers_map: HashMap<usize, Vec<Answer>> = HashMap::new();
 
@@ -403,7 +401,7 @@ impl QuestionAnsweringModel {
         let mut all_answers = vec!();
         for (_, answers) in example_top_k_answers_map.iter_mut() {
             remove_duplicates(answers).sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-            all_answers.push(answers[..(top_k as usize)].to_vec());
+            all_answers.push(answers[..min(answers.len(), top_k as usize)].to_vec());
         }
         all_answers
     }
