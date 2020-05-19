@@ -411,8 +411,7 @@ impl TokenClassificationModel {
                 if (mask == Mask::Special) & (!return_special) {
                     continue;
                 }
-                if !(mask == Mask::Continuation) & !
-                    (mask == Mask::InexactContinuation) {
+                if !(mask == Mask::Continuation) {
                     word_idx += 1;
                 }
                 let token = {

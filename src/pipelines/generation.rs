@@ -609,6 +609,8 @@ mod private_generation_utils {
                                                                          None,
                                                                          vec!(),
                                                                          None,
+                                                                         vec!(),
+                                                                         None,
                                                                          num_truncated_tokens,
                                                                          &TruncationStrategy::LongestFirst,
                                                                          0).unwrap().0)
