@@ -116,6 +116,7 @@ pub struct BartConfig {
     pub output_hidden_states: Option<bool>,
     pub output_past: Option<bool>,
     pub static_position_embeddings: Option<bool>,
+    pub scale_embedding: Option<bool>,
     pub vocab_size: i64,
 }
 
@@ -172,9 +173,9 @@ fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
 /// - `generation_mode`: flag indicating if the model should run in generation mode (a decoder start token must then be provided)
 /// - `pad_token_id`: padding token id
 pub struct BartModel {
-    encoder: BartEncoder,
+    pub(crate) encoder: BartEncoder,
     decoder: BartDecoder,
-    embeddings: nn::Embedding,
+    pub(crate) embeddings: nn::Embedding,
     generation_mode: bool,
     pad_token_id: i64,
 }
@@ -318,6 +319,7 @@ impl BartModel {
                                                              causal_mask.as_ref(),
                                                              &self.embeddings,
                                                              train);
+
         (decoder_outputs, encoder_hidden_states, decoder_cache,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)

@@ -62,6 +62,7 @@ pub mod openai_gpt;
 pub mod gpt2;
 pub mod bart;
 pub mod electra;
+pub mod marian;
 mod common;
 pub mod pipelines;
 

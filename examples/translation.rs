@@ -29,6 +29,9 @@ fn main() -> failure::Fallible<()> {
         num_beams: 6,
         temperature: 1.0,
         num_return_sequences: 1,
+        no_repeat_ngram_size: 0,
+        top_k: 50,
+        top_p: 1.0,
         ..Default::default()
     };
     let mut model = MarianGenerator::new(generate_config)?;

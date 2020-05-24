@@ -131,6 +131,7 @@ pub struct BartDecoder {
     output_hidden_states: bool,
     output_past: bool,
     generation_mode: bool,
+    scale_embedding: f64,
 }
 
 impl BartDecoder {
@@ -154,6 +155,10 @@ impl BartDecoder {
         let static_position_embeddings = match config.static_position_embeddings {
             Some(value) => value,
             None => false
+        };
+        let scale_embedding = match config.scale_embedding {
+            Some(value) => if value {(config.d_model as f64).sqrt()} else { 1.0 },
+            None => 1.0
         };
 
         let dropout = Dropout::new(config.dropout);
@@ -198,6 +203,7 @@ impl BartDecoder {
             output_hidden_states,
             output_past,
             generation_mode,
+            scale_embedding
         }
     }
 
@@ -229,7 +235,7 @@ impl BartDecoder {
         } else {
             (input_ids.copy(), positions)
         };
-        let x: Tensor = input_ids.as_ref().apply(embeddings) + positions;
+        let x: Tensor = input_ids.as_ref().apply(embeddings) * self.scale_embedding + positions;
 
         let x = if let Some(layer_norm_embedding) = &self.layer_norm_embedding { x.apply(layer_norm_embedding) } else { x };
         let x = x

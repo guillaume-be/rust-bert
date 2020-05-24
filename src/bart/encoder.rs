@@ -95,6 +95,7 @@ pub struct BartEncoder {
     embed_positions: EmbeddingOption,
     output_attentions: bool,
     output_hidden_states: bool,
+    scale_embedding: f64,
 }
 
 impl BartEncoder {
@@ -114,6 +115,10 @@ impl BartEncoder {
         let static_position_embeddings = match config.static_position_embeddings {
             Some(value) => value,
             None => false
+        };
+        let scale_embedding = match config.scale_embedding {
+            Some(value) => if value {(config.d_model as f64).sqrt()} else { 1.0 },
+            None => 1.0
         };
 
         let dropout = Dropout::new(config.dropout);
@@ -156,6 +161,7 @@ impl BartEncoder {
             embed_positions,
             output_attentions,
             output_hidden_states,
+            scale_embedding,
         }
     }
 
@@ -170,7 +176,7 @@ impl BartEncoder {
             None => None
         };
 
-        let x = input_ids.apply(embeddings);
+        let x = input_ids.apply(embeddings) * self.scale_embedding;
         let x: Tensor = x + &self.embed_positions.forward(input_ids, false);
         let x = if let Some(layer_norm_embedding) = &self.layer_norm_embedding { x.apply(layer_norm_embedding) } else { x };
         let x = x
