@@ -110,10 +110,12 @@ pub struct BartConfig {
     pub max_position_embeddings: i64,
     pub min_length: Option<i64>,
     pub no_repeat_ngram_size: Option<i64>,
+    pub normalize_embedding: Option<bool>,
     pub num_hidden_layers: i64,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub output_past: Option<bool>,
+    pub static_position_embeddings: Option<bool>,
     pub vocab_size: i64,
 }
 

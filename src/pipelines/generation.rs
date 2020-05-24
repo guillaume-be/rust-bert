@@ -724,6 +724,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, MarianVocab, MarianT
     }
 }
 
+impl LanguageGenerator<BartForConditionalGeneration, MarianVocab, MarianTokenizer> for MarianGenerator {}
 
 mod private_generation_utils {
     use rust_tokenizers::{Vocab, Tokenizer, TruncationStrategy};
