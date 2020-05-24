@@ -22,6 +22,8 @@ use std::path::PathBuf;
 use reqwest::Client;
 use std::{fs, env};
 use tokio::prelude::*;
+use tokio::runtime::Runtime;
+use tokio::task;
 
 extern crate dirs;
 
@@ -178,23 +180,26 @@ fn _get_cache_directory() -> PathBuf {
 /// let local_path = download_resource(&model_resource);
 /// ```
 ///
-#[tokio::main]
-pub async fn download_resource(resource: &Resource) -> failure::Fallible<&PathBuf> {
+pub fn download_resource(resource: &Resource) -> failure::Fallible<&PathBuf> {
     match resource {
         Resource::Remote(remote_resource) => {
-            let target = &remote_resource.local_path;
-            let url = &remote_resource.url;
+            let target = remote_resource.local_path.clone();
+            let url = remote_resource.url.clone();
             if !target.exists() {
                 println!("Downloading {} to {:?}", url, target);
-                fs::create_dir_all(target.parent().unwrap())?;
-
-                let client = Client::new();
-                let mut output_file = tokio::fs::File::create(target).await?;
-                let mut response = client.get(url.as_str()).send().await?;
-                while let Some(chunk) = response.chunk().await? {
-                    output_file.write_all(&chunk).await?;
-                }
+                fs::create_dir_all(target.parent().unwrap()).unwrap();
+                let mut rt = Runtime::new().unwrap();
+                let local = task::LocalSet::new();
+                local.block_on(&mut rt, async {
+                    let client = Client::new();
+                    let mut output_file = tokio::fs::File::create(target).await.unwrap();
+                    let mut response = client.get(url.as_str()).send().await.unwrap();
+                    while let Some(chunk) = response.chunk().await.unwrap() {
+                        output_file.write_all(&chunk).await.unwrap();
+                    }
+                });
             }
+
             Ok(resource.get_local_path())
         }
         Resource::Local(_) => {
