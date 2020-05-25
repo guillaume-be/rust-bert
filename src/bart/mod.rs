@@ -37,7 +37,7 @@
 //! let mut vs = nn::VarStore::new(device);
 //! let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
 //! let config = BartConfig::from_file(config_path);
-//! let gpt2_model = BartModel::new(&vs.root(), &config, false);
+//! let bart_model = BartModel::new(&vs.root(), &config, false);
 //! vs.load(weights_path)?;
 //!
 //!# Ok(())

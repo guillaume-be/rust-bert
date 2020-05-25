@@ -7,6 +7,7 @@
 //!
 //! This crate can be used in two different ways:
 //! - Ready-to-use NLP pipelines for:
+//!     - Translation
 //!     - Summarization
 //!     - Sentiment Analysis
 //!     - Named Entity Recognition
@@ -28,16 +29,17 @@
 //! ```
 //! - Transformer models base architectures with customized heads. These allow to load pre-trained models for customized inference in Rust
 //!
-//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**
-//! :-----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:
-//! Masked LM|✅ |✅ |✅ | | | |✅|
-//! Sequence classification|✅ |✅ |✅| | | | |
-//! Token classification|✅ |✅ | ✅| | | |✅|
-//! Question answering|✅ |✅ |✅| | | | |
-//! Multiple choices| |✅ |✅| | | | |
-//! Next token prediction| | | |✅|✅| | |
-//! Natural Language Generation| | | |✅|✅| | |
-//! Summarization| | | |✅|✅|✅| |
+//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**
+//! :-----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:
+//! Masked LM|✅ |✅ |✅ | | | |✅| |
+//! Sequence classification|✅ |✅ |✅| | | | | |
+//! Token classification|✅ |✅ | ✅| | | |✅| |
+//! Question answering|✅ |✅ |✅| | | | | |
+//! Multiple choices| |✅ |✅| | | | | |
+//! Next token prediction| | | |✅|✅| | | |
+//! Natural Language Generation| | | |✅|✅| | | |
+//! Summarization| | | | | |✅| | |
+//! Translation| | | | | | | |✅|
 //!
 //! # Loading pre-trained models
 //!

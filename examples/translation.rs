@@ -13,24 +13,18 @@
 
 extern crate failure;
 
-use rust_bert::resources::{Resource, LocalResource};
-use std::path::PathBuf;
-use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
+use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel, Language};
 use tch::Device;
 
 fn main() -> failure::Fallible<()> {
 
-    let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/config.json") });
-    let model_resource = Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/model.ot") });
-    let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/vocab.json") });
-    let merges_resource = Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/spiece.model") });
 
-    let translation_config = TranslationConfig::new_from_resources(model_resource,
-                                                                   config_resource, vocab_resource, merges_resource, Device::cuda_if_available());
+    let translation_config = TranslationConfig::new(Language::EnglishToGerman, Device::cuda_if_available());
     let mut model = TranslationModel::new(translation_config)?;
 
     let input_context_1 = "The quick brown fox jumps over the lazy dog";
     let input_context_2 = "The dog did not wake up";
+
     let output = model.translate(&[input_context_1, input_context_2]);
 
     for sentence in output {

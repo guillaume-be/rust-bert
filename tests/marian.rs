@@ -15,8 +15,8 @@ fn test_translation() -> failure::Fallible<()> {
     let output = model.translate(&[input_context_1, input_context_2]);
 
     assert_eq!(output.len(), 2);
-    assert_eq!(output[0], " Le renard brun rapide saute sur le chien paresseux");
-    assert_eq!(output[1], " Le chien ne s'est pas réveillé.");
+    assert_eq!(output[0], " Le rapide renard brun saute sur le chien paresseux");
+    assert_eq!(output[1], " Le chien ne s'est pas réveillé");
 
     Ok(())
 }

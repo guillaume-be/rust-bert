@@ -10,16 +10,17 @@ This repository exposes the model base architecture, task-specific heads (see be
 
 The following models are currently implemented:
 
- | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**
-:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
-Masked LM|✅ |✅ |✅ | | | |✅|
-Sequence classification|✅ |✅ |✅| | | | |
-Token classification|✅ |✅ | ✅| | | |✅|
-Question answering|✅ |✅ |✅| | | | |
-Multiple choices| |✅ |✅| | | | |
-Next token prediction| | | |✅|✅|✅| |
-Natural Language Generation| | | |✅|✅|✅| |
-Summarization | | | | | |✅| |
+ | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|
+:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:
+Masked LM|✅ |✅ |✅ | | | |✅| |
+Sequence classification|✅ |✅ |✅| | | | | |
+Token classification|✅ |✅ | ✅| | | |✅| |
+Question answering|✅ |✅ |✅| | | | | |
+Multiple choices| |✅ |✅| | | | | |
+Next token prediction| | | |✅|✅|✅| | |
+Natural Language Generation| | | |✅|✅|✅| | |
+Summarization | | | | | |✅| | |
+Translation | | | | | |✅| |✅ |
 
 ## Ready-to-use pipelines
 
@@ -41,7 +42,31 @@ Output:
 [Answer { score: 0.9976814985275269, start: 13, end: 21, answer: "Amsterdam" }]
 ```
 
-#### 2. Summarization
+#### 2. Translation
+Translation using the MarianMT architecture and pre-trained models from the Opus-MT team from Language Technology at the University of Helsinki.
+ Currently supported languages are :
+ - English <-> French
+ - English <-> Spanish
+ - English <-> Portuguese
+ - English <-> Italian
+ - English <-> Catalan
+ - English <-> German
+ - French <-> German
+
+```rust
+    let translation_config = TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
+    let mut model = TranslationModel::new(translation_config)?;
+                                                        
+    let input = ["This is a sentence to be translated"];
+    let output = model.translate(&input);
+```
+
+Output:
+```
+Il s'agit d'une phrase à traduire
+```
+
+#### 3. Summarization
 Abstractive summarization using a pretrained BART model.
 
 ```rust
@@ -80,7 +105,7 @@ This is the first such discovery in a planet in its star's habitable zone.
 The planet is not too hot and not too cold for liquid water to exist."
 ```
 
-#### 3. Natural Language Generation
+#### 4. Natural Language Generation
 Generate language based on a prompt. GPT2 and GPT available as base models.
 Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
@@ -107,7 +132,7 @@ Example output:
 ]
 ```
 
-#### 4. Sentiment analysis
+#### 5. Sentiment analysis
 Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 ```rust
     let sentiment_classifier = SentimentModel::new(Default::default())?;
@@ -131,7 +156,7 @@ Output:
 ]
 ```
 
-#### 5. Named Entity Recognition
+#### 6. Named Entity Recognition
 Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 ```rust
     let ner_model = NERModel::new(default::default())?;
