@@ -17,7 +17,7 @@ use crate::common::dropout::Dropout;
 use crate::bart::BartConfig;
 use crate::bart::bart::Activation;
 use crate::common::activations::{_gelu, _relu, _swish, _gelu_new, _tanh};
-use crate::bart::embeddings::PositionalEmbedding;
+use crate::bart::embeddings::{EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding};
 use tch::kind::Kind::Bool;
 use std::borrow::BorrowMut;
 
@@ -90,11 +90,12 @@ impl EncoderLayer {
 
 pub struct BartEncoder {
     dropout: Dropout,
-    layer_norm_embedding: nn::LayerNorm,
+    layer_norm_embedding: Option<nn::LayerNorm>,
     layers: Vec<EncoderLayer>,
-    embed_positions: PositionalEmbedding,
+    embed_positions: EmbeddingOption,
     output_attentions: bool,
     output_hidden_states: bool,
+    scale_embedding: f64,
 }
 
 impl BartEncoder {
@@ -107,22 +108,45 @@ impl BartEncoder {
             Some(value) => value,
             None => false
         };
+        let normalize_embedding = match config.normalize_embedding {
+            Some(value) => value,
+            None => true
+        };
+        let static_position_embeddings = match config.static_position_embeddings {
+            Some(value) => value,
+            None => false
+        };
+        let scale_embedding = match config.scale_embedding {
+            Some(value) => if value {(config.d_model as f64).sqrt()} else { 1.0 },
+            None => 1.0
+        };
 
         let dropout = Dropout::new(config.dropout);
-        let layer_norm_config = nn::LayerNormConfig { eps: 1e-5, ..Default::default() };
-        let layer_norm_embedding = nn::layer_norm(&p / "layernorm_embedding",
-                                                  vec![config.d_model],
-                                                  layer_norm_config);
+
+        let layer_norm_embedding = if normalize_embedding {
+            let layer_norm_config = nn::LayerNormConfig { eps: 1e-5, ..Default::default() };
+            Some(nn::layer_norm(&p / "layernorm_embedding",
+                                vec![config.d_model],
+                                layer_norm_config))
+        } else {
+            None
+        };
 
         let pad_token_id = match config.pad_token_id {
             Some(value) => value,
             None => 1
         };
 
-        let embed_positions = PositionalEmbedding::new(&p / "embed_positions",
-                                                       config.max_position_embeddings,
-                                                       config.d_model,
-                                                       pad_token_id);
+        let embed_positions = if static_position_embeddings {
+            EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(&p / "embed_positions",
+                                                                                              config.max_position_embeddings,
+                                                                                              config.d_model))
+        } else {
+            EmbeddingOption::LearnedPositionalEmbedding(LearnedPositionalEmbedding::new(&p / "embed_positions",
+                                                                                        config.max_position_embeddings,
+                                                                                        config.d_model,
+                                                                                        pad_token_id))
+        };
 
         let mut layers: Vec<EncoderLayer> = vec!();
         let p_layers = &p / "layers";
@@ -137,6 +161,7 @@ impl BartEncoder {
             embed_positions,
             output_attentions,
             output_hidden_states,
+            scale_embedding,
         }
     }
 
@@ -151,10 +176,10 @@ impl BartEncoder {
             None => None
         };
 
-        let x = input_ids.apply(embeddings);
+        let x = input_ids.apply(embeddings) * self.scale_embedding;
         let x: Tensor = x + &self.embed_positions.forward(input_ids, false);
+        let x = if let Some(layer_norm_embedding) = &self.layer_norm_embedding { x.apply(layer_norm_embedding) } else { x };
         let x = x
-            .apply(&self.layer_norm_embedding)
             .apply_t(&self.dropout, train)
             .transpose(0, 1);
 
