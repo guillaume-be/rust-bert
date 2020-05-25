@@ -16,6 +16,8 @@
 //! Translation based on the Marian encoder-decoder architecture
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //! Pre-trained and ready-to-use models are available by creating a configuration from the `Language` enum.
+//! These models have been trained by the Opus-MT team from Language Technology at the University of Helsinki (Jörg Tiedemann, jorg.tiedemann@helsinki.fi)
+//! The Rust model files are hosted by Hugging Face Inc (https://huggingface.co).
 //! Customized Translation models can be loaded by creating a configuration from local files.
 //! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/{translation-model-name}
 //!
@@ -25,7 +27,7 @@
 //!# use rust_bert::pipelines::generation::LanguageGenerator;
 //! use rust_bert::pipelines::translation::{TranslationModel, TranslationConfig, Language};
 //! use tch::Device;
-//! let mut translation_config =  TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available())?;
+//! let mut translation_config =  TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
 //! let mut model = TranslationModel::new(translation_config)?;
 //!
 //! let input = ["This is a sentence to be translated"];
@@ -119,7 +121,7 @@ impl TranslationConfig {
     /// use rust_bert::pipelines::translation::{TranslationConfig, Language};
     /// use tch::Device;
     ///
-    /// let translation_config =  TranslationConfig::new(Language::FrenchToEnglish, Device::cuda_if_available())?;
+    /// let translation_config =  TranslationConfig::new(Language::FrenchToEnglish, Device::cuda_if_available());
     ///# Ok(())
     ///# }
     /// ```
@@ -171,16 +173,18 @@ impl TranslationConfig {
     /// use rust_bert::pipelines::translation::TranslationConfig;
     /// use tch::Device;
     /// use rust_bert::resources::{Resource, LocalResource};
+    /// use std::path::PathBuf;
+    ///
     /// let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json") });
     /// let model_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot") });
     /// let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.json") });
-    /// let merges_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/spiece.model") });
+    /// let sentence_piece_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/spiece.model") });
     ///
     /// let translation_config =  TranslationConfig::new_from_resources(model_resource,
     ///                                            config_resource,
     ///                                            vocab_resource,
     ///                                            sentence_piece_resource,
-    ///                                            Device::cuda_if_available())?;
+    ///                                            Device::cuda_if_available());
     ///# Ok(())
     ///# }
     /// ```
@@ -231,7 +235,7 @@ impl TranslationModel {
     /// use rust_bert::pipelines::translation::{TranslationModel, TranslationConfig, Language};
     /// use tch::Device;
     ///
-    /// let translation_config =  TranslationConfig::new(Language::FrenchToEnglish, Device::cuda_if_available())?;
+    /// let translation_config =  TranslationConfig::new(Language::FrenchToEnglish, Device::cuda_if_available());
     /// let mut summarization_model =  TranslationModel::new(translation_config)?;
     ///# Ok(())
     ///# }
@@ -281,7 +285,7 @@ impl TranslationModel {
     /// use rust_bert::pipelines::translation::{TranslationModel, TranslationConfig, Language};
     /// use tch::Device;
     ///
-    /// let translation_config =  TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available())?;
+    /// let translation_config =  TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
     /// let mut model = TranslationModel::new(translation_config)?;
     ///
     /// let input = ["This is a sentence to be translated"];

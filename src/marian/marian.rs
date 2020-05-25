@@ -30,30 +30,30 @@ pub struct MarianVocabResources;
 pub struct MarianSpmResources;
 
 impl MarianModelResources {
-    /// Shared under MIT license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const ENGLISH2FRENCH: (&'static str, &'static str) = ("marian-mt-en-fr/model.ot", "https://cdn.huggingface.co/facebook/bart-large/rust_model.ot");
-    /// Shared under MIT license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const FRENCH2ENGLISH: (&'static str, &'static str) = ("marian-mt-fr-en/model.ot", "https://cdn.huggingface.co/facebook/bart-large-cnn/rust_model.ot");
 }
 
 impl MarianConfigResources {
-    /// Shared under MIT license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2FRENCH: (&'static str, &'static str) = ("marian-mt-en-fr/config.json", "https://cdn.huggingface.co/facebook/bart-large/config.json");
-    /// Shared under MIT license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const FRENCH2ENGLISH: (&'static str, &'static str) = ("marian-mt-fr-en/config.json", "https://cdn.huggingface.co/facebook/bart-large-cnn/config.json");
 }
 
 impl MarianVocabResources {
-    /// Shared under MIT license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2FRENCH: (&'static str, &'static str) = ("marian-mt-en-fr/vocab.json", "https://cdn.huggingface.co/roberta-large-vocab.json");
-    /// Shared under MIT license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const FRENCH2ENGLISH: (&'static str, &'static str) = ("marian-mt-fr-en/vocab.json", "https://cdn.huggingface.co/roberta-large-vocab.json");
 }
 
 impl MarianSpmResources {
-    /// Shared under MIT license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2FRENCH: (&'static str, &'static str) = ("marian-mt-en-fr/spiece.model", "https://cdn.huggingface.co/roberta-large-merges.txt");
-    /// Shared under MIT license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const FRENCH2ENGLISH: (&'static str, &'static str) = ("marian-mt-fr-en/spiece.model", "https://cdn.huggingface.co/roberta-large-merges.txt");
 }
 
