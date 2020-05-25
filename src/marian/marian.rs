@@ -29,6 +29,9 @@ pub struct MarianVocabResources;
 /// # Marian Pretrained sentence piece model files
 pub struct MarianSpmResources;
 
+/// # Marian optional prefixes
+pub struct MarianPrefix;
+
 impl MarianModelResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const ENGLISH2FRENCH: (&'static str, &'static str) = ("marian-mt-en-fr/model.ot", "https://cdn.huggingface.co/facebook/bart-large/rust_model.ot");
@@ -55,6 +58,11 @@ impl MarianSpmResources {
     pub const ENGLISH2FRENCH: (&'static str, &'static str) = ("marian-mt-en-fr/spiece.model", "https://cdn.huggingface.co/roberta-large-merges.txt");
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const FRENCH2ENGLISH: (&'static str, &'static str) = ("marian-mt-fr-en/spiece.model", "https://cdn.huggingface.co/roberta-large-merges.txt");
+}
+
+impl MarianPrefix {
+    pub const ENGLISH2FRENCH: Option<&'static str> = Some(">>fr<<");
+    pub const FRENCH2ENGLISH: Option<&'static str> = None;
 }
 
 /// # Marian Model for conditional generation

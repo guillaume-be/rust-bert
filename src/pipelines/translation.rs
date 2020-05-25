@@ -47,7 +47,7 @@
 use crate::pipelines::generation::{MarianGenerator, GenerateConfig, LanguageGenerator};
 use tch::Device;
 use crate::common::resources::{Resource, RemoteResource};
-use crate::marian::{MarianModelResources, MarianConfigResources, MarianVocabResources, MarianSpmResources};
+use crate::marian::{MarianModelResources, MarianConfigResources, MarianVocabResources, MarianSpmResources, MarianPrefix};
 
 /// Pretrained languages available for direct use
 pub enum Language {
@@ -58,11 +58,11 @@ pub enum Language {
 struct RemoteTranslationResources;
 
 impl RemoteTranslationResources {
-    pub const ENGLISH2FRENCH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str)) =
-        (MarianModelResources::ENGLISH2FRENCH, MarianConfigResources::ENGLISH2FRENCH, MarianVocabResources::ENGLISH2FRENCH, MarianSpmResources::ENGLISH2FRENCH);
+    pub const ENGLISH2FRENCH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
+        (MarianModelResources::ENGLISH2FRENCH, MarianConfigResources::ENGLISH2FRENCH, MarianVocabResources::ENGLISH2FRENCH, MarianSpmResources::ENGLISH2FRENCH, MarianPrefix::ENGLISH2FRENCH);
 
-    pub const FRENCH2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str)) =
-        (MarianModelResources::FRENCH2ENGLISH, MarianConfigResources::FRENCH2ENGLISH, MarianVocabResources::FRENCH2ENGLISH, MarianSpmResources::FRENCH2ENGLISH);
+    pub const FRENCH2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
+        (MarianModelResources::FRENCH2ENGLISH, MarianConfigResources::FRENCH2ENGLISH, MarianVocabResources::FRENCH2ENGLISH, MarianSpmResources::FRENCH2ENGLISH, MarianPrefix::FRENCH2ENGLISH);
 }
 
 
@@ -104,6 +104,8 @@ pub struct TranslationConfig {
     pub num_return_sequences: u64,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Prefix to append translation inputs with
+    pub prefix: Option<String>,
 }
 
 impl TranslationConfig {
@@ -127,7 +129,7 @@ impl TranslationConfig {
     /// ```
     ///
     pub fn new(language: Language, device: Device) -> TranslationConfig {
-        let (model_resource, config_resource, vocab_resource, merges_resource) = match language {
+        let (model_resource, config_resource, vocab_resource, merges_resource, prefix) = match language {
             Language::EnglishToFrench => RemoteTranslationResources::ENGLISH2FRENCH,
             Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH
         };
@@ -135,6 +137,10 @@ impl TranslationConfig {
         let config_resource = Resource::Remote(RemoteResource::from_pretrained(config_resource));
         let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(vocab_resource));
         let merges_resource = Resource::Remote(RemoteResource::from_pretrained(merges_resource));
+        let prefix = match prefix {
+            Some(value) => Some(value.to_string()),
+            None => None
+        };
         TranslationConfig {
             model_resource,
             config_resource,
@@ -153,6 +159,7 @@ impl TranslationConfig {
             no_repeat_ngram_size: 0,
             num_return_sequences: 1,
             device,
+            prefix,
         }
     }
 
@@ -193,6 +200,7 @@ impl TranslationConfig {
                               config_resource: Resource,
                               vocab_resource: Resource,
                               sentence_piece_resource: Resource,
+                              prefix: Option<String>,
                               device: Device) -> TranslationConfig {
         TranslationConfig {
             model_resource,
@@ -212,13 +220,15 @@ impl TranslationConfig {
             no_repeat_ngram_size: 0,
             num_return_sequences: 1,
             device,
+            prefix,
         }
     }
 }
 
 /// # TranslationModel to perform translation
 pub struct TranslationModel {
-    model: MarianGenerator
+    model: MarianGenerator,
+    prefix: Option<String>,
 }
 
 impl TranslationModel {
@@ -265,7 +275,7 @@ impl TranslationModel {
 
         let model = MarianGenerator::new(generate_config)?;
 
-        Ok(TranslationModel { model })
+        Ok(TranslationModel { model, prefix: translation_config.prefix })
     }
 
     /// Translates texts provided
@@ -296,6 +306,15 @@ impl TranslationModel {
     /// ```
     ///
     pub fn translate(&mut self, texts: &[&str]) -> Vec<String> {
-        self.model.generate(Some(texts.to_vec()), None)
+        match &self.prefix {
+            Some(value) => {
+                let texts: Vec<String> = texts
+                    .into_iter()
+                    .map(|&v| { format!("{} {}", value, v) })
+                    .collect();
+                self.model.generate(Some(texts.iter().map(AsRef::as_ref).collect()), None)
+            }
+            None => self.model.generate(Some(texts.to_vec()), None)
+        }
     }
 }
