@@ -1,6 +1,3 @@
-from transformers import BART_PRETRAINED_MODEL_ARCHIVE_MAP
-from transformers.configuration_bart import BART_PRETRAINED_CONFIG_ARCHIVE_MAP
-from transformers.tokenization_bart import vocab_url, merges_url
 from transformers.file_utils import get_from_cache, S3_BUCKET_PREFIX
 from pathlib import Path
 import shutil

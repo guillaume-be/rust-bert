@@ -13,35 +13,28 @@
 
 extern crate failure;
 
-use rust_bert::pipelines::generation::{LanguageGenerator, GenerateConfig, MarianGenerator};
 use rust_bert::resources::{Resource, LocalResource};
 use std::path::PathBuf;
+use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
+use tch::Device;
 
 fn main() -> failure::Fallible<()> {
 
-//    Set-up masked LM model
-    let generate_config = GenerateConfig {
-        config_resource: Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/config.json")}),
-        model_resource: Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/model.ot")}),
-        vocab_resource: Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/vocab.json")}),
-        merges_resource: Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/spiece.model")}),
-        max_length: 512,
-        do_sample: false,
-        num_beams: 6,
-        temperature: 1.0,
-        num_return_sequences: 1,
-        no_repeat_ngram_size: 0,
-        top_k: 50,
-        top_p: 1.0,
-        ..Default::default()
-    };
-    let mut model = MarianGenerator::new(generate_config)?;
+    let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/config.json") });
+    let model_resource = Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/model.ot") });
+    let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/vocab.json") });
+    let merges_resource = Resource::Local(LocalResource { local_path: PathBuf::from("E:/Coding/cache/rustbert/marian-mt-en-fr/spiece.model") });
 
-    let input_context = "The quick brown fox jumps over the lazy dog";
-    let output = model.generate(Some(vec!(input_context)), None);
+    let translation_config = TranslationConfig::new_from_resources(model_resource,
+                                                                   config_resource, vocab_resource, merges_resource, Device::cuda_if_available());
+    let mut model = TranslationModel::new(translation_config)?;
+
+    let input_context_1 = "The quick brown fox jumps over the lazy dog";
+    let input_context_2 = "The dog did not wake up";
+    let output = model.translate(&[input_context_1, input_context_2]);
 
     for sentence in output {
-        println!("{:?}", sentence);
+        println!("{}", sentence);
     }
     Ok(())
 }

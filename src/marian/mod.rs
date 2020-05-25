@@ -1,3 +1,3 @@
 mod marian;
 
-pub use marian::MarianForConditionalGeneration;
+pub use marian::{MarianForConditionalGeneration, MarianModelResources, MarianConfigResources, MarianVocabResources, MarianSpmResources};
