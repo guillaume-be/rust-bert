@@ -69,6 +69,9 @@ use crate::Config;
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
 use crate::bart::{BartConfig, BartForConditionalGeneration, BartModelResources, BartConfigResources, BartVocabResources, BartMergesResources};
 use crate::common::resources::{Resource, RemoteResource, download_resource};
+use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
+use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
+use crate::marian::MarianForConditionalGeneration;
 
 extern crate ordered_float;
 
@@ -552,6 +555,177 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
 
 impl LanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer> for BartGenerator {}
 
+/// # Language generation model based on the Marian architecture for machine translation
+pub struct MarianGenerator {
+    model: MarianForConditionalGeneration,
+    tokenizer: MarianTokenizer,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl MarianGenerator {
+    /// Build a new `marianGenerator`
+    ///
+    /// # Arguments
+    ///
+    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `sentencepiece_model_path` - Path to the sentencepiece model (native protobuf expected)
+    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
+    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use std::path::PathBuf;
+    ///# use tch::Device;
+    ///# fn main() -> failure::Fallible<()> {
+    /// use rust_bert::pipelines::generation::{GenerateConfig, MarianGenerator};
+    ///# let mut home: PathBuf = dirs::home_dir().unwrap();
+    ///# home.push("rustbert");
+    ///# home.push("marian-mt-en-fr");
+    ///# let config_path = &home.as_path().join("config.json");
+    ///# let vocab_path = &home.as_path().join("vocab.json");
+    ///# let merges_path = &home.as_path().join("spiece.model");
+    ///# let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::cuda_if_available();
+    /// let generate_config = GenerateConfig {
+    ///    max_length: 512,
+    ///    do_sample: true,
+    ///    num_beams: 6,
+    ///    temperature: 1.0,
+    ///    num_return_sequences: 1,
+    ///    ..Default::default()
+    /// };
+    /// let marian_generator = MarianGenerator::new(generate_config)?;
+    ///# Ok(())
+    ///# }
+    /// ```
+    ///
+    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<MarianGenerator> {
+        let config_path = download_resource(&generate_config.config_resource)?;
+        let vocab_path = download_resource(&generate_config.vocab_resource)?;
+        let sentence_piece_path = download_resource(&generate_config.merges_resource)?;
+        let weights_path = download_resource(&generate_config.model_resource)?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = MarianTokenizer::from_files(vocab_path.to_str().unwrap(),
+                                                    sentence_piece_path.to_str().unwrap(),
+                                                    false);
+        let config = BartConfig::from_file(config_path);
+        let model = MarianForConditionalGeneration::new(&var_store.root(), &config, true);
+        var_store.load(weights_path)?;
+
+        let bos_token_id = Some(0);
+        let eos_token_ids = Some(vec!(tokenizer.vocab().token_to_id(MarianVocab::eos_value())));
+        let pad_token_id = Some(tokenizer.vocab().token_to_id(MarianVocab::pad_value()));
+
+        let vocab_size = config.vocab_size;
+        let is_encoder_decoder = true;
+        let decoder_start_id = Some(tokenizer.vocab().token_to_id(MarianVocab::pad_value()));
+
+        Ok(MarianGenerator { model, tokenizer, var_store, generate_config, bos_token_id, eos_token_ids, pad_token_id, is_encoder_decoder, vocab_size, decoder_start_id })
+    }
+
+    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
+        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
+            .filter(|pos| !token_ids.contains(pos))
+            .collect();
+        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
+        let _ = scores.index_fill_(1, &impossible_tokens, std::f64::NEG_INFINITY);
+    }
+}
+
+impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokenizer> for MarianGenerator {
+    fn get_model(&mut self) -> &mut MarianForConditionalGeneration { &mut self.model }
+    fn get_tokenizer(&self) -> &MarianTokenizer { &self.tokenizer }
+    fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
+    fn get_config(&self) -> &GenerateConfig { &self.generate_config }
+    fn get_bos_id(&self) -> &Option<i64> { &self.bos_token_id }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> { &self.eos_token_ids }
+    fn get_pad_id(&self) -> &Option<i64> { &self.pad_token_id }
+    fn is_encoder_decoder(&self) -> bool { self.is_encoder_decoder }
+    fn get_vocab_size(&self) -> i64 { self.vocab_size }
+    fn get_decoder_start_id(&self) -> Option<i64> { self.decoder_start_id }
+
+    fn prepare_scores_for_generation(&self, scores: &mut Tensor, current_length: i64, max_length: i64) {
+        let _ = scores.index_fill_(1, &Tensor::of_slice(&[self.get_pad_id().unwrap()]).to_kind(Int64).to_device(scores.device()), std::f64::NEG_INFINITY);
+        if current_length == max_length - 1 {
+            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+        }
+    }
+
+    fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+        Some(self.get_model().encode(input_ids, attention_mask))
+    }
+
+    fn prepare_inputs_for_generation<'a>(&self,
+                                         input_ids: Tensor,
+                                         encoder_outputs: Option<&'a Tensor>,
+                                         _past: Option<Vec<Tensor>>,
+                                         _attention_mask: Tensor)
+                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
+        (None, encoder_outputs, Some(input_ids), None)
+    }
+
+    fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
+        let tokens = self.get_tokenizer().encode_list(prompt_text,
+                                                      max_len as usize,
+                                                      &TruncationStrategy::LongestFirst,
+                                                      0);
+        let token_ids = tokens
+            .into_iter()
+            .map(|tokenized_input| tokenized_input.token_ids)
+            .collect::<Vec<Vec<i64>>>();
+
+
+        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+
+        let pad_token = match pad_token_id {
+            Some(value) => value,
+            None => self.get_tokenizer().vocab().token_to_id(RobertaVocab::unknown_value())
+        };
+
+        let token_ids = token_ids
+            .into_iter()
+            .map(|input| {
+                let mut temp = vec![pad_token; max_len - input.len()];
+                temp.extend(input);
+                temp
+            })
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .collect::<Vec<Tensor>>();
+
+        Tensor::stack(&token_ids, 0)
+    }
+
+    fn reorder_cache(&mut self, _past: Option<Vec<Tensor>>, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> (Option<Vec<Tensor>>, Option<Tensor>) {
+        let encoder_outputs = match encoder_outputs {
+            Some(value) => Some(value.index_select(0, beam_indices)),
+            None => None
+        };
+        for layer in self.get_model().get_base_model().get_decoder().get_layers() {
+            layer.get_self_attention().prev_state.as_mut().unwrap().reorder_cache(beam_indices);
+            layer.get_encoder_attention().prev_state.as_mut().unwrap().reorder_cache(beam_indices);
+        };
+        (None, encoder_outputs)
+    }
+
+    fn reset_cache(&mut self) {
+        self.get_model().reset_cache();
+    }
+}
+
+impl LanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokenizer> for MarianGenerator {}
+
 mod private_generation_utils {
     use rust_tokenizers::{Vocab, Tokenizer, TruncationStrategy};
     use tch::{nn, Tensor, Device};
@@ -757,10 +931,13 @@ mod private_generation_utils {
                     self.enforce_repetition_penalty(&mut next_token_logits, batch_size, 1, &input_ids, repetition_penalty)
                 }
 //            Get banned tokens and set their probability to 0
-                let banned_tokens = self.get_banned_tokens(&input_ids, no_repeat_ngram_size as i64, current_length as i64);
-                for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
-                    &next_token_logits.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
+                if no_repeat_ngram_size > 0 {
+                    let banned_tokens = self.get_banned_tokens(&input_ids, no_repeat_ngram_size as i64, current_length as i64);
+                    for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
+                        &next_token_logits.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
+                    }
                 }
+
 //            Do not allow eos token if min length is not reached
                 if (&eos_token_ids.is_some()) & (current_length < min_length) {
                     &next_token_logits.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()).to(next_token_logits.device()), std::f64::NEG_INFINITY);
@@ -891,9 +1068,11 @@ mod private_generation_utils {
                     &scores.index_fill_(1, &Tensor::of_slice(eos_token_ids.as_ref().unwrap()).to(scores.device()), std::f64::NEG_INFINITY);
                 }
 //            Get banned tokens and set their probability to 0
-                let banned_tokens = self.get_banned_tokens(&input_ids, no_repeat_ngram_size as i64, current_length as i64);
-                for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
-                    &scores.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
+                if no_repeat_ngram_size > 0 {
+                    let banned_tokens = self.get_banned_tokens(&input_ids, no_repeat_ngram_size as i64, current_length as i64);
+                    for (batch_index, index_banned_token) in (0..banned_tokens.len() as i64).zip(banned_tokens) {
+                        &scores.get(batch_index).index_fill_(0, &Tensor::of_slice(&index_banned_token).to_device(next_token_logits.device()), std::f64::NEG_INFINITY);
+                    }
                 }
 
                 let (next_scores, next_tokens) = if do_sample {

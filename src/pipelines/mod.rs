@@ -34,7 +34,39 @@
 //!# ;
 //! ```
 //!
-//! #### 2. Summarization
+//! #### 2. Translation
+//! Translation using the MarianMT architecture and pre-trained models from the Opus-MT team from Language Technology at the University of Helsinki.
+//! Currently supported languages are :
+//! - English <-> French
+//! - English <-> Spanish
+//! - English <-> Portuguese
+//! - English <-> Italian
+//! - English <-> Catalan
+//! - English <-> German
+//! - French <-> German
+//! ```no_run
+//!# fn main() -> failure::Fallible<()> {
+//!# use rust_bert::pipelines::generation::LanguageGenerator;
+//! use rust_bert::pipelines::translation::{TranslationModel, TranslationConfig, Language};
+//! use tch::Device;
+//! let translation_config =  TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
+//! let mut model = TranslationModel::new(translation_config)?;
+//!
+//! let input = ["This is a sentence to be translated"];
+//!
+//! let output = model.translate(&input);
+//!# Ok(())
+//!# }
+//! ```
+//!
+//! Output: \
+//! ```no_run
+//!# let output =
+//! "Il s'agit d'une phrase à traduire"
+//!# ;
+//!```
+//!
+//! #### 3. Summarization
 //! Abstractive summarization of texts based on the BART encoder-decoder architecture
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //!
@@ -83,7 +115,7 @@
 //!```
 //!
 //!
-//! #### 3. Natural Language Generation
+//! #### 4. Natural Language Generation
 //! Generate language based on a prompt. GPT2 and GPT available as base models.
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //! Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
@@ -114,7 +146,7 @@
 //!# ;
 //!```
 //!
-//! #### 4. Sentiment analysis
+//! #### 5. Sentiment analysis
 //! Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 //! ```no_run
 //! use rust_bert::pipelines::sentiment::SentimentModel;
@@ -144,7 +176,7 @@
 //!# ;
 //! ```
 //!
-//! #### 5. Named Entity Recognition
+//! #### 6. Named Entity Recognition
 //! Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 //! ```no_run
 //! use rust_bert::pipelines::ner::NERModel;
@@ -181,3 +213,4 @@ pub mod ner;
 pub mod question_answering;
 pub mod generation;
 pub mod summarization;
+pub mod translation;
