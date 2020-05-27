@@ -25,6 +25,7 @@
 //! - English <-> Italian
 //! - English <-> Catalan
 //! - English <-> German
+//! - English <-> Russian
 //! - French <-> German
 //!
 //! Customized Translation models can be loaded by creating a configuration from local files.

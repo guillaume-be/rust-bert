@@ -43,6 +43,7 @@
 //! - English <-> Italian
 //! - English <-> Catalan
 //! - English <-> German
+//! - English <-> Russian
 //! - French <-> German
 //! ```no_run
 //!# fn main() -> failure::Fallible<()> {
