@@ -51,6 +51,7 @@ Translation using the MarianMT architecture and pre-trained models from the Opus
  - English <-> Italian
  - English <-> Catalan
  - English <-> German
+ - English <-> Russian
  - French <-> German
 
 ```rust
