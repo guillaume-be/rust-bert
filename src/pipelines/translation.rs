@@ -67,6 +67,7 @@ pub enum Language {
     ItalianToEnglish,
     RomanianToEnglish,
     GermanToEnglish,
+    RussianToEnglish,
     EnglishToFrench,
     EnglishToCatalan,
     EnglishToSpanish,
@@ -74,6 +75,7 @@ pub enum Language {
     EnglishToItalian,
     EnglishToRomanian,
     EnglishToGerman,
+    EnglishToRussian,
     FrenchToGerman,
     GermanToFrench,
 }
@@ -95,6 +97,8 @@ impl RemoteTranslationResources {
         (MarianModelResources::ENGLISH2ROMANCE, MarianConfigResources::ENGLISH2ROMANCE, MarianVocabResources::ENGLISH2ROMANCE, MarianSpmResources::ENGLISH2ROMANCE, MarianPrefix::ENGLISH2ROMANIAN);
     pub const ENGLISH2GERMAN: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
         (MarianModelResources::ENGLISH2GERMAN, MarianConfigResources::ENGLISH2GERMAN, MarianVocabResources::ENGLISH2GERMAN, MarianSpmResources::ENGLISH2GERMAN, MarianPrefix::ENGLISH2GERMAN);
+    pub const ENGLISH2RUSSIAN: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
+        (MarianModelResources::ENGLISH2RUSSIAN, MarianConfigResources::ENGLISH2RUSSIAN, MarianVocabResources::ENGLISH2RUSSIAN, MarianSpmResources::ENGLISH2RUSSIAN, MarianPrefix::ENGLISH2RUSSIAN);
 
     pub const FRENCH2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
         (MarianModelResources::ROMANCE2ENGLISH, MarianConfigResources::ROMANCE2ENGLISH, MarianVocabResources::ROMANCE2ENGLISH, MarianSpmResources::ROMANCE2ENGLISH, MarianPrefix::FRENCH2ENGLISH);
@@ -110,6 +114,8 @@ impl RemoteTranslationResources {
         (MarianModelResources::ROMANCE2ENGLISH, MarianConfigResources::ROMANCE2ENGLISH, MarianVocabResources::ROMANCE2ENGLISH, MarianSpmResources::ROMANCE2ENGLISH, MarianPrefix::ROMANIAN2ENGLISH);
     pub const GERMAN2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
         (MarianModelResources::GERMAN2ENGLISH, MarianConfigResources::GERMAN2ENGLISH, MarianVocabResources::GERMAN2ENGLISH, MarianSpmResources::GERMAN2ENGLISH, MarianPrefix::GERMAN2ENGLISH);
+    pub const RUSSIAN2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
+        (MarianModelResources::RUSSIAN2ENGLISH, MarianConfigResources::RUSSIAN2ENGLISH, MarianVocabResources::RUSSIAN2ENGLISH, MarianSpmResources::RUSSIAN2ENGLISH, MarianPrefix::RUSSIAN2ENGLISH);
 
     pub const FRENCH2GERMAN: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
         (MarianModelResources::FRENCH2GERMAN, MarianConfigResources::FRENCH2GERMAN, MarianVocabResources::FRENCH2GERMAN, MarianSpmResources::FRENCH2GERMAN, MarianPrefix::FRENCH2GERMAN);
@@ -189,6 +195,7 @@ impl TranslationConfig {
             Language::EnglishToItalian => RemoteTranslationResources::ENGLISH2ITALIAN,
             Language::EnglishToRomanian => RemoteTranslationResources::ENGLISH2ROMANIAN,
             Language::EnglishToGerman => RemoteTranslationResources::ENGLISH2GERMAN,
+            Language::EnglishToRussian => RemoteTranslationResources::ENGLISH2RUSSIAN,
 
             Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
             Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
@@ -197,6 +204,7 @@ impl TranslationConfig {
             Language::ItalianToEnglish => RemoteTranslationResources::ITALIAN2ENGLISH,
             Language::RomanianToEnglish => RemoteTranslationResources::ROMANIAN2ENGLISH,
             Language::GermanToEnglish => RemoteTranslationResources::GERMAN2ENGLISH,
+            Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
 
             Language::FrenchToGerman => RemoteTranslationResources::FRENCH2GERMAN,
             Language::GermanToFrench => RemoteTranslationResources::GERMAN2FRENCH,

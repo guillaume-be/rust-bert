@@ -525,10 +525,10 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
 
         let token_ids = token_ids
             .into_iter()
-            .map(|input| {
-                let mut temp = vec![pad_token; max_len - input.len()];
-                temp.extend(input);
-                temp
+            .map(|mut input| {
+                let temp = vec![pad_token; max_len - input.len()];
+                input.extend(temp);
+                input
             })
             .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
             .collect::<Vec<Tensor>>();
@@ -696,10 +696,10 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
 
         let token_ids = token_ids
             .into_iter()
-            .map(|input| {
-                let mut temp = vec![pad_token; max_len - input.len()];
-                temp.extend(input);
-                temp
+            .map(|mut input| {
+                let temp = vec![pad_token; max_len - input.len()];
+                input.extend(temp);
+                input
             })
             .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
             .collect::<Vec<Tensor>>();
