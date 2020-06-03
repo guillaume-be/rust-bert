@@ -339,7 +339,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///
     /// ```
     ///
-    fn forward_t(&mut self,
+    fn forward_t(&self,
                  input_ids: &Option<Tensor>,
                  _layer_past: &Option<Vec<Tensor>>,
                  attention_mask: &Option<Tensor>,

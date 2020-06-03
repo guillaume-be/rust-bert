@@ -22,7 +22,7 @@ use tch::nn::{embedding, EmbeddingConfig};
 use crate::bart::attention::LayerState;
 use std::borrow::BorrowMut;
 use crate::common::dropout::Dropout;
-use crate::pipelines::generation::LMHeadModel;
+use crate::pipelines::generation::MutableLMHeadModel;
 
 /// # BART Pretrained model weight files
 pub struct BartModelResources;
@@ -625,7 +625,7 @@ impl BartForSequenceClassification {
     }
 }
 
-impl LMHeadModel for BartForConditionalGeneration {
+impl MutableLMHeadModel for BartForConditionalGeneration {
     /// Forward pass through the model
     ///
     /// # Arguments

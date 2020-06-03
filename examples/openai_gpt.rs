@@ -37,7 +37,7 @@ fn main() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer = OpenAiGptTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let config = Gpt2Config::from_file(config_path);
-    let mut openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
+    let openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input

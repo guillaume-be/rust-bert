@@ -445,7 +445,7 @@ impl LMHeadModel for GPT2LMHeadModel {
     ///
     /// ```
     ///
-    fn forward_t(&mut self,
+    fn forward_t(&self,
                  input_ids: &Option<Tensor>,
                  layer_past: &Option<Vec<Tensor>>,
                  attention_mask: &Option<Tensor>,

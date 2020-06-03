@@ -14,7 +14,7 @@
 use crate::bart::{BartModel, BartConfig};
 use tch::{Tensor, nn};
 use std::borrow::BorrowMut;
-use crate::pipelines::generation::LMHeadModel;
+use crate::pipelines::generation::MutableLMHeadModel;
 use tch::nn::Init;
 
 /// # Marian Pretrained model weight files
@@ -260,7 +260,7 @@ impl MarianForConditionalGeneration {
     }
 }
 
-impl LMHeadModel for MarianForConditionalGeneration {
+impl MutableLMHeadModel for MarianForConditionalGeneration {
     /// Forward pass through the model
     ///
     /// # Arguments

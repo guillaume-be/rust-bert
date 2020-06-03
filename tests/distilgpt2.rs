@@ -22,7 +22,7 @@ fn distilgpt2_lm_model() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = Gpt2Config::from_file(config_path);
-    let mut gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
+    let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
