@@ -1,7 +1,7 @@
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
 use rust_bert::Config;
-use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig, LMHeadModel};
+use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig, LMHeadModel, Cache};
 use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, Gpt2ConfigResources, Gpt2MergesResources, Gpt2VocabResources, Gpt2ModelResources};
 use rust_bert::resources::{RemoteResource, Resource, download_resource};
 
@@ -44,7 +44,7 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
 //    Forward pass
     let (output, _, past, _, _) = gpt2_model.forward_t(
         &Some(input_tensor),
-        &None,
+        &Cache::None,
         &None,
         &None,
         &None,
@@ -57,9 +57,14 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     let next_word = tokenizer.decode(vec!(next_word_id), true, true);
 
     assert_eq!(output.size(), vec!(1, 4, 50257));
-    assert!(past.is_some());
+    match past {
+        Cache::GPT2Cache(past) => {
+            assert!(past.is_some());
     assert_eq!(past.as_ref().unwrap().len(), config.n_layer as usize);
     assert_eq!(past.as_ref().unwrap()[0].size(), vec!(2, 1, config.n_head, 4, 64));
+        }
+        _ => panic!("Wrong cache returned for GPT2")
+    }
     assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (-69.4948)).abs() < 1e-4);
     assert_eq!(next_word_id, 1936i64);
     assert_eq!(next_word, String::from(" five"));

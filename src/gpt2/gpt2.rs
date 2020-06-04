@@ -21,7 +21,7 @@ use tch::kind::Kind::Int64;
 use std::borrow::BorrowMut;
 use crate::common::linear::{LinearNoBias, linear_no_bias};
 use crate::Config;
-use crate::pipelines::generation::LMHeadModel;
+use crate::pipelines::generation::{LMHeadModel, Cache};
 
 /// # GPT2 Pretrained model weight files
 pub struct Gpt2ModelResources;
@@ -447,26 +447,36 @@ impl LMHeadModel for GPT2LMHeadModel {
     ///
     fn forward_t(&self,
                  input_ids: &Option<Tensor>,
-                 layer_past: &Option<Vec<Tensor>>,
+                 layer_past: &Cache,
                  attention_mask: &Option<Tensor>,
                  token_type_ids: &Option<Tensor>,
                  position_ids: &Option<Tensor>,
                  input_embeds: &Option<Tensor>,
                  _encoder_outputs: Option<&Tensor>,
                  _decoder_input_ids: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Cache, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (output,
             past,
             all_hidden_states,
-            all_attentions) = self.transformer.forward_t(input_ids,
-                                                         layer_past,
+            all_attentions) = match layer_past {
+            Cache::GPT2Cache(layer_past) => Ok(self.transformer.forward_t(input_ids,
+                                                                          layer_past,
+                                                                          attention_mask,
+                                                                          token_type_ids,
+                                                                          position_ids,
+                                                                          input_embeds,
+                                                                          train)?),
+            Cache::None => Ok(self.transformer.forward_t(input_ids,
+                                                         &None,
                                                          attention_mask,
                                                          token_type_ids,
                                                          position_ids,
                                                          input_embeds,
-                                                         train)?;
+                                                         train)?),
+            _ => Err("Cache not compatible with GPT2 model")
+        }?;
 
         let lm_logits = output.apply(&self.lm_head);
-        Ok((lm_logits, None, past, all_hidden_states, all_attentions))
+        Ok((lm_logits, None, Cache::GPT2Cache(past), all_hidden_states, all_attentions))
     }
 }

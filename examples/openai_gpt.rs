@@ -16,7 +16,7 @@ use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
 use rust_bert::gpt2::Gpt2Config;
 use rust_bert::openai_gpt::{OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptVocabResources, OpenAiGptMergesResources, OpenAiGptModelResources};
-use rust_bert::pipelines::generation::LMHeadModel;
+use rust_bert::pipelines::generation::{LMHeadModel, Cache};
 use rust_bert::resources::{Resource, download_resource, RemoteResource};
 use rust_bert::Config;
 
@@ -59,7 +59,7 @@ fn main() -> failure::Fallible<()> {
 //    Forward pass
     let (output, _, _, _, _) = openai_gpt.forward_t(
         &Some(input_tensor),
-        &None,
+        &Cache::None,
         &None,
         &None,
         &None,
