@@ -61,7 +61,6 @@ impl LayerState {
         };
         LayerState { prev_key: new_key, prev_value: new_value, prev_key_padding_mask: new_key_padding_mask }
     }
-
 }
 
 
@@ -73,11 +72,11 @@ pub struct SelfAttention {
     scaling: f64,
     encoder_decoder_attention: bool,
     output_attentions: bool,
-    pub(crate) prev_state: Option<LayerState>,
     k_proj: nn::Linear,
     v_proj: nn::Linear,
     q_proj: nn::Linear,
     out_proj: nn::Linear,
+    store_cache: bool,
 }
 
 impl SelfAttention {
@@ -91,11 +90,6 @@ impl SelfAttention {
         let head_dim = embed_dim / num_heads;
         let scaling = (head_dim as f64).powf(-0.5);
         let dropout = Dropout::new(dropout);
-        let prev_state = if store_cache {
-            Some(LayerState { prev_key: None, prev_value: None, prev_key_padding_mask: None })
-        } else {
-            None
-        };
 
         SelfAttention {
             num_heads,
@@ -104,11 +98,11 @@ impl SelfAttention {
             scaling,
             encoder_decoder_attention,
             output_attentions,
-            prev_state,
             k_proj,
             v_proj,
             q_proj,
             out_proj,
+            store_cache,
         }
     }
 
@@ -153,14 +147,18 @@ impl SelfAttention {
 
         let (k, v, key_padding_mask) = self.use_saved_state(&old_layer_state, k, v, key_padding_mask, bs);
 
-        let new_layer_state = Some(LayerState {
-            prev_key: Some(k.view((bs, self.num_heads, -1, self.head_dim))),
-            prev_value: Some(v.view((bs, self.num_heads, -1, self.head_dim))),
-            prev_key_padding_mask: match key_padding_mask.as_ref() {
-                Some(tensor) => Some(tensor.copy()),
-                None => None
-            },
-        });
+        let new_layer_state = if self.store_cache {
+            Some(LayerState {
+                prev_key: Some(k.view((bs, self.num_heads, -1, self.head_dim))),
+                prev_value: Some(v.view((bs, self.num_heads, -1, self.head_dim))),
+                prev_key_padding_mask: match key_padding_mask.as_ref() {
+                    Some(tensor) => Some(tensor.copy()),
+                    None => None
+                },
+            })
+        } else {
+            None
+        };
 
         let source_sequence_length = k.size()[1];
         let attention_weights = q.bmm(&k.transpose(1, 2));
