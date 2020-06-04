@@ -32,6 +32,7 @@ features = [ "doc-only" ]
 [dependencies]
 rust_tokenizers = "~3.1.2"
 tch = "~0.1.7"
+torch-sys = "0.1.7"
 serde_json = "1.0.51"
 serde = {version = "1.0.106", features = ["derive"]}
 failure = "0.1.7"

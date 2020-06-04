@@ -498,7 +498,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         }
     }
 
-    fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
         Some(self.get_model().encode(input_ids, attention_mask))
     }
 
@@ -691,7 +691,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         }
     }
 
-    fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
         Some(self.get_model().encode(input_ids, attention_mask))
     }
 
@@ -701,7 +701,13 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
                                          past: Cache,
                                          _attention_mask: Tensor)
                                          -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Cache) {
-        (None, encoder_outputs, Some(input_ids), past)
+        match past {
+            Cache::BARTCache(past) => {
+                (None, encoder_outputs, Some(input_ids), Cache::BARTCache(past))
+            }
+            Cache::None => (None, encoder_outputs, Some(input_ids), Cache::BARTCache(None)),
+            _ => panic!("Cache type incompatible with Marian")
+        }
     }
 
     fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
@@ -803,7 +809,7 @@ mod private_generation_utils {
 
         fn prepare_scores_for_generation(&self, _scores: &mut Tensor, _current_length: i64, _max_length: i64) {}
 
-        fn encode(&mut self, _input_ids: &Tensor, _attention_mask: Option<&Tensor>) -> Option<Tensor> { None }
+        fn encode(&self, _input_ids: &Tensor, _attention_mask: Option<&Tensor>) -> Option<Tensor> { None }
 
         fn prepare_inputs_for_generation<'a>(&self,
                                              input_ids: Tensor,
@@ -1366,7 +1372,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
     ///# ;
     ///```
     ///
-    fn generate(&mut self, prompt_texts: Option<Vec<&str>>, attention_mask: Option<Tensor>)
+    fn generate(&self, prompt_texts: Option<Vec<&str>>, attention_mask: Option<Tensor>)
                 -> Vec<String> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 

@@ -136,7 +136,7 @@ impl BartDecoder {
     pub fn new(p: nn::Path, config: &BartConfig, generation_mode: bool) -> BartDecoder {
         let output_past = match config.output_past {
             Some(value) => value,
-            None => false
+            None => true
         };
         let output_attentions = match config.output_attentions {
             Some(value) => value,

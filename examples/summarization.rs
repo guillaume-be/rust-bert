@@ -13,9 +13,11 @@
 extern crate failure;
 
 use rust_bert::pipelines::summarization::SummarizationModel;
+use std::time::Instant;
 
 
 fn main() -> failure::Fallible<()> {
+    unsafe{ torch_sys::dummy_cuda_dependency(); }
     let mut summarization_model = SummarizationModel::new(Default::default())?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
@@ -41,9 +43,14 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
 //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let output = summarization_model.summarize(&input);
-    for sentence in output {
-        println!("{:?}", sentence);
+    let now = Instant::now();
+    for _ in 0..3 {
+        let output = summarization_model.summarize(&input);
+        for sentence in output {
+            println!("{:?}", sentence);
+        }
     }
+    println!("{:?}", now.elapsed().as_millis() / 3);
+
     Ok(())
 }

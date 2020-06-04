@@ -320,7 +320,6 @@ impl BartModel {
                                                              &self.embeddings,
                                                              old_layer_states,
                                                              train);
-
         (decoder_outputs, encoder_hidden_states, decoder_cache,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
