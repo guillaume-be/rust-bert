@@ -44,7 +44,7 @@ fn distilgpt2_lm_model() -> failure::Fallible<()> {
 //    Forward pass
     let (output, _, past, _, _) = gpt2_model.forward_t(
         &Some(input_tensor),
-        &Cache::None,
+        Cache::None,
         &None,
         &None,
         &None,

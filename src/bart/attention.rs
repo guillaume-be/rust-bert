@@ -27,6 +27,24 @@ pub struct LayerState {
     pub prev_key_padding_mask: Option<Tensor>,
 }
 
+impl Clone for LayerState {
+    fn clone(&self) -> Self {
+        let prev_key = match &self.prev_key {
+            Some(key) => Some(key.copy()),
+            None => None
+        };
+        let prev_value = match &self.prev_value {
+            Some(value) => Some(value.copy()),
+            None => None
+        };
+        let prev_key_padding_mask = match &self.prev_key_padding_mask {
+            Some(key_padding_mask) => Some(key_padding_mask.copy()),
+            None => None
+        };
+        LayerState { prev_key, prev_value, prev_key_padding_mask }
+    }
+}
+
 impl LayerState {
     pub(crate) fn reorder_cache(&self, new_indices: &Tensor) -> LayerState {
         let new_key = match &self.prev_key {
@@ -44,9 +62,6 @@ impl LayerState {
         LayerState { prev_key: new_key, prev_value: new_value, prev_key_padding_mask: new_key_padding_mask }
     }
 
-    pub(crate) fn reset_cache(&self) -> LayerState {
-        LayerState { prev_key: None, prev_value: None, prev_key_padding_mask: None}
-    }
 }
 
 
@@ -138,17 +153,15 @@ impl SelfAttention {
 
         let (k, v, key_padding_mask) = self.use_saved_state(&old_layer_state, k, v, key_padding_mask, bs);
 
-        let new_layer_state = match &old_layer_state {
-            Some(_) => Some(LayerState {
-                prev_key: Some(k.view((bs, self.num_heads, -1, self.head_dim))),
-                prev_value: Some(v.view((bs, self.num_heads, -1, self.head_dim))),
-                prev_key_padding_mask: match key_padding_mask.as_ref() {
-                    Some(tensor) => Some(tensor.copy()),
-                    None => None
-                },
-            }),
-            None => None
-        };
+        let new_layer_state = Some(LayerState {
+            prev_key: Some(k.view((bs, self.num_heads, -1, self.head_dim))),
+            prev_value: Some(v.view((bs, self.num_heads, -1, self.head_dim))),
+            prev_key_padding_mask: match key_padding_mask.as_ref() {
+                Some(tensor) => Some(tensor.copy()),
+                None => None
+            },
+        });
+
         let source_sequence_length = k.size()[1];
         let attention_weights = q.bmm(&k.transpose(1, 2));
         let attention_weights = match attention_mask {

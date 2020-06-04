@@ -23,7 +23,7 @@ fn bart_lm_model() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = BartConfig::from_file(config_path);
-    let mut bart_model = BartModel::new(&vs.root(), &config, false);
+    let bart_model = BartModel::new(&vs.root(), &config, false);
     vs.load(weights_path)?;
 
 //    Define input
@@ -45,6 +45,7 @@ fn bart_lm_model() -> failure::Fallible<()> {
 //    Forward pass
     let (output, encoder_outputs, _, _, _, _, _) = bart_model.forward_t(
         Some(&input_tensor),
+        None,
         None,
         None,
         None,

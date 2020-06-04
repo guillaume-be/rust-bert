@@ -35,7 +35,7 @@ fn main() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = BartConfig::from_file(config_path);
-    let mut bart_model = BartModel::new(&vs.root(), &config, false);
+    let bart_model = BartModel::new(&vs.root(), &config, false);
     vs.load(weights_path)?;
 
 //    Define input
@@ -81,6 +81,7 @@ about exoplanets like K2-18b."];
     let (decoder_output, encoder_output, _, _, _, _, _) = no_grad(|| {
         bart_model
             .forward_t(Some(&input_tensor),
+                       None,
                        None,
                        None,
                        None,

@@ -59,7 +59,7 @@ fn main() -> failure::Fallible<()> {
 //    Forward pass
     let (output, _, _, _, _) = openai_gpt.forward_t(
         &Some(input_tensor),
-        &Cache::None,
+        Cache::None,
         &None,
         &None,
         &None,

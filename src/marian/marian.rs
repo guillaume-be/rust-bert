@@ -13,7 +13,6 @@
 
 use crate::bart::{BartModel, BartConfig, LayerState};
 use tch::{Tensor, nn};
-use std::borrow::BorrowMut;
 use crate::pipelines::generation::{LMHeadModel, Cache};
 use tch::nn::Init;
 
@@ -227,7 +226,7 @@ impl MarianForConditionalGeneration {
     ///
     /// ```
     ///
-    pub fn forward_t(&mut self,
+    pub fn forward_t(&self,
                      input_ids: Option<&Tensor>,
                      attention_mask: Option<&Tensor>,
                      encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
@@ -242,7 +241,7 @@ impl MarianForConditionalGeneration {
         let (decoder_outputs, encoder_hidden_states, decoder_cache,
             all_decoder_hidden_states, all_decoder_attentions,
             all_encoder_hidden_states, all_encoder_attentions) =
-            self.borrow_mut().base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, old_layer_states, train);
+            self.base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, old_layer_states, train);
 
         let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
         (lm_logits, encoder_hidden_states, decoder_cache.1,
@@ -250,16 +249,9 @@ impl MarianForConditionalGeneration {
          all_encoder_hidden_states, all_encoder_attentions)
     }
 
-    pub(crate) fn get_base_model(&mut self) -> &mut BartModel { &mut self.base_model }
-
-    pub fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
+    pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
         let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, &self.base_model.embeddings, false);
         encoder_hidden_states
-    }
-
-    /// Resets the decoder cached keys and values. Should be run for every new generation using the model.
-    pub fn reset_cache(&mut self) {
-        self.get_base_model().reset_cache()
     }
 }
 
@@ -302,7 +294,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BartConfig::from_file(config_path);
-    ///# let mut marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
+    ///# let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -350,8 +342,8 @@ impl LMHeadModel for MarianForConditionalGeneration {
                                                      None,
                                                      None,
                                                      train),
-            _ => Err("Cache not compatible with Marian Model")
-        }?;
+            _ => Err("Cache not compatible with Marian Model")?
+        };
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None) + &self.final_logits_bias;
 

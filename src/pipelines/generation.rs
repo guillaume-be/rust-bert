@@ -508,7 +508,13 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
                                          past: Cache,
                                          _attention_mask: Tensor)
                                          -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Cache) {
-        (None, encoder_outputs, Some(input_ids), past)
+        match past {
+            Cache::BARTCache(past) => {
+                (None, encoder_outputs, Some(input_ids), Cache::BARTCache(past))
+            }
+            Cache::None => (None, encoder_outputs, Some(input_ids), Cache::BARTCache(None)),
+            _ => panic!("Cache type incompatible with BART")
+        }
     }
 
     fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
@@ -554,7 +560,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
                         let mut new_past = vec!();
                         for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
                             let new_self_layer_state = match self_layer_state {
-                                Some(self_layer_states) => Some(self_layer_state.reorder_cache(beam_indices)),
+                                Some(self_layer_state) => Some(self_layer_state.reorder_cache(beam_indices)),
                                 None => None
                             };
                             let new_encoder_layer_state = match encoder_layer_state {
@@ -564,18 +570,14 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
                             new_past.push((new_self_layer_state, new_encoder_layer_state));
                         };
                         Cache::BARTCache(Some(new_past))
-                    },
+                    }
                     None => Cache::BARTCache(None)
                 }
             }
             Cache::None => Cache::None,
-            _ => {panic!("Invalid cache for BART model");}
+            _ => { panic!("Invalid cache for BART model"); }
         };
         (new_past, encoder_outputs)
-    }
-
-    fn reset_cache(&mut self) {
-        self.get_model().reset_cache();
     }
 }
 
@@ -745,7 +747,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
                         let mut new_past = vec!();
                         for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
                             let new_self_layer_state = match self_layer_state {
-                                Some(self_layer_states) => Some(self_layer_state.reorder_cache(beam_indices)),
+                                Some(self_layer_state) => Some(self_layer_state.reorder_cache(beam_indices)),
                                 None => None
                             };
                             let new_encoder_layer_state = match encoder_layer_state {
@@ -755,23 +757,20 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
                             new_past.push((new_self_layer_state, new_encoder_layer_state));
                         };
                         Cache::BARTCache(Some(new_past))
-                    },
+                    }
                     None => Cache::BARTCache(None)
                 }
             }
             Cache::None => Cache::None,
-            _ => {panic!("Invalid cache for BART model");}
+            _ => { panic!("Invalid cache for BART model"); }
         };
         (new_past, encoder_outputs)
-    }
-
-    fn reset_cache(&mut self) {
-        self.get_model().reset_cache();
     }
 }
 
 impl LanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokenizer> for MarianGenerator {}
 
+#[derive(Debug)]
 pub enum Cache {
     GPT2Cache(Option<Vec<Tensor>>),
     BARTCache(Option<Vec<(Option<LayerState>, Option<LayerState>)>>),
@@ -967,6 +966,7 @@ mod private_generation_utils {
                                                                         encoder_outputs.as_ref(),
                                                                         past,
                                                                         attention_mask.copy());
+
                 let temp = self.get_model().forward_t(&prepared_input,
                                                       prepared_past,
                                                       &None,
@@ -978,6 +978,7 @@ mod private_generation_utils {
                                                       false).unwrap();
                 outputs = temp.0;
                 past = temp.2;
+
                 let mut next_token_logits = outputs.select(1, -1);
 //            Reduce probability for repeated inputs
                 if repetition_penalty > 1f64 {
@@ -1305,8 +1306,6 @@ mod private_generation_utils {
                 Cache::BARTCache(_) => { panic!("Not implemented"); }
             }
         }
-
-        fn reset_cache(&mut self) {}
     }
 }
 
@@ -1458,7 +1457,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
             (input_ids, attention_mask)
         };
 
-        self.reset_cache();
         let decoded = no_grad(|| {
             if num_beams > 1 {
                 self.generate_beam_search(input_ids, encoder_outputs, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,

@@ -72,8 +72,8 @@ impl EncoderLayer {
         EncoderLayer { self_attention, self_attention_layer_norm, dropout, activation_dropout, activation, fc1, fc2, final_layer_norm }
     }
 
-    pub fn forward_t(&mut self, x: &Tensor, encoder_padding_mask: Option<&Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
-        let (output, attention_weights, new_layer_state) = self.self_attention.forward_t(x, None, encoder_padding_mask, None, None, train);
+    pub fn forward_t(&self, x: &Tensor, encoder_padding_mask: Option<&Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
+        let (output, attention_weights, _) = self.self_attention.forward_t(x, None, encoder_padding_mask, None, None, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
         let output = output.apply(&self.self_attention_layer_norm);
 
@@ -188,7 +188,7 @@ impl BartEncoder {
 
         let mut hidden_state = x.copy();
         let mut attention_weights: Option<Tensor>;
-        let mut layers = self.layers.iter_mut();
+        let mut layers = self.layers.iter();
 
         loop {
             match layers.next() {

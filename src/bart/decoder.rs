@@ -96,9 +96,6 @@ impl DecoderLayer {
         }
     }
 
-    pub fn get_self_attention(&mut self) -> &mut SelfAttention { &mut self.self_attention }
-    pub fn get_encoder_attention(&mut self) -> &mut SelfAttention { &mut self.encoder_attention }
-
     pub fn forward_t(&self,
                      x: &Tensor,
                      encoder_hidden_states: &Tensor,
@@ -207,8 +204,6 @@ impl BartDecoder {
             scale_embedding
         }
     }
-
-    pub fn get_layers(&mut self) -> &mut Vec<DecoderLayer> { &mut self.layers }
 
     pub fn forward_t(&self,
                      input_ids: &Tensor,
