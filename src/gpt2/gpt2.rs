@@ -447,7 +447,7 @@ impl LMHeadModel for GPT2LMHeadModel {
     ///
     fn forward_t(&self,
                  input_ids: &Option<Tensor>,
-                 layer_past: &Cache,
+                 layer_past: Cache,
                  attention_mask: &Option<Tensor>,
                  token_type_ids: &Option<Tensor>,
                  position_ids: &Option<Tensor>,
@@ -460,7 +460,7 @@ impl LMHeadModel for GPT2LMHeadModel {
             all_hidden_states,
             all_attentions) = match layer_past {
             Cache::GPT2Cache(layer_past) => Ok(self.transformer.forward_t(input_ids,
-                                                                          layer_past,
+                                                                          &layer_past,
                                                                           attention_mask,
                                                                           token_type_ids,
                                                                           position_ids,

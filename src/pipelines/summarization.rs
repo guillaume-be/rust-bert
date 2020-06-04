@@ -63,7 +63,7 @@
 //!# ;
 //!```
 
-use crate::pipelines::generation::{BartGenerator, GenerateConfig, MutableLanguageGenerator};
+use crate::pipelines::generation::{BartGenerator, GenerateConfig, LanguageGenerator};
 use tch::Device;
 use crate::common::resources::{Resource, RemoteResource};
 use crate::bart::{BartModelResources, BartConfigResources, BartVocabResources, BartMergesResources};

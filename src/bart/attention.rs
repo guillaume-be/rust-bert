@@ -28,22 +28,24 @@ pub struct LayerState {
 }
 
 impl LayerState {
-    pub(crate) fn reorder_cache(&mut self, new_indices: &Tensor) {
-        if self.prev_key.is_some() {
-            self.prev_key = Some(self.prev_key.as_ref().unwrap().index_select(0, new_indices));
-        }
-        if self.prev_value.is_some() {
-            self.prev_value = Some(self.prev_value.as_ref().unwrap().index_select(0, new_indices));
-        }
-        if self.prev_key_padding_mask.is_some() {
-            self.prev_key_padding_mask = Some(self.prev_key_padding_mask.as_ref().unwrap().index_select(0, new_indices));
-        }
+    pub(crate) fn reorder_cache(&self, new_indices: &Tensor) -> LayerState {
+        let new_key = match &self.prev_key {
+            Some(value) => Some(value.index_select(0, new_indices)),
+            None => None
+        };
+        let new_value = match &self.prev_value {
+            Some(value) => Some(value.index_select(0, new_indices)),
+            None => None
+        };
+        let new_key_padding_mask = match &self.prev_key_padding_mask {
+            Some(value) => Some(value.index_select(0, new_indices)),
+            None => None
+        };
+        LayerState { prev_key: new_key, prev_value: new_value, prev_key_padding_mask: new_key_padding_mask }
     }
 
-    pub(crate) fn reset_cache(&mut self) {
-        self.prev_key = None;
-        self.prev_value = None;
-        self.prev_key_padding_mask = None;
+    pub(crate) fn reset_cache(&self) -> LayerState {
+        LayerState { prev_key: None, prev_value: None, prev_key_padding_mask: None}
     }
 }
 
@@ -99,15 +101,16 @@ impl SelfAttention {
         x.contiguous().view((dim_0, bs * self.num_heads, self.head_dim)).transpose(0, 1)
     }
 
-    pub fn forward_t(&mut self, query: &Tensor,
+    pub fn forward_t(&self, query: &Tensor,
                      key: Option<&Tensor>,
                      key_padding_mask: Option<&Tensor>,
                      attention_mask: Option<&Tensor>,
-                     train: bool) -> (Tensor, Option<Tensor>) {
+                     old_layer_state: Option<LayerState>,
+                     train: bool) -> (Tensor, Option<Tensor>, Option<LayerState>) {
         let query_size = query.size();
         let (target_sequence_length, bs) = (query_size[0], query_size[1]);
         let q: Tensor = self.flatten(query.as_ref().apply(&self.q_proj) * self.scaling, target_sequence_length, bs);
-        let key = match &self.prev_state {
+        let key = match &old_layer_state {
             Some(prev_state) => {
                 if prev_state.prev_key.is_some() & self.encoder_decoder_attention {
                     None
@@ -133,9 +136,9 @@ impl SelfAttention {
             )
         };
 
-        let (k, v, key_padding_mask) = self.use_saved_state(k, v, key_padding_mask, bs);
+        let (k, v, key_padding_mask) = self.use_saved_state(&old_layer_state, k, v, key_padding_mask, bs);
 
-        self.prev_state = match &self.prev_state {
+        let new_layer_state = match &old_layer_state {
             Some(_) => Some(LayerState {
                 prev_key: Some(k.view((bs, self.num_heads, -1, self.head_dim))),
                 prev_value: Some(v.view((bs, self.num_heads, -1, self.head_dim))),
@@ -179,12 +182,17 @@ impl SelfAttention {
             Some(attention_weights.view((bs, self.num_heads, target_sequence_length, source_sequence_length)))
         } else { None };
 
-        (output, attention_weights)
+        (output, attention_weights, new_layer_state)
     }
 
-    fn use_saved_state(&self, k: Option<Tensor>, v: Option<Tensor>, key_padding_mask: Option<&Tensor>, bs: i64)
+    fn use_saved_state(&self,
+                       layer_state: &Option<LayerState>,
+                       k: Option<Tensor>,
+                       v: Option<Tensor>,
+                       key_padding_mask: Option<&Tensor>,
+                       bs: i64)
                        -> (Tensor, Tensor, Option<Tensor>) {
-        match &self.prev_state {
+        match &layer_state {
             Some(prev_state) => {
                 let k = match &prev_state.prev_key {
                     Some(prev_key) => {

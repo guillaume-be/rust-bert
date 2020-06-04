@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartModel, BartConfig};
+use crate::bart::{BartModel, BartConfig, LayerState};
 use tch::{Tensor, nn};
 use std::borrow::BorrowMut;
-use crate::pipelines::generation::MutableLMHeadModel;
+use crate::pipelines::generation::{LMHeadModel, Cache};
 use tch::nn::Init;
 
 /// # Marian Pretrained model weight files
@@ -221,6 +221,7 @@ impl MarianForConditionalGeneration {
     ///                    None,
     ///                    Some(&target_tensor),
     ///                    Some(&decoder_attention_mask),
+    ///                    None,
     ///                    false)
     ///    });
     ///
@@ -232,18 +233,19 @@ impl MarianForConditionalGeneration {
                      encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
                      decoder_input_ids: Option<&Tensor>,
                      decoder_attention_mask: Option<&Tensor>,
+                     old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                      train: bool)
-                     -> (Tensor, Tensor,
+                     -> (Tensor, Tensor, Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                          Option<Vec<Tensor>>, Option<Vec<Tensor>>,
                          Option<Vec<Tensor>>, Option<Vec<Tensor>>)
     {
-        let (decoder_outputs, encoder_hidden_states, _,
+        let (decoder_outputs, encoder_hidden_states, decoder_cache,
             all_decoder_hidden_states, all_decoder_attentions,
             all_encoder_hidden_states, all_encoder_attentions) =
-            self.borrow_mut().base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, train);
+            self.borrow_mut().base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, old_layer_states, train);
 
         let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        (lm_logits, encoder_hidden_states,
+        (lm_logits, encoder_hidden_states, decoder_cache.1,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
     }
@@ -261,7 +263,7 @@ impl MarianForConditionalGeneration {
     }
 }
 
-impl MutableLMHeadModel for MarianForConditionalGeneration {
+impl LMHeadModel for MarianForConditionalGeneration {
     /// Forward pass through the model
     ///
     /// # Arguments
@@ -316,30 +318,43 @@ impl MutableLMHeadModel for MarianForConditionalGeneration {
     ///                    None,
     ///                    Some(&target_tensor),
     ///                    Some(&decoder_attention_mask),
+    ///                    None,
     ///                    false)
     ///    });
     ///
     /// ```
     ///
-    fn forward_t(&mut self,
+    fn forward_t(&self,
                  input_ids: &Option<Tensor>,
-                 _layer_past: &Option<Vec<Tensor>>,
+                 cache: Cache,
                  attention_mask: &Option<Tensor>,
                  _token_type_ids: &Option<Tensor>,
                  _position_ids: &Option<Tensor>,
                  _input_embeds: &Option<Tensor>,
                  encoder_outputs: Option<&Tensor>,
                  decoder_input_ids: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (decoder_output, encoder_hidden_states, _, _, _, _, _) = self.base_model.forward_t(input_ids.as_ref(),
-                                                                                               attention_mask.as_ref(),
-                                                                                               decoder_input_ids.as_ref(),
-                                                                                               Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
-                                                                                               None,
-                                                                                               train);
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Cache, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (decoder_output, encoder_hidden_states, new_cache, _, _, _, _) = match cache {
+            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(input_ids.as_ref(),
+                                                                               attention_mask.as_ref(),
+                                                                               decoder_input_ids.as_ref(),
+                                                                               Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                                                                               None,
+                                                                               cached_layer_states,
+                                                                               train),
+
+            Cache::None => self.base_model.forward_t(input_ids.as_ref(),
+                                                     attention_mask.as_ref(),
+                                                     decoder_input_ids.as_ref(),
+                                                     Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                                                     None,
+                                                     None,
+                                                     train),
+            _ => Err("Cache not compatible with Marian Model")
+        }?;
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None) + &self.final_logits_bias;
 
-        Ok((lm_logits, Some(encoder_hidden_states), None, None, None))
+        Ok((lm_logits, Some(encoder_hidden_states), Cache::BARTCache(new_cache.1), None, None))
     }
 }

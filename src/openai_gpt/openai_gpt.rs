@@ -341,7 +341,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///
     fn forward_t(&self,
                  input_ids: &Option<Tensor>,
-                 _layer_past: &Cache,
+                 _layer_past: Cache,
                  attention_mask: &Option<Tensor>,
                  token_type_ids: &Option<Tensor>,
                  position_ids: &Option<Tensor>,

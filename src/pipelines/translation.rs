@@ -54,7 +54,7 @@
 //!# ;
 //!```
 
-use crate::pipelines::generation::{MarianGenerator, GenerateConfig, MutableLanguageGenerator};
+use crate::pipelines::generation::{MarianGenerator, GenerateConfig, LanguageGenerator};
 use tch::Device;
 use crate::common::resources::{Resource, RemoteResource};
 use crate::marian::{MarianModelResources, MarianConfigResources, MarianVocabResources, MarianSpmResources, MarianPrefix};
