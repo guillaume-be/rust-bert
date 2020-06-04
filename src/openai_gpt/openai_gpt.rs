@@ -311,7 +311,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///# use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::Gpt2Config;
     /// use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
-    /// use rust_bert::pipelines::generation::LMHeadModel;
+    /// use rust_bert::pipelines::generation::{LMHeadModel, Cache};
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
@@ -327,7 +327,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///  let (output, _, _, hidden_states, attentions) = no_grad(|| {
     ///    gpt_model
     ///         .forward_t(&Some(input_tensor),
-    ///                    &None,
+    ///                    &Cache::None,
     ///                    &Some(attention_mask),
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),

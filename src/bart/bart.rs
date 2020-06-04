@@ -657,35 +657,30 @@ impl MutableLMHeadModel for BartForConditionalGeneration {
     ///# use rust_bert::Config;
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
     /// use rust_bert::pipelines::generation::LMHeadModel;
+    /// use rust_bert::bart::{BartForConditionalGeneration, BartConfig};
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
-    ///# let config = Gpt2Config::from_file(config_path);
-    ///# let mut gpt2_model: GPT2LMHeadModel = GPT2LMHeadModel::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
-    ///  for _ in 0..config.n_layer as usize {
-    ///    past.push(Tensor::rand(&[2, batch_size, config.n_head, past_sequence_length, config.n_embd / config.n_head], (Double, device)))
-    /// }
-    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///# let config = BartConfig::from_file(config_path);
+    ///# let mut bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (output, encoder_hidden_states, _, hidden_states, attentions) = no_grad(|| {
-    ///    gpt2_model
-    ///         .forward_t(&Some(input_tensor),
-    ///                    &Some(past),
-    ///                    &Some(attention_mask),
-    ///                    &Some(token_type_ids),
-    ///                    &Some(position_ids),
-    ///                    &None,
+    ///  let (decoder_output, encoder_hidden_states,
+    ///       all_encoder_hidden_states, all_encoder_attentions,
+    ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
+    ///    bart_model
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&encoder_attention_mask),
     ///                    None,
-    ///                    &None,
-    ///                    false).unwrap()
+    ///                    Some(&target_tensor),
+    ///                    Some(&decoder_attention_mask),
+    ///                    false)
     ///    });
     ///
     /// ```

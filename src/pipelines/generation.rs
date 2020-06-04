@@ -2227,7 +2227,7 @@ pub trait LMHeadModel {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
-    /// use rust_bert::pipelines::generation::LMHeadModel;
+    /// use rust_bert::pipelines::generation::{LMHeadModel, Cache};
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
@@ -2247,7 +2247,7 @@ pub trait LMHeadModel {
     ///  let (output, encoder_output, past, hidden_states, attentions) = no_grad(|| {
     ///    gpt2_model
     ///         .forward_t(&Some(input_tensor),
-    ///                    &Some(past),
+    ///                    &Cache::GPT2Cache(Some(past)),
     ///                    &Some(attention_mask),
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),
@@ -2301,7 +2301,7 @@ pub trait MutableLMHeadModel {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
-    /// use rust_bert::pipelines::generation::LMHeadModel;
+    /// use rust_bert::pipelines::generation::{LMHeadModel, Cache};
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
@@ -2321,7 +2321,7 @@ pub trait MutableLMHeadModel {
     ///  let (output, encoder_output, past, hidden_states, attentions) = no_grad(|| {
     ///    gpt2_model
     ///         .forward_t(&Some(input_tensor),
-    ///                    &Some(past),
+    ///                    &Cache::GPT2Cache(Some(past)),
     ///                    &Some(attention_mask),
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),
