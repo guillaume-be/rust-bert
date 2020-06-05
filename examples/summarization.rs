@@ -18,7 +18,7 @@ use std::time::Instant;
 
 fn main() -> failure::Fallible<()> {
     unsafe{ torch_sys::dummy_cuda_dependency(); }
-    let mut summarization_model = SummarizationModel::new(Default::default())?;
+    let summarization_model = SummarizationModel::new(Default::default())?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \

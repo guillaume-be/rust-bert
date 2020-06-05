@@ -69,7 +69,7 @@ fn bart_summarization_greedy() -> failure::Fallible<()> {
         device: Device::Cpu,
         ..Default::default()
     };
-    let mut model = SummarizationModel::new(summarization_config)?;
+    let model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
@@ -114,7 +114,7 @@ fn bart_summarization_beam_search() -> failure::Fallible<()> {
         device: Device::Cpu,
         ..Default::default()
     };
-    let mut model = SummarizationModel::new(summarization_config)?;
+    let model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \

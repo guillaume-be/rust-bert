@@ -548,12 +548,12 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         Tensor::stack(&token_ids, 0)
     }
 
-    fn reorder_cache(&self, past: Cache, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> (Cache, Option<Tensor>) {
+    fn reorder_cache(&self, past: &mut Cache, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> Option<Tensor> {
         let encoder_outputs = match encoder_outputs {
             Some(value) => Some(value.index_select(0, beam_indices)),
             None => None
         };
-        let new_past = match past {
+        match past {
             Cache::BARTCache(old_cache_option) => {
                 match old_cache_option {
                     Some(old_cache) => {
@@ -569,15 +569,14 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
                             };
                             new_past.push((new_self_layer_state, new_encoder_layer_state));
                         };
-                        Cache::BARTCache(Some(new_past))
                     }
-                    None => Cache::BARTCache(None)
+                    None => { }
                 }
             }
-            Cache::None => Cache::None,
+            Cache::None => {},
             _ => { panic!("Invalid cache for BART model"); }
         };
-        (new_past, encoder_outputs)
+        encoder_outputs
     }
 }
 
@@ -741,12 +740,12 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         Tensor::stack(&token_ids, 0)
     }
 
-    fn reorder_cache(&self, past: Cache, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> (Cache, Option<Tensor>) {
+    fn reorder_cache(&self, past: &mut Cache, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> Option<Tensor> {
         let encoder_outputs = match encoder_outputs {
             Some(value) => Some(value.index_select(0, beam_indices)),
             None => None
         };
-        let new_past = match past {
+        match past {
             Cache::BARTCache(old_cache_option) => {
                 match old_cache_option {
                     Some(old_cache) => {
@@ -762,15 +761,14 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
                             };
                             new_past.push((new_self_layer_state, new_encoder_layer_state));
                         };
-                        Cache::BARTCache(Some(new_past))
                     }
-                    None => Cache::BARTCache(None)
+                    None => { }
                 }
             }
-            Cache::None => Cache::None,
+            Cache::None => {},
             _ => { panic!("Invalid cache for BART model"); }
         };
-        (new_past, encoder_outputs)
+        encoder_outputs
     }
 }
 
@@ -1216,9 +1214,9 @@ mod private_generation_utils {
 
                 input_ids = input_ids.index_select(0, &beam_indices);
                 input_ids = Tensor::cat(&[input_ids, beam_tokens.unsqueeze(1)], -1);
-                let temp_past = self.reorder_cache(past, encoder_outputs, &beam_indices);
-                past = temp_past.0;
-                encoder_outputs = temp_past.1;
+                encoder_outputs = self.reorder_cache(&mut past, encoder_outputs, &beam_indices);
+                // past = temp_past.0;
+                // encoder_outputs = temp_past.1;
                 if !self.is_encoder_decoder() {
                     attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
                                                                                          (Int64, attention_mask.device())).as_ref()], -1);
@@ -1293,20 +1291,20 @@ mod private_generation_utils {
             decoded
         }
 
-        fn reorder_cache(&self, past: Cache, _encoder_outputs: Option<Tensor>, beam_indices: &Tensor)
-                         -> (Cache, Option<Tensor>) {
+        fn reorder_cache(&self, past: &mut Cache, _encoder_outputs: Option<Tensor>, beam_indices: &Tensor)
+                         -> Option<Tensor> {
             match past {
-                Cache::None => { (Cache::None, None) }
+                Cache::None => { None }
                 Cache::GPT2Cache(cached_decoder_state) => {
                     match cached_decoder_state {
                         Some(value) => {
-                            let mut reordered_past = vec!();
-                            for layer_past in value.iter() {
-                                reordered_past.push(layer_past.index_select(1, beam_indices));
+                            // let mut reordered_past = vec!();
+                            for layer_past in value.iter_mut() {
+                                *layer_past = layer_past.index_select(1, beam_indices);
                             }
-                            (Cache::GPT2Cache(Some(reordered_past)), None)
+                            None
                         }
-                        None => (Cache::GPT2Cache(None), None)
+                        None => None
                     }
                 }
                 Cache::BARTCache(_) => { panic!("Not implemented"); }

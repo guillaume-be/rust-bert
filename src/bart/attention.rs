@@ -46,22 +46,36 @@ impl Clone for LayerState {
 }
 
 impl LayerState {
-    pub(crate) fn reorder_cache(&self, new_indices: &Tensor) -> LayerState {
-        let new_key = match &self.prev_key {
-            Some(value) => Some(value.index_select(0, new_indices)),
-            None => None
-        };
-        let new_value = match &self.prev_value {
-            Some(value) => Some(value.index_select(0, new_indices)),
-            None => None
-        };
-        let new_key_padding_mask = match &self.prev_key_padding_mask {
-            Some(value) => Some(value.index_select(0, new_indices)),
-            None => None
-        };
-        LayerState { prev_key: new_key, prev_value: new_value, prev_key_padding_mask: new_key_padding_mask }
+    pub(crate) fn reorder_cache(&mut self, new_indices: &Tensor) {
+        if self.prev_key.is_some() {
+            self.prev_key = Some(self.prev_key.as_ref().unwrap().index_select(0, new_indices));
+        }
+        if self.prev_value.is_some() {
+            self.prev_value = Some(self.prev_value.as_ref().unwrap().index_select(0, new_indices));
+        }
+        if self.prev_key_padding_mask.is_some() {
+            self.prev_key_padding_mask = Some(self.prev_key_padding_mask.as_ref().unwrap().index_select(0, new_indices));
+        }
     }
 }
+
+// impl LayerState {
+//     pub(crate) fn reorder_cache(&self, new_indices: &Tensor) -> LayerState {
+//         let new_key = match &self.prev_key {
+//             Some(value) => Some(value.index_select(0, new_indices)),
+//             None => None
+//         };
+//         let new_value = match &self.prev_value {
+//             Some(value) => Some(value.index_select(0, new_indices)),
+//             None => None
+//         };
+//         let new_key_padding_mask = match &self.prev_key_padding_mask {
+//             Some(value) => Some(value.index_select(0, new_indices)),
+//             None => None
+//         };
+//         LayerState { prev_key: new_key, prev_value: new_value, prev_key_padding_mask: new_key_padding_mask }
+//     }
+// }
 
 
 #[derive(Debug)]

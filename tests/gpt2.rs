@@ -94,7 +94,7 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
         repetition_penalty: 1.1,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(generate_config)?;
+    let model = GPT2Generator::new(generate_config)?;
 
     let input_context = "The cat";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -126,7 +126,7 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(generate_config)?;
+    let model = GPT2Generator::new(generate_config)?;
 
     let input_context = "The dog";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -160,7 +160,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fa
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(generate_config)?;
+    let model = GPT2Generator::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat";
@@ -198,7 +198,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(generate_config)?;
+    let model = GPT2Generator::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";

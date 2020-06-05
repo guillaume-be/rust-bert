@@ -87,7 +87,7 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
         temperature: 1.1,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(generate_config)?;
+    let model = OpenAIGenerator::new(generate_config)?;
 
     let input_context = "It was an intense machine dialogue. ";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -119,7 +119,7 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(generate_config)?;
+    let model = OpenAIGenerator::new(generate_config)?;
 
     let input_context = "The dog is";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -153,7 +153,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(generate_config)?;
+    let model = OpenAIGenerator::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat";
@@ -194,7 +194,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure:
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(generate_config)?;
+    let model = OpenAIGenerator::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat was in";
