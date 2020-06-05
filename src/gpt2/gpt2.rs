@@ -433,7 +433,7 @@ impl LMHeadModel for GPT2LMHeadModel {
     ///  let (output, _, past, hidden_states, attentions) = no_grad(|| {
     ///    gpt2_model
     ///         .forward_t(&Some(input_tensor),
-    ///                    &Cache::GPT2Cache(Some(past)),
+    ///                    Cache::GPT2Cache(Some(past)),
     ///                    &Some(attention_mask),
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),

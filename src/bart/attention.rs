@@ -20,62 +20,36 @@ use tch::kind::Kind::Float;
 /// Stores the cached value of key, value and key padding mask to avoid recalculation (e.g. at each generation step)
 pub struct LayerState {
     /// Cached keys
-    pub prev_key: Option<Tensor>,
+    pub prev_key: Tensor,
     /// Cached values
-    pub prev_value: Option<Tensor>,
+    pub prev_value: Tensor,
     /// Cached keys padding mask
     pub prev_key_padding_mask: Option<Tensor>,
 }
 
 impl Clone for LayerState {
     fn clone(&self) -> Self {
-        let prev_key = match &self.prev_key {
-            Some(key) => Some(key.copy()),
-            None => None
-        };
-        let prev_value = match &self.prev_value {
-            Some(value) => Some(value.copy()),
-            None => None
-        };
         let prev_key_padding_mask = match &self.prev_key_padding_mask {
             Some(key_padding_mask) => Some(key_padding_mask.copy()),
             None => None
         };
-        LayerState { prev_key, prev_value, prev_key_padding_mask }
+        LayerState {
+            prev_key: self.prev_key.copy(),
+            prev_value: self.prev_value.copy(),
+            prev_key_padding_mask,
+        }
     }
 }
 
 impl LayerState {
     pub(crate) fn reorder_cache(&mut self, new_indices: &Tensor) {
-        if self.prev_key.is_some() {
-            self.prev_key = Some(self.prev_key.as_ref().unwrap().index_select(0, new_indices));
-        }
-        if self.prev_value.is_some() {
-            self.prev_value = Some(self.prev_value.as_ref().unwrap().index_select(0, new_indices));
-        }
+        self.prev_key = self.prev_key.index_select(0, new_indices);
+        self.prev_value = self.prev_value.index_select(0, new_indices);
         if self.prev_key_padding_mask.is_some() {
             self.prev_key_padding_mask = Some(self.prev_key_padding_mask.as_ref().unwrap().index_select(0, new_indices));
         }
     }
 }
-
-// impl LayerState {
-//     pub(crate) fn reorder_cache(&self, new_indices: &Tensor) -> LayerState {
-//         let new_key = match &self.prev_key {
-//             Some(value) => Some(value.index_select(0, new_indices)),
-//             None => None
-//         };
-//         let new_value = match &self.prev_value {
-//             Some(value) => Some(value.index_select(0, new_indices)),
-//             None => None
-//         };
-//         let new_key_padding_mask = match &self.prev_key_padding_mask {
-//             Some(value) => Some(value.index_select(0, new_indices)),
-//             None => None
-//         };
-//         LayerState { prev_key: new_key, prev_value: new_value, prev_key_padding_mask: new_key_padding_mask }
-//     }
-// }
 
 
 #[derive(Debug)]
@@ -134,13 +108,7 @@ impl SelfAttention {
         let (target_sequence_length, bs) = (query_size[0], query_size[1]);
         let q: Tensor = self.flatten(query.as_ref().apply(&self.q_proj) * self.scaling, target_sequence_length, bs);
         let key = match &old_layer_state {
-            Some(prev_state) => {
-                if prev_state.prev_key.is_some() & self.encoder_decoder_attention {
-                    None
-                } else {
-                    key
-                }
-            }
+            Some(_) => { if self.encoder_decoder_attention { None } else { key } }
             None => key
         };
 
@@ -163,8 +131,8 @@ impl SelfAttention {
 
         let new_layer_state = if self.store_cache {
             Some(LayerState {
-                prev_key: Some(k.view((bs, self.num_heads, -1, self.head_dim))),
-                prev_value: Some(v.view((bs, self.num_heads, -1, self.head_dim))),
+                prev_key: k.view((bs, self.num_heads, -1, self.head_dim)),
+                prev_value: v.view((bs, self.num_heads, -1, self.head_dim)),
                 prev_key_padding_mask: match key_padding_mask.as_ref() {
                     Some(tensor) => Some(tensor.copy()),
                     None => None
@@ -219,28 +187,19 @@ impl SelfAttention {
                        -> (Tensor, Tensor, Option<Tensor>) {
         match &layer_state {
             Some(prev_state) => {
-                let k = match &prev_state.prev_key {
-                    Some(prev_key) => {
-                        let prev_key = prev_key.view((bs * self.num_heads, -1, self.head_dim));
-                        if self.encoder_decoder_attention {
-                            prev_key
-                        } else {
-                            Tensor::cat(&[prev_key, k.unwrap()], 1)
-                        }
-                    }
-                    None => k.unwrap()
+                let prev_key = prev_state.prev_key.view((bs * self.num_heads, -1, self.head_dim));
+                let prev_value = prev_state.prev_value.view((bs * self.num_heads, -1, self.head_dim));
+                let k = if self.encoder_decoder_attention {
+                    prev_key
+                } else {
+                    Tensor::cat(&[prev_key, k.unwrap()], 1)
                 };
-                let v = match &prev_state.prev_value {
-                    Some(prev_value) => {
-                        let prev_value = prev_value.view((bs * self.num_heads, -1, self.head_dim));
-                        if self.encoder_decoder_attention {
-                            prev_value
-                        } else {
-                            Tensor::cat(&[prev_value, v.unwrap()], 1)
-                        }
-                    }
-                    None => v.unwrap()
+                let v = if self.encoder_decoder_attention {
+                    prev_value
+                } else {
+                    Tensor::cat(&[prev_value, v.unwrap()], 1)
                 };
+
                 let key_padding_mask = self.use_saved_key_padding_mask(key_padding_mask,
                                                                        &prev_state.prev_key_padding_mask,
                                                                        bs,

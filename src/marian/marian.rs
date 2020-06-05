@@ -211,7 +211,7 @@ impl MarianForConditionalGeneration {
     ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states,
+    ///  let (decoder_output, encoder_hidden_states, cache,
     ///       all_encoder_hidden_states, all_encoder_attentions,
     ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
     ///    marian_model
@@ -301,7 +301,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
     ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states,
+    ///  let (decoder_output, encoder_hidden_states, cache,
     ///       all_encoder_hidden_states, all_encoder_attentions,
     ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
     ///    marian_model

@@ -327,7 +327,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///  let (output, _, _, hidden_states, attentions) = no_grad(|| {
     ///    gpt_model
     ///         .forward_t(&Some(input_tensor),
-    ///                    &Cache::None,
+    ///                    Cache::None,
     ///                    &Some(attention_mask),
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),

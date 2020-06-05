@@ -44,13 +44,13 @@ about exoplanets like K2-18b."];
 
 //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
     let now = Instant::now();
-    for _ in 0..3 {
-        let output = summarization_model.summarize(&input);
-        for sentence in output {
+    for _ in 0..5 {
+        let _output = summarization_model.summarize(&input);
+        for sentence in _output {
             println!("{:?}", sentence);
         }
     }
-    println!("{:?}", now.elapsed().as_millis() / 3);
+    println!("{:?}", now.elapsed().as_millis() / 5);
 
     Ok(())
 }
