@@ -67,7 +67,7 @@ use crate::openai_gpt::{OpenAIGPTLMHeadModel, OpenAiGptModelResources, OpenAiGpt
 use crate::gpt2::{Gpt2Config, GPT2LMHeadModel, Gpt2ModelResources, Gpt2ConfigResources, Gpt2VocabResources, Gpt2MergesResources};
 use crate::Config;
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
-use crate::bart::{BartConfig, BartForConditionalGeneration, BartModelResources, BartConfigResources, BartVocabResources, BartMergesResources};
+use crate::bart::{BartConfig, BartForConditionalGeneration, BartModelResources, BartConfigResources, BartVocabResources, BartMergesResources, LayerState};
 use crate::common::resources::{Resource, RemoteResource, download_resource};
 use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
 use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
@@ -247,7 +247,7 @@ impl OpenAIGenerator {
 }
 
 impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer> for OpenAIGenerator {
-    fn get_model(&mut self) -> &mut OpenAIGPTLMHeadModel { &mut self.model }
+    fn get_model(&self) -> &OpenAIGPTLMHeadModel { &self.model }
     fn get_tokenizer(&self) -> &OpenAiGptTokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
     fn get_config(&self) -> &GenerateConfig { &self.generate_config }
@@ -327,7 +327,7 @@ impl GPT2Generator {
 }
 
 impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {
-    fn get_model(&mut self) -> &mut GPT2LMHeadModel { &mut self.model }
+    fn get_model(&self) -> &GPT2LMHeadModel { &self.model }
     fn get_tokenizer(&self) -> &Gpt2Tokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
     fn get_config(&self) -> &GenerateConfig { &self.generate_config }
@@ -341,13 +341,19 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     fn prepare_inputs_for_generation<'a>(&self,
                                          input_ids: Tensor,
                                          _encoder_outputs: Option<&'a Tensor>,
-                                         past: Option<Vec<Tensor>>,
+                                         past: Cache,
                                          _attention_mask: Tensor)
-                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
-        if past.is_some() {
-            (Some(input_ids.select(1, -1).unsqueeze(-1)), None, None, past)
-        } else {
-            (Some(input_ids), None, None, past)
+                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Cache) {
+        match past {
+            Cache::GPT2Cache(past) => {
+                if past.is_some() {
+                    (Some(input_ids.select(1, -1).unsqueeze(-1)), None, None, Cache::GPT2Cache(past))
+                } else {
+                    (Some(input_ids), None, None, Cache::GPT2Cache(None))
+                }
+            }
+            Cache::None => (Some(input_ids), None, None, Cache::GPT2Cache(None)),
+            _ => panic!("Cache type incompatible with GPT2")
         }
     }
 }
@@ -473,7 +479,7 @@ impl BartGenerator {
 }
 
 impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer> for BartGenerator {
-    fn get_model(&mut self) -> &mut BartForConditionalGeneration { &mut self.model }
+    fn get_model(&self) -> &BartForConditionalGeneration { &self.model }
     fn get_tokenizer(&self) -> &RobertaTokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
     fn get_config(&self) -> &GenerateConfig { &self.generate_config }
@@ -492,17 +498,23 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         }
     }
 
-    fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
         Some(self.get_model().encode(input_ids, attention_mask))
     }
 
     fn prepare_inputs_for_generation<'a>(&self,
                                          input_ids: Tensor,
                                          encoder_outputs: Option<&'a Tensor>,
-                                         _past: Option<Vec<Tensor>>,
+                                         past: Cache,
                                          _attention_mask: Tensor)
-                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
-        (None, encoder_outputs, Some(input_ids), None)
+                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Cache) {
+        match past {
+            Cache::BARTCache(past) => {
+                (None, encoder_outputs, Some(input_ids), Cache::BARTCache(past))
+            }
+            Cache::None => (None, encoder_outputs, Some(input_ids), Cache::BARTCache(None)),
+            _ => panic!("Cache type incompatible with BART")
+        }
     }
 
     fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
@@ -536,20 +548,35 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         Tensor::stack(&token_ids, 0)
     }
 
-    fn reorder_cache(&mut self, _past: Option<Vec<Tensor>>, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> (Option<Vec<Tensor>>, Option<Tensor>) {
+    fn reorder_cache(&self, past: &mut Cache, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> Option<Tensor> {
         let encoder_outputs = match encoder_outputs {
             Some(value) => Some(value.index_select(0, beam_indices)),
             None => None
         };
-        for layer in self.get_model().get_base_model().get_decoder().get_layers() {
-            layer.get_self_attention().prev_state.as_mut().unwrap().reorder_cache(beam_indices);
-            layer.get_encoder_attention().prev_state.as_mut().unwrap().reorder_cache(beam_indices);
+        match past {
+            Cache::BARTCache(old_cache_option) => {
+                match old_cache_option {
+                    Some(old_cache) => {
+                        let mut new_past = vec!();
+                        for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
+                            let new_self_layer_state = match self_layer_state {
+                                Some(self_layer_state) => Some(self_layer_state.reorder_cache(beam_indices)),
+                                None => None
+                            };
+                            let new_encoder_layer_state = match encoder_layer_state {
+                                Some(encoder_layer_state) => Some(encoder_layer_state.reorder_cache(beam_indices)),
+                                None => None
+                            };
+                            new_past.push((new_self_layer_state, new_encoder_layer_state));
+                        };
+                    }
+                    None => { }
+                }
+            }
+            Cache::None => {},
+            _ => { panic!("Invalid cache for BART model"); }
         };
-        (None, encoder_outputs)
-    }
-
-    fn reset_cache(&mut self) {
-        self.get_model().reset_cache();
+        encoder_outputs
     }
 }
 
@@ -645,7 +672,7 @@ impl MarianGenerator {
 }
 
 impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokenizer> for MarianGenerator {
-    fn get_model(&mut self) -> &mut MarianForConditionalGeneration { &mut self.model }
+    fn get_model(&self) -> &MarianForConditionalGeneration { &self.model }
     fn get_tokenizer(&self) -> &MarianTokenizer { &self.tokenizer }
     fn get_var_store(&self) -> &nn::VarStore { &self.var_store }
     fn get_config(&self) -> &GenerateConfig { &self.generate_config }
@@ -663,17 +690,23 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         }
     }
 
-    fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
         Some(self.get_model().encode(input_ids, attention_mask))
     }
 
     fn prepare_inputs_for_generation<'a>(&self,
                                          input_ids: Tensor,
                                          encoder_outputs: Option<&'a Tensor>,
-                                         _past: Option<Vec<Tensor>>,
+                                         past: Cache,
                                          _attention_mask: Tensor)
-                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
-        (None, encoder_outputs, Some(input_ids), None)
+                                         -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Cache) {
+        match past {
+            Cache::BARTCache(past) => {
+                (None, encoder_outputs, Some(input_ids), Cache::BARTCache(past))
+            }
+            Cache::None => (None, encoder_outputs, Some(input_ids), Cache::BARTCache(None)),
+            _ => panic!("Cache type incompatible with Marian")
+        }
     }
 
     fn encode_prompt_text(&self, prompt_text: Vec<&str>, max_len: u64, pad_token_id: Option<i64>) -> Tensor {
@@ -707,24 +740,46 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         Tensor::stack(&token_ids, 0)
     }
 
-    fn reorder_cache(&mut self, _past: Option<Vec<Tensor>>, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> (Option<Vec<Tensor>>, Option<Tensor>) {
+    fn reorder_cache(&self, past: &mut Cache, encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> Option<Tensor> {
         let encoder_outputs = match encoder_outputs {
             Some(value) => Some(value.index_select(0, beam_indices)),
             None => None
         };
-        for layer in self.get_model().get_base_model().get_decoder().get_layers() {
-            layer.get_self_attention().prev_state.as_mut().unwrap().reorder_cache(beam_indices);
-            layer.get_encoder_attention().prev_state.as_mut().unwrap().reorder_cache(beam_indices);
+        match past {
+            Cache::BARTCache(old_cache_option) => {
+                match old_cache_option {
+                    Some(old_cache) => {
+                        let mut new_past = vec!();
+                        for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
+                            let new_self_layer_state = match self_layer_state {
+                                Some(self_layer_state) => Some(self_layer_state.reorder_cache(beam_indices)),
+                                None => None
+                            };
+                            let new_encoder_layer_state = match encoder_layer_state {
+                                Some(encoder_layer_state) => Some(encoder_layer_state.reorder_cache(beam_indices)),
+                                None => None
+                            };
+                            new_past.push((new_self_layer_state, new_encoder_layer_state));
+                        };
+                    }
+                    None => { }
+                }
+            }
+            Cache::None => {},
+            _ => { panic!("Invalid cache for BART model"); }
         };
-        (None, encoder_outputs)
-    }
-
-    fn reset_cache(&mut self) {
-        self.get_model().reset_cache();
+        encoder_outputs
     }
 }
 
 impl LanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokenizer> for MarianGenerator {}
+
+#[derive(Debug)]
+pub enum Cache {
+    GPT2Cache(Option<Vec<Tensor>>),
+    BARTCache(Option<Vec<(Option<LayerState>, Option<LayerState>)>>),
+    None,
+}
 
 mod private_generation_utils {
     use rust_tokenizers::{Vocab, Tokenizer, TruncationStrategy};
@@ -733,12 +788,12 @@ mod private_generation_utils {
     use std::collections::HashMap;
     use tch::kind::Kind::{Int64, Float, Bool};
     use std::cmp::{min, max};
-    use crate::pipelines::generation::{BeamHypotheses, GenerateConfig, LMHeadModel};
+    use crate::pipelines::generation::{BeamHypotheses, GenerateConfig, LMHeadModel, Cache};
     use itertools::Itertools;
     use super::ordered_float::OrderedFloat;
 
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
-        fn get_model(&mut self) -> &mut T;
+        fn get_model(&self) -> &T;
         fn get_tokenizer(&self) -> &U;
         fn get_var_store(&self) -> &nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
@@ -749,16 +804,17 @@ mod private_generation_utils {
         fn get_vocab_size(&self) -> i64;
         fn get_decoder_start_id(&self) -> Option<i64>;
 
+
         fn prepare_scores_for_generation(&self, _scores: &mut Tensor, _current_length: i64, _max_length: i64) {}
 
-        fn encode(&mut self, _input_ids: &Tensor, _attention_mask: Option<&Tensor>) -> Option<Tensor> { None }
+        fn encode(&self, _input_ids: &Tensor, _attention_mask: Option<&Tensor>) -> Option<Tensor> { None }
 
         fn prepare_inputs_for_generation<'a>(&self,
                                              input_ids: Tensor,
                                              _encoder_outputs: Option<&'a Tensor>,
-                                             past: Option<Vec<Tensor>>,
+                                             past: Cache,
                                              _attention_mask: Tensor)
-                                             -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Option<Vec<Tensor>>) {
+                                             -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Cache) {
             (Some(input_ids), None, None, past)
         }
 
@@ -893,7 +949,7 @@ mod private_generation_utils {
             }
         }
 
-        fn generate_no_beam_search(&mut self, input_ids: Tensor, encoder_outputs: Option<Tensor>,
+        fn generate_no_beam_search(&self, input_ids: Tensor, encoder_outputs: Option<Tensor>,
                                    cur_len: i64, min_length: i64, max_length: i64, do_sample: bool,
                                    temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
                                    pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
@@ -902,7 +958,7 @@ mod private_generation_utils {
             let mut sentence_lengths: Tensor = Tensor::ones(&[batch_size], (Int64, self.get_var_store().device())) * max_length as i64;
             let mut attention_mask = attention_mask.copy();
             let mut input_ids = input_ids.copy();
-            let mut past: Option<Vec<Tensor>> = None;
+            let mut past: Cache = Cache::None;
             let mut outputs: Tensor;
             let mut current_length = cur_len;
 
@@ -914,8 +970,9 @@ mod private_generation_utils {
                                                                         encoder_outputs.as_ref(),
                                                                         past,
                                                                         attention_mask.copy());
+
                 let temp = self.get_model().forward_t(&prepared_input,
-                                                      &prepared_past,
+                                                      prepared_past,
                                                       &None,
                                                       &None,
                                                       &None,
@@ -925,6 +982,7 @@ mod private_generation_utils {
                                                       false).unwrap();
                 outputs = temp.0;
                 past = temp.2;
+
                 let mut next_token_logits = outputs.select(1, -1);
 //            Reduce probability for repeated inputs
                 if repetition_penalty > 1f64 {
@@ -1001,7 +1059,7 @@ mod private_generation_utils {
             decoded
         }
 
-        fn generate_beam_search(&mut self, input_ids: Tensor, encoder_outputs: Option<Tensor>,
+        fn generate_beam_search(&self, input_ids: Tensor, encoder_outputs: Option<Tensor>,
                                 cur_len: i64, min_length: i64, max_length: i64, do_sample: bool, early_stopping: bool,
                                 temperature: f64, top_k: i64, top_p: f64, repetition_penalty: f64, no_repeat_ngram_size: i64,
                                 pad_token_id: Option<i64>, eos_token_ids: Option<Vec<i64>>,
@@ -1019,7 +1077,7 @@ mod private_generation_utils {
             let mut beam_scores = beam_scores.view_(&[-1]);
             let mut beam_tokens: Tensor;
             let mut beam_indices: Tensor;
-            let mut past: Option<Vec<Tensor>> = None;
+            let mut past: Cache = Cache::None;
             let mut done = vec!(false; batch_size as usize);
 
             let mut attention_mask = attention_mask.copy();
@@ -1037,7 +1095,7 @@ mod private_generation_utils {
                                                                         past,
                                                                         attention_mask.copy());
                 let temp = self.get_model().forward_t(&prepared_input,
-                                                      &prepared_past,
+                                                      prepared_past,
                                                       &None,
                                                       &None,
                                                       &None,
@@ -1046,7 +1104,6 @@ mod private_generation_utils {
                                                       &prepared_decoder_input,
                                                       false).unwrap();
                 outputs = temp.0;
-                encoder_outputs = temp.1;
                 past = temp.2;
 
                 let mut next_token_logits = outputs.select(1, -1);
@@ -1157,9 +1214,9 @@ mod private_generation_utils {
 
                 input_ids = input_ids.index_select(0, &beam_indices);
                 input_ids = Tensor::cat(&[input_ids, beam_tokens.unsqueeze(1)], -1);
-                let temp_past = self.reorder_cache(past, encoder_outputs, &beam_indices);
-                past = temp_past.0;
-                encoder_outputs = temp_past.1;
+                encoder_outputs = self.reorder_cache(&mut past, encoder_outputs, &beam_indices);
+                // past = temp_past.0;
+                // encoder_outputs = temp_past.1;
                 if !self.is_encoder_decoder() {
                     attention_mask = Tensor::cat(&[attention_mask.as_ref(), Tensor::ones(&[*attention_mask.size().first().unwrap(), 1],
                                                                                          (Int64, attention_mask.device())).as_ref()], -1);
@@ -1234,20 +1291,25 @@ mod private_generation_utils {
             decoded
         }
 
-        fn reorder_cache(&mut self, past: Option<Vec<Tensor>>, _encoder_outputs: Option<Tensor>, beam_indices: &Tensor) -> (Option<Vec<Tensor>>, Option<Tensor>) {
+        fn reorder_cache(&self, past: &mut Cache, _encoder_outputs: Option<Tensor>, beam_indices: &Tensor)
+                         -> Option<Tensor> {
             match past {
-                Some(value) => {
-                    let mut reordered_past = vec!();
-                    for layer_past in value.iter() {
-                        reordered_past.push(layer_past.index_select(1, beam_indices));
+                Cache::None => { None }
+                Cache::GPT2Cache(cached_decoder_state) => {
+                    match cached_decoder_state {
+                        Some(value) => {
+                            // let mut reordered_past = vec!();
+                            for layer_past in value.iter_mut() {
+                                *layer_past = layer_past.index_select(1, beam_indices);
+                            }
+                            None
+                        }
+                        None => None
                     }
-                    (Some(reordered_past), None)
                 }
-                None => (None, None)
+                Cache::BARTCache(_) => { panic!("Not implemented"); }
             }
         }
-
-        fn reset_cache(&mut self) {}
     }
 }
 
@@ -1308,7 +1370,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
     ///# ;
     ///```
     ///
-    fn generate(&mut self, prompt_texts: Option<Vec<&str>>, attention_mask: Option<Tensor>)
+    fn generate(&self, prompt_texts: Option<Vec<&str>>, attention_mask: Option<Tensor>)
                 -> Vec<String> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
@@ -1399,7 +1461,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>: PrivateL
             (input_ids, attention_mask)
         };
 
-        self.reset_cache();
         let decoded = no_grad(|| {
             if num_beams > 1 {
                 self.generate_beam_search(input_ids, encoder_outputs, cur_len, min_length as i64, max_length as i64, do_sample, early_stopping, temperature, top_k as i64, top_p, repetition_penalty,
@@ -1523,7 +1584,7 @@ pub trait LMHeadModel {
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
-    /// use rust_bert::pipelines::generation::LMHeadModel;
+    /// use rust_bert::pipelines::generation::{LMHeadModel, Cache};
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
@@ -1543,7 +1604,7 @@ pub trait LMHeadModel {
     ///  let (output, encoder_output, past, hidden_states, attentions) = no_grad(|| {
     ///    gpt2_model
     ///         .forward_t(&Some(input_tensor),
-    ///                    &Some(past),
+    ///                    Cache::GPT2Cache(Some(past)),
     ///                    &Some(attention_mask),
     ///                    &Some(token_type_ids),
     ///                    &Some(position_ids),
@@ -1555,14 +1616,14 @@ pub trait LMHeadModel {
     ///
     /// ```
     ///
-    fn forward_t(&mut self,
+    fn forward_t(&self,
                  input_ids: &Option<Tensor>,
-                 layer_past: &Option<Vec<Tensor>>,
+                 layer_past: Cache,
                  attention_mask: &Option<Tensor>,
                  token_type_ids: &Option<Tensor>,
                  position_ids: &Option<Tensor>,
                  input_embeds: &Option<Tensor>,
                  encoder_outputs: Option<&Tensor>,
                  decoder_input_ids: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str>;
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Cache, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str>;
 }

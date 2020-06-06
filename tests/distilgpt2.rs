@@ -2,7 +2,7 @@ use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
 use rust_bert::Config;
 use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, Gpt2ConfigResources, Gpt2VocabResources, Gpt2MergesResources, Gpt2ModelResources};
-use rust_bert::pipelines::generation::LMHeadModel;
+use rust_bert::pipelines::generation::{LMHeadModel, Cache};
 use rust_bert::resources::{Resource, download_resource, RemoteResource};
 
 #[test]
@@ -22,7 +22,7 @@ fn distilgpt2_lm_model() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = Gpt2Config::from_file(config_path);
-    let mut gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
+    let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -44,7 +44,7 @@ fn distilgpt2_lm_model() -> failure::Fallible<()> {
 //    Forward pass
     let (output, _, past, _, _) = gpt2_model.forward_t(
         &Some(input_tensor),
-        &None,
+        Cache::None,
         &None,
         &None,
         &None,
@@ -57,9 +57,14 @@ fn distilgpt2_lm_model() -> failure::Fallible<()> {
     let next_word = tokenizer.decode(vec!(next_word_id), true, true);
 
     assert_eq!(output.size(), vec!(1, 11, 50257));
-    assert!(past.is_some());
-    assert_eq!(past.as_ref().unwrap().len(), config.n_layer as usize);
-    assert_eq!(past.as_ref().unwrap()[0].size(), vec!(2, 1, config.n_head, 11, 64));
+    match past {
+        Cache::GPT2Cache(past) => {
+            assert!(past.is_some());
+            assert_eq!(past.as_ref().unwrap().len(), config.n_layer as usize);
+            assert_eq!(past.as_ref().unwrap()[0].size(), vec!(2, 1, config.n_head, 11, 64));
+        }
+        _ => panic!("Wrong cache returned for GPT2")
+    }
     assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (-48.7065)).abs() < 1e-4);
     assert_eq!(next_word_id, 14104i64);
     assert_eq!(next_word, String::from(" twelve"));

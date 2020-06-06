@@ -22,7 +22,7 @@ use tch::nn::{embedding, EmbeddingConfig};
 use crate::bart::attention::LayerState;
 use std::borrow::BorrowMut;
 use crate::common::dropout::Dropout;
-use crate::pipelines::generation::LMHeadModel;
+use crate::pipelines::generation::{Cache, LMHeadModel};
 
 /// # BART Pretrained model weight files
 pub struct BartModelResources;
@@ -222,8 +222,6 @@ impl BartModel {
         BartModel { encoder, decoder, generation_mode, pad_token_id, embeddings }
     }
 
-    pub(crate) fn get_decoder(&mut self) -> &mut BartDecoder { &mut self.decoder }
-
     /// Forward pass through the model
     ///
     /// # Arguments
@@ -261,7 +259,7 @@ impl BartModel {
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BartConfig::from_file(config_path);
-    ///# let mut bart_model: BartModel = BartModel::new(&vs.root(), &config, false);
+    ///# let bart_model: BartModel = BartModel::new(&vs.root(), &config, false);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -277,19 +275,21 @@ impl BartModel {
     ///                    Some(&target_tensor),
     ///                    None,
     ///                    Some(&decoder_attention_mask),
+    ///                    None,
     ///                    false)
     ///    });
     ///
     /// ```
     ///
-    pub fn forward_t(&mut self,
+    pub fn forward_t(&self,
                      input_ids: Option<&Tensor>,
                      attention_mask: Option<&Tensor>,
                      decoder_input_ids: Option<&Tensor>,
                      encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
                      decoder_attention_mask: Option<&Tensor>,
+                     layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                      train: bool) ->
-                     (Tensor, Tensor, (Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>),
+                     (Tensor, Tensor, Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                       Option<Vec<Tensor>>, Option<Vec<Tensor>>,
                       Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let (decoder_input_ids, decoder_padding_mask, causal_mask) = if self.generation_mode {
@@ -318,20 +318,13 @@ impl BartModel {
                                                              decoder_padding_mask.as_ref(),
                                                              causal_mask.as_ref(),
                                                              &self.embeddings,
+                                                             layer_states,
                                                              train);
-
-        (decoder_outputs, encoder_hidden_states, decoder_cache,
+        (decoder_outputs, encoder_hidden_states, decoder_cache.1,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
     }
 
-    /// Resets the decoder cached keys and values. Should be run for every new generation using the model.
-    pub fn reset_cache(&mut self) {
-        for layer in self.get_decoder().get_layers() {
-            layer.get_self_attention().prev_state.as_mut().unwrap().reset_cache();
-            layer.get_encoder_attention().prev_state.as_mut().unwrap().reset_cache();
-        };
-    }
 }
 
 /// # BART Model for conditional generation
@@ -407,14 +400,14 @@ impl BartForConditionalGeneration {
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BartConfig::from_file(config_path);
-    ///# let mut bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    ///# let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states,
+    ///  let (decoder_output, encoder_hidden_states, cache,
     ///       all_encoder_hidden_states, all_encoder_attentions,
     ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
     ///    bart_model
@@ -423,44 +416,40 @@ impl BartForConditionalGeneration {
     ///                    None,
     ///                    Some(&target_tensor),
     ///                    Some(&decoder_attention_mask),
+    ///                    None,
     ///                    false)
     ///    });
     ///
     /// ```
     ///
-    pub fn forward_t(&mut self,
+    pub fn forward_t(&self,
                      input_ids: Option<&Tensor>,
                      attention_mask: Option<&Tensor>,
                      encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
                      decoder_input_ids: Option<&Tensor>,
                      decoder_attention_mask: Option<&Tensor>,
+                     old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                      train: bool)
-                     -> (Tensor, Tensor,
+                     -> (Tensor, Tensor, Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                          Option<Vec<Tensor>>, Option<Vec<Tensor>>,
                          Option<Vec<Tensor>>, Option<Vec<Tensor>>)
     {
-        let (decoder_outputs, encoder_hidden_states, _,
+        let (decoder_outputs, encoder_hidden_states, decoder_cache,
             all_decoder_hidden_states, all_decoder_attentions,
             all_encoder_hidden_states, all_encoder_attentions) =
-            self.borrow_mut().base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, train);
+            self.base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, old_layer_states, train);
 
         let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        (lm_logits, encoder_hidden_states,
+        (lm_logits, encoder_hidden_states, decoder_cache,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
     }
 
-    pub(crate) fn get_base_model(&mut self) -> &mut BartModel { &mut self.base_model }
-
-    pub fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
+    pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
         let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, &self.base_model.embeddings, false);
         encoder_hidden_states
     }
 
-    /// Resets the decoder cached keys and values. Should be run for every new generation using the model.
-    pub fn reset_cache(&mut self) {
-        self.get_base_model().reset_cache()
-    }
 }
 
 pub struct BartClassificationHead {
@@ -569,14 +558,14 @@ impl BartForSequenceClassification {
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BartConfig::from_file(config_path);
-    ///# let mut bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    ///# let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states,
+    ///  let (decoder_output, encoder_hidden_states, cache,
     ///       all_encoder_hidden_states, all_encoder_attentions,
     ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
     ///    bart_model
@@ -585,6 +574,7 @@ impl BartForSequenceClassification {
     ///                    None,
     ///                    Some(&target_tensor),
     ///                    Some(&decoder_attention_mask),
+    ///                    None,
     ///                    false)
     ///    });
     ///
@@ -603,7 +593,7 @@ impl BartForSequenceClassification {
         let (decoder_outputs, encoder_hidden_states, _,
             all_decoder_hidden_states, all_decoder_attentions,
             all_encoder_hidden_states, all_encoder_attentions) =
-            self.borrow_mut().base_model.forward_t(Some(input_ids), attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, train);
+            self.borrow_mut().base_model.forward_t(Some(input_ids), attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, None, train);
 
         let eos_mask = input_ids.eq(self.eos_token_id);
         let sentence_representation = decoder_outputs
@@ -617,12 +607,6 @@ impl BartForSequenceClassification {
          all_encoder_hidden_states, all_encoder_attentions)
     }
 
-    pub(crate) fn get_base_model(&mut self) -> &mut BartModel { &mut self.base_model }
-
-    /// Resets the decoder cached keys and values. Should be run for every new generation using the model.
-    pub fn reset_cache(&mut self) {
-        self.get_base_model().reset_cache()
-    }
 }
 
 impl LMHeadModel for BartForConditionalGeneration {
@@ -657,57 +641,65 @@ impl LMHeadModel for BartForConditionalGeneration {
     ///# use rust_bert::Config;
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
     /// use rust_bert::pipelines::generation::LMHeadModel;
+    /// use rust_bert::bart::{BartForConditionalGeneration, BartConfig};
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
-    ///# let config = Gpt2Config::from_file(config_path);
-    ///# let mut gpt2_model: GPT2LMHeadModel = GPT2LMHeadModel::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
-    ///  for _ in 0..config.n_layer as usize {
-    ///    past.push(Tensor::rand(&[2, batch_size, config.n_head, past_sequence_length, config.n_embd / config.n_head], (Double, device)))
-    /// }
-    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///# let config = BartConfig::from_file(config_path);
+    ///# let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (output, encoder_hidden_states, _, hidden_states, attentions) = no_grad(|| {
-    ///    gpt2_model
-    ///         .forward_t(&Some(input_tensor),
-    ///                    &Some(past),
-    ///                    &Some(attention_mask),
-    ///                    &Some(token_type_ids),
-    ///                    &Some(position_ids),
-    ///                    &None,
+    ///  let (decoder_output, encoder_hidden_states, cache,
+    ///       all_encoder_hidden_states, all_encoder_attentions,
+    ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
+    ///    bart_model
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&encoder_attention_mask),
     ///                    None,
-    ///                    &None,
-    ///                    false).unwrap()
+    ///                    Some(&target_tensor),
+    ///                    Some(&decoder_attention_mask),
+    ///                    None,
+    ///                    false)
     ///    });
     ///
     /// ```
     ///
-    fn forward_t(&mut self,
+    fn forward_t(&self,
                  input_ids: &Option<Tensor>,
-                 _layer_past: &Option<Vec<Tensor>>,
+                 cache: Cache,
                  attention_mask: &Option<Tensor>,
                  _token_type_ids: &Option<Tensor>,
                  _position_ids: &Option<Tensor>,
                  _input_embeds: &Option<Tensor>,
                  encoder_outputs: Option<&Tensor>,
                  decoder_input_ids: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (decoder_output, encoder_hidden_states, _, _, _, _, _) = self.base_model.forward_t(input_ids.as_ref(),
-                                                                                               attention_mask.as_ref(),
-                                                                                               decoder_input_ids.as_ref(),
-                                                                                               Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
-                                                                                               None,
-                                                                                               train);
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Cache, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (decoder_output, encoder_hidden_states, new_cache, _, _, _, _) = match cache {
+            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(input_ids.as_ref(),
+                                                                               attention_mask.as_ref(),
+                                                                               decoder_input_ids.as_ref(),
+                                                                               Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                                                                               None,
+                                                                               cached_layer_states,
+                                                                               train),
+
+            Cache::None => self.base_model.forward_t(input_ids.as_ref(),
+                                                     attention_mask.as_ref(),
+                                                     decoder_input_ids.as_ref(),
+                                                     Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                                                     None,
+                                                     None,
+                                                     train),
+            _ => Err("Cache not compatible with BART Model")?
+        };
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        Ok((lm_logits, Some(encoder_hidden_states), None, None, None))
+        Ok((lm_logits, Some(encoder_hidden_states), Cache::BARTCache(new_cache), None, None))
     }
 }

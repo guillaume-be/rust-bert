@@ -23,7 +23,7 @@ fn bart_lm_model() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = BartConfig::from_file(config_path);
-    let mut bart_model = BartModel::new(&vs.root(), &config, false);
+    let bart_model = BartModel::new(&vs.root(), &config, false);
     vs.load(weights_path)?;
 
 //    Define input
@@ -49,6 +49,7 @@ fn bart_lm_model() -> failure::Fallible<()> {
         None,
         None,
         None,
+        None,
         false);
 
     assert_eq!(output.size(), vec!(1, 6, 1024));
@@ -68,7 +69,7 @@ fn bart_summarization_greedy() -> failure::Fallible<()> {
         device: Device::Cpu,
         ..Default::default()
     };
-    let mut model = SummarizationModel::new(summarization_config)?;
+    let model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
@@ -113,7 +114,7 @@ fn bart_summarization_beam_search() -> failure::Fallible<()> {
         device: Device::Cpu,
         ..Default::default()
     };
-    let mut model = SummarizationModel::new(summarization_config)?;
+    let model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \

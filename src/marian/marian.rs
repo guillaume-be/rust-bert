@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartModel, BartConfig};
+use crate::bart::{BartModel, BartConfig, LayerState};
 use tch::{Tensor, nn};
-use std::borrow::BorrowMut;
-use crate::pipelines::generation::LMHeadModel;
+use crate::pipelines::generation::{LMHeadModel, Cache};
 use tch::nn::Init;
 
 /// # Marian Pretrained model weight files
@@ -198,65 +197,61 @@ impl MarianForConditionalGeneration {
     ///# use rust_bert::Config;
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
+    /// use rust_bert::bart::{BartConfig};
+    /// use rust_bert::marian::MarianForConditionalGeneration;
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
     ///# let config = BartConfig::from_file(config_path);
-    ///# let mut bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    ///# let mut marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states,
+    ///  let (decoder_output, encoder_hidden_states, cache,
     ///       all_encoder_hidden_states, all_encoder_attentions,
     ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
-    ///    bart_model
+    ///    marian_model
     ///         .forward_t(Some(&input_tensor),
     ///                    Some(&encoder_attention_mask),
     ///                    None,
     ///                    Some(&target_tensor),
     ///                    Some(&decoder_attention_mask),
+    ///                    None,
     ///                    false)
     ///    });
     ///
     /// ```
     ///
-    pub fn forward_t(&mut self,
+    pub fn forward_t(&self,
                      input_ids: Option<&Tensor>,
                      attention_mask: Option<&Tensor>,
                      encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
                      decoder_input_ids: Option<&Tensor>,
                      decoder_attention_mask: Option<&Tensor>,
+                     old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                      train: bool)
-                     -> (Tensor, Tensor,
+                     -> (Tensor, Tensor, Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                          Option<Vec<Tensor>>, Option<Vec<Tensor>>,
                          Option<Vec<Tensor>>, Option<Vec<Tensor>>)
     {
-        let (decoder_outputs, encoder_hidden_states, _,
+        let (decoder_outputs, encoder_hidden_states, decoder_cache,
             all_decoder_hidden_states, all_decoder_attentions,
             all_encoder_hidden_states, all_encoder_attentions) =
-            self.borrow_mut().base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, train);
+            self.base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, old_layer_states, train);
 
         let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        (lm_logits, encoder_hidden_states,
+        (lm_logits, encoder_hidden_states, decoder_cache,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
     }
 
-    pub(crate) fn get_base_model(&mut self) -> &mut BartModel { &mut self.base_model }
-
-    pub fn encode(&mut self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
+    pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
         let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, &self.base_model.embeddings, false);
         encoder_hidden_states
-    }
-
-    /// Resets the decoder cached keys and values. Should be run for every new generation using the model.
-    pub fn reset_cache(&mut self) {
-        self.get_base_model().reset_cache()
     }
 }
 
@@ -292,58 +287,64 @@ impl LMHeadModel for MarianForConditionalGeneration {
     ///# use rust_bert::Config;
     ///# use std::path::Path;
     ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
-    /// use rust_bert::pipelines::generation::LMHeadModel;
+    /// use rust_bert::bart::{BartConfig};
+    /// use rust_bert::marian::MarianForConditionalGeneration;
     ///# let config_path = Path::new("path/to/config.json");
     ///# let vocab_path = Path::new("path/to/vocab.txt");
     ///# let device = Device::Cpu;
     ///# let vs = nn::VarStore::new(device);
-    ///# let config = Gpt2Config::from_file(config_path);
-    ///# let mut gpt2_model: GPT2LMHeadModel = GPT2LMHeadModel::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
-    ///  for _ in 0..config.n_layer as usize {
-    ///    past.push(Tensor::rand(&[2, batch_size, config.n_head, past_sequence_length, config.n_embd / config.n_head], (Double, device)))
-    /// }
-    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///# let config = BartConfig::from_file(config_path);
+    ///# let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
+    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (output, encoder_hidden_states, _, hidden_states, attentions) = no_grad(|| {
-    ///    gpt2_model
-    ///         .forward_t(&Some(input_tensor),
-    ///                    &Some(past),
-    ///                    &Some(attention_mask),
-    ///                    &Some(token_type_ids),
-    ///                    &Some(position_ids),
-    ///                    &None,
+    ///  let (decoder_output, encoder_hidden_states, cache,
+    ///       all_encoder_hidden_states, all_encoder_attentions,
+    ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
+    ///    marian_model
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&encoder_attention_mask),
     ///                    None,
-    ///                    &None,
-    ///                    false).unwrap()
+    ///                    Some(&target_tensor),
+    ///                    Some(&decoder_attention_mask),
+    ///                    None,
+    ///                    false)
     ///    });
     ///
     /// ```
     ///
-    fn forward_t(&mut self,
+    fn forward_t(&self,
                  input_ids: &Option<Tensor>,
-                 _layer_past: &Option<Vec<Tensor>>,
+                 cache: Cache,
                  attention_mask: &Option<Tensor>,
                  _token_type_ids: &Option<Tensor>,
                  _position_ids: &Option<Tensor>,
                  _input_embeds: &Option<Tensor>,
                  encoder_outputs: Option<&Tensor>,
                  decoder_input_ids: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Tensor>, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (decoder_output, encoder_hidden_states, _, _, _, _, _) = self.base_model.forward_t(input_ids.as_ref(),
-                                                                                               attention_mask.as_ref(),
-                                                                                               decoder_input_ids.as_ref(),
-                                                                                               Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
-                                                                                               None,
-                                                                                               train);
+                 train: bool) -> Result<(Tensor, Option<Tensor>, Cache, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (decoder_output, encoder_hidden_states, new_cache, _, _, _, _) = match cache {
+            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(input_ids.as_ref(),
+                                                                               attention_mask.as_ref(),
+                                                                               decoder_input_ids.as_ref(),
+                                                                               Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                                                                               None,
+                                                                               cached_layer_states,
+                                                                               train),
+            Cache::None => self.base_model.forward_t(input_ids.as_ref(),
+                                                     attention_mask.as_ref(),
+                                                     decoder_input_ids.as_ref(),
+                                                     Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                                                     None,
+                                                     None,
+                                                     train),
+            _ => Err("Cache not compatible with Marian Model")?
+        };
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None) + &self.final_logits_bias;
-
-        Ok((lm_logits, Some(encoder_hidden_states), None, None, None))
+        Ok((lm_logits, Some(encoder_hidden_states), Cache::BARTCache(new_cache), None, None))
     }
 }

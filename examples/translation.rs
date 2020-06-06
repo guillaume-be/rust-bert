@@ -18,9 +18,8 @@ use tch::Device;
 
 fn main() -> failure::Fallible<()> {
 
-
     let translation_config = TranslationConfig::new(Language::EnglishToGerman, Device::cuda_if_available());
-    let mut model = TranslationModel::new(translation_config)?;
+    let model = TranslationModel::new(translation_config)?;
 
     let input_context_1 = "The quick brown fox jumps over the lazy dog";
     let input_context_2 = "The dog did not wake up";

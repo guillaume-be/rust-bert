@@ -96,20 +96,18 @@ impl DecoderLayer {
         }
     }
 
-    pub fn get_self_attention(&mut self) -> &mut SelfAttention { &mut self.self_attention }
-    pub fn get_encoder_attention(&mut self) -> &mut SelfAttention { &mut self.encoder_attention }
-
-    pub fn forward_t(&mut self,
+    pub fn forward_t(&self,
                      x: &Tensor,
                      encoder_hidden_states: &Tensor,
                      encoder_attn_mask: Option<&Tensor>,
                      causal_mask: Option<&Tensor>,
                      decoder_padding_mask: Option<&Tensor>,
-                     train: bool) -> (Tensor, Option<Tensor>) {
-        let (output, attention_weights) = self.self_attention.forward_t(x, Some(x), decoder_padding_mask, causal_mask, train);
+                     layer_states: (Option<LayerState>, Option<LayerState>),
+                     train: bool) -> (Tensor, Option<Tensor>, (Option<LayerState>, Option<LayerState>)) {
+        let (output, attention_weights, new_self_layer_states) = self.self_attention.forward_t(x, Some(x), decoder_padding_mask, causal_mask, layer_states.0, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
         let output = output.apply(&self.self_attention_layer_norm);
-        let (output1, _) = self.encoder_attention.forward_t(&output, Some(encoder_hidden_states), encoder_attn_mask, None, train);
+        let (output1, _, new_encoder_layer_states) = self.encoder_attention.forward_t(&output, Some(encoder_hidden_states), encoder_attn_mask, None, layer_states.1, train);
         let output1: Tensor = output1.apply_t(&self.dropout, train) + output;
         let output1 = output1.apply(&self.encoder_attention_layer_norm);
         let output2 = (self.activation)(&output1.apply(&self.fc1));
@@ -118,7 +116,7 @@ impl DecoderLayer {
             .apply(&self.fc2)
             .apply_t(&self.dropout, train);
         let output2: Tensor = output2 + output1;
-        (output2.apply(&self.final_layer_norm), attention_weights)
+        (output2.apply(&self.final_layer_norm), attention_weights, (new_self_layer_states, new_encoder_layer_states))
     }
 }
 
@@ -138,7 +136,7 @@ impl BartDecoder {
     pub fn new(p: nn::Path, config: &BartConfig, generation_mode: bool) -> BartDecoder {
         let output_past = match config.output_past {
             Some(value) => value,
-            None => false
+            None => true
         };
         let output_attentions = match config.output_attentions {
             Some(value) => value,
@@ -157,7 +155,7 @@ impl BartDecoder {
             None => false
         };
         let scale_embedding = match config.scale_embedding {
-            Some(value) => if value {(config.d_model as f64).sqrt()} else { 1.0 },
+            Some(value) => if value { (config.d_model as f64).sqrt() } else { 1.0 },
             None => 1.0
         };
 
@@ -203,22 +201,21 @@ impl BartDecoder {
             output_hidden_states,
             output_past,
             generation_mode,
-            scale_embedding
+            scale_embedding,
         }
     }
 
-    pub fn get_layers(&mut self) -> &mut Vec<DecoderLayer> { &mut self.layers }
-
-    pub fn forward_t(&mut self,
+    pub fn forward_t(&self,
                      input_ids: &Tensor,
                      encoder_hidden_states: &Tensor,
                      encoder_padding_mask: Option<&Tensor>,
                      decoder_padding_mask: Option<&Tensor>,
                      decoder_causal_mask: Option<&Tensor>,
                      embeddings: &nn::Embedding,
+                     old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                      train: bool)
                      -> (Tensor,
-                         (Option<Tensor>, Option<Vec<(&LayerState, &LayerState)>>),
+                         (Option<Tensor>, Option<Vec<(Option<LayerState>, Option<LayerState>)>>),
                          Option<Vec<Tensor>>,
                          Option<Vec<Tensor>>) {
         let encoder_padding_mask = match encoder_padding_mask {
@@ -227,36 +224,42 @@ impl BartDecoder {
         };
 
         let positions = self.embed_positions.forward(input_ids, self.generation_mode);
-        let (input_ids, positions) = if self.generation_mode {
+        let x: Tensor = if self.generation_mode {
             let end_inputs = input_ids.size()[1];
             let end_positions = positions.size()[1];
-            (input_ids.slice(1, end_inputs - 1, end_inputs, 1),
-             positions.slice(1, end_positions - 1, end_positions, 1))
+            input_ids.narrow(1, end_inputs - 1, 1).apply(embeddings) * self.scale_embedding + positions.narrow(1, end_positions - 1, 1)
         } else {
-            (input_ids.copy(), positions)
+            input_ids.apply(embeddings) * self.scale_embedding + positions
         };
-        let x: Tensor = input_ids.as_ref().apply(embeddings) * self.scale_embedding + positions;
 
         let x = if let Some(layer_norm_embedding) = &self.layer_norm_embedding { x.apply(layer_norm_embedding) } else { x };
-        let x = x
+        let mut hidden_state = x
             .apply_t(&self.dropout, train)
             .transpose(0, 1);
-        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
-        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
-        let mut next_decoder_cache: Option<Vec<(&LayerState, &LayerState)>> = if self.output_past { Some(vec!()) } else { None };
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(Vec::with_capacity(self.layers.len())) } else { None };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(Vec::with_capacity(self.layers.len())) } else { None };
+        let mut next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>> = if self.output_past {
+            if old_layer_states.is_some() { old_layer_states } else { Some(vec!((None, None); self.layers.len())) }
+        } else {
+            None
+        };
         let encoder_hidden_states = encoder_hidden_states.transpose(0, 1);
-        let mut hidden_state = x.copy();
         let mut attention_weights: Option<Tensor>;
-        let mut layers = self.layers.iter_mut();
+        let mut layers = self.layers.iter().enumerate();
 
         loop {
             match layers.next() {
-                Some(layer) => {
+                Some((layer_idx, layer)) => {
+                    let layer_state = match &next_decoder_cache {
+                        Some(values) => values[layer_idx].to_owned(),
+                        None => (None, None)
+                    };
                     let temp = layer.forward_t(&hidden_state,
                                                &encoder_hidden_states,
                                                encoder_padding_mask.as_ref(),
                                                decoder_causal_mask,
                                                decoder_padding_mask,
+                                               layer_state,
                                                train);
                     hidden_state = temp.0;
                     attention_weights = temp.1;
@@ -266,9 +269,7 @@ impl BartDecoder {
                     if let Some(attentions) = all_attentions.borrow_mut() {
                         attentions.push(attention_weights.as_ref().unwrap().copy());
                     };
-                    if let Some(cache) = next_decoder_cache.borrow_mut() {
-                        cache.push((layer.self_attention.prev_state.as_ref().unwrap(), layer.encoder_attention.prev_state.as_ref().unwrap()));
-                    };
+                    if let Some(value) = &mut next_decoder_cache { value[layer_idx] = temp.2 };
                 }
                 None => break
             };

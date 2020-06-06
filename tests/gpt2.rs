@@ -1,7 +1,7 @@
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{Gpt2Tokenizer, TruncationStrategy, Tokenizer};
 use rust_bert::Config;
-use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig, LMHeadModel};
+use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig, LMHeadModel, Cache};
 use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel, Gpt2ConfigResources, Gpt2MergesResources, Gpt2VocabResources, Gpt2ModelResources};
 use rust_bert::resources::{RemoteResource, Resource, download_resource};
 
@@ -22,7 +22,7 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
     let config = Gpt2Config::from_file(config_path);
-    let mut gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
+    let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -44,7 +44,7 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
 //    Forward pass
     let (output, _, past, _, _) = gpt2_model.forward_t(
         &Some(input_tensor),
-        &None,
+        Cache::None,
         &None,
         &None,
         &None,
@@ -57,9 +57,14 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
     let next_word = tokenizer.decode(vec!(next_word_id), true, true);
 
     assert_eq!(output.size(), vec!(1, 4, 50257));
-    assert!(past.is_some());
+    match past {
+        Cache::GPT2Cache(past) => {
+            assert!(past.is_some());
     assert_eq!(past.as_ref().unwrap().len(), config.n_layer as usize);
     assert_eq!(past.as_ref().unwrap()[0].size(), vec!(2, 1, config.n_head, 4, 64));
+        }
+        _ => panic!("Wrong cache returned for GPT2")
+    }
     assert!((output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (-69.4948)).abs() < 1e-4);
     assert_eq!(next_word_id, 1936i64);
     assert_eq!(next_word, String::from(" five"));
@@ -89,7 +94,7 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
         repetition_penalty: 1.1,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(generate_config)?;
+    let model = GPT2Generator::new(generate_config)?;
 
     let input_context = "The cat";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -121,7 +126,7 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(generate_config)?;
+    let model = GPT2Generator::new(generate_config)?;
 
     let input_context = "The dog";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -155,7 +160,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fa
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(generate_config)?;
+    let model = GPT2Generator::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat";
@@ -193,7 +198,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(generate_config)?;
+    let model = GPT2Generator::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";

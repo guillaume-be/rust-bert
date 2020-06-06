@@ -197,7 +197,7 @@ impl SummarizationModel {
     ///# fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::generation::LanguageGenerator;
     /// use rust_bert::pipelines::summarization::SummarizationModel;
-    /// let mut model = SummarizationModel::new(Default::default())?;
+    /// let model = SummarizationModel::new(Default::default())?;
     ///
     /// let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists
     ///from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team
@@ -227,7 +227,7 @@ impl SummarizationModel {
     /// ```
     /// (New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
     ///
-    pub fn summarize(&mut self, texts: &[&str]) -> Vec<String> {
+    pub fn summarize(&self, texts: &[&str]) -> Vec<String> {
         self.model.generate(Some(texts.to_vec()), None)
     }
 }

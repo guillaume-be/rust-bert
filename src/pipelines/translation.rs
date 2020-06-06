@@ -374,7 +374,7 @@ impl TranslationModel {
     /// use tch::Device;
     ///
     /// let translation_config =  TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
-    /// let mut model = TranslationModel::new(translation_config)?;
+    /// let model = TranslationModel::new(translation_config)?;
     ///
     /// let input = ["This is a sentence to be translated"];
     ///
@@ -383,7 +383,7 @@ impl TranslationModel {
     ///# }
     /// ```
     ///
-    pub fn translate(&mut self, texts: &[&str]) -> Vec<String> {
+    pub fn translate(&self, texts: &[&str]) -> Vec<String> {
         match &self.prefix {
             Some(value) => {
                 let texts: Vec<String> = texts

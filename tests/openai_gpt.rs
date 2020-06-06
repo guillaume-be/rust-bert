@@ -1,7 +1,7 @@
 use tch::{Device, nn, Tensor};
 use rust_tokenizers::{TruncationStrategy, Tokenizer, OpenAiGptTokenizer};
 use rust_bert::Config;
-use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator, GenerateConfig, LMHeadModel};
+use rust_bert::pipelines::generation::{OpenAIGenerator, LanguageGenerator, GenerateConfig, LMHeadModel, Cache};
 use rust_bert::gpt2::Gpt2Config;
 use rust_bert::openai_gpt::{OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptVocabResources, OpenAiGptMergesResources, OpenAiGptModelResources};
 use rust_bert::resources::{RemoteResource, Resource, download_resource};
@@ -23,7 +23,7 @@ fn openai_gpt_lm_model() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer = OpenAiGptTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
     let config = Gpt2Config::from_file(config_path);
-    let mut openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
+    let openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -45,7 +45,7 @@ fn openai_gpt_lm_model() -> failure::Fallible<()> {
 //    Forward pass
     let (output, _, _, _, _) = openai_gpt.forward_t(
         &Some(input_tensor),
-        &None,
+        Cache::None,
         &None,
         &None,
         &None,
@@ -87,7 +87,7 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
         temperature: 1.1,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(generate_config)?;
+    let model = OpenAIGenerator::new(generate_config)?;
 
     let input_context = "It was an intense machine dialogue. ";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -119,7 +119,7 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(generate_config)?;
+    let model = OpenAIGenerator::new(generate_config)?;
 
     let input_context = "The dog is";
     let output = model.generate(Some(vec!(input_context)), None);
@@ -153,7 +153,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(generate_config)?;
+    let model = OpenAIGenerator::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat";
@@ -194,7 +194,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure:
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = OpenAIGenerator::new(generate_config)?;
+    let model = OpenAIGenerator::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat was in";

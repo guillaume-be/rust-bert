@@ -26,7 +26,7 @@ fn main() -> failure::Fallible<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let mut model = GPT2Generator::new(generate_config)?;
+    let model = GPT2Generator::new(generate_config)?;
 
     let input_context = "The dog";
     let second_input_context = "The cat was";
