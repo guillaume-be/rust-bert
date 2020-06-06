@@ -287,9 +287,9 @@ impl BartModel {
                      decoder_input_ids: Option<&Tensor>,
                      encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
                      decoder_attention_mask: Option<&Tensor>,
-                     old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+                     layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                      train: bool) ->
-                     (Tensor, Tensor, (Option<Tensor>, Option<Vec<(Option<LayerState>, Option<LayerState>)>>),
+                     (Tensor, Tensor, Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
                       Option<Vec<Tensor>>, Option<Vec<Tensor>>,
                       Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let (decoder_input_ids, decoder_padding_mask, causal_mask) = if self.generation_mode {
@@ -318,9 +318,9 @@ impl BartModel {
                                                              decoder_padding_mask.as_ref(),
                                                              causal_mask.as_ref(),
                                                              &self.embeddings,
-                                                             old_layer_states,
+                                                             layer_states,
                                                              train);
-        (decoder_outputs, encoder_hidden_states, decoder_cache,
+        (decoder_outputs, encoder_hidden_states, decoder_cache.1,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
     }
@@ -440,7 +440,7 @@ impl BartForConditionalGeneration {
             self.base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, old_layer_states, train);
 
         let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        (lm_logits, encoder_hidden_states, decoder_cache.1,
+        (lm_logits, encoder_hidden_states, decoder_cache,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
     }
@@ -700,6 +700,6 @@ impl LMHeadModel for BartForConditionalGeneration {
         };
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        Ok((lm_logits, Some(encoder_hidden_states), Cache::BARTCache(new_cache.1), None, None))
+        Ok((lm_logits, Some(encoder_hidden_states), Cache::BARTCache(new_cache), None, None))
     }
 }

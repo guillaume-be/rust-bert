@@ -155,7 +155,7 @@ impl BartDecoder {
             None => false
         };
         let scale_embedding = match config.scale_embedding {
-            Some(value) => if value {(config.d_model as f64).sqrt()} else { 1.0 },
+            Some(value) => if value { (config.d_model as f64).sqrt() } else { 1.0 },
             None => 1.0
         };
 
@@ -201,7 +201,7 @@ impl BartDecoder {
             output_hidden_states,
             output_past,
             generation_mode,
-            scale_embedding
+            scale_embedding,
         }
     }
 
@@ -238,26 +238,31 @@ impl BartDecoder {
         let x = x
             .apply_t(&self.dropout, train)
             .transpose(0, 1);
-        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
-        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
-        let mut next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>> = if self.output_past { Some(vec!()) } else { None };
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(Vec::with_capacity(self.layers.len())) } else { None };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(Vec::with_capacity(self.layers.len())) } else { None };
+        let mut next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>> = if self.output_past {
+            if old_layer_states.is_some() { old_layer_states } else { Some(vec!((None, None); self.layers.len())) }
+        } else {
+            None
+        };
         let encoder_hidden_states = encoder_hidden_states.transpose(0, 1);
         let mut hidden_state = x.copy();
         let mut attention_weights: Option<Tensor>;
-        let mut layers = match old_layer_states {
-            Some(old_layer_states) => self.layers.iter().zip(old_layer_states.into_iter()),
-            None => self.layers.iter().zip(vec!((None, None); self.layers.len()).into_iter()),
-        };
+        let mut layers = self.layers.iter().enumerate();
 
         loop {
             match layers.next() {
-                Some((layer, old_layer_state)) => {
+                Some((layer_idx, layer)) => {
+                    let layer_state = match &next_decoder_cache {
+                        Some(values) => values[layer_idx].to_owned(),
+                        None => (None, None)
+                    };
                     let temp = layer.forward_t(&hidden_state,
                                                &encoder_hidden_states,
                                                encoder_padding_mask.as_ref(),
                                                decoder_causal_mask,
                                                decoder_padding_mask,
-                                               old_layer_state,
+                                               layer_state,
                                                train);
                     hidden_state = temp.0;
                     attention_weights = temp.1;
@@ -267,9 +272,7 @@ impl BartDecoder {
                     if let Some(attentions) = all_attentions.borrow_mut() {
                         attentions.push(attention_weights.as_ref().unwrap().copy());
                     };
-                    if let Some(cache) = next_decoder_cache.borrow_mut() {
-                        cache.push(temp.2.clone());
-                    };
+                    if let Some(value) = &mut next_decoder_cache { value[layer_idx] = temp.2 };
                 }
                 None => break
             };

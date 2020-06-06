@@ -102,7 +102,7 @@ impl SelfAttention {
                      key: Option<&Tensor>,
                      key_padding_mask: Option<&Tensor>,
                      attention_mask: Option<&Tensor>,
-                     old_layer_state: Option<LayerState>,
+                     mut old_layer_state: Option<LayerState>,
                      train: bool) -> (Tensor, Option<Tensor>, Option<LayerState>) {
         let query_size = query.size();
         let (target_sequence_length, bs) = (query_size[0], query_size[1]);
@@ -129,7 +129,7 @@ impl SelfAttention {
 
         let (k, v, key_padding_mask) = self.use_saved_state(&old_layer_state, k, v, key_padding_mask, bs);
 
-        let new_layer_state = if self.store_cache {
+        old_layer_state = if self.store_cache {
             Some(LayerState {
                 prev_key: k.view((bs, self.num_heads, -1, self.head_dim)),
                 prev_value: v.view((bs, self.num_heads, -1, self.head_dim)),
@@ -175,7 +175,7 @@ impl SelfAttention {
             Some(attention_weights.view((bs, self.num_heads, target_sequence_length, source_sequence_length)))
         } else { None };
 
-        (output, attention_weights, new_layer_state)
+        (output, attention_weights, old_layer_state)
     }
 
     fn use_saved_state(&self,

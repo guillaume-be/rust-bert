@@ -244,7 +244,7 @@ impl MarianForConditionalGeneration {
             self.base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, old_layer_states, train);
 
         let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        (lm_logits, encoder_hidden_states, decoder_cache.1,
+        (lm_logits, encoder_hidden_states, decoder_cache,
          all_decoder_hidden_states, all_decoder_attentions,
          all_encoder_hidden_states, all_encoder_attentions)
     }
@@ -345,6 +345,6 @@ impl LMHeadModel for MarianForConditionalGeneration {
         };
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None) + &self.final_logits_bias;
-        Ok((lm_logits, Some(encoder_hidden_states), Cache::BARTCache(new_cache.1), None, None))
+        Ok((lm_logits, Some(encoder_hidden_states), Cache::BARTCache(new_cache), None, None))
     }
 }
