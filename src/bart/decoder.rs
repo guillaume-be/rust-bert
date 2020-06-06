@@ -224,18 +224,16 @@ impl BartDecoder {
         };
 
         let positions = self.embed_positions.forward(input_ids, self.generation_mode);
-        let (input_ids, positions) = if self.generation_mode {
+        let x: Tensor = if self.generation_mode {
             let end_inputs = input_ids.size()[1];
             let end_positions = positions.size()[1];
-            (input_ids.slice(1, end_inputs - 1, end_inputs, 1),
-             positions.slice(1, end_positions - 1, end_positions, 1))
+            input_ids.narrow(1, end_inputs - 1, 1).apply(embeddings) * self.scale_embedding + positions.narrow(1, end_positions - 1, 1)
         } else {
-            (input_ids.copy(), positions)
+            input_ids.apply(embeddings) * self.scale_embedding + positions
         };
-        let x: Tensor = input_ids.as_ref().apply(embeddings) * self.scale_embedding + positions;
 
         let x = if let Some(layer_norm_embedding) = &self.layer_norm_embedding { x.apply(layer_norm_embedding) } else { x };
-        let x = x
+        let mut hidden_state = x
             .apply_t(&self.dropout, train)
             .transpose(0, 1);
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(Vec::with_capacity(self.layers.len())) } else { None };
@@ -246,7 +244,6 @@ impl BartDecoder {
             None
         };
         let encoder_hidden_states = encoder_hidden_states.transpose(0, 1);
-        let mut hidden_state = x.copy();
         let mut attention_weights: Option<Tensor>;
         let mut layers = self.layers.iter().enumerate();
 

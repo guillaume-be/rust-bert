@@ -102,12 +102,12 @@ impl SelfAttention {
                      key: Option<&Tensor>,
                      key_padding_mask: Option<&Tensor>,
                      attention_mask: Option<&Tensor>,
-                     mut old_layer_state: Option<LayerState>,
+                     mut layer_state: Option<LayerState>,
                      train: bool) -> (Tensor, Option<Tensor>, Option<LayerState>) {
         let query_size = query.size();
         let (target_sequence_length, bs) = (query_size[0], query_size[1]);
         let q: Tensor = self.flatten(query.as_ref().apply(&self.q_proj) * self.scaling, target_sequence_length, bs);
-        let key = match &old_layer_state {
+        let key = match &layer_state {
             Some(_) => { if self.encoder_decoder_attention { None } else { key } }
             None => key
         };
@@ -127,20 +127,7 @@ impl SelfAttention {
             )
         };
 
-        let (k, v, key_padding_mask) = self.use_saved_state(&old_layer_state, k, v, key_padding_mask, bs);
-
-        old_layer_state = if self.store_cache {
-            Some(LayerState {
-                prev_key: k.view((bs, self.num_heads, -1, self.head_dim)),
-                prev_value: v.view((bs, self.num_heads, -1, self.head_dim)),
-                prev_key_padding_mask: match key_padding_mask.as_ref() {
-                    Some(tensor) => Some(tensor.copy()),
-                    None => None
-                },
-            })
-        } else {
-            None
-        };
+        let (k, v, key_padding_mask) = self.use_saved_state(&layer_state, k, v, key_padding_mask, bs);
 
         let source_sequence_length = k.size()[1];
         let attention_weights = q.bmm(&k.transpose(1, 2));
@@ -175,7 +162,27 @@ impl SelfAttention {
             Some(attention_weights.view((bs, self.num_heads, target_sequence_length, source_sequence_length)))
         } else { None };
 
-        (output, attention_weights, old_layer_state)
+        if self.store_cache {
+            if layer_state.is_some() {
+                layer_state.as_mut().unwrap().prev_key = k.view((bs, self.num_heads, -1, self.head_dim));
+                layer_state.as_mut().unwrap().prev_value = v.view((bs, self.num_heads, -1, self.head_dim));
+                layer_state.as_mut().unwrap().prev_key_padding_mask = match key_padding_mask {
+                    Some(tensor) => Some(tensor),
+                    None => None
+                };
+            } else {
+                layer_state = Some(LayerState {
+                    prev_key: k.view((bs, self.num_heads, -1, self.head_dim)),
+                    prev_value: v.view((bs, self.num_heads, -1, self.head_dim)),
+                    prev_key_padding_mask: match key_padding_mask {
+                        Some(tensor) => Some(tensor),
+                        None => None
+                    },
+                })
+            };
+        };
+
+        (output, attention_weights, layer_state)
     }
 
     fn use_saved_state(&self,
