@@ -65,6 +65,7 @@ pub mod gpt2;
 pub mod bart;
 pub mod electra;
 pub mod marian;
+pub mod albert;
 mod common;
 pub mod pipelines;
 
