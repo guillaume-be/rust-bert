@@ -1,3 +1,4 @@
+mod embeddings;
 mod albert;
 
 pub use albert::{AlbertConfig};

@@ -142,7 +142,10 @@ impl BertEmbedding for BertEmbeddings {
                 None => (input_value.apply_t(&self.word_embeddings, train), input_value.size())
             }
             None => match input_embeds {
-                Some(embeds) => (embeds.copy(), vec!(embeds.size()[0], embeds.size()[1])),
+                Some(embeds) => {
+                    let size = vec!(embeds.size()[0], embeds.size()[1]);
+                    (embeds, size)
+                },
                 None => { return Err("Only one of input ids or input embeddings may be set"); }
             }
         };

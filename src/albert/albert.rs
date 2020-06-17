@@ -47,7 +47,7 @@ pub struct AlbertConfig {
     pub initializer_range: f32,
     pub inner_group_num: i64,
     pub intermediate_size: i64,
-    pub layer_norm_eps: f64,
+    pub layer_norm_eps: Option<f64>,
     pub max_position_embeddings: i64,
     pub net_structure_type: i64,
     pub num_attention_heads: i64,
