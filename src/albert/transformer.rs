@@ -93,10 +93,9 @@ impl AlbertLayerGroup {
 
     pub fn forward_t(&self,
                      hidden_states: &Tensor,
-                     mask: Option<Tensor>,
+                     mask: &Option<Tensor>,
                      train: bool)
                      -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
         let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
 
@@ -125,4 +124,74 @@ impl AlbertLayerGroup {
     }
 }
 
+pub struct AlbertTransformer {
+    output_hidden_states: bool,
+    output_attentions: bool,
+    num_hidden_layers: i64,
+    num_hidden_groups: i64,
+    embedding_hidden_mapping_in: nn::Linear,
+    layers: Vec<AlbertLayerGroup>,
+}
+
+impl AlbertTransformer {
+    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertTransformer {
+        let p_layers = &(p / "albert_layer_groups");
+
+        let output_attentions = match config.output_attentions {
+            Some(value) => value,
+            None => false
+        };
+
+        let output_hidden_states = match config.output_hidden_states {
+            Some(value) => value,
+            None => false
+        };
+
+        let embedding_hidden_mapping_in = nn::linear(&(p / "embedding_hidden_mapping_in"), config.embedding_size, config.hidden_size, Default::default());
+
+        let mut layers: Vec<AlbertLayerGroup> = vec!();
+        for layer_index in 0..config.inner_group_num {
+            layers.push(AlbertLayerGroup::new(&(p_layers / layer_index), config));
+        };
+
+        AlbertTransformer {
+            output_hidden_states,
+            output_attentions,
+            num_hidden_layers: config.num_hidden_layers,
+            num_hidden_groups: config.num_hidden_groups,
+            embedding_hidden_mapping_in,
+            layers,
+        }
+    }
+
+    pub fn forward_t(&self,
+                     hidden_states: &Tensor,
+                     mask: Option<Tensor>,
+                     train: bool)
+                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+        let mut hidden_state = hidden_states.apply(&self.embedding_hidden_mapping_in);
+
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
+        let mut all_attentions: Option<Vec<Vec<Tensor>>> = if self.output_attentions { Some(vec!()) } else { None };
+
+
+        for i in 0..self.num_hidden_layers {
+            let group_idx = i / (self.num_hidden_layers / self.num_hidden_groups);
+            let layer = &self.layers[group_idx as usize];
+
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
+            };
+
+            let temp = layer.forward_t(&hidden_state, &mask, train);
+            hidden_state = temp.0;
+            let attention_weights = temp.1;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.unwrap());
+            };
+        };
+
+        (hidden_state, all_hidden_states, all_attentions)
+    }
+}
 
