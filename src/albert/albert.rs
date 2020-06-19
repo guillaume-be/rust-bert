@@ -15,6 +15,11 @@
 use std::collections::HashMap;
 use crate::Config;
 use serde::{Deserialize, Serialize};
+use crate::albert::embeddings::AlbertEmbeddings;
+use crate::albert::encoder::AlbertTransformer;
+use tch::{nn, Tensor, Kind};
+use crate::common::activations::_tanh;
+use tch::nn::Module;
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -65,3 +70,64 @@ pub struct AlbertConfig {
 }
 
 impl Config<AlbertConfig> for AlbertConfig {}
+
+pub struct AlbertModel {
+    embeddings: AlbertEmbeddings,
+    encoder: AlbertTransformer,
+    pooler: nn::Linear,
+    pooler_activation: Box<dyn Fn(&Tensor) -> Tensor>,
+}
+
+impl AlbertModel {
+    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertModel {
+        let embeddings = AlbertEmbeddings::new(&(p / "embeddings"), config);
+        let encoder = AlbertTransformer::new(&(p / "transformer"), config);
+        let pooler = nn::linear(&(p / "pooler"), config.hidden_size, config.hidden_size, Default::default());
+        let pooler_activation = Box::new(_tanh);
+
+        AlbertModel { embeddings, encoder, pooler, pooler_activation }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool)
+                     -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>), &'static str> {
+        let (input_shape, device) = match &input_ids {
+            Some(input_value) => match &input_embeds {
+                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
+                None => (input_value.size(), input_value.device())
+            }
+            None => match &input_embeds {
+                Some(embeds) => (vec!(embeds.size()[0], embeds.size()[1]), embeds.device()),
+                None => { return Err("At least one of input ids or input embeddings must be set"); }
+            }
+        };
+
+        let mask = match mask {
+            Some(value) => value,
+            None => Tensor::ones(&input_shape, (Kind::Int64, device))
+        };
+
+        let extended_attention_mask = mask.unsqueeze(1).unsqueeze(2);
+        let extended_attention_mask: Tensor = (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
+
+        let embedding_output = match self.embeddings.forward_t(input_ids, token_type_ids, position_ids, input_embeds, train) {
+            Ok(value) => value,
+            Err(e) => { return Err(e); }
+        };
+
+        let (hidden_state, all_hidden_states, all_attentions) =
+            self.encoder.forward_t(&embedding_output,
+                                   Some(extended_attention_mask),
+                                   train);
+
+        let pooled_output = self.pooler.forward(&hidden_state.select(1, 0));
+        let pooled_output = (self.pooler_activation)(&pooled_output);
+
+        Ok((hidden_state, pooled_output, all_hidden_states, all_attentions))
+    }
+}

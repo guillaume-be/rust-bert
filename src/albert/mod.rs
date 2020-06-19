@@ -1,6 +1,6 @@
-mod transformer;
+mod encoder;
 mod attention;
 mod embeddings;
 mod albert;
 
-pub use albert::{AlbertConfig};
+pub use albert::{AlbertConfig, AlbertModel};
