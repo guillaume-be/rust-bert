@@ -57,7 +57,8 @@ impl AlbertLayer {
         let (attention_output, attention_weights) = self.attention.forward_t(hidden_states, mask, train);
         let ffn_output = attention_output.apply(&self.ffn);
         let ffn_output: Tensor = (self.activation)(&ffn_output);
-        let ffn_output = ffn_output.apply(&self.ffn_output).apply(&self.full_layer_layer_norm);
+        let ffn_output = ffn_output.apply(&self.ffn_output);
+        let ffn_output = (ffn_output + attention_output).apply(&self.full_layer_layer_norm);
 
         (ffn_output, attention_weights)
     }

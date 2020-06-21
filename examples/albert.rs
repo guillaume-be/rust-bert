@@ -17,8 +17,7 @@ use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{AlbertTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::Config;
 use rust_bert::resources::{Resource, download_resource, LocalResource};
-use rust_bert::albert::{AlbertConfig, AlbertModel};
-use std::borrow::Borrow;
+use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM};
 
 
 fn main() -> failure::Fallible<()> {
@@ -35,7 +34,7 @@ fn main() -> failure::Fallible<()> {
     let mut vs = nn::VarStore::new(device);
     let tokenizer: AlbertTokenizer = AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false);
     let config = AlbertConfig::from_file(config_path);
-    let albert_model = AlbertModel::new((&vs.root() / "albert").borrow(), &config);
+    let albert_model = AlbertForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
 //    Define input
@@ -55,14 +54,14 @@ fn main() -> failure::Fallible<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
 //    Forward pass
-    let (output, pooled_output, _, _) = no_grad(|| {
+    let (output, _, _) = no_grad(|| {
         albert_model
             .forward_t(Some(input_tensor),
                        None,
                        None,
                        None,
                        None,
-                       false).unwrap()
+                       false)
     });
 
 //    Print masked tokens
@@ -71,8 +70,8 @@ fn main() -> failure::Fallible<()> {
     let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 
-    println!("{}", word_1); // Outputs "person" : "Looks like one [person] is missing"
-    println!("{}", word_2);// Outputs "pear" : "It was a very nice and [pleasant] day"
+    println!("{} - {}", &index_1.int64_value(&[]), word_1); // Outputs "person" : "Looks like one [person] is missing"
+    println!("{} - {}", &index_2.int64_value(&[]), word_2);// Outputs "pear" : "It was a very nice and [pleasant] day"
 
     Ok(())
 }

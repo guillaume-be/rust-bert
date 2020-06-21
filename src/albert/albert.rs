@@ -19,7 +19,7 @@ use crate::albert::embeddings::AlbertEmbeddings;
 use crate::albert::encoder::AlbertTransformer;
 use tch::{nn, Tensor, Kind};
 use crate::common::activations::{_tanh, _gelu_new, _gelu, _relu, _mish};
-use tch::nn::{Module, Init};
+use tch::nn::Module;
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -134,7 +134,6 @@ impl AlbertModel {
 
 pub struct AlbertMLMHead {
     layer_norm: nn::LayerNorm,
-    bias: nn::Tensor,
     dense: nn::Linear,
     decoder: nn::Linear,
     activation: Box<dyn Fn(&Tensor) -> Tensor>,
@@ -147,8 +146,7 @@ impl AlbertMLMHead {
             None => 1e-12
         };
         let layer_norm_config = nn::LayerNormConfig { eps: layer_norm_eps, ..Default::default() };
-        let layer_norm = nn::layer_norm(&p / "LayerNorm", vec![config.embedding_size], layer_norm_config);
-        let bias = p.var("bias", &[1, config.vocab_size], Init::Const(0.));
+        let layer_norm = nn::layer_norm(&(p / "LayerNorm"), vec![config.embedding_size], layer_norm_config);
         let dense = nn::linear(&(p / "dense"), config.hidden_size, config.embedding_size, Default::default());
         let decoder = nn::linear(&(p / "decoder"), config.embedding_size, config.vocab_size, Default::default());
 
@@ -159,11 +157,37 @@ impl AlbertMLMHead {
             Activation::mish => _mish
         });
 
-        AlbertMLMHead { layer_norm, bias, dense, decoder, activation }
+        AlbertMLMHead { layer_norm, dense, decoder, activation }
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
         let output: Tensor = (self.activation)(&hidden_states.apply(&self.dense));
         output.apply(&self.layer_norm).apply(&self.decoder)
+    }
+}
+
+pub struct AlbertForMaskedLM {
+    albert: AlbertModel,
+    predictions: AlbertMLMHead,
+}
+
+impl AlbertForMaskedLM {
+    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForMaskedLM {
+        let albert = AlbertModel::new(&(p / "albert"), config);
+        let predictions = AlbertMLMHead::new(&(p / "predictions"), config);
+
+        AlbertForMaskedLM { albert, predictions }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
+        let prediction_scores = self.predictions.forward(&hidden_state);
+        (prediction_scores, all_hidden_states, all_attentions)
     }
 }
