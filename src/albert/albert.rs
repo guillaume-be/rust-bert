@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 use crate::albert::embeddings::AlbertEmbeddings;
 use crate::albert::encoder::AlbertTransformer;
 use tch::{nn, Tensor, Kind};
-use crate::common::activations::_tanh;
-use tch::nn::Module;
+use crate::common::activations::{_tanh, _gelu_new, _gelu, _relu, _mish};
+use tch::nn::{Module, Init};
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -81,7 +81,7 @@ pub struct AlbertModel {
 impl AlbertModel {
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertModel {
         let embeddings = AlbertEmbeddings::new(&(p / "embeddings"), config);
-        let encoder = AlbertTransformer::new(&(p / "transformer"), config);
+        let encoder = AlbertTransformer::new(&(p / "encoder"), config);
         let pooler = nn::linear(&(p / "pooler"), config.hidden_size, config.hidden_size, Default::default());
         let pooler_activation = Box::new(_tanh);
 
@@ -129,5 +129,41 @@ impl AlbertModel {
         let pooled_output = (self.pooler_activation)(&pooled_output);
 
         Ok((hidden_state, pooled_output, all_hidden_states, all_attentions))
+    }
+}
+
+pub struct AlbertMLMHead {
+    layer_norm: nn::LayerNorm,
+    bias: nn::Tensor,
+    dense: nn::Linear,
+    decoder: nn::Linear,
+    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+}
+
+impl AlbertMLMHead {
+    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertMLMHead {
+        let layer_norm_eps = match config.layer_norm_eps {
+            Some(value) => value,
+            None => 1e-12
+        };
+        let layer_norm_config = nn::LayerNormConfig { eps: layer_norm_eps, ..Default::default() };
+        let layer_norm = nn::layer_norm(&p / "LayerNorm", vec![config.embedding_size], layer_norm_config);
+        let bias = p.var("bias", &[1, config.vocab_size], Init::Const(0.));
+        let dense = nn::linear(&(p / "dense"), config.hidden_size, config.embedding_size, Default::default());
+        let decoder = nn::linear(&(p / "decoder"), config.embedding_size, config.vocab_size, Default::default());
+
+        let activation = Box::new(match &config.hidden_act {
+            Activation::gelu_new => _gelu_new,
+            Activation::gelu => _gelu,
+            Activation::relu => _relu,
+            Activation::mish => _mish
+        });
+
+        AlbertMLMHead { layer_norm, bias, dense, decoder, activation }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        let output: Tensor = (self.activation)(&hidden_states.apply(&self.dense));
+        output.apply(&self.layer_norm).apply(&self.decoder)
     }
 }
