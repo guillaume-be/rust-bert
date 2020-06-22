@@ -208,7 +208,8 @@ impl AlbertForSequenceClassification {
             None => 0.1
         };
         let dropout = Dropout::new(classifier_dropout_prob);
-        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, config.embedding_size, Default::default());
+        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
+        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, num_labels, Default::default());
 
         AlbertForSequenceClassification { albert, dropout, classifier }
     }
@@ -223,5 +224,121 @@ impl AlbertForSequenceClassification {
         let (_, pooled_output, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
         let logits = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier);
         (logits, all_hidden_states, all_attentions)
+    }
+}
+
+
+pub struct AlbertForTokenClassification {
+    albert: AlbertModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl AlbertForTokenClassification {
+    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForTokenClassification {
+        let albert = AlbertModel::new(&(p / "albert"), config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
+        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, num_labels, Default::default());
+
+        AlbertForTokenClassification { albert, dropout, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+        let (sequence_output, _, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
+        let logits = sequence_output.apply_t(&self.dropout, train).apply(&self.classifier);
+        (logits, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct AlbertForQuestionAnswering {
+    albert: AlbertModel,
+    qa_outputs: nn::Linear,
+}
+
+impl AlbertForQuestionAnswering {
+    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForQuestionAnswering {
+        let albert = AlbertModel::new(&(p / "albert"), config);
+        let num_labels = 2;
+        let qa_outputs = nn::linear(&(p / "qa_outputs"), config.hidden_size, num_labels, Default::default());
+
+        AlbertForQuestionAnswering { albert, qa_outputs }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+        let (sequence_output, _, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
+        let logits = sequence_output.apply(&self.qa_outputs).split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze1(-1);
+        let end_logits = end_logits.squeeze1(-1);
+
+        (start_logits, end_logits, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct AlbertForMultipleChoice {
+    albert: AlbertModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl AlbertForMultipleChoice {
+    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForMultipleChoice {
+        let albert = AlbertModel::new(&(p / "albert"), config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = 1;
+        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, num_labels, Default::default());
+
+        AlbertForMultipleChoice { albert, dropout, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>), &'static str> {
+        let (input_ids, input_embeds, num_choices) = match &input_ids {
+            Some(input_value) => match &input_embeds {
+                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
+                None => (Some(input_value.view((-1, *input_value.size().last().unwrap()))), None, input_value.size()[1])
+            }
+            None => match &input_embeds {
+                Some(embeds) => (None, Some(embeds.view((-1, embeds.size()[1], embeds.size()[2]))), embeds.size()[1]),
+                None => { return Err("At least one of input ids or input embeddings must be set"); }
+            }
+        };
+
+        let mask = match mask {
+            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
+            None => None
+        };
+        let token_type_ids = match token_type_ids {
+            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
+            None => None
+        };
+        let position_ids = match position_ids {
+            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
+            None => None
+        };
+
+
+        let (_, pooled_output, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
+        let logits = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier).view((-1, num_choices));
+
+        Ok((logits, all_hidden_states, all_attentions))
     }
 }

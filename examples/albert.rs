@@ -63,15 +63,15 @@ fn main() -> failure::Fallible<()> {
                        None,
                        false)
     });
-
+    println!("{:?}", output.double_value(&[0, 0, 0]));
 //    Print masked tokens
     let index_1 = output.get(0).get(4).argmax(0, false);
     let index_2 = output.get(1).get(7).argmax(0, false);
     let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 
-    println!("{} - {}", &index_1.int64_value(&[]), word_1); // Outputs "person" : "Looks like one [person] is missing"
-    println!("{} - {}", &index_2.int64_value(&[]), word_2);// Outputs "pear" : "It was a very nice and [pleasant] day"
+    println!("{} - {}", &index_1.int64_value(&[]), word_1); // Outputs "_them" : "Looks like one [them] is missing"
+    println!("{} - {}", &index_2.int64_value(&[]), word_2); // Outputs "_enjoyable" : "It was a very nice and [enjoyable] day"
 
     Ok(())
 }
