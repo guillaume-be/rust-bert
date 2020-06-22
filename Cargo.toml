@@ -8,7 +8,7 @@ repository = "https://github.com/guillaume-be/rust-bert"
 documentation = "https://docs.rs/rust-bert"
 license = "Apache-2.0"
 readme = "README.md"
-keywords = ["nlp", "deep-learning", "machine-learning", "bert", "transformers"]
+keywords = ["nlp", "deep-learning", "machine-learning", "bert", "transformers", "summarization", "translation", "NER", "classification", "language", "sentiment-analysis", "question-answering"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,7 +30,7 @@ all-tests = []
 features = [ "doc-only" ]
 
 [dependencies]
-rust_tokenizers = {version = "~3.1.3", path = "E:/Coding/backup-rust/rust-tokenizers/main"}
+rust_tokenizers = "~3.1.4"
 tch = "~0.1.7"
 serde_json = "1.0.51"
 serde = {version = "1.0.106", features = ["derive"]}

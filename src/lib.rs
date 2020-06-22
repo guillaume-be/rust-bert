@@ -29,17 +29,17 @@
 //! ```
 //! - Transformer models base architectures with customized heads. These allow to load pre-trained models for customized inference in Rust
 //!
-//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**
-//! :-----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:
-//! Masked LM|✅ |✅ |✅ | | | |✅| |
-//! Sequence classification|✅ |✅ |✅| | | | | |
-//! Token classification|✅ |✅ | ✅| | | |✅| |
-//! Question answering|✅ |✅ |✅| | | | | |
-//! Multiple choices| |✅ |✅| | | | | |
-//! Next token prediction| | | |✅|✅| | | |
-//! Natural Language Generation| | | |✅|✅| | | |
-//! Summarization| | | | | |✅| | |
-//! Translation| | | | | | | |✅|
+//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|**ALBERT**
+//! :-----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:
+//! Masked LM|✅ |✅ |✅ | | | |✅| |✅ |
+//! Sequence classification|✅ |✅ |✅| | | | | |✅ |
+//! Token classification|✅ |✅ | ✅| | | |✅| |✅ |
+//! Question answering|✅ |✅ |✅| | | | | |✅ |
+//! Multiple choices| |✅ |✅| | | | | |✅ |
+//! Next token prediction| | | |✅|✅| | | | |
+//! Natural Language Generation| | | |✅|✅| | | | |
+//! Summarization| | | | | |✅| | | |
+//! Translation| | | | | | | |✅| |
 //!
 //! # Loading pre-trained models
 //!

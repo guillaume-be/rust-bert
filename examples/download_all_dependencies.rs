@@ -8,6 +8,7 @@ use rust_bert::bert::{BertConfigResources, BertVocabResources, BertModelResource
 use rust_bert::bart::{BartConfigResources, BartVocabResources, BartMergesResources, BartModelResources};
 use rust_bert::resources::{Resource, download_resource, RemoteResource};
 use rust_bert::electra::{ElectraConfigResources, ElectraVocabResources, ElectraModelResources};
+use rust_bert::albert::{AlbertConfigResources, AlbertVocabResources, AlbertModelResources};
 
 /// This example downloads and caches all dependencies used in model tests. This allows for safe
 /// multi threaded testing (two test using the same resource would otherwise download the file to
@@ -163,6 +164,17 @@ fn download_electra_discriminator() -> failure::Fallible<()> {
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraConfigResources::BASE_DISCRIMINATOR));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraVocabResources::BASE_DISCRIMINATOR));
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraModelResources::BASE_DISCRIMINATOR));
+    let _ = download_resource(&config_resource)?;
+    let _ = download_resource(&vocab_resource)?;
+    let _ = download_resource(&weights_resource)?;
+    Ok(())
+}
+
+fn download_albert_base_v2() -> failure::Fallible<()> {
+// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(AlbertConfigResources::ALBERT_BASE_V2));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(AlbertVocabResources::ALBERT_BASE_V2));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(AlbertModelResources::ALBERT_BASE_V2));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&weights_resource)?;
