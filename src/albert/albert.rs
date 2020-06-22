@@ -98,6 +98,13 @@ pub struct AlbertConfig {
 
 impl Config<AlbertConfig> for AlbertConfig {}
 
+/// # ALBERT Base model
+/// Base architecture for ALBERT models. Task-specific models will be built from this common base model
+/// It is made of the following blocks:
+/// - `embeddings`: `token`, `position` and `segment_id` embeddings
+/// - `encoder`: Encoder (transformer) made of a vector of layers. Each layer is made of a self-attention layer, an intermediate (linear) and output (linear + layer norm) layers. Note that the weights are shared across layers, allowing for a reduction in the model memory footprint.
+/// - `pooler`: linear layer applied to the first element of the sequence (*[MASK]* token)
+/// - `pooler_activation`: Tanh activation function for the pooling layer
 pub struct AlbertModel {
     embeddings: AlbertEmbeddings,
     encoder: AlbertTransformer,
@@ -106,6 +113,28 @@ pub struct AlbertModel {
 }
 
 impl AlbertModel {
+    /// Build a new `AlbertModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the ALBERT model
+    /// * `config` - `AlbertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::albert::{AlbertConfig, AlbertModel};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = AlbertConfig::from_file(config_path);
+    /// let albert: AlbertModel = AlbertModel::new(&(&p.root() / "albert"), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertModel {
         let embeddings = AlbertEmbeddings::new(&(p / "embeddings"), config);
         let encoder = AlbertTransformer::new(&(p / "encoder"), config);
@@ -115,6 +144,55 @@ impl AlbertModel {
         AlbertModel { embeddings, encoder, pooler, pooler_activation }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `pooled_output` - `Tensor` of shape (*batch size*, *hidden_size*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* of nested length *inner_group_num* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::albert::{AlbertConfig, AlbertModel};
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = AlbertConfig::from_file(config_path);
+    ///# let albert_model: AlbertModel = AlbertModel::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, pooled_output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    albert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false).unwrap()
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -193,12 +271,39 @@ impl AlbertMLMHead {
     }
 }
 
+/// # ALBERT for masked language model
+/// Base ALBERT model with a masked language model head to predict missing tokens, for example `"Looks like one [MASK] is missing" -> "person"`
+/// It is made of the following blocks:
+/// - `albert`: Base AlbertModel
+/// - `predictions`: ALBERT MLM prediction head
 pub struct AlbertForMaskedLM {
     albert: AlbertModel,
     predictions: AlbertMLMHead,
 }
 
 impl AlbertForMaskedLM {
+    /// Build a new `AlbertForMaskedLM`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the ALBERT model
+    /// * `config` - `AlbertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = AlbertConfig::from_file(config_path);
+    /// let albert: AlbertForMaskedLM = AlbertForMaskedLM::new(&p.root(), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForMaskedLM {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let predictions = AlbertMLMHead::new(&(p / "predictions"), config);
@@ -206,6 +311,54 @@ impl AlbertForMaskedLM {
         AlbertForMaskedLM { albert, predictions }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* of nested length *inner_group_num* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM};
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = AlbertConfig::from_file(config_path);
+    ///# let albert_model: AlbertForMaskedLM = AlbertForMaskedLM::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    albert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -219,6 +372,12 @@ impl AlbertForMaskedLM {
     }
 }
 
+/// # ALBERT for sequence classification
+/// Base ALBERT model with a classifier head to perform sentence or document-level classification
+/// It is made of the following blocks:
+/// - `albert`: Base AlbertModel
+/// - `dropout`: Dropout layer
+/// - `classifier`: linear layer for classification
 pub struct AlbertForSequenceClassification {
     albert: AlbertModel,
     dropout: Dropout,
@@ -226,6 +385,28 @@ pub struct AlbertForSequenceClassification {
 }
 
 impl AlbertForSequenceClassification {
+    /// Build a new `AlbertForSequenceClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the ALBERT model
+    /// * `config` - `AlbertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForSequenceClassification};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = AlbertConfig::from_file(config_path);
+    /// let albert: AlbertForSequenceClassification = AlbertForSequenceClassification::new(&p.root(), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForSequenceClassification {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let classifier_dropout_prob = match config.classifier_dropout_prob {
@@ -239,6 +420,54 @@ impl AlbertForSequenceClassification {
         AlbertForSequenceClassification { albert, dropout, classifier }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *num_labels*)
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* of nested length *inner_group_num* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForSequenceClassification};
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = AlbertConfig::from_file(config_path);
+    ///# let albert_model: AlbertForSequenceClassification = AlbertForSequenceClassification::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    albert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -252,7 +481,13 @@ impl AlbertForSequenceClassification {
     }
 }
 
-
+/// # ALBERT for token classification (e.g. NER, POS)
+/// Token-level classifier predicting a label for each token provided. Note that because of SentencePiece tokenization, the labels predicted are
+/// not necessarily aligned with words in the sentence.
+/// It is made of the following blocks:
+/// - `albert`: Base AlbertModel
+/// - `dropout`: Dropout to apply on the encoder last hidden states
+/// - `classifier`: Linear layer for token classification
 pub struct AlbertForTokenClassification {
     albert: AlbertModel,
     dropout: Dropout,
@@ -260,6 +495,28 @@ pub struct AlbertForTokenClassification {
 }
 
 impl AlbertForTokenClassification {
+    /// Build a new `AlbertForTokenClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the ALBERT model
+    /// * `config` - `AlbertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForTokenClassification};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = AlbertConfig::from_file(config_path);
+    /// let albert: AlbertForTokenClassification = AlbertForTokenClassification::new(&p.root(), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForTokenClassification {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
@@ -269,6 +526,54 @@ impl AlbertForTokenClassification {
         AlbertForTokenClassification { albert, dropout, classifier }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) containing the logits for each of the input tokens and classes
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* of nested length *inner_group_num* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForTokenClassification};
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = AlbertConfig::from_file(config_path);
+    ///# let albert_model: AlbertForTokenClassification = AlbertForTokenClassification::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    albert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -282,12 +587,41 @@ impl AlbertForTokenClassification {
     }
 }
 
+/// # ALBERT for question answering
+/// Extractive question-answering model based on a ALBERT language model. Identifies the segment of a context that answers a provided question.
+/// Please note that a significant amount of pre- and post-processing is required to perform end-to-end question answering.
+/// See the question answering pipeline (also provided in this crate) for more details.
+/// It is made of the following blocks:
+/// - `albert`: Base AlbertModel
+/// - `qa_outputs`: Linear layer for question answering
 pub struct AlbertForQuestionAnswering {
     albert: AlbertModel,
     qa_outputs: nn::Linear,
 }
 
 impl AlbertForQuestionAnswering {
+    /// Build a new `AlbertForQuestionAnswering`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the ALBERT model
+    /// * `config` - `AlbertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForQuestionAnswering};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = AlbertConfig::from_file(config_path);
+    /// let albert: AlbertForQuestionAnswering = AlbertForQuestionAnswering::new(&p.root(), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForQuestionAnswering {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let num_labels = 2;
@@ -296,6 +630,55 @@ impl AlbertForQuestionAnswering {
         AlbertForQuestionAnswering { albert, qa_outputs }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `start_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    /// * `end_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* of nested length *inner_group_num* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForQuestionAnswering};
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = AlbertConfig::from_file(config_path);
+    ///# let albert_model: AlbertForQuestionAnswering = AlbertForQuestionAnswering::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (start_logits, end_logits, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    albert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false)
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
@@ -313,6 +696,14 @@ impl AlbertForQuestionAnswering {
     }
 }
 
+/// # ALBERT for multiple choices
+/// Multiple choices model using a ALBERT base model and a linear classifier.
+/// Input should be in the form `[CLS] Context [SEP] Possible choice [SEP]`. The choice is made along the batch axis,
+/// assuming all elements of the batch are alternatives to be chosen from for a given context.
+/// It is made of the following blocks:
+/// - `albert`: Base AlbertModel
+/// - `dropout`: Dropout for hidden states output
+/// - `classifier`: Linear layer for multiple choices
 pub struct AlbertForMultipleChoice {
     albert: AlbertModel,
     dropout: Dropout,
@@ -320,6 +711,28 @@ pub struct AlbertForMultipleChoice {
 }
 
 impl AlbertForMultipleChoice {
+    /// Build a new `AlbertForMultipleChoice`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the ALBERT model
+    /// * `config` - `AlbertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tch::{nn, Device};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForMultipleChoice};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = AlbertConfig::from_file(config_path);
+    /// let albert: AlbertForMultipleChoice = AlbertForMultipleChoice::new(&p.root(), &config);
+    /// ```
+    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForMultipleChoice {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
@@ -329,6 +742,54 @@ impl AlbertForMultipleChoice {
         AlbertForMultipleChoice { albert, dropout, classifier }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `output` - `Tensor` of shape (*1*, *batch size*) containing the logits for each of the alternatives given
+    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* of nested length *inner_group_num* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///# use tch::{nn, Device, Tensor, no_grad};
+    ///# use rust_bert::Config;
+    ///# use std::path::Path;
+    ///# use tch::kind::Kind::Int64;
+    /// use rust_bert::albert::{AlbertConfig, AlbertForMultipleChoice};
+    ///# let config_path = Path::new("path/to/config.json");
+    ///# let device = Device::Cpu;
+    ///# let vs = nn::VarStore::new(device);
+    ///# let config = AlbertConfig::from_file(config_path);
+    ///# let albert_model: AlbertForMultipleChoice = AlbertForMultipleChoice::new(&vs.root(), &config);
+    ///  let (batch_size, sequence_length) = (64, 128);
+    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    ///
+    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///    albert_model
+    ///         .forward_t(Some(input_tensor),
+    ///                    Some(mask),
+    ///                    Some(token_type_ids),
+    ///                    Some(position_ids),
+    ///                    None,
+    ///                    false).unwrap()
+    ///    });
+    ///
+    /// ```
+    ///
     pub fn forward_t(&self,
                      input_ids: Option<Tensor>,
                      mask: Option<Tensor>,
