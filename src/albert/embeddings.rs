@@ -1,7 +1,6 @@
-// Copyright 2020 The Google Research Authors.
-// Copyright 2019-present, the HuggingFace Inc. team
-// Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
-// Copyright 2019 Guillaume Becquin
+// Copyright 2018 Google AI and Google Brain team.
+// Copyright 2020-present, the HuggingFace Inc. team.
+// Copyright 2020 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,12 +13,13 @@
 
 use tch::{nn, Tensor, Kind};
 use crate::common::dropout::Dropout;
-use crate::electra::electra::ElectraConfig;
+use crate::albert::AlbertConfig;
 use tch::nn::{EmbeddingConfig, embedding};
 
+/// # Embeddings implementation for Albert model
 #[derive(Debug)]
 /// # Embeddings implementation for Electra model
-pub struct ElectraEmbeddings {
+pub struct AlbertEmbeddings {
     word_embeddings: nn::Embedding,
     position_embeddings: nn::Embedding,
     token_type_embeddings: nn::Embedding,
@@ -27,8 +27,8 @@ pub struct ElectraEmbeddings {
     dropout: Dropout,
 }
 
-impl ElectraEmbeddings {
-    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraEmbeddings {
+impl AlbertEmbeddings {
+    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertEmbeddings {
         let embedding_config = EmbeddingConfig {
             padding_idx: config.pad_token_id,
             ..Default::default()
@@ -56,7 +56,7 @@ impl ElectraEmbeddings {
         let layer_norm_config = nn::LayerNormConfig { eps: layer_norm_eps, ..Default::default() };
         let layer_norm: nn::LayerNorm = nn::layer_norm(p / "LayerNorm", vec![config.embedding_size], layer_norm_config);
         let dropout: Dropout = Dropout::new(config.hidden_dropout_prob);
-        ElectraEmbeddings { word_embeddings, position_embeddings, token_type_embeddings, layer_norm, dropout}
+        AlbertEmbeddings { word_embeddings, position_embeddings, token_type_embeddings, layer_norm, dropout}
     }
 
     pub fn forward_t(&self,
