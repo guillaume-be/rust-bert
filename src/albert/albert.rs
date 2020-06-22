@@ -20,6 +20,7 @@ use crate::albert::encoder::AlbertTransformer;
 use tch::{nn, Tensor, Kind};
 use crate::common::activations::{_tanh, _gelu_new, _gelu, _relu, _mish};
 use tch::nn::Module;
+use crate::common::dropout::Dropout;
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -42,6 +43,7 @@ pub enum Activation {
 pub struct AlbertConfig {
     pub hidden_act: Activation,
     pub attention_probs_dropout_prob: f64,
+    pub classifier_dropout_prob: Option<f64>,
     pub bos_token_id: i64,
     pub eos_token_id: i64,
     pub down_scale_factor: i64,
@@ -189,5 +191,37 @@ impl AlbertForMaskedLM {
         let (hidden_state, _, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
         let prediction_scores = self.predictions.forward(&hidden_state);
         (prediction_scores, all_hidden_states, all_attentions)
+    }
+}
+
+pub struct AlbertForSequenceClassification {
+    albert: AlbertModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl AlbertForSequenceClassification {
+    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForSequenceClassification {
+        let albert = AlbertModel::new(&(p / "albert"), config);
+        let classifier_dropout_prob = match config.classifier_dropout_prob {
+            Some(value) => value,
+            None => 0.1
+        };
+        let dropout = Dropout::new(classifier_dropout_prob);
+        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, config.embedding_size, Default::default());
+
+        AlbertForSequenceClassification { albert, dropout, classifier }
+    }
+
+    pub fn forward_t(&self,
+                     input_ids: Option<Tensor>,
+                     mask: Option<Tensor>,
+                     token_type_ids: Option<Tensor>,
+                     position_ids: Option<Tensor>,
+                     input_embeds: Option<Tensor>,
+                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+        let (_, pooled_output, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
+        let logits = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier);
+        (logits, all_hidden_states, all_attentions)
     }
 }
