@@ -16,15 +16,15 @@ extern crate failure;
 use tch::{Device, nn, Tensor, no_grad};
 use rust_tokenizers::{AlbertTokenizer, TruncationStrategy, Tokenizer, Vocab};
 use rust_bert::Config;
-use rust_bert::resources::{Resource, download_resource, LocalResource};
-use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM};
+use rust_bert::resources::{Resource, download_resource, RemoteResource};
+use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM, AlbertConfigResources, AlbertVocabResources, AlbertModelResources};
 
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
-    let config_resource = Resource::Local(LocalResource { local_path: "E:/Coding/cache/rustbert/albert-base-v2/config.json".parse().unwrap() });
-    let vocab_resource = Resource::Local(LocalResource { local_path: "E:/Coding/cache/rustbert/albert-base-v2/spiece.model".parse().unwrap() });
-    let weights_resource = Resource::Local(LocalResource { local_path: "E:/Coding/cache/rustbert/albert-base-v2/model.ot".parse().unwrap() });
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(AlbertConfigResources::ALBERT_BASE_V2));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(AlbertVocabResources::ALBERT_BASE_V2));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(AlbertModelResources::ALBERT_BASE_V2));
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
     let weights_path = download_resource(&weights_resource)?;

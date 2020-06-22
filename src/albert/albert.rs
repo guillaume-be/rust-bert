@@ -22,6 +22,31 @@ use crate::common::activations::{_tanh, _gelu_new, _gelu, _relu, _mish};
 use tch::nn::Module;
 use crate::common::dropout::Dropout;
 
+/// # ALBERT Pretrained model weight files
+pub struct AlbertModelResources;
+
+/// # ALBERT Pretrained model config files
+pub struct AlbertConfigResources;
+
+/// # ALBERT Pretrained model vocab files
+pub struct AlbertVocabResources;
+
+impl AlbertModelResources {
+    /// Shared under Apache 2.0 license by the Google team at https://tfhub.dev/google/albert_base/3. Modified with conversion to C-array format.
+    pub const ALBERT_BASE_V2: (&'static str, &'static str) = ("albert-base-v2/model.ot", "https://cdn.huggingface.co/albert-base-v2/rust_model.ot");
+}
+
+impl AlbertConfigResources {
+    /// Shared under Apache 2.0 license by the Google team at https://tfhub.dev/google/albert_base/3. Modified with conversion to C-array format.
+    pub const ALBERT_BASE_V2: (&'static str, &'static str) = ("albert-base-v2/config.json", "https://cdn.huggingface.co/albert-base-v2-config.json");
+}
+
+impl AlbertVocabResources {
+    /// Shared under Apache 2.0 license by the Google team at https://tfhub.dev/google/albert_base/3. Modified with conversion to C-array format.
+    pub const ALBERT_BASE_V2: (&'static str, &'static str) = ("albert-base-v2/spiece.model", "https://cdn.huggingface.co/albert-base-v2-spiece.model");
+}
+
+
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// # Activation function used in the attention layer and masked language model head
