@@ -195,6 +195,7 @@ fn main() -> failure::Fallible<()> {
     let _ = download_bart_cnn();
     let _ = download_electra_generator();
     let _ = download_electra_discriminator();
+    let _ = download_albert_base_v2();
 
     Ok(())
 }
