@@ -3,6 +3,11 @@ dist: bionic
 
 jobs:
   include:
+    - before_script:
+      - rustup toolchain install nightly
+      - rustup component add rustfmt
+      script:
+        - cargo +nightly fmt -- --check
     - script:
       - cargo build --verbose
     - script:
