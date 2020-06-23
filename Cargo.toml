@@ -8,7 +8,7 @@ repository = "https://github.com/guillaume-be/rust-bert"
 documentation = "https://docs.rs/rust-bert"
 license = "Apache-2.0"
 readme = "README.md"
-keywords = ["nlp", "deep-learning", "machine-learning", "bert", "transformers", "summarization", "translation", "NER", "classification", "language", "sentiment-analysis", "question-answering"]
+keywords = ["nlp", "deep-learning", "machine-learning", "transformers", "translation"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
