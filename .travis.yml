@@ -5,7 +5,7 @@ jobs:
   include:
     - before_script:
       - rustup toolchain install nightly
-      - rustup component add rustfmt
+      - rustup component add rustfmt --toolchain nightly
       script:
         - cargo +nightly fmt -- --check
     - script:
