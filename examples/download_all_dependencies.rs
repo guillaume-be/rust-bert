@@ -1,26 +1,44 @@
 extern crate failure;
 
-use rust_bert::gpt2::{Gpt2ConfigResources, Gpt2VocabResources, Gpt2MergesResources, Gpt2ModelResources};
-use rust_bert::distilbert::{DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources};
-use rust_bert::openai_gpt::{OpenAiGptConfigResources, OpenAiGptVocabResources, OpenAiGptMergesResources, OpenAiGptModelResources};
-use rust_bert::roberta::{RobertaConfigResources, RobertaVocabResources, RobertaMergesResources, RobertaModelResources};
-use rust_bert::bert::{BertConfigResources, BertVocabResources, BertModelResources};
-use rust_bert::bart::{BartConfigResources, BartVocabResources, BartMergesResources, BartModelResources};
-use rust_bert::resources::{Resource, download_resource, RemoteResource};
-use rust_bert::electra::{ElectraConfigResources, ElectraVocabResources, ElectraModelResources};
-use rust_bert::albert::{AlbertConfigResources, AlbertVocabResources, AlbertModelResources};
+use rust_bert::albert::{AlbertConfigResources, AlbertModelResources, AlbertVocabResources};
+use rust_bert::bart::{
+    BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
+};
+use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
+use rust_bert::distilbert::{
+    DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources,
+};
+use rust_bert::electra::{ElectraConfigResources, ElectraModelResources, ElectraVocabResources};
+use rust_bert::gpt2::{
+    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
+};
+use rust_bert::openai_gpt::{
+    OpenAiGptConfigResources, OpenAiGptMergesResources, OpenAiGptModelResources,
+    OpenAiGptVocabResources,
+};
+use rust_bert::resources::{download_resource, RemoteResource, Resource};
+use rust_bert::roberta::{
+    RobertaConfigResources, RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
+};
 
 /// This example downloads and caches all dependencies used in model tests. This allows for safe
 /// multi threaded testing (two test using the same resource would otherwise download the file to
 /// the same location).
 
-
 fn download_distil_gpt2() -> failure::Fallible<()> {
-//   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::DISTIL_GPT2));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::DISTIL_GPT2));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::DISTIL_GPT2));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::DISTIL_GPT2));
+    //   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        Gpt2ConfigResources::DISTIL_GPT2,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        Gpt2VocabResources::DISTIL_GPT2,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        Gpt2MergesResources::DISTIL_GPT2,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        Gpt2ModelResources::DISTIL_GPT2,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&merges_resource)?;
@@ -29,10 +47,16 @@ fn download_distil_gpt2() -> failure::Fallible<()> {
 }
 
 fn download_distilbert_sst2() -> failure::Fallible<()> {
-//   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2));
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2));
+    //   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertModelResources::DISTIL_BERT_SST2,
+    ));
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertConfigResources::DISTIL_BERT_SST2,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertVocabResources::DISTIL_BERT_SST2,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&weights_resource)?;
@@ -40,10 +64,16 @@ fn download_distilbert_sst2() -> failure::Fallible<()> {
 }
 
 fn download_distilbert_qa() -> failure::Fallible<()> {
-//   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SQUAD));
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SQUAD));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SQUAD));
+    //   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertModelResources::DISTIL_BERT_SQUAD,
+    ));
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertConfigResources::DISTIL_BERT_SQUAD,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertVocabResources::DISTIL_BERT_SQUAD,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&weights_resource)?;
@@ -51,10 +81,16 @@ fn download_distilbert_qa() -> failure::Fallible<()> {
 }
 
 fn download_distilbert() -> failure::Fallible<()> {
-//   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT));
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT));
+    //   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertModelResources::DISTIL_BERT,
+    ));
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertConfigResources::DISTIL_BERT,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertVocabResources::DISTIL_BERT,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&weights_resource)?;
@@ -62,11 +98,15 @@ fn download_distilbert() -> failure::Fallible<()> {
 }
 
 fn download_gpt2() -> failure::Fallible<()> {
-//   Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+    //   Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2. Modified with conversion to C-array format.
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let weights_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&merges_resource)?;
@@ -75,11 +115,19 @@ fn download_gpt2() -> failure::Fallible<()> {
 }
 
 fn download_gpt() -> failure::Fallible<()> {
-//   Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptConfigResources::GPT));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptVocabResources::GPT));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptMergesResources::GPT));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(OpenAiGptModelResources::GPT));
+    //   Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        OpenAiGptConfigResources::GPT,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        OpenAiGptVocabResources::GPT,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        OpenAiGptMergesResources::GPT,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        OpenAiGptModelResources::GPT,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&merges_resource)?;
@@ -88,11 +136,19 @@ fn download_gpt() -> failure::Fallible<()> {
 }
 
 fn download_roberta() -> failure::Fallible<()> {
-//   Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaMergesResources::ROBERTA));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(RobertaModelResources::ROBERTA));
+    //   Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaConfigResources::ROBERTA,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaVocabResources::ROBERTA,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaMergesResources::ROBERTA,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaModelResources::ROBERTA,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&merges_resource)?;
@@ -101,10 +157,13 @@ fn download_roberta() -> failure::Fallible<()> {
 }
 
 fn download_bert() -> failure::Fallible<()> {
-//   Shared under Apache 2.0 license by the Google team at https://github.com/google-research/bert. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT));
+    //   Shared under Apache 2.0 license by the Google team at https://github.com/google-research/bert. Modified with conversion to C-array format.
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let weights_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&weights_resource)?;
@@ -112,10 +171,16 @@ fn download_bert() -> failure::Fallible<()> {
 }
 
 fn download_bert_ner() -> failure::Fallible<()> {
-//    Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at https://github.com/dbmdz/berts. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_NER));
+    //    Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at https://github.com/dbmdz/berts. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BertConfigResources::BERT_NER,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BertVocabResources::BERT_NER,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BertModelResources::BERT_NER,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&weights_resource)?;
@@ -123,11 +188,15 @@ fn download_bert_ner() -> failure::Fallible<()> {
 }
 
 fn download_bart() -> failure::Fallible<()> {
-//   Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
+    //   Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
+    let weights_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&merges_resource)?;
@@ -136,11 +205,19 @@ fn download_bart() -> failure::Fallible<()> {
 }
 
 fn download_bart_cnn() -> failure::Fallible<()> {
-//   Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART_CNN));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART_CNN));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART_CNN));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART_CNN));
+    //   Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::BART_CNN,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::BART_CNN,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::BART_CNN,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::BART_CNN,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&merges_resource)?;
@@ -149,10 +226,16 @@ fn download_bart_cnn() -> failure::Fallible<()> {
 }
 
 fn download_electra_generator() -> failure::Fallible<()> {
-//  Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraConfigResources::BASE_GENERATOR));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraVocabResources::BASE_GENERATOR));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraModelResources::BASE_GENERATOR));
+    //  Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        ElectraConfigResources::BASE_GENERATOR,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        ElectraVocabResources::BASE_GENERATOR,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        ElectraModelResources::BASE_GENERATOR,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&weights_resource)?;
@@ -160,10 +243,16 @@ fn download_electra_generator() -> failure::Fallible<()> {
 }
 
 fn download_electra_discriminator() -> failure::Fallible<()> {
-//  Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraConfigResources::BASE_DISCRIMINATOR));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraVocabResources::BASE_DISCRIMINATOR));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(ElectraModelResources::BASE_DISCRIMINATOR));
+    //  Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        ElectraConfigResources::BASE_DISCRIMINATOR,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        ElectraVocabResources::BASE_DISCRIMINATOR,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        ElectraModelResources::BASE_DISCRIMINATOR,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&weights_resource)?;
@@ -171,10 +260,16 @@ fn download_electra_discriminator() -> failure::Fallible<()> {
 }
 
 fn download_albert_base_v2() -> failure::Fallible<()> {
-// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(AlbertConfigResources::ALBERT_BASE_V2));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(AlbertVocabResources::ALBERT_BASE_V2));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(AlbertModelResources::ALBERT_BASE_V2));
+    // Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        AlbertConfigResources::ALBERT_BASE_V2,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        AlbertVocabResources::ALBERT_BASE_V2,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        AlbertModelResources::ALBERT_BASE_V2,
+    ));
     let _ = download_resource(&config_resource)?;
     let _ = download_resource(&vocab_resource)?;
     let _ = download_resource(&weights_resource)?;

@@ -11,12 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::albert::attention::AlbertSelfAttention;
-use tch::{nn, Tensor};
-use crate::albert::AlbertConfig;
 use crate::albert::albert::Activation;
-use crate::common::activations::{_gelu_new, _gelu, _relu, _mish};
+use crate::albert::attention::AlbertSelfAttention;
+use crate::albert::AlbertConfig;
+use crate::common::activations::{_gelu, _gelu_new, _mish, _relu};
 use std::borrow::BorrowMut;
+use tch::{nn, Tensor};
 
 pub struct AlbertLayer {
     attention: AlbertSelfAttention,
@@ -32,29 +32,55 @@ impl AlbertLayer {
 
         let layer_norm_eps = match config.layer_norm_eps {
             Some(value) => value,
-            None => 1e-12
+            None => 1e-12,
         };
-        let layer_norm_config = nn::LayerNormConfig { eps: layer_norm_eps, ..Default::default() };
-        let full_layer_layer_norm = nn::layer_norm(&(p / "full_layer_layer_norm"), vec![config.hidden_size], layer_norm_config);
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: layer_norm_eps,
+            ..Default::default()
+        };
+        let full_layer_layer_norm = nn::layer_norm(
+            &(p / "full_layer_layer_norm"),
+            vec![config.hidden_size],
+            layer_norm_config,
+        );
 
-        let ffn = nn::linear(&(p / "ffn"), config.hidden_size, config.intermediate_size, Default::default());
-        let ffn_output = nn::linear(&(p / "ffn_output"), config.intermediate_size, config.hidden_size, Default::default());
+        let ffn = nn::linear(
+            &(p / "ffn"),
+            config.hidden_size,
+            config.intermediate_size,
+            Default::default(),
+        );
+        let ffn_output = nn::linear(
+            &(p / "ffn_output"),
+            config.intermediate_size,
+            config.hidden_size,
+            Default::default(),
+        );
 
         let activation = Box::new(match &config.hidden_act {
             Activation::gelu_new => _gelu_new,
             Activation::gelu => _gelu,
             Activation::relu => _relu,
-            Activation::mish => _mish
+            Activation::mish => _mish,
         });
 
-        AlbertLayer { attention, full_layer_layer_norm, ffn, ffn_output, activation }
+        AlbertLayer {
+            attention,
+            full_layer_layer_norm,
+            ffn,
+            ffn_output,
+            activation,
+        }
     }
 
-    pub fn forward_t(&self,
-                     hidden_states: &Tensor,
-                     mask: &Option<Tensor>,
-                     train: bool) -> (Tensor, Option<Tensor>) {
-        let (attention_output, attention_weights) = self.attention.forward_t(hidden_states, mask, train);
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        mask: &Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>) {
+        let (attention_output, attention_weights) =
+            self.attention.forward_t(hidden_states, mask, train);
         let ffn_output = attention_output.apply(&self.ffn);
         let ffn_output: Tensor = (self.activation)(&ffn_output);
         let ffn_output = ffn_output.apply(&self.ffn_output);
@@ -76,29 +102,42 @@ impl AlbertLayerGroup {
 
         let output_attentions = match config.output_attentions {
             Some(value) => value,
-            None => false
+            None => false,
         };
 
         let output_hidden_states = match config.output_hidden_states {
             Some(value) => value,
-            None => false
+            None => false,
         };
 
-        let mut layers: Vec<AlbertLayer> = vec!();
+        let mut layers: Vec<AlbertLayer> = vec![];
         for layer_index in 0..config.inner_group_num {
             layers.push(AlbertLayer::new(&(p / layer_index), config));
-        };
+        }
 
-        AlbertLayerGroup { output_hidden_states, output_attentions, layers }
+        AlbertLayerGroup {
+            output_hidden_states,
+            output_attentions,
+            layers,
+        }
     }
 
-    pub fn forward_t(&self,
-                     hidden_states: &Tensor,
-                     mask: &Option<Tensor>,
-                     train: bool)
-                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
-        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        mask: &Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
 
         let mut hidden_state = hidden_states.copy();
         let mut attention_weights: Option<Tensor>;
@@ -117,9 +156,9 @@ impl AlbertLayerGroup {
                         attentions.push(attention_weights.as_ref().unwrap().copy());
                     };
                 }
-                None => break
+                None => break,
             };
-        };
+        }
 
         (hidden_state, all_hidden_states, all_attentions)
     }
@@ -140,20 +179,25 @@ impl AlbertTransformer {
 
         let output_attentions = match config.output_attentions {
             Some(value) => value,
-            None => false
+            None => false,
         };
 
         let output_hidden_states = match config.output_hidden_states {
             Some(value) => value,
-            None => false
+            None => false,
         };
 
-        let embedding_hidden_mapping_in = nn::linear(&(p / "embedding_hidden_mapping_in"), config.embedding_size, config.hidden_size, Default::default());
+        let embedding_hidden_mapping_in = nn::linear(
+            &(p / "embedding_hidden_mapping_in"),
+            config.embedding_size,
+            config.hidden_size,
+            Default::default(),
+        );
 
-        let mut layers: Vec<AlbertLayerGroup> = vec!();
+        let mut layers: Vec<AlbertLayerGroup> = vec![];
         for layer_index in 0..config.inner_group_num {
             layers.push(AlbertLayerGroup::new(&(p_layers / layer_index), config));
-        };
+        }
 
         AlbertTransformer {
             output_hidden_states,
@@ -165,16 +209,24 @@ impl AlbertTransformer {
         }
     }
 
-    pub fn forward_t(&self,
-                     hidden_states: &Tensor,
-                     mask: Option<Tensor>,
-                     train: bool)
-                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        mask: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
         let mut hidden_state = hidden_states.apply(&self.embedding_hidden_mapping_in);
 
-        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
-        let mut all_attentions: Option<Vec<Vec<Tensor>>> = if self.output_attentions { Some(vec!()) } else { None };
-
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Vec<Tensor>>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
 
         for i in 0..self.num_hidden_layers {
             let group_idx = i / (self.num_hidden_layers / self.num_hidden_groups);
@@ -190,9 +242,8 @@ impl AlbertTransformer {
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.unwrap());
             };
-        };
+        }
 
         (hidden_state, all_hidden_states, all_attentions)
     }
 }
-

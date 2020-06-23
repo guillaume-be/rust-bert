@@ -16,14 +16,14 @@
 //!
 //! More information on these can be found in the [`pipelines` module](./pipelines/index.html)
 //! ```no_run
-//! use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
+//! use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 //!
-//!# fn main() -> failure::Fallible<()> {
+//! # fn main() -> failure::Fallible<()> {
 //! let qa_model = QuestionAnsweringModel::new(Default::default())?;
 //!
 //! let question = String::from("Where does Amy live ?");
 //! let context = String::from("Amy lives in Amsterdam");
-//! let answers = qa_model.predict(&vec!(QaInput { question, context }), 1, 32);
+//! let answers = qa_model.predict(&vec![QaInput { question, context }], 1, 32);
 //! # Ok(())
 //! # }
 //! ```
@@ -55,19 +55,18 @@
 //!     - Set-up a virtual environment and install dependencies
 //!     - run the conversion script python /utils/download-dependencies_{MODEL_TO_DOWNLOAD}.py. The dependencies will be downloaded to the user's home directory, under ~/rustbert/{}
 //! 3. Run the example cargo run --release
-//!
 
-pub mod distilbert;
-pub mod bert;
-pub mod roberta;
-pub mod openai_gpt;
-pub mod gpt2;
-pub mod bart;
-pub mod electra;
-pub mod marian;
 pub mod albert;
+pub mod bart;
+pub mod bert;
 mod common;
+pub mod distilbert;
+pub mod electra;
+pub mod gpt2;
+pub mod marian;
+pub mod openai_gpt;
 pub mod pipelines;
+pub mod roberta;
 
-pub use common::Config;
 pub use common::resources;
+pub use common::Config;

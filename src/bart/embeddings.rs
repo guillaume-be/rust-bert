@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{nn, Tensor};
-use tch::nn::{EmbeddingConfig, embedding};
 use tch::kind::Kind::Int64;
-
+use tch::nn::{embedding, EmbeddingConfig};
+use tch::{nn, Tensor};
 
 /// # Abstraction that holds a embeddings configuration
 pub enum EmbeddingOption {
@@ -27,8 +26,12 @@ impl EmbeddingOption {
     /// Interface method to forward_t() of the particular models.
     pub fn forward(&self, input: &Tensor, generation_mode: bool) -> Tensor {
         match *self {
-            Self::LearnedPositionalEmbedding(ref embeddings) => embeddings.forward(input, generation_mode),
-            Self::SinusoidalPositionalEmbedding(ref embeddings) => embeddings.forward(input, generation_mode)
+            Self::LearnedPositionalEmbedding(ref embeddings) => {
+                embeddings.forward(input, generation_mode)
+            }
+            Self::SinusoidalPositionalEmbedding(ref embeddings) => {
+                embeddings.forward(input, generation_mode)
+            }
         }
     }
 }
@@ -40,15 +43,24 @@ pub struct LearnedPositionalEmbedding {
 }
 
 impl LearnedPositionalEmbedding {
-    pub fn new(p: nn::Path, num_embeddings: i64, embedding_dim: i64, padding_index: i64) -> LearnedPositionalEmbedding {
-        let embedding_config = EmbeddingConfig { padding_idx: padding_index, ..Default::default() };
+    pub fn new(
+        p: nn::Path,
+        num_embeddings: i64,
+        embedding_dim: i64,
+        padding_index: i64,
+    ) -> LearnedPositionalEmbedding {
+        let embedding_config = EmbeddingConfig {
+            padding_idx: padding_index,
+            ..Default::default()
+        };
         let num_embeddings = num_embeddings + padding_index + 1;
 
-        let embedding: nn::Embedding = embedding(p,
-                                                 num_embeddings,
-                                                 embedding_dim,
-                                                 embedding_config);
-        LearnedPositionalEmbedding { embedding, padding_index }
+        let embedding: nn::Embedding =
+            embedding(p, num_embeddings, embedding_dim, embedding_config);
+        LearnedPositionalEmbedding {
+            embedding,
+            padding_index,
+        }
     }
 
     pub fn forward(&self, input: &Tensor, generation_mode: bool) -> Tensor {
@@ -74,11 +86,13 @@ pub struct SinusoidalPositionalEmbedding {
 }
 
 impl SinusoidalPositionalEmbedding {
-    pub fn new(p: nn::Path, num_embeddings: i64, embedding_dim: i64) -> SinusoidalPositionalEmbedding {
-        let embedding: nn::Embedding = embedding(p,
-                                                 num_embeddings,
-                                                 embedding_dim,
-                                                 Default::default());
+    pub fn new(
+        p: nn::Path,
+        num_embeddings: i64,
+        embedding_dim: i64,
+    ) -> SinusoidalPositionalEmbedding {
+        let embedding: nn::Embedding =
+            embedding(p, num_embeddings, embedding_dim, Default::default());
         SinusoidalPositionalEmbedding { embedding }
     }
 
@@ -86,7 +100,7 @@ impl SinusoidalPositionalEmbedding {
         let positions = if generation_mode {
             Tensor::full(&[1, 1], input.size()[1] - 1, (Int64, input.device()))
         } else {
-            Tensor::arange(input.size()[1],(Int64, input.device()))
+            Tensor::arange(input.size()[1], (Int64, input.device()))
         };
         positions.apply(&self.embedding)
     }

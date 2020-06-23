@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{nn, Tensor, Kind};
-use crate::common::dropout::Dropout;
-use tch::nn::{EmbeddingConfig, embedding};
 use crate::bert::{BertConfig, BertEmbedding};
+use crate::common::dropout::Dropout;
+use tch::nn::{embedding, EmbeddingConfig};
+use tch::{nn, Kind, Tensor};
 
 #[derive(Debug)]
 /// # BertEmbeddings implementation for RoBERTa model
@@ -36,8 +36,12 @@ impl RobertaEmbeddings {
 
     fn create_position_ids_from_embeddings(&self, x: &Tensor) -> Tensor {
         let input_shape = x.size();
-        let input_shape = vec!(input_shape[0], input_shape[1]);
-        let position_ids: Tensor = Tensor::arange1(self.padding_index + 1, input_shape[0], (Kind::Int64, x.device()));
+        let input_shape = vec![input_shape[0], input_shape[1]];
+        let position_ids: Tensor = Tensor::arange1(
+            self.padding_index + 1,
+            input_shape[0],
+            (Kind::Int64, x.device()),
+        );
         position_ids.unsqueeze(0).expand(&input_shape, true)
     }
 }
@@ -54,10 +58,10 @@ impl BertEmbedding for RobertaEmbeddings {
     ///
     /// ```no_run
     /// use rust_bert::bert::{BertConfig, BertEmbedding};
-    /// use tch::{nn, Device};
+    /// use rust_bert::roberta::RobertaEmbeddings;
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::roberta::RobertaEmbeddings;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -65,29 +69,48 @@ impl BertEmbedding for RobertaEmbeddings {
     /// let config = BertConfig::from_file(config_path);
     /// let robert_embeddings = RobertaEmbeddings::new(&(&p.root() / "bert_embeddings"), &config);
     /// ```
-    ///
     fn new(p: &nn::Path, config: &BertConfig) -> RobertaEmbeddings {
-        let embedding_config = EmbeddingConfig { padding_idx: 1, ..Default::default() };
+        let embedding_config = EmbeddingConfig {
+            padding_idx: 1,
+            ..Default::default()
+        };
 
-        let word_embeddings: nn::Embedding = embedding(p / "word_embeddings",
-                                                       config.vocab_size,
-                                                       config.hidden_size,
-                                                       embedding_config);
+        let word_embeddings: nn::Embedding = embedding(
+            p / "word_embeddings",
+            config.vocab_size,
+            config.hidden_size,
+            embedding_config,
+        );
 
-        let position_embeddings: nn::Embedding = embedding(p / "position_embeddings",
-                                                           config.max_position_embeddings,
-                                                           config.hidden_size,
-                                                           Default::default());
+        let position_embeddings: nn::Embedding = embedding(
+            p / "position_embeddings",
+            config.max_position_embeddings,
+            config.hidden_size,
+            Default::default(),
+        );
 
-        let token_type_embeddings: nn::Embedding = embedding(p / "token_type_embeddings",
-                                                             config.type_vocab_size,
-                                                             config.hidden_size,
-                                                             Default::default());
+        let token_type_embeddings: nn::Embedding = embedding(
+            p / "token_type_embeddings",
+            config.type_vocab_size,
+            config.hidden_size,
+            Default::default(),
+        );
 
-        let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let layer_norm: nn::LayerNorm = nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: 1e-12,
+            ..Default::default()
+        };
+        let layer_norm: nn::LayerNorm =
+            nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
         let dropout: Dropout = Dropout::new(config.hidden_dropout_prob);
-        RobertaEmbeddings { word_embeddings, position_embeddings, token_type_embeddings, layer_norm, dropout, padding_index: 1 }
+        RobertaEmbeddings {
+            word_embeddings,
+            position_embeddings,
+            token_type_embeddings,
+            layer_norm,
+            dropout,
+            padding_index: 1,
+        }
     }
 
     /// Forward pass through the embedding layer.
@@ -108,68 +131,82 @@ impl BertEmbedding for RobertaEmbeddings {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::bert::{BertConfig, BertEmbedding};
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use rust_bert::bert::{BertConfig, BertEmbedding};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::roberta::RobertaEmbeddings;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BertConfig::from_file(config_path);
-    ///# let roberta_embeddings = RobertaEmbeddings::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let roberta_embeddings = RobertaEmbeddings::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let embedded_output = no_grad(|| {
-    ///    roberta_embeddings
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    None,
-    ///                    false).unwrap()
-    ///    });
+    /// let embedded_output = no_grad(|| {
+    ///     roberta_embeddings
+    ///         .forward_t(
+    ///             Some(input_tensor),
+    ///             Some(token_type_ids),
+    ///             Some(position_ids),
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
     /// ```
-    ///
-    fn forward_t(&self,
-                 input_ids: Option<Tensor>,
-                 token_type_ids: Option<Tensor>,
-                 position_ids: Option<Tensor>,
-                 input_embeds: Option<Tensor>,
-                 train: bool) -> Result<Tensor, &'static str> {
+    fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<Tensor, &'static str> {
         let (input_embeddings, input_shape) = match &input_ids {
             Some(input_value) => match &input_embeds {
-                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
-                None => (input_value.apply_t(&self.word_embeddings, train), input_value.size())
-            }
+                Some(_) => {
+                    return Err("Only one of input ids or input embeddings may be set");
+                }
+                None => (
+                    input_value.apply_t(&self.word_embeddings, train),
+                    input_value.size(),
+                ),
+            },
             None => match &input_embeds {
-                Some(embeds) => (embeds.copy(), vec!(embeds.size()[0], embeds.size()[1])),
-                None => { return Err("Only one of input ids or input embeddings may be set"); }
-            }
+                Some(embeds) => (embeds.copy(), vec![embeds.size()[0], embeds.size()[1]]),
+                None => {
+                    return Err("Only one of input ids or input embeddings may be set");
+                }
+            },
         };
-
 
         let position_ids = match position_ids {
             Some(value) => value,
             None => match input_ids {
                 Some(value) => self.create_position_ids_from_input_ids(&value),
-                None => self.create_position_ids_from_embeddings(&input_embeds.unwrap())
-            }
+                None => self.create_position_ids_from_embeddings(&input_embeds.unwrap()),
+            },
         };
 
         let token_type_ids = match token_type_ids {
             Some(value) => value,
-            None => Tensor::zeros(&input_shape, (Kind::Int64, input_embeddings.device()))
+            None => Tensor::zeros(&input_shape, (Kind::Int64, input_embeddings.device())),
         };
 
         let position_embeddings = position_ids.apply(&self.position_embeddings);
         let token_type_embeddings = token_type_ids.apply(&self.token_type_embeddings);
 
-        let input_embeddings: Tensor = input_embeddings + position_embeddings + token_type_embeddings;
-        Ok(input_embeddings.apply(&self.layer_norm).apply_t(&self.dropout, train))
+        let input_embeddings: Tensor =
+            input_embeddings + position_embeddings + token_type_embeddings;
+        Ok(input_embeddings
+            .apply(&self.layer_norm)
+            .apply_t(&self.dropout, train))
     }
 }

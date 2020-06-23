@@ -15,16 +15,16 @@ extern crate failure;
 use rust_bert::pipelines::ner::NERModel;
 
 fn main() -> failure::Fallible<()> {
-//    Set-up model
+    //    Set-up model
     let ner_model = NERModel::new(Default::default())?;
 
-//    Define input
+    //    Define input
     let input = [
         "My name is Amélie. I live in Москва.",
-        "Chongqing is a city in China."
+        "Chongqing is a city in China.",
     ];
 
-//    Run model
+    //    Run model
     let output = ner_model.predict(&input);
     for entity in output {
         println!("{:?}", entity);

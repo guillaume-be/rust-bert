@@ -12,22 +12,21 @@
 
 extern crate failure;
 
-use std::path::PathBuf;
+use rust_bert::pipelines::question_answering::{squad_processor, QuestionAnsweringModel};
 use std::env;
-use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, squad_processor};
-
+use std::path::PathBuf;
 
 fn main() -> failure::Fallible<()> {
-//    Set-up Question Answering model
+    //    Set-up Question Answering model
     let qa_model = QuestionAnsweringModel::new(Default::default())?;
 
-//    Define input
+    //    Define input
     let mut squad_path = PathBuf::from(env::var("squad_dataset")
         .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));
     squad_path.push("dev-v2.0.json");
     let qa_inputs = squad_processor(squad_path);
 
-//    Get answer
+    //    Get answer
     let answers = qa_model.predict(&qa_inputs, 1, 64);
     println!("Sample answer: {:?}", answers.first().unwrap());
     println!("{}", answers.len());

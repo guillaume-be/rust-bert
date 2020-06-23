@@ -11,16 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use std::collections::HashMap;
-use crate::Config;
-use serde::{Deserialize, Serialize};
 use crate::albert::embeddings::AlbertEmbeddings;
 use crate::albert::encoder::AlbertTransformer;
-use tch::{nn, Tensor, Kind};
-use crate::common::activations::{_tanh, _gelu_new, _gelu, _relu, _mish};
-use tch::nn::Module;
+use crate::common::activations::{_gelu, _gelu_new, _mish, _relu, _tanh};
 use crate::common::dropout::Dropout;
+use crate::Config;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use tch::nn::Module;
+use tch::{nn, Kind, Tensor};
 
 /// # ALBERT Pretrained model weight files
 pub struct AlbertModelResources;
@@ -33,19 +32,27 @@ pub struct AlbertVocabResources;
 
 impl AlbertModelResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
-    pub const ALBERT_BASE_V2: (&'static str, &'static str) = ("albert-base-v2/model.ot", "https://cdn.huggingface.co/albert-base-v2/rust_model.ot");
+    pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
+        "albert-base-v2/model.ot",
+        "https://cdn.huggingface.co/albert-base-v2/rust_model.ot",
+    );
 }
 
 impl AlbertConfigResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
-    pub const ALBERT_BASE_V2: (&'static str, &'static str) = ("albert-base-v2/config.json", "https://cdn.huggingface.co/albert-base-v2-config.json");
+    pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
+        "albert-base-v2/config.json",
+        "https://cdn.huggingface.co/albert-base-v2-config.json",
+    );
 }
 
 impl AlbertVocabResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
-    pub const ALBERT_BASE_V2: (&'static str, &'static str) = ("albert-base-v2/spiece.model", "https://cdn.huggingface.co/albert-base-v2-spiece.model");
+    pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
+        "albert-base-v2/spiece.model",
+        "https://cdn.huggingface.co/albert-base-v2-spiece.model",
+    );
 }
-
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -60,7 +67,6 @@ pub enum Activation {
     /// Mish ([Misra, 2019](https://arxiv.org/abs/1908.08681))
     mish,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 /// # ALBERT model configuration
@@ -123,10 +129,10 @@ impl AlbertModel {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::albert::{AlbertConfig, AlbertModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::albert::{AlbertConfig, AlbertModel};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -134,14 +140,23 @@ impl AlbertModel {
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertModel = AlbertModel::new(&(&p.root() / "albert"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertModel {
         let embeddings = AlbertEmbeddings::new(&(p / "embeddings"), config);
         let encoder = AlbertTransformer::new(&(p / "encoder"), config);
-        let pooler = nn::linear(&(p / "pooler"), config.hidden_size, config.hidden_size, Default::default());
+        let pooler = nn::linear(
+            &(p / "pooler"),
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
         let pooler_activation = Box::new(_tanh);
 
-        AlbertModel { embeddings, encoder, pooler, pooler_activation }
+        AlbertModel {
+            embeddings,
+            encoder,
+            pooler,
+            pooler_activation,
+        }
     }
 
     /// Forward pass through the model
@@ -165,75 +180,103 @@ impl AlbertModel {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::albert::{AlbertConfig, AlbertModel};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = AlbertConfig::from_file(config_path);
-    ///# let albert_model: AlbertModel = AlbertModel::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = AlbertConfig::from_file(config_path);
+    /// # let albert_model: AlbertModel = AlbertModel::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, pooled_output, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    None,
-    ///                    false).unwrap()
-    ///    });
-    ///
+    /// let (output, pooled_output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     albert_model
+    ///         .forward_t(
+    ///             Some(input_tensor),
+    ///             Some(mask),
+    ///             Some(token_type_ids),
+    ///             Some(position_ids),
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool)
-                     -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>), &'static str> {
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<
+        (
+            Tensor,
+            Tensor,
+            Option<Vec<Tensor>>,
+            Option<Vec<Vec<Tensor>>>,
+        ),
+        &'static str,
+    > {
         let (input_shape, device) = match &input_ids {
             Some(input_value) => match &input_embeds {
-                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
-                None => (input_value.size(), input_value.device())
-            }
+                Some(_) => {
+                    return Err("Only one of input ids or input embeddings may be set");
+                }
+                None => (input_value.size(), input_value.device()),
+            },
             None => match &input_embeds {
-                Some(embeds) => (vec!(embeds.size()[0], embeds.size()[1]), embeds.device()),
-                None => { return Err("At least one of input ids or input embeddings must be set"); }
-            }
+                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
+                None => {
+                    return Err("At least one of input ids or input embeddings must be set");
+                }
+            },
         };
 
         let mask = match mask {
             Some(value) => value,
-            None => Tensor::ones(&input_shape, (Kind::Int64, device))
+            None => Tensor::ones(&input_shape, (Kind::Int64, device)),
         };
 
         let extended_attention_mask = mask.unsqueeze(1).unsqueeze(2);
-        let extended_attention_mask: Tensor = (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
+        let extended_attention_mask: Tensor =
+            (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
 
-        let embedding_output = match self.embeddings.forward_t(input_ids, token_type_ids, position_ids, input_embeds, train) {
+        let embedding_output = match self.embeddings.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        ) {
             Ok(value) => value,
-            Err(e) => { return Err(e); }
+            Err(e) => {
+                return Err(e);
+            }
         };
 
         let (hidden_state, all_hidden_states, all_attentions) =
-            self.encoder.forward_t(&embedding_output,
-                                   Some(extended_attention_mask),
-                                   train);
+            self.encoder
+                .forward_t(&embedding_output, Some(extended_attention_mask), train);
 
         let pooled_output = self.pooler.forward(&hidden_state.select(1, 0));
         let pooled_output = (self.pooler_activation)(&pooled_output);
 
-        Ok((hidden_state, pooled_output, all_hidden_states, all_attentions))
+        Ok((
+            hidden_state,
+            pooled_output,
+            all_hidden_states,
+            all_attentions,
+        ))
     }
 }
 
@@ -248,21 +291,43 @@ impl AlbertMLMHead {
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertMLMHead {
         let layer_norm_eps = match config.layer_norm_eps {
             Some(value) => value,
-            None => 1e-12
+            None => 1e-12,
         };
-        let layer_norm_config = nn::LayerNormConfig { eps: layer_norm_eps, ..Default::default() };
-        let layer_norm = nn::layer_norm(&(p / "LayerNorm"), vec![config.embedding_size], layer_norm_config);
-        let dense = nn::linear(&(p / "dense"), config.hidden_size, config.embedding_size, Default::default());
-        let decoder = nn::linear(&(p / "decoder"), config.embedding_size, config.vocab_size, Default::default());
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: layer_norm_eps,
+            ..Default::default()
+        };
+        let layer_norm = nn::layer_norm(
+            &(p / "LayerNorm"),
+            vec![config.embedding_size],
+            layer_norm_config,
+        );
+        let dense = nn::linear(
+            &(p / "dense"),
+            config.hidden_size,
+            config.embedding_size,
+            Default::default(),
+        );
+        let decoder = nn::linear(
+            &(p / "decoder"),
+            config.embedding_size,
+            config.vocab_size,
+            Default::default(),
+        );
 
         let activation = Box::new(match &config.hidden_act {
             Activation::gelu_new => _gelu_new,
             Activation::gelu => _gelu,
             Activation::relu => _relu,
-            Activation::mish => _mish
+            Activation::mish => _mish,
         });
 
-        AlbertMLMHead { layer_norm, dense, decoder, activation }
+        AlbertMLMHead {
+            layer_norm,
+            dense,
+            decoder,
+            activation,
+        }
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
@@ -292,10 +357,10 @@ impl AlbertForMaskedLM {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -303,12 +368,14 @@ impl AlbertForMaskedLM {
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForMaskedLM = AlbertForMaskedLM::new(&p.root(), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForMaskedLM {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let predictions = AlbertMLMHead::new(&(p / "predictions"), config);
 
-        AlbertForMaskedLM { albert, predictions }
+        AlbertForMaskedLM {
+            albert,
+            predictions,
+        }
     }
 
     /// Forward pass through the model
@@ -331,42 +398,54 @@ impl AlbertForMaskedLM {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = AlbertConfig::from_file(config_path);
-    ///# let albert_model: AlbertForMaskedLM = AlbertForMaskedLM::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = AlbertConfig::from_file(config_path);
+    /// # let albert_model: AlbertForMaskedLM = AlbertForMaskedLM::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    None,
-    ///                    false)
-    ///    });
-    ///
+    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     albert_model.forward_t(
+    ///         Some(input_tensor),
+    ///         Some(mask),
+    ///         Some(token_type_ids),
+    ///         Some(position_ids),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self
+            .albert
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )
+            .unwrap();
         let prediction_scores = self.predictions.forward(&hidden_state);
         (prediction_scores, all_hidden_states, all_attentions)
     }
@@ -395,29 +474,42 @@ impl AlbertForSequenceClassification {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::albert::{AlbertConfig, AlbertForSequenceClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::albert::{AlbertConfig, AlbertForSequenceClassification};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = AlbertConfig::from_file(config_path);
-    /// let albert: AlbertForSequenceClassification = AlbertForSequenceClassification::new(&p.root(), &config);
+    /// let albert: AlbertForSequenceClassification =
+    ///     AlbertForSequenceClassification::new(&p.root(), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForSequenceClassification {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let classifier_dropout_prob = match config.classifier_dropout_prob {
             Some(value) => value,
-            None => 0.1
+            None => 0.1,
         };
         let dropout = Dropout::new(classifier_dropout_prob);
-        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
-        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, num_labels, Default::default());
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let classifier = nn::linear(
+            &(p / "classifier"),
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
 
-        AlbertForSequenceClassification { albert, dropout, classifier }
+        AlbertForSequenceClassification {
+            albert,
+            dropout,
+            classifier,
+        }
     }
 
     /// Forward pass through the model
@@ -440,16 +532,16 @@ impl AlbertForSequenceClassification {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::albert::{AlbertConfig, AlbertForSequenceClassification};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = AlbertConfig::from_file(config_path);
-    ///# let albert_model: AlbertForSequenceClassification = AlbertForSequenceClassification::new(&vs.root(), &config);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = AlbertConfig::from_file(config_path);
+    /// # let albert_model: AlbertForSequenceClassification = AlbertForSequenceClassification::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -465,18 +557,30 @@ impl AlbertForSequenceClassification {
     ///                    None,
     ///                    false)
     ///    });
-    ///
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
-        let (_, pooled_output, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
-        let logits = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier);
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+        let (_, pooled_output, all_hidden_states, all_attentions) = self
+            .albert
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )
+            .unwrap();
+        let logits = pooled_output
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
         (logits, all_hidden_states, all_attentions)
     }
 }
@@ -505,25 +609,38 @@ impl AlbertForTokenClassification {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::albert::{AlbertConfig, AlbertForTokenClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::albert::{AlbertConfig, AlbertForTokenClassification};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = AlbertConfig::from_file(config_path);
-    /// let albert: AlbertForTokenClassification = AlbertForTokenClassification::new(&p.root(), &config);
+    /// let albert: AlbertForTokenClassification =
+    ///     AlbertForTokenClassification::new(&p.root(), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForTokenClassification {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
-        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
-        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, num_labels, Default::default());
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let classifier = nn::linear(
+            &(p / "classifier"),
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
 
-        AlbertForTokenClassification { albert, dropout, classifier }
+        AlbertForTokenClassification {
+            albert,
+            dropout,
+            classifier,
+        }
     }
 
     /// Forward pass through the model
@@ -546,16 +663,16 @@ impl AlbertForTokenClassification {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::albert::{AlbertConfig, AlbertForTokenClassification};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = AlbertConfig::from_file(config_path);
-    ///# let albert_model: AlbertForTokenClassification = AlbertForTokenClassification::new(&vs.root(), &config);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = AlbertConfig::from_file(config_path);
+    /// # let albert_model: AlbertForTokenClassification = AlbertForTokenClassification::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -571,18 +688,30 @@ impl AlbertForTokenClassification {
     ///                    None,
     ///                    false)
     ///    });
-    ///
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
-        let (sequence_output, _, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
-        let logits = sequence_output.apply_t(&self.dropout, train).apply(&self.classifier);
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+        let (sequence_output, _, all_hidden_states, all_attentions) = self
+            .albert
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )
+            .unwrap();
+        let logits = sequence_output
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
         (logits, all_hidden_states, all_attentions)
     }
 }
@@ -610,10 +739,10 @@ impl AlbertForQuestionAnswering {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::albert::{AlbertConfig, AlbertForQuestionAnswering};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::albert::{AlbertConfig, AlbertForQuestionAnswering};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -621,11 +750,15 @@ impl AlbertForQuestionAnswering {
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForQuestionAnswering = AlbertForQuestionAnswering::new(&p.root(), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForQuestionAnswering {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let num_labels = 2;
-        let qa_outputs = nn::linear(&(p / "qa_outputs"), config.hidden_size, num_labels, Default::default());
+        let qa_outputs = nn::linear(
+            &(p / "qa_outputs"),
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
 
         AlbertForQuestionAnswering { albert, qa_outputs }
     }
@@ -651,16 +784,16 @@ impl AlbertForQuestionAnswering {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::albert::{AlbertConfig, AlbertForQuestionAnswering};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = AlbertConfig::from_file(config_path);
-    ///# let albert_model: AlbertForQuestionAnswering = AlbertForQuestionAnswering::new(&vs.root(), &config);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = AlbertConfig::from_file(config_path);
+    /// # let albert_model: AlbertForQuestionAnswering = AlbertForQuestionAnswering::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -676,17 +809,32 @@ impl AlbertForQuestionAnswering {
     ///                    None,
     ///                    false)
     ///    });
-    ///
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool) -> (Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
-        let (sequence_output, _, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (
+        Tensor,
+        Tensor,
+        Option<Vec<Tensor>>,
+        Option<Vec<Vec<Tensor>>>,
+    ) {
+        let (sequence_output, _, all_hidden_states, all_attentions) = self
+            .albert
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )
+            .unwrap();
         let logits = sequence_output.apply(&self.qa_outputs).split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
         let start_logits = start_logits.squeeze1(-1);
@@ -721,10 +869,10 @@ impl AlbertForMultipleChoice {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::albert::{AlbertConfig, AlbertForMultipleChoice};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::albert::{AlbertConfig, AlbertForMultipleChoice};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -732,14 +880,22 @@ impl AlbertForMultipleChoice {
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForMultipleChoice = AlbertForMultipleChoice::new(&p.root(), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForMultipleChoice {
         let albert = AlbertModel::new(&(p / "albert"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = 1;
-        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, num_labels, Default::default());
+        let classifier = nn::linear(
+            &(p / "classifier"),
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
 
-        AlbertForMultipleChoice { albert, dropout, classifier }
+        AlbertForMultipleChoice {
+            albert,
+            dropout,
+            classifier,
+        }
     }
 
     /// Forward pass through the model
@@ -762,16 +918,16 @@ impl AlbertForMultipleChoice {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::albert::{AlbertConfig, AlbertForMultipleChoice};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = AlbertConfig::from_file(config_path);
-    ///# let albert_model: AlbertForMultipleChoice = AlbertForMultipleChoice::new(&vs.root(), &config);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = AlbertConfig::from_file(config_path);
+    /// # let albert_model: AlbertForMultipleChoice = AlbertForMultipleChoice::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -787,43 +943,67 @@ impl AlbertForMultipleChoice {
     ///                    None,
     ///                    false).unwrap()
     ///    });
-    ///
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>), &'static str> {
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>), &'static str> {
         let (input_ids, input_embeds, num_choices) = match &input_ids {
             Some(input_value) => match &input_embeds {
-                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
-                None => (Some(input_value.view((-1, *input_value.size().last().unwrap()))), None, input_value.size()[1])
-            }
+                Some(_) => {
+                    return Err("Only one of input ids or input embeddings may be set");
+                }
+                None => (
+                    Some(input_value.view((-1, *input_value.size().last().unwrap()))),
+                    None,
+                    input_value.size()[1],
+                ),
+            },
             None => match &input_embeds {
-                Some(embeds) => (None, Some(embeds.view((-1, embeds.size()[1], embeds.size()[2]))), embeds.size()[1]),
-                None => { return Err("At least one of input ids or input embeddings must be set"); }
-            }
+                Some(embeds) => (
+                    None,
+                    Some(embeds.view((-1, embeds.size()[1], embeds.size()[2]))),
+                    embeds.size()[1],
+                ),
+                None => {
+                    return Err("At least one of input ids or input embeddings must be set");
+                }
+            },
         };
 
         let mask = match mask {
             Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None
+            None => None,
         };
         let token_type_ids = match token_type_ids {
             Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None
+            None => None,
         };
         let position_ids = match position_ids {
             Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None
+            None => None,
         };
 
-
-        let (_, pooled_output, all_hidden_states, all_attentions) = self.albert.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train).unwrap();
-        let logits = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier).view((-1, num_choices));
+        let (_, pooled_output, all_hidden_states, all_attentions) = self
+            .albert
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )
+            .unwrap();
+        let logits = pooled_output
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier)
+            .view((-1, num_choices));
 
         Ok((logits, all_hidden_states, all_attentions))
     }

@@ -15,19 +15,27 @@
 //! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
-//!# fn main() -> failure::Fallible<()> {
-//!#
+//! # fn main() -> failure::Fallible<()> {
+//! #
 //! use rust_tokenizers::RobertaTokenizer;
 //! use tch::{nn, Device};
-//!# use std::path::PathBuf;
-//! use rust_bert::Config;
+//! # use std::path::PathBuf;
 //! use rust_bert::bart::{BartConfig, BartModel};
-//! use rust_bert::resources::{Resource, download_resource, LocalResource};
+//! use rust_bert::resources::{download_resource, LocalResource, Resource};
+//! use rust_bert::Config;
 //!
-//! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
-//! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
-//! let merges_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
-//! let weights_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot")});
+//! let config_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/config.json"),
+//! });
+//! let vocab_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//! });
+//! let merges_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//! });
+//! let weights_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/model.ot"),
+//! });
 //! let config_path = download_resource(&config_resource)?;
 //! let vocab_path = download_resource(&vocab_resource)?;
 //! let merges_path = download_resource(&merges_resource)?;
@@ -35,21 +43,28 @@
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
+//! let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(
+//!     vocab_path.to_str().unwrap(),
+//!     merges_path.to_str().unwrap(),
+//!     true,
+//! );
 //! let config = BartConfig::from_file(config_path);
 //! let bart_model = BartModel::new(&vs.root(), &config, false);
 //! vs.load(weights_path)?;
 //!
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
 
-mod bart;
 mod attention;
-mod encoder;
+mod bart;
 mod decoder;
 mod embeddings;
+mod encoder;
 
-pub use bart::{BartModelResources, BartConfigResources, BartVocabResources, BartMergesResources,
-               BartConfig, Activation, BartModel, BartForSequenceClassification, BartForConditionalGeneration};
 pub use attention::LayerState;
+pub use bart::{
+    Activation, BartConfig, BartConfigResources, BartForConditionalGeneration,
+    BartForSequenceClassification, BartMergesResources, BartModel, BartModelResources,
+    BartVocabResources,
+};

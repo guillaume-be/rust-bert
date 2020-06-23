@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{Tensor, nn};
 use crate::common::dropout::Dropout;
 use crate::gpt2::gpt2::Gpt2Config;
 use tch::kind::Kind::Float;
 use tch::nn::{Init, Module};
+use tch::{nn, Tensor};
 
 #[derive(Debug)]
 pub struct GPTConv1D {
@@ -26,7 +26,14 @@ pub struct GPTConv1D {
 
 impl GPTConv1D {
     pub fn new(p: &nn::Path, nf: i64, nx: i64) -> GPTConv1D {
-        let weight = p.var("weight", &[nx, nf], Init::Randn { mean: 0., stdev: 0.02 });
+        let weight = p.var(
+            "weight",
+            &[nx, nf],
+            Init::Randn {
+                mean: 0.,
+                stdev: 0.02,
+            },
+        );
         let bias = p.var("bias", &[nf], Init::Const(0.));
         GPTConv1D { weight, bias }
     }
@@ -37,7 +44,6 @@ impl Module for GPTConv1D {
         xs.matmul(&self.weight) + &self.bias
     }
 }
-
 
 pub struct Attention {
     bias: Tensor,
@@ -62,23 +68,27 @@ impl Attention {
 
         let attn_pdrop = match config.attn_pdrop {
             Some(value) => value,
-            None => 0.1
+            None => 0.1,
         };
 
         let resid_pdrop = match config.resid_pdrop {
             Some(value) => value,
-            None => 0.1
+            None => 0.1,
         };
 
         let output_attentions = match config.output_attentions {
             Some(value) => value,
-            None => false
+            None => false,
         };
 
         let attn_dropout = Dropout::new(attn_pdrop);
         let resid_dropout = Dropout::new(resid_pdrop);
 
-        assert_eq!(config.n_embd % config.n_head, 0, "Attention hidden states not a multiple of the number of heads");
+        assert_eq!(
+            config.n_embd % config.n_head,
+            0,
+            "Attention hidden states not a multiple of the number of heads"
+        );
         let dim_per_head = config.n_embd / config.n_head;
 
         Attention {
@@ -105,19 +115,31 @@ impl Attention {
     }
 
     fn flatten(&self, x: Tensor) -> Tensor {
-        x.transpose(1, 2).contiguous().view((x.size()[0], -1, &self.n_head * self.dim_per_head))
+        x.transpose(1, 2)
+            .contiguous()
+            .view((x.size()[0], -1, &self.n_head * self.dim_per_head))
     }
 
-    fn attention(&self, q: &Tensor, k: &Tensor, v: &Tensor, attention_mask: &Option<Tensor>, train: bool)
-                 -> (Tensor, Option<Tensor>) {
+    fn attention(
+        &self,
+        q: &Tensor,
+        k: &Tensor,
+        v: &Tensor,
+        attention_mask: &Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>) {
         let mut w = q.matmul(&k);
-        if self.scale { w = w / (*v.size().last().unwrap() as f64).sqrt(); }
+        if self.scale {
+            w = w / (*v.size().last().unwrap() as f64).sqrt();
+        }
 
         let (nd, ns) = (w.size()[2], w.size()[3]);
         let b = self.bias.narrow(2, ns - nd, nd).narrow(3, 0, ns);
 
         let mut w: Tensor = w * &b + 1e4 * (&b - 1);
-        if let Some(mask) = attention_mask { w = w + mask; }
+        if let Some(mask) = attention_mask {
+            w = w + mask;
+        }
         w = w.softmax(-1, Float).apply_t(&self.attn_dropout, train);
         let output = w.matmul(&v);
 
@@ -128,28 +150,35 @@ impl Attention {
         }
     }
 
-    pub fn forward_t(&self, x: &Tensor, layer_past: &Option<Tensor>, attention_mask: &Option<Tensor>, train: bool)
-                     -> (Tensor, Tensor, Option<Tensor>) {
+    pub fn forward_t(
+        &self,
+        x: &Tensor,
+        layer_past: &Option<Tensor>,
+        attention_mask: &Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Tensor, Option<Tensor>) {
         let x = x.apply(&self.c_attn).split(self.n_state, 2);
 
-        let (query, key, value) =
-            (
-                self.split_heads(&x[0], false),
-                self.split_heads(&x[1], true),
-                self.split_heads(&x[2], false)
-            );
+        let (query, key, value) = (
+            self.split_heads(&x[0], false),
+            self.split_heads(&x[1], true),
+            self.split_heads(&x[2], false),
+        );
         let (key, value) = match layer_past {
             Some(past) => {
                 let key = Tensor::cat(&[past.get(0).transpose(-2, -1), key], -1);
                 let value = Tensor::cat(&[past.get(1), value], -2);
                 (key, value)
             }
-            None => (key, value)
+            None => (key, value),
         };
         let present = Tensor::stack(&[key.transpose(-2, -1), value.copy()], 0);
         let (a, attentions) = self.attention(&query, &key, &value, &attention_mask, train);
 
-        let a = self.flatten(a).apply(&self.c_proj).apply_t(&self.resid_dropout, train);
+        let a = self
+            .flatten(a)
+            .apply(&self.c_proj)
+            .apply_t(&self.resid_dropout, train);
 
         (a, present, attentions)
     }

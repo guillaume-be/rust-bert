@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-use tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
-use tch::nn::embedding;
+use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::transformer::Block;
-use tch::kind::Kind::Int64;
-use std::borrow::BorrowMut;
-use crate::common::linear::{LinearNoBias, linear_no_bias};
+use crate::pipelines::generation::{Cache, LMHeadModel};
 use crate::Config;
-use crate::pipelines::generation::{LMHeadModel, Cache};
+use serde::{Deserialize, Serialize};
+use std::borrow::BorrowMut;
+use tch::kind::Kind::Int64;
+use tch::nn::embedding;
+use tch::{nn, Tensor};
 
 /// # GPT2 Pretrained model weight files
 pub struct Gpt2ModelResources;
@@ -37,54 +37,114 @@ pub struct Gpt2MergesResources;
 
 impl Gpt2ModelResources {
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) = ("gpt2/model.ot", "https://cdn.huggingface.co/gpt2-rust_model.ot");
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/model.ot",
+        "https://cdn.huggingface.co/gpt2-rust_model.ot",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_MEDIUM: (&'static str, &'static str) = ("gpt2-medium/model.ot", "https://cdn.huggingface.co/gpt2-medium-rust_model.ot");
+    pub const GPT2_MEDIUM: (&'static str, &'static str) = (
+        "gpt2-medium/model.ot",
+        "https://cdn.huggingface.co/gpt2-medium-rust_model.ot",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_LARGE: (&'static str, &'static str) = ("gpt2-large/model.ot", "https://cdn.huggingface.co/gpt2-large-rust_model.ot");
+    pub const GPT2_LARGE: (&'static str, &'static str) = (
+        "gpt2-large/model.ot",
+        "https://cdn.huggingface.co/gpt2-large-rust_model.ot",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_XL: (&'static str, &'static str) = ("gpt2-xl/model.ot", "https://cdn.huggingface.co/gpt2-xl-rust_model.ot");
+    pub const GPT2_XL: (&'static str, &'static str) = (
+        "gpt2-xl/model.ot",
+        "https://cdn.huggingface.co/gpt2-xl-rust_model.ot",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_GPT2: (&'static str, &'static str) = ("distilgpt2/model.ot", "https://cdn.huggingface.co/distilgpt2-rust_model.ot");
+    pub const DISTIL_GPT2: (&'static str, &'static str) = (
+        "distilgpt2/model.ot",
+        "https://cdn.huggingface.co/distilgpt2-rust_model.ot",
+    );
 }
 
 impl Gpt2ConfigResources {
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) = ("gpt2/config.json", "https://cdn.huggingface.co/gpt2-config.json");
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/config.json",
+        "https://cdn.huggingface.co/gpt2-config.json",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_MEDIUM: (&'static str, &'static str) = ("gpt2-medium/config.json", "https://cdn.huggingface.co/gpt2-medium-config.json");
+    pub const GPT2_MEDIUM: (&'static str, &'static str) = (
+        "gpt2-medium/config.json",
+        "https://cdn.huggingface.co/gpt2-medium-config.json",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_LARGE: (&'static str, &'static str) = ("gpt2-large/config.json", "https://cdn.huggingface.co/gpt2-large-config.json");
+    pub const GPT2_LARGE: (&'static str, &'static str) = (
+        "gpt2-large/config.json",
+        "https://cdn.huggingface.co/gpt2-large-config.json",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_XL: (&'static str, &'static str) = ("gpt2-xl/config.json", "https://cdn.huggingface.co/gpt2-xl-config.json");
+    pub const GPT2_XL: (&'static str, &'static str) = (
+        "gpt2-xl/config.json",
+        "https://cdn.huggingface.co/gpt2-xl-config.json",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_GPT2: (&'static str, &'static str) = ("distilgpt2/config.json", "https://cdn.huggingface.co/distilgpt2-config.json");
+    pub const DISTIL_GPT2: (&'static str, &'static str) = (
+        "distilgpt2/config.json",
+        "https://cdn.huggingface.co/distilgpt2-config.json",
+    );
 }
 
 impl Gpt2VocabResources {
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) = ("gpt2/vocab.txt", "https://cdn.huggingface.co/gpt2-vocab.json");
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/vocab.txt",
+        "https://cdn.huggingface.co/gpt2-vocab.json",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_MEDIUM: (&'static str, &'static str) = ("gpt2-medium/vocab.txt", "https://cdn.huggingface.co/gpt2-medium-vocab.json");
+    pub const GPT2_MEDIUM: (&'static str, &'static str) = (
+        "gpt2-medium/vocab.txt",
+        "https://cdn.huggingface.co/gpt2-medium-vocab.json",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_LARGE: (&'static str, &'static str) = ("gpt2-large/vocab.txt", "https://cdn.huggingface.co/gpt2-large-vocab.json");
+    pub const GPT2_LARGE: (&'static str, &'static str) = (
+        "gpt2-large/vocab.txt",
+        "https://cdn.huggingface.co/gpt2-large-vocab.json",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_XL: (&'static str, &'static str) = ("gpt2-xl/vocab.txt", "https://cdn.huggingface.co/gpt2-xl-vocab.json");
+    pub const GPT2_XL: (&'static str, &'static str) = (
+        "gpt2-xl/vocab.txt",
+        "https://cdn.huggingface.co/gpt2-xl-vocab.json",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_GPT2: (&'static str, &'static str) = ("distilgpt2/vocab.txt", "https://cdn.huggingface.co/distilgpt2-vocab.json");
+    pub const DISTIL_GPT2: (&'static str, &'static str) = (
+        "distilgpt2/vocab.txt",
+        "https://cdn.huggingface.co/distilgpt2-vocab.json",
+    );
 }
 
 impl Gpt2MergesResources {
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) = ("gpt2/merges.txt", "https://cdn.huggingface.co/gpt2-merges.txt");
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/merges.txt",
+        "https://cdn.huggingface.co/gpt2-merges.txt",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_MEDIUM: (&'static str, &'static str) = ("gpt2-medium/merges.txt", "https://cdn.huggingface.co/gpt2-medium-merges.txt");
+    pub const GPT2_MEDIUM: (&'static str, &'static str) = (
+        "gpt2-medium/merges.txt",
+        "https://cdn.huggingface.co/gpt2-medium-merges.txt",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_LARGE: (&'static str, &'static str) = ("gpt2-large/merges.txt", "https://cdn.huggingface.co/gpt2-large-merges.txt");
+    pub const GPT2_LARGE: (&'static str, &'static str) = (
+        "gpt2-large/merges.txt",
+        "https://cdn.huggingface.co/gpt2-large-merges.txt",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2_XL: (&'static str, &'static str) = ("gpt2-xl/merges.txt", "https://cdn.huggingface.co/gpt2-xl-merges.txt");
+    pub const GPT2_XL: (&'static str, &'static str) = (
+        "gpt2-xl/merges.txt",
+        "https://cdn.huggingface.co/gpt2-xl-merges.txt",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_GPT2: (&'static str, &'static str) = ("distilgpt2/merges.txt", "https://cdn.huggingface.co/distilgpt2-merges.txt");
+    pub const DISTIL_GPT2: (&'static str, &'static str) = (
+        "distilgpt2/merges.txt",
+        "https://cdn.huggingface.co/distilgpt2-merges.txt",
+    );
 }
 
 #[allow(non_camel_case_types)]
@@ -156,10 +216,10 @@ impl Gpt2Model {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::gpt2::{Gpt2Config, Gpt2Model};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::gpt2::{Gpt2Config, Gpt2Model};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -167,37 +227,58 @@ impl Gpt2Model {
     /// let config = Gpt2Config::from_file(config_path);
     /// let gpt2: Gpt2Model = Gpt2Model::new(&(&p.root() / "gpt2"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &Gpt2Config) -> Gpt2Model {
         let p = &(p / "transformer");
-        let wte = embedding(&(p / "wte"), config.vocab_size, config.n_embd, Default::default());
-        let wpe = embedding(&(p / "wpe"), config.n_positions, config.n_embd, Default::default());
+        let wte = embedding(
+            &(p / "wte"),
+            config.vocab_size,
+            config.n_embd,
+            Default::default(),
+        );
+        let wpe = embedding(
+            &(p / "wpe"),
+            config.n_positions,
+            config.n_embd,
+            Default::default(),
+        );
 
         let embd_pdrop = match config.embd_pdrop {
             Some(value) => value,
-            None => 0.1
+            None => 0.1,
         };
         let drop = Dropout::new(embd_pdrop);
-        let layer_norm_config = nn::LayerNormConfig { eps: config.layer_norm_epsilon, ..Default::default() };
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_epsilon,
+            ..Default::default()
+        };
         let ln_f = nn::layer_norm(p / "ln_f", vec![config.n_embd], layer_norm_config);
-        let mut h: Vec<Block> = vec!();
+        let mut h: Vec<Block> = vec![];
         let h_path = &(p / "h");
         for layer_index in 0..config.n_layer {
             h.push(Block::new(&(h_path / layer_index), config, true));
-        };
+        }
         let output_attentions = match config.output_attentions {
             Some(value) => value,
-            None => false
+            None => false,
         };
         let output_past = match config.output_past {
             Some(value) => value,
-            None => true
+            None => true,
         };
         let output_hidden_states = match config.output_hidden_states {
             Some(value) => value,
-            None => false
+            None => false,
         };
-        Gpt2Model { wte, wpe, drop, ln_f, h, output_past, output_hidden_states, output_attentions }
+        Gpt2Model {
+            wte,
+            wpe,
+            drop,
+            ln_f,
+            h,
+            output_past,
+            output_hidden_states,
+            output_attentions,
+        }
     }
 
     /// Forward pass through the model
@@ -222,63 +303,101 @@ impl Gpt2Model {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt2::{Gpt2Model, Gpt2Config};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = Gpt2Config::from_file(config_path);
-    ///# let gpt2_model: Gpt2Model = Gpt2Model::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
-    ///  for _ in 0..config.n_layer as usize {
-    ///    past.push(Tensor::rand(&[2, batch_size, config.n_head, past_sequence_length, config.n_embd / config.n_head], (Double, device)))
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::gpt2::{Gpt2Config, Gpt2Model};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = Gpt2Config::from_file(config_path);
+    /// # let gpt2_model: Gpt2Model = Gpt2Model::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
+    /// for _ in 0..config.n_layer as usize {
+    ///     past.push(Tensor::rand(
+    ///         &[
+    ///             2,
+    ///             batch_size,
+    ///             config.n_head,
+    ///             past_sequence_length,
+    ///             config.n_embd / config.n_head,
+    ///         ],
+    ///         (Double, device),
+    ///     ))
     /// }
-    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, past, hidden_states, attentions) = no_grad(|| {
-    ///    gpt2_model
-    ///         .forward_t(&Some(input_tensor),
-    ///                    &Some(past),
-    ///                    &Some(attention_mask),
-    ///                    &Some(token_type_ids),
-    ///                    &Some(position_ids),
-    ///                    &None,
-    ///                    false).unwrap()
-    ///    });
-    ///
+    /// let (output, past, hidden_states, attentions) = no_grad(|| {
+    ///     gpt2_model
+    ///         .forward_t(
+    ///             &Some(input_tensor),
+    ///             &Some(past),
+    ///             &Some(attention_mask),
+    ///             &Some(token_type_ids),
+    ///             &Some(position_ids),
+    ///             &None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: &Option<Tensor>,
-                     layer_past: &Option<Vec<Tensor>>,
-                     attention_mask: &Option<Tensor>,
-                     token_type_ids: &Option<Tensor>,
-                     position_ids: &Option<Tensor>,
-                     input_embeds: &Option<Tensor>,
-                     train: bool) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    pub fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        layer_past: &Option<Vec<Tensor>>,
+        attention_mask: &Option<Tensor>,
+        token_type_ids: &Option<Tensor>,
+        position_ids: &Option<Tensor>,
+        input_embeds: &Option<Tensor>,
+        train: bool,
+    ) -> Result<
+        (
+            Tensor,
+            Option<Vec<Tensor>>,
+            Option<Vec<Tensor>>,
+            Option<Vec<Tensor>>,
+        ),
+        &'static str,
+    > {
         let (input_embeddings, seq_length) = match input_ids {
             Some(input_value) => match input_embeds {
-                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
-                None => (input_value.apply(&self.wte), *input_value.size().last().unwrap())
-            }
+                Some(_) => {
+                    return Err("Only one of input ids or input embeddings may be set");
+                }
+                None => (
+                    input_value.apply(&self.wte),
+                    *input_value.size().last().unwrap(),
+                ),
+            },
             None => match input_embeds {
                 Some(embeds) => (embeds.copy(), embeds.size()[1]),
-                None => { return Err("At least one of input ids or input embeddings must be set"); }
-            }
+                None => {
+                    return Err("At least one of input ids or input embeddings must be set");
+                }
+            },
         };
 
         let (layer_past, layer_past_length) = match layer_past {
             Some(value) => {
-                assert_eq!(value.len(), self.h.len(), "Past activations vector must be of length equal to the number of layers");
-                (value.iter().map(|v| Some(v.copy())).collect::<Vec<Option<Tensor>>>(), value[0].size()[3])
+                assert_eq!(
+                    value.len(),
+                    self.h.len(),
+                    "Past activations vector must be of length equal to the number of layers"
+                );
+                (
+                    value
+                        .iter()
+                        .map(|v| Some(v.copy()))
+                        .collect::<Vec<Option<Tensor>>>(),
+                    value[0].size()[3],
+                )
             }
             None => {
                 let mut out = Vec::with_capacity(self.h.len());
@@ -289,31 +408,45 @@ impl Gpt2Model {
 
         let position_ids = match position_ids {
             Some(value) => value.copy(),
-            None => Tensor::arange1(layer_past_length, seq_length + layer_past_length, (Int64, input_embeddings.device())).unsqueeze(0)
+            None => Tensor::arange1(
+                layer_past_length,
+                seq_length + layer_past_length,
+                (Int64, input_embeddings.device()),
+            )
+            .unsqueeze(0),
         };
 
         let attention_mask: Option<Tensor> = match attention_mask {
-            Some(value) => {
-                Some(
-                    (value
-                        .view((input_embeddings.size()[0], -1))
-                        .unsqueeze(1)
-                        .unsqueeze(2)
-                        - 1.0
-                    ) * 10000.0)
-            }
-            None => None
+            Some(value) => Some(
+                (value
+                    .view((input_embeddings.size()[0], -1))
+                    .unsqueeze(1)
+                    .unsqueeze(2)
+                    - 1.0)
+                    * 10000.0,
+            ),
+            None => None,
         };
 
         let position_embeds = position_ids.apply(&self.wpe);
         let token_type_embeds = match token_type_ids {
             Some(value) => value.apply(&self.wte),
-            None => Tensor::zeros_like(&position_embeds)
+            None => Tensor::zeros_like(&position_embeds),
         };
-        let mut hidden_state: Tensor = (input_embeddings + position_embeds + token_type_embeds).apply_t(&self.drop, train);
-        let mut all_presents: Option<Vec<Tensor>> = if self.output_past { Some(vec!()) } else { None };
-        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
-        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
+        let mut hidden_state: Tensor =
+            (input_embeddings + position_embeds + token_type_embeds).apply_t(&self.drop, train);
+        let mut all_presents: Option<Vec<Tensor>> =
+            if self.output_past { Some(vec![]) } else { None };
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
 
         let mut layer_iter = self.h.iter().zip(layer_past);
         loop {
@@ -333,11 +466,16 @@ impl Gpt2Model {
                         attentions.push(temp.2.as_ref().unwrap().copy());
                     };
                 }
-                None => break
+                None => break,
             };
-        };
+        }
 
-        Ok((hidden_state.apply(&self.ln_f), all_presents, all_hidden_states, all_attentions))
+        Ok((
+            hidden_state.apply(&self.ln_f),
+            all_presents,
+            all_hidden_states,
+            all_attentions,
+        ))
     }
 }
 
@@ -362,10 +500,10 @@ impl GPT2LMHeadModel {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::gpt2::{GPT2LMHeadModel, Gpt2Config};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -373,11 +511,18 @@ impl GPT2LMHeadModel {
     /// let config = Gpt2Config::from_file(config_path);
     /// let gpt2: GPT2LMHeadModel = GPT2LMHeadModel::new(&(&p.root() / "gpt2"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &Gpt2Config) -> GPT2LMHeadModel {
         let transformer = Gpt2Model::new(&p, config);
-        let lm_head = linear_no_bias(&(p / "lm_head"), config.n_embd, config.vocab_size, Default::default());
-        GPT2LMHeadModel { transformer, lm_head }
+        let lm_head = linear_no_bias(
+            &(p / "lm_head"),
+            config.n_embd,
+            config.vocab_size,
+            Default::default(),
+        );
+        GPT2LMHeadModel {
+            transformer,
+            lm_head,
+        }
     }
 }
 
@@ -408,75 +553,104 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
-    /// use rust_bert::pipelines::generation::{LMHeadModel, Cache};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = Gpt2Config::from_file(config_path);
-    ///# let mut gpt2_model: GPT2LMHeadModel = GPT2LMHeadModel::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
-    ///  for _ in 0..config.n_layer as usize {
-    ///    past.push(Tensor::rand(&[2, batch_size, config.n_head, past_sequence_length, config.n_embd / config.n_head], (Double, device)))
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::gpt2::{GPT2LMHeadModel, Gpt2Config};
+    /// use rust_bert::pipelines::generation::{Cache, LMHeadModel};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = Gpt2Config::from_file(config_path);
+    /// # let mut gpt2_model: GPT2LMHeadModel = GPT2LMHeadModel::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
+    /// for _ in 0..config.n_layer as usize {
+    ///     past.push(Tensor::rand(
+    ///         &[
+    ///             2,
+    ///             batch_size,
+    ///             config.n_head,
+    ///             past_sequence_length,
+    ///             config.n_embd / config.n_head,
+    ///         ],
+    ///         (Double, device),
+    ///     ))
     /// }
-    ///  let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, _, past, hidden_states, attentions) = no_grad(|| {
-    ///    gpt2_model
-    ///         .forward_t(&Some(input_tensor),
-    ///                    Cache::GPT2Cache(Some(past)),
-    ///                    &Some(attention_mask),
-    ///                    &Some(token_type_ids),
-    ///                    &Some(position_ids),
-    ///                    &None,
-    ///                    None,
-    ///                    &None,
-    ///                    false).unwrap()
-    ///    });
-    ///
+    /// let (output, _, past, hidden_states, attentions) = no_grad(|| {
+    ///     gpt2_model
+    ///         .forward_t(
+    ///             &Some(input_tensor),
+    ///             Cache::GPT2Cache(Some(past)),
+    ///             &Some(attention_mask),
+    ///             &Some(token_type_ids),
+    ///             &Some(position_ids),
+    ///             &None,
+    ///             None,
+    ///             &None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
     /// ```
-    ///
-    fn forward_t(&self,
-                 input_ids: &Option<Tensor>,
-                 layer_past: Cache,
-                 attention_mask: &Option<Tensor>,
-                 token_type_ids: &Option<Tensor>,
-                 position_ids: &Option<Tensor>,
-                 input_embeds: &Option<Tensor>,
-                 _encoder_outputs: Option<&Tensor>,
-                 _decoder_input_ids: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Tensor>, Cache, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output,
-            past,
-            all_hidden_states,
-            all_attentions) = match layer_past {
-            Cache::GPT2Cache(layer_past) => Ok(self.transformer.forward_t(input_ids,
-                                                                          &layer_past,
-                                                                          attention_mask,
-                                                                          token_type_ids,
-                                                                          position_ids,
-                                                                          input_embeds,
-                                                                          train)?),
-            Cache::None => Ok(self.transformer.forward_t(input_ids,
-                                                         &None,
-                                                         attention_mask,
-                                                         token_type_ids,
-                                                         position_ids,
-                                                         input_embeds,
-                                                         train)?),
-            _ => Err("Cache not compatible with GPT2 model")
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        layer_past: Cache,
+        attention_mask: &Option<Tensor>,
+        token_type_ids: &Option<Tensor>,
+        position_ids: &Option<Tensor>,
+        input_embeds: &Option<Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        _decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<
+        (
+            Tensor,
+            Option<Tensor>,
+            Cache,
+            Option<Vec<Tensor>>,
+            Option<Vec<Tensor>>,
+        ),
+        &'static str,
+    > {
+        let (output, past, all_hidden_states, all_attentions) = match layer_past {
+            Cache::GPT2Cache(layer_past) => Ok(self.transformer.forward_t(
+                input_ids,
+                &layer_past,
+                attention_mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )?),
+            Cache::None => Ok(self.transformer.forward_t(
+                input_ids,
+                &None,
+                attention_mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )?),
+            _ => Err("Cache not compatible with GPT2 model"),
         }?;
 
         let lm_logits = output.apply(&self.lm_head);
-        Ok((lm_logits, None, Cache::GPT2Cache(past), all_hidden_states, all_attentions))
+        Ok((
+            lm_logits,
+            None,
+            Cache::GPT2Cache(past),
+            all_hidden_states,
+            all_attentions,
+        ))
     }
 }

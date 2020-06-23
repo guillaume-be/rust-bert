@@ -19,7 +19,7 @@
 //! use rust_bert::resources::{Resource,RemoteResource};
 //! use rust_bert::bert::{BertModelResources, BertVocabResources, BertConfigResources};
 //! use rust_bert::pipelines::common::ModelType;
-//!# fn main() -> failure::Fallible<()> {
+//! # fn main() -> failure::Fallible<()> {
 //!
 //! //Load a configuration
 //! use rust_bert::pipelines::token_classification::LabelAggregationOption;
@@ -40,41 +40,94 @@
 //!     "Paris is a city in France."
 //! ];
 //! let output = token_classification_model.predict(&input, true, true); //ignore_first_label = true (only returns the NER parts, ignoring first label O)
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
 //! Output: \
 //! ```no_run
-//!# use rust_bert::pipelines::token_classification::Token;
+//! # use rust_bert::pipelines::token_classification::Token;
 //! use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Mask::Special;
-//! use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Offset, Mask};
-//!# let output =
+//! use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Mask, Offset};
+//! # let output =
 //! [
-//!    Token { text: String::from("[CLS]"), score: 0.9995001554489136, label: String::from("O"), label_index: 0, sentence: 0, index: 0, word_index: 0, offset: None, mask: Special },
-//!    Token { text: String::from("My"), score: 0.9980450868606567, label: String::from("O"), label_index: 0, sentence: 0, index: 1, word_index: 1, offset: Some(Offset { begin: 0, end: 2 }), mask: Mask::None },
-//!    Token { text: String::from("name"), score: 0.9995062351226807, label: String::from("O"), label_index: 0, sentence: 0, index: 2, word_index: 2, offset: Some(Offset { begin: 3, end: 7 }), mask: Mask::None },
-//!    Token { text: String::from("is"), score: 0.9997343420982361, label: String::from("O"), label_index: 0, sentence: 0, index: 3, word_index: 3, offset: Some(Offset { begin: 8, end: 10 }), mask: Mask::None },
-//!    Token { text: String::from("Amélie"), score: 0.9913727683112525, label: String::from("I-PER"), label_index: 4, sentence: 0, index: 4, word_index: 4, offset: Some(Offset { begin: 11, end: 17 }), mask: Mask::None }
-//!    // ...
+//!     Token {
+//!         text: String::from("[CLS]"),
+//!         score: 0.9995001554489136,
+//!         label: String::from("O"),
+//!         label_index: 0,
+//!         sentence: 0,
+//!         index: 0,
+//!         word_index: 0,
+//!         offset: None,
+//!         mask: Special,
+//!     },
+//!     Token {
+//!         text: String::from("My"),
+//!         score: 0.9980450868606567,
+//!         label: String::from("O"),
+//!         label_index: 0,
+//!         sentence: 0,
+//!         index: 1,
+//!         word_index: 1,
+//!         offset: Some(Offset { begin: 0, end: 2 }),
+//!         mask: Mask::None,
+//!     },
+//!     Token {
+//!         text: String::from("name"),
+//!         score: 0.9995062351226807,
+//!         label: String::from("O"),
+//!         label_index: 0,
+//!         sentence: 0,
+//!         index: 2,
+//!         word_index: 2,
+//!         offset: Some(Offset { begin: 3, end: 7 }),
+//!         mask: Mask::None,
+//!     },
+//!     Token {
+//!         text: String::from("is"),
+//!         score: 0.9997343420982361,
+//!         label: String::from("O"),
+//!         label_index: 0,
+//!         sentence: 0,
+//!         index: 3,
+//!         word_index: 3,
+//!         offset: Some(Offset { begin: 8, end: 10 }),
+//!         mask: Mask::None,
+//!     },
+//!     Token {
+//!         text: String::from("Amélie"),
+//!         score: 0.9913727683112525,
+//!         label: String::from("I-PER"),
+//!         label_index: 4,
+//!         sentence: 0,
+//!         index: 4,
+//!         word_index: 4,
+//!         offset: Some(Offset { begin: 11, end: 17 }),
+//!         mask: Mask::None,
+//!     }, // ...
 //! ]
-//!# ;
+//! # ;
 //! ```
 
-use tch::nn::VarStore;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TokenizedInput, TruncationStrategy, Mask, Offset, ConsolidatableTokens, ConsolidatedTokenIterator, TokenTrait};
-use std::collections::HashMap;
-use tch::{Tensor, no_grad, Device};
-use tch::kind::Kind::Float;
-use crate::bert::{BertForTokenClassification, BertModelResources, BertConfigResources, BertVocabResources};
-use crate::roberta::RobertaForTokenClassification;
+use crate::bert::{
+    BertConfigResources, BertForTokenClassification, BertModelResources, BertVocabResources,
+};
+use crate::common::resources::{download_resource, RemoteResource, Resource};
 use crate::distilbert::DistilBertForTokenClassification;
-use crate::common::resources::{Resource, RemoteResource, download_resource};
-use crate::pipelines::common::{ModelType, ConfigOption, TokenizerOption};
 use crate::electra::ElectraForTokenClassification;
+use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::roberta::RobertaForTokenClassification;
 use itertools::Itertools;
+use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
+    ConsolidatableTokens, ConsolidatedTokenIterator, Mask, Offset, TokenTrait, TokenizedInput,
+    Tokenizer, TruncationStrategy,
+};
+use serde::{Deserialize, Serialize};
 use std::cmp::min;
-use serde::{Serialize, Deserialize};
-
+use std::collections::HashMap;
+use tch::kind::Kind::Float;
+use tch::nn::VarStore;
+use tch::{no_grad, Device, Tensor};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// # Token generated by a `TokenClassificationModel`
@@ -140,7 +193,6 @@ pub enum LabelAggregationOption {
     Custom(Box<dyn Fn(&[Token]) -> (i64, String)>),
 }
 
-
 /// # Configuration for TokenClassificationModel
 /// Contains information regarding the model to load and device to place the model on.
 pub struct TokenClassificationConfig {
@@ -173,14 +225,15 @@ impl TokenClassificationConfig {
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    ///
-    pub fn new(model_type: ModelType,
-               model_resource: Resource,
-               config_resource: Resource,
-               vocab_resource: Resource,
-               merges_resource: Option<Resource>,
-               lower_case: bool,
-               label_aggregation_function: LabelAggregationOption) -> TokenClassificationConfig {
+    pub fn new(
+        model_type: ModelType,
+        model_resource: Resource,
+        config_resource: Resource,
+        vocab_resource: Resource,
+        merges_resource: Option<Resource>,
+        lower_case: bool,
+        label_aggregation_function: LabelAggregationOption,
+    ) -> TokenClassificationConfig {
         TokenClassificationConfig {
             model_type,
             model_resource,
@@ -199,9 +252,15 @@ impl Default for TokenClassificationConfig {
     fn default() -> TokenClassificationConfig {
         TokenClassificationConfig {
             model_type: ModelType::Bert,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_NER)),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER)),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER)),
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+                BertModelResources::BERT_NER,
+            )),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+                BertConfigResources::BERT_NER,
+            )),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+                BertVocabResources::BERT_NER,
+            )),
             merges_resource: None,
             lower_case: false,
             device: Device::cuda_if_available(),
@@ -231,7 +290,6 @@ impl TokenClassificationOption {
     /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
     /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
     /// `model_type`)
-    ///
     pub fn new(model_type: ModelType, p: &tch::nn::Path, config: &ConfigOption) -> Self {
         match model_type {
             ModelType::Bert => {
@@ -243,21 +301,27 @@ impl TokenClassificationOption {
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
-                    TokenClassificationOption::DistilBert(DistilBertForTokenClassification::new(p, config))
+                    TokenClassificationOption::DistilBert(DistilBertForTokenClassification::new(
+                        p, config,
+                    ))
                 } else {
                     panic!("You can only supply a DistilBertConfig for DistilBert!");
                 }
             }
             ModelType::Roberta => {
                 if let ConfigOption::Bert(config) = config {
-                    TokenClassificationOption::Roberta(RobertaForTokenClassification::new(p, config))
+                    TokenClassificationOption::Roberta(RobertaForTokenClassification::new(
+                        p, config,
+                    ))
                 } else {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
             ModelType::Electra => {
                 if let ConfigOption::Electra(config) = config {
-                    TokenClassificationOption::Electra(ElectraForTokenClassification::new(p, config))
+                    TokenClassificationOption::Electra(ElectraForTokenClassification::new(
+                        p, config,
+                    ))
                 } else {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
@@ -271,26 +335,50 @@ impl TokenClassificationOption {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
-            Self::Electra(_) => ModelType::Electra
+            Self::Electra(_) => ModelType::Electra,
         }
     }
 
-    fn forward_t(&self,
-                 input_ids: Option<Tensor>,
-                 mask: Option<Tensor>,
-                 token_type_ids: Option<Tensor>,
-                 position_ids: Option<Tensor>,
-                 input_embeds: Option<Tensor>,
-                 train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         match *self {
-            Self::Bert(ref model) => model.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train),
-            Self::DistilBert(ref model) => model.forward_t(input_ids, mask, input_embeds, train).expect("Error in distilbert forward_t"),
-            Self::Roberta(ref model) => model.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train),
-            Self::Electra(ref model) => model.forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train),
+            Self::Bert(ref model) => model.forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            ),
+            Self::DistilBert(ref model) => model
+                .forward_t(input_ids, mask, input_embeds, train)
+                .expect("Error in distilbert forward_t"),
+            Self::Roberta(ref model) => model.forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            ),
+            Self::Electra(ref model) => model.forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            ),
         }
     }
 }
-
 
 /// # TokenClassificationModel for Named Entity Recognition or Part-of-Speech tagging
 pub struct TokenClassificationModel {
@@ -311,14 +399,13 @@ impl TokenClassificationModel {
     /// # Example
     ///
     /// ```no_run
-    ///# fn main() -> failure::Fallible<()> {
+    /// # fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::token_classification::TokenClassificationModel;
     ///
     /// let model = TokenClassificationModel::new(Default::default())?;
-    ///# Ok(())
-    ///# }
+    /// # Ok(())
+    /// # }
     /// ```
-    ///
     pub fn new(config: TokenClassificationConfig) -> failure::Fallible<TokenClassificationModel> {
         let config_path = download_resource(&config.config_resource)?;
         let vocab_path = download_resource(&config.vocab_resource)?;
@@ -331,32 +418,49 @@ impl TokenClassificationModel {
         let device = config.device;
         let label_aggregation_function = config.label_aggregation_function;
 
-        let tokenizer = TokenizerOption::from_file(config.model_type, vocab_path.to_str().unwrap(), merges_path.map(|path| path.to_str().unwrap()), config.lower_case);
+        let tokenizer = TokenizerOption::from_file(
+            config.model_type,
+            vocab_path.to_str().unwrap(),
+            merges_path.map(|path| path.to_str().unwrap()),
+            config.lower_case,
+        );
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
-        let token_sequence_classifier = TokenClassificationOption::new(config.model_type, &var_store.root(), &model_config);
+        let token_sequence_classifier =
+            TokenClassificationOption::new(config.model_type, &var_store.root(), &model_config);
         let label_mapping = model_config.get_label_mapping();
         var_store.load(weights_path)?;
-        Ok(TokenClassificationModel { tokenizer, token_sequence_classifier, label_mapping, var_store, label_aggregation_function })
+        Ok(TokenClassificationModel {
+            tokenizer,
+            token_sequence_classifier,
+            label_mapping,
+            var_store,
+            label_aggregation_function,
+        })
     }
 
     fn prepare_for_model(&self, input: Vec<&str>) -> (Vec<TokenizedInput>, Tensor) {
-        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_list(input.to_vec(),
-                                                                              128,
-                                                                              &TruncationStrategy::LongestFirst,
-                                                                              0);
-        let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
-        let tokenized_input_tensors: Vec<tch::Tensor> = tokenized_input.
-            iter().
-            map(|input| input.token_ids.clone()).
-            map(|mut input| {
+        let tokenized_input: Vec<TokenizedInput> =
+            self.tokenizer
+                .encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+        let max_len = tokenized_input
+            .iter()
+            .map(|input| input.token_ids.len())
+            .max()
+            .unwrap();
+        let tokenized_input_tensors: Vec<tch::Tensor> = tokenized_input
+            .iter()
+            .map(|input| input.token_ids.clone())
+            .map(|mut input| {
                 input.extend(vec![0; max_len - input.len()]);
                 input
-            }).
-            map(|input|
-                Tensor::of_slice(&(input))).
-            collect::<Vec<_>>();
-        (tokenized_input, Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device()))
+            })
+            .map(|input| Tensor::of_slice(&(input)))
+            .collect::<Vec<_>>();
+        (
+            tokenized_input,
+            Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device()),
+        )
     }
 
     /// Classify tokens in a text sequence
@@ -374,33 +478,39 @@ impl TokenClassificationModel {
     /// # Example
     ///
     /// ```no_run
-    ///# fn main() -> failure::Fallible<()> {
-    ///# use rust_bert::pipelines::token_classification::TokenClassificationModel;
+    /// # fn main() -> failure::Fallible<()> {
+    /// # use rust_bert::pipelines::token_classification::TokenClassificationModel;
     ///
-    /// let ner_model =  TokenClassificationModel::new(Default::default())?;
+    /// let ner_model = TokenClassificationModel::new(Default::default())?;
     /// let input = [
     ///     "My name is Amy. I live in Paris.",
-    ///     "Paris is a city in France."
+    ///     "Paris is a city in France.",
     /// ];
     /// let output = ner_model.predict(&input, true, true);
-    ///# Ok(())
-    ///# }
+    /// # Ok(())
+    /// # }
     /// ```
-    pub fn predict(&self, input: &[&str], consolidate_sub_tokens: bool, return_special: bool) -> Vec<Token> {
+    pub fn predict(
+        &self,
+        input: &[&str],
+        consolidate_sub_tokens: bool,
+        return_special: bool,
+    ) -> Vec<Token> {
         let (tokenized_input, input_tensor) = self.prepare_for_model(input.to_vec());
         let (output, _, _) = no_grad(|| {
-            self.token_sequence_classifier
-                .forward_t(Some(input_tensor.copy()),
-                           None,
-                           None,
-                           None,
-                           None,
-                           false)
+            self.token_sequence_classifier.forward_t(
+                Some(input_tensor.copy()),
+                None,
+                None,
+                None,
+                None,
+                false,
+            )
         });
         let output = output.detach().to(Device::Cpu);
         let score: Tensor = output.exp() / output.exp().sum1(&[-1], true, Float);
         let labels_idx = &score.argmax(-1, true);
-        let mut tokens: Vec<Token> = vec!();
+        let mut tokens: Vec<Token> = vec![];
         for sentence_idx in 0..labels_idx.size()[0] {
             let labels = labels_idx.get(sentence_idx);
             let sentence_tokens = &tokenized_input[sentence_idx as usize];
@@ -415,7 +525,16 @@ impl TokenClassificationModel {
                     word_idx += 1;
                 }
                 let token = {
-                    self.decode_token(&original_chars, sentence_tokens, &input_tensor, &labels, &score, sentence_idx, position_idx as i64, word_idx - 1)
+                    self.decode_token(
+                        &original_chars,
+                        sentence_tokens,
+                        &input_tensor,
+                        &labels,
+                        &score,
+                        sentence_idx,
+                        position_idx as i64,
+                        word_idx - 1,
+                    )
                 };
                 tokens.push(token);
             }
@@ -426,8 +545,17 @@ impl TokenClassificationModel {
         tokens
     }
 
-    fn decode_token(&self, original_sentence_chars: &Vec<char>, sentence_tokens: &TokenizedInput, input_tensor: &Tensor,
-                    labels: &Tensor, score: &Tensor, sentence_idx: i64, position_idx: i64, word_index: u16) -> Token {
+    fn decode_token(
+        &self,
+        original_sentence_chars: &Vec<char>,
+        sentence_tokens: &TokenizedInput,
+        input_tensor: &Tensor,
+        labels: &Tensor,
+        score: &Tensor,
+        sentence_idx: i64,
+        position_idx: i64,
+        word_index: u16,
+    ) -> Token {
         let label_id = labels.int64_value(&[position_idx as i64]);
         let token_id = input_tensor.int64_value(&[sentence_idx, position_idx as i64]);
 
@@ -435,13 +563,19 @@ impl TokenClassificationModel {
 
         let text = match offsets {
             None => match self.tokenizer {
-                TokenizerOption::Bert(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
-                TokenizerOption::Roberta(ref tokenizer) => Tokenizer::decode(tokenizer, vec!(token_id), false, false),
+                TokenizerOption::Bert(ref tokenizer) => {
+                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                }
+                TokenizerOption::Roberta(ref tokenizer) => {
+                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                }
             },
             Some(offsets) => {
                 let (start_char, end_char) = (offsets.begin as usize, offsets.end as usize);
                 let end_char = min(end_char, original_sentence_chars.len());
-                let text = original_sentence_chars[start_char..end_char].iter().collect();
+                let text = original_sentence_chars[start_char..end_char]
+                    .iter()
+                    .collect();
                 text
             }
         };
@@ -449,7 +583,11 @@ impl TokenClassificationModel {
         Token {
             text,
             score: score.double_value(&[sentence_idx, position_idx, label_id]),
-            label: self.label_mapping.get(&label_id).expect("Index out of vocabulary bounds.").to_owned(),
+            label: self
+                .label_mapping
+                .get(&label_id)
+                .expect("Index out of vocabulary bounds.")
+                .to_owned(),
             label_index: label_id,
             sentence: sentence_idx as usize,
             index: position_idx as u16,
@@ -459,24 +597,29 @@ impl TokenClassificationModel {
         }
     }
 
-    fn consolidate_tokens(&self, tokens: &mut Vec<Token>, label_aggregation_function: &LabelAggregationOption) {
-        let mut tokens_to_replace = vec!();
+    fn consolidate_tokens(
+        &self,
+        tokens: &mut Vec<Token>,
+        label_aggregation_function: &LabelAggregationOption,
+    ) {
+        let mut tokens_to_replace = vec![];
         let mut token_iter = tokens.iter_consolidate_tokens();
         let mut cursor = 0;
 
         while let Some(sub_tokens) = token_iter.next() {
             if sub_tokens.len() > 1 {
-                let (label_index, label) = self.consolidate_labels(sub_tokens, label_aggregation_function);
+                let (label_index, label) =
+                    self.consolidate_labels(sub_tokens, label_aggregation_function);
                 let sentence = (&sub_tokens[0]).sentence;
                 let index = (&sub_tokens[0]).index;
                 let word_index = (&sub_tokens[0]).word_index;
                 let offset_start = match &sub_tokens.first().unwrap().offset {
                     Some(offset) => Some(offset.begin),
-                    None => None
+                    None => None,
                 };
                 let offset_end = match &sub_tokens.last().unwrap().offset {
                     Some(offset) => Some(offset.end),
-                    None => None
+                    None => None,
                 };
                 let offset = if offset_start.is_some() & offset_end.is_some() {
                     Some(Offset::new(offset_start.unwrap(), offset_end.unwrap()))
@@ -513,7 +656,11 @@ impl TokenClassificationModel {
         }
     }
 
-    fn consolidate_labels(&self, tokens: &[Token], aggregation: &LabelAggregationOption) -> (i64, String) {
+    fn consolidate_labels(
+        &self,
+        tokens: &[Token],
+        aggregation: &LabelAggregationOption,
+    ) -> (i64, String) {
         match aggregation {
             LabelAggregationOption::First => {
                 let token = tokens.first().unwrap();
@@ -524,22 +671,17 @@ impl TokenClassificationModel {
                 (token.label_index, token.label.clone())
             }
             LabelAggregationOption::Mode => {
-                let counts = tokens
-                    .iter()
-                    .fold(
-                        HashMap::new(),
-                        |mut m, c| {
-                            *m.entry((c.label_index, c.label.as_str())).or_insert(0) += 1;
-                            m
-                        },
-                    );
+                let counts = tokens.iter().fold(HashMap::new(), |mut m, c| {
+                    *m.entry((c.label_index, c.label.as_str())).or_insert(0) += 1;
+                    m
+                });
                 counts
                     .into_iter()
                     .max_by(|a, b| a.1.cmp(&b.1))
                     .map(|((label_index, label), _)| (label_index, label.to_owned()))
                     .unwrap()
             }
-            LabelAggregationOption::Custom(function) => function(tokens)
+            LabelAggregationOption::Custom(function) => function(tokens),
         }
     }
 }

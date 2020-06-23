@@ -10,28 +10,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use rust_bert::pipelines::token_classification::{TokenClassificationModel, TokenClassificationConfig, LabelAggregationOption};
-use rust_bert::resources::{Resource, RemoteResource};
-use rust_bert::bert::{BertModelResources, BertVocabResources, BertConfigResources};
+use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
 use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::token_classification::{
+    LabelAggregationOption, TokenClassificationConfig, TokenClassificationModel,
+};
+use rust_bert::resources::{RemoteResource, Resource};
 
 fn main() -> failure::Fallible<()> {
-
-//    Load a configuration
-    let config = TokenClassificationConfig::new(ModelType::Bert,
-                                                Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_NER)),
-                                                Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER)),
-                                                Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_NER)),
-                                                None, //merges resource only relevant with ModelType::Roberta
-                                                false, //lowercase
-                                                LabelAggregationOption::Mode,
+    //    Load a configuration
+    let config = TokenClassificationConfig::new(
+        ModelType::Bert,
+        Resource::Remote(RemoteResource::from_pretrained(
+            BertModelResources::BERT_NER,
+        )),
+        Resource::Remote(RemoteResource::from_pretrained(
+            BertConfigResources::BERT_NER,
+        )),
+        Resource::Remote(RemoteResource::from_pretrained(
+            BertVocabResources::BERT_NER,
+        )),
+        None,  //merges resource only relevant with ModelType::Roberta
+        false, //lowercase
+        LabelAggregationOption::Mode,
     );
 
-//    Create the model
+    //    Create the model
     let token_classification_model = TokenClassificationModel::new(config)?;
     let input = [
         "My name is Amélie. I live in Москва.",
-        "Chongqing is a city in China."
+        "Chongqing is a city in China.",
     ];
     let token_outputs = token_classification_model.predict(&input, true, false); //ignore_first_label = true (only returns the NER parts, ignoring first label O)
 

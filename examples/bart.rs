@@ -12,33 +12,43 @@
 
 extern crate failure;
 
-use tch::{Device, nn, Tensor, no_grad};
-use rust_tokenizers::{RobertaTokenizer, TruncationStrategy, Tokenizer};
-use rust_bert::bart::{BartConfig, BartConfigResources, BartVocabResources, BartMergesResources, BartModelResources, BartModel};
+use rust_bert::bart::{
+    BartConfig, BartConfigResources, BartMergesResources, BartModel, BartModelResources,
+    BartVocabResources,
+};
+use rust_bert::resources::{download_resource, RemoteResource, Resource};
 use rust_bert::Config;
-use rust_bert::resources::{Resource, download_resource, RemoteResource};
-
+use rust_tokenizers::{RobertaTokenizer, Tokenizer, TruncationStrategy};
+use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
+    let weights_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
     let merges_path = download_resource(&merges_resource)?;
     let weights_path = download_resource(&weights_resource)?;
 
-//    Set-up masked LM model
+    //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let mut vs = nn::VarStore::new(device);
-    let tokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), false);
+    let tokenizer = RobertaTokenizer::from_file(
+        vocab_path.to_str().unwrap(),
+        merges_path.to_str().unwrap(),
+        false,
+    );
     let config = BartConfig::from_file(config_path);
     let bart_model = BartModel::new(&vs.root(), &config, false);
     vs.load(weights_path)?;
 
-//    Define input
+    //    Define input
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
 from University College London (UCL), the presence of water vapour was confirmed in the atmosphere of K2-18b, \
@@ -61,35 +71,31 @@ on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optim
 telescope — scheduled for launch in 2021 — and the European Space Agency's 2028 ARIEL program, could reveal more \
 about exoplanets like K2-18b."];
 
-//    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
+    //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
 
-    let tokenized_input = tokenizer.encode_list(input.to_vec(), 1024, &TruncationStrategy::LongestFirst, 0);
-    let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
-    let tokenized_input = tokenized_input.
-        iter().
-        map(|input| input.token_ids.clone()).
-        map(|mut input| {
+    let tokenized_input =
+        tokenizer.encode_list(input.to_vec(), 1024, &TruncationStrategy::LongestFirst, 0);
+    let max_len = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.len())
+        .max()
+        .unwrap();
+    let tokenized_input = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.clone())
+        .map(|mut input| {
             input.extend(vec![0; max_len - input.len()]);
             input
-        }).
-        map(|input|
-            Tensor::of_slice(&(input))).
-        collect::<Vec<_>>();
+        })
+        .map(|input| Tensor::of_slice(&(input)))
+        .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
-//    Forward pass
-    let (decoder_output, encoder_output, _, _, _, _, _) = no_grad(|| {
-        bart_model
-            .forward_t(Some(&input_tensor),
-                       None,
-                       None,
-                       None,
-                       None,
-                       None,
-                       false)
-    });
+    //    Forward pass
+    let (decoder_output, encoder_output, _, _, _, _, _) =
+        no_grad(|| bart_model.forward_t(Some(&input_tensor), None, None, None, None, None, false));
 
-//    Print masked tokens
+    //    Print masked tokens
     println!("{:?}", encoder_output);
     println!("{:?}", decoder_output);
     Ok(())

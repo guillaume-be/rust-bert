@@ -19,13 +19,13 @@
 //!
 use crate::bert::BertConfig;
 use crate::distilbert::DistilBertConfig;
-use rust_tokenizers::{BertTokenizer, RobertaTokenizer, TokenizedInput, TruncationStrategy};
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Tokenizer;
-use std::path::Path;
-use crate::Config;
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use crate::electra::ElectraConfig;
+use crate::Config;
+use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Tokenizer;
+use rust_tokenizers::{BertTokenizer, RobertaTokenizer, TokenizedInput, TruncationStrategy};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::Path;
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 /// # Identifies the type of model
@@ -60,25 +60,42 @@ impl ConfigOption {
         match model_type {
             ModelType::Bert | ModelType::Roberta => ConfigOption::Bert(BertConfig::from_file(path)),
             ModelType::DistilBert => ConfigOption::DistilBert(DistilBertConfig::from_file(path)),
-            ModelType::Electra => ConfigOption::Electra(ElectraConfig::from_file(path))
+            ModelType::Electra => ConfigOption::Electra(ElectraConfig::from_file(path)),
         }
     }
 
     pub fn get_label_mapping(self) -> HashMap<i64, String> {
         match self {
-            Self::Bert(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
-            Self::DistilBert(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
-            Self::Electra(config) => config.id2label.expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Bert(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::DistilBert(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Electra(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
         }
     }
 }
 
 impl TokenizerOption {
     /// Interface method to load a tokenizer from file
-    pub fn from_file(model_type: ModelType, vocab_path: &str, merges_path: Option<&str>, lower_case: bool) -> Self {
+    pub fn from_file(
+        model_type: ModelType,
+        vocab_path: &str,
+        merges_path: Option<&str>,
+        lower_case: bool,
+    ) -> Self {
         match model_type {
-            ModelType::Bert | ModelType::DistilBert | ModelType::Electra => TokenizerOption::Bert(BertTokenizer::from_file(vocab_path, lower_case)),
-            ModelType::Roberta => TokenizerOption::Roberta(RobertaTokenizer::from_file(vocab_path, merges_path.expect("No merges specified!"), lower_case)),
+            ModelType::Bert | ModelType::DistilBert | ModelType::Electra => {
+                TokenizerOption::Bert(BertTokenizer::from_file(vocab_path, lower_case))
+            }
+            ModelType::Roberta => TokenizerOption::Roberta(RobertaTokenizer::from_file(
+                vocab_path,
+                merges_path.expect("No merges specified!"),
+                lower_case,
+            )),
         }
     }
 
@@ -86,15 +103,25 @@ impl TokenizerOption {
     pub fn model_type(&self) -> ModelType {
         match *self {
             Self::Bert(_) => ModelType::Bert,
-            Self::Roberta(_) => ModelType::Roberta
+            Self::Roberta(_) => ModelType::Roberta,
         }
     }
 
     /// Interface method
-    pub fn encode_list(&self, text_list: Vec<&str>, max_len: usize, truncation_strategy: &TruncationStrategy, stride: usize) -> Vec<TokenizedInput> {
+    pub fn encode_list(
+        &self,
+        text_list: Vec<&str>,
+        max_len: usize,
+        truncation_strategy: &TruncationStrategy,
+        stride: usize,
+    ) -> Vec<TokenizedInput> {
         match *self {
-            Self::Bert(ref tokenizer) => tokenizer.encode_list(text_list, max_len, truncation_strategy, stride),
-            Self::Roberta(ref tokenizer) => tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
+            Self::Bert(ref tokenizer) => {
+                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
+            }
+            Self::Roberta(ref tokenizer) => {
+                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
+            }
         }
     }
 }

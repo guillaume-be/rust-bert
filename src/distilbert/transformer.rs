@@ -10,13 +10,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{Tensor, nn};
-use crate::distilbert::distilbert::{DistilBertConfig, Activation};
-use crate::distilbert::attention::MultiHeadSelfAttention;
-use tch::nn::LayerNorm;
-use std::borrow::BorrowMut;
-use crate::common::dropout::Dropout;
 use crate::common::activations::{_gelu, _relu};
+use crate::common::dropout::Dropout;
+use crate::distilbert::attention::MultiHeadSelfAttention;
+use crate::distilbert::distilbert::{Activation, DistilBertConfig};
+use std::borrow::BorrowMut;
+use tch::nn::LayerNorm;
+use tch::{nn, Tensor};
 
 pub struct FeedForwardNetwork {
     lin1: nn::Linear,
@@ -27,18 +27,35 @@ pub struct FeedForwardNetwork {
 
 impl FeedForwardNetwork {
     pub fn new(p: nn::Path, config: &DistilBertConfig) -> FeedForwardNetwork {
-        let lin1 = nn::linear(&p / "lin1", config.dim, config.hidden_dim, Default::default());
-        let lin2 = nn::linear(&p / "lin2", config.hidden_dim, config.dim, Default::default());
+        let lin1 = nn::linear(
+            &p / "lin1",
+            config.dim,
+            config.hidden_dim,
+            Default::default(),
+        );
+        let lin2 = nn::linear(
+            &p / "lin2",
+            config.hidden_dim,
+            config.dim,
+            Default::default(),
+        );
         let dropout = Dropout::new(config.dropout);
         let activation = Box::new(match &config.activation {
             Activation::gelu => _gelu,
-            Activation::relu => _relu
+            Activation::relu => _relu,
         });
-        FeedForwardNetwork { lin1, lin2, dropout, activation }
+        FeedForwardNetwork {
+            lin1,
+            lin2,
+            dropout,
+            activation,
+        }
     }
 
     pub fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
-        (self.activation)(&input.apply(&self.lin1)).apply(&self.lin2).apply_t(&self.dropout, train)
+        (self.activation)(&input.apply(&self.lin1))
+            .apply(&self.lin2)
+            .apply_t(&self.dropout, train)
     }
 }
 
@@ -52,10 +69,15 @@ pub struct TransformerBlock {
 impl TransformerBlock {
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> TransformerBlock {
         let attention = MultiHeadSelfAttention::new(p / "attention", &config);
-        let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let sa_layer_norm = nn::layer_norm(p / "sa_layer_norm", vec![config.dim], layer_norm_config);
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: 1e-12,
+            ..Default::default()
+        };
+        let sa_layer_norm =
+            nn::layer_norm(p / "sa_layer_norm", vec![config.dim], layer_norm_config);
         let ffn = FeedForwardNetwork::new(p / "ffn", &config);
-        let output_layer_norm = nn::layer_norm(p / "output_layer_norm", vec![config.dim], layer_norm_config);
+        let output_layer_norm =
+            nn::layer_norm(p / "output_layer_norm", vec![config.dim], layer_norm_config);
 
         TransformerBlock {
             attention,
@@ -65,8 +87,15 @@ impl TransformerBlock {
         }
     }
 
-    pub fn forward_t(&self, input: &Tensor, mask: &Option<Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
-        let (output, sa_weights) = self.attention.forward_t(&input, &input, &input, mask, train);
+    pub fn forward_t(
+        &self,
+        input: &Tensor,
+        mask: &Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>) {
+        let (output, sa_weights) = self
+            .attention
+            .forward_t(&input, &input, &input, mask, train);
         let output = (input + &output).apply(&self.sa_layer_norm);
         let output = (&output + self.ffn.forward_t(&output, train)).apply(&self.output_layer_norm);
         (output, sa_weights)
@@ -84,25 +113,41 @@ impl Transformer {
         let p = &(p / "layer");
         let output_attentions = match config.output_attentions {
             Some(value) => value,
-            None => false
+            None => false,
         };
         let output_hidden_states = match config.output_hidden_states {
             Some(value) => value,
-            None => false
+            None => false,
         };
 
-        let mut layers: Vec<TransformerBlock> = vec!();
+        let mut layers: Vec<TransformerBlock> = vec![];
         for layer_index in 0..config.n_layers {
             layers.push(TransformerBlock::new(&(p / layer_index), config));
-        };
+        }
 
-        Transformer { output_attentions, output_hidden_states, layers }
+        Transformer {
+            output_attentions,
+            output_hidden_states,
+            layers,
+        }
     }
 
-    pub fn forward_t(&self, input: &Tensor, mask: Option<Tensor>, train: bool)
-                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states { Some(vec!()) } else { None };
-        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions { Some(vec!()) } else { None };
+    pub fn forward_t(
+        &self,
+        input: &Tensor,
+        mask: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
 
         let mut hidden_state = input.copy();
         let mut attention_weights: Option<Tensor>;
@@ -121,9 +166,9 @@ impl Transformer {
                         attentions.push(attention_weights.as_ref().unwrap().copy());
                     };
                 }
-                None => break
+                None => break,
             };
-        };
+        }
 
         (hidden_state, all_hidden_states, all_attentions)
     }

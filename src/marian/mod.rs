@@ -15,20 +15,28 @@
 //! Pretrained models for a number of language pairs are available and can be downloaded using RemoteResources. These are shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
 //!
 //! ```no_run
-//!# fn main() -> failure::Fallible<()> {
-//!#
+//! # fn main() -> failure::Fallible<()> {
+//! #
 //! use tch::{nn, Device};
-//!# use std::path::PathBuf;
-//! use rust_bert::Config;
+//! # use std::path::PathBuf;
 //! use rust_bert::bart::{BartConfig, BartModel};
-//! use rust_bert::resources::{Resource, download_resource, LocalResource};
-//! use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
 //! use rust_bert::marian::MarianForConditionalGeneration;
+//! use rust_bert::resources::{download_resource, LocalResource, Resource};
+//! use rust_bert::Config;
+//! use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
 //!
-//! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
-//! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.json")});
-//! let sentence_piece_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/spiece.model")});
-//! let weights_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot")});
+//! let config_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/config.json"),
+//! });
+//! let vocab_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.json"),
+//! });
+//! let sentence_piece_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/spiece.model"),
+//! });
+//! let weights_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/model.ot"),
+//! });
 //! let config_path = download_resource(&config_resource)?;
 //! let vocab_path = download_resource(&vocab_resource)?;
 //! let spiece_path = download_resource(&sentence_piece_resource)?;
@@ -36,15 +44,22 @@
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer = MarianTokenizer::from_files(vocab_path.to_str().unwrap(), spiece_path.to_str().unwrap(), true);
+//! let tokenizer = MarianTokenizer::from_files(
+//!     vocab_path.to_str().unwrap(),
+//!     spiece_path.to_str().unwrap(),
+//!     true,
+//! );
 //! let config = BartConfig::from_file(config_path);
 //! let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
 //! vs.load(weights_path)?;
 //!
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
 
 mod marian;
 
-pub use marian::{MarianForConditionalGeneration, MarianModelResources, MarianConfigResources, MarianVocabResources, MarianSpmResources, MarianPrefix};
+pub use marian::{
+    MarianConfigResources, MarianForConditionalGeneration, MarianModelResources, MarianPrefix,
+    MarianSpmResources, MarianVocabResources,
+};

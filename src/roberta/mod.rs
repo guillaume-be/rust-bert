@@ -19,20 +19,28 @@
 //! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
-//!# fn main() -> failure::Fallible<()> {
-//!#
+//! # fn main() -> failure::Fallible<()> {
+//! #
 //! use rust_tokenizers::RobertaTokenizer;
 //! use tch::{nn, Device};
-//!# use std::path::PathBuf;
+//! # use std::path::PathBuf;
 //! use rust_bert::bert::BertConfig;
-//! use rust_bert::Config;
+//! use rust_bert::resources::{download_resource, LocalResource, Resource};
 //! use rust_bert::roberta::RobertaForMaskedLM;
-//! use rust_bert::resources::{Resource, download_resource, LocalResource};
+//! use rust_bert::Config;
 //!
-//! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
-//! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
-//! let merges_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
-//! let weights_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot")});
+//! let config_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/config.json"),
+//! });
+//! let vocab_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//! });
+//! let merges_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//! });
+//! let weights_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/model.ot"),
+//! });
 //! let config_path = download_resource(&config_resource)?;
 //! let vocab_path = download_resource(&vocab_resource)?;
 //! let merges_path = download_resource(&merges_resource)?;
@@ -40,19 +48,25 @@
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
+//! let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(
+//!     vocab_path.to_str().unwrap(),
+//!     merges_path.to_str().unwrap(),
+//!     true,
+//! );
 //! let config = BertConfig::from_file(config_path);
 //! let bert_model = RobertaForMaskedLM::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
-
 
 mod embeddings;
 mod roberta;
 
-pub use roberta::{RobertaModelResources, RobertaConfigResources, RobertaVocabResources, RobertaMergesResources,
-                  RobertaForMaskedLM, RobertaForMultipleChoice, RobertaForTokenClassification, RobertaForQuestionAnswering, RobertaForSequenceClassification};
 pub use embeddings::RobertaEmbeddings;
+pub use roberta::{
+    RobertaConfigResources, RobertaForMaskedLM, RobertaForMultipleChoice,
+    RobertaForQuestionAnswering, RobertaForSequenceClassification, RobertaForTokenClassification,
+    RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
+};

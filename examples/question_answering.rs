@@ -12,23 +12,28 @@
 
 extern crate failure;
 
-use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
-
+use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 
 fn main() -> failure::Fallible<()> {
-//    Set-up Question Answering model
+    //    Set-up Question Answering model
     let qa_model = QuestionAnsweringModel::new(Default::default())?;
 
-//    Define input
+    //    Define input
     let question_1 = String::from("Where does Amy live ?");
     let context_1 = String::from("Amy lives in Amsterdam");
     let question_2 = String::from("Where does Eric live");
     let context_2 = String::from("While Amy lives in Amsterdam, Eric is in The Hague.");
-    let qa_input_1 = QaInput { question: question_1, context: context_1 };
-    let qa_input_2 = QaInput { question: question_2, context: context_2 };
+    let qa_input_1 = QaInput {
+        question: question_1,
+        context: context_1,
+    };
+    let qa_input_2 = QaInput {
+        question: question_2,
+        context: context_2,
+    };
 
-//    Get answer
-    let answers = qa_model.predict(&vec!(qa_input_1, qa_input_2), 1, 32);
+    //    Get answer
+    let answers = qa_model.predict(&vec![qa_input_1, qa_input_2], 1, 32);
     println!("{:?}", answers);
     Ok(())
 }

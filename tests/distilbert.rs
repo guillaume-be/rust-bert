@@ -1,22 +1,26 @@
-use tch::{Device, Tensor, nn, no_grad};
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
-use rust_tokenizers::bert_tokenizer::BertTokenizer;
-use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
-use rust_bert::Config;
-use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM, DistilBertForQuestionAnswering, DistilBertForTokenClassification, DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources};
+use rust_bert::distilbert::{
+    DistilBertConfig, DistilBertConfigResources, DistilBertForQuestionAnswering,
+    DistilBertForTokenClassification, DistilBertModelMaskedLM, DistilBertModelResources,
+    DistilBertVocabResources,
+};
+use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 use rust_bert::pipelines::sentiment::{SentimentModel, SentimentPolarity};
-use rust_bert::pipelines::question_answering::{QuestionAnsweringModel, QaInput};
-use rust_bert::resources::{Resource, RemoteResource, download_resource};
+use rust_bert::resources::{download_resource, RemoteResource, Resource};
+use rust_bert::Config;
+use rust_tokenizers::bert_tokenizer::BertTokenizer;
+use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
+use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use std::collections::HashMap;
+use tch::{nn, no_grad, Device, Tensor};
 
 extern crate failure;
 
 #[test]
 fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
-//    Set-up classifier
+    //    Set-up classifier
     let sentiment_classifier = SentimentModel::new(Default::default())?;
 
-//    Get sentiments
+    //    Get sentiments
     let input = [
         "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
         "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
@@ -36,18 +40,23 @@ fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
     Ok(())
 }
 
-
 #[test]
 fn distilbert_masked_lm() -> failure::Fallible<()> {
-//    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT));
+    //    Resources paths
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertConfigResources::DISTIL_BERT,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertVocabResources::DISTIL_BERT,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertModelResources::DISTIL_BERT,
+    ));
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
     let weights_path = download_resource(&weights_resource)?;
 
-//    Set-up masked LM model
+    //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let mut vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
@@ -55,59 +64,68 @@ fn distilbert_masked_lm() -> failure::Fallible<()> {
     let distil_bert_model = DistilBertModelMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
-//    Define input
-    let input = ["Looks like one thing is missing", "It\'s like comparing oranges to apples"];
-    let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
-    let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
-    let mut tokenized_input = tokenized_input.
-        iter().
-        map(|input| input.token_ids.clone()).
-        map(|mut input| {
+    //    Define input
+    let input = [
+        "Looks like one thing is missing",
+        "It\'s like comparing oranges to apples",
+    ];
+    let tokenized_input =
+        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let max_len = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.len())
+        .max()
+        .unwrap();
+    let mut tokenized_input = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.clone())
+        .map(|mut input| {
             input.extend(vec![0; max_len - input.len()]);
             input
-        }).
-        collect::<Vec<_>>();
+        })
+        .collect::<Vec<_>>();
 
-//    Masking the token [thing] of sentence 1 and [oranges] of sentence 2
+    //    Masking the token [thing] of sentence 1 and [oranges] of sentence 2
     tokenized_input[0][4] = 103;
     tokenized_input[1][6] = 103;
-    let tokenized_input = tokenized_input.
-        iter().
-        map(|input|
-            Tensor::of_slice(&(input))).
-        collect::<Vec<_>>();
+    let tokenized_input = tokenized_input
+        .iter()
+        .map(|input| Tensor::of_slice(&(input)))
+        .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
-
-//    Forward pass
+    //    Forward pass
     let (output, _, _) = no_grad(|| {
         distil_bert_model
             .forward_t(Some(input_tensor), None, None, false)
             .unwrap()
     });
 
-//    Print masked tokens
+    //    Print masked tokens
     let index_1 = output.get(0).get(4).argmax(0, false);
     let index_2 = output.get(1).get(6).argmax(0, false);
     let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 
     assert_eq!("person", word_1); // Outputs "person" : "Looks like one [person] is missing"
-    assert_eq!("pear", word_2);// Outputs "pear" : "It\'s like comparing [pear] to apples"
+    assert_eq!("pear", word_2); // Outputs "pear" : "It\'s like comparing [pear] to apples"
 
     Ok(())
 }
 
 #[test]
 fn distilbert_for_question_answering() -> failure::Fallible<()> {
-
-//    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SQUAD));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SQUAD));
+    //    Resources paths
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertConfigResources::DISTIL_BERT_SQUAD,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertVocabResources::DISTIL_BERT_SQUAD,
+    ));
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
 
-//    Set-up masked LM model
+    //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
@@ -116,23 +134,30 @@ fn distilbert_for_question_answering() -> failure::Fallible<()> {
     config.output_hidden_states = Some(true);
     let distil_bert_model = DistilBertForQuestionAnswering::new(&vs.root(), &config);
 
-//    Define input
-    let input = ["Looks like one thing is missing", "It\'s like comparing oranges to apples"];
-    let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
-    let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
-    let tokenized_input = tokenized_input.
-        iter().
-        map(|input| input.token_ids.clone()).
-        map(|mut input| {
+    //    Define input
+    let input = [
+        "Looks like one thing is missing",
+        "It\'s like comparing oranges to apples",
+    ];
+    let tokenized_input =
+        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let max_len = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.len())
+        .max()
+        .unwrap();
+    let tokenized_input = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.clone())
+        .map(|mut input| {
             input.extend(vec![0; max_len - input.len()]);
             input
-        }).
-        map(|input|
-            Tensor::of_slice(&(input))).
-        collect::<Vec<_>>();
+        })
+        .map(|input| Tensor::of_slice(&(input)))
+        .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
-//    Forward pass
+    //    Forward pass
     let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
         distil_bert_model
             .forward_t(Some(input_tensor), None, None, false)
@@ -149,14 +174,17 @@ fn distilbert_for_question_answering() -> failure::Fallible<()> {
 
 #[test]
 fn distilbert_for_token_classification() -> failure::Fallible<()> {
-
-//    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT));
+    //    Resources paths
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertConfigResources::DISTIL_BERT,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        DistilBertVocabResources::DISTIL_BERT,
+    ));
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
 
-//    Set-up masked LM model
+    //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let vs = nn::VarStore::new(device);
     let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
@@ -171,23 +199,30 @@ fn distilbert_for_token_classification() -> failure::Fallible<()> {
     config.id2label = Some(dummy_label_mapping);
     let distil_bert_model = DistilBertForTokenClassification::new(&vs.root(), &config);
 
-//    Define input
-    let input = ["Looks like one thing is missing", "It\'s like comparing oranges to apples"];
-    let tokenized_input = tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
-    let max_len = tokenized_input.iter().map(|input| input.token_ids.len()).max().unwrap();
-    let tokenized_input = tokenized_input.
-        iter().
-        map(|input| input.token_ids.clone()).
-        map(|mut input| {
+    //    Define input
+    let input = [
+        "Looks like one thing is missing",
+        "It\'s like comparing oranges to apples",
+    ];
+    let tokenized_input =
+        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let max_len = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.len())
+        .max()
+        .unwrap();
+    let tokenized_input = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.clone())
+        .map(|mut input| {
             input.extend(vec![0; max_len - input.len()]);
             input
-        }).
-        map(|input|
-            Tensor::of_slice(&(input))).
-        collect::<Vec<_>>();
+        })
+        .map(|input| Tensor::of_slice(&(input)))
+        .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
-//    Forward pass
+    //    Forward pass
     let (output, all_hidden_states, all_attentions) = no_grad(|| {
         distil_bert_model
             .forward_t(Some(input_tensor), None, None, false)
@@ -203,15 +238,15 @@ fn distilbert_for_token_classification() -> failure::Fallible<()> {
 
 #[test]
 fn distilbert_question_answering() -> failure::Fallible<()> {
-//    Set-up question answering model
+    //    Set-up question answering model
     let qa_model = QuestionAnsweringModel::new(Default::default())?;
 
-//    Define input
+    //    Define input
     let question = String::from("Where does Amy live ?");
     let context = String::from("Amy lives in Amsterdam");
     let qa_input = QaInput { question, context };
 
-    let answers = qa_model.predict(&vec!(qa_input), 1, 32);
+    let answers = qa_model.predict(&vec![qa_input], 1, 32);
 
     assert_eq!(answers.len(), 1 as usize);
     assert_eq!(answers[0].len(), 1 as usize);

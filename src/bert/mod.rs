@@ -19,18 +19,24 @@
 //! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
-//!# fn main() -> failure::Fallible<()> {
-//!#
+//! # fn main() -> failure::Fallible<()> {
+//! #
 //! use rust_tokenizers::BertTokenizer;
 //! use tch::{nn, Device};
-//!# use std::path::PathBuf;
-//! use rust_bert::bert::{BertForMaskedLM, BertConfig};
+//! # use std::path::PathBuf;
+//! use rust_bert::bert::{BertConfig, BertForMaskedLM};
+//! use rust_bert::resources::{download_resource, LocalResource, Resource};
 //! use rust_bert::Config;
-//! use rust_bert::resources::{Resource, download_resource, LocalResource};
 //!
-//! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
-//! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
-//! let weights_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot")});
+//! let config_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/config.json"),
+//! });
+//! let vocab_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//! });
+//! let weights_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/model.ot"),
+//! });
 //! let config_path = download_resource(&config_resource)?;
 //! let vocab_path = download_resource(&vocab_resource)?;
 //! let weights_path = download_resource(&weights_resource)?;
@@ -41,17 +47,18 @@
 //! let bert_model = BertForMaskedLM::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
 
-
+mod attention;
 mod bert;
 mod embeddings;
-mod attention;
 pub(crate) mod encoder;
 
-pub use bert::{BertModelResources, BertConfigResources, BertVocabResources,
-               BertConfig, Activation, BertModel, BertForTokenClassification, BertForMultipleChoice,
-               BertForMaskedLM, BertForSequenceClassification, BertForQuestionAnswering};
+pub use bert::{
+    Activation, BertConfig, BertConfigResources, BertForMaskedLM, BertForMultipleChoice,
+    BertForQuestionAnswering, BertForSequenceClassification, BertForTokenClassification, BertModel,
+    BertModelResources, BertVocabResources,
+};
 pub use embeddings::{BertEmbedding, BertEmbeddings};
