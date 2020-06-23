@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 //! # Translation pipeline
 //! Translation based on the Marian encoder-decoder architecture
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
@@ -33,31 +32,35 @@
 //!
 //!
 //! ```no_run
-//!# fn main() -> failure::Fallible<()> {
-//!# use rust_bert::pipelines::generation::LanguageGenerator;
-//! use rust_bert::pipelines::translation::{TranslationModel, TranslationConfig, Language};
+//! # fn main() -> failure::Fallible<()> {
+//! # use rust_bert::pipelines::generation::LanguageGenerator;
+//! use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 //! use tch::Device;
-//! let translation_config =  TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
+//! let translation_config =
+//!     TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
 //! let mut model = TranslationModel::new(translation_config)?;
 //!
 //! let input = ["This is a sentence to be translated"];
 //!
 //! let output = model.translate(&input);
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! Output: \
 //! ```no_run
-//!# let output =
+//! # let output =
 //! "Il s'agit d'une phrase à traduire"
-//!# ;
-//!```
+//! # ;
+//! ```
 
-use crate::pipelines::generation::{MarianGenerator, GenerateConfig, LanguageGenerator};
+use crate::common::resources::{RemoteResource, Resource};
+use crate::marian::{
+    MarianConfigResources, MarianModelResources, MarianPrefix, MarianSpmResources,
+    MarianVocabResources,
+};
+use crate::pipelines::generation::{GenerateConfig, LanguageGenerator, MarianGenerator};
 use tch::Device;
-use crate::common::resources::{Resource, RemoteResource};
-use crate::marian::{MarianModelResources, MarianConfigResources, MarianVocabResources, MarianSpmResources, MarianPrefix};
 
 /// Pretrained languages available for direct use
 pub enum Language {
@@ -84,46 +87,243 @@ pub enum Language {
 struct RemoteTranslationResources;
 
 impl RemoteTranslationResources {
-    pub const ENGLISH2FRENCH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ENGLISH2ROMANCE, MarianConfigResources::ENGLISH2ROMANCE, MarianVocabResources::ENGLISH2ROMANCE, MarianSpmResources::ENGLISH2ROMANCE, MarianPrefix::ENGLISH2FRENCH);
-    pub const ENGLISH2CATALAN: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ENGLISH2ROMANCE, MarianConfigResources::ENGLISH2ROMANCE, MarianVocabResources::ENGLISH2ROMANCE, MarianSpmResources::ENGLISH2ROMANCE, MarianPrefix::ENGLISH2CATALAN);
-    pub const ENGLISH2SPANISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ENGLISH2ROMANCE, MarianConfigResources::ENGLISH2ROMANCE, MarianVocabResources::ENGLISH2ROMANCE, MarianSpmResources::ENGLISH2ROMANCE, MarianPrefix::ENGLISH2SPANISH);
-    pub const ENGLISH2PORTUGUESE: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ENGLISH2ROMANCE, MarianConfigResources::ENGLISH2ROMANCE, MarianVocabResources::ENGLISH2ROMANCE, MarianSpmResources::ENGLISH2ROMANCE, MarianPrefix::ENGLISH2PORTUGUESE);
-    pub const ENGLISH2ITALIAN: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ENGLISH2ROMANCE, MarianConfigResources::ENGLISH2ROMANCE, MarianVocabResources::ENGLISH2ROMANCE, MarianSpmResources::ENGLISH2ROMANCE, MarianPrefix::ENGLISH2ITALIAN);
-    pub const ENGLISH2ROMANIAN: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ENGLISH2ROMANCE, MarianConfigResources::ENGLISH2ROMANCE, MarianVocabResources::ENGLISH2ROMANCE, MarianSpmResources::ENGLISH2ROMANCE, MarianPrefix::ENGLISH2ROMANIAN);
-    pub const ENGLISH2GERMAN: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ENGLISH2GERMAN, MarianConfigResources::ENGLISH2GERMAN, MarianVocabResources::ENGLISH2GERMAN, MarianSpmResources::ENGLISH2GERMAN, MarianPrefix::ENGLISH2GERMAN);
-    pub const ENGLISH2RUSSIAN: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ENGLISH2RUSSIAN, MarianConfigResources::ENGLISH2RUSSIAN, MarianVocabResources::ENGLISH2RUSSIAN, MarianSpmResources::ENGLISH2RUSSIAN, MarianPrefix::ENGLISH2RUSSIAN);
+    pub const ENGLISH2FRENCH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ENGLISH2ROMANCE,
+        MarianConfigResources::ENGLISH2ROMANCE,
+        MarianVocabResources::ENGLISH2ROMANCE,
+        MarianSpmResources::ENGLISH2ROMANCE,
+        MarianPrefix::ENGLISH2FRENCH,
+    );
+    pub const ENGLISH2CATALAN: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ENGLISH2ROMANCE,
+        MarianConfigResources::ENGLISH2ROMANCE,
+        MarianVocabResources::ENGLISH2ROMANCE,
+        MarianSpmResources::ENGLISH2ROMANCE,
+        MarianPrefix::ENGLISH2CATALAN,
+    );
+    pub const ENGLISH2SPANISH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ENGLISH2ROMANCE,
+        MarianConfigResources::ENGLISH2ROMANCE,
+        MarianVocabResources::ENGLISH2ROMANCE,
+        MarianSpmResources::ENGLISH2ROMANCE,
+        MarianPrefix::ENGLISH2SPANISH,
+    );
+    pub const ENGLISH2PORTUGUESE: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ENGLISH2ROMANCE,
+        MarianConfigResources::ENGLISH2ROMANCE,
+        MarianVocabResources::ENGLISH2ROMANCE,
+        MarianSpmResources::ENGLISH2ROMANCE,
+        MarianPrefix::ENGLISH2PORTUGUESE,
+    );
+    pub const ENGLISH2ITALIAN: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ENGLISH2ROMANCE,
+        MarianConfigResources::ENGLISH2ROMANCE,
+        MarianVocabResources::ENGLISH2ROMANCE,
+        MarianSpmResources::ENGLISH2ROMANCE,
+        MarianPrefix::ENGLISH2ITALIAN,
+    );
+    pub const ENGLISH2ROMANIAN: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ENGLISH2ROMANCE,
+        MarianConfigResources::ENGLISH2ROMANCE,
+        MarianVocabResources::ENGLISH2ROMANCE,
+        MarianSpmResources::ENGLISH2ROMANCE,
+        MarianPrefix::ENGLISH2ROMANIAN,
+    );
+    pub const ENGLISH2GERMAN: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ENGLISH2GERMAN,
+        MarianConfigResources::ENGLISH2GERMAN,
+        MarianVocabResources::ENGLISH2GERMAN,
+        MarianSpmResources::ENGLISH2GERMAN,
+        MarianPrefix::ENGLISH2GERMAN,
+    );
+    pub const ENGLISH2RUSSIAN: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ENGLISH2RUSSIAN,
+        MarianConfigResources::ENGLISH2RUSSIAN,
+        MarianVocabResources::ENGLISH2RUSSIAN,
+        MarianSpmResources::ENGLISH2RUSSIAN,
+        MarianPrefix::ENGLISH2RUSSIAN,
+    );
 
-    pub const FRENCH2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ROMANCE2ENGLISH, MarianConfigResources::ROMANCE2ENGLISH, MarianVocabResources::ROMANCE2ENGLISH, MarianSpmResources::ROMANCE2ENGLISH, MarianPrefix::FRENCH2ENGLISH);
-    pub const CATALAN2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ROMANCE2ENGLISH, MarianConfigResources::ROMANCE2ENGLISH, MarianVocabResources::ROMANCE2ENGLISH, MarianSpmResources::ROMANCE2ENGLISH, MarianPrefix::CATALAN2ENGLISH);
-    pub const SPANISH2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ROMANCE2ENGLISH, MarianConfigResources::ROMANCE2ENGLISH, MarianVocabResources::ROMANCE2ENGLISH, MarianSpmResources::ROMANCE2ENGLISH, MarianPrefix::SPANISH2ENGLISH);
-    pub const PORTUGUESE2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ROMANCE2ENGLISH, MarianConfigResources::ROMANCE2ENGLISH, MarianVocabResources::ROMANCE2ENGLISH, MarianSpmResources::ROMANCE2ENGLISH, MarianPrefix::PORTUGUESE2ENGLISH);
-    pub const ITALIAN2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ROMANCE2ENGLISH, MarianConfigResources::ROMANCE2ENGLISH, MarianVocabResources::ROMANCE2ENGLISH, MarianSpmResources::ROMANCE2ENGLISH, MarianPrefix::ITALIAN2ENGLISH);
-    pub const ROMANIAN2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::ROMANCE2ENGLISH, MarianConfigResources::ROMANCE2ENGLISH, MarianVocabResources::ROMANCE2ENGLISH, MarianSpmResources::ROMANCE2ENGLISH, MarianPrefix::ROMANIAN2ENGLISH);
-    pub const GERMAN2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::GERMAN2ENGLISH, MarianConfigResources::GERMAN2ENGLISH, MarianVocabResources::GERMAN2ENGLISH, MarianSpmResources::GERMAN2ENGLISH, MarianPrefix::GERMAN2ENGLISH);
-    pub const RUSSIAN2ENGLISH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::RUSSIAN2ENGLISH, MarianConfigResources::RUSSIAN2ENGLISH, MarianVocabResources::RUSSIAN2ENGLISH, MarianSpmResources::RUSSIAN2ENGLISH, MarianPrefix::RUSSIAN2ENGLISH);
+    pub const FRENCH2ENGLISH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ROMANCE2ENGLISH,
+        MarianConfigResources::ROMANCE2ENGLISH,
+        MarianVocabResources::ROMANCE2ENGLISH,
+        MarianSpmResources::ROMANCE2ENGLISH,
+        MarianPrefix::FRENCH2ENGLISH,
+    );
+    pub const CATALAN2ENGLISH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ROMANCE2ENGLISH,
+        MarianConfigResources::ROMANCE2ENGLISH,
+        MarianVocabResources::ROMANCE2ENGLISH,
+        MarianSpmResources::ROMANCE2ENGLISH,
+        MarianPrefix::CATALAN2ENGLISH,
+    );
+    pub const SPANISH2ENGLISH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ROMANCE2ENGLISH,
+        MarianConfigResources::ROMANCE2ENGLISH,
+        MarianVocabResources::ROMANCE2ENGLISH,
+        MarianSpmResources::ROMANCE2ENGLISH,
+        MarianPrefix::SPANISH2ENGLISH,
+    );
+    pub const PORTUGUESE2ENGLISH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ROMANCE2ENGLISH,
+        MarianConfigResources::ROMANCE2ENGLISH,
+        MarianVocabResources::ROMANCE2ENGLISH,
+        MarianSpmResources::ROMANCE2ENGLISH,
+        MarianPrefix::PORTUGUESE2ENGLISH,
+    );
+    pub const ITALIAN2ENGLISH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ROMANCE2ENGLISH,
+        MarianConfigResources::ROMANCE2ENGLISH,
+        MarianVocabResources::ROMANCE2ENGLISH,
+        MarianSpmResources::ROMANCE2ENGLISH,
+        MarianPrefix::ITALIAN2ENGLISH,
+    );
+    pub const ROMANIAN2ENGLISH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::ROMANCE2ENGLISH,
+        MarianConfigResources::ROMANCE2ENGLISH,
+        MarianVocabResources::ROMANCE2ENGLISH,
+        MarianSpmResources::ROMANCE2ENGLISH,
+        MarianPrefix::ROMANIAN2ENGLISH,
+    );
+    pub const GERMAN2ENGLISH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::GERMAN2ENGLISH,
+        MarianConfigResources::GERMAN2ENGLISH,
+        MarianVocabResources::GERMAN2ENGLISH,
+        MarianSpmResources::GERMAN2ENGLISH,
+        MarianPrefix::GERMAN2ENGLISH,
+    );
+    pub const RUSSIAN2ENGLISH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::RUSSIAN2ENGLISH,
+        MarianConfigResources::RUSSIAN2ENGLISH,
+        MarianVocabResources::RUSSIAN2ENGLISH,
+        MarianSpmResources::RUSSIAN2ENGLISH,
+        MarianPrefix::RUSSIAN2ENGLISH,
+    );
 
-    pub const FRENCH2GERMAN: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::FRENCH2GERMAN, MarianConfigResources::FRENCH2GERMAN, MarianVocabResources::FRENCH2GERMAN, MarianSpmResources::FRENCH2GERMAN, MarianPrefix::FRENCH2GERMAN);
-    pub const GERMAN2FRENCH: ((&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), (&'static str, &'static str), Option<&'static str>) =
-        (MarianModelResources::GERMAN2FRENCH, MarianConfigResources::GERMAN2FRENCH, MarianVocabResources::GERMAN2FRENCH, MarianSpmResources::GERMAN2FRENCH, MarianPrefix::GERMAN2FRENCH);
+    pub const FRENCH2GERMAN: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::FRENCH2GERMAN,
+        MarianConfigResources::FRENCH2GERMAN,
+        MarianVocabResources::FRENCH2GERMAN,
+        MarianSpmResources::FRENCH2GERMAN,
+        MarianPrefix::FRENCH2GERMAN,
+    );
+    pub const GERMAN2FRENCH: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+    ) = (
+        MarianModelResources::GERMAN2FRENCH,
+        MarianConfigResources::GERMAN2FRENCH,
+        MarianVocabResources::GERMAN2FRENCH,
+        MarianSpmResources::GERMAN2FRENCH,
+        MarianPrefix::GERMAN2FRENCH,
+    );
 }
-
 
 /// # Configuration for text translation
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
@@ -178,45 +378,46 @@ impl TranslationConfig {
     /// # Example
     ///
     /// ```no_run
-    ///# fn main() -> failure::Fallible<()> {
-    /// use rust_bert::pipelines::translation::{TranslationConfig, Language};
+    /// # fn main() -> failure::Fallible<()> {
+    /// use rust_bert::pipelines::translation::{Language, TranslationConfig};
     /// use tch::Device;
     ///
-    /// let translation_config =  TranslationConfig::new(Language::FrenchToEnglish, Device::cuda_if_available());
-    ///# Ok(())
-    ///# }
+    /// let translation_config =
+    ///     TranslationConfig::new(Language::FrenchToEnglish, Device::cuda_if_available());
+    /// # Ok(())
+    /// # }
     /// ```
-    ///
     pub fn new(language: Language, device: Device) -> TranslationConfig {
-        let (model_resource, config_resource, vocab_resource, merges_resource, prefix) = match language {
-            Language::EnglishToFrench => RemoteTranslationResources::ENGLISH2FRENCH,
-            Language::EnglishToCatalan => RemoteTranslationResources::ENGLISH2CATALAN,
-            Language::EnglishToSpanish => RemoteTranslationResources::ENGLISH2SPANISH,
-            Language::EnglishToPortuguese => RemoteTranslationResources::ENGLISH2PORTUGUESE,
-            Language::EnglishToItalian => RemoteTranslationResources::ENGLISH2ITALIAN,
-            Language::EnglishToRomanian => RemoteTranslationResources::ENGLISH2ROMANIAN,
-            Language::EnglishToGerman => RemoteTranslationResources::ENGLISH2GERMAN,
-            Language::EnglishToRussian => RemoteTranslationResources::ENGLISH2RUSSIAN,
+        let (model_resource, config_resource, vocab_resource, merges_resource, prefix) =
+            match language {
+                Language::EnglishToFrench => RemoteTranslationResources::ENGLISH2FRENCH,
+                Language::EnglishToCatalan => RemoteTranslationResources::ENGLISH2CATALAN,
+                Language::EnglishToSpanish => RemoteTranslationResources::ENGLISH2SPANISH,
+                Language::EnglishToPortuguese => RemoteTranslationResources::ENGLISH2PORTUGUESE,
+                Language::EnglishToItalian => RemoteTranslationResources::ENGLISH2ITALIAN,
+                Language::EnglishToRomanian => RemoteTranslationResources::ENGLISH2ROMANIAN,
+                Language::EnglishToGerman => RemoteTranslationResources::ENGLISH2GERMAN,
+                Language::EnglishToRussian => RemoteTranslationResources::ENGLISH2RUSSIAN,
 
-            Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
-            Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
-            Language::SpanishToEnglish => RemoteTranslationResources::SPANISH2ENGLISH,
-            Language::PortugueseToEnglish => RemoteTranslationResources::PORTUGUESE2ENGLISH,
-            Language::ItalianToEnglish => RemoteTranslationResources::ITALIAN2ENGLISH,
-            Language::RomanianToEnglish => RemoteTranslationResources::ROMANIAN2ENGLISH,
-            Language::GermanToEnglish => RemoteTranslationResources::GERMAN2ENGLISH,
-            Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
+                Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
+                Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
+                Language::SpanishToEnglish => RemoteTranslationResources::SPANISH2ENGLISH,
+                Language::PortugueseToEnglish => RemoteTranslationResources::PORTUGUESE2ENGLISH,
+                Language::ItalianToEnglish => RemoteTranslationResources::ITALIAN2ENGLISH,
+                Language::RomanianToEnglish => RemoteTranslationResources::ROMANIAN2ENGLISH,
+                Language::GermanToEnglish => RemoteTranslationResources::GERMAN2ENGLISH,
+                Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
 
-            Language::FrenchToGerman => RemoteTranslationResources::FRENCH2GERMAN,
-            Language::GermanToFrench => RemoteTranslationResources::GERMAN2FRENCH,
-        };
+                Language::FrenchToGerman => RemoteTranslationResources::FRENCH2GERMAN,
+                Language::GermanToFrench => RemoteTranslationResources::GERMAN2FRENCH,
+            };
         let model_resource = Resource::Remote(RemoteResource::from_pretrained(model_resource));
         let config_resource = Resource::Remote(RemoteResource::from_pretrained(config_resource));
         let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(vocab_resource));
         let merges_resource = Resource::Remote(RemoteResource::from_pretrained(merges_resource));
         let prefix = match prefix {
             Some(value) => Some(value.to_string()),
-            None => None
+            None => None,
         };
         TranslationConfig {
             model_resource,
@@ -253,33 +454,44 @@ impl TranslationConfig {
     /// # Example
     ///
     /// ```no_run
-    ///# fn main() -> failure::Fallible<()> {
+    /// # fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::translation::TranslationConfig;
-    /// use tch::Device;
-    /// use rust_bert::resources::{Resource, LocalResource};
+    /// use rust_bert::resources::{LocalResource, Resource};
     /// use std::path::PathBuf;
+    /// use tch::Device;
     ///
-    /// let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json") });
-    /// let model_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot") });
-    /// let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.json") });
-    /// let sentence_piece_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/spiece.model") });
+    /// let config_resource = Resource::Local(LocalResource {
+    ///     local_path: PathBuf::from("path/to/config.json"),
+    /// });
+    /// let model_resource = Resource::Local(LocalResource {
+    ///     local_path: PathBuf::from("path/to/model.ot"),
+    /// });
+    /// let vocab_resource = Resource::Local(LocalResource {
+    ///     local_path: PathBuf::from("path/to/vocab.json"),
+    /// });
+    /// let sentence_piece_resource = Resource::Local(LocalResource {
+    ///     local_path: PathBuf::from("path/to/spiece.model"),
+    /// });
     ///
-    /// let translation_config =  TranslationConfig::new_from_resources(model_resource,
-    ///                                            config_resource,
-    ///                                            vocab_resource,
-    ///                                            sentence_piece_resource,
-    ///                                            Some(">>fr<<".to_string()),
-    ///                                            Device::cuda_if_available());
-    ///# Ok(())
-    ///# }
+    /// let translation_config = TranslationConfig::new_from_resources(
+    ///     model_resource,
+    ///     config_resource,
+    ///     vocab_resource,
+    ///     sentence_piece_resource,
+    ///     Some(">>fr<<".to_string()),
+    ///     Device::cuda_if_available(),
+    /// );
+    /// # Ok(())
+    /// # }
     /// ```
-    ///
-    pub fn new_from_resources(model_resource: Resource,
-                              config_resource: Resource,
-                              vocab_resource: Resource,
-                              sentence_piece_resource: Resource,
-                              prefix: Option<String>,
-                              device: Device) -> TranslationConfig {
+    pub fn new_from_resources(
+        model_resource: Resource,
+        config_resource: Resource,
+        vocab_resource: Resource,
+        sentence_piece_resource: Resource,
+        prefix: Option<String>,
+        device: Device,
+    ) -> TranslationConfig {
         TranslationConfig {
             model_resource,
             config_resource,
@@ -319,18 +531,17 @@ impl TranslationModel {
     /// # Example
     ///
     /// ```no_run
-    ///# fn main() -> failure::Fallible<()> {
-    /// use rust_bert::pipelines::translation::{TranslationModel, TranslationConfig, Language};
+    /// # fn main() -> failure::Fallible<()> {
+    /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
     /// use tch::Device;
     ///
-    /// let translation_config =  TranslationConfig::new(Language::FrenchToEnglish, Device::cuda_if_available());
-    /// let mut summarization_model =  TranslationModel::new(translation_config)?;
-    ///# Ok(())
-    ///# }
+    /// let translation_config =
+    ///     TranslationConfig::new(Language::FrenchToEnglish, Device::cuda_if_available());
+    /// let mut summarization_model = TranslationModel::new(translation_config)?;
+    /// # Ok(())
+    /// # }
     /// ```
-    ///
-    pub fn new(translation_config: TranslationConfig)
-               -> failure::Fallible<TranslationModel> {
+    pub fn new(translation_config: TranslationConfig) -> failure::Fallible<TranslationModel> {
         let generate_config = GenerateConfig {
             model_resource: translation_config.model_resource,
             config_resource: translation_config.config_resource,
@@ -353,7 +564,10 @@ impl TranslationModel {
 
         let model = MarianGenerator::new(generate_config)?;
 
-        Ok(TranslationModel { model, prefix: translation_config.prefix })
+        Ok(TranslationModel {
+            model,
+            prefix: translation_config.prefix,
+        })
     }
 
     /// Translates texts provided
@@ -368,31 +582,32 @@ impl TranslationModel {
     /// # Example
     ///
     /// ```no_run
-    ///# fn main() -> failure::Fallible<()> {
+    /// # fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::generation::LanguageGenerator;
-    /// use rust_bert::pipelines::translation::{TranslationModel, TranslationConfig, Language};
+    /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
     /// use tch::Device;
     ///
-    /// let translation_config =  TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
+    /// let translation_config =
+    ///     TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
     /// let model = TranslationModel::new(translation_config)?;
     ///
     /// let input = ["This is a sentence to be translated"];
     ///
     /// let output = model.translate(&input);
-    ///# Ok(())
-    ///# }
+    /// # Ok(())
+    /// # }
     /// ```
-    ///
     pub fn translate(&self, texts: &[&str]) -> Vec<String> {
         match &self.prefix {
             Some(value) => {
                 let texts: Vec<String> = texts
                     .into_iter()
-                    .map(|&v| { format!("{} {}", value, v) })
+                    .map(|&v| format!("{} {}", value, v))
                     .collect();
-                self.model.generate(Some(texts.iter().map(AsRef::as_ref).collect()), None)
+                self.model
+                    .generate(Some(texts.iter().map(AsRef::as_ref).collect()), None)
             }
-            None => self.model.generate(Some(texts.to_vec()), None)
+            None => self.model.generate(Some(texts.to_vec()), None),
         }
     }
 }

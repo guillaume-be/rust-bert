@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::bert::encoder::BertEncoder;
+use crate::bert::{Activation, BertConfig};
+use crate::common::activations::{_gelu, _mish, _relu};
+use crate::common::dropout::Dropout;
+use crate::electra::embeddings::ElectraEmbeddings;
+use crate::Config;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::bert::{Activation, BertConfig};
-use crate::Config;
-use crate::electra::embeddings::ElectraEmbeddings;
-use tch::{nn, Tensor, Kind};
-use crate::bert::encoder::BertEncoder;
-use crate::common::activations::{_gelu, _relu, _mish};
-use crate::common::dropout::Dropout;
+use tch::{nn, Kind, Tensor};
 
 /// # Electra Pretrained model weight files
 pub struct ElectraModelResources;
@@ -33,23 +33,41 @@ pub struct ElectraVocabResources;
 
 impl ElectraModelResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
-    pub const BASE_GENERATOR: (&'static str, &'static str) = ("electra-base-generator/model.ot", "https://cdn.huggingface.co/google/electra-base-generator/rust_model.ot");
+    pub const BASE_GENERATOR: (&'static str, &'static str) = (
+        "electra-base-generator/model.ot",
+        "https://cdn.huggingface.co/google/electra-base-generator/rust_model.ot",
+    );
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
-    pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = ("electra-base-discriminator/model.ot", "https://cdn.huggingface.co/google/electra-base-discriminator/rust_model.ot");
+    pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = (
+        "electra-base-discriminator/model.ot",
+        "https://cdn.huggingface.co/google/electra-base-discriminator/rust_model.ot",
+    );
 }
 
 impl ElectraConfigResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
-    pub const BASE_GENERATOR: (&'static str, &'static str) = ("electra-base-generator/config.json", "https://cdn.huggingface.co/google/electra-base-generator/config.json");
+    pub const BASE_GENERATOR: (&'static str, &'static str) = (
+        "electra-base-generator/config.json",
+        "https://cdn.huggingface.co/google/electra-base-generator/config.json",
+    );
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
-    pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = ("electra-base-discriminator/config.json", "https://cdn.huggingface.co/google/electra-base-discriminator/config.json");
+    pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = (
+        "electra-base-discriminator/config.json",
+        "https://cdn.huggingface.co/google/electra-base-discriminator/config.json",
+    );
 }
 
 impl ElectraVocabResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
-    pub const BASE_GENERATOR: (&'static str, &'static str) = ("electra-base-generator/vocab.txt", "https://cdn.huggingface.co/google/electra-base-generator/vocab.txt");
+    pub const BASE_GENERATOR: (&'static str, &'static str) = (
+        "electra-base-generator/vocab.txt",
+        "https://cdn.huggingface.co/google/electra-base-generator/vocab.txt",
+    );
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
-    pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = ("electra-base-discriminator/vocab.txt", "https://cdn.huggingface.co/google/electra-base-discriminator/vocab.txt");
+    pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = (
+        "electra-base-discriminator/vocab.txt",
+        "https://cdn.huggingface.co/google/electra-base-discriminator/vocab.txt",
+    );
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -103,10 +121,10 @@ impl ElectraModel {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::electra::{ElectraModel, ElectraConfig};
-    /// use tch::{nn, Device};
+    /// use rust_bert::electra::{ElectraConfig, ElectraModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -114,11 +132,15 @@ impl ElectraModel {
     /// let config = ElectraConfig::from_file(config_path);
     /// let electra_model: ElectraModel = ElectraModel::new(&(&p.root() / "electra"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraModel {
         let embeddings = ElectraEmbeddings::new(&(p / "embeddings"), config);
         let embeddings_project = if config.embedding_size != config.hidden_size {
-            Some(nn::linear(&(p / "embeddings_project"), config.embedding_size, config.hidden_size, Default::default()))
+            Some(nn::linear(
+                &(p / "embeddings_project"),
+                config.embedding_size,
+                config.hidden_size,
+                Default::default(),
+            ))
         } else {
             None
         };
@@ -141,7 +163,11 @@ impl ElectraModel {
             label2id: config.label2id.clone(),
         };
         let encoder = BertEncoder::new(&(p / "encoder"), &bert_config);
-        ElectraModel { embeddings, embeddings_project, encoder }
+        ElectraModel {
+            embeddings,
+            embeddings_project,
+            encoder,
+        }
     }
 
     /// Forward pass through the model
@@ -164,80 +190,98 @@ impl ElectraModel {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::electra::{ElectraModel, ElectraConfig};
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = ElectraConfig::from_file(config_path);
-    ///# let electra_model: ElectraModel = ElectraModel::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// # use rust_bert::electra::{ElectraModel, ElectraConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ElectraConfig::from_file(config_path);
+    /// # let electra_model: ElectraModel = ElectraModel::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    electra_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    None,
-    ///                    false).unwrap()
-    ///    });
-    ///
+    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     electra_model
+    ///         .forward_t(
+    ///             Some(input_tensor),
+    ///             Some(mask),
+    ///             Some(token_type_ids),
+    ///             Some(position_ids),
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool)
-                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let (input_shape, device) = match &input_ids {
             Some(input_value) => match &input_embeds {
-                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
-                None => (input_value.size(), input_value.device())
-            }
+                Some(_) => {
+                    return Err("Only one of input ids or input embeddings may be set");
+                }
+                None => (input_value.size(), input_value.device()),
+            },
             None => match &input_embeds {
-                Some(embeds) => (vec!(embeds.size()[0], embeds.size()[1]), embeds.device()),
-                None => { return Err("At least one of input ids or input embeddings must be set"); }
-            }
+                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
+                None => {
+                    return Err("At least one of input ids or input embeddings must be set");
+                }
+            },
         };
 
         let mask = match mask {
             Some(value) => value,
-            None => Tensor::ones(&input_shape, (Kind::Int64, device))
+            None => Tensor::ones(&input_shape, (Kind::Int64, device)),
         };
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),
             2 => mask.unsqueeze(1).unsqueeze(1),
-            _ => { return Err("Invalid attention mask dimension, must be 2 or 3"); }
+            _ => {
+                return Err("Invalid attention mask dimension, must be 2 or 3");
+            }
         };
 
-        let hidden_states = match self.embeddings.forward_t(input_ids, token_type_ids, position_ids, input_embeds, train) {
+        let hidden_states = match self.embeddings.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        ) {
             Ok(value) => value,
-            Err(e) => { return Err(e); }
+            Err(e) => {
+                return Err(e);
+            }
         };
 
         let hidden_states = match &self.embeddings_project {
             Some(layer) => hidden_states.apply(layer),
-            None => hidden_states
+            None => hidden_states,
         };
 
-        let (hidden_state, all_hidden_states, all_attentions) =
-            self.encoder.forward_t(&hidden_states,
-                                   &Some(extended_attention_mask),
-                                   &None,
-                                   &None,
-                                   train);
+        let (hidden_state, all_hidden_states, all_attentions) = self.encoder.forward_t(
+            &hidden_states,
+            &Some(extended_attention_mask),
+            &None,
+            &None,
+            train,
+        );
 
         Ok((hidden_state, all_hidden_states, all_attentions))
     }
@@ -268,9 +312,9 @@ impl ElectraDiscriminatorHead {
     ///
     /// ```no_run
     /// use rust_bert::electra::{ElectraConfig, ElectraDiscriminatorHead};
-    /// use tch::{nn, Device};
     /// use rust_bert::Config;
     /// use std::path::Path;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -278,16 +322,29 @@ impl ElectraDiscriminatorHead {
     /// let config = ElectraConfig::from_file(config_path);
     /// let discriminator_head = ElectraDiscriminatorHead::new(&(&p.root() / "electra"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraDiscriminatorHead {
-        let dense = nn::linear(&(p / "dense"), config.hidden_size, config.hidden_size, Default::default());
-        let dense_prediction = nn::linear(&(p / "dense_prediction"), config.hidden_size, 1, Default::default());
+        let dense = nn::linear(
+            &(p / "dense"),
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let dense_prediction = nn::linear(
+            &(p / "dense_prediction"),
+            config.hidden_size,
+            1,
+            Default::default(),
+        );
         let activation = Box::new(match &config.hidden_act {
             Activation::gelu => _gelu,
             Activation::relu => _relu,
-            Activation::mish => _mish
+            Activation::mish => _mish,
         });
-        ElectraDiscriminatorHead { dense, dense_prediction, activation }
+        ElectraDiscriminatorHead {
+            dense,
+            dense_prediction,
+            activation,
+        }
     }
 
     /// Forward pass through the discriminator head
@@ -305,25 +362,24 @@ impl ElectraDiscriminatorHead {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::electra::{ElectraConfig, ElectraDiscriminatorHead};
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Float;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = ElectraConfig::from_file(config_path);
-    ///# let discriminator_head = ElectraDiscriminatorHead::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length, config.hidden_size], (Float, device));
+    /// # use rust_bert::electra::{ElectraConfig, ElectraDiscriminatorHead};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Float;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ElectraConfig::from_file(config_path);
+    /// # let discriminator_head = ElectraDiscriminatorHead::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(
+    ///     &[batch_size, sequence_length, config.hidden_size],
+    ///     (Float, device),
+    /// );
     ///
-    ///  let output = no_grad(|| {
-    ///        discriminator_head.forward(&input_tensor)
-    ///    });
-    ///
+    /// let output = no_grad(|| discriminator_head.forward(&input_tensor));
     /// ```
-    ///
     pub fn forward(&self, encoder_hidden_states: &Tensor) -> Tensor {
         let output = encoder_hidden_states.apply(&self.dense);
         let output = (self.activation)(&output);
@@ -356,9 +412,9 @@ impl ElectraGeneratorHead {
     ///
     /// ```no_run
     /// use rust_bert::electra::{ElectraConfig, ElectraGeneratorHead};
-    /// use tch::{nn, Device};
     /// use rust_bert::Config;
     /// use std::path::Path;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -366,13 +422,25 @@ impl ElectraGeneratorHead {
     /// let config = ElectraConfig::from_file(config_path);
     /// let generator_head = ElectraGeneratorHead::new(&(&p.root() / "electra"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraGeneratorHead {
-        let layer_norm = nn::layer_norm(p / "LayerNorm", vec![config.embedding_size], Default::default());
-        let dense = nn::linear(&(p / "dense"), config.hidden_size, config.embedding_size, Default::default());
+        let layer_norm = nn::layer_norm(
+            p / "LayerNorm",
+            vec![config.embedding_size],
+            Default::default(),
+        );
+        let dense = nn::linear(
+            &(p / "dense"),
+            config.hidden_size,
+            config.embedding_size,
+            Default::default(),
+        );
         let activation = Box::new(_gelu);
 
-        ElectraGeneratorHead { layer_norm, dense, activation }
+        ElectraGeneratorHead {
+            layer_norm,
+            dense,
+            activation,
+        }
     }
 
     /// Forward pass through the generator head
@@ -388,25 +456,24 @@ impl ElectraGeneratorHead {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::electra::{ElectraConfig, ElectraGeneratorHead};
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Float;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = ElectraConfig::from_file(config_path);
-    ///# let generator_head = ElectraGeneratorHead::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length, config.hidden_size], (Float, device));
+    /// # use rust_bert::electra::{ElectraConfig, ElectraGeneratorHead};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Float;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ElectraConfig::from_file(config_path);
+    /// # let generator_head = ElectraGeneratorHead::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(
+    ///     &[batch_size, sequence_length, config.hidden_size],
+    ///     (Float, device),
+    /// );
     ///
-    ///  let output = no_grad(|| {
-    ///        generator_head.forward(&input_tensor)
-    ///    });
-    ///
+    /// let output = no_grad(|| generator_head.forward(&input_tensor));
     /// ```
-    ///
     pub fn forward(&self, encoder_hidden_states: &Tensor) -> Tensor {
         let output = encoder_hidden_states.apply(&self.dense);
         let output = (self.activation)(&output);
@@ -438,10 +505,10 @@ impl ElectraForMaskedLM {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::electra::{ElectraForMaskedLM, ElectraConfig};
-    /// use tch::{nn, Device};
+    /// use rust_bert::electra::{ElectraConfig, ElectraForMaskedLM};
     /// use rust_bert::Config;
     /// use std::path::Path;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -449,13 +516,21 @@ impl ElectraForMaskedLM {
     /// let config = ElectraConfig::from_file(config_path);
     /// let electra_model: ElectraForMaskedLM = ElectraForMaskedLM::new(&p.root(), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraForMaskedLM {
         let electra = ElectraModel::new(&(p / "electra"), config);
         let generator_head = ElectraGeneratorHead::new(&(p / "generator_predictions"), config);
-        let lm_head = nn::linear(&(p / "generator_lm_head"), config.embedding_size, config.vocab_size, Default::default());
+        let lm_head = nn::linear(
+            &(p / "generator_lm_head"),
+            config.embedding_size,
+            config.vocab_size,
+            Default::default(),
+        );
 
-        ElectraForMaskedLM { electra, generator_head, lm_head }
+        ElectraForMaskedLM {
+            electra,
+            generator_head,
+            lm_head,
+        }
     }
 
     /// Forward pass through the model
@@ -478,46 +553,53 @@ impl ElectraForMaskedLM {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::electra::{ElectraForMaskedLM, ElectraConfig};
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = ElectraConfig::from_file(config_path);
-    ///# let electra_model: ElectraForMaskedLM = ElectraForMaskedLM::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// # use rust_bert::electra::{ElectraForMaskedLM, ElectraConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ElectraConfig::from_file(config_path);
+    /// # let electra_model: ElectraForMaskedLM = ElectraForMaskedLM::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    electra_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    None,
-    ///                    false)
-    ///    });
-    ///
+    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     electra_model.forward_t(
+    ///         Some(input_tensor),
+    ///         Some(mask),
+    ///         Some(token_type_ids),
+    ///         Some(position_ids),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool)
-                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_states,
-            all_hidden_states,
-            all_attentions) = self.electra
-            .forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train)
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_states, all_hidden_states, all_attentions) = self
+            .electra
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )
             .unwrap();
         let hidden_states = self.generator_head.forward(&hidden_states);
         let hidden_states = hidden_states.apply(&self.lm_head);
@@ -547,10 +629,10 @@ impl ElectraDiscriminator {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::electra::{ElectraDiscriminator, ElectraConfig};
-    /// use tch::{nn, Device};
+    /// use rust_bert::electra::{ElectraConfig, ElectraDiscriminator};
     /// use rust_bert::Config;
     /// use std::path::Path;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -558,12 +640,15 @@ impl ElectraDiscriminator {
     /// let config = ElectraConfig::from_file(config_path);
     /// let electra_model: ElectraDiscriminator = ElectraDiscriminator::new(&p.root(), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraDiscriminator {
         let electra = ElectraModel::new(&(p / "electra"), config);
-        let discriminator_head = ElectraDiscriminatorHead::new(&(p / "discriminator_predictions"), config);
+        let discriminator_head =
+            ElectraDiscriminatorHead::new(&(p / "discriminator_predictions"), config);
 
-        ElectraDiscriminator { electra, discriminator_head }
+        ElectraDiscriminator {
+            electra,
+            discriminator_head,
+        }
     }
 
     /// Forward pass through the model
@@ -586,16 +671,16 @@ impl ElectraDiscriminator {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::electra::{ElectraDiscriminator, ElectraConfig};
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = ElectraConfig::from_file(config_path);
-    ///# let electra_model: ElectraDiscriminator = ElectraDiscriminator::new(&vs.root(), &config);
+    /// # use rust_bert::electra::{ElectraDiscriminator, ElectraConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ElectraConfig::from_file(config_path);
+    /// # let electra_model: ElectraDiscriminator = ElectraDiscriminator::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -611,21 +696,26 @@ impl ElectraDiscriminator {
     ///                    None,
     ///                    false)
     ///    });
-    ///
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool)
-                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_states,
-            all_hidden_states,
-            all_attentions) = self.electra
-            .forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train)
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_states, all_hidden_states, all_attentions) = self
+            .electra
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )
             .unwrap();
         let probabilities = self.discriminator_head.forward(&hidden_states).sigmoid();
         (probabilities, all_hidden_states, all_attentions)
@@ -656,24 +746,37 @@ impl ElectraForTokenClassification {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::electra::{ElectraForTokenClassification, ElectraConfig};
-    /// use tch::{nn, Device};
+    /// use rust_bert::electra::{ElectraConfig, ElectraForTokenClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
+    /// use tch::{nn, Device};
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = ElectraConfig::from_file(config_path);
-    /// let electra_model: ElectraForTokenClassification = ElectraForTokenClassification::new(&p.root(), &config);
+    /// let electra_model: ElectraForTokenClassification =
+    ///     ElectraForTokenClassification::new(&p.root(), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraForTokenClassification {
         let electra = ElectraModel::new(&(p / "electra"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
-        let num_labels = config.id2label.as_ref().expect("id2label must be provided for classifiers").len() as i64;
-        let classifier = nn::linear(&(p / "classifier"), config.hidden_size, num_labels, Default::default());
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("id2label must be provided for classifiers")
+            .len() as i64;
+        let classifier = nn::linear(
+            &(p / "classifier"),
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
 
-        ElectraForTokenClassification { electra, dropout, classifier }
+        ElectraForTokenClassification {
+            electra,
+            dropout,
+            classifier,
+        }
     }
 
     /// Forward pass through the model
@@ -696,16 +799,16 @@ impl ElectraForTokenClassification {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::electra::{ElectraForTokenClassification, ElectraConfig};
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = ElectraConfig::from_file(config_path);
-    ///# let electra_model: ElectraForTokenClassification = ElectraForTokenClassification::new(&vs.root(), &config);
+    /// # use rust_bert::electra::{ElectraForTokenClassification, ElectraConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ElectraConfig::from_file(config_path);
+    /// # let electra_model: ElectraForTokenClassification = ElectraForTokenClassification::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -721,21 +824,26 @@ impl ElectraForTokenClassification {
     ///                    None,
     ///                    false)
     ///    });
-    ///
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool)
-                     -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_states,
-            all_hidden_states,
-            all_attentions) = self.electra
-            .forward_t(input_ids, mask, token_type_ids, position_ids, input_embeds, train)
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_states, all_hidden_states, all_attentions) = self
+            .electra
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            )
             .unwrap();
         let output = hidden_states
             .apply_t(&self.dropout, train)

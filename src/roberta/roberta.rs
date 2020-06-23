@@ -11,13 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{nn, Tensor};
-use crate::common::linear::{linear_no_bias, LinearNoBias};
-use tch::nn::Init;
-use crate::common::activations::_gelu;
-use crate::roberta::embeddings::RobertaEmbeddings;
-use crate::common::dropout::Dropout;
 use crate::bert::{BertConfig, BertModel};
+use crate::common::activations::_gelu;
+use crate::common::dropout::Dropout;
+use crate::common::linear::{linear_no_bias, LinearNoBias};
+use crate::roberta::embeddings::RobertaEmbeddings;
+use tch::nn::Init;
+use tch::{nn, Tensor};
 
 /// # RoBERTa Pretrained model weight files
 pub struct RobertaModelResources;
@@ -33,22 +33,34 @@ pub struct RobertaMergesResources;
 
 impl RobertaModelResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const ROBERTA: (&'static str, &'static str) = ("roberta/model.ot", "https://cdn.huggingface.co/roberta-base-rust_model.ot");
+    pub const ROBERTA: (&'static str, &'static str) = (
+        "roberta/model.ot",
+        "https://cdn.huggingface.co/roberta-base-rust_model.ot",
+    );
 }
 
 impl RobertaConfigResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const ROBERTA: (&'static str, &'static str) = ("roberta/config.json", "https://cdn.huggingface.co/roberta-base-config.json");
+    pub const ROBERTA: (&'static str, &'static str) = (
+        "roberta/config.json",
+        "https://cdn.huggingface.co/roberta-base-config.json",
+    );
 }
 
 impl RobertaVocabResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const ROBERTA: (&'static str, &'static str) = ("roberta/vocab.txt", "https://cdn.huggingface.co/roberta-base-vocab.json");
+    pub const ROBERTA: (&'static str, &'static str) = (
+        "roberta/vocab.txt",
+        "https://cdn.huggingface.co/roberta-base-vocab.json",
+    );
 }
 
 impl RobertaMergesResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const ROBERTA: (&'static str, &'static str) = ("roberta/merges.txt", "https://cdn.huggingface.co/roberta-base-merges.txt");
+    pub const ROBERTA: (&'static str, &'static str) = (
+        "roberta/merges.txt",
+        "https://cdn.huggingface.co/roberta-base-merges.txt",
+    );
 }
 
 pub struct RobertaLMHead {
@@ -60,17 +72,42 @@ pub struct RobertaLMHead {
 
 impl RobertaLMHead {
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaLMHead {
-        let dense = nn::linear(p / "dense", config.hidden_size, config.hidden_size, Default::default());
-        let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.hidden_size], layer_norm_config);
-        let decoder = linear_no_bias(&(p / "decoder"), config.hidden_size, config.vocab_size, Default::default());
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: 1e-12,
+            ..Default::default()
+        };
+        let layer_norm = nn::layer_norm(
+            p / "layer_norm",
+            vec![config.hidden_size],
+            layer_norm_config,
+        );
+        let decoder = linear_no_bias(
+            &(p / "decoder"),
+            config.hidden_size,
+            config.vocab_size,
+            Default::default(),
+        );
         let bias = p.var("bias", &[config.vocab_size], Init::KaimingUniform);
 
-        RobertaLMHead { dense, decoder, layer_norm, bias }
+        RobertaLMHead {
+            dense,
+            decoder,
+            layer_norm,
+            bias,
+        }
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        (_gelu(&hidden_states.apply(&self.dense))).apply(&self.layer_norm).apply(&self.decoder) + &self.bias
+        (_gelu(&hidden_states.apply(&self.dense)))
+            .apply(&self.layer_norm)
+            .apply(&self.decoder)
+            + &self.bias
     }
 }
 
@@ -96,10 +133,10 @@ impl RobertaForMaskedLM {
     ///
     /// ```no_run
     /// use rust_bert::bert::BertConfig;
-    /// use tch::{nn, Device};
+    /// use rust_bert::roberta::RobertaForMaskedLM;
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::roberta::RobertaForMaskedLM;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -107,7 +144,6 @@ impl RobertaForMaskedLM {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForMaskedLM::new(&(&p.root() / "roberta"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForMaskedLM {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let lm_head = RobertaLMHead::new(&(p / "lm_head"), config);
@@ -137,49 +173,62 @@ impl RobertaForMaskedLM {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::bert::BertConfig;
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use rust_bert::bert::BertConfig;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::roberta::RobertaForMaskedLM;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BertConfig::from_file(config_path);
-    ///# let roberta_model = RobertaForMaskedLM::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let roberta_model = RobertaForMaskedLM::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    roberta_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    None,
-    ///                    &None,
-    ///                    &None,
-    ///                    false)
-    ///    });
-    ///
+    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     roberta_model.forward_t(
+    ///         Some(input_tensor),
+    ///         Some(mask),
+    ///         Some(token_type_ids),
+    ///         Some(position_ids),
+    ///         None,
+    ///         &None,
+    ///         &None,
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     encoder_hidden_states: &Option<Tensor>,
-                     encoder_mask: &Option<Tensor>,
-                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self.roberta.forward_t(input_ids, mask, token_type_ids, position_ids,
-                                                                                          input_embeds, encoder_hidden_states, encoder_mask, train).unwrap();
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        encoder_hidden_states: &Option<Tensor>,
+        encoder_mask: &Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self
+            .roberta
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                encoder_hidden_states,
+                encoder_mask,
+                train,
+            )
+            .unwrap();
 
         let prediction_scores = self.lm_head.forward(&hidden_state);
         (prediction_scores, all_hidden_states, all_attentions)
@@ -194,12 +243,30 @@ pub struct RobertaClassificationHead {
 
 impl RobertaClassificationHead {
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaClassificationHead {
-        let dense = nn::linear(p / "dense", config.hidden_size, config.hidden_size, Default::default());
-        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
-        let out_proj = nn::linear(p / "out_proj", config.hidden_size, num_labels, Default::default());
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let out_proj = nn::linear(
+            p / "out_proj",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
-        RobertaClassificationHead { dense, dropout, out_proj }
+        RobertaClassificationHead {
+            dense,
+            dropout,
+            out_proj,
+        }
     }
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
@@ -235,10 +302,10 @@ impl RobertaForSequenceClassification {
     ///
     /// ```no_run
     /// use rust_bert::bert::BertConfig;
-    /// use tch::{nn, Device};
+    /// use rust_bert::roberta::RobertaForSequenceClassification;
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::roberta::RobertaForSequenceClassification;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -246,12 +313,14 @@ impl RobertaForSequenceClassification {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForSequenceClassification::new(&(&p.root() / "roberta"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForSequenceClassification {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let classifier = RobertaClassificationHead::new(&(p / "classifier"), config);
 
-        RobertaForSequenceClassification { roberta, classifier }
+        RobertaForSequenceClassification {
+            roberta,
+            classifier,
+        }
     }
 
     /// Forward pass through the model
@@ -274,45 +343,58 @@ impl RobertaForSequenceClassification {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::bert::BertConfig;
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use rust_bert::bert::BertConfig;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::roberta::RobertaForSequenceClassification;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BertConfig::from_file(config_path);
-    ///# let roberta_model = RobertaForSequenceClassification::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let roberta_model = RobertaForSequenceClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (labels, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    roberta_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    None,
-    ///                    false)
-    ///    });
-    ///
+    /// let (labels, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     roberta_model.forward_t(
+    ///         Some(input_tensor),
+    ///         Some(mask),
+    ///         Some(token_type_ids),
+    ///         Some(position_ids),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self.roberta.forward_t(input_ids, mask, token_type_ids, position_ids,
-                                                                                          input_embeds, &None, &None, train).unwrap();
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self
+            .roberta
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                &None,
+                &None,
+                train,
+            )
+            .unwrap();
 
         let output = self.classifier.forward_t(&hidden_state, train);
         (output, all_hidden_states, all_attentions)
@@ -344,10 +426,10 @@ impl RobertaForMultipleChoice {
     ///
     /// ```no_run
     /// use rust_bert::bert::BertConfig;
-    /// use tch::{nn, Device};
+    /// use rust_bert::roberta::RobertaForMultipleChoice;
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::roberta::RobertaForMultipleChoice;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -355,13 +437,16 @@ impl RobertaForMultipleChoice {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForMultipleChoice::new(&(&p.root() / "roberta"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForMultipleChoice {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let classifier = nn::linear(p / "classifier", config.hidden_size, 1, Default::default());
 
-        RobertaForMultipleChoice { roberta, dropout, classifier }
+        RobertaForMultipleChoice {
+            roberta,
+            dropout,
+            classifier,
+        }
     }
 
     /// Forward pass through the model
@@ -383,61 +468,77 @@ impl RobertaForMultipleChoice {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::bert::BertConfig;
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use rust_bert::bert::BertConfig;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::roberta::RobertaForMultipleChoice;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BertConfig::from_file(config_path);
-    ///# let roberta_model = RobertaForMultipleChoice::new(&vs.root(), &config);
-    ///  let (num_choices, sequence_length) = (3, 128);
-    ///  let input_tensor = Tensor::rand(&[num_choices, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[num_choices, sequence_length], true);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let roberta_model = RobertaForMultipleChoice::new(&vs.root(), &config);
+    /// let (num_choices, sequence_length) = (3, 128);
+    /// let input_tensor = Tensor::rand(&[num_choices, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[num_choices, sequence_length], true);
     ///
-    ///  let (choices, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    roberta_model
-    ///         .forward_t(input_tensor,
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    false)
-    ///    });
-    ///
+    /// let (choices, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     roberta_model.forward_t(
+    ///         input_tensor,
+    ///         Some(mask),
+    ///         Some(token_type_ids),
+    ///         Some(position_ids),
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Tensor,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    pub fn forward_t(
+        &self,
+        input_ids: Tensor,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let num_choices = input_ids.size()[1];
 
         let flat_input_ids = Some(input_ids.view((-1i64, *input_ids.size().last().unwrap())));
         let flat_position_ids = match position_ids {
             Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
-            None => None
+            None => None,
         };
         let flat_token_type_ids = match token_type_ids {
             Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
-            None => None
+            None => None,
         };
         let flat_mask = match mask {
             Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
-            None => None
+            None => None,
         };
 
-        let (_, pooled_output, all_hidden_states, all_attentions) = self.roberta.forward_t(flat_input_ids, flat_mask, flat_token_type_ids, flat_position_ids,
-                                                                                           None, &None, &None, train).unwrap();
+        let (_, pooled_output, all_hidden_states, all_attentions) = self
+            .roberta
+            .forward_t(
+                flat_input_ids,
+                flat_mask,
+                flat_token_type_ids,
+                flat_position_ids,
+                None,
+                &None,
+                &None,
+                train,
+            )
+            .unwrap();
 
-        let output = pooled_output.apply_t(&self.dropout, train).apply(&self.classifier).view((-1, num_choices));
+        let output = pooled_output
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier)
+            .view((-1, num_choices));
         (output, all_hidden_states, all_attentions)
     }
 }
@@ -466,10 +567,10 @@ impl RobertaForTokenClassification {
     ///
     /// ```no_run
     /// use rust_bert::bert::BertConfig;
-    /// use tch::{nn, Device};
+    /// use rust_bert::roberta::RobertaForTokenClassification;
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::roberta::RobertaForTokenClassification;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -477,14 +578,26 @@ impl RobertaForTokenClassification {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForTokenClassification::new(&(&p.root() / "roberta"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForTokenClassification {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
-        let num_labels = config.id2label.as_ref().expect("num_labels not provided in configuration").len() as i64;
-        let classifier = nn::linear(p / "classifier", config.hidden_size, num_labels, Default::default());
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let classifier = nn::linear(
+            p / "classifier",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
 
-        RobertaForTokenClassification { roberta, dropout, classifier }
+        RobertaForTokenClassification {
+            roberta,
+            dropout,
+            classifier,
+        }
     }
 
     /// Forward pass through the model
@@ -507,47 +620,62 @@ impl RobertaForTokenClassification {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::bert::BertConfig;
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use rust_bert::bert::BertConfig;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::roberta::RobertaForTokenClassification;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BertConfig::from_file(config_path);
-    ///# let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (token_labels, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    roberta_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    None,
-    ///                    false)
-    ///    });
-    ///
+    /// let (token_labels, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     roberta_model.forward_t(
+    ///         Some(input_tensor),
+    ///         Some(mask),
+    ///         Some(token_type_ids),
+    ///         Some(position_ids),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self.roberta.forward_t(input_ids, mask, token_type_ids, position_ids,
-                                                                                          input_embeds, &None, &None, train).unwrap();
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self
+            .roberta
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                &None,
+                &None,
+                train,
+            )
+            .unwrap();
 
-        let sequence_output = hidden_state.apply_t(&self.dropout, train).apply(&self.classifier);
+        let sequence_output = hidden_state
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
         (sequence_output, all_hidden_states, all_attentions)
     }
 }
@@ -576,10 +704,10 @@ impl RobertaForQuestionAnswering {
     ///
     /// ```no_run
     /// use rust_bert::bert::BertConfig;
-    /// use tch::{nn, Device};
+    /// use rust_bert::roberta::RobertaForQuestionAnswering;
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::roberta::RobertaForQuestionAnswering;
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -587,13 +715,20 @@ impl RobertaForQuestionAnswering {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForQuestionAnswering::new(&(&p.root() / "roberta"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForQuestionAnswering {
         let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
         let num_labels = 2;
-        let qa_outputs = nn::linear(p / "qa_outputs", config.hidden_size, num_labels, Default::default());
+        let qa_outputs = nn::linear(
+            p / "qa_outputs",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
 
-        RobertaForQuestionAnswering { roberta, qa_outputs }
+        RobertaForQuestionAnswering {
+            roberta,
+            qa_outputs,
+        }
     }
 
     /// Forward pass through the model
@@ -617,45 +752,58 @@ impl RobertaForQuestionAnswering {
     /// # Example
     ///
     /// ```no_run
-    ///# use rust_bert::bert::BertConfig;
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use rust_bert::bert::BertConfig;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::roberta::RobertaForQuestionAnswering;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BertConfig::from_file(config_path);
-    ///# let roberta_model = RobertaForQuestionAnswering::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let roberta_model = RobertaForQuestionAnswering::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    roberta_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
-    ///                    None,
-    ///                    false)
-    ///    });
-    ///
+    /// let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     roberta_model.forward_t(
+    ///         Some(input_tensor),
+    ///         Some(mask),
+    ///         Some(token_type_ids),
+    ///         Some(position_ids),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     token_type_ids: Option<Tensor>,
-                     position_ids: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool) -> (Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self.roberta.forward_t(input_ids, mask, token_type_ids, position_ids,
-                                                                                          input_embeds, &None, &None, train).unwrap();
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        token_type_ids: Option<Tensor>,
+        position_ids: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+        let (hidden_state, _, all_hidden_states, all_attentions) = self
+            .roberta
+            .forward_t(
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                &None,
+                &None,
+                train,
+            )
+            .unwrap();
 
         let sequence_output = hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);

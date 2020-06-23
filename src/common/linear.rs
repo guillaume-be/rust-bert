@@ -10,9 +10,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::nn::{Init, Path, Module};
-use tch::Tensor;
 use std::borrow::Borrow;
+use tch::nn::{Init, Module, Path};
+use tch::Tensor;
 
 #[derive(Debug, Clone, Copy)]
 pub struct LinearNoBiasConfig {
@@ -31,7 +31,6 @@ impl Default for LinearNoBiasConfig {
 pub struct LinearNoBias {
     pub ws: Tensor,
 }
-
 
 pub fn linear_no_bias<'a, T: Borrow<Path<'a>>>(
     vs: T,

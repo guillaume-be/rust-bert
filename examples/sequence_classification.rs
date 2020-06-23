@@ -15,17 +15,17 @@ extern crate failure;
 use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
 
 fn main() -> failure::Fallible<()> {
-//    Set-up model
+    //    Set-up model
     let sequence_classification_model = SequenceClassificationModel::new(Default::default())?;
 
-//    Define input
+    //    Define input
     let input = [
         "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
         "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
         "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
     ];
 
-//    Run model
+    //    Run model
     let output = sequence_classification_model.predict(&input);
     for label in output {
         println!("{:?}", label);

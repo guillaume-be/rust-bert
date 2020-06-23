@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::gpt2::attention::{GPTConv1D, Attention};
-use tch::{Tensor, nn};
-use crate::common::dropout::Dropout;
-use crate::gpt2::gpt2::{Gpt2Config, GptActivation};
 use crate::common::activations::{_gelu_new, _relu, _swish};
+use crate::common::dropout::Dropout;
+use crate::gpt2::attention::{Attention, GPTConv1D};
+use crate::gpt2::gpt2::{Gpt2Config, GptActivation};
+use tch::{nn, Tensor};
 
 pub struct MLP {
     c_fc: GPTConv1D,
@@ -35,14 +35,19 @@ impl MLP {
                 GptActivation::relu => _relu,
                 GptActivation::swish => _swish,
             },
-            None => _gelu_new
+            None => _gelu_new,
         });
         let resid_pdrop = match config.resid_pdrop {
             Some(value) => value,
-            None => 0.1
+            None => 0.1,
         };
         let dropout = Dropout::new(resid_pdrop);
-        MLP { c_fc, c_proj, activation, dropout }
+        MLP {
+            c_fc,
+            c_proj,
+            activation,
+            dropout,
+        }
     }
 
     pub fn forward_t(&self, x: &Tensor, train: bool) -> Tensor {
@@ -60,18 +65,33 @@ pub struct Block {
 
 impl Block {
     pub fn new(p: &nn::Path, config: &Gpt2Config, scale: bool) -> Block {
-        let layer_norm_config = nn::LayerNormConfig { eps: config.layer_norm_epsilon, ..Default::default() };
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_epsilon,
+            ..Default::default()
+        };
         let ln_1 = nn::layer_norm(p / "ln_1", vec![config.n_embd], layer_norm_config);
         let ln_2 = nn::layer_norm(p / "ln_2", vec![config.n_embd], layer_norm_config);
         let attn = Attention::new(&(p / "attn"), config, scale);
         let mlp = MLP::new(&(p / "mlp"), config);
 
-        Block { ln_1, attn, ln_2, mlp }
+        Block {
+            ln_1,
+            attn,
+            ln_2,
+            mlp,
+        }
     }
 
-    pub fn forward_t(&self, x: &Tensor, layer_past: &Option<Tensor>, attention_mask: &Option<Tensor>, train: bool)
-                     -> (Tensor, Tensor, Option<Tensor>) {
-        let (output, present, attentions) = self.attn.forward_t(&x.apply(&self.ln_1), layer_past, attention_mask, train);
+    pub fn forward_t(
+        &self,
+        x: &Tensor,
+        layer_past: &Option<Tensor>,
+        attention_mask: &Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Tensor, Option<Tensor>) {
+        let (output, present, attentions) =
+            self.attn
+                .forward_t(&x.apply(&self.ln_1), layer_past, attention_mask, train);
         let x = x + output;
         let m = self.mlp.forward_t(&x.apply(&self.ln_2), train);
         let x = x + m;

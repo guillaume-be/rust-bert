@@ -12,12 +12,10 @@
 
 extern crate failure;
 
-use rust_bert::pipelines::generation::{GPT2Generator, LanguageGenerator, GenerateConfig};
-
+use rust_bert::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
 
 fn main() -> failure::Fallible<()> {
-
-//    Set-up masked LM model
+    //    Set-up masked LM model
     let generate_config = GenerateConfig {
         max_length: 30,
         do_sample: true,
@@ -30,7 +28,7 @@ fn main() -> failure::Fallible<()> {
 
     let input_context = "The dog";
     let second_input_context = "The cat was";
-    let output = model.generate(Some(vec!(input_context, second_input_context)), None);
+    let output = model.generate(Some(vec![input_context, second_input_context]), None);
 
     for sentence in output {
         println!("{:?}", sentence);

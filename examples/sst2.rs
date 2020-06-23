@@ -10,31 +10,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
 extern crate dirs;
+extern crate failure;
 
-use std::path::PathBuf;
-use rust_bert::pipelines::sentiment::{SentimentModel, ss2_processor};
+use rust_bert::pipelines::sentiment::{ss2_processor, SentimentModel};
 use std::env;
-
+use std::path::PathBuf;
 
 fn main() -> failure::Fallible<()> {
-//    Set-up classifier
+    //    Set-up classifier
     let sentiment_classifier = SentimentModel::new(Default::default())?;
 
-//    Define input
+    //    Define input
     let mut sst2_path = PathBuf::from(env::var("SST2_PATH")
         .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));
     sst2_path.push("train.tsv");
     let inputs = ss2_processor(sst2_path).unwrap();
 
-//    Run model
+    //    Run model
     let batch_size = 64;
-    let mut output = vec!();
+    let mut output = vec![];
     for batch in inputs.chunks(batch_size) {
-        output.push(sentiment_classifier.predict(batch.iter().map(|v| v.as_str()).collect::<Vec<&str>>().as_slice()));
+        output.push(
+            sentiment_classifier.predict(
+                batch
+                    .iter()
+                    .map(|v| v.as_str())
+                    .collect::<Vec<&str>>()
+                    .as_slice(),
+            ),
+        );
     }
-    let mut flat_outputs = vec!();
+    let mut flat_outputs = vec![];
     for batch_output in output.iter_mut() {
         flat_outputs.append(batch_output);
     }

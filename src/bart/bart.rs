@@ -11,18 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use crate::Config;
-use tch::{Tensor, nn};
-use tch::kind::Kind::{Int64, Float};
-use crate::bart::encoder::BartEncoder;
-use crate::bart::decoder::BartDecoder;
-use tch::nn::{embedding, EmbeddingConfig};
 use crate::bart::attention::LayerState;
-use std::borrow::BorrowMut;
+use crate::bart::decoder::BartDecoder;
+use crate::bart::encoder::BartEncoder;
 use crate::common::dropout::Dropout;
 use crate::pipelines::generation::{Cache, LMHeadModel};
+use crate::Config;
+use serde::{Deserialize, Serialize};
+use std::borrow::BorrowMut;
+use std::collections::HashMap;
+use tch::kind::Kind::{Float, Int64};
+use tch::nn::{embedding, EmbeddingConfig};
+use tch::{nn, Tensor};
 
 /// # BART Pretrained model weight files
 pub struct BartModelResources;
@@ -38,38 +38,74 @@ pub struct BartMergesResources;
 
 impl BartModelResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART: (&'static str, &'static str) = ("bart/model.ot", "https://cdn.huggingface.co/facebook/bart-large/rust_model.ot");
+    pub const BART: (&'static str, &'static str) = (
+        "bart/model.ot",
+        "https://cdn.huggingface.co/facebook/bart-large/rust_model.ot",
+    );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/model.ot", "https://cdn.huggingface.co/facebook/bart-large-cnn/rust_model.ot");
+    pub const BART_CNN: (&'static str, &'static str) = (
+        "bart-cnn/model.ot",
+        "https://cdn.huggingface.co/facebook/bart-large-cnn/rust_model.ot",
+    );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART_XSUM: (&'static str, &'static str) = ("bart-xsum/model.ot", "https://cdn.huggingface.co/facebook/bart-large-xsum/rust_model.ot");
+    pub const BART_XSUM: (&'static str, &'static str) = (
+        "bart-xsum/model.ot",
+        "https://cdn.huggingface.co/facebook/bart-large-xsum/rust_model.ot",
+    );
 }
 
 impl BartConfigResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART: (&'static str, &'static str) = ("bart/config.json", "https://cdn.huggingface.co/facebook/bart-large/config.json");
+    pub const BART: (&'static str, &'static str) = (
+        "bart/config.json",
+        "https://cdn.huggingface.co/facebook/bart-large/config.json",
+    );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/config.json", "https://cdn.huggingface.co/facebook/bart-large-cnn/config.json");
+    pub const BART_CNN: (&'static str, &'static str) = (
+        "bart-cnn/config.json",
+        "https://cdn.huggingface.co/facebook/bart-large-cnn/config.json",
+    );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART_XSUM: (&'static str, &'static str) = ("bart-xsum/config.json", "https://cdn.huggingface.co/facebook/bart-large-xsum/config.json");
+    pub const BART_XSUM: (&'static str, &'static str) = (
+        "bart-xsum/config.json",
+        "https://cdn.huggingface.co/facebook/bart-large-xsum/config.json",
+    );
 }
 
 impl BartVocabResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART: (&'static str, &'static str) = ("bart/vocab.txt", "https://cdn.huggingface.co/roberta-large-vocab.json");
+    pub const BART: (&'static str, &'static str) = (
+        "bart/vocab.txt",
+        "https://cdn.huggingface.co/roberta-large-vocab.json",
+    );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/vocab.txt", "https://cdn.huggingface.co/roberta-large-vocab.json");
+    pub const BART_CNN: (&'static str, &'static str) = (
+        "bart-cnn/vocab.txt",
+        "https://cdn.huggingface.co/roberta-large-vocab.json",
+    );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART_XSUM: (&'static str, &'static str) = ("bart-xsum/vocab.txt", "https://cdn.huggingface.co/roberta-large-vocab.json");
+    pub const BART_XSUM: (&'static str, &'static str) = (
+        "bart-xsum/vocab.txt",
+        "https://cdn.huggingface.co/roberta-large-vocab.json",
+    );
 }
 
 impl BartMergesResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART: (&'static str, &'static str) = ("bart/merges.txt", "https://cdn.huggingface.co/roberta-large-merges.txt");
+    pub const BART: (&'static str, &'static str) = (
+        "bart/merges.txt",
+        "https://cdn.huggingface.co/roberta-large-merges.txt",
+    );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART_CNN: (&'static str, &'static str) = ("bart-cnn/merges.txt", "https://cdn.huggingface.co/roberta-large-merges.txt");
+    pub const BART_CNN: (&'static str, &'static str) = (
+        "bart-cnn/merges.txt",
+        "https://cdn.huggingface.co/roberta-large-merges.txt",
+    );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
-    pub const BART_XSUM: (&'static str, &'static str) = ("bart-xsum/merges.txt", "https://cdn.huggingface.co/roberta-large-merges.txt");
+    pub const BART_XSUM: (&'static str, &'static str) = (
+        "bart-xsum/merges.txt",
+        "https://cdn.huggingface.co/roberta-large-merges.txt",
+    );
 }
 
 #[allow(non_camel_case_types)]
@@ -130,14 +166,15 @@ pub struct BartConfig {
 
 impl Config<BartConfig> for BartConfig {}
 
-fn _prepare_bart_decoder_inputs(pad_token_id: i64,
-                                input_ids: &Tensor,
-                                decoder_input_ids: Option<&Tensor>,
-                                decoder_padding_mask: Option<&Tensor>)
-                                -> (Tensor, Option<Tensor>, Option<Tensor>) {
+fn _prepare_bart_decoder_inputs(
+    pad_token_id: i64,
+    input_ids: &Tensor,
+    decoder_input_ids: Option<&Tensor>,
+    decoder_padding_mask: Option<&Tensor>,
+) -> (Tensor, Option<Tensor>, Option<Tensor>) {
     let decoder_input_ids = match decoder_input_ids {
         Some(value) => value.copy(),
-        None => _shift_tokens_right(input_ids, pad_token_id)
+        None => _shift_tokens_right(input_ids, pad_token_id),
     };
 
     let decoder_padding_mask = match decoder_padding_mask {
@@ -158,7 +195,6 @@ fn _prepare_bart_decoder_inputs(pad_token_id: i64,
 
     (decoder_input_ids, decoder_padding_mask, Some(causal_mask))
 }
-
 
 fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
     let index_eos: Tensor = input_ids.ne(pad_token_id).sum1(&[-1], true, Int64) - 1;
@@ -200,10 +236,10 @@ impl BartModel {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::bart::{BartConfig, BartModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::bart::{BartConfig, BartModel};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -212,22 +248,32 @@ impl BartModel {
     /// let generation_mode = true;
     /// let bart: BartModel = BartModel::new(&(&p.root() / "bart"), &config, generation_mode);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &BartConfig, generation_mode: bool) -> BartModel {
         let pad_token_id = match config.pad_token_id {
             Some(value) => value,
-            None => 1
+            None => 1,
         };
-        let embedding_config = EmbeddingConfig { padding_idx: pad_token_id, ..Default::default() };
-        let embeddings: nn::Embedding = embedding(p / "shared",
-                                                  config.vocab_size,
-                                                  config.d_model,
-                                                  embedding_config);
+        let embedding_config = EmbeddingConfig {
+            padding_idx: pad_token_id,
+            ..Default::default()
+        };
+        let embeddings: nn::Embedding = embedding(
+            p / "shared",
+            config.vocab_size,
+            config.d_model,
+            embedding_config,
+        );
 
         let encoder = BartEncoder::new(p / "encoder", config);
         let decoder = BartDecoder::new(p / "decoder", config, generation_mode);
 
-        BartModel { encoder, decoder, generation_mode, pad_token_id, embeddings }
+        BartModel {
+            encoder,
+            decoder,
+            generation_mode,
+            pad_token_id,
+            embeddings,
+        }
     }
 
     /// Forward pass through the model
@@ -257,82 +303,116 @@ impl BartModel {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::{Int64, Double};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::bart::{BartConfig, BartModel};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BartConfig::from_file(config_path);
-    ///# let bart_model: BartModel = BartModel::new(&vs.root(), &config, false);
-    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
-    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
-    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
-    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BartConfig::from_file(config_path);
+    /// # let bart_model: BartModel = BartModel::new(&vs.root(), &config, false);
+    /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    /// let encoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    /// let decoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states, decoder_cache,
-    ///       all_encoder_hidden_states, all_encoder_attentions,
-    ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
-    ///    bart_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&encoder_attention_mask),
-    ///                    Some(&target_tensor),
-    ///                    None,
-    ///                    Some(&decoder_attention_mask),
-    ///                    None,
-    ///                    false)
-    ///    });
-    ///
+    /// let (
+    ///     decoder_output,
+    ///     encoder_hidden_states,
+    ///     decoder_cache,
+    ///     all_encoder_hidden_states,
+    ///     all_encoder_attentions,
+    ///     all_decoder_hidden_states,
+    ///     all_decoder_attentions,
+    /// ) = no_grad(|| {
+    ///     bart_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&encoder_attention_mask),
+    ///         Some(&target_tensor),
+    ///         None,
+    ///         Some(&decoder_attention_mask),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<&Tensor>,
-                     attention_mask: Option<&Tensor>,
-                     decoder_input_ids: Option<&Tensor>,
-                     encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
-                     decoder_attention_mask: Option<&Tensor>,
-                     layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-                     train: bool) ->
-                     (Tensor, Tensor, Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-                      Option<Vec<Tensor>>, Option<Vec<Tensor>>,
-                      Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        decoder_input_ids: Option<&Tensor>,
+        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        decoder_attention_mask: Option<&Tensor>,
+        layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        train: bool,
+    ) -> (
+        Tensor,
+        Tensor,
+        Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+    ) {
         let (decoder_input_ids, decoder_padding_mask, causal_mask) = if self.generation_mode {
             (decoder_input_ids.unwrap().copy(), None, None)
         } else {
-            assert!(input_ids.is_some(), "input_ids must be provided when not in generation mode");
-            _prepare_bart_decoder_inputs(self.pad_token_id, input_ids.unwrap(), decoder_input_ids, decoder_attention_mask)
+            assert!(
+                input_ids.is_some(),
+                "input_ids must be provided when not in generation mode"
+            );
+            _prepare_bart_decoder_inputs(
+                self.pad_token_id,
+                input_ids.unwrap(),
+                decoder_input_ids,
+                decoder_attention_mask,
+            )
         };
 
-        let (encoder_hidden_states,
-            all_encoder_hidden_states,
-            all_encoder_attentions) = match encoder_outputs {
-            Some(value) => value,
-            None => {
-                assert!(input_ids.is_some(), "input_ids must be provided when encoder output is not pre-computed");
-                self.encoder.forward_t(input_ids.unwrap(), attention_mask, &self.embeddings, train)
-            }
-        };
+        let (encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions) =
+            match encoder_outputs {
+                Some(value) => value,
+                None => {
+                    assert!(
+                        input_ids.is_some(),
+                        "input_ids must be provided when encoder output is not pre-computed"
+                    );
+                    self.encoder.forward_t(
+                        input_ids.unwrap(),
+                        attention_mask,
+                        &self.embeddings,
+                        train,
+                    )
+                }
+            };
 
-        let (decoder_outputs,
-            decoder_cache,
+        let (decoder_outputs, decoder_cache, all_decoder_hidden_states, all_decoder_attentions) =
+            self.decoder.forward_t(
+                &decoder_input_ids,
+                &encoder_hidden_states,
+                attention_mask,
+                decoder_padding_mask.as_ref(),
+                causal_mask.as_ref(),
+                &self.embeddings,
+                layer_states,
+                train,
+            );
+        (
+            decoder_outputs,
+            encoder_hidden_states,
+            decoder_cache.1,
             all_decoder_hidden_states,
-            all_decoder_attentions) = self.decoder.forward_t(&decoder_input_ids,
-                                                             &encoder_hidden_states,
-                                                             attention_mask,
-                                                             decoder_padding_mask.as_ref(),
-                                                             causal_mask.as_ref(),
-                                                             &self.embeddings,
-                                                             layer_states,
-                                                             train);
-        (decoder_outputs, encoder_hidden_states, decoder_cache.1,
-         all_decoder_hidden_states, all_decoder_attentions,
-         all_encoder_hidden_states, all_encoder_attentions)
+            all_decoder_attentions,
+            all_encoder_hidden_states,
+            all_encoder_attentions,
+        )
     }
-
 }
 
 /// # BART Model for conditional generation
@@ -356,20 +436,24 @@ impl BartForConditionalGeneration {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
     /// let generation_mode = true;
-    /// let bart: BartForConditionalGeneration = BartForConditionalGeneration::new(&(&p.root() / "bart"), &config, generation_mode);
+    /// let bart: BartForConditionalGeneration =
+    ///     BartForConditionalGeneration::new(&(&p.root() / "bart"), &config, generation_mode);
     /// ```
-    ///
-    pub fn new(p: &nn::Path, config: &BartConfig, generation_mode: bool) -> BartForConditionalGeneration {
+    pub fn new(
+        p: &nn::Path,
+        config: &BartConfig,
+        generation_mode: bool,
+    ) -> BartForConditionalGeneration {
         let base_model = BartModel::new(&(p / "model"), config, generation_mode);
         BartForConditionalGeneration { base_model }
     }
@@ -398,17 +482,17 @@ impl BartForConditionalGeneration {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::{Int64, Double};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BartConfig::from_file(config_path);
-    ///# let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BartConfig::from_file(config_path);
+    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -427,37 +511,64 @@ impl BartForConditionalGeneration {
     ///                    None,
     ///                    false)
     ///    });
-    ///
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<&Tensor>,
-                     attention_mask: Option<&Tensor>,
-                     encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
-                     decoder_input_ids: Option<&Tensor>,
-                     decoder_attention_mask: Option<&Tensor>,
-                     old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-                     train: bool)
-                     -> (Tensor, Tensor, Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-                         Option<Vec<Tensor>>, Option<Vec<Tensor>>,
-                         Option<Vec<Tensor>>, Option<Vec<Tensor>>)
-    {
-        let (decoder_outputs, encoder_hidden_states, decoder_cache,
-            all_decoder_hidden_states, all_decoder_attentions,
-            all_encoder_hidden_states, all_encoder_attentions) =
-            self.base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, old_layer_states, train);
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        decoder_input_ids: Option<&Tensor>,
+        decoder_attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        train: bool,
+    ) -> (
+        Tensor,
+        Tensor,
+        Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+    ) {
+        let (
+            decoder_outputs,
+            encoder_hidden_states,
+            decoder_cache,
+            all_decoder_hidden_states,
+            all_decoder_attentions,
+            all_encoder_hidden_states,
+            all_encoder_attentions,
+        ) = self.base_model.forward_t(
+            input_ids,
+            attention_mask,
+            decoder_input_ids,
+            encoder_outputs,
+            decoder_attention_mask,
+            old_layer_states,
+            train,
+        );
 
         let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        (lm_logits, encoder_hidden_states, decoder_cache,
-         all_decoder_hidden_states, all_decoder_attentions,
-         all_encoder_hidden_states, all_encoder_attentions)
+        (
+            lm_logits,
+            encoder_hidden_states,
+            decoder_cache,
+            all_decoder_hidden_states,
+            all_decoder_attentions,
+            all_encoder_hidden_states,
+            all_encoder_attentions,
+        )
     }
 
     pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
-        let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, &self.base_model.embeddings, false);
+        let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(
+            input_ids,
+            attention_mask,
+            &self.base_model.embeddings,
+            false,
+        );
         encoder_hidden_states
     }
-
 }
 
 pub struct BartClassificationHead {
@@ -468,16 +579,29 @@ pub struct BartClassificationHead {
 
 impl BartClassificationHead {
     pub fn new(p: &nn::Path, config: &BartConfig) -> BartClassificationHead {
-        let dense = nn::linear(&(p / "dense"), config.d_model, config.d_model, Default::default());
+        let dense = nn::linear(
+            &(p / "dense"),
+            config.d_model,
+            config.d_model,
+            Default::default(),
+        );
         let dropout = Dropout::new(config.classif_dropout);
-        let out_proj = nn::linear(&(p / "out_proj"), config.d_model, config.num_labels.unwrap(), Default::default());
+        let out_proj = nn::linear(
+            &(p / "out_proj"),
+            config.d_model,
+            config.num_labels.unwrap(),
+            Default::default(),
+        );
 
-        BartClassificationHead { dense, dropout, out_proj }
+        BartClassificationHead {
+            dense,
+            dropout,
+            out_proj,
+        }
     }
 
     pub fn forward_t(&self, x: &Tensor, train: bool) -> Tensor {
-        x
-            .apply_t(&self.dropout, train)
+        x.apply_t(&self.dropout, train)
             .apply(&self.dense)
             .tanh()
             .apply_t(&self.dropout, train)
@@ -497,7 +621,6 @@ pub struct BartForSequenceClassification {
     eos_token_id: i64,
 }
 
-
 impl BartForSequenceClassification {
     /// Build a new `BartForSequenceClassification`
     ///
@@ -509,27 +632,31 @@ impl BartForSequenceClassification {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::bart::{BartConfig, BartForSequenceClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::bart::{BartConfig, BartForSequenceClassification};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
     /// let generation_mode = true;
-    /// let bart: BartForSequenceClassification = BartForSequenceClassification::new(&(&p.root() / "bart"), &config);
+    /// let bart: BartForSequenceClassification =
+    ///     BartForSequenceClassification::new(&(&p.root() / "bart"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &BartConfig) -> BartForSequenceClassification {
         let base_model = BartModel::new(&(p / "model"), config, false);
         let classification_head = BartClassificationHead::new(&(p / "classification_head"), config);
         let eos_token_id = match config.eos_token_id {
             Some(value) => value,
-            None => 3
+            None => 3,
         };
-        BartForSequenceClassification { base_model, classification_head, eos_token_id }
+        BartForSequenceClassification {
+            base_model,
+            classification_head,
+            eos_token_id,
+        }
     }
 
     /// Forward pass through the model
@@ -556,17 +683,17 @@ impl BartForSequenceClassification {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::{Int64, Double};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BartConfig::from_file(config_path);
-    ///# let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BartConfig::from_file(config_path);
+    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -585,36 +712,63 @@ impl BartForSequenceClassification {
     ///                    None,
     ///                    false)
     ///    });
-    ///
     /// ```
-    ///
-    pub fn forward_t(&mut self,
-                     input_ids: &Tensor,
-                     attention_mask: Option<&Tensor>,
-                     encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
-                     decoder_input_ids: Option<&Tensor>,
-                     decoder_attention_mask: Option<&Tensor>,
-                     train: bool)
-                     -> (Tensor, Tensor,
-                         Option<Vec<Tensor>>, Option<Vec<Tensor>>,
-                         Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (decoder_outputs, encoder_hidden_states, _,
-            all_decoder_hidden_states, all_decoder_attentions,
-            all_encoder_hidden_states, all_encoder_attentions) =
-            self.borrow_mut().base_model.forward_t(Some(input_ids), attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, None, train);
+    pub fn forward_t(
+        &mut self,
+        input_ids: &Tensor,
+        attention_mask: Option<&Tensor>,
+        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        decoder_input_ids: Option<&Tensor>,
+        decoder_attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> (
+        Tensor,
+        Tensor,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+    ) {
+        let (
+            decoder_outputs,
+            encoder_hidden_states,
+            _,
+            all_decoder_hidden_states,
+            all_decoder_attentions,
+            all_encoder_hidden_states,
+            all_encoder_attentions,
+        ) = self.borrow_mut().base_model.forward_t(
+            Some(input_ids),
+            attention_mask,
+            decoder_input_ids,
+            encoder_outputs,
+            decoder_attention_mask,
+            None,
+            train,
+        );
 
         let eos_mask = input_ids.eq(self.eos_token_id);
         let sentence_representation = decoder_outputs
             .index_select(0, &eos_mask)
-            .view((decoder_outputs.size()[0], -1, *decoder_outputs.size().last().unwrap()))
+            .view((
+                decoder_outputs.size()[0],
+                -1,
+                *decoder_outputs.size().last().unwrap(),
+            ))
             .select(1, -1);
 
-        let logits = self.classification_head.forward_t(&sentence_representation, train);
-        (logits, encoder_hidden_states,
-         all_decoder_hidden_states, all_decoder_attentions,
-         all_encoder_hidden_states, all_encoder_attentions)
+        let logits = self
+            .classification_head
+            .forward_t(&sentence_representation, train);
+        (
+            logits,
+            encoder_hidden_states,
+            all_decoder_hidden_states,
+            all_decoder_attentions,
+            all_encoder_hidden_states,
+            all_encoder_attentions,
+        )
     }
-
 }
 
 impl LMHeadModel for BartForConditionalGeneration {
@@ -645,18 +799,18 @@ impl LMHeadModel for BartForConditionalGeneration {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::{Int64, Double};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::pipelines::generation::LMHeadModel;
     /// use rust_bert::bart::{BartForConditionalGeneration, BartConfig};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BartConfig::from_file(config_path);
-    ///# let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BartConfig::from_file(config_path);
+    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -675,39 +829,58 @@ impl LMHeadModel for BartForConditionalGeneration {
     ///                    None,
     ///                    false)
     ///    });
-    ///
     /// ```
-    ///
-    fn forward_t(&self,
-                 input_ids: &Option<Tensor>,
-                 cache: Cache,
-                 attention_mask: &Option<Tensor>,
-                 _token_type_ids: &Option<Tensor>,
-                 _position_ids: &Option<Tensor>,
-                 _input_embeds: &Option<Tensor>,
-                 encoder_outputs: Option<&Tensor>,
-                 decoder_input_ids: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Tensor>, Cache, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        cache: Cache,
+        attention_mask: &Option<Tensor>,
+        _token_type_ids: &Option<Tensor>,
+        _position_ids: &Option<Tensor>,
+        _input_embeds: &Option<Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<
+        (
+            Tensor,
+            Option<Tensor>,
+            Cache,
+            Option<Vec<Tensor>>,
+            Option<Vec<Tensor>>,
+        ),
+        &'static str,
+    > {
         let (decoder_output, encoder_hidden_states, new_cache, _, _, _, _) = match cache {
-            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(input_ids.as_ref(),
-                                                                               attention_mask.as_ref(),
-                                                                               decoder_input_ids.as_ref(),
-                                                                               Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
-                                                                               None,
-                                                                               cached_layer_states,
-                                                                               train),
+            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                decoder_input_ids.as_ref(),
+                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                None,
+                cached_layer_states,
+                train,
+            ),
 
-            Cache::None => self.base_model.forward_t(input_ids.as_ref(),
-                                                     attention_mask.as_ref(),
-                                                     decoder_input_ids.as_ref(),
-                                                     Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
-                                                     None,
-                                                     None,
-                                                     train),
-            _ => Err("Cache not compatible with BART Model")?
+            Cache::None => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                decoder_input_ids.as_ref(),
+                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                None,
+                None,
+                train,
+            ),
+            _ => Err("Cache not compatible with BART Model")?,
         };
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        Ok((lm_logits, Some(encoder_hidden_states), Cache::BARTCache(new_cache), None, None))
+        Ok((
+            lm_logits,
+            Some(encoder_hidden_states),
+            Cache::BARTCache(new_cache),
+            None,
+            None,
+        ))
     }
 }

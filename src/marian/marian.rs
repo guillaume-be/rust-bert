@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartModel, BartConfig, LayerState};
-use tch::{Tensor, nn};
-use crate::pipelines::generation::{LMHeadModel, Cache};
+use crate::bart::{BartConfig, BartModel, LayerState};
+use crate::pipelines::generation::{Cache, LMHeadModel};
 use tch::nn::Init;
+use tch::{nn, Tensor};
 
 /// # Marian Pretrained model weight files
 pub struct MarianModelResources;
@@ -33,78 +33,174 @@ pub struct MarianPrefix;
 
 impl MarianModelResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
-    pub const ENGLISH2ROMANCE: (&'static str, &'static str) = ("marian-mt-en-ROMANCE/model.ot", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/rust_model.ot");
+    pub const ENGLISH2ROMANCE: (&'static str, &'static str) = (
+        "marian-mt-en-ROMANCE/model.ot",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/rust_model.ot",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
-    pub const ROMANCE2ENGLISH: (&'static str, &'static str) = ("marian-mt-ROMANCE-en/model.ot", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/rust_model.ot");
+    pub const ROMANCE2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-ROMANCE-en/model.ot",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/rust_model.ot",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
-    pub const ENGLISH2GERMAN: (&'static str, &'static str) = ("marian-mt-en-de/model.ot", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/rust_model.ot");
+    pub const ENGLISH2GERMAN: (&'static str, &'static str) = (
+        "marian-mt-en-de/model.ot",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/rust_model.ot",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
-    pub const GERMAN2ENGLISH: (&'static str, &'static str) = ("marian-mt-de-en/model.ot", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/rust_model.ot");
+    pub const GERMAN2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-de-en/model.ot",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/rust_model.ot",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
-    pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = ("marian-mt-en-ru/model.ot", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/rust_model.ot");
+    pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = (
+        "marian-mt-en-ru/model.ot",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/rust_model.ot",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
-    pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = ("marian-mt-ru-en/model.ot", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/rust_model.ot");
+    pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-ru-en/model.ot",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/rust_model.ot",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
-    pub const FRENCH2GERMAN: (&'static str, &'static str) = ("marian-mt-fr-de/model.ot", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/rust_model.ot");
+    pub const FRENCH2GERMAN: (&'static str, &'static str) = (
+        "marian-mt-fr-de/model.ot",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/rust_model.ot",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
-    pub const GERMAN2FRENCH: (&'static str, &'static str) = ("marian-mt-de-fr/model.ot", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/rust_model.ot");
+    pub const GERMAN2FRENCH: (&'static str, &'static str) = (
+        "marian-mt-de-fr/model.ot",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/rust_model.ot",
+    );
 }
 
 impl MarianConfigResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ENGLISH2ROMANCE: (&'static str, &'static str) = ("marian-mt-en-ROMANCE/config.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/config.json");
+    pub const ENGLISH2ROMANCE: (&'static str, &'static str) = (
+        "marian-mt-en-ROMANCE/config.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/config.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ROMANCE2ENGLISH: (&'static str, &'static str) = ("marian-mt-ROMANCE-en/config.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/config.json");
+    pub const ROMANCE2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-ROMANCE-en/config.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/config.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ENGLISH2GERMAN: (&'static str, &'static str) = ("marian-mt-en-de/config.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/config.json");
+    pub const ENGLISH2GERMAN: (&'static str, &'static str) = (
+        "marian-mt-en-de/config.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/config.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const GERMAN2ENGLISH: (&'static str, &'static str) = ("marian-mt-de-en/config.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/config.json");
+    pub const GERMAN2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-de-en/config.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/config.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = ("marian-mt-en-ru/config.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/config.json");
+    pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = (
+        "marian-mt-en-ru/config.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/config.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = ("marian-mt-ru-en/config.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/config.json");
+    pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-ru-en/config.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/config.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const FRENCH2GERMAN: (&'static str, &'static str) = ("marian-mt-fr-de/config.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/config.json");
+    pub const FRENCH2GERMAN: (&'static str, &'static str) = (
+        "marian-mt-fr-de/config.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/config.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const GERMAN2FRENCH: (&'static str, &'static str) = ("marian-mt-de-fr/config.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/config.json");
+    pub const GERMAN2FRENCH: (&'static str, &'static str) = (
+        "marian-mt-de-fr/config.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/config.json",
+    );
 }
 
 impl MarianVocabResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ENGLISH2ROMANCE: (&'static str, &'static str) = ("marian-mt-en-ROMANCE/vocab.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/vocab.json");
+    pub const ENGLISH2ROMANCE: (&'static str, &'static str) = (
+        "marian-mt-en-ROMANCE/vocab.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/vocab.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ROMANCE2ENGLISH: (&'static str, &'static str) = ("marian-mt-ROMANCE-en/vocab.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/vocab.json");
+    pub const ROMANCE2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-ROMANCE-en/vocab.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/vocab.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ENGLISH2GERMAN: (&'static str, &'static str) = ("marian-mt-en-de/vocab.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/vocab.json");
+    pub const ENGLISH2GERMAN: (&'static str, &'static str) = (
+        "marian-mt-en-de/vocab.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/vocab.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const GERMAN2ENGLISH: (&'static str, &'static str) = ("marian-mt-de-en/vocab.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/vocab.json");
+    pub const GERMAN2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-de-en/vocab.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/vocab.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = ("marian-mt-en-ru/vocab.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/vocab.json");
+    pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = (
+        "marian-mt-en-ru/vocab.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/vocab.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = ("marian-mt-ru-en/vocab.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/vocab.json");
+    pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-ru-en/vocab.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/vocab.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const FRENCH2GERMAN: (&'static str, &'static str) = ("marian-mt-fr-de/vocab.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/vocab.json");
+    pub const FRENCH2GERMAN: (&'static str, &'static str) = (
+        "marian-mt-fr-de/vocab.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/vocab.json",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const GERMAN2FRENCH: (&'static str, &'static str) = ("marian-mt-de-fr/vocab.json", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/vocab.json");
+    pub const GERMAN2FRENCH: (&'static str, &'static str) = (
+        "marian-mt-de-fr/vocab.json",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/vocab.json",
+    );
 }
 
 impl MarianSpmResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ENGLISH2ROMANCE: (&'static str, &'static str) = ("marian-mt-en-ROMANCE/spiece.model", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/source.spm");
+    pub const ENGLISH2ROMANCE: (&'static str, &'static str) = (
+        "marian-mt-en-ROMANCE/spiece.model",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/source.spm",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ROMANCE2ENGLISH: (&'static str, &'static str) = ("marian-mt-ROMANCE-en/spiece.model", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/source.spm");
+    pub const ROMANCE2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-ROMANCE-en/spiece.model",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/source.spm",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ENGLISH2GERMAN: (&'static str, &'static str) = ("marian-mt-en-de/spiece.model", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/source.spm");
+    pub const ENGLISH2GERMAN: (&'static str, &'static str) = (
+        "marian-mt-en-de/spiece.model",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/source.spm",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const GERMAN2ENGLISH: (&'static str, &'static str) = ("marian-mt-de-en/spiece.model", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/source.spm");
+    pub const GERMAN2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-de-en/spiece.model",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/source.spm",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = ("marian-mt-en-ru/spiece.model", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/source.spm");
+    pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = (
+        "marian-mt-en-ru/spiece.model",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/source.spm",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = ("marian-mt-ru-en/spiece.model", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/source.spm");
+    pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-ru-en/spiece.model",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/source.spm",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const FRENCH2GERMAN: (&'static str, &'static str) = ("marian-mt-fr-de/spiece.model", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/source.spm");
+    pub const FRENCH2GERMAN: (&'static str, &'static str) = (
+        "marian-mt-fr-de/spiece.model",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/source.spm",
+    );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
-    pub const GERMAN2FRENCH: (&'static str, &'static str) = ("marian-mt-de-fr/spiece.model", "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/source.spm");
+    pub const GERMAN2FRENCH: (&'static str, &'static str) = (
+        "marian-mt-de-fr/spiece.model",
+        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/source.spm",
+    );
 }
 
 impl MarianPrefix {
@@ -150,23 +246,34 @@ impl MarianForConditionalGeneration {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
     /// let generation_mode = true;
-    /// let bart: BartForConditionalGeneration = BartForConditionalGeneration::new(&(&p.root() / "bart"), &config, generation_mode);
+    /// let bart: BartForConditionalGeneration =
+    ///     BartForConditionalGeneration::new(&(&p.root() / "bart"), &config, generation_mode);
     /// ```
-    ///
-    pub fn new(p: &nn::Path, config: &BartConfig, generation_mode: bool) -> MarianForConditionalGeneration {
+    pub fn new(
+        p: &nn::Path,
+        config: &BartConfig,
+        generation_mode: bool,
+    ) -> MarianForConditionalGeneration {
         let base_model = BartModel::new(&(p / "model"), config, generation_mode);
-        let final_logits_bias = p.var("final_logits_bias", &[1, config.vocab_size], Init::Const(0.));
-        MarianForConditionalGeneration { base_model, final_logits_bias }
+        let final_logits_bias = p.var(
+            "final_logits_bias",
+            &[1, config.vocab_size],
+            Init::Const(0.),
+        );
+        MarianForConditionalGeneration {
+            base_model,
+            final_logits_bias,
+        }
     }
 
     /// Forward pass through the model
@@ -193,64 +300,101 @@ impl MarianForConditionalGeneration {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::bart::{BartConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::bart::BartConfig;
     /// use rust_bert::marian::MarianForConditionalGeneration;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BartConfig::from_file(config_path);
-    ///# let mut marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
-    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
-    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
-    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
-    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BartConfig::from_file(config_path);
+    /// # let mut marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
+    /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    /// let encoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    /// let decoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states, cache,
-    ///       all_encoder_hidden_states, all_encoder_attentions,
-    ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
-    ///    marian_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&encoder_attention_mask),
-    ///                    None,
-    ///                    Some(&target_tensor),
-    ///                    Some(&decoder_attention_mask),
-    ///                    None,
-    ///                    false)
-    ///    });
-    ///
+    /// let (
+    ///     decoder_output,
+    ///     encoder_hidden_states,
+    ///     cache,
+    ///     all_encoder_hidden_states,
+    ///     all_encoder_attentions,
+    ///     all_decoder_hidden_states,
+    ///     all_decoder_attentions,
+    /// ) = no_grad(|| {
+    ///     marian_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&encoder_attention_mask),
+    ///         None,
+    ///         Some(&target_tensor),
+    ///         Some(&decoder_attention_mask),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input_ids: Option<&Tensor>,
-                     attention_mask: Option<&Tensor>,
-                     encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
-                     decoder_input_ids: Option<&Tensor>,
-                     decoder_attention_mask: Option<&Tensor>,
-                     old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-                     train: bool)
-                     -> (Tensor, Tensor, Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-                         Option<Vec<Tensor>>, Option<Vec<Tensor>>,
-                         Option<Vec<Tensor>>, Option<Vec<Tensor>>)
-    {
-        let (decoder_outputs, encoder_hidden_states, decoder_cache,
-            all_decoder_hidden_states, all_decoder_attentions,
-            all_encoder_hidden_states, all_encoder_attentions) =
-            self.base_model.forward_t(input_ids, attention_mask, decoder_input_ids, encoder_outputs, decoder_attention_mask, old_layer_states, train);
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        decoder_input_ids: Option<&Tensor>,
+        decoder_attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        train: bool,
+    ) -> (
+        Tensor,
+        Tensor,
+        Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+    ) {
+        let (
+            decoder_outputs,
+            encoder_hidden_states,
+            decoder_cache,
+            all_decoder_hidden_states,
+            all_decoder_attentions,
+            all_encoder_hidden_states,
+            all_encoder_attentions,
+        ) = self.base_model.forward_t(
+            input_ids,
+            attention_mask,
+            decoder_input_ids,
+            encoder_outputs,
+            decoder_attention_mask,
+            old_layer_states,
+            train,
+        );
 
         let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        (lm_logits, encoder_hidden_states, decoder_cache,
-         all_decoder_hidden_states, all_decoder_attentions,
-         all_encoder_hidden_states, all_encoder_attentions)
+        (
+            lm_logits,
+            encoder_hidden_states,
+            decoder_cache,
+            all_decoder_hidden_states,
+            all_decoder_attentions,
+            all_encoder_hidden_states,
+            all_encoder_attentions,
+        )
     }
 
     pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
-        let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(input_ids, attention_mask, &self.base_model.embeddings, false);
+        let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(
+            input_ids,
+            attention_mask,
+            &self.base_model.embeddings,
+            false,
+        );
         encoder_hidden_states
     }
 }
@@ -283,68 +427,97 @@ impl LMHeadModel for MarianForConditionalGeneration {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::bart::{BartConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::bart::BartConfig;
     /// use rust_bert::marian::MarianForConditionalGeneration;
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = BartConfig::from_file(config_path);
-    ///# let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
-    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
-    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
-    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
-    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BartConfig::from_file(config_path);
+    /// # let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
+    /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    /// let encoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    /// let decoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states, cache,
-    ///       all_encoder_hidden_states, all_encoder_attentions,
-    ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
-    ///    marian_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&encoder_attention_mask),
-    ///                    None,
-    ///                    Some(&target_tensor),
-    ///                    Some(&decoder_attention_mask),
-    ///                    None,
-    ///                    false)
-    ///    });
-    ///
+    /// let (
+    ///     decoder_output,
+    ///     encoder_hidden_states,
+    ///     cache,
+    ///     all_encoder_hidden_states,
+    ///     all_encoder_attentions,
+    ///     all_decoder_hidden_states,
+    ///     all_decoder_attentions,
+    /// ) = no_grad(|| {
+    ///     marian_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&encoder_attention_mask),
+    ///         None,
+    ///         Some(&target_tensor),
+    ///         Some(&decoder_attention_mask),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
     /// ```
-    ///
-    fn forward_t(&self,
-                 input_ids: &Option<Tensor>,
-                 cache: Cache,
-                 attention_mask: &Option<Tensor>,
-                 _token_type_ids: &Option<Tensor>,
-                 _position_ids: &Option<Tensor>,
-                 _input_embeds: &Option<Tensor>,
-                 encoder_outputs: Option<&Tensor>,
-                 decoder_input_ids: &Option<Tensor>,
-                 train: bool) -> Result<(Tensor, Option<Tensor>, Cache, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        cache: Cache,
+        attention_mask: &Option<Tensor>,
+        _token_type_ids: &Option<Tensor>,
+        _position_ids: &Option<Tensor>,
+        _input_embeds: &Option<Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<
+        (
+            Tensor,
+            Option<Tensor>,
+            Cache,
+            Option<Vec<Tensor>>,
+            Option<Vec<Tensor>>,
+        ),
+        &'static str,
+    > {
         let (decoder_output, encoder_hidden_states, new_cache, _, _, _, _) = match cache {
-            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(input_ids.as_ref(),
-                                                                               attention_mask.as_ref(),
-                                                                               decoder_input_ids.as_ref(),
-                                                                               Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
-                                                                               None,
-                                                                               cached_layer_states,
-                                                                               train),
-            Cache::None => self.base_model.forward_t(input_ids.as_ref(),
-                                                     attention_mask.as_ref(),
-                                                     decoder_input_ids.as_ref(),
-                                                     Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
-                                                     None,
-                                                     None,
-                                                     train),
-            _ => Err("Cache not compatible with Marian Model")?
+            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                decoder_input_ids.as_ref(),
+                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                None,
+                cached_layer_states,
+                train,
+            ),
+            Cache::None => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                decoder_input_ids.as_ref(),
+                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                None,
+                None,
+                train,
+            ),
+            _ => Err("Cache not compatible with Marian Model")?,
         };
 
-        let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None) + &self.final_logits_bias;
-        Ok((lm_logits, Some(encoder_hidden_states), Cache::BARTCache(new_cache), None, None))
+        let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None)
+            + &self.final_logits_bias;
+        Ok((
+            lm_logits,
+            Some(encoder_hidden_states),
+            Cache::BARTCache(new_cache),
+            None,
+            None,
+        ))
     }
 }

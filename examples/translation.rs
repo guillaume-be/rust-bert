@@ -13,12 +13,12 @@
 
 extern crate failure;
 
-use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel, Language};
+use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use tch::Device;
 
 fn main() -> failure::Fallible<()> {
-
-    let translation_config = TranslationConfig::new(Language::EnglishToGerman, Device::cuda_if_available());
+    let translation_config =
+        TranslationConfig::new(Language::EnglishToGerman, Device::cuda_if_available());
     let model = TranslationModel::new(translation_config)?;
 
     let input_context_1 = "The quick brown fox jumps over the lazy dog";

@@ -10,11 +10,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{nn, Tensor};
+use crate::common::dropout::Dropout;
 use crate::distilbert::distilbert::DistilBertConfig;
 use tch::kind::Kind::Float;
-use crate::common::dropout::Dropout;
-
+use tch::{nn, Tensor};
 
 #[derive(Debug)]
 pub struct MultiHeadSelfAttention {
@@ -39,7 +38,7 @@ impl MultiHeadSelfAttention {
 
         let output_attentions = match config.output_attentions {
             Some(value) => value,
-            None => false
+            None => false,
         };
 
         MultiHeadSelfAttention {
@@ -59,10 +58,19 @@ impl MultiHeadSelfAttention {
     }
 
     fn flatten(&self, x: Tensor, bs: i64, dim_per_head: i64) -> Tensor {
-        x.transpose(1, 2).contiguous().view((bs, -1, &self.n_heads * dim_per_head))
+        x.transpose(1, 2)
+            .contiguous()
+            .view((bs, -1, &self.n_heads * dim_per_head))
     }
 
-    pub fn forward_t(&self, query: &Tensor, key: &Tensor, value: &Tensor, mask: &Option<Tensor>, train: bool) -> (Tensor, Option<Tensor>) {
+    pub fn forward_t(
+        &self,
+        query: &Tensor,
+        key: &Tensor,
+        value: &Tensor,
+        mask: &Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>) {
         let bs = query.size()[0];
         let k_length = key.size()[1];
 
@@ -73,14 +81,19 @@ impl MultiHeadSelfAttention {
 
         let scores = if let Some(mask) = mask {
             let unmasked_scores = q.matmul(&k.transpose(2, 3));
-            let mask = mask.le1(&(mask.zeros_like() + 0.1)).view((bs, 1i64, 1i64, k_length)).expand_as(&unmasked_scores);
+            let mask = mask
+                .le1(&(mask.zeros_like() + 0.1))
+                .view((bs, 1i64, 1i64, k_length))
+                .expand_as(&unmasked_scores);
             unmasked_scores.masked_fill(&mask, std::f64::NEG_INFINITY)
         } else {
             q.matmul(&k.transpose(2, 3))
         };
 
         let weights = scores.softmax(-1, Float).apply_t(&self.dropout, train);
-        let context = self.flatten(weights.matmul(&v), bs, self.dim_per_head).apply(&self.out_lin);
+        let context = self
+            .flatten(weights.matmul(&v), bs, self.dim_per_head)
+            .apply(&self.out_lin);
 
         if !self.output_attentions {
             (context, None)

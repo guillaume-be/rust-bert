@@ -16,7 +16,11 @@ extern crate tch;
 
 pub fn main() -> failure::Fallible<()> {
     let args: Vec<_> = std::env::args().collect();
-    ensure!(args.len() == 3, "usage: {} source.npz destination.ot", args[0]);
+    ensure!(
+        args.len() == 3,
+        "usage: {} source.npz destination.ot",
+        args[0]
+    );
 
     let source_file = &args[1];
     let destination_file = &args[2];

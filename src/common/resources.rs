@@ -18,9 +18,9 @@
 //! pre-trained models in each model module.
 
 use lazy_static::lazy_static;
-use std::path::PathBuf;
 use reqwest::Client;
-use std::{fs, env};
+use std::path::PathBuf;
+use std::{env, fs};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 use tokio::task;
@@ -47,12 +47,13 @@ impl Resource {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::resources::{Resource, LocalResource};
+    /// use rust_bert::resources::{LocalResource, Resource};
     /// use std::path::PathBuf;
-    /// let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
+    /// let config_resource = Resource::Local(LocalResource {
+    ///     local_path: PathBuf::from("path/to/config.json"),
+    /// });
     /// let config_path = config_resource.get_local_path();
     /// ```
-    ///
     pub fn get_local_path(&self) -> &PathBuf {
         match self {
             Resource::Local(resource) => &resource.local_path,
@@ -65,7 +66,7 @@ impl Resource {
 #[derive(PartialEq, Clone)]
 pub struct LocalResource {
     /// Local path for the resource
-    pub local_path: PathBuf
+    pub local_path: PathBuf,
 }
 
 /// # Remote resource
@@ -93,13 +94,18 @@ impl RemoteResource {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::resources::{Resource, RemoteResource};
+    /// use rust_bert::resources::{RemoteResource, Resource};
     /// use std::path::PathBuf;
-    /// let config_resource = Resource::Remote(RemoteResource::new("http://config_json_location", PathBuf::from("path/to/config.json")));
+    /// let config_resource = Resource::Remote(RemoteResource::new(
+    ///     "http://config_json_location",
+    ///     PathBuf::from("path/to/config.json"),
+    /// ));
     /// ```
-    ///
     pub fn new(url: &str, target: PathBuf) -> RemoteResource {
-        RemoteResource { url: url.to_string(), local_path: target }
+        RemoteResource {
+            url: url.to_string(),
+            local_path: target,
+        }
     }
 
     /// Creates a new RemoteResource from an URL and local name. Will define a local path pointing to
@@ -117,14 +123,12 @@ impl RemoteResource {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::resources::{Resource, RemoteResource};
-    /// let model_resource = Resource::Remote(RemoteResource::from_pretrained(
-    ///     ("distilbert-sst2/model.ot",
-    ///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot"
-    ///     )
-    /// ));
+    /// use rust_bert::resources::{RemoteResource, Resource};
+    /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
+    ///     "distilbert-sst2/model.ot",
+    ///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
+    /// )));
     /// ```
-    ///
     pub fn from_pretrained(name_url_tuple: (&str, &str)) -> RemoteResource {
         let name = name_url_tuple.0;
         let url = name_url_tuple.1.to_string();
@@ -171,15 +175,13 @@ fn _get_cache_directory() -> PathBuf {
 /// # Example
 ///
 /// ```no_run
-/// use rust_bert::resources::{Resource, RemoteResource, download_resource};
-/// let model_resource = Resource::Remote(RemoteResource::from_pretrained(
-///     ("distilbert-sst2/model.ot",
-///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot"
-///     )
-/// ));
+/// use rust_bert::resources::{download_resource, RemoteResource, Resource};
+/// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
+///     "distilbert-sst2/model.ot",
+///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
+/// )));
 /// let local_path = download_resource(&model_resource);
 /// ```
-///
 pub fn download_resource(resource: &Resource) -> failure::Fallible<&PathBuf> {
     match resource {
         Resource::Remote(remote_resource) => {
@@ -202,8 +204,6 @@ pub fn download_resource(resource: &Resource) -> failure::Fallible<&PathBuf> {
 
             Ok(resource.get_local_path())
         }
-        Resource::Local(_) => {
-            Ok(resource.get_local_path())
-        }
+        Resource::Local(_) => Ok(resource.get_local_path()),
     }
 }

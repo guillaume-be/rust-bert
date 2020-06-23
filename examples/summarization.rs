@@ -14,7 +14,6 @@ extern crate failure;
 
 use rust_bert::pipelines::summarization::SummarizationModel;
 
-
 fn main() -> failure::Fallible<()> {
     let summarization_model = SummarizationModel::new(Default::default())?;
 
@@ -40,11 +39,11 @@ on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optim
 telescope — scheduled for launch in 2021 — and the European Space Agency's 2028 ARIEL program, could reveal more \
 about exoplanets like K2-18b."];
 
-//    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
+    //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
     let _output = summarization_model.summarize(&input);
     for sentence in _output {
         println!("{:?}", sentence);
-    };
+    }
 
     Ok(())
 }

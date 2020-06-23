@@ -18,18 +18,27 @@
 //! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
-//!# fn main() -> failure::Fallible<()> {
-//!#
+//! # fn main() -> failure::Fallible<()> {
+//! #
 //! use rust_tokenizers::BertTokenizer;
 //! use tch::{nn, Device};
-//!# use std::path::PathBuf;
+//! # use std::path::PathBuf;
+//! use rust_bert::distilbert::{
+//!     DistilBertConfig, DistilBertConfigResources, DistilBertModelMaskedLM,
+//!     DistilBertModelResources, DistilBertVocabResources,
+//! };
+//! use rust_bert::resources::{download_resource, LocalResource, RemoteResource, Resource};
 //! use rust_bert::Config;
-//! use rust_bert::distilbert::{DistilBertModelMaskedLM, DistilBertConfig, DistilBertConfigResources, DistilBertVocabResources, DistilBertModelResources};
-//! use rust_bert::resources::{Resource, download_resource, RemoteResource, LocalResource};
 //!
-//! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
-//! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
-//! let weights_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot")});
+//! let config_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/config.json"),
+//! });
+//! let vocab_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//! });
+//! let weights_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/model.ot"),
+//! });
 //! let config_path = download_resource(&config_resource)?;
 //! let vocab_path = download_resource(&vocab_resource)?;
 //! let weights_path = download_resource(&weights_resource)?;
@@ -40,17 +49,17 @@
 //! let bert_model = DistilBertModelMaskedLM::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
 
-
-
+mod attention;
 mod distilbert;
 mod embeddings;
-mod attention;
 mod transformer;
 
-pub use distilbert::{DistilBertModelResources, DistilBertConfigResources, DistilBertVocabResources,
-                     DistilBertConfig, Activation, DistilBertModel, DistilBertForQuestionAnswering, DistilBertForTokenClassification,
-                     DistilBertModelMaskedLM, DistilBertModelClassifier};
+pub use distilbert::{
+    Activation, DistilBertConfig, DistilBertConfigResources, DistilBertForQuestionAnswering,
+    DistilBertForTokenClassification, DistilBertModel, DistilBertModelClassifier,
+    DistilBertModelMaskedLM, DistilBertModelResources, DistilBertVocabResources,
+};

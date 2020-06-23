@@ -12,13 +12,13 @@
 
 extern crate tch;
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use crate::distilbert::embeddings::DistilBertEmbedding;
-use crate::distilbert::transformer::Transformer;
 use self::tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
+use crate::distilbert::embeddings::DistilBertEmbedding;
+use crate::distilbert::transformer::Transformer;
 use crate::Config;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// # DistilBERT Pretrained model weight files
 pub struct DistilBertModelResources;
@@ -31,29 +31,56 @@ pub struct DistilBertVocabResources;
 
 impl DistilBertModelResources {
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/model.ot", "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot");
+    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = (
+        "distilbert-sst2/model.ot",
+        "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_BERT: (&'static str, &'static str) = ("distilbert/model.ot", "https://cdn.huggingface.co/distilbert-base-uncased-rust_model.ot");
+    pub const DISTIL_BERT: (&'static str, &'static str) = (
+        "distilbert/model.ot",
+        "https://cdn.huggingface.co/distilbert-base-uncased-rust_model.ot",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = ("distilbert-qa/model.ot", "https://cdn.huggingface.co/distilbert-base-cased-distilled-squad-rust_model.ot");
+    pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
+        "distilbert-qa/model.ot",
+        "https://cdn.huggingface.co/distilbert-base-cased-distilled-squad-rust_model.ot",
+    );
 }
 
 impl DistilBertConfigResources {
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/config.json", "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-config.json");
+    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = (
+        "distilbert-sst2/config.json",
+        "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-config.json",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_BERT: (&'static str, &'static str) = ("distilbert/config.json", "https://cdn.huggingface.co/distilbert-base-uncased-config.json");
+    pub const DISTIL_BERT: (&'static str, &'static str) = (
+        "distilbert/config.json",
+        "https://cdn.huggingface.co/distilbert-base-uncased-config.json",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = ("distilbert-qa/config.json", "https://cdn.huggingface.co/distilbert-base-cased-distilled-squad-config.json");
+    pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
+        "distilbert-qa/config.json",
+        "https://cdn.huggingface.co/distilbert-base-cased-distilled-squad-config.json",
+    );
 }
 
 impl DistilBertVocabResources {
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = ("distilbert-sst2/vocab.txt", "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-vocab.txt");
+    pub const DISTIL_BERT_SST2: (&'static str, &'static str) = (
+        "distilbert-sst2/vocab.txt",
+        "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-vocab.txt",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_BERT: (&'static str, &'static str) = ("distilbert/vocab.txt", "https://cdn.huggingface.co/bert-base-uncased-vocab.txt");
+    pub const DISTIL_BERT: (&'static str, &'static str) = (
+        "distilbert/vocab.txt",
+        "https://cdn.huggingface.co/bert-base-uncased-vocab.txt",
+    );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
-    pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = ("distilbert-qa/vocab.txt", "https://cdn.huggingface.co/bert-large-cased-vocab.txt");
+    pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
+        "distilbert-qa/vocab.txt",
+        "https://cdn.huggingface.co/bert-large-cased-vocab.txt",
+    );
 }
 
 #[allow(non_camel_case_types)]
@@ -118,10 +145,10 @@ impl DistilBertModel {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertModel};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -129,12 +156,14 @@ impl DistilBertModel {
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert: DistilBertModel = DistilBertModel::new(&(&p.root() / "distilbert"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModel {
         let p = &(p / "distilbert");
         let embeddings = DistilBertEmbedding::new(&(p / "embeddings"), config);
         let transformer = Transformer::new(&(p / "transformer"), config);
-        DistilBertModel { embeddings, transformer }
+        DistilBertModel {
+            embeddings,
+            transformer,
+        }
     }
 
     /// Forward pass through the model
@@ -155,44 +184,48 @@ impl DistilBertModel {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::distilbert::{DistilBertConfig, DistilBertModel};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = DistilBertConfig::from_file(config_path);
-    ///# let distilbert_model: DistilBertModel = DistilBertModel::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = DistilBertConfig::from_file(config_path);
+    /// # let distilbert_model: DistilBertModel = DistilBertModel::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    distilbert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    None,
-    ///                    false).unwrap()
-    ///    });
-    ///
+    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     distilbert_model
+    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .unwrap()
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self, input: Option<Tensor>, mask: Option<Tensor>, input_embeds: Option<Tensor>, train: bool)
-                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    pub fn forward_t(
+        &self,
+        input: Option<Tensor>,
+        mask: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
         let input_embeddings = match input {
             Some(input_value) => match input_embeds {
-                Some(_) => { return Err("Only one of input ids or input embeddings may be set"); }
-                None => input_value.apply_t(&self.embeddings, train)
-            }
+                Some(_) => {
+                    return Err("Only one of input ids or input embeddings may be set");
+                }
+                None => input_value.apply_t(&self.embeddings, train),
+            },
             None => match input_embeds {
                 Some(embeds) => embeds,
-                None => { return Err("At least one of input ids or input embeddings must be set"); }
-            }
+                None => {
+                    return Err("At least one of input ids or input embeddings must be set");
+                }
+            },
         };
-
 
         let transformer_output = (&self.transformer).forward_t(&input_embeddings, mask, train);
         Ok(transformer_output)
@@ -223,28 +256,47 @@ impl DistilBertModelClassifier {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertModelClassifier};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertModelClassifier};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert: DistilBertModelClassifier = DistilBertModelClassifier::new(&(&p.root() / "distilbert"), &config);
+    /// let distil_bert: DistilBertModelClassifier =
+    ///     DistilBertModelClassifier::new(&(&p.root() / "distilbert"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModelClassifier {
         let distil_bert_model = DistilBertModel::new(&p, config);
 
-        let num_labels = config.id2label.as_ref().expect("id2label must be provided for classifiers").len() as i64;
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("id2label must be provided for classifiers")
+            .len() as i64;
 
-        let pre_classifier = nn::linear(&(p / "pre_classifier"), config.dim, config.dim, Default::default());
-        let classifier = nn::linear(&(p / "classifier"), config.dim, num_labels, Default::default());
+        let pre_classifier = nn::linear(
+            &(p / "pre_classifier"),
+            config.dim,
+            config.dim,
+            Default::default(),
+        );
+        let classifier = nn::linear(
+            &(p / "classifier"),
+            config.dim,
+            num_labels,
+            Default::default(),
+        );
         let dropout = Dropout::new(config.seq_classif_dropout);
 
-        DistilBertModelClassifier { distil_bert_model, pre_classifier, classifier, dropout }
+        DistilBertModelClassifier {
+            distil_bert_model,
+            pre_classifier,
+            classifier,
+            dropout,
+        }
     }
 
     /// Forward pass through the model
@@ -265,17 +317,17 @@ impl DistilBertModelClassifier {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::distilbert::{DistilBertConfig, DistilBertModelClassifier};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = DistilBertConfig::from_file(config_path);
-    ///# let distilbert_model: DistilBertModelClassifier = DistilBertModelClassifier::new(&vs.root(), &config);
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = DistilBertConfig::from_file(config_path);
+    /// # let distilbert_model: DistilBertModelClassifier = DistilBertModelClassifier::new(&vs.root(), &config);
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -287,15 +339,22 @@ impl DistilBertModelClassifier {
     ///                    None,
     ///                    false).unwrap()
     ///    });
-    ///
     /// ```
-    ///
-    pub fn forward_t(&self, input: Option<Tensor>, mask: Option<Tensor>, input_embeds: Option<Tensor>, train: bool)
-                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) = match self.distil_bert_model.forward_t(input, mask, input_embeds, train) {
-            Ok(value) => value,
-            Err(err) => return Err(err)
-        };
+    pub fn forward_t(
+        &self,
+        input: Option<Tensor>,
+        mask: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (output, all_hidden_states, all_attentions) =
+            match self
+                .distil_bert_model
+                .forward_t(input, mask, input_embeds, train)
+            {
+                Ok(value) => value,
+                Err(err) => return Err(err),
+            };
 
         let output = output
             .select(1, 0)
@@ -322,7 +381,6 @@ pub struct DistilBertModelMaskedLM {
     vocab_projector: nn::Linear,
 }
 
-
 impl DistilBertModelMaskedLM {
     /// Build a new `DistilBertModelMaskedLM` for sequence classification
     ///
@@ -334,10 +392,10 @@ impl DistilBertModelMaskedLM {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -345,15 +403,33 @@ impl DistilBertModelMaskedLM {
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert = DistilBertModelMaskedLM::new(&(&p.root() / "distilbert"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModelMaskedLM {
         let distil_bert_model = DistilBertModel::new(&p, config);
-        let vocab_transform = nn::linear(&(p / "vocab_transform"), config.dim, config.dim, Default::default());
-        let layer_norm_config = nn::LayerNormConfig { eps: 1e-12, ..Default::default() };
-        let vocab_layer_norm = nn::layer_norm(p / "vocab_layer_norm", vec![config.dim], layer_norm_config);
-        let vocab_projector = nn::linear(&(p / "vocab_projector"), config.dim, config.vocab_size, Default::default());
+        let vocab_transform = nn::linear(
+            &(p / "vocab_transform"),
+            config.dim,
+            config.dim,
+            Default::default(),
+        );
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: 1e-12,
+            ..Default::default()
+        };
+        let vocab_layer_norm =
+            nn::layer_norm(p / "vocab_layer_norm", vec![config.dim], layer_norm_config);
+        let vocab_projector = nn::linear(
+            &(p / "vocab_projector"),
+            config.dim,
+            config.vocab_size,
+            Default::default(),
+        );
 
-        DistilBertModelMaskedLM { distil_bert_model, vocab_transform, vocab_layer_norm, vocab_projector }
+        DistilBertModelMaskedLM {
+            distil_bert_model,
+            vocab_transform,
+            vocab_layer_norm,
+            vocab_projector,
+        }
     }
 
     /// Forward pass through the model
@@ -374,37 +450,42 @@ impl DistilBertModelMaskedLM {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::distilbert::{DistilBertConfig, DistilBertModelMaskedLM};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = DistilBertConfig::from_file(config_path);
-    ///# let distilbert_model = DistilBertModelMaskedLM::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = DistilBertConfig::from_file(config_path);
+    /// # let distilbert_model = DistilBertModelMaskedLM::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    distilbert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    None,
-    ///                    false).unwrap()
-    ///    });
-    ///
+    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     distilbert_model
+    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .unwrap()
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self, input: Option<Tensor>, mask: Option<Tensor>, input_embeds: Option<Tensor>, train: bool)
-                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) = match self.distil_bert_model.forward_t(input, mask, input_embeds, train) {
-            Ok(value) => value,
-            Err(err) => return Err(err)
-        };
+    pub fn forward_t(
+        &self,
+        input: Option<Tensor>,
+        mask: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (output, all_hidden_states, all_attentions) =
+            match self
+                .distil_bert_model
+                .forward_t(input, mask, input_embeds, train)
+            {
+                Ok(value) => value,
+                Err(err) => return Err(err),
+            };
 
         let output = output
             .apply(&self.vocab_transform)
@@ -440,10 +521,10 @@ impl DistilBertForQuestionAnswering {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertForQuestionAnswering};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertForQuestionAnswering};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -451,13 +532,16 @@ impl DistilBertForQuestionAnswering {
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert = DistilBertForQuestionAnswering::new(&(&p.root() / "distilbert"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForQuestionAnswering {
         let distil_bert_model = DistilBertModel::new(&p, config);
         let qa_outputs = nn::linear(&(p / "qa_outputs"), config.dim, 2, Default::default());
         let dropout = Dropout::new(config.qa_dropout);
 
-        DistilBertForQuestionAnswering { distil_bert_model, qa_outputs, dropout }
+        DistilBertForQuestionAnswering {
+            distil_bert_model,
+            qa_outputs,
+            dropout,
+        }
     }
 
     /// Forward pass through the model
@@ -479,51 +563,49 @@ impl DistilBertForQuestionAnswering {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::distilbert::{DistilBertConfig, DistilBertForQuestionAnswering};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = DistilBertConfig::from_file(config_path);
-    ///# let distilbert_model = DistilBertForQuestionAnswering::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = DistilBertConfig::from_file(config_path);
+    /// # let distilbert_model = DistilBertForQuestionAnswering::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (start_scores, end_score, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    distilbert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    None,
-    ///                    false).unwrap()
-    ///    });
-    ///
+    /// let (start_scores, end_score, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     distilbert_model
+    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .unwrap()
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self,
-                     input: Option<Tensor>,
-                     mask: Option<Tensor>,
-                     input_embeds: Option<Tensor>,
-                     train: bool)
-                     -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) = match self.distil_bert_model.forward_t(input, mask, input_embeds, train) {
-            Ok(value) => value,
-            Err(err) => return Err(err)
-        };
+    pub fn forward_t(
+        &self,
+        input: Option<Tensor>,
+        mask: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (output, all_hidden_states, all_attentions) =
+            match self
+                .distil_bert_model
+                .forward_t(input, mask, input_embeds, train)
+            {
+                Ok(value) => value,
+                Err(err) => return Err(err),
+            };
 
-        let output = output
-            .apply_t(&self.dropout, train)
-            .apply(&self.qa_outputs);
+        let output = output.apply_t(&self.dropout, train).apply(&self.qa_outputs);
 
         let logits = output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
         let start_logits = start_logits.squeeze1(-1);
         let end_logits = end_logits.squeeze1(-1);
-
 
         Ok((start_logits, end_logits, all_hidden_states, all_attentions))
     }
@@ -552,10 +634,10 @@ impl DistilBertForTokenClassification {
     /// # Example
     ///
     /// ```no_run
-    /// use tch::{nn, Device};
+    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertForTokenClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
-    /// use rust_bert::distilbert::{DistilBertConfig, DistilBertForTokenClassification};
+    /// use tch::{nn, Device};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -563,16 +645,28 @@ impl DistilBertForTokenClassification {
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert = DistilBertForTokenClassification::new(&(&p.root() / "distilbert"), &config);
     /// ```
-    ///
     pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForTokenClassification {
         let distil_bert_model = DistilBertModel::new(&p, config);
 
-        let num_labels = config.id2label.as_ref().expect("id2label must be provided for classifiers").len() as i64;
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("id2label must be provided for classifiers")
+            .len() as i64;
 
-        let classifier = nn::linear(&(p / "classifier"), config.dim, num_labels, Default::default());
+        let classifier = nn::linear(
+            &(p / "classifier"),
+            config.dim,
+            num_labels,
+            Default::default(),
+        );
         let dropout = Dropout::new(config.seq_classif_dropout);
 
-        DistilBertForTokenClassification { distil_bert_model, classifier, dropout }
+        DistilBertForTokenClassification {
+            distil_bert_model,
+            classifier,
+            dropout,
+        }
     }
 
     /// Forward pass through the model
@@ -593,41 +687,44 @@ impl DistilBertForTokenClassification {
     /// # Example
     ///
     /// ```no_run
-    ///# use tch::{nn, Device, Tensor, no_grad};
-    ///# use rust_bert::Config;
-    ///# use std::path::Path;
-    ///# use tch::kind::Kind::Int64;
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
     /// use rust_bert::distilbert::{DistilBertConfig, DistilBertForTokenClassification};
-    ///# let config_path = Path::new("path/to/config.json");
-    ///# let vocab_path = Path::new("path/to/vocab.txt");
-    ///# let device = Device::Cpu;
-    ///# let vs = nn::VarStore::new(device);
-    ///# let config = DistilBertConfig::from_file(config_path);
-    ///# let distilbert_model = DistilBertForTokenClassification::new(&vs.root(), &config);
-    ///  let (batch_size, sequence_length) = (64, 128);
-    ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = DistilBertConfig::from_file(config_path);
+    /// # let distilbert_model = DistilBertForTokenClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
-    ///    distilbert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    None,
-    ///                    false).unwrap()
-    ///    });
-    ///
+    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///     distilbert_model
+    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .unwrap()
+    /// });
     /// ```
-    ///
-    pub fn forward_t(&self, input: Option<Tensor>, mask: Option<Tensor>, input_embeds: Option<Tensor>, train: bool)
-                     -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) = match self.distil_bert_model.forward_t(input, mask, input_embeds, train) {
-            Ok(value) => value,
-            Err(err) => return Err(err)
-        };
+    pub fn forward_t(
+        &self,
+        input: Option<Tensor>,
+        mask: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+        let (output, all_hidden_states, all_attentions) =
+            match self
+                .distil_bert_model
+                .forward_t(input, mask, input_embeds, train)
+            {
+                Ok(value) => value,
+                Err(err) => return Err(err),
+            };
 
-        let output = output
-            .apply_t(&self.dropout, train)
-            .apply(&self.classifier);
+        let output = output.apply_t(&self.dropout, train).apply(&self.classifier);
 
         Ok((output, all_hidden_states, all_attentions))
     }

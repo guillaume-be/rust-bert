@@ -20,37 +20,46 @@
 //! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
-//!# fn main() -> failure::Fallible<()> {
-//!#
+//! # fn main() -> failure::Fallible<()> {
+//! #
 //! use rust_tokenizers::AlbertTokenizer;
 //! use tch::{nn, Device};
-//!# use std::path::PathBuf;
-//! use rust_bert::albert::{AlbertForMaskedLM, AlbertConfig};
+//! # use std::path::PathBuf;
+//! use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM};
+//! use rust_bert::resources::{download_resource, LocalResource, Resource};
 //! use rust_bert::Config;
-//! use rust_bert::resources::{Resource, download_resource, LocalResource};
 //!
-//! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
-//! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
-//! let weights_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot")});
+//! let config_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/config.json"),
+//! });
+//! let vocab_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//! });
+//! let weights_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/model.ot"),
+//! });
 //! let config_path = download_resource(&config_resource)?;
 //! let vocab_path = download_resource(&vocab_resource)?;
 //! let weights_path = download_resource(&weights_resource)?;
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: AlbertTokenizer = AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true);
+//! let tokenizer: AlbertTokenizer =
+//!     AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true);
 //! let config = AlbertConfig::from_file(config_path);
 //! let bert_model = AlbertForMaskedLM::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
 
-
-
-mod encoder;
+mod albert;
 mod attention;
 mod embeddings;
-mod albert;
+mod encoder;
 
-pub use albert::{AlbertConfig, AlbertModelResources, AlbertConfigResources, AlbertVocabResources, AlbertModel, AlbertForMaskedLM, AlbertForSequenceClassification, AlbertForTokenClassification, AlbertForQuestionAnswering, AlbertForMultipleChoice};
+pub use albert::{
+    AlbertConfig, AlbertConfigResources, AlbertForMaskedLM, AlbertForMultipleChoice,
+    AlbertForQuestionAnswering, AlbertForSequenceClassification, AlbertForTokenClassification,
+    AlbertModel, AlbertModelResources, AlbertVocabResources,
+};

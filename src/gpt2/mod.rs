@@ -14,19 +14,27 @@
 //! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
-//!# fn main() -> failure::Fallible<()> {
-//!#
+//! # fn main() -> failure::Fallible<()> {
+//! #
 //! use rust_tokenizers::Gpt2Tokenizer;
 //! use tch::{nn, Device};
-//!# use std::path::PathBuf;
+//! # use std::path::PathBuf;
+//! use rust_bert::gpt2::{GPT2LMHeadModel, Gpt2Config};
+//! use rust_bert::resources::{download_resource, LocalResource, Resource};
 //! use rust_bert::Config;
-//! use rust_bert::gpt2::{Gpt2Config, GPT2LMHeadModel};
-//! use rust_bert::resources::{Resource, download_resource, LocalResource};
 //!
-//! let config_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/config.json")});
-//! let vocab_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
-//! let merges_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/vocab.txt")});
-//! let weights_resource = Resource::Local(LocalResource { local_path: PathBuf::from("path/to/model.ot")});
+//! let config_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/config.json"),
+//! });
+//! let vocab_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//! });
+//! let merges_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//! });
+//! let weights_resource = Resource::Local(LocalResource {
+//!     local_path: PathBuf::from("path/to/model.ot"),
+//! });
 //! let config_path = download_resource(&config_resource)?;
 //! let vocab_path = download_resource(&vocab_resource)?;
 //! let merges_path = download_resource(&merges_resource)?;
@@ -34,18 +42,24 @@
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true);
+//! let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(
+//!     vocab_path.to_str().unwrap(),
+//!     merges_path.to_str().unwrap(),
+//!     true,
+//! );
 //! let config = Gpt2Config::from_file(config_path);
 //! let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
 
-mod gpt2;
 pub(crate) mod attention;
+mod gpt2;
 pub(crate) mod transformer;
 
-pub use gpt2::{Gpt2ModelResources, Gpt2ConfigResources, Gpt2VocabResources, Gpt2MergesResources,
-               Gpt2Config, Gpt2Model, GptActivation, GPT2LMHeadModel};
+pub use gpt2::{
+    GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2Model,
+    Gpt2ModelResources, Gpt2VocabResources, GptActivation,
+};

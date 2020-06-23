@@ -19,7 +19,7 @@
 //! ```no_run
 //! use rust_bert::pipelines::sentiment::SentimentModel;
 //!
-//!# fn main() -> failure::Fallible<()> {
+//! # fn main() -> failure::Fallible<()> {
 //! let sentiment_classifier = SentimentModel::new(Default::default())?;
 //! let input = [
 //!     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
@@ -27,29 +27,40 @@
 //!     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
 //! ];
 //! let output = sentiment_classifier.predict(&input);
-//!# Ok(())
-//!# }
+//! # Ok(())
+//! # }
 //! ```
 //! (Example courtesy of [IMDb](http://www.imdb.com))
 //!
 //! Output: \
 //! ```no_run
-//!# use rust_bert::pipelines::sentiment::Sentiment;
-//!# use rust_bert::pipelines::sentiment::SentimentPolarity::{Positive, Negative};
-//!# let output =
+//! # use rust_bert::pipelines::sentiment::Sentiment;
+//! # use rust_bert::pipelines::sentiment::SentimentPolarity::{Positive, Negative};
+//! # let output =
 //! [
-//!    Sentiment { polarity: Positive, score: 0.998 },
-//!    Sentiment { polarity: Negative, score: 0.992 },
-//!    Sentiment { polarity: Positive, score: 0.999 }
+//!     Sentiment {
+//!         polarity: Positive,
+//!         score: 0.998,
+//!     },
+//!     Sentiment {
+//!         polarity: Negative,
+//!         score: 0.992,
+//!     },
+//!     Sentiment {
+//!         polarity: Positive,
+//!         score: 0.999,
+//!     },
 //! ]
-//!# ;
+//! # ;
 //! ```
 
-use std::path::PathBuf;
-use std::fs;
+use crate::pipelines::sequence_classification::{
+    SequenceClassificationConfig, SequenceClassificationModel,
+};
 use serde::Deserialize;
 use std::error::Error;
-use crate::pipelines::sequence_classification::{SequenceClassificationConfig,  SequenceClassificationModel};
+use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug, PartialEq)]
 /// Enum with the possible sentiment polarities. Note that the pre-trained SST2 model does not include neutral sentiment.
@@ -71,7 +82,7 @@ type SentimentConfig = SequenceClassificationConfig;
 
 /// # SentimentClassifier to perform sentiment analysis
 pub struct SentimentModel {
-    sequence_classification_model: SequenceClassificationModel
+    sequence_classification_model: SequenceClassificationModel,
 }
 
 impl SentimentModel {
@@ -84,17 +95,18 @@ impl SentimentModel {
     /// # Example
     ///
     /// ```no_run
-    ///# fn main() -> failure::Fallible<()> {
+    /// # fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::sentiment::SentimentModel;
     ///
-    /// let sentiment_model =  SentimentModel::new(Default::default())?;
-    ///# Ok(())
-    ///# }
+    /// let sentiment_model = SentimentModel::new(Default::default())?;
+    /// # Ok(())
+    /// # }
     /// ```
-    ///
     pub fn new(sentiment_config: SentimentConfig) -> failure::Fallible<SentimentModel> {
         let sequence_classification_model = SequenceClassificationModel::new(sentiment_config)?;
-        Ok(SentimentModel { sequence_classification_model })
+        Ok(SentimentModel {
+            sequence_classification_model,
+        })
     }
 
     /// Extract sentiment form an array of text inputs
@@ -109,7 +121,7 @@ impl SentimentModel {
     /// # Example
     ///
     /// ```no_run
-    ///# fn main() -> failure::Fallible<()> {
+    /// # fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::sentiment::SentimentModel;
     ///
     /// let sentiment_classifier =  SentimentModel::new(Default::default())?;
@@ -121,17 +133,23 @@ impl SentimentModel {
     /// ];
     ///
     /// let output = sentiment_classifier.predict(&input);
-    ///# Ok(())
-    ///# }
+    /// # Ok(())
+    /// # }
     /// ```
-    ///
     pub fn predict(&self, input: &[&str]) -> Vec<Sentiment> {
         let labels = self.sequence_classification_model.predict(input);
         let mut sentiments = Vec::with_capacity(labels.len());
         for label in labels {
-            let polarity = if label.id == 1 { SentimentPolarity::Positive } else { SentimentPolarity::Negative };
-            sentiments.push(Sentiment { polarity, score: label.score })
-        };
+            let polarity = if label.id == 1 {
+                SentimentPolarity::Positive
+            } else {
+                SentimentPolarity::Negative
+            };
+            sentiments.push(Sentiment {
+                polarity,
+                score: label.score,
+            })
+        }
         sentiments
     }
 }
