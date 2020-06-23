@@ -26,7 +26,7 @@
 //!     score: 0.9976,
 //!     start: 13,
 //!     end: 21,
-//!     answer: "Amsterdam", //#### # .to_owned()
+//!     answer: String::from("Amsterdam"),
 //! }]
 //! # ;
 //! ```
