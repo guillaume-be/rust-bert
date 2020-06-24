@@ -61,6 +61,11 @@ impl Gpt2ModelResources {
         "distilgpt2/model.ot",
         "https://cdn.huggingface.co/distilgpt2-rust_model.ot",
     );
+    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
+        "dialogpt-medium/model.ot",
+        "https://cdn.huggingface.co/microsoft/DialoGPT-medium/rust_model.ot",
+    );
 }
 
 impl Gpt2ConfigResources {
@@ -88,6 +93,11 @@ impl Gpt2ConfigResources {
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/config.json",
         "https://cdn.huggingface.co/distilgpt2-config.json",
+    );
+    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
+        "dialogpt-medium/config.json",
+        "https://cdn.huggingface.co/microsoft/DialoGPT-medium/config.json",
     );
 }
 
@@ -117,6 +127,11 @@ impl Gpt2VocabResources {
         "distilgpt2/vocab.txt",
         "https://cdn.huggingface.co/distilgpt2-vocab.json",
     );
+    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
+        "dialogpt-medium/vocab.txt",
+        "https://cdn.huggingface.co/microsoft/DialoGPT-medium/vocab.json",
+    );
 }
 
 impl Gpt2MergesResources {
@@ -144,6 +159,11 @@ impl Gpt2MergesResources {
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/merges.txt",
         "https://cdn.huggingface.co/distilgpt2-merges.txt",
+    );
+    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
+        "dialogpt-medium/merges.txt",
+        "https://cdn.huggingface.co/microsoft/DialoGPT-medium/merges.txt",
     );
 }
 
