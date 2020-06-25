@@ -1071,7 +1071,7 @@ pub enum Cache {
     None,
 }
 
-mod private_generation_utils {
+pub(crate) mod private_generation_utils {
     use super::ordered_float::OrderedFloat;
     use crate::pipelines::generation::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
     use itertools::Itertools;
@@ -1949,24 +1949,12 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
         let config = PrivateLanguageGenerator::get_config(self);
-        let do_sample = config.do_sample;
-        let num_return_sequences = config.num_return_sequences;
-        let num_beams = config.num_beams;
-        let min_length = config.min_length;
         let max_length = config.max_length;
         let encoding_max_len = if self.is_encoder_decoder() {
             1024u64
         } else {
             max_length
         };
-        let early_stopping = config.early_stopping;
-        let temperature = config.temperature;
-        let top_k = config.top_k;
-        let top_p = config.top_p;
-        let repetition_penalty = config.repetition_penalty;
-        let length_penalty = config.length_penalty;
-        let no_repeat_ngram_size = config.no_repeat_ngram_size;
-
         let pad_token_id = match self.get_pad_id() {
             Some(value) => Some(*value),
             None => match &eos_token_ids {
@@ -1984,6 +1972,37 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 None => panic!(
                     "A model with a BOS token must be used to start generation with an empty input"
                 ),
+            },
+        };
+        self.generate_from_ids_and_past(input_ids, attention_mask)
+    }
+
+    fn generate_from_ids_and_past(
+        &self,
+        input_ids: Tensor,
+        attention_mask: Option<Tensor>,
+    ) -> Vec<String> {
+        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
+
+        let config = PrivateLanguageGenerator::get_config(self);
+        let do_sample = config.do_sample;
+        let num_return_sequences = config.num_return_sequences;
+        let num_beams = config.num_beams;
+        let min_length = config.min_length;
+        let max_length = config.max_length;
+        let early_stopping = config.early_stopping;
+        let temperature = config.temperature;
+        let top_k = config.top_k;
+        let top_p = config.top_p;
+        let repetition_penalty = config.repetition_penalty;
+        let length_penalty = config.length_penalty;
+        let no_repeat_ngram_size = config.no_repeat_ngram_size;
+
+        let pad_token_id = match self.get_pad_id() {
+            Some(value) => Some(*value),
+            None => match &eos_token_ids {
+                Some(eos_ids) => Some(eos_ids[0]),
+                None => None,
             },
         };
 
@@ -2056,6 +2075,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             (input_ids, attention_mask)
         };
 
+        input_ids.print();
         let decoded = no_grad(|| {
             if num_beams > 1 {
                 self.generate_beam_search(

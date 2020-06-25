@@ -17,7 +17,7 @@ use rust_bert::pipelines::conversation::ConversationModel;
 fn main() -> failure::Fallible<()> {
     let conversation_model = ConversationModel::new(Default::default())?;
 
-    let input = ["Hello, how are you? <|endoftext|>"];
+    let input = ["Hello, how are you?"];
 
     let output = conversation_model.reply(&input);
 
