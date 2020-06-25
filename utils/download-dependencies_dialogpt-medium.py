@@ -35,7 +35,7 @@ shutil.copy(temp_weights, model_path)
 weights = torch.load(temp_weights, map_location='cpu')
 nps = {}
 for k, v in weights.items():
-    nps['transformer.' + k] = np.ascontiguousarray(v.cpu().numpy()).astype(np.float32)
+    nps[k] = np.ascontiguousarray(v.cpu().numpy()).astype(np.float32)
     if k == 'wte.weight':
         nps['lm_head.weight'] = np.ascontiguousarray(v.cpu().numpy()).astype(np.float32)
 
