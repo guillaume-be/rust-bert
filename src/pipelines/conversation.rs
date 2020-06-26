@@ -187,6 +187,11 @@ impl ConversationModel {
         // ToDo: update base `generate` function to perform some preparation steps and then delegate to the lower level `generate` taking input ids & cache as input
         // ToDo: update return of function to return a Vec<String> and a History
 
+        let prompt_ids = self.encode_input(texts);
+        self.model.generate_from_ids_and_past(prompt_ids, None)
+    }
+
+    fn encode_input(&self, texts: &[&str]) -> Tensor {
         let tokens = self.model.get_tokenizer().tokenize_list(texts.to_vec());
         let max_len = self.model.get_config().max_length;
         let pad_token = match self.model.get_pad_id() {
@@ -251,8 +256,6 @@ impl ConversationModel {
             .map(|tokens| Tensor::of_slice(&tokens).to(self.model.get_var_store().device()))
             .collect::<Vec<Tensor>>();
 
-        let prompt_ids = Tensor::stack(&token_ids, 0);
-
-        self.model.generate_from_ids_and_past(prompt_ids, None)
+        Tensor::stack(&token_ids, 0)
     }
 }
