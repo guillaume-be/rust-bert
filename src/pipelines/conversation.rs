@@ -175,8 +175,9 @@ impl ConversationModel {
     /// let model = ConversationModel::new(Default::default())?;
     ///
     /// let input = ["Hello, how are you?"];
+    /// let history = vec![vec![]];
     ///
-    /// let output = model.generate_responses(&input);
+    /// let output = model.generate_responses(&input, history);
     /// # Ok(())
     /// # }
     /// ```
@@ -185,17 +186,29 @@ impl ConversationModel {
         texts: &[&str],
         history: Vec<Vec<i64>>,
     ) -> (Vec<String>, Vec<Vec<i64>>) {
-        // ToDo: add possibility to pass a History object as an input (or create a History) containing a Cache object
-        // ToDo: move encoding step to this method to handle teh <eos> token addition
-        // ToDo: create a `generate` sub-function that takes input ids & a Option<Cache> as an input
-        // ToDo: update base `generate` function to perform some preparation steps and then delegate to the lower level `generate` taking input ids & cache as input
-        // ToDo: update return of function to return a Vec<String> and a History
-
         let prompt_ids = self.encode_prompts(texts);
         let input_tensor = self.concat_input_history(prompt_ids, history);
         input_tensor.print();
-        let (decoded_response, cache) = self.model.generate_from_ids_and_past(input_tensor, None);
-        (decoded_response, cache)
+        let (decoded_response, mut history) =
+            self.model.generate_from_ids_and_past(input_tensor, None);
+        self.clean_padding_indices(&mut history);
+        (decoded_response, history)
+    }
+
+    fn clean_padding_indices(&self, history: &mut Vec<Vec<i64>>) {
+        // In case inputs are sent as batch, this cleans the padding indices in the history for shorter outputs
+        let pad_token = match self.model.get_pad_id() {
+            Some(value) => *value,
+            None => self.eos_token_id,
+        };
+        for sequence_history in history {
+            let index = sequence_history
+                .iter()
+                .rev()
+                .position(|&r| r != pad_token)
+                .unwrap();
+            sequence_history.drain(sequence_history.len() - index + 1..);
+        }
     }
 
     fn concat_input_history(&self, inputs: Vec<Vec<i64>>, history: Vec<Vec<i64>>) -> Tensor {
