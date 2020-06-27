@@ -12,16 +12,32 @@
 
 extern crate failure;
 
-use rust_bert::pipelines::conversation::ConversationModel;
+use rust_bert::pipelines::conversation::{ConversationConfig, ConversationModel};
 
 fn main() -> failure::Fallible<()> {
-    let conversation_model = ConversationModel::new(Default::default())?;
+    let conversation_config = ConversationConfig {
+        do_sample: false,
+        ..Default::default()
+    };
 
-    let input = ["Hello, how are you?"];
+    let conversation_model = ConversationModel::new(conversation_config)?;
 
-    let output = conversation_model.reply(&input);
+    let input = ["If you had all the money in the world, what would you buy?"];
+    let history = vec![vec![]];
 
-    println!("{:?}", output);
+    let (output, history) = conversation_model.generate_responses(&input, history);
+
+    for output in output {
+        println!("{}", output);
+    }
+
+    let input = ["Where?"];
+
+    let (output, _history) = conversation_model.generate_responses(&input, history);
+
+    for output in output {
+        println!("{}", output);
+    }
 
     Ok(())
 }

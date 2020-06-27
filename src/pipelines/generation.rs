@@ -1974,14 +1974,15 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 ),
             },
         };
-        self.generate_from_ids_and_past(input_ids, attention_mask)
+        let (output, _) = self.generate_from_ids_and_past(input_ids, attention_mask);
+        output
     }
 
     fn generate_from_ids_and_past(
         &self,
         input_ids: Tensor,
         attention_mask: Option<Tensor>,
-    ) -> Vec<String> {
+    ) -> (Vec<String>, Vec<Vec<i64>>) {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
         let config = PrivateLanguageGenerator::get_config(self);
@@ -2074,7 +2075,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             );
             (input_ids, attention_mask)
         };
-
         input_ids.print();
         let decoded = no_grad(|| {
             if num_beams > 1 {
@@ -2122,21 +2122,18 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
 
         let num_sequences = *decoded.size().first().unwrap();
         let mut output = Vec::with_capacity(num_sequences as usize);
+        let mut output_ids = Vec::with_capacity(num_sequences as usize);
         for sequence_index in 0..num_sequences {
-            output.push(
-                self.get_tokenizer().decode(
-                    decoded
-                        .as_ref()
-                        .get(sequence_index)
-                        .iter::<i64>()
-                        .unwrap()
-                        .collect::<Vec<i64>>(),
-                    true,
-                    true,
-                ),
-            );
+            let sequence_output_ids = decoded
+                .as_ref()
+                .get(sequence_index)
+                .iter::<i64>()
+                .unwrap()
+                .collect::<Vec<i64>>();
+            output_ids.push(sequence_output_ids.clone());
+            output.push(self.get_tokenizer().decode(sequence_output_ids, true, true));
         }
-        output
+        (output, output_ids)
     }
 }
 

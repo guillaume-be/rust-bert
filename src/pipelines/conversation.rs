@@ -98,7 +98,7 @@ impl Default for ConversationConfig {
             top_p: 0.9,
             repetition_penalty: 1.0,
             length_penalty: 1.0,
-            no_repeat_ngram_size: 3,
+            no_repeat_ngram_size: 0,
             num_return_sequences: 1,
             device: Device::cuda_if_available(),
         }
@@ -176,42 +176,50 @@ impl ConversationModel {
     ///
     /// let input = ["Hello, how are you?"];
     ///
-    /// let output = model.reply(&input);
+    /// let output = model.generate_responses(&input);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn reply(&self, texts: &[&str]) -> Vec<String> {
+    pub fn generate_responses(
+        &self,
+        texts: &[&str],
+        history: Vec<Vec<i64>>,
+    ) -> (Vec<String>, Vec<Vec<i64>>) {
         // ToDo: add possibility to pass a History object as an input (or create a History) containing a Cache object
         // ToDo: move encoding step to this method to handle teh <eos> token addition
         // ToDo: create a `generate` sub-function that takes input ids & a Option<Cache> as an input
         // ToDo: update base `generate` function to perform some preparation steps and then delegate to the lower level `generate` taking input ids & cache as input
         // ToDo: update return of function to return a Vec<String> and a History
 
-        let prompt_ids = self.encode_input(texts);
-        self.model.generate_from_ids_and_past(prompt_ids, None)
+        let prompt_ids = self.encode_prompts(texts);
+        let input_tensor = self.concat_input_history(prompt_ids, history);
+        input_tensor.print();
+        let (decoded_response, cache) = self.model.generate_from_ids_and_past(input_tensor, None);
+        (decoded_response, cache)
     }
 
-    fn encode_input(&self, texts: &[&str]) -> Tensor {
-        let tokens = self.model.get_tokenizer().tokenize_list(texts.to_vec());
+    fn concat_input_history(&self, inputs: Vec<Vec<i64>>, history: Vec<Vec<i64>>) -> Tensor {
         let max_len = self.model.get_config().max_length;
         let pad_token = match self.model.get_pad_id() {
             Some(value) => *value,
             None => self.eos_token_id,
         };
-        let token_ids = tokens
-            .into_iter()
-            .map(|prompt_tokens| {
-                self.model
-                    .get_tokenizer()
-                    .convert_tokens_to_ids(&prompt_tokens)
-            })
-            .map(|mut tokens| {
-                tokens.push(self.eos_token_id);
-                tokens
-            })
-            .collect::<Vec<Vec<i64>>>();
 
-        let num_truncated_tokens = token_ids
+        assert_eq!(
+            inputs.len(),
+            history.len(),
+            "Length of inputs shoudl equal length of history"
+        );
+
+        let mut concatenated_inputs = Vec::with_capacity(inputs.len());
+        for (input, history) in inputs.iter().zip(history.iter()) {
+            let mut concatenated_element = Vec::with_capacity(input.len() + history.len());
+            concatenated_element.extend_from_slice(history);
+            concatenated_element.extend_from_slice(input);
+            concatenated_inputs.push(concatenated_element);
+        }
+
+        let num_truncated_tokens = concatenated_inputs
             .iter()
             .map(|token_ids| {
                 if token_ids.len() > max_len as usize {
@@ -222,7 +230,7 @@ impl ConversationModel {
             })
             .collect::<Vec<usize>>();
 
-        let token_ids = token_ids
+        let concatenated_inputs = concatenated_inputs
             .into_iter()
             .zip(num_truncated_tokens)
             .map(|(tokens, num_truncated_tokens)| {
@@ -244,9 +252,13 @@ impl ConversationModel {
             })
             .collect::<Vec<Vec<i64>>>();
 
-        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+        let max_len = concatenated_inputs
+            .iter()
+            .map(|input| input.len())
+            .max()
+            .unwrap();
 
-        let token_ids = token_ids
+        let concatenated_inputs = concatenated_inputs
             .into_iter()
             .map(|input| {
                 let mut temp = vec![pad_token; max_len - input.len()];
@@ -256,6 +268,23 @@ impl ConversationModel {
             .map(|tokens| Tensor::of_slice(&tokens).to(self.model.get_var_store().device()))
             .collect::<Vec<Tensor>>();
 
-        Tensor::stack(&token_ids, 0)
+        Tensor::stack(&concatenated_inputs, 0)
+    }
+
+    fn encode_prompts(&self, texts: &[&str]) -> Vec<Vec<i64>> {
+        let tokens = self.model.get_tokenizer().tokenize_list(texts.to_vec());
+
+        tokens
+            .into_iter()
+            .map(|prompt_tokens| {
+                self.model
+                    .get_tokenizer()
+                    .convert_tokens_to_ids(&prompt_tokens)
+            })
+            .map(|mut tokens| {
+                tokens.push(self.eos_token_id);
+                tokens
+            })
+            .collect::<Vec<Vec<i64>>>()
     }
 }
