@@ -23,22 +23,21 @@ fn main() -> failure::Fallible<()> {
     };
 
     let conversation_model = ConversationModel::new(conversation_config)?;
+    let mut conversation_manager = ConversationManager::new();
 
     let conversation = Conversation::new(String::from(
         "If you had all the money in the world, what would you buy?",
     ));
-
-    let mut conversation_manager = ConversationManager {
-        conversations: vec![conversation],
-    };
+    let conversation_uuid = conversation_manager.add(conversation);
 
     let output = conversation_model.generate_responses(&mut conversation_manager);
 
     println!("{:?}", output);
 
-    conversation_manager.conversations[0]
-        .user_inputs
-        .push(String::from("Where?"));
+    let _ = conversation_manager
+        .get(&conversation_uuid)
+        .unwrap()
+        .add_user_input(String::from("Where?"));
 
     let output = conversation_model.generate_responses(&mut conversation_manager);
 
