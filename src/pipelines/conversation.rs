@@ -280,43 +280,45 @@ impl ConversationModel {
         conversation_manager: &'a mut ConversationManager,
     ) -> HashMap<&'a Uuid, &'a str> {
         let (active_uuid, active_conversations) = conversation_manager.get_active_conversations();
+        if !active_uuid.is_empty() {
+            let texts = active_conversations
+                .iter()
+                .map(|c| c.new_user_input.as_ref().unwrap().as_str())
+                .collect_vec();
 
-        let texts = active_conversations
-            .iter()
-            .map(|c| c.new_user_input.as_ref().unwrap().as_str())
-            .collect_vec();
+            let history = active_conversations
+                .iter()
+                .map(|c| &c.history)
+                .collect_vec();
 
-        let history = active_conversations
-            .iter()
-            .map(|c| &c.history)
-            .collect_vec();
+            let prompt_ids = self.encode_prompts(texts.as_slice());
+            let input_tensor = self.concat_input_history(prompt_ids, history);
+            let input_length = *input_tensor.size().last().unwrap() as usize;
+            let mut generated = self.model.generate_from_ids_and_past(input_tensor, None);
+            self.clean_padding_indices(&mut generated);
 
-        let prompt_ids = self.encode_prompts(texts.as_slice());
-        let input_tensor = self.concat_input_history(prompt_ids, history);
-        let input_length = *input_tensor.size().last().unwrap() as usize;
+            let mut output = HashMap::with_capacity(active_uuid.len());
 
-        let mut generated = self.model.generate_from_ids_and_past(input_tensor, None);
-        self.clean_padding_indices(&mut generated);
-
-        let mut output = HashMap::with_capacity(active_uuid.len());
-
-        for ((conversation, generated_sequence), uuid) in active_conversations
-            .into_iter()
-            .zip(generated.into_iter())
-            .zip(active_uuid.into_iter())
-        {
-            conversation
-                .generated_responses
-                .push(self.model.get_tokenizer().decode(
-                    generated_sequence[input_length..].to_vec(),
-                    true,
-                    true,
-                ));
-            conversation.history = generated_sequence;
-            conversation.mark_processed();
-            output.insert(uuid, conversation.get_last_response().unwrap());
+            for ((conversation, generated_sequence), uuid) in active_conversations
+                .into_iter()
+                .zip(generated.into_iter())
+                .zip(active_uuid.into_iter())
+            {
+                conversation
+                    .generated_responses
+                    .push(self.model.get_tokenizer().decode(
+                        generated_sequence[input_length..].to_vec(),
+                        true,
+                        true,
+                    ));
+                conversation.history = generated_sequence;
+                conversation.mark_processed();
+                output.insert(uuid, conversation.get_last_response().unwrap());
+            }
+            output
+        } else {
+            HashMap::new()
         }
-        output
     }
 
     fn clean_padding_indices(&self, model_output: &mut Vec<Vec<i64>>) {

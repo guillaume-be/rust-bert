@@ -1485,7 +1485,12 @@ pub(crate) mod private_generation_utils {
                                     i64::from(sentence_lengths.get(hypothesis_index)),
                                     (Int64, input_ids.device()),
                                 ),
-                                &input_ids.get(hypothesis_index),
+                                &input_ids.get(hypothesis_index).slice(
+                                    0,
+                                    0,
+                                    i64::from(sentence_lengths.get(hypothesis_index)),
+                                    1,
+                                ),
                             );
                         }
                         decoded

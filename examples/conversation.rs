@@ -28,7 +28,9 @@ fn main() -> failure::Fallible<()> {
     let conversation = Conversation::new(String::from(
         "If you had all the money in the world, what would you buy?",
     ));
+    let conversation_2 = Conversation::new(String::from("Hello, how are you doing?"));
     let conversation_uuid = conversation_manager.add(conversation);
+    let _conversation_uuid2 = conversation_manager.add(conversation_2);
 
     let output = conversation_model.generate_responses(&mut conversation_manager);
 
@@ -38,6 +40,10 @@ fn main() -> failure::Fallible<()> {
         .get(&conversation_uuid)
         .unwrap()
         .add_user_input(String::from("Where?"));
+
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+
+    println!("{:?}", output);
 
     let output = conversation_model.generate_responses(&mut conversation_manager);
 
