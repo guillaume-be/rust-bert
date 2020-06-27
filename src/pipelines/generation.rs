@@ -1974,7 +1974,11 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 ),
             },
         };
-        let (output, _) = self.generate_from_ids_and_past(input_ids, attention_mask);
+        let generated = self.generate_from_ids_and_past(input_ids, attention_mask);
+        let mut output = Vec::with_capacity(generated.len());
+        for generated_sequence in generated {
+            output.push(self.get_tokenizer().decode(generated_sequence, true, true));
+        }
         output
     }
 
@@ -1982,7 +1986,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         &self,
         input_ids: Tensor,
         attention_mask: Option<Tensor>,
-    ) -> (Vec<String>, Vec<Vec<i64>>) {
+    ) -> Vec<Vec<i64>> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
         let config = PrivateLanguageGenerator::get_config(self);
@@ -2075,7 +2079,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             );
             (input_ids, attention_mask)
         };
-        input_ids.print();
         let decoded = no_grad(|| {
             if num_beams > 1 {
                 self.generate_beam_search(
@@ -2119,9 +2122,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 )
             }
         });
-
         let num_sequences = *decoded.size().first().unwrap();
-        let mut output = Vec::with_capacity(num_sequences as usize);
         let mut output_ids = Vec::with_capacity(num_sequences as usize);
         for sequence_index in 0..num_sequences {
             let sequence_output_ids = decoded
@@ -2131,9 +2132,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 .unwrap()
                 .collect::<Vec<i64>>();
             output_ids.push(sequence_output_ids.clone());
-            output.push(self.get_tokenizer().decode(sequence_output_ids, true, true));
         }
-        (output, output_ids)
+        output_ids
     }
 }
 

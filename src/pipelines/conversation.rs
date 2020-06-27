@@ -29,6 +29,7 @@ use crate::gpt2::{
 };
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
+use itertools::Itertools;
 use rust_tokenizers::preprocessing::tokenizer::tokenization_utils::truncate_sequences;
 use rust_tokenizers::{Tokenizer, TruncationStrategy};
 use tch::{Device, Tensor};
@@ -102,6 +103,48 @@ impl Default for ConversationConfig {
             num_return_sequences: 1,
             device: Device::cuda_if_available(),
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Conversation {
+    pub user_inputs: Vec<String>,
+    pub generated_responses: Vec<String>,
+    pub history: Vec<i64>,
+}
+
+impl Conversation {
+    pub fn new(text: String) -> Conversation {
+        Conversation {
+            user_inputs: vec![text],
+            generated_responses: vec![],
+            history: vec![],
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ConversationManager {
+    pub conversations: Vec<Conversation>,
+}
+
+impl ConversationManager {
+    pub fn get_last_user_input(&self) -> Vec<&str> {
+        self.conversations
+            .iter()
+            .map(|c| c.user_inputs.last().unwrap().as_str())
+            .collect_vec()
+    }
+
+    pub fn get_last_generated_responses(&self) -> Vec<&str> {
+        self.conversations
+            .iter()
+            .map(|c| c.generated_responses.last().unwrap().as_str())
+            .collect_vec()
+    }
+
+    pub fn get_last_history(&self) -> Vec<&Vec<i64>> {
+        self.conversations.iter().map(|c| &c.history).collect_vec()
     }
 }
 
@@ -181,18 +224,30 @@ impl ConversationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn generate_responses(
+    pub fn generate_responses<'a>(
         &self,
-        texts: &[&str],
-        history: Vec<Vec<i64>>,
-    ) -> (Vec<String>, Vec<Vec<i64>>) {
-        let prompt_ids = self.encode_prompts(texts);
+        conversation_manager: &'a mut ConversationManager,
+    ) -> Vec<&'a str> {
+        let texts = conversation_manager.get_last_user_input();
+        let history = conversation_manager.get_last_history();
+
+        let prompt_ids = self.encode_prompts(texts.as_slice());
         let input_tensor = self.concat_input_history(prompt_ids, history);
-        input_tensor.print();
-        let (decoded_response, mut history) =
-            self.model.generate_from_ids_and_past(input_tensor, None);
-        self.clean_padding_indices(&mut history);
-        (decoded_response, history)
+        let input_length = *input_tensor.size().last().unwrap() as usize;
+
+        let mut generated = self.model.generate_from_ids_and_past(input_tensor, None);
+        self.clean_padding_indices(&mut generated);
+        for (conversation_index, generated_sequence) in generated.into_iter().enumerate() {
+            conversation_manager.conversations[conversation_index]
+                .generated_responses
+                .push(self.model.get_tokenizer().decode(
+                    generated_sequence[input_length..].to_vec(),
+                    true,
+                    true,
+                ));
+            conversation_manager.conversations[conversation_index].history = generated_sequence;
+        }
+        conversation_manager.get_last_generated_responses()
     }
 
     fn clean_padding_indices(&self, history: &mut Vec<Vec<i64>>) {
@@ -211,7 +266,7 @@ impl ConversationModel {
         }
     }
 
-    fn concat_input_history(&self, inputs: Vec<Vec<i64>>, history: Vec<Vec<i64>>) -> Tensor {
+    fn concat_input_history(&self, inputs: Vec<Vec<i64>>, history: Vec<&Vec<i64>>) -> Tensor {
         let max_len = self.model.get_config().max_length;
         let pad_token = match self.model.get_pad_id() {
             Some(value) => *value,
