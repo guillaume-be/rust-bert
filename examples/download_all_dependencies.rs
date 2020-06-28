@@ -276,6 +276,27 @@ fn download_albert_base_v2() -> failure::Fallible<()> {
     Ok(())
 }
 
+fn _download_dialogpt() -> failure::Fallible<()> {
+    // Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        Gpt2ConfigResources::DIALOGPT_MEDIUM,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        Gpt2VocabResources::DIALOGPT_MEDIUM,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        Gpt2MergesResources::DIALOGPT_MEDIUM,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        Gpt2ModelResources::DIALOGPT_MEDIUM,
+    ));
+    let _ = download_resource(&config_resource)?;
+    let _ = download_resource(&vocab_resource)?;
+    let _ = download_resource(&merges_resource)?;
+    let _ = download_resource(&weights_resource)?;
+    Ok(())
+}
+
 fn main() -> failure::Fallible<()> {
     let _ = download_distil_gpt2();
     let _ = download_distilbert_sst2();
