@@ -276,7 +276,7 @@ fn download_albert_base_v2() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_dialogpt() -> failure::Fallible<()> {
+fn _download_dialogpt() -> failure::Fallible<()> {
     // Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         Gpt2ConfigResources::DIALOGPT_MEDIUM,
@@ -312,7 +312,6 @@ fn main() -> failure::Fallible<()> {
     let _ = download_electra_generator();
     let _ = download_electra_discriminator();
     let _ = download_albert_base_v2();
-    let _ = download_dialogpt();
 
     Ok(())
 }

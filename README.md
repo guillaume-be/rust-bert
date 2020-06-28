@@ -25,6 +25,11 @@ Translation | | | | | |✅| |✅ | |
 ## Ready-to-use pipelines
 
 Based on Huggingface's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
+
+**Disclaimer**
+The contributors of this repository are not responsible for any generation from the 3rd party utilization of the pretrained systems proposed herein.
+
+
 #### 1. Question Answering
 Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset)
 
@@ -106,7 +111,30 @@ This is the first such discovery in a planet in its star's habitable zone.
 The planet is not too hot and not too cold for liquid water to exist."
 ```
 
-#### 4. Natural Language Generation
+#### 4. Dialogue Model
+Conversation model based on Microsoft's [DialoGPT](https://github.com/microsoft/DialoGPT).
+This pipeline allows the generation of single or multi-turn conversations between a human and a model.
+The DialoGPT's page states that
+> The human evaluation results indicate that the response generated from DialoGPT is comparable to human response quality
+> under a single-turn conversation Turing test. ([DialoGPT repository](https://github.com/microsoft/DialoGPT))
+
+The model uses a `ConversationManager` to keep track of active conversations and generate responses to them.
+
+```rust
+use rust_bert::pipelines::conversation::{ConversationModel, ConversationManager};
+
+let conversation_model = ConversationModel::new(Default::default());
+let mut conversation_manager = ConversationManager::new();
+
+let conversation_id = conversation_manager.create("Going to the movies tonight - any suggestions?");
+let output = conversation_model.generate_responses(&mut conversation_manager);
+```
+Example output:
+```
+"The Big Lebowski."
+```
+
+#### 5. Natural Language Generation
 Generate language based on a prompt. GPT2 and GPT available as base models.
 Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
@@ -133,7 +161,7 @@ Example output:
 ]
 ```
 
-#### 5. Sentiment analysis
+#### 6. Sentiment analysis
 Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 ```rust
     let sentiment_classifier = SentimentModel::new(Default::default())?;
@@ -157,7 +185,7 @@ Output:
 ]
 ```
 
-#### 6. Named Entity Recognition
+#### 7. Named Entity Recognition
 Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 ```rust
     let ner_model = NERModel::new(default::default())?;

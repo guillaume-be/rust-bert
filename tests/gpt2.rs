@@ -304,10 +304,12 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
 }
 
 #[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn dialogpt_single_multi_turn_conversation() -> failure::Fallible<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
         do_sample: false,
+        device: Device::Cpu,
         ..Default::default()
     };
     let conversation_model = ConversationModel::new(conversation_config)?;
@@ -326,7 +328,7 @@ fn dialogpt_single_multi_turn_conversation() -> failure::Fallible<()> {
     let _ = conversation_manager
         .get(&conversation_id)
         .unwrap()
-        .add_user_input(String::from("Is it an action movie?"));
+        .add_user_input("Is it an action movie?");
     let output = conversation_model.generate_responses(&mut conversation_manager);
     assert_eq!(output.len(), 1);
     assert_eq!(output.get(&conversation_id).unwrap(), &"It\'s a comedy.");
@@ -339,10 +341,12 @@ fn dialogpt_single_multi_turn_conversation() -> failure::Fallible<()> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn dialogpt_multiple_multi_turn_conversation() -> failure::Fallible<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
         do_sample: false,
+        device: Device::Cpu,
         ..Default::default()
     };
     let conversation_model = ConversationModel::new(conversation_config)?;
@@ -366,7 +370,7 @@ fn dialogpt_multiple_multi_turn_conversation() -> failure::Fallible<()> {
     let _ = conversation_manager
         .get(&conversation_1_id)
         .unwrap()
-        .add_user_input(String::from("Is it an action movie?"));
+        .add_user_input("Is it an action movie?");
     let output = conversation_model.generate_responses(&mut conversation_manager);
     assert_eq!(output.len(), 1);
     assert_eq!(output.get(&conversation_1_id).unwrap(), &"It\'s a comedy.");
@@ -379,10 +383,12 @@ fn dialogpt_multiple_multi_turn_conversation() -> failure::Fallible<()> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn dialogpt_multiple_multi_turn_conversation_with_conversation_deletion() -> failure::Fallible<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
         do_sample: false,
+        device: Device::Cpu,
         ..Default::default()
     };
     let conversation_model = ConversationModel::new(conversation_config)?;
@@ -407,7 +413,7 @@ fn dialogpt_multiple_multi_turn_conversation_with_conversation_deletion() -> fai
     let _ = conversation_manager
         .get(&conversation_2_id)
         .unwrap()
-        .add_user_input(String::from("Why do you recommend it?"));
+        .add_user_input("Why do you recommend it?");
     let output = conversation_model.generate_responses(&mut conversation_manager);
     assert_eq!(output.len(), 1);
     assert_eq!(

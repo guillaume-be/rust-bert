@@ -12,17 +12,10 @@
 
 extern crate failure;
 
-use rust_bert::pipelines::conversation::{
-    ConversationConfig, ConversationManager, ConversationModel,
-};
+use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
 
 fn main() -> failure::Fallible<()> {
-    let conversation_config = ConversationConfig {
-        do_sample: false,
-        ..Default::default()
-    };
-
-    let conversation_model = ConversationModel::new(conversation_config)?;
+    let conversation_model = ConversationModel::new(Default::default())?;
     let mut conversation_manager = ConversationManager::new();
 
     let conversation_1_id =
@@ -36,7 +29,7 @@ fn main() -> failure::Fallible<()> {
     let _ = conversation_manager
         .get(&conversation_1_id)
         .unwrap()
-        .add_user_input(String::from("Is it an action movie?"));
+        .add_user_input("Is it an action movie?");
 
     let output = conversation_model.generate_responses(&mut conversation_manager);
 

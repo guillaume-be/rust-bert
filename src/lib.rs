@@ -9,6 +9,7 @@
 //! - Ready-to-use NLP pipelines for:
 //!     - Translation
 //!     - Summarization
+//!     - Multi-turn dialogue
 //!     - Sentiment Analysis
 //!     - Named Entity Recognition
 //!     - Question-Answering
