@@ -2,6 +2,9 @@ use rust_bert::gpt2::{
     GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources,
     Gpt2VocabResources,
 };
+use rust_bert::pipelines::conversation::{
+    ConversationConfig, ConversationManager, ConversationModel,
+};
 use rust_bert::pipelines::generation::{
     Cache, GPT2Generator, GenerateConfig, LMHeadModel, LanguageGenerator,
 };
@@ -296,6 +299,125 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
         output[5],
         "The cat was taken to a local hospital, where it was treated and released.\n\n\"We"
     );
+
+    Ok(())
+}
+
+#[test]
+fn dialogpt_single_multi_turn_conversation() -> failure::Fallible<()> {
+    //    Set-up conversation model
+    let conversation_config = ConversationConfig {
+        do_sample: false,
+        ..Default::default()
+    };
+    let conversation_model = ConversationModel::new(conversation_config)?;
+
+    // Set-up conversation manager and add a conversation
+    let mut conversation_manager = ConversationManager::new();
+    let conversation_id =
+        conversation_manager.create("Going to the movies tonight - any suggestions?");
+
+    // Turn 1
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(output.get(&conversation_id).unwrap(), &"The Big Lebowski");
+
+    // Turn 2
+    let _ = conversation_manager
+        .get(&conversation_id)
+        .unwrap()
+        .add_user_input(String::from("Is it an action movie?"));
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(output.get(&conversation_id).unwrap(), &"It\'s a comedy.");
+
+    // Turn 3 (no new user input)
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+fn dialogpt_multiple_multi_turn_conversation() -> failure::Fallible<()> {
+    //    Set-up conversation model
+    let conversation_config = ConversationConfig {
+        do_sample: false,
+        ..Default::default()
+    };
+    let conversation_model = ConversationModel::new(conversation_config)?;
+
+    // Set-up conversation manager and add a conversation
+    let mut conversation_manager = ConversationManager::new();
+    let conversation_1_id =
+        conversation_manager.create("Going to the movies tonight - any suggestions?");
+    let conversation_2_id = conversation_manager.create("What's the last book you have read?");
+
+    // Turn 1
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output.get(&conversation_1_id).unwrap(), &"The Big Lebowski");
+    assert_eq!(
+        output.get(&conversation_2_id).unwrap(),
+        &"The Last Question"
+    );
+
+    // Turn 2
+    let _ = conversation_manager
+        .get(&conversation_1_id)
+        .unwrap()
+        .add_user_input(String::from("Is it an action movie?"));
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(output.get(&conversation_1_id).unwrap(), &"It\'s a comedy.");
+
+    // Turn 3 (no new user input)
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+fn dialogpt_multiple_multi_turn_conversation_with_conversation_deletion() -> failure::Fallible<()> {
+    //    Set-up conversation model
+    let conversation_config = ConversationConfig {
+        do_sample: false,
+        ..Default::default()
+    };
+    let conversation_model = ConversationModel::new(conversation_config)?;
+
+    // Set-up conversation manager and add a conversation
+    let mut conversation_manager = ConversationManager::new();
+    let conversation_1_id =
+        conversation_manager.create("Going to the movies tonight - any suggestions?");
+    let conversation_2_id = conversation_manager.create("What's the last book you have read?");
+
+    // Turn 1
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output.get(&conversation_1_id).unwrap(), &"The Big Lebowski");
+    assert_eq!(
+        output.get(&conversation_2_id).unwrap(),
+        &"The Last Question"
+    );
+
+    // Turn 2
+    let _ = conversation_manager.remove(&conversation_1_id);
+    let _ = conversation_manager
+        .get(&conversation_2_id)
+        .unwrap()
+        .add_user_input(String::from("Why do you recommend it?"));
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(
+        output.get(&conversation_2_id).unwrap(),
+        &"It's a good book."
+    );
+
+    // Turn 3 (no new user input)
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 0);
 
     Ok(())
 }

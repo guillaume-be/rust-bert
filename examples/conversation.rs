@@ -25,15 +25,16 @@ fn main() -> failure::Fallible<()> {
     let conversation_model = ConversationModel::new(conversation_config)?;
     let mut conversation_manager = ConversationManager::new();
 
-    let conversation_1 =
+    let conversation_1_id =
         conversation_manager.create("Going to the movies tonight - any suggestions?");
+    let _conversation_2_id = conversation_manager.create("What's the last book you have read?");
 
     let output = conversation_model.generate_responses(&mut conversation_manager);
 
     println!("{:?}", output);
 
     let _ = conversation_manager
-        .get(&conversation_1)
+        .get(&conversation_1_id)
         .unwrap()
         .add_user_input(String::from("Is it an action movie?"));
 
