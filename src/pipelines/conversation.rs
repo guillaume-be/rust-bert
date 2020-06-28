@@ -23,12 +23,13 @@
 //!
 //! ```no_run
 //! # fn main() -> failure::Fallible<()> {
-//!   use rust_bert::pipelines::conversation::{ConversationModel, ConversationManager};
-//!   let conversation_model = ConversationModel::new(Default::default())?;
-//!   let mut conversation_manager = ConversationManager::new();
+//! use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
+//! let conversation_model = ConversationModel::new(Default::default())?;
+//! let mut conversation_manager = ConversationManager::new();
 //!
-//!   let conversation_id = conversation_manager.create("Going to the movies tonight - any suggestions?");
-//!   let output = conversation_model.generate_responses(&mut conversation_manager);
+//! let conversation_id =
+//!     conversation_manager.create("Going to the movies tonight - any suggestions?");
+//! let output = conversation_model.generate_responses(&mut conversation_manager);
 //! # Ok(())
 //! # }
 //! ```
@@ -367,7 +368,7 @@ impl ConversationManager {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pipelines::conversation::{ConversationManager, Conversation};
+    /// use rust_bert::pipelines::conversation::{Conversation, ConversationManager};
     ///
     /// let mut conversation_manager = ConversationManager::new();
     ///
@@ -404,7 +405,7 @@ impl ConversationManager {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pipelines::conversation::{ConversationManager, Conversation};
+    /// use rust_bert::pipelines::conversation::{Conversation, ConversationManager};
     ///
     /// let mut conversation_manager = ConversationManager::new();
     ///
@@ -422,7 +423,7 @@ impl ConversationManager {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pipelines::conversation::{ConversationManager, Conversation};
+    /// use rust_bert::pipelines::conversation::{Conversation, ConversationManager};
     ///
     /// let mut conversation_manager = ConversationManager::new();
     ///
@@ -452,7 +453,7 @@ impl ConversationManager {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pipelines::conversation::{ConversationManager, Conversation};
+    /// use rust_bert::pipelines::conversation::{Conversation, ConversationManager};
     ///
     /// let mut conversation_manager = ConversationManager::new();
     ///
@@ -472,7 +473,7 @@ impl ConversationManager {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pipelines::conversation::{ConversationManager, Conversation};
+    /// use rust_bert::pipelines::conversation::{Conversation, ConversationManager};
     ///
     /// let mut conversation_manager = ConversationManager::new();
     ///
@@ -496,7 +497,7 @@ impl ConversationManager {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pipelines::conversation::{ConversationManager, Conversation};
+    /// use rust_bert::pipelines::conversation::{Conversation, ConversationManager};
     ///
     /// let mut conversation_manager = ConversationManager::new();
     ///
@@ -525,7 +526,7 @@ impl ConversationManager {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pipelines::conversation::{ConversationManager, Conversation};
+    /// use rust_bert::pipelines::conversation::{Conversation, ConversationManager};
     ///
     /// let mut conversation_manager = ConversationManager::new();
     ///
@@ -546,7 +547,7 @@ impl ConversationManager {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pipelines::conversation::{ConversationManager, Conversation};
+    /// use rust_bert::pipelines::conversation::{Conversation, ConversationManager};
     ///
     /// let mut conversation_manager = ConversationManager::new();
     ///
@@ -629,8 +630,8 @@ impl ConversationModel {
     ///
     /// ```no_run
     /// # fn main() -> failure::Fallible<()> {
+    /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
     /// use rust_bert::pipelines::generation::LanguageGenerator;
-    /// use rust_bert::pipelines::conversation::{ConversationModel, ConversationManager};
     /// let model = ConversationModel::new(Default::default())?;
     ///
     /// let mut conversation_manager = ConversationManager::new();
