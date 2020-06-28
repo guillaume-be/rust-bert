@@ -192,10 +192,34 @@ impl ConversationManager {
         self.conversations.get_mut(uuid)
     }
 
+    pub fn get_all(&mut self) -> HashMap<&Uuid, &Conversation> {
+        let mut output = HashMap::with_capacity(self.conversations.len());
+        for (uuid, conversation) in self.conversations.iter() {
+            output.insert(uuid, conversation);
+        }
+        output
+    }
+
+    pub fn create(&mut self, text: &str) -> Uuid {
+        let conversation = Conversation::new(text.to_string());
+        self.add(conversation)
+    }
+
     pub fn add(&mut self, conversation: Conversation) -> Uuid {
-        let uuid = Uuid::new_v4();
+        let mut uuid = Uuid::new_v4();
+        while self.conversations.contains_key(&uuid) {
+            uuid = Uuid::new_v4();
+        }
         self.conversations.insert(uuid, conversation);
         uuid
+    }
+
+    pub fn remove(&mut self, uuid: &Uuid) -> Option<Conversation> {
+        self.conversations.remove(uuid)
+    }
+
+    pub fn clear(&mut self) {
+        self.conversations = HashMap::new();
     }
 }
 
@@ -255,23 +279,23 @@ impl ConversationModel {
     ///
     /// # Arguments
     ///
-    /// * `input` - `&[&str]` Array of user input texts.
+    /// * `conversation_manager` - `&mut ConversationManager` Conversation manager keeping track of active conversations
     ///
     /// # Returns
-    /// * `Vec<String>` Responses from the model for each input
+    /// * `HashMap<&Uuid, &str>` Responses from the model for each acttive conversation, referenced by Uuid
     ///
     /// # Example
     ///
     /// ```no_run
     /// # fn main() -> failure::Fallible<()> {
     /// use rust_bert::pipelines::generation::LanguageGenerator;
-    /// use rust_bert::pipelines::conversation::ConversationModel;
+    /// use rust_bert::pipelines::conversation::{ConversationModel, ConversationManager};
     /// let model = ConversationModel::new(Default::default())?;
     ///
-    /// let input = ["Hello, how are you?"];
-    /// let history = vec![vec![]];
+    /// let mut conversation_manager = ConversationManager::new();
+    /// conversation_manager.create("Hello, how are you?");
     ///
-    /// let output = model.generate_responses(&input, history);
+    /// let output = model.generate_responses(&mut conversation_manager);
     /// # Ok(())
     /// # }
     /// ```
