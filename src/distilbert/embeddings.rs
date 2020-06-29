@@ -12,6 +12,7 @@
 
 use crate::common::dropout::Dropout;
 use crate::distilbert::distilbert::DistilBertConfig;
+use std::borrow::Borrow;
 use tch::kind::Kind::Float;
 use tch::nn::{embedding, EmbeddingConfig, ModuleT};
 use tch::{nn, Device, Kind, Tensor};
@@ -63,7 +64,12 @@ pub struct DistilBertEmbedding {
 }
 
 impl DistilBertEmbedding {
-    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertEmbedding {
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertEmbedding
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let embedding_config = EmbeddingConfig {
             padding_idx: 0,
             ..Default::default()

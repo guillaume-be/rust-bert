@@ -15,7 +15,7 @@ use crate::albert::albert::Activation;
 use crate::albert::attention::AlbertSelfAttention;
 use crate::albert::AlbertConfig;
 use crate::common::activations::{_gelu, _gelu_new, _mish, _relu};
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
 pub struct AlbertLayer {
@@ -27,7 +27,12 @@ pub struct AlbertLayer {
 }
 
 impl AlbertLayer {
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertLayer {
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertLayer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let attention = AlbertSelfAttention::new(p / "attention", &config);
 
         let layer_norm_eps = match config.layer_norm_eps {
@@ -39,19 +44,19 @@ impl AlbertLayer {
             ..Default::default()
         };
         let full_layer_layer_norm = nn::layer_norm(
-            &(p / "full_layer_layer_norm"),
+            p / "full_layer_layer_norm",
             vec![config.hidden_size],
             layer_norm_config,
         );
 
         let ffn = nn::linear(
-            &(p / "ffn"),
+            p / "ffn",
             config.hidden_size,
             config.intermediate_size,
             Default::default(),
         );
         let ffn_output = nn::linear(
-            &(p / "ffn_output"),
+            p / "ffn_output",
             config.intermediate_size,
             config.hidden_size,
             Default::default(),
@@ -97,8 +102,11 @@ pub struct AlbertLayerGroup {
 }
 
 impl AlbertLayerGroup {
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertLayerGroup {
-        let p = &(p / "albert_layers");
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertLayerGroup
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow() / "albert_layers";
 
         let output_attentions = match config.output_attentions {
             Some(value) => value,
@@ -112,7 +120,7 @@ impl AlbertLayerGroup {
 
         let mut layers: Vec<AlbertLayer> = vec![];
         for layer_index in 0..config.inner_group_num {
-            layers.push(AlbertLayer::new(&(p / layer_index), config));
+            layers.push(AlbertLayer::new(&p / layer_index, config));
         }
 
         AlbertLayerGroup {
@@ -174,8 +182,12 @@ pub struct AlbertTransformer {
 }
 
 impl AlbertTransformer {
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertTransformer {
-        let p_layers = &(p / "albert_layer_groups");
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertTransformer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let p_layers = p / "albert_layer_groups";
 
         let output_attentions = match config.output_attentions {
             Some(value) => value,
@@ -188,7 +200,7 @@ impl AlbertTransformer {
         };
 
         let embedding_hidden_mapping_in = nn::linear(
-            &(p / "embedding_hidden_mapping_in"),
+            p / "embedding_hidden_mapping_in",
             config.embedding_size,
             config.hidden_size,
             Default::default(),
@@ -196,7 +208,7 @@ impl AlbertTransformer {
 
         let mut layers: Vec<AlbertLayerGroup> = vec![];
         for layer_index in 0..config.inner_group_num {
-            layers.push(AlbertLayerGroup::new(&(p_layers / layer_index), config));
+            layers.push(AlbertLayerGroup::new(&p_layers / layer_index, config));
         }
 
         AlbertTransformer {

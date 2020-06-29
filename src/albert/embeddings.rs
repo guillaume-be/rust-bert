@@ -13,6 +13,7 @@
 
 use crate::albert::AlbertConfig;
 use crate::common::dropout::Dropout;
+use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
 
@@ -28,7 +29,12 @@ pub struct AlbertEmbeddings {
 }
 
 impl AlbertEmbeddings {
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertEmbeddings {
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertEmbeddings
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let embedding_config = EmbeddingConfig {
             padding_idx: config.pad_token_id,
             ..Default::default()

@@ -18,7 +18,7 @@ use crate::common::dropout::Dropout;
 use crate::pipelines::generation::{Cache, LMHeadModel};
 use crate::Config;
 use serde::{Deserialize, Serialize};
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use tch::kind::Kind::{Float, Int64};
 use tch::nn::{embedding, EmbeddingConfig};
@@ -248,7 +248,12 @@ impl BartModel {
     /// let generation_mode = true;
     /// let bart: BartModel = BartModel::new(&(&p.root() / "bart"), &config, generation_mode);
     /// ```
-    pub fn new(p: &nn::Path, config: &BartConfig, generation_mode: bool) -> BartModel {
+    pub fn new<'p, P>(p: P, config: &BartConfig, generation_mode: bool) -> BartModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let pad_token_id = match config.pad_token_id {
             Some(value) => value,
             None => 1,
@@ -454,7 +459,7 @@ impl BartForConditionalGeneration {
         config: &BartConfig,
         generation_mode: bool,
     ) -> BartForConditionalGeneration {
-        let base_model = BartModel::new(&(p / "model"), config, generation_mode);
+        let base_model = BartModel::new(p / "model", config, generation_mode);
         BartForConditionalGeneration { base_model }
     }
 
@@ -578,16 +583,21 @@ pub struct BartClassificationHead {
 }
 
 impl BartClassificationHead {
-    pub fn new(p: &nn::Path, config: &BartConfig) -> BartClassificationHead {
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartClassificationHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let dense = nn::linear(
-            &(p / "dense"),
+            p / "dense",
             config.d_model,
             config.d_model,
             Default::default(),
         );
         let dropout = Dropout::new(config.classif_dropout);
         let out_proj = nn::linear(
-            &(p / "out_proj"),
+            p / "out_proj",
             config.d_model,
             config.num_labels.unwrap(),
             Default::default(),
@@ -645,9 +655,14 @@ impl BartForSequenceClassification {
     /// let bart: BartForSequenceClassification =
     ///     BartForSequenceClassification::new(&(&p.root() / "bart"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BartConfig) -> BartForSequenceClassification {
-        let base_model = BartModel::new(&(p / "model"), config, false);
-        let classification_head = BartClassificationHead::new(&(p / "classification_head"), config);
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartForSequenceClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let base_model = BartModel::new(p / "model", config, false);
+        let classification_head = BartClassificationHead::new(p / "classification_head", config);
         let eos_token_id = match config.eos_token_id {
             Some(value) => value,
             None => 3,

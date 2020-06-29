@@ -19,7 +19,7 @@ use crate::common::dropout::Dropout;
 use crate::electra::embeddings::ElectraEmbeddings;
 use crate::Config;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{borrow::Borrow, collections::HashMap};
 use tch::{nn, Kind, Tensor};
 
 /// # Electra Pretrained model weight files
@@ -132,11 +132,16 @@ impl ElectraModel {
     /// let config = ElectraConfig::from_file(config_path);
     /// let electra_model: ElectraModel = ElectraModel::new(&(&p.root() / "electra"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraModel {
-        let embeddings = ElectraEmbeddings::new(&(p / "embeddings"), config);
+    pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let embeddings = ElectraEmbeddings::new(p / "embeddings", config);
         let embeddings_project = if config.embedding_size != config.hidden_size {
             Some(nn::linear(
-                &(p / "embeddings_project"),
+                p / "embeddings_project",
                 config.embedding_size,
                 config.hidden_size,
                 Default::default(),
@@ -162,7 +167,7 @@ impl ElectraModel {
             id2label: config.id2label.clone(),
             label2id: config.label2id.clone(),
         };
-        let encoder = BertEncoder::new(&(p / "encoder"), &bert_config);
+        let encoder = BertEncoder::new(p / "encoder", &bert_config);
         ElectraModel {
             embeddings,
             embeddings_project,
@@ -322,15 +327,20 @@ impl ElectraDiscriminatorHead {
     /// let config = ElectraConfig::from_file(config_path);
     /// let discriminator_head = ElectraDiscriminatorHead::new(&(&p.root() / "electra"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraDiscriminatorHead {
+    pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraDiscriminatorHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let dense = nn::linear(
-            &(p / "dense"),
+            p / "dense",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
         );
         let dense_prediction = nn::linear(
-            &(p / "dense_prediction"),
+            p / "dense_prediction",
             config.hidden_size,
             1,
             Default::default(),
@@ -422,14 +432,19 @@ impl ElectraGeneratorHead {
     /// let config = ElectraConfig::from_file(config_path);
     /// let generator_head = ElectraGeneratorHead::new(&(&p.root() / "electra"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraGeneratorHead {
+    pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraGeneratorHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let layer_norm = nn::layer_norm(
             p / "LayerNorm",
             vec![config.embedding_size],
             Default::default(),
         );
         let dense = nn::linear(
-            &(p / "dense"),
+            p / "dense",
             config.hidden_size,
             config.embedding_size,
             Default::default(),
@@ -516,11 +531,16 @@ impl ElectraForMaskedLM {
     /// let config = ElectraConfig::from_file(config_path);
     /// let electra_model: ElectraForMaskedLM = ElectraForMaskedLM::new(&p.root(), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraForMaskedLM {
-        let electra = ElectraModel::new(&(p / "electra"), config);
-        let generator_head = ElectraGeneratorHead::new(&(p / "generator_predictions"), config);
+    pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraForMaskedLM
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let electra = ElectraModel::new(p / "electra", config);
+        let generator_head = ElectraGeneratorHead::new(p / "generator_predictions", config);
         let lm_head = nn::linear(
-            &(p / "generator_lm_head"),
+            p / "generator_lm_head",
             config.embedding_size,
             config.vocab_size,
             Default::default(),
@@ -640,10 +660,15 @@ impl ElectraDiscriminator {
     /// let config = ElectraConfig::from_file(config_path);
     /// let electra_model: ElectraDiscriminator = ElectraDiscriminator::new(&p.root(), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraDiscriminator {
-        let electra = ElectraModel::new(&(p / "electra"), config);
+    pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraDiscriminator
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let electra = ElectraModel::new(p / "electra", config);
         let discriminator_head =
-            ElectraDiscriminatorHead::new(&(p / "discriminator_predictions"), config);
+            ElectraDiscriminatorHead::new(p / "discriminator_predictions", config);
 
         ElectraDiscriminator {
             electra,
@@ -757,8 +782,13 @@ impl ElectraForTokenClassification {
     /// let electra_model: ElectraForTokenClassification =
     ///     ElectraForTokenClassification::new(&p.root(), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraForTokenClassification {
-        let electra = ElectraModel::new(&(p / "electra"), config);
+    pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraForTokenClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let electra = ElectraModel::new(p / "electra", config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config
             .id2label
@@ -766,7 +796,7 @@ impl ElectraForTokenClassification {
             .expect("id2label must be provided for classifiers")
             .len() as i64;
         let classifier = nn::linear(
-            &(p / "classifier"),
+            p / "classifier",
             config.hidden_size,
             num_labels,
             Default::default(),

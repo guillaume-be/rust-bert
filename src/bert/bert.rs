@@ -18,6 +18,7 @@ use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::Config;
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use tch::kind::Kind::Float;
 use tch::nn::Init;
@@ -146,14 +147,19 @@ impl<T: BertEmbedding> BertModel<T> {
     /// let config = BertConfig::from_file(config_path);
     /// let bert: BertModel<BertEmbeddings> = BertModel::new(&(&p.root() / "bert"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertModel<T> {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertModel<T>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let is_decoder = match config.is_decoder {
             Some(value) => value,
             None => false,
         };
-        let embeddings = T::new(&(p / "embeddings"), config);
-        let encoder = BertEncoder::new(&(p / "encoder"), config);
-        let pooler = BertPooler::new(&(p / "pooler"), config);
+        let embeddings = T::new(p / "embeddings", config);
+        let encoder = BertEncoder::new(p / "encoder", config);
+        let pooler = BertPooler::new(p / "pooler", config);
 
         BertModel {
             embeddings,
@@ -337,7 +343,12 @@ pub struct BertPredictionHeadTransform {
 }
 
 impl BertPredictionHeadTransform {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertPredictionHeadTransform {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertPredictionHeadTransform
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let dense = nn::linear(
             p / "dense",
             config.hidden_size,
@@ -375,11 +386,14 @@ pub struct BertLMPredictionHead {
 }
 
 impl BertLMPredictionHead {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertLMPredictionHead {
-        let p = &(p / "predictions");
-        let transform = BertPredictionHeadTransform::new(&(p / "transform"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertLMPredictionHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow() / "predictions";
+        let transform = BertPredictionHeadTransform::new(&p / "transform", config);
         let decoder = linear_no_bias(
-            &(p / "decoder"),
+            &p / "decoder",
             config.hidden_size,
             config.vocab_size,
             Default::default(),
@@ -430,9 +444,14 @@ impl BertForMaskedLM {
     /// let config = BertConfig::from_file(config_path);
     /// let bert = BertForMaskedLM::new(&(&p.root() / "bert"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForMaskedLM {
-        let bert = BertModel::new(&(p / "bert"), config);
-        let cls = BertLMPredictionHead::new(&(p / "cls"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForMaskedLM
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let bert = BertModel::new(p / "bert", config);
+        let cls = BertLMPredictionHead::new(p / "cls", config);
 
         BertForMaskedLM { bert, cls }
     }
@@ -552,8 +571,13 @@ impl BertForSequenceClassification {
     /// let config = BertConfig::from_file(config_path);
     /// let bert = BertForSequenceClassification::new(&(&p.root() / "bert"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForSequenceClassification {
-        let bert = BertModel::new(&(p / "bert"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForSequenceClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let bert = BertModel::new(p / "bert", config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config
             .id2label
@@ -687,8 +711,13 @@ impl BertForMultipleChoice {
     /// let config = BertConfig::from_file(config_path);
     /// let bert = BertForMultipleChoice::new(&(&p.root() / "bert"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForMultipleChoice {
-        let bert = BertModel::new(&(p / "bert"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForMultipleChoice
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let bert = BertModel::new(p / "bert", config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let classifier = nn::linear(p / "classifier", config.hidden_size, 1, Default::default());
 
@@ -825,8 +854,13 @@ impl BertForTokenClassification {
     /// let config = BertConfig::from_file(config_path);
     /// let bert = BertForTokenClassification::new(&(&p.root() / "bert"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForTokenClassification {
-        let bert = BertModel::new(&(p / "bert"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForTokenClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let bert = BertModel::new(p / "bert", config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config
             .id2label
@@ -959,8 +993,13 @@ impl BertForQuestionAnswering {
     /// let config = BertConfig::from_file(config_path);
     /// let bert = BertForQuestionAnswering::new(&(&p.root() / "bert"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertForQuestionAnswering {
-        let bert = BertModel::new(&(p / "bert"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForQuestionAnswering
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let bert = BertModel::new(p / "bert", config);
         let num_labels = 2;
         let qa_outputs = nn::linear(
             p / "qa_outputs",

@@ -16,6 +16,7 @@ use crate::common::activations::_gelu;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::roberta::embeddings::RobertaEmbeddings;
+use std::borrow::Borrow;
 use tch::nn::Init;
 use tch::{nn, Tensor};
 
@@ -71,7 +72,11 @@ pub struct RobertaLMHead {
 }
 
 impl RobertaLMHead {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaLMHead {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaLMHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
         let dense = nn::linear(
             p / "dense",
             config.hidden_size,
@@ -88,7 +93,7 @@ impl RobertaLMHead {
             layer_norm_config,
         );
         let decoder = linear_no_bias(
-            &(p / "decoder"),
+            p / "decoder",
             config.hidden_size,
             config.vocab_size,
             Default::default(),
@@ -144,9 +149,14 @@ impl RobertaForMaskedLM {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForMaskedLM::new(&(&p.root() / "roberta"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForMaskedLM {
-        let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
-        let lm_head = RobertaLMHead::new(&(p / "lm_head"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForMaskedLM
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let roberta = BertModel::<RobertaEmbeddings>::new(p / "roberta", config);
+        let lm_head = RobertaLMHead::new(p / "lm_head", config);
 
         RobertaForMaskedLM { roberta, lm_head }
     }
@@ -242,7 +252,11 @@ pub struct RobertaClassificationHead {
 }
 
 impl RobertaClassificationHead {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaClassificationHead {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaClassificationHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
         let dense = nn::linear(
             p / "dense",
             config.hidden_size,
@@ -313,9 +327,13 @@ impl RobertaForSequenceClassification {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForSequenceClassification::new(&(&p.root() / "roberta"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForSequenceClassification {
-        let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
-        let classifier = RobertaClassificationHead::new(&(p / "classifier"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForSequenceClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let roberta = BertModel::<RobertaEmbeddings>::new(p / "roberta", config);
+        let classifier = RobertaClassificationHead::new(p / "classifier", config);
 
         RobertaForSequenceClassification {
             roberta,
@@ -437,8 +455,12 @@ impl RobertaForMultipleChoice {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForMultipleChoice::new(&(&p.root() / "roberta"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForMultipleChoice {
-        let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForMultipleChoice
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let roberta = BertModel::<RobertaEmbeddings>::new(p / "roberta", config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let classifier = nn::linear(p / "classifier", config.hidden_size, 1, Default::default());
 
@@ -578,8 +600,12 @@ impl RobertaForTokenClassification {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForTokenClassification::new(&(&p.root() / "roberta"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForTokenClassification {
-        let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForTokenClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let roberta = BertModel::<RobertaEmbeddings>::new(p / "roberta", config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config
             .id2label
@@ -715,8 +741,12 @@ impl RobertaForQuestionAnswering {
     /// let config = BertConfig::from_file(config_path);
     /// let roberta = RobertaForQuestionAnswering::new(&(&p.root() / "roberta"), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &BertConfig) -> RobertaForQuestionAnswering {
-        let roberta = BertModel::<RobertaEmbeddings>::new(&(p / "roberta"), config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForQuestionAnswering
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let roberta = BertModel::<RobertaEmbeddings>::new(p / "roberta", config);
         let num_labels = 2;
         let qa_outputs = nn::linear(
             p / "qa_outputs",

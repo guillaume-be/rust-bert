@@ -16,6 +16,7 @@ use crate::common::activations::{_gelu_new, _relu, _swish};
 use crate::common::dropout::Dropout;
 use crate::gpt2::attention::{Attention, GPTConv1D};
 use crate::gpt2::gpt2::{Gpt2Config, GptActivation};
+use std::borrow::Borrow;
 use tch::{nn, Tensor};
 
 pub struct MLP {
@@ -26,9 +27,14 @@ pub struct MLP {
 }
 
 impl MLP {
-    pub fn new(p: &nn::Path, config: &Gpt2Config) -> MLP {
-        let c_fc = GPTConv1D::new(&(p / "c_fc"), config.n_embd * 4, config.n_embd);
-        let c_proj = GPTConv1D::new(&(p / "c_proj"), config.n_embd, config.n_embd * 4);
+    pub fn new<'p, P>(p: P, config: &Gpt2Config) -> MLP
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let c_fc = GPTConv1D::new(p / "c_fc", config.n_embd * 4, config.n_embd);
+        let c_proj = GPTConv1D::new(p / "c_proj", config.n_embd, config.n_embd * 4);
         let activation = Box::new(match &config.afn {
             Some(activation_enum) => match activation_enum {
                 GptActivation::gelu => _gelu_new,
@@ -64,15 +70,20 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(p: &nn::Path, config: &Gpt2Config, scale: bool) -> Block {
+    pub fn new<'p, P>(p: P, config: &Gpt2Config, scale: bool) -> Block
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let layer_norm_config = nn::LayerNormConfig {
             eps: config.layer_norm_epsilon,
             ..Default::default()
         };
         let ln_1 = nn::layer_norm(p / "ln_1", vec![config.n_embd], layer_norm_config);
         let ln_2 = nn::layer_norm(p / "ln_2", vec![config.n_embd], layer_norm_config);
-        let attn = Attention::new(&(p / "attn"), config, scale);
-        let mlp = MLP::new(&(p / "mlp"), config);
+        let attn = Attention::new(p / "attn", config, scale);
+        let mlp = MLP::new(p / "mlp", config);
 
         Block {
             ln_1,

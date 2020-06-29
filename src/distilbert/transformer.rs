@@ -14,7 +14,7 @@ use crate::common::activations::{_gelu, _relu};
 use crate::common::dropout::Dropout;
 use crate::distilbert::attention::MultiHeadSelfAttention;
 use crate::distilbert::distilbert::{Activation, DistilBertConfig};
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LayerNorm;
 use tch::{nn, Tensor};
 
@@ -67,7 +67,12 @@ pub struct TransformerBlock {
 }
 
 impl TransformerBlock {
-    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> TransformerBlock {
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> TransformerBlock
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let attention = MultiHeadSelfAttention::new(p / "attention", &config);
         let layer_norm_config = nn::LayerNormConfig {
             eps: 1e-12,
@@ -109,8 +114,11 @@ pub struct Transformer {
 }
 
 impl Transformer {
-    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> Transformer {
-        let p = &(p / "layer");
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> Transformer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow() / "layer";
         let output_attentions = match config.output_attentions {
             Some(value) => value,
             None => false,
@@ -122,7 +130,7 @@ impl Transformer {
 
         let mut layers: Vec<TransformerBlock> = vec![];
         for layer_index in 0..config.n_layers {
-            layers.push(TransformerBlock::new(&(p / layer_index), config));
+            layers.push(TransformerBlock::new(&p / layer_index, config));
         }
 
         Transformer {

@@ -264,7 +264,7 @@ impl MarianForConditionalGeneration {
         config: &BartConfig,
         generation_mode: bool,
     ) -> MarianForConditionalGeneration {
-        let base_model = BartModel::new(&(p / "model"), config, generation_mode);
+        let base_model = BartModel::new(p / "model", config, generation_mode);
         let final_logits_bias = p.var(
             "final_logits_bias",
             &[1, config.vocab_size],
