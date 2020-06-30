@@ -104,7 +104,7 @@ impl OpenAiGptModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = Gpt2Config::from_file(config_path);
-    /// let gpt2: OpenAiGptModel = OpenAiGptModel::new(&(&p.root() / "gpt"), &config);
+    /// let gpt2: OpenAiGptModel = OpenAiGptModel::new(&p.root() / "gpt", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &Gpt2Config) -> OpenAiGptModel
     where
@@ -320,7 +320,7 @@ impl OpenAIGPTLMHeadModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = Gpt2Config::from_file(config_path);
-    /// let gpt2: OpenAIGPTLMHeadModel = OpenAIGPTLMHeadModel::new(&(&p.root() / "gpt"), &config);
+    /// let gpt2: OpenAIGPTLMHeadModel = OpenAIGPTLMHeadModel::new(&p.root() / "gpt", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &Gpt2Config) -> OpenAIGPTLMHeadModel
     where

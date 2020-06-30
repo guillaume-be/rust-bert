@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use std::borrow::Borrow;
 use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
@@ -72,19 +73,24 @@ pub struct SelfAttention {
 }
 
 impl SelfAttention {
-    pub fn new(
-        p: nn::Path,
+    pub fn new<'p, P>(
+        p: P,
         embed_dim: i64,
         num_heads: i64,
         dropout: f64,
         encoder_decoder_attention: bool,
         store_cache: bool,
         output_attentions: bool,
-    ) -> SelfAttention {
-        let k_proj = nn::linear(&p / "k_proj", embed_dim, embed_dim, Default::default());
-        let v_proj = nn::linear(&p / "v_proj", embed_dim, embed_dim, Default::default());
-        let q_proj = nn::linear(&p / "q_proj", embed_dim, embed_dim, Default::default());
-        let out_proj = nn::linear(&p / "out_proj", embed_dim, embed_dim, Default::default());
+    ) -> SelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let k_proj = nn::linear(p / "k_proj", embed_dim, embed_dim, Default::default());
+        let v_proj = nn::linear(p / "v_proj", embed_dim, embed_dim, Default::default());
+        let q_proj = nn::linear(p / "q_proj", embed_dim, embed_dim, Default::default());
+        let out_proj = nn::linear(p / "out_proj", embed_dim, embed_dim, Default::default());
 
         let head_dim = embed_dim / num_heads;
         let scaling = (head_dim as f64).powf(-0.5);

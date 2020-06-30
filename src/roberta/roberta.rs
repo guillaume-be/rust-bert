@@ -147,7 +147,7 @@ impl RobertaForMaskedLM {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForMaskedLM::new(&(&p.root() / "roberta"), &config);
+    /// let roberta = RobertaForMaskedLM::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForMaskedLM
     where
@@ -325,7 +325,7 @@ impl RobertaForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForSequenceClassification::new(&(&p.root() / "roberta"), &config);
+    /// let roberta = RobertaForSequenceClassification::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForSequenceClassification
     where
@@ -453,7 +453,7 @@ impl RobertaForMultipleChoice {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForMultipleChoice::new(&(&p.root() / "roberta"), &config);
+    /// let roberta = RobertaForMultipleChoice::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForMultipleChoice
     where
@@ -598,7 +598,7 @@ impl RobertaForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForTokenClassification::new(&(&p.root() / "roberta"), &config);
+    /// let roberta = RobertaForTokenClassification::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForTokenClassification
     where
@@ -739,7 +739,7 @@ impl RobertaForQuestionAnswering {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForQuestionAnswering::new(&(&p.root() / "roberta"), &config);
+    /// let roberta = RobertaForQuestionAnswering::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForQuestionAnswering
     where

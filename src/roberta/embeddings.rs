@@ -68,7 +68,7 @@ impl BertEmbedding for RobertaEmbeddings {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let robert_embeddings = RobertaEmbeddings::new(&(&p.root() / "bert_embeddings"), &config);
+    /// let robert_embeddings = RobertaEmbeddings::new(&p.root() / "bert_embeddings", &config);
     /// ```
     fn new<'p, P>(p: P, config: &BertConfig) -> RobertaEmbeddings
     where

@@ -154,15 +154,15 @@ impl DistilBertModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert: DistilBertModel = DistilBertModel::new(&(&p.root() / "distilbert"), &config);
+    /// let distil_bert: DistilBertModel = DistilBertModel::new(&p.root() / "distilbert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertModel
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow() / "distilbert";
-        let embeddings = DistilBertEmbedding::new(&p / "embeddings", config);
-        let transformer = Transformer::new(&p / "transformer", config);
+        let embeddings = DistilBertEmbedding::new(p.borrow() / "embeddings", config);
+        let transformer = Transformer::new(p.borrow() / "transformer", config);
         DistilBertModel {
             embeddings,
             transformer,
@@ -269,7 +269,7 @@ impl DistilBertModelClassifier {
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert: DistilBertModelClassifier =
-    ///     DistilBertModelClassifier::new(&(&p.root() / "distilbert"), &config);
+    ///     DistilBertModelClassifier::new(&p.root() / "distilbert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertModelClassifier
     where
@@ -404,7 +404,7 @@ impl DistilBertModelMaskedLM {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertModelMaskedLM::new(&(&p.root() / "distilbert"), &config);
+    /// let distil_bert = DistilBertModelMaskedLM::new(&p.root() / "distilbert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertModelMaskedLM
     where
@@ -538,7 +538,7 @@ impl DistilBertForQuestionAnswering {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertForQuestionAnswering::new(&(&p.root() / "distilbert"), &config);
+    /// let distil_bert = DistilBertForQuestionAnswering::new(&p.root() / "distilbert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertForQuestionAnswering
     where
@@ -656,7 +656,7 @@ impl DistilBertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertForTokenClassification::new(&(&p.root() / "distilbert"), &config);
+    /// let distil_bert = DistilBertForTokenClassification::new(&p.root() / "distilbert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertForTokenClassification
     where

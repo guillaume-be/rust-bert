@@ -26,15 +26,19 @@ pub struct FeedForwardNetwork {
 }
 
 impl FeedForwardNetwork {
-    pub fn new(p: nn::Path, config: &DistilBertConfig) -> FeedForwardNetwork {
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> FeedForwardNetwork
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
         let lin1 = nn::linear(
-            &p / "lin1",
+            p / "lin1",
             config.dim,
             config.hidden_dim,
             Default::default(),
         );
         let lin2 = nn::linear(
-            &p / "lin2",
+            p / "lin2",
             config.hidden_dim,
             config.dim,
             Default::default(),

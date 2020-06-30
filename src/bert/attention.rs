@@ -30,27 +30,31 @@ pub struct BertSelfAttention {
 }
 
 impl BertSelfAttention {
-    pub fn new(p: nn::Path, config: &BertConfig) -> BertSelfAttention {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
         assert_eq!(
             config.hidden_size % config.num_attention_heads,
             0,
             "Hidden size not a multiple of the number of attention heads"
         );
+        let p = p.borrow();
 
         let query = nn::linear(
-            &p / "query",
+            p / "query",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
         );
         let key = nn::linear(
-            &p / "key",
+            p / "key",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
         );
         let value = nn::linear(
-            &p / "value",
+            p / "value",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
