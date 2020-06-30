@@ -130,7 +130,7 @@ impl ElectraModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = ElectraConfig::from_file(config_path);
-    /// let electra_model: ElectraModel = ElectraModel::new(&(&p.root() / "electra"), &config);
+    /// let electra_model: ElectraModel = ElectraModel::new(&p.root() / "electra", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraModel
     where
@@ -325,7 +325,7 @@ impl ElectraDiscriminatorHead {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = ElectraConfig::from_file(config_path);
-    /// let discriminator_head = ElectraDiscriminatorHead::new(&(&p.root() / "electra"), &config);
+    /// let discriminator_head = ElectraDiscriminatorHead::new(&p.root() / "electra", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraDiscriminatorHead
     where
@@ -430,7 +430,7 @@ impl ElectraGeneratorHead {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = ElectraConfig::from_file(config_path);
-    /// let generator_head = ElectraGeneratorHead::new(&(&p.root() / "electra"), &config);
+    /// let generator_head = ElectraGeneratorHead::new(&p.root() / "electra", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraGeneratorHead
     where

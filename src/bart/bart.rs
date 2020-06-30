@@ -246,7 +246,7 @@ impl BartModel {
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
     /// let generation_mode = true;
-    /// let bart: BartModel = BartModel::new(&(&p.root() / "bart"), &config, generation_mode);
+    /// let bart: BartModel = BartModel::new(&p.root() / "bart", &config, generation_mode);
     /// ```
     pub fn new<'p, P>(p: P, config: &BartConfig, generation_mode: bool) -> BartModel
     where
@@ -452,14 +452,17 @@ impl BartForConditionalGeneration {
     /// let config = BartConfig::from_file(config_path);
     /// let generation_mode = true;
     /// let bart: BartForConditionalGeneration =
-    ///     BartForConditionalGeneration::new(&(&p.root() / "bart"), &config, generation_mode);
+    ///     BartForConditionalGeneration::new(&p.root() / "bart", &config, generation_mode);
     /// ```
-    pub fn new(
-        p: &nn::Path,
+    pub fn new<'p, P>(
+        p: P,
         config: &BartConfig,
         generation_mode: bool,
-    ) -> BartForConditionalGeneration {
-        let base_model = BartModel::new(p / "model", config, generation_mode);
+    ) -> BartForConditionalGeneration
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let base_model = BartModel::new(p.borrow() / "model", config, generation_mode);
         BartForConditionalGeneration { base_model }
     }
 
@@ -653,7 +656,7 @@ impl BartForSequenceClassification {
     /// let config = BartConfig::from_file(config_path);
     /// let generation_mode = true;
     /// let bart: BartForSequenceClassification =
-    ///     BartForSequenceClassification::new(&(&p.root() / "bart"), &config);
+    ///     BartForSequenceClassification::new(&p.root() / "bart", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BartConfig) -> BartForSequenceClassification
     where

@@ -13,6 +13,7 @@
 
 use crate::bart::{BartConfig, BartModel, LayerState};
 use crate::pipelines::generation::{Cache, LMHeadModel};
+use std::borrow::Borrow;
 use tch::nn::Init;
 use tch::{nn, Tensor};
 
@@ -257,13 +258,17 @@ impl MarianForConditionalGeneration {
     /// let config = BartConfig::from_file(config_path);
     /// let generation_mode = true;
     /// let bart: BartForConditionalGeneration =
-    ///     BartForConditionalGeneration::new(&(&p.root() / "bart"), &config, generation_mode);
+    ///     BartForConditionalGeneration::new(&p.root() / "bart", &config, generation_mode);
     /// ```
-    pub fn new(
-        p: &nn::Path,
+    pub fn new<'p, P>(
+        p: P,
         config: &BartConfig,
         generation_mode: bool,
-    ) -> MarianForConditionalGeneration {
+    ) -> MarianForConditionalGeneration
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
         let base_model = BartModel::new(p / "model", config, generation_mode);
         let final_logits_bias = p.var(
             "final_logits_bias",

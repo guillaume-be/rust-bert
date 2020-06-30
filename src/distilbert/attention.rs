@@ -12,6 +12,7 @@
 
 use crate::common::dropout::Dropout;
 use crate::distilbert::distilbert::DistilBertConfig;
+use std::borrow::Borrow;
 use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
@@ -28,11 +29,15 @@ pub struct MultiHeadSelfAttention {
 }
 
 impl MultiHeadSelfAttention {
-    pub fn new(p: nn::Path, config: &DistilBertConfig) -> MultiHeadSelfAttention {
-        let q_lin = nn::linear(&p / "q_lin", config.dim, config.dim, Default::default());
-        let k_lin = nn::linear(&p / "k_lin", config.dim, config.dim, Default::default());
-        let v_lin = nn::linear(&p / "v_lin", config.dim, config.dim, Default::default());
-        let out_lin = nn::linear(&p / "out_lin", config.dim, config.dim, Default::default());
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> MultiHeadSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let q_lin = nn::linear(p / "q_lin", config.dim, config.dim, Default::default());
+        let k_lin = nn::linear(p / "k_lin", config.dim, config.dim, Default::default());
+        let v_lin = nn::linear(p / "v_lin", config.dim, config.dim, Default::default());
+        let out_lin = nn::linear(p / "out_lin", config.dim, config.dim, Default::default());
 
         let dropout = Dropout::new(config.attention_dropout);
 

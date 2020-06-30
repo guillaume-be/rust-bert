@@ -19,7 +19,6 @@ use tch::{nn, Kind, Tensor};
 
 /// # Embeddings implementation for Albert model
 #[derive(Debug)]
-/// # Embeddings implementation for Electra model
 pub struct AlbertEmbeddings {
     word_embeddings: nn::Embedding,
     position_embeddings: nn::Embedding,

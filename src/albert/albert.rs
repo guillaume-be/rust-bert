@@ -138,7 +138,7 @@ impl AlbertModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = AlbertConfig::from_file(config_path);
-    /// let albert: AlbertModel = AlbertModel::new(&(&p.root() / "albert"), &config);
+    /// let albert: AlbertModel = AlbertModel::new(&p.root() / "albert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertModel
     where

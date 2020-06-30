@@ -245,7 +245,7 @@ impl Gpt2Model {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = Gpt2Config::from_file(config_path);
-    /// let gpt2: Gpt2Model = Gpt2Model::new(&(&p.root() / "gpt2"), &config);
+    /// let gpt2: Gpt2Model = Gpt2Model::new(&p.root() / "gpt2", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &Gpt2Config) -> Gpt2Model
     where
@@ -533,7 +533,7 @@ impl GPT2LMHeadModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = Gpt2Config::from_file(config_path);
-    /// let gpt2: GPT2LMHeadModel = GPT2LMHeadModel::new(&(&p.root() / "gpt2"), &config);
+    /// let gpt2: GPT2LMHeadModel = GPT2LMHeadModel::new(&p.root() / "gpt2", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &Gpt2Config) -> GPT2LMHeadModel
     where

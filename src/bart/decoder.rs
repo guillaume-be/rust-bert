@@ -19,7 +19,7 @@ use crate::bart::embeddings::{
 use crate::bart::BartConfig;
 use crate::common::activations::{_gelu, _gelu_new, _relu, _swish, _tanh};
 use crate::common::dropout::Dropout;
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::{nn, Tensor};
 
@@ -37,7 +37,12 @@ pub struct DecoderLayer {
 }
 
 impl DecoderLayer {
-    pub fn new(p: nn::Path, config: &BartConfig) -> DecoderLayer {
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> DecoderLayer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let layer_norm_config = nn::LayerNormConfig {
             eps: 1e-5,
             ..Default::default()
@@ -47,7 +52,7 @@ impl DecoderLayer {
             None => false,
         };
         let self_attention = SelfAttention::new(
-            &p / "self_attn",
+            p / "self_attn",
             config.d_model,
             config.decoder_attention_heads,
             config.attention_dropout,
@@ -56,7 +61,7 @@ impl DecoderLayer {
             output_attention,
         );
         let encoder_attention = SelfAttention::new(
-            &p / "encoder_attn",
+            p / "encoder_attn",
             config.d_model,
             config.decoder_attention_heads,
             config.attention_dropout,
@@ -65,12 +70,12 @@ impl DecoderLayer {
             output_attention,
         );
         let self_attention_layer_norm = nn::layer_norm(
-            &p / "self_attn_layer_norm",
+            p / "self_attn_layer_norm",
             vec![config.d_model],
             layer_norm_config,
         );
         let encoder_attention_layer_norm = nn::layer_norm(
-            &p / "encoder_attn_layer_norm",
+            p / "encoder_attn_layer_norm",
             vec![config.d_model],
             layer_norm_config,
         );
@@ -89,20 +94,20 @@ impl DecoderLayer {
             Activation::tanh => _tanh,
         });
         let fc1 = nn::linear(
-            &p / "fc1",
+            p / "fc1",
             config.d_model,
             config.decoder_ffn_dim,
             Default::default(),
         );
         let fc2 = nn::linear(
-            &p / "fc2",
+            p / "fc2",
             config.decoder_ffn_dim,
             config.d_model,
             Default::default(),
         );
 
         let final_layer_norm = nn::layer_norm(
-            &p / "final_layer_norm",
+            p / "final_layer_norm",
             vec![config.d_model],
             layer_norm_config,
         );
@@ -182,7 +187,11 @@ pub struct BartDecoder {
 }
 
 impl BartDecoder {
-    pub fn new(p: nn::Path, config: &BartConfig, generation_mode: bool) -> BartDecoder {
+    pub fn new<'p, P>(p: P, config: &BartConfig, generation_mode: bool) -> BartDecoder
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
         let output_past = match config.output_past {
             Some(value) => value,
             None => true,
@@ -222,7 +231,7 @@ impl BartDecoder {
                 ..Default::default()
             };
             Some(nn::layer_norm(
-                &p / "layernorm_embedding",
+                p / "layernorm_embedding",
                 vec![config.d_model],
                 layer_norm_config,
             ))
@@ -237,13 +246,13 @@ impl BartDecoder {
 
         let embed_positions = if static_position_embeddings {
             EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(
-                &p / "embed_positions",
+                p / "embed_positions",
                 config.max_position_embeddings,
                 config.d_model,
             ))
         } else {
             EmbeddingOption::LearnedPositionalEmbedding(LearnedPositionalEmbedding::new(
-                &p / "embed_positions",
+                p / "embed_positions",
                 config.max_position_embeddings,
                 config.d_model,
                 pad_token_id,
@@ -251,7 +260,7 @@ impl BartDecoder {
         };
 
         let mut layers: Vec<DecoderLayer> = vec![];
-        let p_layers = &p / "layers";
+        let p_layers = p / "layers";
         for layer_index in 0..config.decoder_layers {
             layers.push(DecoderLayer::new(&p_layers / layer_index, config));
         }

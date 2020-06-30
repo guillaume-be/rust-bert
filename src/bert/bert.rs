@@ -145,7 +145,7 @@ impl<T: BertEmbedding> BertModel<T> {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert: BertModel<BertEmbeddings> = BertModel::new(&(&p.root() / "bert"), &config);
+    /// let bert: BertModel<BertEmbeddings> = BertModel::new(&p.root() / "bert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> BertModel<T>
     where
@@ -442,7 +442,7 @@ impl BertForMaskedLM {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert = BertForMaskedLM::new(&(&p.root() / "bert"), &config);
+    /// let bert = BertForMaskedLM::new(&p.root() / "bert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForMaskedLM
     where
@@ -569,7 +569,7 @@ impl BertForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert = BertForSequenceClassification::new(&(&p.root() / "bert"), &config);
+    /// let bert = BertForSequenceClassification::new(&p.root() / "bert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForSequenceClassification
     where
@@ -709,7 +709,7 @@ impl BertForMultipleChoice {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert = BertForMultipleChoice::new(&(&p.root() / "bert"), &config);
+    /// let bert = BertForMultipleChoice::new(&p.root() / "bert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForMultipleChoice
     where
@@ -852,7 +852,7 @@ impl BertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert = BertForTokenClassification::new(&(&p.root() / "bert"), &config);
+    /// let bert = BertForTokenClassification::new(&p.root() / "bert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForTokenClassification
     where
@@ -991,7 +991,7 @@ impl BertForQuestionAnswering {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert = BertForQuestionAnswering::new(&(&p.root() / "bert"), &config);
+    /// let bert = BertForQuestionAnswering::new(&p.root() / "bert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForQuestionAnswering
     where
