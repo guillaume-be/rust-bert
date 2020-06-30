@@ -68,6 +68,7 @@ pub mod marian;
 pub mod openai_gpt;
 pub mod pipelines;
 pub mod roberta;
+pub mod t5;
 
 pub use common::resources;
 pub use common::Config;
