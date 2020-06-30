@@ -14,6 +14,7 @@
 use crate::bert::bert::{Activation, BertConfig};
 use crate::common::activations::{_gelu, _mish, _relu};
 use crate::common::dropout::Dropout;
+use std::borrow::Borrow;
 use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
@@ -141,7 +142,12 @@ pub struct BertSelfOutput {
 }
 
 impl BertSelfOutput {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertSelfOutput {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertSelfOutput
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let linear = nn::linear(
             p / "dense",
             config.hidden_size,
@@ -179,9 +185,14 @@ pub struct BertAttention {
 }
 
 impl BertAttention {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertAttention {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let _self = BertSelfAttention::new(p / "self", config);
-        let output = BertSelfOutput::new(&(p / "output"), config);
+        let output = BertSelfOutput::new(p / "output", config);
         BertAttention { _self, output }
     }
 
@@ -212,7 +223,12 @@ pub struct BertIntermediate {
 }
 
 impl BertIntermediate {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertIntermediate {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertIntermediate
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let lin = nn::linear(
             p / "dense",
             config.hidden_size,
@@ -239,7 +255,12 @@ pub struct BertOutput {
 }
 
 impl BertOutput {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertOutput {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertOutput
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let lin = nn::linear(
             p / "dense",
             config.intermediate_size,

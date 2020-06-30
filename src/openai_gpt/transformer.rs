@@ -15,6 +15,7 @@
 use crate::gpt2::attention::Attention;
 use crate::gpt2::transformer::MLP;
 use crate::gpt2::Gpt2Config;
+use std::borrow::Borrow;
 use tch::{nn, Tensor};
 
 pub struct Block {
@@ -25,15 +26,20 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(p: &nn::Path, config: &Gpt2Config, scale: bool) -> Block {
+    pub fn new<'p, P>(p: P, config: &Gpt2Config, scale: bool) -> Block
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let layer_norm_config = nn::LayerNormConfig {
             eps: config.layer_norm_epsilon,
             ..Default::default()
         };
         let ln_1 = nn::layer_norm(p / "ln_1", vec![config.n_embd], layer_norm_config);
         let ln_2 = nn::layer_norm(p / "ln_2", vec![config.n_embd], layer_norm_config);
-        let attn = Attention::new(&(p / "attn"), config, scale);
-        let mlp = MLP::new(&(p / "mlp"), config);
+        let attn = Attention::new(p / "attn", config, scale);
+        let mlp = MLP::new(p / "mlp", config);
 
         Block {
             ln_1,

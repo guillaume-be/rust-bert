@@ -1661,7 +1661,7 @@ pub(crate) mod private_generation_utils {
                         assert!(
                             eos_token_ids.is_some() & pad_token_id.is_some(),
                             "EOS and Padding tokens need to be defined if the number of generated \
-                            beams is greater than the target number fo beams"
+                             beams is greater than the target number fo beams"
                         );
                         next_batch_beam.append(
                             &mut (0..num_beams)

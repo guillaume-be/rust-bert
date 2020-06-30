@@ -14,6 +14,7 @@
 
 use crate::common::dropout::Dropout;
 use crate::electra::electra::ElectraConfig;
+use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
 
@@ -28,7 +29,12 @@ pub struct ElectraEmbeddings {
 }
 
 impl ElectraEmbeddings {
-    pub fn new(p: &nn::Path, config: &ElectraConfig) -> ElectraEmbeddings {
+    pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraEmbeddings
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let embedding_config = EmbeddingConfig {
             padding_idx: config.pad_token_id,
             ..Default::default()
