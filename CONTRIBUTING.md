@@ -5,7 +5,7 @@ However, please note that direct contributions to the `rust-bert` library are no
 Building applications and supporting the applications built on top of the library, sharing
 the word about them in the Rust and NLP community or simply a star go a long way in helping this project develop.
 
-## Areas of focus where contributions are welcome
+## Code contributions areas of focus
 
 Rust is a very efficient, safe and fast language when implemented in the right way.
 The field of transformers in NLP and especially their implementation in Rust is a rather new development.
