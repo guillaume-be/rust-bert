@@ -1,0 +1,36 @@
+// Copyright 2018 Mesh TensorFlow authors, T5 Authors and HuggingFace Inc. team.
+// Copyright 2020 Guillaume Becquin
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use std::borrow::Borrow;
+use tch::nn::Init;
+use tch::{nn, Kind, Tensor};
+
+pub struct T5LayerNorm {
+    weight: Tensor,
+    epsilon: f64,
+}
+
+impl T5LayerNorm {
+    pub fn new<'p, P>(p: P, hidden_size: i64, epsilon: f64) -> T5LayerNorm
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let weight = p.borrow().var("weight", &[hidden_size], Init::Const(1.0));
+        T5LayerNorm { weight, epsilon }
+    }
+
+    pub fn forward_t(&self, x: &Tensor) -> Tensor {
+        let variance = x.pow(2f64).mean1(&[-1], true, Kind::Float);
+        let x = x / (variance + self.epsilon).sqrt();
+        &self.weight * x
+    }
+}
