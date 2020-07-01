@@ -17,7 +17,7 @@ use crate::common::activations::{_gelu, _gelu_new, _mish, _relu, _tanh};
 use crate::common::dropout::Dropout;
 use crate::Config;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{borrow::Borrow, collections::HashMap};
 use tch::nn::Module;
 use tch::{nn, Kind, Tensor};
 
@@ -138,13 +138,18 @@ impl AlbertModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = AlbertConfig::from_file(config_path);
-    /// let albert: AlbertModel = AlbertModel::new(&(&p.root() / "albert"), &config);
+    /// let albert: AlbertModel = AlbertModel::new(&p.root() / "albert", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertModel {
-        let embeddings = AlbertEmbeddings::new(&(p / "embeddings"), config);
-        let encoder = AlbertTransformer::new(&(p / "encoder"), config);
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let embeddings = AlbertEmbeddings::new(p / "embeddings", config);
+        let encoder = AlbertTransformer::new(p / "encoder", config);
         let pooler = nn::linear(
-            &(p / "pooler"),
+            p / "pooler",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
@@ -288,7 +293,12 @@ pub struct AlbertMLMHead {
 }
 
 impl AlbertMLMHead {
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertMLMHead {
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertMLMHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let layer_norm_eps = match config.layer_norm_eps {
             Some(value) => value,
             None => 1e-12,
@@ -298,18 +308,18 @@ impl AlbertMLMHead {
             ..Default::default()
         };
         let layer_norm = nn::layer_norm(
-            &(p / "LayerNorm"),
+            p / "LayerNorm",
             vec![config.embedding_size],
             layer_norm_config,
         );
         let dense = nn::linear(
-            &(p / "dense"),
+            p / "dense",
             config.hidden_size,
             config.embedding_size,
             Default::default(),
         );
         let decoder = nn::linear(
-            &(p / "decoder"),
+            p / "decoder",
             config.embedding_size,
             config.vocab_size,
             Default::default(),
@@ -368,9 +378,14 @@ impl AlbertForMaskedLM {
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForMaskedLM = AlbertForMaskedLM::new(&p.root(), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForMaskedLM {
-        let albert = AlbertModel::new(&(p / "albert"), config);
-        let predictions = AlbertMLMHead::new(&(p / "predictions"), config);
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertForMaskedLM
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let albert = AlbertModel::new(p / "albert", config);
+        let predictions = AlbertMLMHead::new(p / "predictions", config);
 
         AlbertForMaskedLM {
             albert,
@@ -486,8 +501,13 @@ impl AlbertForSequenceClassification {
     /// let albert: AlbertForSequenceClassification =
     ///     AlbertForSequenceClassification::new(&p.root(), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForSequenceClassification {
-        let albert = AlbertModel::new(&(p / "albert"), config);
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertForSequenceClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let albert = AlbertModel::new(p / "albert", config);
         let classifier_dropout_prob = match config.classifier_dropout_prob {
             Some(value) => value,
             None => 0.1,
@@ -499,7 +519,7 @@ impl AlbertForSequenceClassification {
             .expect("num_labels not provided in configuration")
             .len() as i64;
         let classifier = nn::linear(
-            &(p / "classifier"),
+            p / "classifier",
             config.hidden_size,
             num_labels,
             Default::default(),
@@ -621,8 +641,13 @@ impl AlbertForTokenClassification {
     /// let albert: AlbertForTokenClassification =
     ///     AlbertForTokenClassification::new(&p.root(), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForTokenClassification {
-        let albert = AlbertModel::new(&(p / "albert"), config);
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertForTokenClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let albert = AlbertModel::new(p / "albert", config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config
             .id2label
@@ -630,7 +655,7 @@ impl AlbertForTokenClassification {
             .expect("num_labels not provided in configuration")
             .len() as i64;
         let classifier = nn::linear(
-            &(p / "classifier"),
+            p / "classifier",
             config.hidden_size,
             num_labels,
             Default::default(),
@@ -750,11 +775,16 @@ impl AlbertForQuestionAnswering {
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForQuestionAnswering = AlbertForQuestionAnswering::new(&p.root(), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForQuestionAnswering {
-        let albert = AlbertModel::new(&(p / "albert"), config);
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertForQuestionAnswering
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let albert = AlbertModel::new(p / "albert", config);
         let num_labels = 2;
         let qa_outputs = nn::linear(
-            &(p / "qa_outputs"),
+            p / "qa_outputs",
             config.hidden_size,
             num_labels,
             Default::default(),
@@ -880,12 +910,17 @@ impl AlbertForMultipleChoice {
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForMultipleChoice = AlbertForMultipleChoice::new(&p.root(), &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &AlbertConfig) -> AlbertForMultipleChoice {
-        let albert = AlbertModel::new(&(p / "albert"), config);
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertForMultipleChoice
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let albert = AlbertModel::new(p / "albert", config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = 1;
         let classifier = nn::linear(
-            &(p / "classifier"),
+            p / "classifier",
             config.hidden_size,
             num_labels,
             Default::default(),

@@ -13,6 +13,7 @@
 
 use crate::albert::AlbertConfig;
 use crate::common::dropout::Dropout;
+use std::borrow::Borrow;
 use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
@@ -31,33 +32,37 @@ pub struct AlbertSelfAttention {
 }
 
 impl AlbertSelfAttention {
-    pub fn new(p: nn::Path, config: &AlbertConfig) -> AlbertSelfAttention {
+    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
         assert_eq!(
             config.hidden_size % config.num_attention_heads,
             0,
             "Hidden size not a multiple of the number of attention heads"
         );
+        let p = p.borrow();
 
         let query = nn::linear(
-            &p / "query",
+            p / "query",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
         );
         let key = nn::linear(
-            &p / "key",
+            p / "key",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
         );
         let value = nn::linear(
-            &p / "value",
+            p / "value",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
         );
         let dense = nn::linear(
-            &p / "dense",
+            p / "dense",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
@@ -76,11 +81,8 @@ impl AlbertSelfAttention {
             eps: layer_norm_eps,
             ..Default::default()
         };
-        let layer_norm = nn::layer_norm(
-            &p / "LayerNorm",
-            vec![config.hidden_size],
-            layer_norm_config,
-        );
+        let layer_norm =
+            nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
 
         AlbertSelfAttention {
             num_attention_heads: config.num_attention_heads,

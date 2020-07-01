@@ -19,7 +19,7 @@ use crate::bart::embeddings::{
 use crate::bart::BartConfig;
 use crate::common::activations::{_gelu, _gelu_new, _relu, _swish, _tanh};
 use crate::common::dropout::Dropout;
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Bool;
 use tch::{nn, Tensor};
 
@@ -35,7 +35,12 @@ pub struct EncoderLayer {
 }
 
 impl EncoderLayer {
-    pub fn new(p: nn::Path, config: &BartConfig) -> EncoderLayer {
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> EncoderLayer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let layer_norm_config = nn::LayerNormConfig {
             eps: 1e-5,
             ..Default::default()
@@ -45,7 +50,7 @@ impl EncoderLayer {
             None => false,
         };
         let self_attention = SelfAttention::new(
-            &p / "self_attn",
+            p / "self_attn",
             config.d_model,
             config.encoder_attention_heads,
             config.attention_dropout,
@@ -54,7 +59,7 @@ impl EncoderLayer {
             output_attention,
         );
         let self_attention_layer_norm = nn::layer_norm(
-            &p / "self_attn_layer_norm",
+            p / "self_attn_layer_norm",
             vec![config.d_model],
             layer_norm_config,
         );
@@ -72,20 +77,20 @@ impl EncoderLayer {
             Activation::tanh => _tanh,
         });
         let fc1 = nn::linear(
-            &p / "fc1",
+            p / "fc1",
             config.d_model,
             config.encoder_ffn_dim,
             Default::default(),
         );
         let fc2 = nn::linear(
-            &p / "fc2",
+            p / "fc2",
             config.encoder_ffn_dim,
             config.d_model,
             Default::default(),
         );
 
         let final_layer_norm = nn::layer_norm(
-            &p / "final_layer_norm",
+            p / "final_layer_norm",
             vec![config.d_model],
             layer_norm_config,
         );
@@ -136,7 +141,11 @@ pub struct BartEncoder {
 }
 
 impl BartEncoder {
-    pub fn new(p: nn::Path, config: &BartConfig) -> BartEncoder {
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartEncoder
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
         let output_attentions = match config.output_attentions {
             Some(value) => value,
             None => false,
@@ -172,7 +181,7 @@ impl BartEncoder {
                 ..Default::default()
             };
             Some(nn::layer_norm(
-                &p / "layernorm_embedding",
+                p / "layernorm_embedding",
                 vec![config.d_model],
                 layer_norm_config,
             ))
@@ -187,13 +196,13 @@ impl BartEncoder {
 
         let embed_positions = if static_position_embeddings {
             EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(
-                &p / "embed_positions",
+                p / "embed_positions",
                 config.max_position_embeddings,
                 config.d_model,
             ))
         } else {
             EmbeddingOption::LearnedPositionalEmbedding(LearnedPositionalEmbedding::new(
-                &p / "embed_positions",
+                p / "embed_positions",
                 config.max_position_embeddings,
                 config.d_model,
                 pad_token_id,
@@ -201,7 +210,7 @@ impl BartEncoder {
         };
 
         let mut layers: Vec<EncoderLayer> = vec![];
-        let p_layers = &p / "layers";
+        let p_layers = p / "layers";
         for layer_index in 0..config.encoder_layers {
             layers.push(EncoderLayer::new(&p_layers / layer_index, config));
         }

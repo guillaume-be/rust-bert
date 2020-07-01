@@ -14,6 +14,7 @@
 
 use crate::common::dropout::Dropout;
 use crate::gpt2::gpt2::Gpt2Config;
+use std::borrow::Borrow;
 use tch::kind::Kind::Float;
 use tch::nn::{Init, Module};
 use tch::{nn, Tensor};
@@ -25,7 +26,12 @@ pub struct GPTConv1D {
 }
 
 impl GPTConv1D {
-    pub fn new(p: &nn::Path, nf: i64, nx: i64) -> GPTConv1D {
+    pub fn new<'p, P>(p: P, nf: i64, nx: i64) -> GPTConv1D
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let weight = p.var(
             "weight",
             &[nx, nf],
@@ -59,12 +65,17 @@ pub struct Attention {
 }
 
 impl Attention {
-    pub fn new(p: &nn::Path, config: &Gpt2Config, scale: bool) -> Attention {
+    pub fn new<'p, P>(p: P, config: &Gpt2Config, scale: bool) -> Attention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let bias = Tensor::ones(&[config.n_ctx, config.n_ctx], (Float, p.device()))
             .tril(0)
             .view((1, 1, config.n_ctx, config.n_ctx));
-        let c_attn = GPTConv1D::new(&(p / "c_attn"), config.n_embd * 3, config.n_embd);
-        let c_proj = GPTConv1D::new(&(p / "c_proj"), config.n_embd, config.n_embd);
+        let c_attn = GPTConv1D::new(p / "c_attn", config.n_embd * 3, config.n_embd);
+        let c_proj = GPTConv1D::new(p / "c_proj", config.n_embd, config.n_embd);
 
         let attn_pdrop = match config.attn_pdrop {
             Some(value) => value,

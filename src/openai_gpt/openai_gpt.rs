@@ -17,7 +17,7 @@ use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::Gpt2Config;
 use crate::openai_gpt::transformer::Block;
 use crate::pipelines::generation::{Cache, LMHeadModel};
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
 use tch::{nn, Tensor};
@@ -104,17 +104,22 @@ impl OpenAiGptModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = Gpt2Config::from_file(config_path);
-    /// let gpt2: OpenAiGptModel = OpenAiGptModel::new(&(&p.root() / "gpt"), &config);
+    /// let gpt2: OpenAiGptModel = OpenAiGptModel::new(&p.root() / "gpt", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &Gpt2Config) -> OpenAiGptModel {
+    pub fn new<'p, P>(p: P, config: &Gpt2Config) -> OpenAiGptModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let tokens_embed = embedding(
-            &(p / "tokens_embed"),
+            p / "tokens_embed",
             config.vocab_size,
             config.n_embd,
             Default::default(),
         );
         let positions_embed = embedding(
-            &(p / "positions_embed"),
+            p / "positions_embed",
             config.n_positions,
             config.n_embd,
             Default::default(),
@@ -126,9 +131,9 @@ impl OpenAiGptModel {
         };
         let drop = Dropout::new(embd_pdrop);
         let mut h: Vec<Block> = vec![];
-        let h_path = &(p / "h");
+        let h_path = p / "h";
         for layer_index in 0..config.n_layer {
-            h.push(Block::new(&(h_path / layer_index), config, true));
+            h.push(Block::new(&h_path / layer_index, config, true));
         }
         let output_attentions = match config.output_attentions {
             Some(value) => value,
@@ -315,12 +320,17 @@ impl OpenAIGPTLMHeadModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = Gpt2Config::from_file(config_path);
-    /// let gpt2: OpenAIGPTLMHeadModel = OpenAIGPTLMHeadModel::new(&(&p.root() / "gpt"), &config);
+    /// let gpt2: OpenAIGPTLMHeadModel = OpenAIGPTLMHeadModel::new(&p.root() / "gpt", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &Gpt2Config) -> OpenAIGPTLMHeadModel {
-        let transformer = OpenAiGptModel::new(&p, config);
+    pub fn new<'p, P>(p: P, config: &Gpt2Config) -> OpenAIGPTLMHeadModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let transformer = OpenAiGptModel::new(p, config);
         let lm_head = linear_no_bias(
-            &(p / "lm_head"),
+            p / "lm_head",
             config.n_embd,
             config.vocab_size,
             Default::default(),

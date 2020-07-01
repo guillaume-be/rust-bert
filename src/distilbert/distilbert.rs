@@ -18,7 +18,7 @@ use crate::distilbert::embeddings::DistilBertEmbedding;
 use crate::distilbert::transformer::Transformer;
 use crate::Config;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{borrow::Borrow, collections::HashMap};
 
 /// # DistilBERT Pretrained model weight files
 pub struct DistilBertModelResources;
@@ -154,12 +154,15 @@ impl DistilBertModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert: DistilBertModel = DistilBertModel::new(&(&p.root() / "distilbert"), &config);
+    /// let distil_bert: DistilBertModel = DistilBertModel::new(&p.root() / "distilbert", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModel {
-        let p = &(p / "distilbert");
-        let embeddings = DistilBertEmbedding::new(&(p / "embeddings"), config);
-        let transformer = Transformer::new(&(p / "transformer"), config);
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow() / "distilbert";
+        let embeddings = DistilBertEmbedding::new(p.borrow() / "embeddings", config);
+        let transformer = Transformer::new(p.borrow() / "transformer", config);
         DistilBertModel {
             embeddings,
             transformer,
@@ -266,10 +269,15 @@ impl DistilBertModelClassifier {
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert: DistilBertModelClassifier =
-    ///     DistilBertModelClassifier::new(&(&p.root() / "distilbert"), &config);
+    ///     DistilBertModelClassifier::new(&p.root() / "distilbert", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModelClassifier {
-        let distil_bert_model = DistilBertModel::new(&p, config);
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertModelClassifier
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let distil_bert_model = DistilBertModel::new(p, config);
 
         let num_labels = config
             .id2label
@@ -278,17 +286,12 @@ impl DistilBertModelClassifier {
             .len() as i64;
 
         let pre_classifier = nn::linear(
-            &(p / "pre_classifier"),
+            p / "pre_classifier",
             config.dim,
             config.dim,
             Default::default(),
         );
-        let classifier = nn::linear(
-            &(p / "classifier"),
-            config.dim,
-            num_labels,
-            Default::default(),
-        );
+        let classifier = nn::linear(p / "classifier", config.dim, num_labels, Default::default());
         let dropout = Dropout::new(config.seq_classif_dropout);
 
         DistilBertModelClassifier {
@@ -401,12 +404,17 @@ impl DistilBertModelMaskedLM {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertModelMaskedLM::new(&(&p.root() / "distilbert"), &config);
+    /// let distil_bert = DistilBertModelMaskedLM::new(&p.root() / "distilbert", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertModelMaskedLM {
-        let distil_bert_model = DistilBertModel::new(&p, config);
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertModelMaskedLM
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let distil_bert_model = DistilBertModel::new(p, config);
         let vocab_transform = nn::linear(
-            &(p / "vocab_transform"),
+            p / "vocab_transform",
             config.dim,
             config.dim,
             Default::default(),
@@ -418,7 +426,7 @@ impl DistilBertModelMaskedLM {
         let vocab_layer_norm =
             nn::layer_norm(p / "vocab_layer_norm", vec![config.dim], layer_norm_config);
         let vocab_projector = nn::linear(
-            &(p / "vocab_projector"),
+            p / "vocab_projector",
             config.dim,
             config.vocab_size,
             Default::default(),
@@ -530,11 +538,16 @@ impl DistilBertForQuestionAnswering {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertForQuestionAnswering::new(&(&p.root() / "distilbert"), &config);
+    /// let distil_bert = DistilBertForQuestionAnswering::new(&p.root() / "distilbert", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForQuestionAnswering {
-        let distil_bert_model = DistilBertModel::new(&p, config);
-        let qa_outputs = nn::linear(&(p / "qa_outputs"), config.dim, 2, Default::default());
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertForQuestionAnswering
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let distil_bert_model = DistilBertModel::new(p, config);
+        let qa_outputs = nn::linear(p / "qa_outputs", config.dim, 2, Default::default());
         let dropout = Dropout::new(config.qa_dropout);
 
         DistilBertForQuestionAnswering {
@@ -643,10 +656,15 @@ impl DistilBertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertForTokenClassification::new(&(&p.root() / "distilbert"), &config);
+    /// let distil_bert = DistilBertForTokenClassification::new(&p.root() / "distilbert", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &DistilBertConfig) -> DistilBertForTokenClassification {
-        let distil_bert_model = DistilBertModel::new(&p, config);
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertForTokenClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let distil_bert_model = DistilBertModel::new(p, config);
 
         let num_labels = config
             .id2label
@@ -654,12 +672,7 @@ impl DistilBertForTokenClassification {
             .expect("id2label must be provided for classifiers")
             .len() as i64;
 
-        let classifier = nn::linear(
-            &(p / "classifier"),
-            config.dim,
-            num_labels,
-            Default::default(),
-        );
+        let classifier = nn::linear(p / "classifier", config.dim, num_labels, Default::default());
         let dropout = Dropout::new(config.seq_classif_dropout);
 
         DistilBertForTokenClassification {

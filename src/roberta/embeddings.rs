@@ -13,6 +13,7 @@
 
 use crate::bert::{BertConfig, BertEmbedding};
 use crate::common::dropout::Dropout;
+use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
 
@@ -67,9 +68,14 @@ impl BertEmbedding for RobertaEmbeddings {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let robert_embeddings = RobertaEmbeddings::new(&(&p.root() / "bert_embeddings"), &config);
+    /// let robert_embeddings = RobertaEmbeddings::new(&p.root() / "bert_embeddings", &config);
     /// ```
-    fn new(p: &nn::Path, config: &BertConfig) -> RobertaEmbeddings {
+    fn new<'p, P>(p: P, config: &BertConfig) -> RobertaEmbeddings
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let embedding_config = EmbeddingConfig {
             padding_idx: 1,
             ..Default::default()

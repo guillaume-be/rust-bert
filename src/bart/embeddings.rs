@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Borrow;
 use tch::kind::Kind::Int64;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Tensor};
@@ -43,12 +44,15 @@ pub struct LearnedPositionalEmbedding {
 }
 
 impl LearnedPositionalEmbedding {
-    pub fn new(
-        p: nn::Path,
+    pub fn new<'p, P>(
+        p: P,
         num_embeddings: i64,
         embedding_dim: i64,
         padding_index: i64,
-    ) -> LearnedPositionalEmbedding {
+    ) -> LearnedPositionalEmbedding
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
         let embedding_config = EmbeddingConfig {
             padding_idx: padding_index,
             ..Default::default()
@@ -56,7 +60,7 @@ impl LearnedPositionalEmbedding {
         let num_embeddings = num_embeddings + padding_index + 1;
 
         let embedding: nn::Embedding =
-            embedding(p, num_embeddings, embedding_dim, embedding_config);
+            embedding(p.borrow(), num_embeddings, embedding_dim, embedding_config);
         LearnedPositionalEmbedding {
             embedding,
             padding_index,
@@ -86,13 +90,20 @@ pub struct SinusoidalPositionalEmbedding {
 }
 
 impl SinusoidalPositionalEmbedding {
-    pub fn new(
-        p: nn::Path,
+    pub fn new<'p, P>(
+        p: P,
         num_embeddings: i64,
         embedding_dim: i64,
-    ) -> SinusoidalPositionalEmbedding {
-        let embedding: nn::Embedding =
-            embedding(p, num_embeddings, embedding_dim, Default::default());
+    ) -> SinusoidalPositionalEmbedding
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let embedding: nn::Embedding = embedding(
+            p.borrow(),
+            num_embeddings,
+            embedding_dim,
+            Default::default(),
+        );
         SinusoidalPositionalEmbedding { embedding }
     }
 

@@ -13,13 +13,16 @@
 
 use crate::bert::bert::BertConfig;
 use crate::common::dropout::Dropout;
+use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
 
 /// # BertEmbedding trait (for use in BertModel or RoBERTaModel)
 /// Defines an interface for the embedding layers in BERT-based models
 pub trait BertEmbedding {
-    fn new(p: &nn::Path, config: &BertConfig) -> Self;
+    fn new<'p, P>(p: P, config: &BertConfig) -> Self
+    where
+        P: Borrow<nn::Path<'p>>;
 
     fn forward_t(
         &self,
@@ -62,9 +65,14 @@ impl BertEmbedding for BertEmbeddings {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert_embeddings = BertEmbeddings::new(&(&p.root() / "bert_embeddings"), &config);
+    /// let bert_embeddings = BertEmbeddings::new(&p.root() / "bert_embeddings", &config);
     /// ```
-    fn new(p: &nn::Path, config: &BertConfig) -> BertEmbeddings {
+    fn new<'p, P>(p: P, config: &BertConfig) -> BertEmbeddings
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let embedding_config = EmbeddingConfig {
             padding_idx: 0,
             ..Default::default()

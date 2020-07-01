@@ -13,7 +13,7 @@
 
 use crate::bert::attention::{BertAttention, BertIntermediate, BertOutput};
 use crate::bert::bert::BertConfig;
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
 pub struct BertLayer {
@@ -25,14 +25,19 @@ pub struct BertLayer {
 }
 
 impl BertLayer {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertLayer {
-        let attention = BertAttention::new(&(p / "attention"), &config);
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertLayer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let attention = BertAttention::new(p / "attention", &config);
         let (is_decoder, cross_attention) = match config.is_decoder {
             Some(value) => {
                 if value == true {
                     (
                         value,
-                        Some(BertAttention::new(&(p / "cross_attention"), &config)),
+                        Some(BertAttention::new(p / "cross_attention", &config)),
                     )
                 } else {
                     (value, None)
@@ -41,8 +46,8 @@ impl BertLayer {
             None => (false, None),
         };
 
-        let intermediate = BertIntermediate::new(&(p / "intermediate"), &config);
-        let output = BertOutput::new(&(p / "output"), &config);
+        let intermediate = BertIntermediate::new(p / "intermediate", &config);
+        let output = BertOutput::new(p / "output", &config);
 
         BertLayer {
             attention,
@@ -96,8 +101,11 @@ pub struct BertEncoder {
 }
 
 impl BertEncoder {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertEncoder {
-        let p = &(p / "layer");
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertEncoder
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow() / "layer";
         let output_attentions = if let Some(value) = config.output_attentions {
             value
         } else {
@@ -111,7 +119,7 @@ impl BertEncoder {
 
         let mut layers: Vec<BertLayer> = vec![];
         for layer_index in 0..config.num_hidden_layers {
-            layers.push(BertLayer::new(&(p / layer_index), config));
+            layers.push(BertLayer::new(&p / layer_index, config));
         }
 
         BertEncoder {
@@ -176,9 +184,14 @@ pub struct BertPooler {
 }
 
 impl BertPooler {
-    pub fn new(p: &nn::Path, config: &BertConfig) -> BertPooler {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertPooler
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
         let lin = nn::linear(
-            &(p / "dense"),
+            p / "dense",
             config.hidden_size,
             config.hidden_size,
             Default::default(),

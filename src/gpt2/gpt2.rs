@@ -18,7 +18,7 @@ use crate::gpt2::transformer::Block;
 use crate::pipelines::generation::{Cache, LMHeadModel};
 use crate::Config;
 use serde::{Deserialize, Serialize};
-use std::borrow::BorrowMut;
+use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
 use tch::{nn, Tensor};
@@ -245,18 +245,22 @@ impl Gpt2Model {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = Gpt2Config::from_file(config_path);
-    /// let gpt2: Gpt2Model = Gpt2Model::new(&(&p.root() / "gpt2"), &config);
+    /// let gpt2: Gpt2Model = Gpt2Model::new(&p.root() / "gpt2", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &Gpt2Config) -> Gpt2Model {
-        let p = &(p / "transformer");
+    pub fn new<'p, P>(p: P, config: &Gpt2Config) -> Gpt2Model
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow() / "transformer";
+
         let wte = embedding(
-            &(p / "wte"),
+            &p / "wte",
             config.vocab_size,
             config.n_embd,
             Default::default(),
         );
         let wpe = embedding(
-            &(p / "wpe"),
+            &p / "wpe",
             config.n_positions,
             config.n_embd,
             Default::default(),
@@ -271,11 +275,11 @@ impl Gpt2Model {
             eps: config.layer_norm_epsilon,
             ..Default::default()
         };
-        let ln_f = nn::layer_norm(p / "ln_f", vec![config.n_embd], layer_norm_config);
+        let ln_f = nn::layer_norm(&p / "ln_f", vec![config.n_embd], layer_norm_config);
         let mut h: Vec<Block> = vec![];
-        let h_path = &(p / "h");
+        let h_path = &p / "h";
         for layer_index in 0..config.n_layer {
-            h.push(Block::new(&(h_path / layer_index), config, true));
+            h.push(Block::new(&h_path / layer_index, config, true));
         }
         let output_attentions = match config.output_attentions {
             Some(value) => value,
@@ -529,12 +533,17 @@ impl GPT2LMHeadModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = Gpt2Config::from_file(config_path);
-    /// let gpt2: GPT2LMHeadModel = GPT2LMHeadModel::new(&(&p.root() / "gpt2"), &config);
+    /// let gpt2: GPT2LMHeadModel = GPT2LMHeadModel::new(&p.root() / "gpt2", &config);
     /// ```
-    pub fn new(p: &nn::Path, config: &Gpt2Config) -> GPT2LMHeadModel {
-        let transformer = Gpt2Model::new(&p, config);
+    pub fn new<'p, P>(p: P, config: &Gpt2Config) -> GPT2LMHeadModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let transformer = Gpt2Model::new(p, config);
         let lm_head = linear_no_bias(
-            &(p / "lm_head"),
+            p / "lm_head",
             config.n_embd,
             config.vocab_size,
             Default::default(),
