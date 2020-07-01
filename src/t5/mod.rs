@@ -1,3 +1,4 @@
+mod attention;
 mod layer_norm;
 mod t5;
 
