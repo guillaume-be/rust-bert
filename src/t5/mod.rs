@@ -1,4 +1,5 @@
 mod attention;
+mod encoder;
 mod layer_norm;
 mod t5;
 
