@@ -28,14 +28,12 @@ impl T5DenseReluDense {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-
         let linear_config = LinearConfig {
             bias: false,
             ..Default::default()
         };
-
         let wi = nn::linear(p / "wi", config.d_model, config.d_ff, linear_config);
-        let wp = nn::linear(p / "wi", config.d_ff, config.d_model, linear_config);
+        let wo = nn::linear(p / "wi", config.d_ff, config.d_model, linear_config);
         let dropout = Dropout::new(config.dropout_rate);
 
         T5DenseReluDense { wi, wo, dropout }
@@ -47,5 +45,42 @@ impl T5DenseReluDense {
             .relu()
             .apply_t(&self.dropout, train)
             .apply(&self.wo)
+    }
+}
+
+pub struct T5LayerFF {
+    dense_relu_dense: T5DenseReluDense,
+    layer_norm: nn::LayerNorm,
+    dropout: Dropout,
+}
+
+impl T5LayerFF {
+    pub fn new<'p, P>(p: P, config: &T5Config) -> T5LayerFF
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dense_relu_dense = T5DenseReluDense::new(p / "DenseReluDense", config);
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_epsilon,
+            ..Default::default()
+        };
+        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], layer_norm_config);
+        let dropout = Dropout::new(config.dropout_rate);
+
+        T5LayerFF {
+            dense_relu_dense,
+            layer_norm,
+            dropout,
+        }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        let y = &self
+            .dense_relu_dense
+            .forward_t(&hidden_states.apply(&self.layer_norm), train);
+
+        hidden_states + y.apply_t(&self.dropout, train)
     }
 }
