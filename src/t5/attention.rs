@@ -51,7 +51,6 @@ pub struct T5Attention {
     n_heads: i64,
     dropout: Dropout,
     inner_dim: i64,
-    encoder_decoder_attention: bool,
     output_attentions: bool,
     store_cache: bool,
     q: nn::Linear,
@@ -64,9 +63,8 @@ pub struct T5Attention {
 impl T5Attention {
     pub fn new<'p, P>(
         p: P,
-        config: T5Config,
+        config: &T5Config,
         is_decoder: bool,
-        encoder_decoder_attention: bool,
         store_cache: bool,
         output_attentions: bool,
         has_relative_attention_bias: bool,
@@ -103,7 +101,6 @@ impl T5Attention {
             n_heads: config.num_heads,
             dropout,
             inner_dim,
-            encoder_decoder_attention,
             output_attentions,
             store_cache,
             q,
@@ -281,5 +278,75 @@ impl T5Attention {
             .apply(self.relative_attention_bias.as_ref().unwrap())
             .permute(&[2, 0, 1])
             .unsqueeze(0)
+    }
+}
+
+pub struct T5LayerSelfAttention {
+    self_attention: T5Attention,
+    layer_norm: nn::LayerNorm,
+    dropout: Dropout,
+}
+
+impl T5LayerSelfAttention {
+    pub fn new<'p, P>(
+        p: P,
+        config: &T5Config,
+        has_relative_attention_bias: bool,
+        is_decoder: bool,
+        store_cache: bool,
+        output_attentions: bool,
+    ) -> T5LayerSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let self_attention = T5Attention::new(
+            p / "SelfAttention",
+            config,
+            is_decoder,
+            store_cache,
+            output_attentions,
+            has_relative_attention_bias,
+        );
+
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_epsilon,
+            ..Default::default()
+        };
+        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], layer_norm_config);
+        let dropout = Dropout::new(config.dropout_rate);
+
+        T5LayerSelfAttention {
+            self_attention,
+            layer_norm,
+            dropout,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input: &Tensor,
+        position_bias: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        mut layer_state: Option<LayerState>,
+        _query_length: Option<i64>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
+        let norm_x = input.apply(&self.layer_norm);
+
+        let (y, attention_weights, layer_past) = self.self_attention.forward_t(
+            &norm_x,
+            None,
+            position_bias,
+            attention_mask,
+            layer_state,
+            None,
+            train,
+        );
+
+        let output = input + y.apply_t(&self.dropout, train);
+
+        (output, attention_weights, layer_past)
     }
 }
