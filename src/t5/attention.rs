@@ -330,7 +330,6 @@ impl T5LayerSelfAttention {
         position_bias: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         mut layer_state: Option<LayerState>,
-        _query_length: Option<i64>,
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
         let norm_x = input.apply(&self.layer_norm);
@@ -342,6 +341,77 @@ impl T5LayerSelfAttention {
             attention_mask,
             layer_state,
             None,
+            train,
+        );
+
+        let output = input + y.apply_t(&self.dropout, train);
+
+        (output, attention_weights, layer_past)
+    }
+}
+
+pub struct T5LayerCrossAttention {
+    encoder_decoder_attention: T5Attention,
+    layer_norm: nn::LayerNorm,
+    dropout: Dropout,
+}
+
+impl T5LayerCrossAttention {
+    pub fn new<'p, P>(
+        p: P,
+        config: &T5Config,
+        has_relative_attention_bias: bool,
+        is_decoder: bool,
+        store_cache: bool,
+        output_attentions: bool,
+    ) -> T5LayerCrossAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let encoder_decoder_attention = T5Attention::new(
+            p / "EncDecAttention",
+            config,
+            is_decoder,
+            store_cache,
+            output_attentions,
+            has_relative_attention_bias,
+        );
+
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_epsilon,
+            ..Default::default()
+        };
+        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], layer_norm_config);
+        let dropout = Dropout::new(config.dropout_rate);
+
+        T5LayerCrossAttention {
+            encoder_decoder_attention,
+            layer_norm,
+            dropout,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input: &Tensor,
+        kv: Option<&Tensor>,
+        position_bias: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        mut layer_state: Option<LayerState>,
+        query_length: Option<i64>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
+        let norm_x = input.apply(&self.layer_norm);
+
+        let (y, attention_weights, layer_past) = self.encoder_decoder_attention.forward_t(
+            &norm_x,
+            kv,
+            position_bias,
+            attention_mask,
+            layer_state,
+            query_length,
             train,
         );
 
