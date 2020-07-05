@@ -123,15 +123,15 @@ impl T5Attention {
 
     pub fn forward_t(
         &self,
-        input: &Tensor,
+        hidden_states: &Tensor,
         kv: Option<&Tensor>,
         position_bias: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         mut layer_state: Option<LayerState>,
         query_length: Option<i64>,
         train: bool,
-    ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
-        let input_size = input.size();
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
+        let input_size = hidden_states.size();
         let (bs, q_len, _) = (input_size[0], input_size[1], input_size[2]);
 
         let real_query_length = if layer_state.is_some() {
@@ -157,12 +157,12 @@ impl T5Attention {
             None => real_query_length,
         };
 
-        let q: Tensor = self.shape(input.as_ref().apply(&self.q), bs);
+        let q: Tensor = self.shape(hidden_states.as_ref().apply(&self.q), bs);
 
         let (mut k, mut v) = if kv.is_none() {
             (
-                self.shape(input.apply(&self.k), bs),
-                self.shape(input.apply(&self.v), bs),
+                self.shape(hidden_states.apply(&self.k), bs),
+                self.shape(hidden_states.apply(&self.v), bs),
             )
         } else {
             (
@@ -194,7 +194,8 @@ impl T5Attention {
         let mut scores = Tensor::einsum("bnqd,bnkd->bnqk", &[q, k]);
 
         let calculated_position_bias = if position_bias.is_none() {
-            let mut temp_value = self.compute_bias(real_query_length, key_length, input.device());
+            let mut temp_value =
+                self.compute_bias(real_query_length, key_length, hidden_states.device());
             if layer_state.is_some() {
                 temp_value = temp_value.select(2, -1);
             };
@@ -227,7 +228,13 @@ impl T5Attention {
             None
         };
 
-        (context, attention_weights, layer_state)
+        let position_bias = if self.has_relative_attention_bias {
+            calculated_position_bias
+        } else {
+            None
+        };
+
+        (context, attention_weights, position_bias, layer_state)
     }
 
     fn get_relative_position_bucket(
@@ -326,15 +333,15 @@ impl T5LayerSelfAttention {
 
     pub fn forward_t(
         &self,
-        input: &Tensor,
+        hidden_states: &Tensor,
         position_bias: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         layer_state: Option<LayerState>,
         train: bool,
-    ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
-        let norm_x = input.apply(&self.layer_norm);
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
+        let norm_x = hidden_states.apply(&self.layer_norm);
 
-        let (y, attention_weights, layer_state) = self.self_attention.forward_t(
+        let (y, attention_weights, position_bias, layer_state) = self.self_attention.forward_t(
             &norm_x,
             None,
             position_bias,
@@ -344,9 +351,9 @@ impl T5LayerSelfAttention {
             train,
         );
 
-        let output = input + y.apply_t(&self.dropout, train);
+        let output = hidden_states + y.apply_t(&self.dropout, train);
 
-        (output, attention_weights, layer_state)
+        (output, attention_weights, position_bias, layer_state)
     }
 }
 
@@ -395,28 +402,29 @@ impl T5LayerCrossAttention {
 
     pub fn forward_t(
         &self,
-        input: &Tensor,
+        hidden_states: &Tensor,
         kv: Option<&Tensor>,
         position_bias: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         layer_state: Option<LayerState>,
         query_length: Option<i64>,
         train: bool,
-    ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
-        let norm_x = input.apply(&self.layer_norm);
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
+        let norm_x = hidden_states.apply(&self.layer_norm);
 
-        let (y, attention_weights, layer_state) = self.encoder_decoder_attention.forward_t(
-            &norm_x,
-            kv,
-            position_bias,
-            attention_mask,
-            layer_state,
-            query_length,
-            train,
-        );
+        let (y, attention_weights, position_bias, layer_state) =
+            self.encoder_decoder_attention.forward_t(
+                &norm_x,
+                kv,
+                position_bias,
+                attention_mask,
+                layer_state,
+                query_length,
+                train,
+            );
 
-        let output = input + y.apply_t(&self.dropout, train);
+        let output = hidden_states + y.apply_t(&self.dropout, train);
 
-        (output, attention_weights, layer_state)
+        (output, attention_weights, position_bias, layer_state)
     }
 }
