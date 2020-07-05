@@ -14,6 +14,7 @@ use crate::common::dropout::Dropout;
 use crate::t5::layer_norm::T5LayerNorm;
 use crate::t5::T5Config;
 use std::borrow::Borrow;
+use tch::nn::LinearConfig;
 use tch::{nn, Device, Kind, Tensor};
 
 #[derive(Debug)]
@@ -75,11 +76,16 @@ impl T5Attention {
     {
         let p = p.borrow();
 
+        let linear_config = LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+
         let inner_dim = config.num_heads * config.d_kv;
-        let k = nn::linear(p / "k", config.d_model, inner_dim, Default::default());
-        let v = nn::linear(p / "v", config.d_model, inner_dim, Default::default());
-        let q = nn::linear(p / "q", config.d_model, inner_dim, Default::default());
-        let o = nn::linear(p / "o", inner_dim, config.d_model, Default::default());
+        let k = nn::linear(p / "k", config.d_model, inner_dim, linear_config);
+        let v = nn::linear(p / "v", config.d_model, inner_dim, linear_config);
+        let q = nn::linear(p / "q", config.d_model, inner_dim, linear_config);
+        let o = nn::linear(p / "o", inner_dim, config.d_model, linear_config);
 
         let dropout = Dropout::new(config.dropout_rate);
         let relative_attention_bias = if has_relative_attention_bias {

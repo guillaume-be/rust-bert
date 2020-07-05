@@ -35,7 +35,7 @@ impl T5DenseReluDense {
             ..Default::default()
         };
         let wi = nn::linear(p / "wi", config.d_model, config.d_ff, linear_config);
-        let wo = nn::linear(p / "wi", config.d_ff, config.d_model, linear_config);
+        let wo = nn::linear(p / "wo", config.d_ff, config.d_model, linear_config);
         let dropout = Dropout::new(config.dropout_rate);
 
         T5DenseReluDense { wi, wo, dropout }
@@ -108,10 +108,10 @@ impl T5Block {
         let self_attention = T5LayerSelfAttention::new(
             &p / module_index,
             config,
+            has_relative_attention_bias,
             is_decoder,
             store_cache,
             output_attentions,
-            has_relative_attention_bias,
         );
 
         let cross_attention = if is_decoder {
@@ -119,10 +119,10 @@ impl T5Block {
             Some(T5LayerCrossAttention::new(
                 &p / module_index,
                 config,
+                has_relative_attention_bias,
                 is_decoder,
                 store_cache,
                 output_attentions,
-                has_relative_attention_bias,
             ))
         } else {
             None

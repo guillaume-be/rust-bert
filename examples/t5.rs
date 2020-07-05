@@ -13,9 +13,10 @@
 extern crate failure;
 
 use rust_bert::resources::{download_resource, RemoteResource, Resource};
-use rust_bert::t5::{T5Config, T5ConfigResources, T5ModelResources, T5VocabResources};
+use rust_bert::t5::{T5Config, T5ConfigResources, T5Model, T5ModelResources, T5VocabResources};
 use rust_bert::Config;
 use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
+use tch::{nn, Device};
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
@@ -27,16 +28,16 @@ fn main() -> failure::Fallible<()> {
         Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
     let config_path = download_resource(&config_resource)?;
     let vocab_path = download_resource(&vocab_resource)?;
-    let _weights_path = download_resource(&weights_resource)?;
+    let weights_path = download_resource(&weights_resource)?;
 
     //    Set-up masked LM model
-    // let device = Device::Cpu;
-    // let mut vs = nn::VarStore::new(device);
+    let device = Device::Cpu;
+    let mut vs = nn::VarStore::new(device);
     let _tokenizer: T5Tokenizer = T5Tokenizer::from_file(vocab_path.to_str().unwrap(), true);
-    let _config = T5Config::from_file(config_path);
+    let config = T5Config::from_file(config_path);
 
-    // let albert_model = AlbertForMaskedLM::new(&vs.root(), &config);
-    // vs.load(weights_path)?;
+    let _t5_model = T5Model::new(&vs.root(), &config, false, false);
+    vs.load(weights_path)?;
 
     //    Define input
     // let input = [
