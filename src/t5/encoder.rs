@@ -12,6 +12,7 @@
 
 use crate::common::dropout::Dropout;
 use crate::t5::attention::{LayerState, T5LayerCrossAttention, T5LayerSelfAttention};
+use crate::t5::layer_norm::T5LayerNorm;
 use crate::t5::T5Config;
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LinearConfig;
@@ -51,7 +52,7 @@ impl T5DenseReluDense {
 
 pub struct T5LayerFF {
     dense_relu_dense: T5DenseReluDense,
-    layer_norm: nn::LayerNorm,
+    layer_norm: T5LayerNorm,
     dropout: Dropout,
 }
 
@@ -63,11 +64,8 @@ impl T5LayerFF {
         let p = p.borrow();
 
         let dense_relu_dense = T5DenseReluDense::new(p / "DenseReluDense", config);
-        let layer_norm_config = nn::LayerNormConfig {
-            eps: config.layer_norm_epsilon,
-            ..Default::default()
-        };
-        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], layer_norm_config);
+        let layer_norm =
+            T5LayerNorm::new(p / "layer_norm", config.d_model, config.layer_norm_epsilon);
         let dropout = Dropout::new(config.dropout_rate);
 
         T5LayerFF {
@@ -208,7 +206,7 @@ impl T5Block {
 
 pub struct T5Stack {
     blocks: Vec<T5Block>,
-    final_layer_norm: nn::LayerNorm,
+    final_layer_norm: T5LayerNorm,
     dropout: Dropout,
     output_attentions: bool,
     output_hidden_states: bool,
@@ -244,15 +242,10 @@ impl T5Stack {
             ));
         }
 
-        let layer_norm_config = nn::LayerNormConfig {
-            eps: config.layer_norm_epsilon,
-            ..Default::default()
-        };
-
-        let final_layer_norm = nn::layer_norm(
+        let final_layer_norm = T5LayerNorm::new(
             p / "final_layer_norm",
-            vec![config.d_model],
-            layer_norm_config,
+            config.d_model,
+            config.layer_norm_epsilon,
         );
 
         T5Stack {

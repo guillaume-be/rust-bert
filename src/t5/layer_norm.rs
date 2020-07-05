@@ -11,9 +11,10 @@
 // limitations under the License.
 
 use std::borrow::Borrow;
-use tch::nn::Init;
+use tch::nn::{Init, Module};
 use tch::{nn, Kind, Tensor};
 
+#[derive(Debug)]
 pub struct T5LayerNorm {
     weight: Tensor,
     epsilon: f64,
@@ -27,8 +28,10 @@ impl T5LayerNorm {
         let weight = p.borrow().var("weight", &[hidden_size], Init::Const(1.0));
         T5LayerNorm { weight, epsilon }
     }
+}
 
-    pub fn forward_t(&self, x: &Tensor) -> Tensor {
+impl Module for T5LayerNorm {
+    fn forward(&self, x: &Tensor) -> Tensor {
         let variance = x.pow(2f64).mean1(&[-1], true, Kind::Float);
         let x = x / (variance + self.epsilon).sqrt();
         &self.weight * x

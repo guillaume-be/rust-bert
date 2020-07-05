@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::t5::layer_norm::T5LayerNorm;
 use crate::t5::T5Config;
 use std::borrow::Borrow;
 use tch::{nn, Device, Kind, Tensor};
@@ -290,7 +291,7 @@ impl T5Attention {
 
 pub struct T5LayerSelfAttention {
     self_attention: T5Attention,
-    layer_norm: nn::LayerNorm,
+    layer_norm: T5LayerNorm,
     dropout: Dropout,
 }
 
@@ -317,11 +318,8 @@ impl T5LayerSelfAttention {
             has_relative_attention_bias,
         );
 
-        let layer_norm_config = nn::LayerNormConfig {
-            eps: config.layer_norm_epsilon,
-            ..Default::default()
-        };
-        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], layer_norm_config);
+        let layer_norm =
+            T5LayerNorm::new(p / "layer_norm", config.d_model, config.layer_norm_epsilon);
         let dropout = Dropout::new(config.dropout_rate);
 
         T5LayerSelfAttention {
@@ -359,7 +357,7 @@ impl T5LayerSelfAttention {
 
 pub struct T5LayerCrossAttention {
     encoder_decoder_attention: T5Attention,
-    layer_norm: nn::LayerNorm,
+    layer_norm: T5LayerNorm,
     dropout: Dropout,
 }
 
@@ -386,11 +384,8 @@ impl T5LayerCrossAttention {
             has_relative_attention_bias,
         );
 
-        let layer_norm_config = nn::LayerNormConfig {
-            eps: config.layer_norm_epsilon,
-            ..Default::default()
-        };
-        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], layer_norm_config);
+        let layer_norm =
+            T5LayerNorm::new(p / "layer_norm", config.d_model, config.layer_norm_epsilon);
         let dropout = Dropout::new(config.dropout_rate);
 
         T5LayerCrossAttention {

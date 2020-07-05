@@ -9,8 +9,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::t5::attention::LayerState;
+use crate::t5::encoder::T5Stack;
 use crate::Config;
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
+use tch::nn::embedding;
+use tch::{nn, Tensor};
 
 /// # T5 Pretrained model weight files
 pub struct T5ModelResources;
@@ -112,3 +117,151 @@ pub struct TranslationEnToRo {
 }
 
 impl Config<T5Config> for T5Config {}
+
+pub struct T5Model {
+    pub(crate) encoder: T5Stack,
+    decoder: T5Stack,
+    pub(crate) embeddings: nn::Embedding,
+}
+
+impl T5Model {
+    pub fn new<'p, P>(
+        p: P,
+        config: &T5Config,
+        output_attentions: bool,
+        output_hidden_states: bool,
+    ) -> T5Model
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let embeddings: nn::Embedding = embedding(
+            p / "shared",
+            config.vocab_size,
+            config.d_model,
+            Default::default(),
+        );
+
+        let encoder = T5Stack::new(
+            p / "encoder",
+            config,
+            false,
+            false,
+            output_attentions,
+            output_hidden_states,
+        );
+        let decoder = T5Stack::new(
+            p / "decoder",
+            config,
+            true,
+            true,
+            output_attentions,
+            output_hidden_states,
+        );
+
+        T5Model {
+            encoder,
+            decoder,
+            embeddings,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        decoder_input_ids: Option<&Tensor>,
+        decoder_attention_mask: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        decoder_input_embeds: Option<Tensor>,
+        old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        train: bool,
+    ) -> (
+        Tensor,
+        Tensor,
+        Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+        Option<Vec<Tensor>>,
+    ) {
+        let (encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions) =
+            match encoder_outputs {
+                Some(value) => value,
+                None => {
+                    let (
+                        encoder_hidden_states,
+                        all_encoder_hidden_states,
+                        all_encoder_attentions,
+                        _,
+                    ) = self
+                        .encoder
+                        .forward_t(
+                            input_ids,
+                            attention_mask,
+                            None,
+                            None,
+                            input_embeds,
+                            &self.embeddings,
+                            None,
+                            train,
+                        )
+                        .unwrap();
+                    (
+                        encoder_hidden_states,
+                        all_encoder_hidden_states,
+                        all_encoder_attentions,
+                    )
+                }
+            };
+
+        let (calculated_decoder_input_ids, calculated_decoder_input_embeds) =
+            if old_layer_states.is_some() {
+                let decoder_input_ids = match decoder_input_ids {
+                    Some(value) => Some(value.select(1, -1)),
+                    None => None,
+                };
+                let decoder_input_embeds = match &decoder_input_embeds {
+                    Some(value) => Some(value.select(1, -1)),
+                    None => None,
+                };
+                (decoder_input_ids, decoder_input_embeds)
+            } else {
+                (None, None)
+            };
+
+        let (decoder_input_ids, decoder_input_embeds) = if old_layer_states.is_some() {
+            (
+                calculated_decoder_input_ids.as_ref(),
+                calculated_decoder_input_embeds,
+            )
+        } else {
+            (decoder_input_ids, decoder_input_embeds)
+        };
+
+        let (decoder_outputs, all_decoder_hidden_states, all_decoder_attentions, decoder_cache) =
+            self.decoder
+                .forward_t(
+                    decoder_input_ids,
+                    decoder_attention_mask,
+                    Some(&encoder_hidden_states),
+                    attention_mask,
+                    decoder_input_embeds,
+                    &self.embeddings,
+                    old_layer_states,
+                    train,
+                )
+                .unwrap();
+        (
+            decoder_outputs,
+            encoder_hidden_states,
+            decoder_cache,
+            all_decoder_hidden_states,
+            all_decoder_attentions,
+            all_encoder_hidden_states,
+            all_encoder_attentions,
+        )
+    }
+}
