@@ -231,7 +231,6 @@ impl T5Model {
             } else {
                 (None, None)
             };
-
         let (decoder_input_ids, decoder_input_embeds) = if old_layer_states.is_some() {
             (
                 calculated_decoder_input_ids.as_ref(),
@@ -254,6 +253,7 @@ impl T5Model {
                     train,
                 )
                 .unwrap();
+
         (
             decoder_outputs,
             encoder_hidden_states,

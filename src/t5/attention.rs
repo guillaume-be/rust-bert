@@ -204,7 +204,8 @@ impl T5Attention {
             let mut temp_value =
                 self.compute_bias(real_query_length, key_length, hidden_states.device());
             if layer_state.is_some() {
-                temp_value = temp_value.select(2, -1);
+                let length = temp_value.size()[2];
+                temp_value = temp_value.slice(2, length - 1, length, 1);
             };
             if attention_mask.is_some() {
                 temp_value += attention_mask.unwrap();
@@ -253,8 +254,7 @@ impl T5Attention {
     ) -> Tensor {
         let n = -relative_position;
         let mut num_buckets = num_buckets;
-        let mut ret = Tensor::zeros(&[1, 1], (Kind::Int64, relative_position.device()));
-
+        let mut ret = n.zeros_like();
         let n = if bidirectional {
             num_buckets = num_buckets / 2;
             ret += n.lt(0).to_kind(Kind::Int64) * num_buckets;
@@ -266,8 +266,8 @@ impl T5Attention {
         let max_exact = num_buckets / 2;
         let is_small = n.lt(max_exact);
 
-        let value_if_large: Tensor = ((n.to_kind(Kind::Float) / max_exact as f64).log()
-            / ((max_distance / max_exact) as f64).log2()
+        let value_if_large: Tensor = ((n.to_kind(Kind::Float) / max_exact as f64).log2()
+            / (max_distance as f64 / max_exact as f64).log2()
             * (num_buckets - max_exact) as f64)
             .to_kind(Kind::Int64)
             + max_exact;
