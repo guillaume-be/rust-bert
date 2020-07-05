@@ -329,12 +329,12 @@ impl T5LayerSelfAttention {
         input: &Tensor,
         position_bias: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        mut layer_state: Option<LayerState>,
+        layer_state: Option<LayerState>,
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
         let norm_x = input.apply(&self.layer_norm);
 
-        let (y, attention_weights, layer_past) = self.self_attention.forward_t(
+        let (y, attention_weights, layer_state) = self.self_attention.forward_t(
             &norm_x,
             None,
             position_bias,
@@ -346,7 +346,7 @@ impl T5LayerSelfAttention {
 
         let output = input + y.apply_t(&self.dropout, train);
 
-        (output, attention_weights, layer_past)
+        (output, attention_weights, layer_state)
     }
 }
 
@@ -399,13 +399,13 @@ impl T5LayerCrossAttention {
         kv: Option<&Tensor>,
         position_bias: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        mut layer_state: Option<LayerState>,
+        layer_state: Option<LayerState>,
         query_length: Option<i64>,
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
         let norm_x = input.apply(&self.layer_norm);
 
-        let (y, attention_weights, layer_past) = self.encoder_decoder_attention.forward_t(
+        let (y, attention_weights, layer_state) = self.encoder_decoder_attention.forward_t(
             &norm_x,
             kv,
             position_bias,
@@ -417,6 +417,6 @@ impl T5LayerCrossAttention {
 
         let output = input + y.apply_t(&self.dropout, train);
 
-        (output, attention_weights, layer_past)
+        (output, attention_weights, layer_state)
     }
 }

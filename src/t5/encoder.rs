@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::t5::attention::{LayerState, T5LayerCrossAttention, T5LayerSelfAttention};
 use crate::t5::T5Config;
 use std::borrow::Borrow;
 use tch::nn::LinearConfig;
@@ -82,5 +83,106 @@ impl T5LayerFF {
             .forward_t(&hidden_states.apply(&self.layer_norm), train);
 
         hidden_states + y.apply_t(&self.dropout, train)
+    }
+}
+
+pub struct T5Block {
+    self_attention: T5LayerSelfAttention,
+    cross_attention: Option<T5LayerCrossAttention>,
+    ff_layer: T5LayerFF,
+}
+
+impl T5Block {
+    pub fn new<'p, P>(
+        p: P,
+        config: &T5Config,
+        has_relative_attention_bias: bool,
+        is_decoder: bool,
+        store_cache: bool,
+        output_attentions: bool,
+    ) -> T5Block
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow() / "layer";
+        let mut module_index = 0;
+
+        let self_attention = T5LayerSelfAttention::new(
+            &p / module_index,
+            config,
+            is_decoder,
+            store_cache,
+            output_attentions,
+            has_relative_attention_bias,
+        );
+
+        let cross_attention = if is_decoder {
+            module_index += 1;
+            Some(T5LayerCrossAttention::new(
+                &p / module_index,
+                config,
+                is_decoder,
+                store_cache,
+                output_attentions,
+                has_relative_attention_bias,
+            ))
+        } else {
+            None
+        };
+        module_index += 1;
+
+        let ff_layer = T5LayerFF::new(&p / module_index, config);
+
+        T5Block {
+            self_attention,
+            cross_attention,
+            ff_layer,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input: &Tensor,
+        position_bias: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_attention_mask: Option<&Tensor>,
+        encoder_decoder_position_bias: Option<&Tensor>,
+        mut layer_states: (Option<LayerState>, Option<LayerState>),
+        train: bool,
+    ) -> (
+        Tensor,
+        (Option<Tensor>, Option<Tensor>),
+        (Option<LayerState>, Option<LayerState>),
+    ) {
+        let (hidden_states, self_attention_weights, self_attention_layer_past) = self
+            .self_attention
+            .forward_t(input, position_bias, attention_mask, layer_states.0, train);
+
+        let (hidden_states, cross_attention_weights, cross_attention_layer_past) =
+            if self.cross_attention.is_some() & encoder_hidden_states.is_some() {
+                let query_length = match &self_attention_layer_past {
+                    Some(value) => Some(value.prev_key.size()[2]),
+                    None => None,
+                };
+                self.cross_attention.as_ref().unwrap().forward_t(
+                    &hidden_states,
+                    encoder_hidden_states,
+                    encoder_decoder_position_bias,
+                    encoder_attention_mask,
+                    layer_states.1,
+                    query_length,
+                    train,
+                )
+            } else {
+                (hidden_states, None, None)
+            };
+
+        let attention_weights = (self_attention_weights, cross_attention_weights);
+
+        layer_states = (self_attention_layer_past, cross_attention_layer_past);
+        let hidden_states = self.ff_layer.forward_t(&hidden_states, train);
+
+        (hidden_states, attention_weights, layer_states)
     }
 }
