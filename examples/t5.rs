@@ -13,7 +13,10 @@
 extern crate failure;
 
 use rust_bert::resources::{download_resource, RemoteResource, Resource};
-use rust_bert::t5::{T5Config, T5ConfigResources, T5Model, T5ModelResources, T5VocabResources};
+use rust_bert::t5::{
+    T5Config, T5ConfigResources, T5ForConditionalGeneration, T5Model, T5ModelResources,
+    T5VocabResources,
+};
 use rust_bert::Config;
 use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
 use rust_tokenizers::{Tokenizer, TruncationStrategy};
@@ -37,7 +40,7 @@ fn main() -> failure::Fallible<()> {
     let tokenizer: T5Tokenizer = T5Tokenizer::from_file(vocab_path.to_str().unwrap(), false);
     let config = T5Config::from_file(config_path);
 
-    let t5_model = T5Model::new(&vs.root(), &config, false, false);
+    let t5_model = T5ForConditionalGeneration::new(&vs.root(), &config, false, false);
     vs.load(weights_path)?;
 
     //    Define input
