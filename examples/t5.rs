@@ -19,11 +19,11 @@ use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 fn main() -> failure::Fallible<()> {
     //    Resources paths
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
+        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_BASE));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
+        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_BASE));
     let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
+        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_BASE));
 
     let generate_config = GenerateConfig {
         model_resource: weights_resource,
