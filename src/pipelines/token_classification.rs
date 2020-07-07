@@ -330,6 +330,12 @@ impl TokenClassificationOption {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
+            ModelType::Marian => {
+                panic!("TokenClassification not implemented for Marian!");
+            }
+            ModelType::T5 => {
+                panic!("TokenClassification not implemented for T5!");
+            }
         }
     }
 
@@ -572,6 +578,12 @@ impl TokenClassificationModel {
                 }
                 TokenizerOption::Roberta(ref tokenizer) => {
                     Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                }
+                TokenizerOption::Marian(_) => {
+                    panic!("TokenClassification not implemented for Marian!");
+                }
+                TokenizerOption::T5(_) => {
+                    panic!("TokenClassification not implemented for T5!");
                 }
             },
             Some(offsets) => {

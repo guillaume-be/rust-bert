@@ -27,6 +27,9 @@ pub struct T5ConfigResources;
 /// # T5 Pretrained model vocab files
 pub struct T5VocabResources;
 
+/// # T5 optional prefixes
+pub struct T5Prefix;
+
 impl T5ModelResources {
     /// Shared under Apache 2.0 license by the T5 Authors at https://github.com/google-research/text-to-text-transfer-transformer. Modified with conversion to C-array format.
     pub const T5_SMALL: (&'static str, &'static str) = (
@@ -64,6 +67,11 @@ impl T5VocabResources {
         "t5-base/spiece.model",
         "https://s3.amazonaws.com/models.huggingface.co/bert/t5-spiece.model",
     );
+}
+
+impl T5Prefix {
+    pub const ENGLISH2FRENCH: Option<&'static str> = Some("translate English to French: ");
+    pub const ENGLISH2GERMAN: Option<&'static str> = Some("translate English to German: ");
 }
 
 #[derive(Debug, Serialize, Deserialize)]
