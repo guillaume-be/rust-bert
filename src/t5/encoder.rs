@@ -326,7 +326,6 @@ impl T5Stack {
             Some(value) => value,
             None => &calculated_attention_mask.as_ref().unwrap(),
         };
-
         let extended_attention_mask = match attention_mask.dim() {
             3 => attention_mask.unsqueeze(1),
             2 => {
@@ -339,7 +338,7 @@ impl T5Stack {
                         1,
                     ]);
                     let causal_mask = causal_mask.le1(&seq_ids.unsqueeze(0).unsqueeze(-1));
-                    causal_mask * attention_mask.unsqueeze(1).unsqueeze(1)
+                    causal_mask.unsqueeze(1) * attention_mask.unsqueeze(1).unsqueeze(1)
                 } else {
                     attention_mask.unsqueeze(1).unsqueeze(1)
                 }

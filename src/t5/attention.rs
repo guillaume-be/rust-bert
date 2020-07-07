@@ -144,16 +144,7 @@ impl T5Attention {
         let real_query_length = if layer_state.is_some() {
             match query_length {
                 Some(value) => value,
-                None => {
-                    q_len
-                        + *layer_state
-                            .as_ref()
-                            .unwrap()
-                            .prev_key
-                            .size()
-                            .last()
-                            .unwrap()
-                }
+                None => q_len + layer_state.as_ref().unwrap().prev_key.size()[2],
             }
         } else {
             q_len
@@ -208,7 +199,7 @@ impl T5Attention {
                 temp_value = temp_value.slice(2, length - 1, length, 1);
             };
             if attention_mask.is_some() {
-                temp_value += attention_mask.unwrap();
+                temp_value = temp_value + attention_mask.unwrap();
             };
             Some(temp_value)
         } else {
@@ -344,7 +335,6 @@ impl T5LayerSelfAttention {
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
         let norm_x = hidden_states.apply(&self.layer_norm);
-
         let (y, attention_weights, position_bias, layer_state) = self.self_attention.forward_t(
             &norm_x,
             None,

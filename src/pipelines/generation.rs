@@ -60,7 +60,7 @@
 use self::ordered_float::OrderedFloat;
 use crate::bart::{
     BartConfig, BartConfigResources, BartForConditionalGeneration, BartMergesResources,
-    BartModelResources, BartVocabResources, LayerState,
+    BartModelResources, BartVocabResources, LayerState as BartLayerState,
 };
 use crate::common::resources::{download_resource, RemoteResource, Resource};
 use crate::gpt2::{
@@ -73,10 +73,16 @@ use crate::openai_gpt::{
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
+use crate::t5::{
+    LayerState as T5LayerState, T5Config, T5ConfigResources, T5ForConditionalGeneration,
+    T5ModelResources, T5VocabResources,
+};
 use crate::Config;
 use itertools::Itertools;
 use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
+use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
 use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
+use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
 use rust_tokenizers::{
     Gpt2Tokenizer, Gpt2Vocab, OpenAiGptTokenizer, OpenAiGptVocab, RobertaTokenizer, RobertaVocab,
     Tokenizer, TruncationStrategy, Vocab,
@@ -1064,10 +1070,224 @@ impl LanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokeni
 {
 }
 
+pub struct T5Generator {
+    model: T5ForConditionalGeneration,
+    tokenizer: T5Tokenizer,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl T5Generator {
+    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<T5Generator> {
+        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
+        let model_resource = if &generate_config.model_resource
+            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL))
+        } else {
+            generate_config.model_resource.clone()
+        };
+
+        let config_resource = if &generate_config.config_resource
+            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL))
+        } else {
+            generate_config.config_resource.clone()
+        };
+
+        let vocab_resource = if &generate_config.vocab_resource
+            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL))
+        } else {
+            generate_config.vocab_resource.clone()
+        };
+
+        let config_path = download_resource(&config_resource)?;
+        let vocab_path = download_resource(&vocab_resource)?;
+        let weights_path = download_resource(&model_resource)?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = T5Tokenizer::from_file(vocab_path.to_str().unwrap(), false);
+        let config = T5Config::from_file(config_path);
+        let model = T5ForConditionalGeneration::new(&var_store.root(), &config, false, false);
+        var_store.load(weights_path)?;
+
+        let bos_token_id = Some(-1);
+        let eos_token_ids = Some(match config.eos_token_id {
+            Some(value) => vec![value],
+            None => vec![1],
+        });
+        let pad_token_id = Some(match config.pad_token_id {
+            Some(value) => value,
+            None => 0,
+        });
+        let vocab_size = config.vocab_size;
+        let is_encoder_decoder = true;
+        let decoder_start_id = Some(0);
+
+        Ok(T5Generator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> for T5Generator {
+    fn get_model(&self) -> &T5ForConditionalGeneration {
+        &self.model
+    }
+    fn get_tokenizer(&self) -> &T5Tokenizer {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+
+    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+        Some(self.get_model().encode(input_ids, attention_mask))
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        _attention_mask: Tensor,
+    ) -> (Option<Tensor>, Option<&'a Tensor>, Option<Tensor>, Cache) {
+        match past {
+            Cache::T5Cache(past) => (None, encoder_outputs, Some(input_ids), Cache::T5Cache(past)),
+            Cache::None => (None, encoder_outputs, Some(input_ids), Cache::T5Cache(None)),
+            _ => panic!("Cache type incompatible with T5"),
+        }
+    }
+
+    fn encode_prompt_text(
+        &self,
+        prompt_text: Vec<&str>,
+        max_len: u64,
+        pad_token_id: Option<i64>,
+    ) -> Tensor {
+        let tokens = self.get_tokenizer().encode_list(
+            prompt_text,
+            max_len as usize,
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
+        let token_ids = tokens
+            .into_iter()
+            .map(|tokenized_input| tokenized_input.token_ids)
+            .collect::<Vec<Vec<i64>>>();
+
+        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+
+        let pad_token = match pad_token_id {
+            Some(value) => value,
+            None => self
+                .get_tokenizer()
+                .vocab()
+                .token_to_id(T5Vocab::unknown_value()),
+        };
+
+        let token_ids = token_ids
+            .into_iter()
+            .map(|mut input| {
+                let temp = vec![pad_token; max_len - input.len()];
+                input.extend(temp);
+                input
+            })
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .collect::<Vec<Tensor>>();
+
+        Tensor::stack(&token_ids, 0)
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        let encoder_outputs = match encoder_outputs {
+            Some(value) => Some(value.index_select(0, beam_indices)),
+            None => None,
+        };
+        match past {
+            Cache::T5Cache(old_cache_option) => match old_cache_option {
+                Some(old_cache) => {
+                    let mut new_past = vec![];
+                    for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
+                        let new_self_layer_state = match self_layer_state {
+                            Some(self_layer_state) => {
+                                Some(self_layer_state.reorder_cache(beam_indices))
+                            }
+                            None => None,
+                        };
+                        let new_encoder_layer_state = match encoder_layer_state {
+                            Some(encoder_layer_state) => {
+                                Some(encoder_layer_state.reorder_cache(beam_indices))
+                            }
+                            None => None,
+                        };
+                        new_past.push((new_self_layer_state, new_encoder_layer_state));
+                    }
+                }
+                None => {}
+            },
+            Cache::None => {}
+            _ => {
+                panic!("Invalid cache for T5 model");
+            }
+        };
+        encoder_outputs
+    }
+}
+
+impl LanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> for T5Generator {}
+
 #[derive(Debug)]
 pub enum Cache {
     GPT2Cache(Option<Vec<Tensor>>),
-    BARTCache(Option<Vec<(Option<LayerState>, Option<LayerState>)>>),
+    BARTCache(Option<Vec<(Option<BartLayerState>, Option<BartLayerState>)>>),
+    T5Cache(Option<Vec<(Option<T5LayerState>, Option<T5LayerState>)>>),
     None,
 }
 
@@ -1881,6 +2101,9 @@ pub(crate) mod private_generation_utils {
                     }
                 }
                 Cache::BARTCache(_) => {
+                    panic!("Not implemented");
+                }
+                Cache::T5Cache(_) => {
                     panic!("Not implemented");
                 }
             }

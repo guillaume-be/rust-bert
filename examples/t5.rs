@@ -12,15 +12,9 @@
 
 extern crate failure;
 
-use rust_bert::resources::{download_resource, RemoteResource, Resource};
-use rust_bert::t5::{
-    T5Config, T5ConfigResources, T5ForConditionalGeneration, T5Model, T5ModelResources,
-    T5VocabResources,
-};
-use rust_bert::Config;
-use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
-use rust_tokenizers::{Tokenizer, TruncationStrategy};
-use tch::{nn, no_grad, Device, Kind, Tensor};
+use rust_bert::pipelines::generation::{GenerateConfig, LanguageGenerator, T5Generator};
+use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 
 fn main() -> failure::Fallible<()> {
     //    Resources paths
@@ -30,45 +24,25 @@ fn main() -> failure::Fallible<()> {
         Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
     let weights_resource =
         Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
-    let weights_path = download_resource(&weights_resource)?;
+
+    let generate_config = GenerateConfig {
+        model_resource: weights_resource,
+        vocab_resource,
+        config_resource,
+        max_length: 40,
+        do_sample: false,
+        num_beams: 4,
+        ..Default::default()
+    };
 
     //    Set-up masked LM model
-    let device = Device::Cpu;
-    let mut vs = nn::VarStore::new(device);
-    let tokenizer: T5Tokenizer = T5Tokenizer::from_file(vocab_path.to_str().unwrap(), false);
-    let config = T5Config::from_file(config_path);
-
-    let t5_model = T5ForConditionalGeneration::new(&vs.root(), &config, false, false);
-    vs.load(weights_path)?;
+    let t5_model = T5Generator::new(generate_config)?;
 
     //    Define input
-    let input = ["This is a test sentence"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
-    let tokenized_input = tokenized_input
-        .iter()
-        .map(|input| input.token_ids.clone())
-        .map(|input| Tensor::of_slice(&(input)))
-        .collect::<Vec<_>>();
-    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
-    let decoder_inputs = Tensor::zeros(&[1, 1], (Kind::Int64, input_tensor.device()));
-    //    Forward pass
-    let output = no_grad(|| {
-        t5_model.forward_t(
-            Some(&input_tensor),
-            None,
-            None,
-            Some(&decoder_inputs),
-            None,
-            None,
-            None,
-            None,
-            false,
-        )
-    });
-    output.0.print();
+    let input = ["translate English to German: This sentence will get translated to German"];
+
+    let output = t5_model.generate(Some(input.to_vec()), None);
+    println!("{:?}", output);
 
     Ok(())
 }

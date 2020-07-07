@@ -9,6 +9,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::pipelines::generation::{Cache, LMHeadModel};
 use crate::t5::attention::LayerState;
 use crate::t5::encoder::T5Stack;
 use crate::Config;
@@ -220,11 +221,11 @@ impl T5Model {
         let (calculated_decoder_input_ids, calculated_decoder_input_embeds) =
             if old_layer_states.is_some() {
                 let decoder_input_ids = match decoder_input_ids {
-                    Some(value) => Some(value.select(1, -1)),
+                    Some(value) => Some(value.narrow(1, -1, 1)),
                     None => None,
                 };
                 let decoder_input_embeds = match &decoder_input_embeds {
-                    Some(value) => Some(value.select(1, -1)),
+                    Some(value) => Some(value.narrow(1, -1, 1)),
                     None => None,
                 };
                 (decoder_input_ids, decoder_input_embeds)
@@ -330,7 +331,6 @@ impl T5ForConditionalGeneration {
             old_layer_states,
             train,
         );
-
         let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None)
             * (self.model_dim.powf(-0.5));
 
@@ -343,5 +343,84 @@ impl T5ForConditionalGeneration {
             all_encoder_hidden_states,
             all_encoder_attentions,
         )
+    }
+
+    pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
+        let (encoder_hidden_states, _, _, _) = self
+            .base_model
+            .encoder
+            .forward_t(
+                Some(input_ids),
+                attention_mask,
+                None,
+                None,
+                None,
+                &self.base_model.embeddings,
+                None,
+                false,
+            )
+            .unwrap();
+        encoder_hidden_states
+    }
+}
+
+impl LMHeadModel for T5ForConditionalGeneration {
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        cache: Cache,
+        attention_mask: &Option<Tensor>,
+        _token_type_ids: &Option<Tensor>,
+        _position_ids: &Option<Tensor>,
+        _input_embeds: &Option<Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<
+        (
+            Tensor,
+            Option<Tensor>,
+            Cache,
+            Option<Vec<Tensor>>,
+            Option<Vec<Tensor>>,
+        ),
+        &'static str,
+    > {
+        let (decoder_output, encoder_hidden_states, new_cache, _, _, _, _) = match cache {
+            Cache::T5Cache(cached_layer_states) => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                Option::from(decoder_input_ids),
+                None,
+                None,
+                None,
+                cached_layer_states,
+                train,
+            ),
+            Cache::None => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                Option::from(decoder_input_ids),
+                None,
+                None,
+                None,
+                None,
+                train,
+            ),
+            _ => Err("Cache not compatible with T5 Model")?,
+        };
+
+        let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None)
+            * (self.model_dim.powf(-0.5));
+
+        Ok((
+            lm_logits,
+            Some(encoder_hidden_states),
+            Cache::T5Cache(new_cache),
+            None,
+            None,
+        ))
     }
 }
