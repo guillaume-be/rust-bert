@@ -59,8 +59,12 @@ use crate::marian::{
     MarianConfigResources, MarianModelResources, MarianPrefix, MarianSpmResources,
     MarianVocabResources,
 };
-use crate::pipelines::generation::{GenerateConfig, LanguageGenerator, MarianGenerator};
-use tch::Device;
+use crate::pipelines::common::ModelType;
+use crate::pipelines::generation::{
+    GenerateConfig, LanguageGenerator, MarianGenerator, T5Generator,
+};
+use crate::t5::{T5ConfigResources, T5ModelResources, T5Prefix, T5VocabResources};
+use tch::{Device, Tensor};
 
 /// Pretrained languages available for direct use
 pub enum Language {
@@ -80,6 +84,8 @@ pub enum Language {
     EnglishToRomanian,
     EnglishToGerman,
     EnglishToRussian,
+    EnglishToFrenchV2,
+    EnglishToGermanV2,
     FrenchToGerman,
     GermanToFrench,
 }
@@ -93,12 +99,44 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ENGLISH2ROMANCE,
         MarianConfigResources::ENGLISH2ROMANCE,
         MarianVocabResources::ENGLISH2ROMANCE,
         MarianSpmResources::ENGLISH2ROMANCE,
         MarianPrefix::ENGLISH2FRENCH,
+        ModelType::Marian,
+    );
+    pub const ENGLISH2FRENCH_V2: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+        ModelType,
+    ) = (
+        T5ModelResources::T5_BASE,
+        T5ConfigResources::T5_BASE,
+        T5VocabResources::T5_BASE,
+        T5VocabResources::T5_BASE,
+        T5Prefix::ENGLISH2FRENCH,
+        ModelType::T5,
+    );
+    pub const ENGLISH2GERMAN_V2: (
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        (&'static str, &'static str),
+        Option<&'static str>,
+        ModelType,
+    ) = (
+        T5ModelResources::T5_BASE,
+        T5ConfigResources::T5_BASE,
+        T5VocabResources::T5_BASE,
+        T5VocabResources::T5_BASE,
+        T5Prefix::ENGLISH2GERMAN,
+        ModelType::T5,
     );
     pub const ENGLISH2CATALAN: (
         (&'static str, &'static str),
@@ -106,12 +144,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ENGLISH2ROMANCE,
         MarianConfigResources::ENGLISH2ROMANCE,
         MarianVocabResources::ENGLISH2ROMANCE,
         MarianSpmResources::ENGLISH2ROMANCE,
         MarianPrefix::ENGLISH2CATALAN,
+        ModelType::Marian,
     );
     pub const ENGLISH2SPANISH: (
         (&'static str, &'static str),
@@ -119,12 +159,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ENGLISH2ROMANCE,
         MarianConfigResources::ENGLISH2ROMANCE,
         MarianVocabResources::ENGLISH2ROMANCE,
         MarianSpmResources::ENGLISH2ROMANCE,
         MarianPrefix::ENGLISH2SPANISH,
+        ModelType::Marian,
     );
     pub const ENGLISH2PORTUGUESE: (
         (&'static str, &'static str),
@@ -132,12 +174,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ENGLISH2ROMANCE,
         MarianConfigResources::ENGLISH2ROMANCE,
         MarianVocabResources::ENGLISH2ROMANCE,
         MarianSpmResources::ENGLISH2ROMANCE,
         MarianPrefix::ENGLISH2PORTUGUESE,
+        ModelType::Marian,
     );
     pub const ENGLISH2ITALIAN: (
         (&'static str, &'static str),
@@ -145,12 +189,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ENGLISH2ROMANCE,
         MarianConfigResources::ENGLISH2ROMANCE,
         MarianVocabResources::ENGLISH2ROMANCE,
         MarianSpmResources::ENGLISH2ROMANCE,
         MarianPrefix::ENGLISH2ITALIAN,
+        ModelType::Marian,
     );
     pub const ENGLISH2ROMANIAN: (
         (&'static str, &'static str),
@@ -158,12 +204,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ENGLISH2ROMANCE,
         MarianConfigResources::ENGLISH2ROMANCE,
         MarianVocabResources::ENGLISH2ROMANCE,
         MarianSpmResources::ENGLISH2ROMANCE,
         MarianPrefix::ENGLISH2ROMANIAN,
+        ModelType::Marian,
     );
     pub const ENGLISH2GERMAN: (
         (&'static str, &'static str),
@@ -171,12 +219,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ENGLISH2GERMAN,
         MarianConfigResources::ENGLISH2GERMAN,
         MarianVocabResources::ENGLISH2GERMAN,
         MarianSpmResources::ENGLISH2GERMAN,
         MarianPrefix::ENGLISH2GERMAN,
+        ModelType::Marian,
     );
     pub const ENGLISH2RUSSIAN: (
         (&'static str, &'static str),
@@ -184,12 +234,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ENGLISH2RUSSIAN,
         MarianConfigResources::ENGLISH2RUSSIAN,
         MarianVocabResources::ENGLISH2RUSSIAN,
         MarianSpmResources::ENGLISH2RUSSIAN,
         MarianPrefix::ENGLISH2RUSSIAN,
+        ModelType::Marian,
     );
 
     pub const FRENCH2ENGLISH: (
@@ -198,12 +250,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ROMANCE2ENGLISH,
         MarianConfigResources::ROMANCE2ENGLISH,
         MarianVocabResources::ROMANCE2ENGLISH,
         MarianSpmResources::ROMANCE2ENGLISH,
         MarianPrefix::FRENCH2ENGLISH,
+        ModelType::Marian,
     );
     pub const CATALAN2ENGLISH: (
         (&'static str, &'static str),
@@ -211,12 +265,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ROMANCE2ENGLISH,
         MarianConfigResources::ROMANCE2ENGLISH,
         MarianVocabResources::ROMANCE2ENGLISH,
         MarianSpmResources::ROMANCE2ENGLISH,
         MarianPrefix::CATALAN2ENGLISH,
+        ModelType::Marian,
     );
     pub const SPANISH2ENGLISH: (
         (&'static str, &'static str),
@@ -224,12 +280,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ROMANCE2ENGLISH,
         MarianConfigResources::ROMANCE2ENGLISH,
         MarianVocabResources::ROMANCE2ENGLISH,
         MarianSpmResources::ROMANCE2ENGLISH,
         MarianPrefix::SPANISH2ENGLISH,
+        ModelType::Marian,
     );
     pub const PORTUGUESE2ENGLISH: (
         (&'static str, &'static str),
@@ -237,12 +295,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ROMANCE2ENGLISH,
         MarianConfigResources::ROMANCE2ENGLISH,
         MarianVocabResources::ROMANCE2ENGLISH,
         MarianSpmResources::ROMANCE2ENGLISH,
         MarianPrefix::PORTUGUESE2ENGLISH,
+        ModelType::Marian,
     );
     pub const ITALIAN2ENGLISH: (
         (&'static str, &'static str),
@@ -250,12 +310,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ROMANCE2ENGLISH,
         MarianConfigResources::ROMANCE2ENGLISH,
         MarianVocabResources::ROMANCE2ENGLISH,
         MarianSpmResources::ROMANCE2ENGLISH,
         MarianPrefix::ITALIAN2ENGLISH,
+        ModelType::Marian,
     );
     pub const ROMANIAN2ENGLISH: (
         (&'static str, &'static str),
@@ -263,12 +325,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::ROMANCE2ENGLISH,
         MarianConfigResources::ROMANCE2ENGLISH,
         MarianVocabResources::ROMANCE2ENGLISH,
         MarianSpmResources::ROMANCE2ENGLISH,
         MarianPrefix::ROMANIAN2ENGLISH,
+        ModelType::Marian,
     );
     pub const GERMAN2ENGLISH: (
         (&'static str, &'static str),
@@ -276,12 +340,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::GERMAN2ENGLISH,
         MarianConfigResources::GERMAN2ENGLISH,
         MarianVocabResources::GERMAN2ENGLISH,
         MarianSpmResources::GERMAN2ENGLISH,
         MarianPrefix::GERMAN2ENGLISH,
+        ModelType::Marian,
     );
     pub const RUSSIAN2ENGLISH: (
         (&'static str, &'static str),
@@ -289,12 +355,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::RUSSIAN2ENGLISH,
         MarianConfigResources::RUSSIAN2ENGLISH,
         MarianVocabResources::RUSSIAN2ENGLISH,
         MarianSpmResources::RUSSIAN2ENGLISH,
         MarianPrefix::RUSSIAN2ENGLISH,
+        ModelType::Marian,
     );
 
     pub const FRENCH2GERMAN: (
@@ -303,12 +371,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::FRENCH2GERMAN,
         MarianConfigResources::FRENCH2GERMAN,
         MarianVocabResources::FRENCH2GERMAN,
         MarianSpmResources::FRENCH2GERMAN,
         MarianPrefix::FRENCH2GERMAN,
+        ModelType::Marian,
     );
     pub const GERMAN2FRENCH: (
         (&'static str, &'static str),
@@ -316,12 +386,14 @@ impl RemoteTranslationResources {
         (&'static str, &'static str),
         (&'static str, &'static str),
         Option<&'static str>,
+        ModelType,
     ) = (
         MarianModelResources::GERMAN2FRENCH,
         MarianConfigResources::GERMAN2FRENCH,
         MarianVocabResources::GERMAN2FRENCH,
         MarianSpmResources::GERMAN2FRENCH,
         MarianPrefix::GERMAN2FRENCH,
+        ModelType::Marian,
     );
 }
 
@@ -365,6 +437,8 @@ pub struct TranslationConfig {
     pub device: Device,
     /// Prefix to append translation inputs with
     pub prefix: Option<String>,
+    /// Model type used for translation
+    pub model_type: ModelType,
 }
 
 impl TranslationConfig {
@@ -388,7 +462,7 @@ impl TranslationConfig {
     /// # }
     /// ```
     pub fn new(language: Language, device: Device) -> TranslationConfig {
-        let (model_resource, config_resource, vocab_resource, merges_resource, prefix) =
+        let (model_resource, config_resource, vocab_resource, merges_resource, prefix, model_type) =
             match language {
                 Language::EnglishToFrench => RemoteTranslationResources::ENGLISH2FRENCH,
                 Language::EnglishToCatalan => RemoteTranslationResources::ENGLISH2CATALAN,
@@ -407,6 +481,9 @@ impl TranslationConfig {
                 Language::RomanianToEnglish => RemoteTranslationResources::ROMANIAN2ENGLISH,
                 Language::GermanToEnglish => RemoteTranslationResources::GERMAN2ENGLISH,
                 Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
+
+                Language::EnglishToFrenchV2 => RemoteTranslationResources::ENGLISH2FRENCH_V2,
+                Language::EnglishToGermanV2 => RemoteTranslationResources::ENGLISH2GERMAN_V2,
 
                 Language::FrenchToGerman => RemoteTranslationResources::FRENCH2GERMAN,
                 Language::GermanToFrench => RemoteTranslationResources::GERMAN2FRENCH,
@@ -438,10 +515,11 @@ impl TranslationConfig {
             num_return_sequences: 1,
             device,
             prefix,
+            model_type,
         }
     }
 
-    /// Create a new `TranslationCondiguration` from custom (e.g. local) resources.
+    /// Create a new `TranslationConfiguration` from custom (e.g. local) resources.
     ///
     /// # Arguments
     ///
@@ -455,6 +533,7 @@ impl TranslationConfig {
     ///
     /// ```no_run
     /// # fn main() -> failure::Fallible<()> {
+    /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
     /// use rust_bert::resources::{LocalResource, Resource};
     /// use std::path::PathBuf;
@@ -480,6 +559,7 @@ impl TranslationConfig {
     ///     sentence_piece_resource,
     ///     Some(">>fr<<".to_string()),
     ///     Device::cuda_if_available(),
+    ///     ModelType::Marian,
     /// );
     /// # Ok(())
     /// # }
@@ -491,6 +571,7 @@ impl TranslationConfig {
         sentence_piece_resource: Resource,
         prefix: Option<String>,
         device: Device,
+        model_type: ModelType,
     ) -> TranslationConfig {
         TranslationConfig {
             model_resource,
@@ -511,13 +592,84 @@ impl TranslationConfig {
             num_return_sequences: 1,
             device,
             prefix,
+            model_type,
+        }
+    }
+}
+
+/// # Abstraction that holds one particular translation model, for any of the supported models
+pub enum TranslationOption {
+    /// Translator based on Marian model
+    Marian(MarianGenerator),
+    /// Translator based on T5 model
+    T5(T5Generator),
+}
+
+impl TranslationOption {
+    pub fn new(config: TranslationConfig) -> Self {
+        let generate_config = GenerateConfig {
+            model_resource: config.model_resource,
+            config_resource: config.config_resource,
+            merges_resource: config.merges_resource,
+            vocab_resource: config.vocab_resource,
+            min_length: config.min_length,
+            max_length: config.max_length,
+            do_sample: config.do_sample,
+            early_stopping: config.early_stopping,
+            num_beams: config.num_beams,
+            temperature: config.temperature,
+            top_k: config.top_k,
+            top_p: config.top_p,
+            repetition_penalty: config.repetition_penalty,
+            length_penalty: config.length_penalty,
+            no_repeat_ngram_size: config.no_repeat_ngram_size,
+            num_return_sequences: config.num_return_sequences,
+            device: config.device,
+        };
+        match config.model_type {
+            ModelType::Marian => {
+                TranslationOption::Marian(MarianGenerator::new(generate_config).unwrap())
+            }
+            ModelType::T5 => TranslationOption::T5(T5Generator::new(generate_config).unwrap()),
+            ModelType::Bert => {
+                panic!("Translation not implemented for Electra!");
+            }
+            ModelType::DistilBert => {
+                panic!("Translation not implemented for DistilBert!");
+            }
+            ModelType::Roberta => {
+                panic!("Translation not implemented for Roberta!");
+            }
+            ModelType::Electra => {
+                panic!("Translation not implemented for Electra!");
+            }
+        }
+    }
+
+    /// Returns the `ModelType` for this TranslationOption
+    pub fn model_type(&self) -> ModelType {
+        match *self {
+            Self::Marian(_) => ModelType::Marian,
+            Self::T5(_) => ModelType::T5,
+        }
+    }
+
+    /// Interface method to generate() of the particular models.
+    pub fn generate(
+        &self,
+        prompt_texts: Option<Vec<&str>>,
+        attention_mask: Option<Tensor>,
+    ) -> Vec<String> {
+        match *self {
+            Self::Marian(ref model) => model.generate(prompt_texts, attention_mask),
+            Self::T5(ref model) => model.generate(prompt_texts, attention_mask),
         }
     }
 }
 
 /// # TranslationModel to perform translation
 pub struct TranslationModel {
-    model: MarianGenerator,
+    model: TranslationOption,
     prefix: Option<String>,
 }
 
@@ -542,32 +694,10 @@ impl TranslationModel {
     /// # }
     /// ```
     pub fn new(translation_config: TranslationConfig) -> failure::Fallible<TranslationModel> {
-        let generate_config = GenerateConfig {
-            model_resource: translation_config.model_resource,
-            config_resource: translation_config.config_resource,
-            merges_resource: translation_config.merges_resource,
-            vocab_resource: translation_config.vocab_resource,
-            min_length: translation_config.min_length,
-            max_length: translation_config.max_length,
-            do_sample: translation_config.do_sample,
-            early_stopping: translation_config.early_stopping,
-            num_beams: translation_config.num_beams,
-            temperature: translation_config.temperature,
-            top_k: translation_config.top_k,
-            top_p: translation_config.top_p,
-            repetition_penalty: translation_config.repetition_penalty,
-            length_penalty: translation_config.length_penalty,
-            no_repeat_ngram_size: translation_config.no_repeat_ngram_size,
-            num_return_sequences: translation_config.num_return_sequences,
-            device: translation_config.device,
-        };
+        let prefix = translation_config.prefix.clone();
+        let model = TranslationOption::new(translation_config);
 
-        let model = MarianGenerator::new(generate_config)?;
-
-        Ok(TranslationModel {
-            model,
-            prefix: translation_config.prefix,
-        })
+        Ok(TranslationModel { model, prefix })
     }
 
     /// Translates texts provided

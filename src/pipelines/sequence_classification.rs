@@ -212,6 +212,12 @@ impl SequenceClassificationOption {
             ModelType::Electra => {
                 panic!("SequenceClassification not implemented for Electra!");
             }
+            ModelType::Marian => {
+                panic!("SequenceClassification not implemented for Marian!");
+            }
+            ModelType::T5 => {
+                panic!("SequenceClassification not implemented for T5!");
+            }
         }
     }
 

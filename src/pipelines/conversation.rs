@@ -714,7 +714,7 @@ impl ConversationModel {
         assert_eq!(
             inputs.len(),
             history.len(),
-            "Length of inputs shoudl equal length of history"
+            "Length of inputs should equal length of history"
         );
 
         let mut concatenated_inputs = Vec::with_capacity(inputs.len());

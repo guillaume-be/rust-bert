@@ -20,6 +20,7 @@ use rust_bert::resources::{download_resource, RemoteResource, Resource};
 use rust_bert::roberta::{
     RobertaConfigResources, RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
 };
+use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 
 /// This example downloads and caches all dependencies used in model tests. This allows for safe
 /// multi threaded testing (two test using the same resource would otherwise download the file to
@@ -297,6 +298,20 @@ fn _download_dialogpt() -> failure::Fallible<()> {
     Ok(())
 }
 
+fn download_t5_small() -> failure::Fallible<()> {
+    // Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
+    let weights_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
+    let _ = download_resource(&config_resource)?;
+    let _ = download_resource(&vocab_resource)?;
+    let _ = download_resource(&weights_resource)?;
+    Ok(())
+}
+
 fn main() -> failure::Fallible<()> {
     let _ = download_distil_gpt2();
     let _ = download_distilbert_sst2();
@@ -312,6 +327,7 @@ fn main() -> failure::Fallible<()> {
     let _ = download_electra_generator();
     let _ = download_electra_discriminator();
     let _ = download_albert_base_v2();
+    let _ = download_t5_small();
 
     Ok(())
 }

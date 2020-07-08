@@ -17,11 +17,15 @@
 //! pre-processing, forward pass and postprocessing differs between pipelines while basic config and
 //! tokenization objects don't.
 //!
+use crate::bart::BartConfig;
 use crate::bert::BertConfig;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
+use crate::t5::T5Config;
 use crate::Config;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Tokenizer;
+use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
+use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
 use rust_tokenizers::{BertTokenizer, RobertaTokenizer, TokenizedInput, TruncationStrategy};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -34,6 +38,8 @@ pub enum ModelType {
     DistilBert,
     Roberta,
     Electra,
+    Marian,
+    T5,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -44,6 +50,10 @@ pub enum ConfigOption {
     DistilBert(DistilBertConfig),
     /// Electra configuration
     Electra(ElectraConfig),
+    /// Marian configuration
+    Marian(BartConfig),
+    /// T5 configuration
+    T5(T5Config),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -52,6 +62,10 @@ pub enum TokenizerOption {
     Bert(BertTokenizer),
     /// Roberta Tokenizer
     Roberta(RobertaTokenizer),
+    /// Marian Tokenizer
+    Marian(MarianTokenizer),
+    /// T5 Tokenizer
+    T5(T5Tokenizer),
 }
 
 impl ConfigOption {
@@ -61,6 +75,8 @@ impl ConfigOption {
             ModelType::Bert | ModelType::Roberta => ConfigOption::Bert(BertConfig::from_file(path)),
             ModelType::DistilBert => ConfigOption::DistilBert(DistilBertConfig::from_file(path)),
             ModelType::Electra => ConfigOption::Electra(ElectraConfig::from_file(path)),
+            ModelType::Marian => ConfigOption::Marian(BartConfig::from_file(path)),
+            ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
         }
     }
 
@@ -75,6 +91,10 @@ impl ConfigOption {
             Self::Electra(config) => config
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Marian(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::T5(_) => panic!("T5 does not use a label mapping"),
         }
     }
 }
@@ -96,6 +116,12 @@ impl TokenizerOption {
                 merges_path.expect("No merges specified!"),
                 lower_case,
             )),
+            ModelType::Marian => TokenizerOption::Marian(MarianTokenizer::from_files(
+                vocab_path,
+                merges_path.expect("No merges specified!"),
+                lower_case,
+            )),
+            ModelType::T5 => TokenizerOption::T5(T5Tokenizer::from_file(vocab_path, lower_case)),
         }
     }
 
@@ -104,6 +130,8 @@ impl TokenizerOption {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
+            Self::Marian(_) => ModelType::Marian,
+            Self::T5(_) => ModelType::T5,
         }
     }
 
@@ -120,6 +148,12 @@ impl TokenizerOption {
                 tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
             }
             Self::Roberta(ref tokenizer) => {
+                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
+            }
+            Self::Marian(ref tokenizer) => {
+                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
+            }
+            Self::T5(ref tokenizer) => {
                 tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
             }
         }
