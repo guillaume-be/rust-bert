@@ -47,12 +47,12 @@ impl T5ConfigResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/config.json",
-        "https://cdn.huggingface.co/t5-small/config.json",
+        "https://s3.amazonaws.com/models.huggingface.co/bert/t5-small-config.json",
     );
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/config.json",
-        "https://cdn.huggingface.co/t5-base/config.json",
+        "https://s3.amazonaws.com/models.huggingface.co/bert/t5-base-config.json",
     );
 }
 
