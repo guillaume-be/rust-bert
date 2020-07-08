@@ -191,6 +191,37 @@ pub struct QuestionAnsweringConfig {
     pub lower_case: bool,
 }
 
+impl QuestionAnsweringConfig {
+    /// Instantiate a new question answering configuration of the supplied type.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
+    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    pub fn new(
+        model_type: ModelType,
+        model_resource: Resource,
+        config_resource: Resource,
+        vocab_resource: Resource,
+        merges_resource: Option<Resource>,
+        lower_case: bool,
+    ) -> QuestionAnsweringConfig {
+        QuestionAnsweringConfig {
+            model_type,
+            model_resource,
+            config_resource,
+            vocab_resource,
+            merges_resource,
+            lower_case,
+            device: Device::cuda_if_available(),
+        }
+    }
+}
+
 impl Default for QuestionAnsweringConfig {
     fn default() -> QuestionAnsweringConfig {
         QuestionAnsweringConfig {

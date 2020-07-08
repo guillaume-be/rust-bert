@@ -44,6 +44,11 @@ impl BertModelResources {
         "bert-ner/model.ot",
         "https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license by Hugging Face Inc at https://github.com/huggingface/transformers/tree/master/examples/question-answering. Modified with conversion to C-array format.
+    pub const BERT_QA: (&'static str, &'static str) = (
+        "bert-qa/model.ot",
+        "https://cdn.huggingface.co/bert/bert-large-cased-whole-word-masking-finetuned-squad/rust_model.ot",
+    );
 }
 
 impl BertConfigResources {
@@ -57,6 +62,11 @@ impl BertConfigResources {
         "bert-ner/config.json",
         "https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/config.json",
     );
+    /// Shared under Apache 2.0 license by Hugging Face Inc at https://github.com/huggingface/transformers/tree/master/examples/question-answering. Modified with conversion to C-array format.
+    pub const BERT_QA: (&'static str, &'static str) = (
+        "bert-qa/config.json",
+        "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-cased-whole-word-masking-finetuned-squad-config.json",
+    );
 }
 
 impl BertVocabResources {
@@ -69,6 +79,11 @@ impl BertVocabResources {
     pub const BERT_NER: (&'static str, &'static str) = (
         "bert-ner/vocab.txt",
         "https://cdn.huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/vocab.txt",
+    );
+    /// Shared under Apache 2.0 license by Hugging Face Inc at https://github.com/huggingface/transformers/tree/master/examples/question-answering. Modified with conversion to C-array format.
+    pub const BERT_QA: (&'static str, &'static str) = (
+        "bert-qa/vocab.txt",
+        "https://cdn.huggingface.co/bert-large-cased-whole-word-masking-finetuned-squad-vocab.txt",
     );
 }
 
