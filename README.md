@@ -10,17 +10,17 @@ This repository exposes the model base architecture, task-specific heads (see be
 
 The following models are currently implemented:
 
- | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|**ALBERT**|
-:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:|:----:
-Masked LM|✅ |✅ |✅ | | | |✅| |✅ |
-Sequence classification|✅ |✅ |✅| | | | | |✅ |
-Token classification|✅ |✅ | ✅| | | |✅| |✅ |
-Question answering|✅ |✅ |✅| | | | | |✅ |
-Multiple choices| |✅ |✅| | | | | |✅ |
-Next token prediction| | | |✅|✅|✅| | | |
-Natural Language Generation| | | |✅|✅|✅| | | |
-Summarization | | | | | |✅| | | |
-Translation | | | | | |✅| |✅ | |
+ | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|**ALBERT**|**T5**|
+:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:|:----:|:----:
+Masked LM|✅ |✅ |✅ | | | |✅| |✅ | |
+Sequence classification|✅ |✅ |✅| | | | | |✅ | |
+Token classification|✅ |✅ | ✅| | | |✅| |✅ | |
+Question answering|✅ |✅ |✅| | | | | |✅ | |
+Multiple choices| |✅ |✅| | | | | |✅ | |
+Next token prediction| | | |✅|✅|✅| | | | |
+Natural Language Generation| | | |✅|✅|✅| | | | |
+Summarization | | | | | |✅| | | | |
+Translation | | | | | |✅| |✅ | |✅|
 
 ## Ready-to-use pipelines
 

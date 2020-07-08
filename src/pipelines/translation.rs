@@ -519,7 +519,7 @@ impl TranslationConfig {
         }
     }
 
-    /// Create a new `TranslationCondiguration` from custom (e.g. local) resources.
+    /// Create a new `TranslationConfiguration` from custom (e.g. local) resources.
     ///
     /// # Arguments
     ///
@@ -533,11 +533,11 @@ impl TranslationConfig {
     ///
     /// ```no_run
     /// # fn main() -> failure::Fallible<()> {
+    /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
     /// use rust_bert::resources::{LocalResource, Resource};
     /// use std::path::PathBuf;
     /// use tch::Device;
-    /// use rust_bert::pipelines::common::ModelType;
     ///
     /// let config_resource = Resource::Local(LocalResource {
     ///     local_path: PathBuf::from("path/to/config.json"),
