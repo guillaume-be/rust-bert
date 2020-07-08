@@ -23,10 +23,16 @@ use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::t5::T5Config;
 use crate::Config;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Tokenizer;
+use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
+    Mask, Offset, OffsetSize, Tokenizer,
+};
 use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
 use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
-use rust_tokenizers::{BertTokenizer, RobertaTokenizer, TokenizedInput, TruncationStrategy};
+use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
+use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
+use rust_tokenizers::{
+    BertTokenizer, BertVocab, RobertaTokenizer, RobertaVocab, TokenizedInput, TruncationStrategy,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -156,6 +162,145 @@ impl TokenizerOption {
             Self::T5(ref tokenizer) => {
                 tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
             }
+        }
+    }
+
+    /// Interface method to tokenization
+    pub fn tokenize(&self, text: &str) -> Vec<String> {
+        match *self {
+            Self::Bert(ref tokenizer) => tokenizer.tokenize(text),
+            Self::Roberta(ref tokenizer) => tokenizer.tokenize(text),
+            Self::Marian(ref tokenizer) => tokenizer.tokenize(text),
+            Self::T5(ref tokenizer) => tokenizer.tokenize(text),
+        }
+    }
+
+    /// Interface method to build input with special tokens
+    pub fn build_input_with_special_tokens(
+        &self,
+        tokens_1: Vec<i64>,
+        tokens_2: Option<Vec<i64>>,
+        offsets_1: Vec<Option<Offset>>,
+        offsets_2: Option<Vec<Option<Offset>>>,
+        original_offsets_1: Vec<Vec<OffsetSize>>,
+        original_offsets_2: Option<Vec<Vec<OffsetSize>>>,
+        mask_1: Vec<Mask>,
+        mask_2: Option<Vec<Mask>>,
+    ) -> (
+        Vec<i64>,
+        Vec<i8>,
+        Vec<i8>,
+        Vec<Option<Offset>>,
+        Vec<Vec<OffsetSize>>,
+        Vec<Mask>,
+    ) {
+        match *self {
+            Self::Bert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                tokens_1,
+                tokens_2,
+                offsets_1,
+                offsets_2,
+                original_offsets_1,
+                original_offsets_2,
+                mask_1,
+                mask_2,
+            ),
+            Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                tokens_1,
+                tokens_2,
+                offsets_1,
+                offsets_2,
+                original_offsets_1,
+                original_offsets_2,
+                mask_1,
+                mask_2,
+            ),
+            Self::Marian(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                tokens_1,
+                tokens_2,
+                offsets_1,
+                offsets_2,
+                original_offsets_1,
+                original_offsets_2,
+                mask_1,
+                mask_2,
+            ),
+            Self::T5(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                tokens_1,
+                tokens_2,
+                offsets_1,
+                offsets_2,
+                original_offsets_1,
+                original_offsets_2,
+                mask_1,
+                mask_2,
+            ),
+        }
+    }
+
+    /// Interface method to convert tokens to ids
+    pub fn convert_tokens_to_ids(&self, tokens: &Vec<String>) -> Vec<i64> {
+        match *self {
+            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+        }
+    }
+
+    /// Interface method
+    pub fn get_pad_id(&self) -> Option<i64> {
+        match *self {
+            Self::Bert(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(BertVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::Roberta(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(RobertaVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::Marian(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(MarianVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::T5(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(T5Vocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+        }
+    }
+
+    /// Interface method
+    pub fn get_sep_id(&self) -> Option<i64> {
+        match *self {
+            Self::Bert(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(BertVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::Roberta(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(RobertaVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::Marian(_) => None,
+            Self::T5(_) => None,
         }
     }
 }

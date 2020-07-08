@@ -98,7 +98,7 @@ pub struct SequenceClassificationConfig {
     pub config_resource: Resource,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
     pub vocab_resource: Resource,
-    /// Merges resource (default: pretrained BERT model on CoNLL)
+    /// Merges resource (default: None)
     pub merges_resource: Option<Resource>,
     /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
