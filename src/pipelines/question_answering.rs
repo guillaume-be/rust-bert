@@ -633,11 +633,39 @@ impl QuestionAnsweringModel {
 
         let truncated_query = self.prepare_query(&qa_example.question, max_query_length);
 
-        let sequence_added_tokens = self
-            .tokenizer
-            .build_input_with_special_tokens(vec![], None, vec![], None, vec![], None, vec![], None)
-            .0
-            .len();
+        let sequence_added_tokens = match self.tokenizer {
+            TokenizerOption::Roberta(_) => {
+                self.tokenizer
+                    .build_input_with_special_tokens(
+                        vec![],
+                        None,
+                        vec![],
+                        None,
+                        vec![],
+                        None,
+                        vec![],
+                        None,
+                    )
+                    .0
+                    .len()
+                    + 1
+            }
+            _ => self
+                .tokenizer
+                .build_input_with_special_tokens(
+                    vec![],
+                    None,
+                    vec![],
+                    None,
+                    vec![],
+                    None,
+                    vec![],
+                    None,
+                )
+                .0
+                .len(),
+        };
+
         let sequence_pair_added_tokens = self
             .tokenizer
             .build_input_with_special_tokens(
