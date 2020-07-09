@@ -43,22 +43,25 @@
 //! # ;
 //! ```
 
+use crate::bert::BertForQuestionAnswering;
 use crate::common::resources::{download_resource, RemoteResource, Resource};
 use crate::distilbert::{
-    DistilBertConfig, DistilBertConfigResources, DistilBertForQuestionAnswering,
-    DistilBertModelResources, DistilBertVocabResources,
+    DistilBertConfigResources, DistilBertForQuestionAnswering, DistilBertModelResources,
+    DistilBertVocabResources,
 };
-use crate::Config;
+use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::roberta::RobertaForQuestionAnswering;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Mask;
 use rust_tokenizers::tokenization_utils::truncate_sequences;
-use rust_tokenizers::{BertTokenizer, TokenizedInput, Tokenizer, TruncationStrategy};
+use rust_tokenizers::{TokenizedInput, TruncationStrategy};
+use std::borrow::Borrow;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use tch::kind::Kind::Float;
 use tch::nn::VarStore;
-use tch::{no_grad, Device, Tensor};
+use tch::{nn, no_grad, Device, Tensor};
 
 /// # Input for Question Answering
 /// Includes a context (containing the answer) and question strings
@@ -178,8 +181,45 @@ pub struct QuestionAnsweringConfig {
     pub config_resource: Resource,
     /// Vocab resource (default: pretrained DistilBERT model on SQuAD)
     pub vocab_resource: Resource,
+    /// Merges resource (default: None)
+    pub merges_resource: Option<Resource>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Model type
+    pub model_type: ModelType,
+    /// Flag indicating if the model expects a lower casing of the input
+    pub lower_case: bool,
+}
+
+impl QuestionAnsweringConfig {
+    /// Instantiate a new question answering configuration of the supplied type.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
+    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    pub fn new(
+        model_type: ModelType,
+        model_resource: Resource,
+        config_resource: Resource,
+        vocab_resource: Resource,
+        merges_resource: Option<Resource>,
+        lower_case: bool,
+    ) -> QuestionAnsweringConfig {
+        QuestionAnsweringConfig {
+            model_type,
+            model_resource,
+            config_resource,
+            vocab_resource,
+            merges_resource,
+            lower_case,
+            device: Device::cuda_if_available(),
+        }
+    }
 }
 
 impl Default for QuestionAnsweringConfig {
@@ -194,21 +234,119 @@ impl Default for QuestionAnsweringConfig {
             vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
                 DistilBertVocabResources::DISTIL_BERT_SQUAD,
             )),
+            merges_resource: None,
             device: Device::cuda_if_available(),
+            model_type: ModelType::DistilBert,
+            lower_case: false,
+        }
+    }
+}
+
+/// # Abstraction that holds one particular question answering model, for any of the supported models
+pub enum QuestionAnsweringOption {
+    /// Bert for Question Answering
+    Bert(BertForQuestionAnswering),
+    /// DistilBert for Question Answering
+    DistilBert(DistilBertForQuestionAnswering),
+    /// Roberta for Question Answering
+    Roberta(RobertaForQuestionAnswering),
+}
+
+impl QuestionAnsweringOption {
+    /// Instantiate a new question answering model of the supplied type.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded)
+    /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
+    /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
+    /// `model_type`)
+    pub fn new<'p, P>(model_type: ModelType, p: P, config: &ConfigOption) -> Self
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        match model_type {
+            ModelType::Bert => {
+                if let ConfigOption::Bert(config) = config {
+                    QuestionAnsweringOption::Bert(BertForQuestionAnswering::new(p, config))
+                } else {
+                    panic!("You can only supply a BertConfig for Bert!");
+                }
+            }
+            ModelType::DistilBert => {
+                if let ConfigOption::DistilBert(config) = config {
+                    QuestionAnsweringOption::DistilBert(DistilBertForQuestionAnswering::new(
+                        p, config,
+                    ))
+                } else {
+                    panic!("You can only supply a DistilBertConfig for DistilBert!");
+                }
+            }
+            ModelType::Roberta => {
+                if let ConfigOption::Bert(config) = config {
+                    QuestionAnsweringOption::Roberta(RobertaForQuestionAnswering::new(p, config))
+                } else {
+                    panic!("You can only supply a BertConfig for Roberta!");
+                }
+            }
+            ModelType::Electra => {
+                panic!("QuestionAnswering not implemented for Electra!");
+            }
+            ModelType::Marian => {
+                panic!("QuestionAnswering not implemented for Marian!");
+            }
+            ModelType::T5 => {
+                panic!("QuestionAnswering not implemented for T5!");
+            }
+        }
+    }
+
+    /// Returns the `ModelType` for this SequenceClassificationOption
+    pub fn model_type(&self) -> ModelType {
+        match *self {
+            Self::Bert(_) => ModelType::Bert,
+            Self::Roberta(_) => ModelType::Roberta,
+            Self::DistilBert(_) => ModelType::DistilBert,
+        }
+    }
+
+    /// Interface method to forward_t() of the particular models.
+    pub fn forward_t(
+        &self,
+        input_ids: Option<Tensor>,
+        mask: Option<Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> (Tensor, Tensor) {
+        match *self {
+            Self::Bert(ref model) => {
+                let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
+                (outputs.0, outputs.1)
+            }
+            Self::DistilBert(ref model) => {
+                let outputs = model
+                    .forward_t(input_ids, mask, input_embeds, train)
+                    .expect("Error in distilbert forward_t");
+                (outputs.0, outputs.1)
+            }
+            Self::Roberta(ref model) => {
+                let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
+                (outputs.0, outputs.1)
+            }
         }
     }
 }
 
 /// # QuestionAnsweringModel to perform extractive question answering
 pub struct QuestionAnsweringModel {
-    tokenizer: BertTokenizer,
+    tokenizer: TokenizerOption,
     pad_idx: i64,
     sep_idx: i64,
     max_seq_len: usize,
     doc_stride: usize,
     max_query_length: usize,
     max_answer_len: usize,
-    distilbert_qa: DistilBertForQuestionAnswering,
+    distilbert_qa: QuestionAnsweringOption,
     var_store: VarStore,
 }
 
@@ -235,22 +373,42 @@ impl QuestionAnsweringModel {
         let config_path = download_resource(&question_answering_config.config_resource)?;
         let vocab_path = download_resource(&question_answering_config.vocab_resource)?;
         let weights_path = download_resource(&question_answering_config.model_resource)?;
+        let merges_path = if let Some(merges_resource) = &question_answering_config.merges_resource
+        {
+            Some(download_resource(merges_resource).expect("Failure downloading resource"))
+        } else {
+            None
+        };
         let device = question_answering_config.device;
 
-        let tokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), false);
-        let pad_idx = *Tokenizer::vocab(&tokenizer)
-            .special_values
-            .get("[PAD]")
-            .expect("[PAD] token not found in vocabulary");
-        let sep_idx = *Tokenizer::vocab(&tokenizer)
-            .special_values
-            .get("[SEP]")
-            .expect("[SEP] token not found in vocabulary");
+        let tokenizer = TokenizerOption::from_file(
+            question_answering_config.model_type,
+            vocab_path.to_str().unwrap(),
+            merges_path.map(|path| path.to_str().unwrap()),
+            question_answering_config.lower_case,
+        );
+        let pad_idx = tokenizer
+            .get_pad_id()
+            .expect("The Tokenizer used for Question Answering should contain a PAD id");
+        let sep_idx = tokenizer
+            .get_sep_id()
+            .expect("The Tokenizer used for Question Answering should contain a SEP id");
         let mut var_store = VarStore::new(device);
-        let mut config = DistilBertConfig::from_file(config_path);
-        //        The config for the current pre-trained question answering model indicates position embeddings which does not seem accurate
-        config.sinusoidal_pos_embds = false;
-        let distilbert_qa = DistilBertForQuestionAnswering::new(&var_store.root(), &config);
+        let mut model_config =
+            ConfigOption::from_file(question_answering_config.model_type, config_path);
+        match model_config {
+            //        The config for the current pre-trained question answering model indicates position embeddings which does not seem accurate
+            ConfigOption::DistilBert(ref mut config) => {
+                config.sinusoidal_pos_embds = false;
+            }
+            _ => (),
+        };
+
+        let qa_model = QuestionAnsweringOption::new(
+            question_answering_config.model_type,
+            &var_store.root(),
+            &model_config,
+        );
         var_store.load(weights_path)?;
         Ok(QuestionAnsweringModel {
             tokenizer,
@@ -260,7 +418,7 @@ impl QuestionAnsweringModel {
             doc_stride: 128,
             max_query_length: 64,
             max_answer_len: 15,
-            distilbert_qa,
+            distilbert_qa: qa_model,
             var_store,
         })
     }
@@ -346,10 +504,12 @@ impl QuestionAnsweringModel {
                 let attention_masks =
                     Tensor::stack(&attention_masks, 0).to(self.var_store.device());
 
-                let (start_logits, end_logits, _, _) = self
-                    .distilbert_qa
-                    .forward_t(Some(input_ids), Some(attention_masks), None, false)
-                    .unwrap();
+                let (start_logits, end_logits) = self.distilbert_qa.forward_t(
+                    Some(input_ids),
+                    Some(attention_masks),
+                    None,
+                    false,
+                );
 
                 let start_logits = start_logits.detach();
                 let end_logits = end_logits.detach();
@@ -473,11 +633,39 @@ impl QuestionAnsweringModel {
 
         let truncated_query = self.prepare_query(&qa_example.question, max_query_length);
 
-        let sequence_added_tokens = self
-            .tokenizer
-            .build_input_with_special_tokens(vec![], None, vec![], None, vec![], None, vec![], None)
-            .0
-            .len();
+        let sequence_added_tokens = match self.tokenizer {
+            TokenizerOption::Roberta(_) => {
+                self.tokenizer
+                    .build_input_with_special_tokens(
+                        vec![],
+                        None,
+                        vec![],
+                        None,
+                        vec![],
+                        None,
+                        vec![],
+                        None,
+                    )
+                    .0
+                    .len()
+                    + 1
+            }
+            _ => self
+                .tokenizer
+                .build_input_with_special_tokens(
+                    vec![],
+                    None,
+                    vec![],
+                    None,
+                    vec![],
+                    None,
+                    vec![],
+                    None,
+                )
+                .0
+                .len(),
+        };
+
         let sequence_pair_added_tokens = self
             .tokenizer
             .build_input_with_special_tokens(
