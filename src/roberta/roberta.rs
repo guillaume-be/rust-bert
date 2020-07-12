@@ -38,6 +38,11 @@ impl RobertaModelResources {
         "roberta/model.ot",
         "https://cdn.huggingface.co/roberta-base-rust_model.ot",
     );
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    pub const ROBERTA_QA: (&'static str, &'static str) = (
+        "roberta-qa/model.ot",
+        "https://cdn.huggingface.co/deepset/roberta-base-squad2/rust_model.ot",
+    );
 }
 
 impl RobertaConfigResources {
@@ -45,6 +50,11 @@ impl RobertaConfigResources {
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/config.json",
         "https://cdn.huggingface.co/roberta-base-config.json",
+    );
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    pub const ROBERTA_QA: (&'static str, &'static str) = (
+        "roberta-qa/config.json",
+        "https://s3.amazonaws.com/models.huggingface.co/bert/deepset/roberta-base-squad2/config.json",
     );
 }
 
@@ -54,6 +64,11 @@ impl RobertaVocabResources {
         "roberta/vocab.txt",
         "https://cdn.huggingface.co/roberta-base-vocab.json",
     );
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    pub const ROBERTA_QA: (&'static str, &'static str) = (
+        "roberta-qa/vocab.json",
+        "https://cdn.huggingface.co/deepset/roberta-base-squad2/vocab.json",
+    );
 }
 
 impl RobertaMergesResources {
@@ -61,6 +76,11 @@ impl RobertaMergesResources {
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/merges.txt",
         "https://cdn.huggingface.co/roberta-base-merges.txt",
+    );
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    pub const ROBERTA_QA: (&'static str, &'static str) = (
+        "roberta-qa/merges.txt",
+        "https://cdn.huggingface.co/deepset/roberta-base-squad2/merges.txt",
     );
 }
 
