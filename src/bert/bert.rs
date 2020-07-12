@@ -47,7 +47,7 @@ impl BertModelResources {
     /// Shared under Apache 2.0 license by Hugging Face Inc at https://github.com/huggingface/transformers/tree/master/examples/question-answering. Modified with conversion to C-array format.
     pub const BERT_QA: (&'static str, &'static str) = (
         "bert-qa/model.ot",
-        "https://cdn.huggingface.co/bert/bert-large-cased-whole-word-masking-finetuned-squad/rust_model.ot",
+        "https://cdn.huggingface.co/bert-large-cased-whole-word-masking-finetuned-squad-rust_model.ot",
     );
 }
 

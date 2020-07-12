@@ -1,4 +1,8 @@
 use rust_bert::bert::BertConfig;
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::question_answering::{
+    QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
+};
 use rust_bert::resources::{download_resource, RemoteResource, Resource};
 use rust_bert::roberta::{
     RobertaConfigResources, RobertaForMaskedLM, RobertaForMultipleChoice,
@@ -389,6 +393,45 @@ fn roberta_for_question_answering() -> failure::Fallible<()> {
         config.num_hidden_layers as usize,
         all_attentions.unwrap().len()
     );
+
+    Ok(())
+}
+
+#[test]
+fn roberta_question_answering() -> failure::Fallible<()> {
+    //    Set-up question answering model
+    let config = QuestionAnsweringConfig::new(
+        ModelType::Roberta,
+        Resource::Remote(RemoteResource::from_pretrained(
+            RobertaModelResources::ROBERTA_QA,
+        )),
+        Resource::Remote(RemoteResource::from_pretrained(
+            RobertaConfigResources::ROBERTA_QA,
+        )),
+        Resource::Remote(RemoteResource::from_pretrained(
+            RobertaVocabResources::ROBERTA_QA,
+        )),
+        Some(Resource::Remote(RemoteResource::from_pretrained(
+            RobertaMergesResources::ROBERTA_QA,
+        ))), //merges resource only relevant with ModelType::Roberta
+        true, //lowercase
+    );
+
+    let qa_model = QuestionAnsweringModel::new(config)?;
+
+    //    Define input
+    let question = String::from("Where does Amy live ?");
+    let context = String::from("Amy lives in Amsterdam");
+    let qa_input = QaInput { question, context };
+
+    let answers = qa_model.predict(&vec![qa_input], 1, 32);
+
+    assert_eq!(answers.len(), 1 as usize);
+    assert_eq!(answers[0].len(), 1 as usize);
+    assert_eq!(answers[0][0].start, 13);
+    assert_eq!(answers[0][0].end, 21);
+    assert!((answers[0][0].score - 0.7354).abs() < 1e-4);
+    assert_eq!(answers[0][0].answer, "Amsterdam");
 
     Ok(())
 }
