@@ -6,7 +6,11 @@ use rust_bert::bert::{
     BertForQuestionAnswering, BertForSequenceClassification, BertForTokenClassification,
     BertModelResources, BertVocabResources,
 };
+use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::ner::NERModel;
+use rust_bert::pipelines::question_answering::{
+    QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
+};
 use rust_bert::resources::{download_resource, RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
@@ -371,6 +375,39 @@ fn bert_pre_trained_ner() -> failure::Fallible<()> {
     assert_eq!(output[3].word, "France");
     assert!((output[3].score - 0.9994).abs() < 1e-4);
     assert_eq!(output[3].label, "I-LOC");
+
+    Ok(())
+}
+
+#[test]
+fn bert_question_answering() -> failure::Fallible<()> {
+    //    Set-up question answering model
+    let config = QuestionAnsweringConfig::new(
+        ModelType::Bert,
+        Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
+        Resource::Remote(RemoteResource::from_pretrained(
+            BertConfigResources::BERT_QA,
+        )),
+        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
+        None, //merges resource only relevant with ModelType::Roberta
+        true, //lowercase
+    );
+
+    let qa_model = QuestionAnsweringModel::new(config)?;
+
+    //    Define input
+    let question = String::from("Where does Amy live ?");
+    let context = String::from("Amy lives in Amsterdam");
+    let qa_input = QaInput { question, context };
+
+    let answers = qa_model.predict(&vec![qa_input], 1, 32);
+
+    assert_eq!(answers.len(), 1 as usize);
+    assert_eq!(answers[0].len(), 1 as usize);
+    assert_eq!(answers[0][0].start, 13);
+    assert_eq!(answers[0][0].end, 21);
+    assert!((answers[0][0].score - 0.8111).abs() < 1e-4);
+    assert_eq!(answers[0][0].answer, "Amsterdam");
 
     Ok(())
 }

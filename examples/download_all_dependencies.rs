@@ -312,6 +312,42 @@ fn download_t5_small() -> failure::Fallible<()> {
     Ok(())
 }
 
+fn download_roberta_qa() -> failure::Fallible<()> {
+    // Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaConfigResources::ROBERTA_QA,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaVocabResources::ROBERTA_QA,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaModelResources::ROBERTA_QA,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaMergesResources::ROBERTA_QA,
+    ));
+    let _ = download_resource(&config_resource)?;
+    let _ = download_resource(&vocab_resource)?;
+    let _ = download_resource(&merges_resource)?;
+    let _ = download_resource(&weights_resource)?;
+    Ok(())
+}
+
+fn download_bert_qa() -> failure::Fallible<()> {
+    // Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BertConfigResources::BERT_QA,
+    ));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA));
+    let weights_resource =
+        Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_QA));
+    let _ = download_resource(&config_resource)?;
+    let _ = download_resource(&vocab_resource)?;
+    let _ = download_resource(&weights_resource)?;
+    Ok(())
+}
+
 fn main() -> failure::Fallible<()> {
     let _ = download_distil_gpt2();
     let _ = download_distilbert_sst2();
@@ -328,6 +364,8 @@ fn main() -> failure::Fallible<()> {
     let _ = download_electra_discriminator();
     let _ = download_albert_base_v2();
     let _ = download_t5_small();
+    let _ = download_roberta_qa();
+    let _ = download_bert_qa();
 
     Ok(())
 }
