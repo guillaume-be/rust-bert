@@ -56,6 +56,7 @@
 //! # ;
 //! ```
 //!
+use crate::albert::AlbertForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
 use crate::common::resources::{download_resource, RemoteResource, Resource};
 use crate::distilbert::{
@@ -166,6 +167,8 @@ pub enum SequenceClassificationOption {
     DistilBert(DistilBertModelClassifier),
     /// Roberta for Sequence Classification
     Roberta(RobertaForSequenceClassification),
+    /// Albert for Sequence Classification
+    Albert(AlbertForSequenceClassification),
 }
 
 impl SequenceClassificationOption {
@@ -209,6 +212,15 @@ impl SequenceClassificationOption {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
+            ModelType::Albert => {
+                if let ConfigOption::Albert(config) = config {
+                    SequenceClassificationOption::Albert(AlbertForSequenceClassification::new(
+                        p, config,
+                    ))
+                } else {
+                    panic!("You can only supply an AlbertConfig for Albert!");
+                }
+            }
             ModelType::Electra => {
                 panic!("SequenceClassification not implemented for Electra!");
             }
@@ -227,6 +239,7 @@ impl SequenceClassificationOption {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
+            Self::Albert(_) => ModelType::Albert,
         }
     }
 
@@ -239,27 +252,50 @@ impl SequenceClassificationOption {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    ) -> Tensor {
         match *self {
-            Self::Bert(ref model) => model.forward_t(
-                input_ids,
-                mask,
-                token_type_ids,
-                position_ids,
-                input_embeds,
-                train,
-            ),
-            Self::DistilBert(ref model) => model
-                .forward_t(input_ids, mask, input_embeds, train)
-                .expect("Error in distilbert forward_t"),
-            Self::Roberta(ref model) => model.forward_t(
-                input_ids,
-                mask,
-                token_type_ids,
-                position_ids,
-                input_embeds,
-                train,
-            ),
+            Self::Bert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
+            Self::DistilBert(ref model) => {
+                model
+                    .forward_t(input_ids, mask, input_embeds, train)
+                    .expect("Error in distilbert forward_t")
+                    .0
+            }
+            Self::Roberta(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
+            Self::Albert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
         }
     }
 }
@@ -372,7 +408,7 @@ impl SequenceClassificationModel {
     pub fn predict(&self, input: &[&str]) -> Vec<Label> {
         let input_tensor = self.prepare_for_model(input.to_vec());
         let output = no_grad(|| {
-            let (output, _, _) = self.sequence_classifier.forward_t(
+            let output = self.sequence_classifier.forward_t(
                 Some(input_tensor.copy()),
                 None,
                 None,
@@ -437,7 +473,7 @@ impl SequenceClassificationModel {
     pub fn predict_multilabel(&self, input: &[&str], threshold: f64) -> Vec<Vec<Label>> {
         let input_tensor = self.prepare_for_model(input.to_vec());
         let output = no_grad(|| {
-            let (output, _, _) = self.sequence_classifier.forward_t(
+            let output = self.sequence_classifier.forward_t(
                 Some(input_tensor.copy()),
                 None,
                 None,

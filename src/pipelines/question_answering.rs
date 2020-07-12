@@ -43,6 +43,7 @@
 //! # ;
 //! ```
 
+use crate::albert::AlbertForQuestionAnswering;
 use crate::bert::BertForQuestionAnswering;
 use crate::common::resources::{download_resource, RemoteResource, Resource};
 use crate::distilbert::{
@@ -250,6 +251,8 @@ pub enum QuestionAnsweringOption {
     DistilBert(DistilBertForQuestionAnswering),
     /// Roberta for Question Answering
     Roberta(RobertaForQuestionAnswering),
+    /// Albert for Question Answering
+    Albert(AlbertForQuestionAnswering),
 }
 
 impl QuestionAnsweringOption {
@@ -289,6 +292,13 @@ impl QuestionAnsweringOption {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
+            ModelType::Albert => {
+                if let ConfigOption::Albert(config) = config {
+                    QuestionAnsweringOption::Albert(AlbertForQuestionAnswering::new(p, config))
+                } else {
+                    panic!("You can only supply an AlbertConfig for Albert!");
+                }
+            }
             ModelType::Electra => {
                 panic!("QuestionAnswering not implemented for Electra!");
             }
@@ -307,6 +317,7 @@ impl QuestionAnsweringOption {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
+            Self::Albert(_) => ModelType::Albert,
         }
     }
 
@@ -330,6 +341,10 @@ impl QuestionAnsweringOption {
                 (outputs.0, outputs.1)
             }
             Self::Roberta(ref model) => {
+                let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
+                (outputs.0, outputs.1)
+            }
+            Self::Albert(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
                 (outputs.0, outputs.1)
             }

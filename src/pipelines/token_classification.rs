@@ -109,6 +109,7 @@
 //! # ;
 //! ```
 
+use crate::albert::AlbertForTokenClassification;
 use crate::bert::{
     BertConfigResources, BertForTokenClassification, BertModelResources, BertVocabResources,
 };
@@ -280,6 +281,8 @@ pub enum TokenClassificationOption {
     Roberta(RobertaForTokenClassification),
     /// Electra for Token Classification
     Electra(ElectraForTokenClassification),
+    /// Albert for Token Classification
+    Albert(AlbertForTokenClassification),
 }
 
 impl TokenClassificationOption {
@@ -330,6 +333,13 @@ impl TokenClassificationOption {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
+            ModelType::Albert => {
+                if let ConfigOption::Albert(config) = config {
+                    TokenClassificationOption::Albert(AlbertForTokenClassification::new(p, config))
+                } else {
+                    panic!("You can only supply an AlbertConfig for Albert!");
+                }
+            }
             ModelType::Marian => {
                 panic!("TokenClassification not implemented for Marian!");
             }
@@ -346,6 +356,7 @@ impl TokenClassificationOption {
             Self::Roberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::Electra(_) => ModelType::Electra,
+            Self::Albert(_) => ModelType::Albert,
         }
     }
 
@@ -357,35 +368,62 @@ impl TokenClassificationOption {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    ) -> Tensor {
         match *self {
-            Self::Bert(ref model) => model.forward_t(
-                input_ids,
-                mask,
-                token_type_ids,
-                position_ids,
-                input_embeds,
-                train,
-            ),
-            Self::DistilBert(ref model) => model
-                .forward_t(input_ids, mask, input_embeds, train)
-                .expect("Error in distilbert forward_t"),
-            Self::Roberta(ref model) => model.forward_t(
-                input_ids,
-                mask,
-                token_type_ids,
-                position_ids,
-                input_embeds,
-                train,
-            ),
-            Self::Electra(ref model) => model.forward_t(
-                input_ids,
-                mask,
-                token_type_ids,
-                position_ids,
-                input_embeds,
-                train,
-            ),
+            Self::Bert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
+            Self::DistilBert(ref model) => {
+                model
+                    .forward_t(input_ids, mask, input_embeds, train)
+                    .expect("Error in distilbert forward_t")
+                    .0
+            }
+            Self::Roberta(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
+            Self::Electra(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
+            Self::Albert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
         }
     }
 }
@@ -507,7 +545,7 @@ impl TokenClassificationModel {
         return_special: bool,
     ) -> Vec<Token> {
         let (tokenized_input, input_tensor) = self.prepare_for_model(input.to_vec());
-        let (output, _, _) = no_grad(|| {
+        let output = no_grad(|| {
             self.token_sequence_classifier.forward_t(
                 Some(input_tensor.copy()),
                 None,
@@ -577,6 +615,9 @@ impl TokenClassificationModel {
                     Tokenizer::decode(tokenizer, vec![token_id], false, false)
                 }
                 TokenizerOption::Roberta(ref tokenizer) => {
+                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                }
+                TokenizerOption::Albert(ref tokenizer) => {
                     Tokenizer::decode(tokenizer, vec![token_id], false, false)
                 }
                 TokenizerOption::Marian(_) => {

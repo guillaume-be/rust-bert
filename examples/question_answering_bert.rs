@@ -25,11 +25,9 @@ fn main() -> failure::Fallible<()> {
         ModelType::Bert,
         Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
         Resource::Remote(RemoteResource::from_pretrained(
-            BertConfigResources::BERT_NER,
+            BertConfigResources::BERT_QA,
         )),
-        Resource::Remote(RemoteResource::from_pretrained(
-            BertVocabResources::BERT_NER,
-        )),
+        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
         None,  //merges resource only relevant with ModelType::Roberta
         false, //lowercase
     );

@@ -17,6 +17,7 @@
 //! pre-processing, forward pass and postprocessing differs between pipelines while basic config and
 //! tokenization objects don't.
 //!
+use crate::albert::AlbertConfig;
 use crate::bart::BartConfig;
 use crate::bert::BertConfig;
 use crate::distilbert::DistilBertConfig;
@@ -28,10 +29,12 @@ use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
 };
 use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
 use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
+use rust_tokenizers::preprocessing::vocab::albert_vocab::AlbertVocab;
 use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
 use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
 use rust_tokenizers::{
-    BertTokenizer, BertVocab, RobertaTokenizer, RobertaVocab, TokenizedInput, TruncationStrategy,
+    AlbertTokenizer, BertTokenizer, BertVocab, RobertaTokenizer, RobertaVocab, TokenizedInput,
+    TruncationStrategy,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -46,6 +49,7 @@ pub enum ModelType {
     Electra,
     Marian,
     T5,
+    Albert,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -60,6 +64,8 @@ pub enum ConfigOption {
     Marian(BartConfig),
     /// T5 configuration
     T5(T5Config),
+    /// Albert configuration
+    Albert(AlbertConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -72,6 +78,8 @@ pub enum TokenizerOption {
     Marian(MarianTokenizer),
     /// T5 Tokenizer
     T5(T5Tokenizer),
+    /// Albert Tokenizer
+    Albert(AlbertTokenizer),
 }
 
 impl ConfigOption {
@@ -83,6 +91,7 @@ impl ConfigOption {
             ModelType::Electra => ConfigOption::Electra(ElectraConfig::from_file(path)),
             ModelType::Marian => ConfigOption::Marian(BartConfig::from_file(path)),
             ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
+            ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
         }
     }
 
@@ -98,6 +107,9 @@ impl ConfigOption {
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Marian(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Albert(config) => config
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
@@ -128,6 +140,11 @@ impl TokenizerOption {
                 lower_case,
             )),
             ModelType::T5 => TokenizerOption::T5(T5Tokenizer::from_file(vocab_path, lower_case)),
+            ModelType::Albert => TokenizerOption::Albert(AlbertTokenizer::from_file(
+                vocab_path,
+                lower_case,
+                !lower_case,
+            )),
         }
     }
 
@@ -138,6 +155,7 @@ impl TokenizerOption {
             Self::Roberta(_) => ModelType::Roberta,
             Self::Marian(_) => ModelType::Marian,
             Self::T5(_) => ModelType::T5,
+            Self::Albert(_) => ModelType::Albert,
         }
     }
 
@@ -162,6 +180,9 @@ impl TokenizerOption {
             Self::T5(ref tokenizer) => {
                 tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
             }
+            Self::Albert(ref tokenizer) => {
+                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
+            }
         }
     }
 
@@ -172,6 +193,7 @@ impl TokenizerOption {
             Self::Roberta(ref tokenizer) => tokenizer.tokenize(text),
             Self::Marian(ref tokenizer) => tokenizer.tokenize(text),
             Self::T5(ref tokenizer) => tokenizer.tokenize(text),
+            Self::Albert(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
 
@@ -235,6 +257,16 @@ impl TokenizerOption {
                 mask_1,
                 mask_2,
             ),
+            Self::Albert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                tokens_1,
+                tokens_2,
+                offsets_1,
+                offsets_2,
+                original_offsets_1,
+                original_offsets_2,
+                mask_1,
+                mask_2,
+            ),
         }
     }
 
@@ -245,6 +277,7 @@ impl TokenizerOption {
             Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
 
@@ -279,6 +312,13 @@ impl TokenizerOption {
                     .get(T5Vocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
+            Self::Albert(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(T5Vocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
         }
     }
 
@@ -297,6 +337,13 @@ impl TokenizerOption {
                     .vocab()
                     .special_values
                     .get(RobertaVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::Albert(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(AlbertVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Marian(_) => None,
