@@ -74,6 +74,8 @@ pub struct ConversationConfig {
     pub min_length: u64,
     /// Maximum sequence length (default: 20)
     pub max_length: u64,
+    /// Minimum free length available for generated responses (default: 32)
+    pub min_response_allowed_length: u64,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
@@ -115,6 +117,7 @@ impl Default for ConversationConfig {
             )),
             min_length: 0,
             max_length: 1000,
+            min_response_allowed_length: 32,
             do_sample: true,
             early_stopping: false,
             num_beams: 1,
@@ -569,6 +572,7 @@ impl ConversationManager {
 pub struct ConversationModel {
     model: GPT2Generator,
     eos_token_id: i64,
+    max_allowed_length: u64,
 }
 
 impl ConversationModel {
@@ -611,9 +615,12 @@ impl ConversationModel {
 
         let model = GPT2Generator::new(generate_config)?;
         let eos_token_id = *model.get_eos_ids().as_ref().unwrap().first().unwrap();
+        let max_allowed_length =
+            conversation_config.max_length as u64 - conversation_config.min_response_allowed_length;
         Ok(ConversationModel {
             model,
             eos_token_id,
+            max_allowed_length,
         })
     }
 
@@ -762,13 +769,19 @@ impl ConversationModel {
             .iter()
             .map(|input| input.len())
             .max()
-            .unwrap();
+            .unwrap()
+            .min(self.max_allowed_length as usize);
 
         let concatenated_inputs = concatenated_inputs
             .into_iter()
             .map(|input| {
                 let mut temp = vec![pad_token; max_len - input.len()];
-                temp.extend(input);
+                let start = if input.len() > max_len {
+                    input.len() - max_len
+                } else {
+                    0
+                };
+                temp.extend_from_slice(&input[start..]);
                 temp
             })
             .map(|tokens| Tensor::of_slice(&tokens).to(self.model.get_var_store().device()))
