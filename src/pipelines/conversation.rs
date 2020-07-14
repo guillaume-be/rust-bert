@@ -668,19 +668,21 @@ impl ConversationModel {
             let input_tensor = self.concat_input_history(prompt_ids, history);
             let input_length = *input_tensor.size().last().unwrap() as usize;
             let mut generated = self.model.generate_from_ids_and_past(input_tensor, None);
-            self.clean_padding_indices(&mut generated);
+            let removed_padding_quantities = self.clean_padding_indices(&mut generated);
 
             let mut output = HashMap::with_capacity(active_uuid.len());
 
-            for ((conversation, generated_sequence), uuid) in active_conversations
-                .into_iter()
-                .zip(generated.into_iter())
-                .zip(active_uuid.into_iter())
+            for (((conversation, generated_sequence), uuid), removed_padding) in
+                active_conversations
+                    .into_iter()
+                    .zip(generated.into_iter())
+                    .zip(active_uuid.into_iter())
+                    .zip(removed_padding_quantities.into_iter())
             {
                 conversation
                     .generated_responses
                     .push(self.model.get_tokenizer().decode(
-                        generated_sequence[input_length..].to_vec(),
+                        generated_sequence[input_length - removed_padding.0..].to_vec(),
                         true,
                         true,
                     ));
@@ -694,20 +696,28 @@ impl ConversationModel {
         }
     }
 
-    fn clean_padding_indices(&self, model_output: &mut Vec<Vec<i64>>) {
+    fn clean_padding_indices(&self, model_output: &mut Vec<Vec<i64>>) -> Vec<(usize, usize)> {
         // In case inputs are sent as batch, this cleans the padding indices in the history for shorter outputs
         let pad_token = match self.model.get_pad_id() {
             Some(value) => *value,
             None => self.eos_token_id,
         };
+        let mut removed_tokens = Vec::with_capacity(model_output.len());
         for sequence_history in model_output {
-            let index = sequence_history
+            let index_end = sequence_history
                 .iter()
                 .rev()
                 .position(|&r| r != pad_token)
                 .unwrap();
-            sequence_history.drain(sequence_history.len() - index + 1..);
+            let index_start = sequence_history
+                .iter()
+                .position(|&r| r != pad_token)
+                .unwrap();
+            sequence_history.drain(sequence_history.len() - index_end + 1..);
+            sequence_history.drain(..index_start);
+            removed_tokens.push((index_start, index_end));
         }
+        removed_tokens
     }
 
     fn concat_input_history(&self, inputs: Vec<Vec<i64>>, history: Vec<&Vec<i64>>) -> Tensor {
@@ -775,11 +785,10 @@ impl ConversationModel {
         let concatenated_inputs = concatenated_inputs
             .into_iter()
             .map(|input| {
-                let mut temp = vec![pad_token; max_len - input.len()];
-                let start = if input.len() > max_len {
-                    input.len() - max_len
+                let (start, mut temp) = if input.len() > max_len {
+                    (input.len() - max_len, vec![])
                 } else {
-                    0
+                    (0, vec![pad_token; max_len - input.len()])
                 };
                 temp.extend_from_slice(&input[start..]);
                 temp
