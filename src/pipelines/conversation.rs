@@ -52,8 +52,7 @@ use crate::gpt2::{
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
 use itertools::Itertools;
-use rust_tokenizers::preprocessing::tokenizer::tokenization_utils::truncate_sequences;
-use rust_tokenizers::{Tokenizer, TruncationStrategy};
+use rust_tokenizers::Tokenizer;
 use std::collections::HashMap;
 use tch::{Device, Tensor};
 use uuid::Uuid;
@@ -75,7 +74,7 @@ pub struct ConversationConfig {
     /// Maximum sequence length (default: 20)
     pub max_length: u64,
     /// Minimum free length available for generated responses (default: 32)
-    pub min_response_allowed_length: u64,
+    pub min_length_for_response: u64,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
@@ -117,7 +116,7 @@ impl Default for ConversationConfig {
             )),
             min_length: 0,
             max_length: 1000,
-            min_response_allowed_length: 32,
+            min_length_for_response: 32,
             do_sample: true,
             early_stopping: false,
             num_beams: 1,
@@ -572,7 +571,7 @@ impl ConversationManager {
 pub struct ConversationModel {
     model: GPT2Generator,
     eos_token_id: i64,
-    max_allowed_length: u64,
+    max_allowed_context_length: u64,
 }
 
 impl ConversationModel {
@@ -616,11 +615,11 @@ impl ConversationModel {
         let model = GPT2Generator::new(generate_config)?;
         let eos_token_id = *model.get_eos_ids().as_ref().unwrap().first().unwrap();
         let max_allowed_length =
-            conversation_config.max_length as u64 - conversation_config.min_response_allowed_length;
+            conversation_config.max_length as u64 - conversation_config.min_length_for_response;
         Ok(ConversationModel {
             model,
             eos_token_id,
-            max_allowed_length,
+            max_allowed_context_length: max_allowed_length,
         })
     }
 
@@ -722,7 +721,6 @@ impl ConversationModel {
 
     fn concat_input_history(&self, inputs: Vec<Vec<i64>>, history: Vec<&Vec<i64>>) -> Tensor {
         // Concatenates the history token indices with new user input
-        let max_len = self.model.get_config().max_length;
         let pad_token = match self.model.get_pad_id() {
             Some(value) => *value,
             None => self.eos_token_id,
@@ -742,51 +740,21 @@ impl ConversationModel {
             concatenated_inputs.push(concatenated_element);
         }
 
-        let num_truncated_tokens = concatenated_inputs
-            .iter()
-            .map(|token_ids| {
-                if token_ids.len() > max_len as usize {
-                    token_ids.len() - max_len as usize
-                } else {
-                    0
-                }
-            })
-            .collect::<Vec<usize>>();
-
-        let concatenated_inputs = concatenated_inputs
-            .into_iter()
-            .zip(num_truncated_tokens)
-            .map(|(tokens, num_truncated_tokens)| {
-                truncate_sequences(
-                    tokens,
-                    None,
-                    vec![],
-                    None,
-                    vec![],
-                    None,
-                    vec![],
-                    None,
-                    num_truncated_tokens,
-                    &TruncationStrategy::LongestFirst,
-                    0,
-                )
-                .unwrap()
-                .0
-            })
-            .collect::<Vec<Vec<i64>>>();
-
         let max_len = concatenated_inputs
             .iter()
             .map(|input| input.len())
             .max()
             .unwrap()
-            .min(self.max_allowed_length as usize);
+            .min(self.max_allowed_context_length as usize);
 
         let concatenated_inputs = concatenated_inputs
             .into_iter()
             .map(|input| {
                 let (start, mut temp) = if input.len() > max_len {
-                    (input.len() - max_len, vec![])
+                    (
+                        self.get_truncated_input_index(&input, max_len, pad_token),
+                        vec![],
+                    )
                 } else {
                     (0, vec![pad_token; max_len - input.len()])
                 };
@@ -795,8 +763,28 @@ impl ConversationModel {
             })
             .map(|tokens| Tensor::of_slice(&tokens).to(self.model.get_var_store().device()))
             .collect::<Vec<Tensor>>();
-
         Tensor::stack(&concatenated_inputs, 0)
+    }
+
+    fn get_truncated_input_index(
+        &self,
+        history: &[i64],
+        max_length: usize,
+        pad_token: i64,
+    ) -> usize {
+        let start_length = history.len();
+        let eos_indices: Vec<usize> = history
+            .iter()
+            .enumerate()
+            .filter(|(i, &e)| {
+                (e == pad_token)
+                    & (*i != start_length - 1)
+                    & ((start_length as isize - max_length as isize - *i as isize) < 0)
+            })
+            .map(|(i, _)| i + 1)
+            .collect();
+
+        *eos_indices.first().unwrap_or(&0usize)
     }
 
     fn encode_prompts(&self, texts: &[&str]) -> Vec<Vec<i64>> {
