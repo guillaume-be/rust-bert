@@ -384,6 +384,45 @@ fn dialogpt_multiple_multi_turn_conversation() -> failure::Fallible<()> {
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
+fn dialogpt_multiple_multi_turn_conversation_with_truncation() -> failure::Fallible<()> {
+    //    Set-up conversation model
+    let conversation_config = ConversationConfig {
+        max_length: 36,
+        min_length_for_response: 24,
+        do_sample: false,
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let conversation_model = ConversationModel::new(conversation_config)?;
+
+    // Set-up conversation manager and add a conversation
+    let mut conversation_manager = ConversationManager::new();
+    let conversation_1_id =
+        conversation_manager.create("Going to the movies tonight - any suggestions?");
+
+    // Turn 1
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(output.get(&conversation_1_id).unwrap(), &"The Big Lebowski");
+
+    // Turn 2
+    let _ = conversation_manager
+        .get(&conversation_1_id)
+        .unwrap()
+        .add_user_input("Is it an action movie?");
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(output.get(&conversation_1_id).unwrap(), &"It\'s a comedy.");
+
+    // Turn 3 (no new user input)
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn dialogpt_multiple_multi_turn_conversation_with_conversation_deletion() -> failure::Fallible<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
