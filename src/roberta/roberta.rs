@@ -43,6 +43,11 @@ impl RobertaModelResources {
         "roberta-qa/model.ot",
         "https://cdn.huggingface.co/deepset/roberta-base-squad2/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
+        "xlm-roberta-ner-en/model.ot",
+        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-english-rust_model.bin",
+    );
 }
 
 impl RobertaConfigResources {
@@ -56,6 +61,11 @@ impl RobertaConfigResources {
         "roberta-qa/config.json",
         "https://s3.amazonaws.com/models.huggingface.co/bert/deepset/roberta-base-squad2/config.json",
     );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
+        "xlm-roberta-ner-en/config.json",
+        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll03-english-config.json",
+    );
 }
 
 impl RobertaVocabResources {
@@ -68,6 +78,11 @@ impl RobertaVocabResources {
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/vocab.json",
         "https://cdn.huggingface.co/deepset/roberta-base-squad2/vocab.json",
+    );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
+        "xlm-roberta-ner-en/spiece.model",
+        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-english-sentencepiece.bpe.model",
     );
 }
 

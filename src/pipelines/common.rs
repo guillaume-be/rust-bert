@@ -29,12 +29,13 @@ use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
 };
 use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
 use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
+use rust_tokenizers::preprocessing::tokenizer::xlm_roberta_tokenizer::XLMRobertaTokenizer;
 use rust_tokenizers::preprocessing::vocab::albert_vocab::AlbertVocab;
 use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
 use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
 use rust_tokenizers::{
     AlbertTokenizer, BertTokenizer, BertVocab, RobertaTokenizer, RobertaVocab, TokenizedInput,
-    TruncationStrategy,
+    TruncationStrategy, XLMRobertaVocab,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -46,6 +47,7 @@ pub enum ModelType {
     Bert,
     DistilBert,
     Roberta,
+    XLMRoberta,
     Electra,
     Marian,
     T5,
@@ -74,6 +76,8 @@ pub enum TokenizerOption {
     Bert(BertTokenizer),
     /// Roberta Tokenizer
     Roberta(RobertaTokenizer),
+    /// Roberta Tokenizer
+    XLMRoberta(XLMRobertaTokenizer),
     /// Marian Tokenizer
     Marian(MarianTokenizer),
     /// T5 Tokenizer
@@ -86,7 +90,9 @@ impl ConfigOption {
     /// Interface method to load a configuration from file
     pub fn from_file(model_type: ModelType, path: &Path) -> Self {
         match model_type {
-            ModelType::Bert | ModelType::Roberta => ConfigOption::Bert(BertConfig::from_file(path)),
+            ModelType::Bert | ModelType::Roberta | ModelType::XLMRoberta => {
+                ConfigOption::Bert(BertConfig::from_file(path))
+            }
             ModelType::DistilBert => ConfigOption::DistilBert(DistilBertConfig::from_file(path)),
             ModelType::Electra => ConfigOption::Electra(ElectraConfig::from_file(path)),
             ModelType::Marian => ConfigOption::Marian(BartConfig::from_file(path)),
@@ -140,6 +146,9 @@ impl TokenizerOption {
                 lower_case,
             )),
             ModelType::T5 => TokenizerOption::T5(T5Tokenizer::from_file(vocab_path, lower_case)),
+            ModelType::XLMRoberta => {
+                TokenizerOption::XLMRoberta(XLMRobertaTokenizer::from_file(vocab_path, lower_case))
+            }
             ModelType::Albert => TokenizerOption::Albert(AlbertTokenizer::from_file(
                 vocab_path,
                 lower_case,
@@ -153,6 +162,7 @@ impl TokenizerOption {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
+            Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::Marian(_) => ModelType::Marian,
             Self::T5(_) => ModelType::T5,
             Self::Albert(_) => ModelType::Albert,
@@ -180,6 +190,9 @@ impl TokenizerOption {
             Self::T5(ref tokenizer) => {
                 tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
             }
+            Self::XLMRoberta(ref tokenizer) => {
+                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
+            }
             Self::Albert(ref tokenizer) => {
                 tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
             }
@@ -193,6 +206,7 @@ impl TokenizerOption {
             Self::Roberta(ref tokenizer) => tokenizer.tokenize(text),
             Self::Marian(ref tokenizer) => tokenizer.tokenize(text),
             Self::T5(ref tokenizer) => tokenizer.tokenize(text),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.tokenize(text),
             Self::Albert(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
@@ -228,6 +242,16 @@ impl TokenizerOption {
                 mask_2,
             ),
             Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                tokens_1,
+                tokens_2,
+                offsets_1,
+                offsets_2,
+                original_offsets_1,
+                original_offsets_2,
+                mask_1,
+                mask_2,
+            ),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
                 tokens_1,
                 tokens_2,
                 offsets_1,
@@ -277,6 +301,7 @@ impl TokenizerOption {
             Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
@@ -296,6 +321,13 @@ impl TokenizerOption {
                     .vocab()
                     .special_values
                     .get(RobertaVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::XLMRoberta(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(XLMRobertaVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::Marian(ref tokenizer) => Some(
@@ -337,6 +369,13 @@ impl TokenizerOption {
                     .vocab()
                     .special_values
                     .get(RobertaVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::XLMRoberta(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(XLMRobertaVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Albert(ref tokenizer) => Some(

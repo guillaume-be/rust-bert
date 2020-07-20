@@ -251,6 +251,8 @@ pub enum QuestionAnsweringOption {
     DistilBert(DistilBertForQuestionAnswering),
     /// Roberta for Question Answering
     Roberta(RobertaForQuestionAnswering),
+    /// XLMRoberta for Question Answering
+    XLMRoberta(RobertaForQuestionAnswering),
     /// Albert for Question Answering
     Albert(AlbertForQuestionAnswering),
 }
@@ -292,6 +294,13 @@ impl QuestionAnsweringOption {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
+            ModelType::XLMRoberta => {
+                if let ConfigOption::Bert(config) = config {
+                    QuestionAnsweringOption::XLMRoberta(RobertaForQuestionAnswering::new(p, config))
+                } else {
+                    panic!("You can only supply a BertConfig for Roberta!");
+                }
+            }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
                     QuestionAnsweringOption::Albert(AlbertForQuestionAnswering::new(p, config))
@@ -316,6 +325,7 @@ impl QuestionAnsweringOption {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
+            Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::Albert(_) => ModelType::Albert,
         }
@@ -340,7 +350,7 @@ impl QuestionAnsweringOption {
                     .expect("Error in distilbert forward_t");
                 (outputs.0, outputs.1)
             }
-            Self::Roberta(ref model) => {
+            Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
                 (outputs.0, outputs.1)
             }
