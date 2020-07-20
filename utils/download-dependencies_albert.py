@@ -1,7 +1,6 @@
-from transformers import ALBERT_PRETRAINED_MODEL_ARCHIVE_MAP
 from transformers.configuration_albert import ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP
 from transformers.tokenization_albert import PRETRAINED_VOCAB_FILES_MAP
-from transformers.file_utils import get_from_cache
+from transformers.file_utils import get_from_cache, hf_bucket_url
 from pathlib import Path
 import shutil
 import os
@@ -11,13 +10,13 @@ import subprocess
 
 config_path = ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP["albert-base-v2"]
 vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["albert-base-v2"]
-weights_path = ALBERT_PRETRAINED_MODEL_ARCHIVE_MAP["albert-base-v2"]
+weights_path = "albert-base-v2"
 
 target_path = Path.home() / 'rustbert' / 'albert-base-v2'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
-temp_weights = get_from_cache(weights_path)
+temp_weights = get_from_cache(hf_bucket_url(weights_path, filename="pytorch_model.bin", use_cdn=True))
 
 os.makedirs(str(target_path), exist_ok=True)
 

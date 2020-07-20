@@ -1,6 +1,6 @@
-from transformers import GPT2_PRETRAINED_CONFIG_ARCHIVE_MAP, GPT2_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers import GPT2_PRETRAINED_CONFIG_ARCHIVE_MAP
 from transformers.tokenization_gpt2 import PRETRAINED_VOCAB_FILES_MAP
-from transformers.file_utils import get_from_cache
+from transformers.file_utils import get_from_cache, hf_bucket_url
 from pathlib import Path
 import shutil
 import os
@@ -11,14 +11,14 @@ import subprocess
 config_path = GPT2_PRETRAINED_CONFIG_ARCHIVE_MAP["gpt2-xl"]
 vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["gpt2-xl"]
 merges_path = PRETRAINED_VOCAB_FILES_MAP["merges_file"]["gpt2-xl"]
-weights_path = GPT2_PRETRAINED_MODEL_ARCHIVE_MAP["gpt2-xl"]
+weights_path = "gpt2-xl"
 
 target_path = Path.home() / 'rustbert' / 'gpt2-xl'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
 temp_merges = get_from_cache(merges_path)
-temp_weights = get_from_cache(weights_path)
+temp_weights = get_from_cache(hf_bucket_url(weights_path, filename="pytorch_model.bin", use_cdn=True))
 
 os.makedirs(str(target_path), exist_ok=True)
 

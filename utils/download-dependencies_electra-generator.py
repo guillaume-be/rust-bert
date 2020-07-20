@@ -1,6 +1,6 @@
-from transformers import ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP, ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP
+from transformers import ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP
 from transformers.tokenization_electra import PRETRAINED_VOCAB_FILES_MAP
-from transformers.file_utils import get_from_cache
+from transformers.file_utils import get_from_cache, hf_bucket_url
 from pathlib import Path
 import shutil
 import os
@@ -10,13 +10,13 @@ import subprocess
 
 config_path = ELECTRA_PRETRAINED_CONFIG_ARCHIVE_MAP["google/electra-base-generator"]
 vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["google/electra-base-generator"]
-weights_path = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP["google/electra-base-generator"]
+weights_path = "google/electra-base-generator"
 
 target_path = Path.home() / 'rustbert' / 'electra-generator'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
-temp_weights = get_from_cache(weights_path)
+temp_weights = get_from_cache(hf_bucket_url(weights_path, filename="pytorch_model.bin", use_cdn=True))
 
 os.makedirs(str(target_path), exist_ok=True)
 

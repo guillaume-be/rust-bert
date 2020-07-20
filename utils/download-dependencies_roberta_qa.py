@@ -1,6 +1,4 @@
-from transformers.configuration_bart import BART_PRETRAINED_CONFIG_ARCHIVE_MAP
-from transformers.tokenization_bart import vocab_url, merges_url
-from transformers.file_utils import get_from_cache, hf_bucket_url
+from transformers.file_utils import get_from_cache, S3_BUCKET_PREFIX
 from pathlib import Path
 import shutil
 import os
@@ -8,22 +6,24 @@ import numpy as np
 import torch
 import subprocess
 
-config_path = BART_PRETRAINED_CONFIG_ARCHIVE_MAP['bart-large']
-vocab_path = vocab_url
-merges_path = merges_url
-weights_path = 'bart-large'
+ROOT_PATH = S3_BUCKET_PREFIX + '/deepset/roberta-base-squad2'
 
-target_path = Path.home() / 'rustbert' / 'bart-large'
+config_path = ROOT_PATH + '/config.json'
+vocab_path = ROOT_PATH + '/vocab.json'
+merges_path = ROOT_PATH + '/merges.txt'
+weights_path = ROOT_PATH + '/pytorch_model.bin'
+
+target_path = Path.home() / 'rustbert' / 'roberta-qa'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
 temp_merges = get_from_cache(merges_path)
-temp_weights = get_from_cache(hf_bucket_url(weights_path, filename="pytorch_model.bin", use_cdn=True))
+temp_weights = get_from_cache(weights_path)
 
 os.makedirs(str(target_path), exist_ok=True)
 
 config_path = str(target_path / 'config.json')
-vocab_path = str(target_path / 'vocab.txt')
+vocab_path = str(target_path / 'vocab.json')
 merges_path = str(target_path / 'merges.txt')
 model_path = str(target_path / 'model.bin')
 
