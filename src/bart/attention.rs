@@ -180,7 +180,6 @@ impl SelfAttention {
             }
             None => attention_weights,
         };
-
         let attention_weights = match key_padding_mask.as_ref() {
             Some(mask) => attention_weights
                 .view((
