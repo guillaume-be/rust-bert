@@ -87,7 +87,7 @@ use rust_tokenizers::{
     Gpt2Tokenizer, Gpt2Vocab, OpenAiGptTokenizer, OpenAiGptVocab, RobertaTokenizer, RobertaVocab,
     Tokenizer, TruncationStrategy, Vocab,
 };
-use tch::kind::Kind::{Bool, Int64};
+use tch::kind::Kind::Int64;
 use tch::{nn, no_grad, Device, Tensor};
 
 extern crate ordered_float;
@@ -2039,8 +2039,7 @@ pub(crate) mod private_generation_utils {
                 input_ids = input_ids.index_select(0, &beam_indices);
                 input_ids = Tensor::cat(&[input_ids, beam_tokens.unsqueeze(1)], -1);
                 encoder_outputs = self.reorder_cache(&mut past, encoder_outputs, &beam_indices);
-                // past = temp_past.0;
-                // encoder_outputs = temp_past.1;
+
                 if !self.is_encoder_decoder() {
                     attention_mask = Tensor::cat(
                         &[
@@ -2299,6 +2298,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             },
         };
 
+        let input_ids_len = *input_ids.size().last().unwrap();
         let cur_len = if !self.is_encoder_decoder() {
             *input_ids.size().last().unwrap()
         } else {
@@ -2317,8 +2317,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let attention_mask = match attention_mask {
             Some(value) => value,
             None => match self.get_pad_id() {
-                Some(pad_id) => input_ids.ne(*pad_id).to_kind(Bool),
-                None => input_ids.ones_like().to_kind(Bool),
+                Some(pad_id) => input_ids.ne(*pad_id).to_kind(Int64),
+                None => input_ids.ones_like().to_kind(Int64),
             },
         };
 
@@ -2365,8 +2365,25 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 decoder_start_token_id,
                 (Int64, input_ids.device()),
             );
+            let attention_mask = if (num_return_sequences > 1) | (num_beams > 1) {
+                attention_mask
+                    .unsqueeze(1)
+                    .expand(
+                        &[
+                            batch_size,
+                            effective_batch_mult * num_beams as i64,
+                            input_ids_len,
+                        ],
+                        true,
+                    )
+                    .contiguous()
+                    .view((effective_batch_size * num_beams as i64, input_ids_len))
+            } else {
+                attention_mask
+            };
             (input_ids, attention_mask)
         };
+
         let decoded = no_grad(|| {
             if num_beams > 1 {
                 self.generate_beam_search(
