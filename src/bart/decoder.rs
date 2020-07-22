@@ -20,7 +20,7 @@ use crate::bart::BartConfig;
 use crate::common::activations::{_gelu, _gelu_new, _relu, _swish, _tanh};
 use crate::common::dropout::Dropout;
 use std::borrow::{Borrow, BorrowMut};
-use tch::kind::Kind::Int64;
+use tch::kind::Kind::Bool;
 use tch::{nn, Tensor};
 
 pub struct DecoderLayer {
@@ -298,7 +298,7 @@ impl BartDecoder {
         Option<Vec<Tensor>>,
     ) {
         let encoder_padding_mask = match encoder_padding_mask {
-            Some(mask) => Some(mask.eq(0).to_kind(Int64)),
+            Some(mask) => Some(mask.eq(0).to_kind(Bool)),
             None => None,
         };
 
