@@ -46,22 +46,22 @@ impl RobertaModelResources {
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/model.ot",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-english-rust_model.bin",
+        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-english-rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/model.ot",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-german-rust_model.bin",
+        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-german-rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/model.ot",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-dutch-rust_model.bin",
+        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-dutch-rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/model.ot",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-spanish-rust_model.bin",
+        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-spanish-rust_model.ot",
     );
 }
 
