@@ -70,8 +70,8 @@ impl T5VocabResources {
 }
 
 impl T5Prefix {
-    pub const ENGLISH2FRENCH: Option<&'static str> = Some("translate English to French: ");
-    pub const ENGLISH2GERMAN: Option<&'static str> = Some("translate English to German: ");
+    pub const ENGLISH2FRENCH: Option<&'static str> = Some("translate English to French:");
+    pub const ENGLISH2GERMAN: Option<&'static str> = Some("translate English to German:");
 }
 
 #[derive(Debug, Serialize, Deserialize)]
