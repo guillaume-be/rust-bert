@@ -12,12 +12,19 @@
 
 //! # Named Entity Recognition pipeline
 //! Extracts entities (Person, Location, Organization, Miscellaneous) from text.
-//! BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
+//! Pretrained models are available for the following languages:
+//! - English
+//! - German
+//! - Spanish
+//! - Dutch
+//!
+//! The default NER mode is an English BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 //! All resources for this model can be downloaded using the Python utility script included in this repository.
 //! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
 //! 2. Run the conversion script python /utils/download-dependencies_bert_ner.py.
 //! The dependencies will be downloaded to the user's home directory, under ~/rustbert/bert-ner
 //!
+//! The example below illustrate how to run the model for the default English NER model
 //! ```no_run
 //! use rust_bert::pipelines::ner::NERModel;
 //! # fn main() -> failure::Fallible<()> {
@@ -60,6 +67,51 @@
 //! ]
 //! # ;
 //! ```
+//!
+//! To run the pipeline for another language, change the NERModel configuration from its default:
+//!
+//! ```no_run
+//! use rust_bert::pipelines::common::ModelType;
+//! use rust_bert::pipelines::ner::NERModel;
+//! use rust_bert::pipelines::token_classification::TokenClassificationConfig;
+//! use rust_bert::resources::{RemoteResource, Resource};
+//! use rust_bert::roberta::{
+//!     RobertaConfigResources, RobertaModelResources, RobertaVocabResources,
+//! };
+//! use tch::Device;
+//! let ner_config = TokenClassificationConfig {
+//!     model_type: ModelType::XLMRoberta,
+//!     model_resource: Resource::Remote(RemoteResource::from_pretrained(
+//!         RobertaModelResources::XLM_ROBERTA_NER_DE,
+//!     )),
+//!     config_resource: Resource::Remote(RemoteResource::from_pretrained(
+//!         RobertaConfigResources::XLM_ROBERTA_NER_DE,
+//!     )),
+//!     vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+//!         RobertaVocabResources::XLM_ROBERTA_NER_DE,
+//!     )),
+//!     lower_case: false,
+//!     device: Device::cuda_if_available(),
+//!     ..Default::default()
+//! };
+//!
+//! let ner_model = NERModel::new(ner_config)?;
+//!
+//! //    Define input
+//! let input = [
+//!     "Mein Name ist Amélie. Ich lebe in Paris.",
+//!     "Paris ist eine Stadt in Frankreich.",
+//! ];
+//! ```
+//! The XLMRoberta models for the languages are defined as follows:
+//!
+//! | **Language** |**Model name**|
+//! :-----:|:----:
+//! English| XLM_ROBERTA_NER_EN |
+//! German| XLM_ROBERTA_NER_DE |
+//! Spanish| XLM_ROBERTA_NER_ES |
+//! Dutch| XLM_ROBERTA_NER_NL |
+//!
 
 use crate::pipelines::token_classification::{TokenClassificationConfig, TokenClassificationModel};
 

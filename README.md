@@ -186,7 +186,8 @@ Output:
 ```
 
 #### 7. Named Entity Recognition
-Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
+Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz).
+Models are currently available for English, German, Spanish and Dutch.
 ```rust
     let ner_model = NERModel::new(default::default())?;
 
