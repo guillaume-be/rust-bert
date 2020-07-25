@@ -79,6 +79,8 @@
 //!     RobertaConfigResources, RobertaModelResources, RobertaVocabResources,
 //! };
 //! use tch::Device;
+//!
+//! # fn main() -> failure::Fallible<()> {
 //! let ner_config = TokenClassificationConfig {
 //!     model_type: ModelType::XLMRoberta,
 //!     model_resource: Resource::Remote(RemoteResource::from_pretrained(
@@ -102,6 +104,9 @@
 //!     "Mein Name ist Amélie. Ich lebe in Paris.",
 //!     "Paris ist eine Stadt in Frankreich.",
 //! ];
+//! let output = ner_model.predict(&input);
+//! # Ok(())
+//! # }
 //! ```
 //! The XLMRoberta models for the languages are defined as follows:
 //!
