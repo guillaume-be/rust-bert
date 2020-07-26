@@ -279,6 +279,8 @@ pub enum TokenClassificationOption {
     DistilBert(DistilBertForTokenClassification),
     /// Roberta for Token Classification
     Roberta(RobertaForTokenClassification),
+    /// XLM Roberta for Token Classification
+    XLMRoberta(RobertaForTokenClassification),
     /// Electra for Token Classification
     Electra(ElectraForTokenClassification),
     /// Albert for Token Classification
@@ -324,6 +326,15 @@ impl TokenClassificationOption {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
+            ModelType::XLMRoberta => {
+                if let ConfigOption::Bert(config) = config {
+                    TokenClassificationOption::XLMRoberta(RobertaForTokenClassification::new(
+                        p, config,
+                    ))
+                } else {
+                    panic!("You can only supply a BertConfig for XLMRoberta!");
+                }
+            }
             ModelType::Electra => {
                 if let ConfigOption::Electra(config) = config {
                     TokenClassificationOption::Electra(ElectraForTokenClassification::new(
@@ -354,6 +365,7 @@ impl TokenClassificationOption {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
+            Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::Electra(_) => ModelType::Electra,
             Self::Albert(_) => ModelType::Albert,
@@ -388,7 +400,7 @@ impl TokenClassificationOption {
                     .expect("Error in distilbert forward_t")
                     .0
             }
-            Self::Roberta(ref model) => {
+            Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
                 model
                     .forward_t(
                         input_ids,
@@ -615,6 +627,9 @@ impl TokenClassificationModel {
                     Tokenizer::decode(tokenizer, vec![token_id], false, false)
                 }
                 TokenizerOption::Roberta(ref tokenizer) => {
+                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                }
+                TokenizerOption::XLMRoberta(ref tokenizer) => {
                     Tokenizer::decode(tokenizer, vec![token_id], false, false)
                 }
                 TokenizerOption::Albert(ref tokenizer) => {

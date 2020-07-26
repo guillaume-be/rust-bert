@@ -1,6 +1,6 @@
-from transformers import BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, BERT_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers import BERT_PRETRAINED_CONFIG_ARCHIVE_MAP
 from transformers.tokenization_bert import PRETRAINED_VOCAB_FILES_MAP
-from transformers.file_utils import get_from_cache
+from transformers.file_utils import get_from_cache, hf_bucket_url
 from pathlib import Path
 import shutil
 import os
@@ -10,13 +10,13 @@ import subprocess
 
 config_path = BERT_PRETRAINED_CONFIG_ARCHIVE_MAP["bert-base-uncased"]
 vocab_path = PRETRAINED_VOCAB_FILES_MAP["vocab_file"]["bert-base-uncased"]
-weights_path = BERT_PRETRAINED_MODEL_ARCHIVE_MAP["bert-base-uncased"]
+weights_path = "bert-base-uncased"
 
 target_path = Path.home() / 'rustbert' / 'bert'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
-temp_weights = get_from_cache(weights_path)
+temp_weights = get_from_cache(hf_bucket_url(weights_path, filename="pytorch_model.bin", use_cdn=True))
 
 os.makedirs(str(target_path), exist_ok=True)
 

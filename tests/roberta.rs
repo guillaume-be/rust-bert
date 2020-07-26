@@ -1,8 +1,10 @@
 use rust_bert::bert::BertConfig;
 use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
+use rust_bert::pipelines::token_classification::TokenClassificationConfig;
 use rust_bert::resources::{download_resource, RemoteResource, Resource};
 use rust_bert::roberta::{
     RobertaConfigResources, RobertaForMaskedLM, RobertaForMultipleChoice,
@@ -432,6 +434,56 @@ fn roberta_question_answering() -> failure::Fallible<()> {
     assert_eq!(answers[0][0].end, 21);
     assert!((answers[0][0].score - 0.7354).abs() < 1e-4);
     assert_eq!(answers[0][0].answer, "Amsterdam");
+
+    Ok(())
+}
+
+#[test]
+fn xlm_roberta_german_ner() -> failure::Fallible<()> {
+    //    Set-up question answering model
+    let ner_config = TokenClassificationConfig {
+        model_type: ModelType::XLMRoberta,
+        model_resource: Resource::Remote(RemoteResource::from_pretrained(
+            RobertaModelResources::XLM_ROBERTA_NER_DE,
+        )),
+        config_resource: Resource::Remote(RemoteResource::from_pretrained(
+            RobertaConfigResources::XLM_ROBERTA_NER_DE,
+        )),
+        vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+            RobertaVocabResources::XLM_ROBERTA_NER_DE,
+        )),
+        lower_case: false,
+        device: Device::cuda_if_available(),
+        ..Default::default()
+    };
+
+    let ner_model = NERModel::new(ner_config)?;
+
+    //    Define input
+    let input = [
+        "Mein Name ist Amélie. Ich lebe in Москва.",
+        "Chongqing ist eine Stadt in China.",
+    ];
+
+    let output = ner_model.predict(&input);
+
+    assert_eq!(output.len(), 4);
+
+    assert_eq!(output[0].word, " Amélie");
+    assert!((output[0].score - 0.9983).abs() < 1e-4);
+    assert_eq!(output[0].label, "I-PER");
+
+    assert_eq!(output[1].word, " Москва");
+    assert!((output[1].score - 0.9999).abs() < 1e-4);
+    assert_eq!(output[1].label, "I-LOC");
+
+    assert_eq!(output[2].word, "Chongqing");
+    assert!((output[2].score - 0.9997).abs() < 1e-4);
+    assert_eq!(output[2].label, "I-LOC");
+
+    assert_eq!(output[3].word, " China");
+    assert!((output[3].score - 0.9999).abs() < 1e-4);
+    assert_eq!(output[3].label, "I-LOC");
 
     Ok(())
 }

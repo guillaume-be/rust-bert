@@ -640,6 +640,9 @@ impl TranslationOption {
             ModelType::Roberta => {
                 panic!("Translation not implemented for Roberta!");
             }
+            ModelType::XLMRoberta => {
+                panic!("Translation not implemented for XLMRoberta!");
+            }
             ModelType::Electra => {
                 panic!("Translation not implemented for Electra!");
             }

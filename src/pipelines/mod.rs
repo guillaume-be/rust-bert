@@ -216,7 +216,8 @@
 //! ```
 //!
 //! #### 7. Named Entity Recognition
-//! Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
+//! Extracts entities (Person, Location, Organization, Miscellaneous) from text. The default NER mode is an English BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
+//! Additional pre-trained models are available for English, German, Spanish and Dutch.
 //! ```no_run
 //! use rust_bert::pipelines::ner::NERModel;
 //! # fn main() -> failure::Fallible<()> {

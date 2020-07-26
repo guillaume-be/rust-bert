@@ -795,21 +795,19 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         match past {
             Cache::BARTCache(old_cache_option) => match old_cache_option {
                 Some(old_cache) => {
-                    let mut new_past = vec![];
                     for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
-                        let new_self_layer_state = match self_layer_state {
-                            Some(self_layer_state) => {
-                                Some(self_layer_state.reorder_cache(beam_indices))
-                            }
-                            None => None,
+                        if self_layer_state.is_some() {
+                            self_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
                         };
-                        let new_encoder_layer_state = match encoder_layer_state {
-                            Some(encoder_layer_state) => {
-                                Some(encoder_layer_state.reorder_cache(beam_indices))
-                            }
-                            None => None,
+                        if encoder_layer_state.is_some() {
+                            encoder_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
                         };
-                        new_past.push((new_self_layer_state, new_encoder_layer_state));
                     }
                 }
                 None => {}
@@ -1072,21 +1070,19 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         match past {
             Cache::BARTCache(old_cache_option) => match old_cache_option {
                 Some(old_cache) => {
-                    let mut new_past = vec![];
                     for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
-                        let new_self_layer_state = match self_layer_state {
-                            Some(self_layer_state) => {
-                                Some(self_layer_state.reorder_cache(beam_indices))
-                            }
-                            None => None,
+                        if self_layer_state.is_some() {
+                            self_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
                         };
-                        let new_encoder_layer_state = match encoder_layer_state {
-                            Some(encoder_layer_state) => {
-                                Some(encoder_layer_state.reorder_cache(beam_indices))
-                            }
-                            None => None,
+                        if encoder_layer_state.is_some() {
+                            encoder_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
                         };
-                        new_past.push((new_self_layer_state, new_encoder_layer_state));
                     }
                 }
                 None => {}
@@ -1306,21 +1302,19 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
         match past {
             Cache::T5Cache(old_cache_option) => match old_cache_option {
                 Some(old_cache) => {
-                    let mut new_past = vec![];
                     for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
-                        let new_self_layer_state = match self_layer_state {
-                            Some(self_layer_state) => {
-                                Some(self_layer_state.reorder_cache(beam_indices))
-                            }
-                            None => None,
+                        if self_layer_state.is_some() {
+                            self_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
                         };
-                        let new_encoder_layer_state = match encoder_layer_state {
-                            Some(encoder_layer_state) => {
-                                Some(encoder_layer_state.reorder_cache(beam_indices))
-                            }
-                            None => None,
+                        if encoder_layer_state.is_some() {
+                            encoder_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
                         };
-                        new_past.push((new_self_layer_state, new_encoder_layer_state));
                     }
                 }
                 None => {}
@@ -2147,18 +2141,15 @@ pub(crate) mod private_generation_utils {
         ) -> Option<Tensor> {
             match past {
                 Cache::None => None,
-                Cache::GPT2Cache(cached_decoder_state) => {
-                    match cached_decoder_state {
-                        Some(value) => {
-                            // let mut reordered_past = vec!();
-                            for layer_past in value.iter_mut() {
-                                *layer_past = layer_past.index_select(1, beam_indices);
-                            }
-                            None
+                Cache::GPT2Cache(cached_decoder_state) => match cached_decoder_state {
+                    Some(value) => {
+                        for layer_past in value.iter_mut() {
+                            *layer_past = layer_past.index_select(1, beam_indices);
                         }
-                        None => None,
+                        None
                     }
-                }
+                    None => None,
+                },
                 Cache::BARTCache(_) => {
                     panic!("Not implemented");
                 }

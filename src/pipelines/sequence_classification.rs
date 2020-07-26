@@ -167,6 +167,8 @@ pub enum SequenceClassificationOption {
     DistilBert(DistilBertModelClassifier),
     /// Roberta for Sequence Classification
     Roberta(RobertaForSequenceClassification),
+    /// XLMRoberta for Sequence Classification
+    XLMRoberta(RobertaForSequenceClassification),
     /// Albert for Sequence Classification
     Albert(AlbertForSequenceClassification),
 }
@@ -212,6 +214,15 @@ impl SequenceClassificationOption {
                     panic!("You can only supply a BertConfig for Roberta!");
                 }
             }
+            ModelType::XLMRoberta => {
+                if let ConfigOption::Bert(config) = config {
+                    SequenceClassificationOption::XLMRoberta(RobertaForSequenceClassification::new(
+                        p, config,
+                    ))
+                } else {
+                    panic!("You can only supply a BertConfig for Roberta!");
+                }
+            }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
                     SequenceClassificationOption::Albert(AlbertForSequenceClassification::new(
@@ -238,6 +249,7 @@ impl SequenceClassificationOption {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
+            Self::XLMRoberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::Albert(_) => ModelType::Albert,
         }
@@ -272,7 +284,7 @@ impl SequenceClassificationOption {
                     .expect("Error in distilbert forward_t")
                     .0
             }
-            Self::Roberta(ref model) => {
+            Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
                 model
                     .forward_t(
                         input_ids,

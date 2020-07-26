@@ -348,6 +348,23 @@ fn download_bert_qa() -> failure::Fallible<()> {
     Ok(())
 }
 
+fn download_xlm_roberta_ner_german() -> failure::Fallible<()> {
+    // Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaConfigResources::XLM_ROBERTA_NER_DE,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaVocabResources::XLM_ROBERTA_NER_DE,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        RobertaModelResources::XLM_ROBERTA_NER_DE,
+    ));
+    let _ = download_resource(&config_resource)?;
+    let _ = download_resource(&vocab_resource)?;
+    let _ = download_resource(&weights_resource)?;
+    Ok(())
+}
+
 fn main() -> failure::Fallible<()> {
     let _ = download_distil_gpt2();
     let _ = download_distilbert_sst2();
@@ -366,6 +383,7 @@ fn main() -> failure::Fallible<()> {
     let _ = download_t5_small();
     let _ = download_roberta_qa();
     let _ = download_bert_qa();
+    let _ = download_xlm_roberta_ner_german();
 
     Ok(())
 }
