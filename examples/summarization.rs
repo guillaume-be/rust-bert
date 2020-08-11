@@ -10,11 +10,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::pipelines::summarization::SummarizationModel;
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     let summarization_model = SummarizationModel::new(Default::default())?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \

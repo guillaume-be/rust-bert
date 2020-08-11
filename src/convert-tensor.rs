@@ -11,10 +11,10 @@
 // limitations under the License.
 
 #[macro_use]
-extern crate failure;
+extern crate anyhow;
 extern crate tch;
 
-pub fn main() -> failure::Fallible<()> {
+pub fn main() -> anyhow::Result<()> {
     let args: Vec<_> = std::env::args().collect();
     ensure!(
         args.len() == 3,

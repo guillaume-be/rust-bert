@@ -10,14 +10,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern crate anyhow;
 extern crate dirs;
-extern crate failure;
 
 use rust_bert::pipelines::sentiment::{ss2_processor, SentimentModel};
 use std::env;
 use std::path::PathBuf;
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Set-up classifier
     let sentiment_classifier = SentimentModel::new(Default::default())?;
 

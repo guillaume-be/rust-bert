@@ -10,11 +10,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Set-up model
     let sequence_classification_model = SequenceClassificationModel::new(Default::default())?;
 

@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::bert::{
     BertConfig, BertConfigResources, BertForMaskedLM, BertModelResources, BertVocabResources,
@@ -20,7 +20,7 @@ use rust_bert::Config;
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
 use tch::{nn, no_grad, Device, Tensor};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));

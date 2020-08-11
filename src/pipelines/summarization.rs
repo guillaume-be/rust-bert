@@ -20,7 +20,7 @@
 //!
 //!
 //! ```no_run
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation::LanguageGenerator;
 //! use rust_bert::pipelines::summarization::SummarizationModel;
 //! let mut model = SummarizationModel::new(Default::default())?;
@@ -156,14 +156,14 @@ impl SummarizationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::summarization::SummarizationModel;
     ///
     /// let mut summarization_model = SummarizationModel::new(Default::default())?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(summarization_config: SummarizationConfig) -> failure::Fallible<SummarizationModel> {
+    pub fn new(summarization_config: SummarizationConfig) -> anyhow::Result<SummarizationModel> {
         let generate_config = GenerateConfig {
             model_resource: summarization_config.model_resource,
             config_resource: summarization_config.config_resource,
@@ -201,7 +201,7 @@ impl SummarizationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::generation::LanguageGenerator;
     /// use rust_bert::pipelines::summarization::SummarizationModel;
     /// let model = SummarizationModel::new(Default::default())?;

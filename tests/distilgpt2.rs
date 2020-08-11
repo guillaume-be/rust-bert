@@ -9,7 +9,7 @@ use rust_tokenizers::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]
-fn distilgpt2_lm_model() -> failure::Fallible<()> {
+fn distilgpt2_lm_model() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         Gpt2ConfigResources::DISTIL_GPT2,

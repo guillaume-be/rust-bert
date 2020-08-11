@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
 use rust_bert::pipelines::common::ModelType;
@@ -19,7 +19,7 @@ use rust_bert::pipelines::question_answering::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,

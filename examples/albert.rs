@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::albert::{
     AlbertConfig, AlbertConfigResources, AlbertForMaskedLM, AlbertModelResources,
@@ -22,7 +22,7 @@ use rust_bert::Config;
 use rust_tokenizers::{AlbertTokenizer, Tokenizer, TruncationStrategy, Vocab};
 use tch::{nn, no_grad, Device, Tensor};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,

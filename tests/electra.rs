@@ -8,7 +8,7 @@ use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
 use tch::{nn, no_grad, Device, Tensor};
 
 #[test]
-fn electra_masked_lm() -> failure::Fallible<()> {
+fn electra_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         ElectraConfigResources::BASE_GENERATOR,
@@ -81,7 +81,7 @@ fn electra_masked_lm() -> failure::Fallible<()> {
 }
 
 #[test]
-fn electra_discriminator() -> failure::Fallible<()> {
+fn electra_discriminator() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         ElectraConfigResources::BASE_DISCRIMINATOR,

@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::gpt2::Gpt2Config;
 use rust_bert::openai_gpt::{
@@ -23,7 +23,7 @@ use rust_bert::Config;
 use rust_tokenizers::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         OpenAiGptConfigResources::GPT,

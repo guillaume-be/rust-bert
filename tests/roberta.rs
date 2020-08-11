@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
 #[test]
-fn roberta_masked_lm() -> failure::Fallible<()> {
+fn roberta_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaConfigResources::ROBERTA,
@@ -105,7 +105,7 @@ fn roberta_masked_lm() -> failure::Fallible<()> {
 }
 
 #[test]
-fn roberta_for_sequence_classification() -> failure::Fallible<()> {
+fn roberta_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaConfigResources::ROBERTA,
@@ -179,7 +179,7 @@ fn roberta_for_sequence_classification() -> failure::Fallible<()> {
 }
 
 #[test]
-fn roberta_for_multiple_choice() -> failure::Fallible<()> {
+fn roberta_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaConfigResources::ROBERTA,
@@ -250,7 +250,7 @@ fn roberta_for_multiple_choice() -> failure::Fallible<()> {
 }
 
 #[test]
-fn roberta_for_token_classification() -> failure::Fallible<()> {
+fn roberta_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaConfigResources::ROBERTA,
@@ -325,7 +325,7 @@ fn roberta_for_token_classification() -> failure::Fallible<()> {
 }
 
 #[test]
-fn roberta_for_question_answering() -> failure::Fallible<()> {
+fn roberta_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaConfigResources::ROBERTA,
@@ -400,7 +400,7 @@ fn roberta_for_question_answering() -> failure::Fallible<()> {
 }
 
 #[test]
-fn roberta_question_answering() -> failure::Fallible<()> {
+fn roberta_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Roberta,
@@ -439,7 +439,7 @@ fn roberta_question_answering() -> failure::Fallible<()> {
 }
 
 #[test]
-fn xlm_roberta_german_ner() -> failure::Fallible<()> {
+fn xlm_roberta_german_ner() -> anyhow::Result<()> {
     //    Set-up question answering model
     let ner_config = TokenClassificationConfig {
         model_type: ModelType::XLMRoberta,

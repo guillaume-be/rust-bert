@@ -182,7 +182,7 @@ fn _get_cache_directory() -> PathBuf {
 /// )));
 /// let local_path = download_resource(&model_resource);
 /// ```
-pub fn download_resource(resource: &Resource) -> failure::Fallible<&PathBuf> {
+pub fn download_resource(resource: &Resource) -> anyhow::Result<&PathBuf> {
     match resource {
         Resource::Remote(remote_resource) => {
             let target = remote_resource.local_path.clone();

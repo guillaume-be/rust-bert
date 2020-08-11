@@ -19,7 +19,7 @@
 //! use rust_bert::distilbert::{DistilBertModelResources, DistilBertVocabResources, DistilBertConfigResources};
 //! use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
 //! use rust_bert::pipelines::common::ModelType;
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //!
 //! //Load a configuration
 //! let config = SequenceClassificationConfig::new(ModelType::DistilBert,
@@ -55,7 +55,6 @@
 //! ]
 //! # ;
 //! ```
-//!
 use crate::albert::AlbertForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
 use crate::common::resources::{download_resource, RemoteResource, Resource};
@@ -330,7 +329,7 @@ impl SequenceClassificationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
     ///
     /// let model = SequenceClassificationModel::new(Default::default())?;
@@ -339,7 +338,7 @@ impl SequenceClassificationModel {
     /// ```
     pub fn new(
         config: SequenceClassificationConfig,
-    ) -> failure::Fallible<SequenceClassificationModel> {
+    ) -> anyhow::Result<SequenceClassificationModel> {
         let config_path = download_resource(&config.config_resource)?;
         let vocab_path = download_resource(&config.vocab_resource)?;
         let weights_path = download_resource(&config.model_resource)?;
@@ -404,7 +403,7 @@ impl SequenceClassificationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// # use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
     ///
     /// let sequence_classification_model =  SequenceClassificationModel::new(Default::default())?;
@@ -469,7 +468,7 @@ impl SequenceClassificationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// # use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
     ///
     /// let sequence_classification_model =  SequenceClassificationModel::new(Default::default())?;

@@ -17,7 +17,7 @@ use rust_bert::pipelines::token_classification::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Load a configuration
     let config = TokenClassificationConfig::new(
         ModelType::Bert,

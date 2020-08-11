@@ -1,5 +1,5 @@
+extern crate anyhow;
 extern crate dirs;
-extern crate failure;
 
 use rust_bert::albert::{
     AlbertConfig, AlbertConfigResources, AlbertForMaskedLM, AlbertForMultipleChoice,
@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
 #[test]
-fn albert_masked_lm() -> failure::Fallible<()> {
+fn albert_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
@@ -77,7 +77,7 @@ fn albert_masked_lm() -> failure::Fallible<()> {
 }
 
 #[test]
-fn albert_for_sequence_classification() -> failure::Fallible<()> {
+fn albert_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
@@ -144,7 +144,7 @@ fn albert_for_sequence_classification() -> failure::Fallible<()> {
 }
 
 #[test]
-fn albert_for_multiple_choice() -> failure::Fallible<()> {
+fn albert_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
@@ -211,7 +211,7 @@ fn albert_for_multiple_choice() -> failure::Fallible<()> {
 }
 
 #[test]
-fn albert_for_token_classification() -> failure::Fallible<()> {
+fn albert_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
@@ -279,7 +279,7 @@ fn albert_for_token_classification() -> failure::Fallible<()> {
 }
 
 #[test]
-fn albert_for_question_answering() -> failure::Fallible<()> {
+fn albert_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,

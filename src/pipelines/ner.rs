@@ -27,7 +27,7 @@
 //! The example below illustrate how to run the model for the default English NER model
 //! ```no_run
 //! use rust_bert::pipelines::ner::NERModel;
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! let ner_model = NERModel::new(Default::default())?;
 //!
 //! let input = [
@@ -80,7 +80,7 @@
 //! };
 //! use tch::Device;
 //!
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! let ner_config = TokenClassificationConfig {
 //!     model_type: ModelType::XLMRoberta,
 //!     model_resource: Resource::Remote(RemoteResource::from_pretrained(
@@ -116,7 +116,6 @@
 //! German| XLM_ROBERTA_NER_DE |
 //! Spanish| XLM_ROBERTA_NER_ES |
 //! Dutch| XLM_ROBERTA_NER_NL |
-//!
 
 use crate::pipelines::token_classification::{TokenClassificationConfig, TokenClassificationModel};
 
@@ -149,14 +148,14 @@ impl NERModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::ner::NERModel;
     ///
     /// let ner_model = NERModel::new(Default::default())?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(ner_config: NERConfig) -> failure::Fallible<NERModel> {
+    pub fn new(ner_config: NERConfig) -> anyhow::Result<NERModel> {
         let model = TokenClassificationModel::new(ner_config)?;
         Ok(NERModel {
             token_classification_model: model,
@@ -176,7 +175,7 @@ impl NERModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// # use rust_bert::pipelines::ner::NERModel;
     ///
     /// let ner_model = NERModel::new(Default::default())?;

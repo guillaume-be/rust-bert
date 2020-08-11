@@ -19,7 +19,7 @@
 //! ```no_run
 //! use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 //!
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! let qa_model = QuestionAnsweringModel::new(Default::default())?;
 //!
 //! let question = String::from("Where does Amy live ?");
@@ -385,7 +385,7 @@ impl QuestionAnsweringModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::question_answering::QuestionAnsweringModel;
     ///
     /// let qa_model = QuestionAnsweringModel::new(Default::default())?;
@@ -394,7 +394,7 @@ impl QuestionAnsweringModel {
     /// ```
     pub fn new(
         question_answering_config: QuestionAnsweringConfig,
-    ) -> failure::Fallible<QuestionAnsweringModel> {
+    ) -> anyhow::Result<QuestionAnsweringModel> {
         let config_path = download_resource(&question_answering_config.config_resource)?;
         let vocab_path = download_resource(&question_answering_config.vocab_resource)?;
         let weights_path = download_resource(&question_answering_config.model_resource)?;
@@ -462,7 +462,7 @@ impl QuestionAnsweringModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
     ///
     /// let qa_model = QuestionAnsweringModel::new(Default::default())?;

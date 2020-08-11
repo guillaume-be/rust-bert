@@ -19,7 +19,7 @@
 //! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! #
 //! use rust_tokenizers::RobertaTokenizer;
 //! use tch::{nn, Device};

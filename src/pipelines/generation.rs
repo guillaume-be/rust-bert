@@ -23,7 +23,7 @@
 //! The dependencies will be downloaded to the user's home directory, under ~/rustbert/gpt2 (~/rustbert/openai-gpt respectively)
 //!
 //! ```no_run
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
 //!
 //! let generate_config = GenerateConfig {
@@ -226,7 +226,7 @@ impl OpenAIGenerator {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::generation::{GenerateConfig, OpenAIGenerator};
     /// let generate_config = GenerateConfig {
     ///     max_length: 30,
@@ -240,7 +240,7 @@ impl OpenAIGenerator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<OpenAIGenerator> {
+    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<OpenAIGenerator> {
         generate_config.validate();
 
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
@@ -386,7 +386,7 @@ impl GPT2Generator {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::generation::{GPT2Generator, GenerateConfig};
     ///
     /// let generate_config = GenerateConfig {
@@ -401,7 +401,7 @@ impl GPT2Generator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<GPT2Generator> {
+    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<GPT2Generator> {
         let config_path = download_resource(&generate_config.config_resource)?;
         let vocab_path = download_resource(&generate_config.vocab_resource)?;
         let merges_path = download_resource(&generate_config.merges_resource)?;
@@ -550,7 +550,7 @@ impl BartGenerator {
     /// ```no_run
     /// # use std::path::PathBuf;
     /// # use tch::Device;
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::generation::{BartGenerator, GenerateConfig};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
@@ -572,7 +572,7 @@ impl BartGenerator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<BartGenerator> {
+    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<BartGenerator> {
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
         let model_resource = if &generate_config.model_resource
             == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
@@ -856,7 +856,7 @@ impl MarianGenerator {
     /// ```no_run
     /// # use std::path::PathBuf;
     /// # use tch::Device;
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::generation::{GenerateConfig, MarianGenerator};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
@@ -878,7 +878,7 @@ impl MarianGenerator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<MarianGenerator> {
+    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<MarianGenerator> {
         let config_path = download_resource(&generate_config.config_resource)?;
         let vocab_path = download_resource(&generate_config.vocab_resource)?;
         let sentence_piece_path = download_resource(&generate_config.merges_resource)?;
@@ -1115,7 +1115,7 @@ pub struct T5Generator {
 }
 
 impl T5Generator {
-    pub fn new(generate_config: GenerateConfig) -> failure::Fallible<T5Generator> {
+    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<T5Generator> {
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
         let model_resource = if &generate_config.model_resource
             == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
@@ -2181,7 +2181,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// ```no_run
     /// # use std::path::PathBuf;
     /// # use tch::Device;
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");

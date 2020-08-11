@@ -5,7 +5,7 @@ use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 use tch::Device;
 
 #[test]
-fn test_translation_t5() -> failure::Fallible<()> {
+fn test_translation_t5() -> anyhow::Result<()> {
     //    Set-up translation model
     let translation_config = TranslationConfig::new_from_resources(
         Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL)),

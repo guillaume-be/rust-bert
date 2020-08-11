@@ -11,12 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use tch::Device;
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     let translation_config =
         TranslationConfig::new(Language::EnglishToGerman, Device::cuda_if_available());
     let model = TranslationModel::new(translation_config)?;

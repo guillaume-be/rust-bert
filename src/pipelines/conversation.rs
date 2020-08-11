@@ -22,7 +22,7 @@
 //! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/dialgpt-medium
 //!
 //! ```no_run
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
 //! let conversation_model = ConversationModel::new(Default::default())?;
 //! let mut conversation_manager = ConversationManager::new();
@@ -44,7 +44,6 @@
 //! # Disclaimer
 //! The authors of this repository are not responsible for any generation
 //! from the 3rd party utilization of the pretrained system.
-//!
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
@@ -584,14 +583,14 @@ impl ConversationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::conversation::ConversationModel;
     ///
     /// let conversation_model = ConversationModel::new(Default::default())?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(conversation_config: ConversationConfig) -> failure::Fallible<ConversationModel> {
+    pub fn new(conversation_config: ConversationConfig) -> anyhow::Result<ConversationModel> {
         let generate_config = GenerateConfig {
             model_resource: conversation_config.model_resource,
             config_resource: conversation_config.config_resource,
@@ -635,7 +634,7 @@ impl ConversationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
     /// use rust_bert::pipelines::generation::LanguageGenerator;
     /// let model = ConversationModel::new(Default::default())?;
