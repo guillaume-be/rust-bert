@@ -19,7 +19,7 @@
 //! ```no_run
 //! use rust_bert::pipelines::sentiment::SentimentModel;
 //!
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! let sentiment_classifier = SentimentModel::new(Default::default())?;
 //! let input = [
 //!     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
@@ -95,14 +95,14 @@ impl SentimentModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::sentiment::SentimentModel;
     ///
     /// let sentiment_model = SentimentModel::new(Default::default())?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(sentiment_config: SentimentConfig) -> failure::Fallible<SentimentModel> {
+    pub fn new(sentiment_config: SentimentConfig) -> anyhow::Result<SentimentModel> {
         let sequence_classification_model = SequenceClassificationModel::new(sentiment_config)?;
         Ok(SentimentModel {
             sequence_classification_model,
@@ -121,7 +121,7 @@ impl SentimentModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::sentiment::SentimentModel;
     ///
     /// let sentiment_classifier =  SentimentModel::new(Default::default())?;

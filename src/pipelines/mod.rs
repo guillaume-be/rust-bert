@@ -10,7 +10,7 @@
 //!
 //! ```no_run
 //! use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! let qa_model = QuestionAnsweringModel::new(Default::default())?;
 //!
 //! let question = String::from("Where does Amy live ?");
@@ -46,7 +46,7 @@
 //! - English <-> Russian
 //! - French <-> German
 //! ```no_run
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation::LanguageGenerator;
 //! use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 //! use tch::Device;
@@ -73,7 +73,7 @@
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //!
 //! ```no_run
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation::LanguageGenerator;
 //! use rust_bert::pipelines::summarization::SummarizationModel;
 //!
@@ -127,7 +127,7 @@
 //! The model uses a `ConversationManager` to keep track of active conversations and generate responses to them.
 //!
 //! ```no_run
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
 //! let conversation_model = ConversationModel::new(Default::default())?;
 //! let mut conversation_manager = ConversationManager::new();
@@ -153,7 +153,7 @@
 //!
 //! ```no_run
 //! use rust_bert::pipelines::generation::GPT2Generator;
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation::LanguageGenerator;
 //! let mut model = GPT2Generator::new(Default::default())?;
 //! let input_context_1 = "The dog";
@@ -180,7 +180,7 @@
 //! Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 //! ```no_run
 //! use rust_bert::pipelines::sentiment::SentimentModel;
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! let sentiment_model = SentimentModel::new(Default::default())?;
 //! let input = [
 //!     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
@@ -220,7 +220,7 @@
 //! Additional pre-trained models are available for English, German, Spanish and Dutch.
 //! ```no_run
 //! use rust_bert::pipelines::ner::NERModel;
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! let ner_model = NERModel::new(Default::default())?;
 //! let input = [
 //!     "My name is Amy. I live in Paris.",
@@ -259,7 +259,6 @@
 //! ]
 //! # ;
 //! ```
-//!
 
 pub mod common;
 pub mod conversation;

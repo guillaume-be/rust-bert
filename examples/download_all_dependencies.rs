@@ -1,4 +1,4 @@
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::albert::{AlbertConfigResources, AlbertModelResources, AlbertVocabResources};
 use rust_bert::bart::{
@@ -26,7 +26,7 @@ use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 /// multi threaded testing (two test using the same resource would otherwise download the file to
 /// the same location).
 
-fn download_distil_gpt2() -> failure::Fallible<()> {
+fn download_distil_gpt2() -> anyhow::Result<()> {
     //   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         Gpt2ConfigResources::DISTIL_GPT2,
@@ -47,7 +47,7 @@ fn download_distil_gpt2() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_distilbert_sst2() -> failure::Fallible<()> {
+fn download_distilbert_sst2() -> anyhow::Result<()> {
     //   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertModelResources::DISTIL_BERT_SST2,
@@ -64,7 +64,7 @@ fn download_distilbert_sst2() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_distilbert_qa() -> failure::Fallible<()> {
+fn download_distilbert_qa() -> anyhow::Result<()> {
     //   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertModelResources::DISTIL_BERT_SQUAD,
@@ -81,7 +81,7 @@ fn download_distilbert_qa() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_distilbert() -> failure::Fallible<()> {
+fn download_distilbert() -> anyhow::Result<()> {
     //   Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertModelResources::DISTIL_BERT,
@@ -98,7 +98,7 @@ fn download_distilbert() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_gpt2() -> failure::Fallible<()> {
+fn download_gpt2() -> anyhow::Result<()> {
     //   Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2. Modified with conversion to C-array format.
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
@@ -115,7 +115,7 @@ fn download_gpt2() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_gpt() -> failure::Fallible<()> {
+fn download_gpt() -> anyhow::Result<()> {
     //   Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         OpenAiGptConfigResources::GPT,
@@ -136,7 +136,7 @@ fn download_gpt() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_roberta() -> failure::Fallible<()> {
+fn download_roberta() -> anyhow::Result<()> {
     //   Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaConfigResources::ROBERTA,
@@ -157,7 +157,7 @@ fn download_roberta() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_bert() -> failure::Fallible<()> {
+fn download_bert() -> anyhow::Result<()> {
     //   Shared under Apache 2.0 license by the Google team at https://github.com/google-research/bert. Modified with conversion to C-array format.
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
@@ -171,7 +171,7 @@ fn download_bert() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_bert_ner() -> failure::Fallible<()> {
+fn download_bert_ner() -> anyhow::Result<()> {
     //    Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at https://github.com/dbmdz/berts. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         BertConfigResources::BERT_NER,
@@ -188,7 +188,7 @@ fn download_bert_ner() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_bart() -> failure::Fallible<()> {
+fn download_bart() -> anyhow::Result<()> {
     //   Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
@@ -205,7 +205,7 @@ fn download_bart() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_bart_cnn() -> failure::Fallible<()> {
+fn download_bart_cnn() -> anyhow::Result<()> {
     //   Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         BartConfigResources::BART_CNN,
@@ -226,7 +226,7 @@ fn download_bart_cnn() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_electra_generator() -> failure::Fallible<()> {
+fn download_electra_generator() -> anyhow::Result<()> {
     //  Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         ElectraConfigResources::BASE_GENERATOR,
@@ -243,7 +243,7 @@ fn download_electra_generator() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_electra_discriminator() -> failure::Fallible<()> {
+fn download_electra_discriminator() -> anyhow::Result<()> {
     //  Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         ElectraConfigResources::BASE_DISCRIMINATOR,
@@ -260,7 +260,7 @@ fn download_electra_discriminator() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_albert_base_v2() -> failure::Fallible<()> {
+fn download_albert_base_v2() -> anyhow::Result<()> {
     // Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
@@ -277,7 +277,7 @@ fn download_albert_base_v2() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn _download_dialogpt() -> failure::Fallible<()> {
+fn _download_dialogpt() -> anyhow::Result<()> {
     // Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         Gpt2ConfigResources::DIALOGPT_MEDIUM,
@@ -298,7 +298,7 @@ fn _download_dialogpt() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_t5_small() -> failure::Fallible<()> {
+fn download_t5_small() -> anyhow::Result<()> {
     // Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
@@ -312,7 +312,7 @@ fn download_t5_small() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_roberta_qa() -> failure::Fallible<()> {
+fn download_roberta_qa() -> anyhow::Result<()> {
     // Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaConfigResources::ROBERTA_QA,
@@ -333,7 +333,7 @@ fn download_roberta_qa() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_bert_qa() -> failure::Fallible<()> {
+fn download_bert_qa() -> anyhow::Result<()> {
     // Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         BertConfigResources::BERT_QA,
@@ -348,7 +348,7 @@ fn download_bert_qa() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn download_xlm_roberta_ner_german() -> failure::Fallible<()> {
+fn download_xlm_roberta_ner_german() -> anyhow::Result<()> {
     // Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models.
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaConfigResources::XLM_ROBERTA_NER_DE,
@@ -365,7 +365,7 @@ fn download_xlm_roberta_ner_german() -> failure::Fallible<()> {
     Ok(())
 }
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     let _ = download_distil_gpt2();
     let _ = download_distilbert_sst2();
     let _ = download_distilbert_qa();

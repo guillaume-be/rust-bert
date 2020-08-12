@@ -10,13 +10,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::pipelines::generation::{GenerateConfig, LanguageGenerator, T5Generator};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_BASE));

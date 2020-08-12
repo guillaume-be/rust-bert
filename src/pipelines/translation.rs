@@ -32,7 +32,7 @@
 //!
 //!
 //! ```no_run
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation::LanguageGenerator;
 //! use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 //! use tch::Device;
@@ -452,7 +452,7 @@ impl TranslationConfig {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::translation::{Language, TranslationConfig};
     /// use tch::Device;
     ///
@@ -532,7 +532,7 @@ impl TranslationConfig {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
     /// use rust_bert::resources::{LocalResource, Resource};
@@ -689,7 +689,7 @@ impl TranslationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
     /// use tch::Device;
     ///
@@ -699,7 +699,7 @@ impl TranslationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(translation_config: TranslationConfig) -> failure::Fallible<TranslationModel> {
+    pub fn new(translation_config: TranslationConfig) -> anyhow::Result<TranslationModel> {
         let prefix = translation_config.prefix.clone();
         let model = TranslationOption::new(translation_config);
 
@@ -718,7 +718,7 @@ impl TranslationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::generation::LanguageGenerator;
     /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
     /// use tch::Device;

@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::gpt2::{
     GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources,
@@ -22,7 +22,7 @@ use rust_bert::Config;
 use rust_tokenizers::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Resources set-up
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));

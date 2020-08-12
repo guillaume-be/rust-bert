@@ -13,10 +13,10 @@ use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
-extern crate failure;
+extern crate anyhow;
 
 #[test]
-fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
+fn distilbert_sentiment_classifier() -> anyhow::Result<()> {
     //    Set-up classifier
     let sentiment_classifier = SentimentModel::new(Default::default())?;
 
@@ -41,7 +41,7 @@ fn distilbert_sentiment_classifier() -> failure::Fallible<()> {
 }
 
 #[test]
-fn distilbert_masked_lm() -> failure::Fallible<()> {
+fn distilbert_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertConfigResources::DISTIL_BERT,
@@ -114,7 +114,7 @@ fn distilbert_masked_lm() -> failure::Fallible<()> {
 }
 
 #[test]
-fn distilbert_for_question_answering() -> failure::Fallible<()> {
+fn distilbert_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertConfigResources::DISTIL_BERT_SQUAD,
@@ -173,7 +173,7 @@ fn distilbert_for_question_answering() -> failure::Fallible<()> {
 }
 
 #[test]
-fn distilbert_for_token_classification() -> failure::Fallible<()> {
+fn distilbert_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertConfigResources::DISTIL_BERT,
@@ -237,7 +237,7 @@ fn distilbert_for_token_classification() -> failure::Fallible<()> {
 }
 
 #[test]
-fn distilbert_question_answering() -> failure::Fallible<()> {
+fn distilbert_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let qa_model = QuestionAnsweringModel::new(Default::default())?;
 

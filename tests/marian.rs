@@ -3,7 +3,7 @@ use tch::Device;
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn test_translation() -> failure::Fallible<()> {
+fn test_translation() -> anyhow::Result<()> {
     //    Set-up translation model
     let translation_config = TranslationConfig::new(Language::EnglishToFrench, Device::Cpu);
     let model = TranslationModel::new(translation_config)?;

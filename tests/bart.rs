@@ -10,7 +10,7 @@ use tch::{nn, Device, Tensor};
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn bart_lm_model() -> failure::Fallible<()> {
+fn bart_lm_model() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
@@ -69,7 +69,7 @@ fn bart_lm_model() -> failure::Fallible<()> {
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn bart_summarization_greedy() -> failure::Fallible<()> {
+fn bart_summarization_greedy() -> anyhow::Result<()> {
     //    Set-up masked LM model
     let summarization_config = SummarizationConfig {
         num_beams: 1,
@@ -113,7 +113,7 @@ about exoplanets like K2-18b."];
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn bart_summarization_beam_search() -> failure::Fallible<()> {
+fn bart_summarization_beam_search() -> anyhow::Result<()> {
     //    Set-up masked LM model
     let summarization_config = SummarizationConfig {
         num_beams: 3,

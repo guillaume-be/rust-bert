@@ -10,11 +10,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::pipelines::ner::NERModel;
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Set-up model
     let ner_model = NERModel::new(Default::default())?;
 

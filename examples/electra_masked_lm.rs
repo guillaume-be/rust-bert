@@ -21,7 +21,7 @@ use rust_bert::Config;
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
 use tch::{nn, no_grad, Device, Tensor};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         ElectraConfigResources::BASE_GENERATOR,

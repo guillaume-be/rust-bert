@@ -19,7 +19,7 @@
 //! ```no_run
 //! use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 //!
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //! let qa_model = QuestionAnsweringModel::new(Default::default())?;
 //!
 //! let question = String::from("Where does Amy live ?");

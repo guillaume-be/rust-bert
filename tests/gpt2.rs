@@ -14,7 +14,7 @@ use rust_tokenizers::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]
-fn gpt2_lm_model() -> failure::Fallible<()> {
+fn gpt2_lm_model() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
@@ -101,7 +101,7 @@ fn gpt2_lm_model() -> failure::Fallible<()> {
 }
 
 #[test]
-fn gpt2_generation_greedy() -> failure::Fallible<()> {
+fn gpt2_generation_greedy() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
@@ -137,7 +137,7 @@ fn gpt2_generation_greedy() -> failure::Fallible<()> {
 }
 
 #[test]
-fn gpt2_generation_beam_search() -> failure::Fallible<()> {
+fn gpt2_generation_beam_search() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
@@ -184,7 +184,7 @@ fn gpt2_generation_beam_search() -> failure::Fallible<()> {
 }
 
 #[test]
-fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fallible<()> {
+fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
@@ -244,7 +244,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> failure::Fa
 }
 
 #[test]
-fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Fallible<()> {
+fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
@@ -305,7 +305,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> failure::Falli
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn dialogpt_single_multi_turn_conversation() -> failure::Fallible<()> {
+fn dialogpt_single_multi_turn_conversation() -> anyhow::Result<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
         do_sample: false,
@@ -342,7 +342,7 @@ fn dialogpt_single_multi_turn_conversation() -> failure::Fallible<()> {
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn dialogpt_multiple_multi_turn_conversation() -> failure::Fallible<()> {
+fn dialogpt_multiple_multi_turn_conversation() -> anyhow::Result<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
         do_sample: false,
@@ -384,7 +384,7 @@ fn dialogpt_multiple_multi_turn_conversation() -> failure::Fallible<()> {
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn dialogpt_multiple_multi_turn_conversation_with_truncation() -> failure::Fallible<()> {
+fn dialogpt_multiple_multi_turn_conversation_with_truncation() -> anyhow::Result<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
         max_length: 36,
@@ -423,7 +423,7 @@ fn dialogpt_multiple_multi_turn_conversation_with_truncation() -> failure::Falli
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn dialogpt_multiple_multi_turn_conversation_with_conversation_deletion() -> failure::Fallible<()> {
+fn dialogpt_multiple_multi_turn_conversation_with_conversation_deletion() -> anyhow::Result<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
         do_sample: false,

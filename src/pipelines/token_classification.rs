@@ -19,7 +19,7 @@
 //! use rust_bert::resources::{Resource,RemoteResource};
 //! use rust_bert::bert::{BertModelResources, BertVocabResources, BertConfigResources};
 //! use rust_bert::pipelines::common::ModelType;
-//! # fn main() -> failure::Fallible<()> {
+//! # fn main() -> anyhow::Result<()> {
 //!
 //! //Load a configuration
 //! use rust_bert::pipelines::token_classification::LabelAggregationOption;
@@ -459,14 +459,14 @@ impl TokenClassificationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::token_classification::TokenClassificationModel;
     ///
     /// let model = TokenClassificationModel::new(Default::default())?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(config: TokenClassificationConfig) -> failure::Fallible<TokenClassificationModel> {
+    pub fn new(config: TokenClassificationConfig) -> anyhow::Result<TokenClassificationModel> {
         let config_path = download_resource(&config.config_resource)?;
         let vocab_path = download_resource(&config.vocab_resource)?;
         let weights_path = download_resource(&config.model_resource)?;
@@ -538,7 +538,7 @@ impl TokenClassificationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> failure::Fallible<()> {
+    /// # fn main() -> anyhow::Result<()> {
     /// # use rust_bert::pipelines::token_classification::TokenClassificationModel;
     ///
     /// let ner_model = TokenClassificationModel::new(Default::default())?;

@@ -1,5 +1,5 @@
+extern crate anyhow;
 extern crate dirs;
-extern crate failure;
 
 use rust_bert::bert::{
     BertConfig, BertConfigResources, BertForMaskedLM, BertForMultipleChoice,
@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
 #[test]
-fn bert_masked_lm() -> failure::Fallible<()> {
+fn bert_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
@@ -95,7 +95,7 @@ fn bert_masked_lm() -> failure::Fallible<()> {
 }
 
 #[test]
-fn bert_for_sequence_classification() -> failure::Fallible<()> {
+fn bert_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
@@ -159,7 +159,7 @@ fn bert_for_sequence_classification() -> failure::Fallible<()> {
 }
 
 #[test]
-fn bert_for_multiple_choice() -> failure::Fallible<()> {
+fn bert_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
@@ -220,7 +220,7 @@ fn bert_for_multiple_choice() -> failure::Fallible<()> {
 }
 
 #[test]
-fn bert_for_token_classification() -> failure::Fallible<()> {
+fn bert_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
@@ -285,7 +285,7 @@ fn bert_for_token_classification() -> failure::Fallible<()> {
 }
 
 #[test]
-fn bert_for_question_answering() -> failure::Fallible<()> {
+fn bert_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
@@ -345,7 +345,7 @@ fn bert_for_question_answering() -> failure::Fallible<()> {
 }
 
 #[test]
-fn bert_pre_trained_ner() -> failure::Fallible<()> {
+fn bert_pre_trained_ner() -> anyhow::Result<()> {
     //    Set-up model
     let ner_model = NERModel::new(Default::default())?;
 
@@ -380,7 +380,7 @@ fn bert_pre_trained_ner() -> failure::Fallible<()> {
 }
 
 #[test]
-fn bert_question_answering() -> failure::Fallible<()> {
+fn bert_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,

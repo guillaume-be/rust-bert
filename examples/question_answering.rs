@@ -10,11 +10,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let qa_model = QuestionAnsweringModel::new(Default::default())?;
 

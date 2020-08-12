@@ -10,11 +10,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     let conversation_model = ConversationModel::new(Default::default())?;
     let mut conversation_manager = ConversationManager::new();
 

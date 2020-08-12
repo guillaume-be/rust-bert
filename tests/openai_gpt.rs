@@ -12,7 +12,7 @@ use rust_tokenizers::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]
-fn openai_gpt_lm_model() -> failure::Fallible<()> {
+fn openai_gpt_lm_model() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         OpenAiGptConfigResources::GPT,
@@ -92,7 +92,7 @@ fn openai_gpt_lm_model() -> failure::Fallible<()> {
 }
 
 #[test]
-fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
+fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         OpenAiGptConfigResources::GPT,
@@ -133,7 +133,7 @@ fn openai_gpt_generation_greedy() -> failure::Fallible<()> {
 }
 
 #[test]
-fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
+fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         OpenAiGptConfigResources::GPT,
@@ -184,7 +184,7 @@ fn openai_gpt_generation_beam_search() -> failure::Fallible<()> {
 }
 
 #[test]
-fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failure::Fallible<()> {
+fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         OpenAiGptConfigResources::GPT,
@@ -251,7 +251,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> failu
 }
 
 #[test]
-fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> failure::Fallible<()> {
+fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         OpenAiGptConfigResources::GPT,

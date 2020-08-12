@@ -9,7 +9,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-extern crate failure;
+extern crate anyhow;
 
 use rust_bert::distilbert::{
     DistilBertConfig, DistilBertConfigResources, DistilBertModelMaskedLM, DistilBertModelResources,
@@ -22,7 +22,7 @@ use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, Trunc
 use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
 use tch::{nn, no_grad, Device, Tensor};
 
-fn main() -> failure::Fallible<()> {
+fn main() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertConfigResources::DISTIL_BERT,
