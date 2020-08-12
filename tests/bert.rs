@@ -1,5 +1,5 @@
-extern crate dirs;
 extern crate anyhow;
+extern crate dirs;
 
 use rust_bert::bert::{
     BertConfig, BertConfigResources, BertForMaskedLM, BertForMultipleChoice,
