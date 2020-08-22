@@ -113,6 +113,7 @@ use crate::albert::AlbertForTokenClassification;
 use crate::bert::{
     BertConfigResources, BertForTokenClassification, BertModelResources, BertVocabResources,
 };
+use crate::common::error::RustBertError;
 use crate::common::resources::{download_resource, RemoteResource, Resource};
 use crate::distilbert::DistilBertForTokenClassification;
 use crate::electra::ElectraForTokenClassification;
@@ -466,7 +467,9 @@ impl TokenClassificationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(config: TokenClassificationConfig) -> anyhow::Result<TokenClassificationModel> {
+    pub fn new(
+        config: TokenClassificationConfig,
+    ) -> Result<TokenClassificationModel, RustBertError> {
         let config_path = download_resource(&config.config_resource)?;
         let vocab_path = download_resource(&config.vocab_resource)?;
         let weights_path = download_resource(&config.model_resource)?;
@@ -483,7 +486,7 @@ impl TokenClassificationModel {
             vocab_path.to_str().unwrap(),
             merges_path.map(|path| path.to_str().unwrap()),
             config.lower_case,
-        );
+        )?;
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let token_sequence_classifier =

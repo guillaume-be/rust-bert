@@ -43,7 +43,7 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
-    );
+    )?;
     let config = BertConfig::from_file(config_path);
     let roberta_model = RobertaForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
@@ -127,7 +127,7 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
-    );
+    )?;
     let mut config = BertConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
     dummy_label_mapping.insert(0, String::from("Positive"));
@@ -201,7 +201,7 @@ fn roberta_for_multiple_choice() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
-    );
+    )?;
     let mut config = BertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
@@ -272,7 +272,7 @@ fn roberta_for_token_classification() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
-    );
+    )?;
     let mut config = BertConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
     dummy_label_mapping.insert(0, String::from("O"));
@@ -347,7 +347,7 @@ fn roberta_for_question_answering() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
-    );
+    )?;
     let mut config = BertConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
     dummy_label_mapping.insert(0, String::from("Positive"));

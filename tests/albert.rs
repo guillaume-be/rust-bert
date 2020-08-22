@@ -32,7 +32,7 @@ fn albert_masked_lm() -> anyhow::Result<()> {
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
     let tokenizer: AlbertTokenizer =
-        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false);
+        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let config = AlbertConfig::from_file(config_path);
     let albert_model = AlbertForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
@@ -92,7 +92,7 @@ fn albert_for_sequence_classification() -> anyhow::Result<()> {
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
     let tokenizer: AlbertTokenizer =
-        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false);
+        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let mut config = AlbertConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
     dummy_label_mapping.insert(0, String::from("Positive"));
@@ -159,7 +159,7 @@ fn albert_for_multiple_choice() -> anyhow::Result<()> {
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
     let tokenizer: AlbertTokenizer =
-        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false);
+        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let mut config = AlbertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
@@ -226,7 +226,7 @@ fn albert_for_token_classification() -> anyhow::Result<()> {
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
     let tokenizer: AlbertTokenizer =
-        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false);
+        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let mut config = AlbertConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
     dummy_label_mapping.insert(0, String::from("O"));
@@ -294,7 +294,7 @@ fn albert_for_question_answering() -> anyhow::Result<()> {
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
     let tokenizer: AlbertTokenizer =
-        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false);
+        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let mut config = AlbertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);

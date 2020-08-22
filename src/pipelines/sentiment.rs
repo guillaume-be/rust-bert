@@ -61,6 +61,7 @@ use serde::Deserialize;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
+use crate::common::error::RustBertError;
 
 #[derive(Debug, PartialEq)]
 /// Enum with the possible sentiment polarities. Note that the pre-trained SST2 model does not include neutral sentiment.
@@ -102,7 +103,7 @@ impl SentimentModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(sentiment_config: SentimentConfig) -> anyhow::Result<SentimentModel> {
+    pub fn new(sentiment_config: SentimentConfig) -> Result<SentimentModel, RustBertError> {
         let sequence_classification_model = SequenceClassificationModel::new(sentiment_config)?;
         Ok(SentimentModel {
             sequence_classification_model,

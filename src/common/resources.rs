@@ -24,6 +24,7 @@ use std::{env, fs};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 use tokio::task;
+use crate::common::error::RustBertError;
 
 extern crate dirs;
 
@@ -182,7 +183,7 @@ fn _get_cache_directory() -> PathBuf {
 /// )));
 /// let local_path = download_resource(&model_resource);
 /// ```
-pub fn download_resource(resource: &Resource) -> anyhow::Result<&PathBuf> {
+pub fn download_resource(resource: &Resource) -> Result<&PathBuf, RustBertError> {
     match resource {
         Resource::Remote(remote_resource) => {
             let target = remote_resource.local_path.clone();

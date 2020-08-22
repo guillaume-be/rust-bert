@@ -44,7 +44,7 @@
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
 //! let tokenizer: AlbertTokenizer =
-//!     AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true);
+//!     AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
 //! let config = AlbertConfig::from_file(config_path);
 //! let bert_model = AlbertForMaskedLM::new(&vs.root(), &config);
 //! vs.load(weights_path)?;

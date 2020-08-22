@@ -39,7 +39,7 @@ fn main() -> anyhow::Result<()> {
     //    Set-up masked LM model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
     let config = ElectraConfig::from_file(config_path);
     let electra_model = ElectraForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;

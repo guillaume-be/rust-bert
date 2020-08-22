@@ -54,6 +54,7 @@
 //! # ;
 //! ```
 
+use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::marian::{
     MarianConfigResources, MarianModelResources, MarianPrefix, MarianSpmResources,
@@ -699,7 +700,7 @@ impl TranslationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(translation_config: TranslationConfig) -> anyhow::Result<TranslationModel> {
+    pub fn new(translation_config: TranslationConfig) -> Result<TranslationModel, RustBertError> {
         let prefix = translation_config.prefix.clone();
         let model = TranslationOption::new(translation_config);
 

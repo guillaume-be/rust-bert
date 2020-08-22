@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
     let tokenizer: AlbertTokenizer =
-        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false);
+        AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let config = AlbertConfig::from_file(config_path);
     let albert_model = AlbertForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;

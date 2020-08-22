@@ -45,6 +45,7 @@
 
 use crate::albert::AlbertForQuestionAnswering;
 use crate::bert::BertForQuestionAnswering;
+use crate::common::error::RustBertError;
 use crate::common::resources::{download_resource, RemoteResource, Resource};
 use crate::distilbert::{
     DistilBertConfigResources, DistilBertForQuestionAnswering, DistilBertModelResources,
@@ -394,7 +395,7 @@ impl QuestionAnsweringModel {
     /// ```
     pub fn new(
         question_answering_config: QuestionAnsweringConfig,
-    ) -> anyhow::Result<QuestionAnsweringModel> {
+    ) -> Result<QuestionAnsweringModel, RustBertError> {
         let config_path = download_resource(&question_answering_config.config_resource)?;
         let vocab_path = download_resource(&question_answering_config.vocab_resource)?;
         let weights_path = download_resource(&question_answering_config.model_resource)?;
@@ -411,7 +412,7 @@ impl QuestionAnsweringModel {
             vocab_path.to_str().unwrap(),
             merges_path.map(|path| path.to_str().unwrap()),
             question_answering_config.lower_case,
-        );
+        )?;
         let pad_idx = tokenizer
             .get_pad_id()
             .expect("The Tokenizer used for Question Answering should contain a PAD id");
