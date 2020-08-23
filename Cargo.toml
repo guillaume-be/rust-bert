@@ -30,8 +30,8 @@ all-tests = []
 features = ["doc-only"]
 
 [dependencies]
-rust_tokenizers = { version = "~4.0.0", path = "E:/coding/rust-tokenizers/main" }
-tch = "~0.2.0"
+rust_tokenizers = { version = "~4.0.0", path = "E:/Coding/backup-rust/rust-tokenizers/main" }
+tch = {version = "~0.2.0", path = "E:/Coding/tch-rs"}
 serde_json = "1.0.56"
 serde = { version = "1.0.114", features = ["derive"] }
 dirs = "3.0.1"

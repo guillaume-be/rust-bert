@@ -17,6 +17,7 @@
 //! or local resource. Default implementations for a number of `RemoteResources` are available as
 //! pre-trained models in each model module.
 
+use crate::common::error::RustBertError;
 use lazy_static::lazy_static;
 use reqwest::Client;
 use std::path::PathBuf;
@@ -24,7 +25,6 @@ use std::{env, fs};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 use tokio::task;
-use crate::common::error::RustBertError;
 
 extern crate dirs;
 
@@ -190,19 +190,19 @@ pub fn download_resource(resource: &Resource) -> Result<&PathBuf, RustBertError>
             let url = remote_resource.url.clone();
             if !target.exists() {
                 println!("Downloading {} to {:?}", url, target);
-                fs::create_dir_all(target.parent().unwrap()).unwrap();
-                let mut rt = Runtime::new().unwrap();
+                fs::create_dir_all(target.parent().unwrap())?;
+                let mut rt = Runtime::new()?;
                 let local = task::LocalSet::new();
                 local.block_on(&mut rt, async {
                     let client = Client::new();
-                    let mut output_file = tokio::fs::File::create(target).await.unwrap();
-                    let mut response = client.get(url.as_str()).send().await.unwrap();
-                    while let Some(chunk) = response.chunk().await.unwrap() {
-                        output_file.write_all(&chunk).await.unwrap();
+                    let mut output_file = tokio::fs::File::create(target).await?;
+                    let mut response = client.get(url.as_str()).send().await?;
+                    while let Some(chunk) = response.chunk().await? {
+                        output_file.write_all(&chunk).await?;
                     }
-                });
+                    Ok::<(), RustBertError>(())
+                })?;
             }
-
             Ok(resource.get_local_path())
         }
         Resource::Local(_) => Ok(resource.get_local_path()),
