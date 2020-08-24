@@ -44,6 +44,7 @@
 //! # Disclaimer
 //! The authors of this repository are not responsible for any generation
 //! from the 3rd party utilization of the pretrained system.
+use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
@@ -55,7 +56,6 @@ use rust_tokenizers::Tokenizer;
 use std::collections::HashMap;
 use tch::{Device, Tensor};
 use uuid::Uuid;
-use crate::common::error::RustBertError;
 
 /// # Configuration for multi-turn classification
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
@@ -591,7 +591,9 @@ impl ConversationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(conversation_config: ConversationConfig) -> Result<ConversationModel, RustBertError> {
+    pub fn new(
+        conversation_config: ConversationConfig,
+    ) -> Result<ConversationModel, RustBertError> {
         let generate_config = GenerateConfig {
             model_resource: conversation_config.model_resource,
             config_resource: conversation_config.config_resource,
