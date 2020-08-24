@@ -44,7 +44,7 @@
 //! let weights_path = download_resource(&weights_resource)?;
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
+//! let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
 //! let config = DistilBertConfig::from_file(config_path);
 //! let bert_model = DistilBertModelMaskedLM::new(&vs.root(), &config);
 //! vs.load(weights_path)?;

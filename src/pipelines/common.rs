@@ -20,6 +20,7 @@
 use crate::albert::AlbertConfig;
 use crate::bart::BartConfig;
 use crate::bert::BertConfig;
+use crate::common::error::RustBertError;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::t5::T5Config;
@@ -130,31 +131,31 @@ impl TokenizerOption {
         vocab_path: &str,
         merges_path: Option<&str>,
         lower_case: bool,
-    ) -> Self {
-        match model_type {
+    ) -> Result<Self, RustBertError> {
+        Ok(match model_type {
             ModelType::Bert | ModelType::DistilBert | ModelType::Electra => {
-                TokenizerOption::Bert(BertTokenizer::from_file(vocab_path, lower_case))
+                TokenizerOption::Bert(BertTokenizer::from_file(vocab_path, lower_case)?)
             }
             ModelType::Roberta => TokenizerOption::Roberta(RobertaTokenizer::from_file(
                 vocab_path,
                 merges_path.expect("No merges specified!"),
                 lower_case,
-            )),
+            )?),
             ModelType::Marian => TokenizerOption::Marian(MarianTokenizer::from_files(
                 vocab_path,
                 merges_path.expect("No merges specified!"),
                 lower_case,
-            )),
-            ModelType::T5 => TokenizerOption::T5(T5Tokenizer::from_file(vocab_path, lower_case)),
+            )?),
+            ModelType::T5 => TokenizerOption::T5(T5Tokenizer::from_file(vocab_path, lower_case)?),
             ModelType::XLMRoberta => {
-                TokenizerOption::XLMRoberta(XLMRobertaTokenizer::from_file(vocab_path, lower_case))
+                TokenizerOption::XLMRoberta(XLMRobertaTokenizer::from_file(vocab_path, lower_case)?)
             }
             ModelType::Albert => TokenizerOption::Albert(AlbertTokenizer::from_file(
                 vocab_path,
                 lower_case,
                 !lower_case,
-            )),
-        }
+            )?),
+        })
     }
 
     /// Returns the model type

@@ -62,6 +62,7 @@ use crate::bart::{
     BartConfig, BartConfigResources, BartForConditionalGeneration, BartMergesResources,
     BartModelResources, BartVocabResources, LayerState as BartLayerState,
 };
+use crate::common::error::RustBertError;
 use crate::common::resources::{download_resource, RemoteResource, Resource};
 use crate::gpt2::{
     GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources,
@@ -240,7 +241,7 @@ impl OpenAIGenerator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<OpenAIGenerator> {
+    pub fn new(generate_config: GenerateConfig) -> Result<OpenAIGenerator, RustBertError> {
         generate_config.validate();
 
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
@@ -295,7 +296,7 @@ impl OpenAIGenerator {
             vocab_path.to_str().unwrap(),
             merges_path.to_str().unwrap(),
             true,
-        );
+        )?;
         let config = Gpt2Config::from_file(config_path);
         let model = OpenAIGPTLMHeadModel::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
@@ -401,7 +402,7 @@ impl GPT2Generator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<GPT2Generator> {
+    pub fn new(generate_config: GenerateConfig) -> Result<GPT2Generator, RustBertError> {
         let config_path = download_resource(&generate_config.config_resource)?;
         let vocab_path = download_resource(&generate_config.vocab_resource)?;
         let merges_path = download_resource(&generate_config.merges_resource)?;
@@ -414,7 +415,7 @@ impl GPT2Generator {
             vocab_path.to_str().unwrap(),
             merges_path.to_str().unwrap(),
             false,
-        );
+        )?;
         let config = Gpt2Config::from_file(config_path);
         let model = GPT2LMHeadModel::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
@@ -572,7 +573,7 @@ impl BartGenerator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<BartGenerator> {
+    pub fn new(generate_config: GenerateConfig) -> Result<BartGenerator, RustBertError> {
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
         let model_resource = if &generate_config.model_resource
             == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
@@ -618,7 +619,7 @@ impl BartGenerator {
             vocab_path.to_str().unwrap(),
             merges_path.to_str().unwrap(),
             false,
-        );
+        )?;
         let config = BartConfig::from_file(config_path);
         let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
         var_store.load(weights_path)?;
@@ -878,7 +879,7 @@ impl MarianGenerator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<MarianGenerator> {
+    pub fn new(generate_config: GenerateConfig) -> Result<MarianGenerator, RustBertError> {
         let config_path = download_resource(&generate_config.config_resource)?;
         let vocab_path = download_resource(&generate_config.vocab_resource)?;
         let sentence_piece_path = download_resource(&generate_config.merges_resource)?;
@@ -891,7 +892,7 @@ impl MarianGenerator {
             vocab_path.to_str().unwrap(),
             sentence_piece_path.to_str().unwrap(),
             false,
-        );
+        )?;
         let config = BartConfig::from_file(config_path);
         let model = MarianForConditionalGeneration::new(&var_store.root(), &config, true);
         var_store.load(weights_path)?;
@@ -1115,7 +1116,7 @@ pub struct T5Generator {
 }
 
 impl T5Generator {
-    pub fn new(generate_config: GenerateConfig) -> anyhow::Result<T5Generator> {
+    pub fn new(generate_config: GenerateConfig) -> Result<T5Generator, RustBertError> {
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
         let model_resource = if &generate_config.model_resource
             == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
@@ -1148,7 +1149,7 @@ impl T5Generator {
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = T5Tokenizer::from_file(vocab_path.to_str().unwrap(), false);
+        let tokenizer = T5Tokenizer::from_file(vocab_path.to_str().unwrap(), false)?;
         let config = T5Config::from_file(config_path);
         let model = T5ForConditionalGeneration::new(&var_store.root(), &config, false, false);
         var_store.load(weights_path)?;

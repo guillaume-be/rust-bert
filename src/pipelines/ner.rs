@@ -117,6 +117,7 @@
 //! Spanish| XLM_ROBERTA_NER_ES |
 //! Dutch| XLM_ROBERTA_NER_NL |
 
+use crate::common::error::RustBertError;
 use crate::pipelines::token_classification::{TokenClassificationConfig, TokenClassificationModel};
 
 #[derive(Debug)]
@@ -155,7 +156,7 @@ impl NERModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(ner_config: NERConfig) -> anyhow::Result<NERModel> {
+    pub fn new(ner_config: NERConfig) -> Result<NERModel, RustBertError> {
         let model = TokenClassificationModel::new(ner_config)?;
         Ok(NERModel {
             token_classification_model: model,

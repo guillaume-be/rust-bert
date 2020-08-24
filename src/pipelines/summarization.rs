@@ -65,6 +65,7 @@
 use crate::bart::{
     BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
 };
+use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::pipelines::generation::{BartGenerator, GenerateConfig, LanguageGenerator};
 use tch::Device;
@@ -163,7 +164,9 @@ impl SummarizationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(summarization_config: SummarizationConfig) -> anyhow::Result<SummarizationModel> {
+    pub fn new(
+        summarization_config: SummarizationConfig,
+    ) -> Result<SummarizationModel, RustBertError> {
         let generate_config = GenerateConfig {
             model_resource: summarization_config.model_resource,
             config_resource: summarization_config.config_resource,

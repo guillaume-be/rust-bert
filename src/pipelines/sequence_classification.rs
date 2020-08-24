@@ -57,6 +57,7 @@
 //! ```
 use crate::albert::AlbertForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
+use crate::common::error::RustBertError;
 use crate::common::resources::{download_resource, RemoteResource, Resource};
 use crate::distilbert::{
     DistilBertConfigResources, DistilBertModelClassifier, DistilBertModelResources,
@@ -338,7 +339,7 @@ impl SequenceClassificationModel {
     /// ```
     pub fn new(
         config: SequenceClassificationConfig,
-    ) -> anyhow::Result<SequenceClassificationModel> {
+    ) -> Result<SequenceClassificationModel, RustBertError> {
         let config_path = download_resource(&config.config_resource)?;
         let vocab_path = download_resource(&config.vocab_resource)?;
         let weights_path = download_resource(&config.model_resource)?;
@@ -354,7 +355,7 @@ impl SequenceClassificationModel {
             vocab_path.to_str().unwrap(),
             merges_path.map(|path| path.to_str().unwrap()),
             config.lower_case,
-        );
+        )?;
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let sequence_classifier =

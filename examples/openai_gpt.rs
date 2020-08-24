@@ -49,7 +49,7 @@ fn main() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
-    );
+    )?;
     let config = Gpt2Config::from_file(config_path);
     let openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
     vs.load(weights_path)?;

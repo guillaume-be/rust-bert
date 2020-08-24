@@ -33,7 +33,7 @@ fn bert_masked_lm() -> anyhow::Result<()> {
     //    Set-up masked LM model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
     let config = BertConfig::from_file(config_path);
     let bert_model = BertForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
@@ -107,7 +107,7 @@ fn bert_for_sequence_classification() -> anyhow::Result<()> {
     //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
     let mut config = BertConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
     dummy_label_mapping.insert(0, String::from("Positive"));
@@ -171,7 +171,7 @@ fn bert_for_multiple_choice() -> anyhow::Result<()> {
     //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
     let mut config = BertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
@@ -232,7 +232,7 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
     //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
     let mut config = BertConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
     dummy_label_mapping.insert(0, String::from("O"));
@@ -297,7 +297,7 @@ fn bert_for_question_answering() -> anyhow::Result<()> {
     //    Set-up model
     let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
     let mut config = BertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);

@@ -70,5 +70,6 @@ pub mod pipelines;
 pub mod roberta;
 pub mod t5;
 
+pub use common::error::RustBertError;
 pub use common::resources;
 pub use common::Config;

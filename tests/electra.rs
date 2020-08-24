@@ -26,7 +26,7 @@ fn electra_masked_lm() -> anyhow::Result<()> {
     //    Set-up masked LM model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
     let mut config = ElectraConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
@@ -99,7 +99,7 @@ fn electra_discriminator() -> anyhow::Result<()> {
     //    Set-up masked LM model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true);
+    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
     let config = ElectraConfig::from_file(config_path);
     let electra_model = ElectraDiscriminator::new(&vs.root(), &config);
     vs.load(weights_path)?;

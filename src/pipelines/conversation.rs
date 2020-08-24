@@ -44,6 +44,7 @@
 //! # Disclaimer
 //! The authors of this repository are not responsible for any generation
 //! from the 3rd party utilization of the pretrained system.
+use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
@@ -590,7 +591,9 @@ impl ConversationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(conversation_config: ConversationConfig) -> anyhow::Result<ConversationModel> {
+    pub fn new(
+        conversation_config: ConversationConfig,
+    ) -> Result<ConversationModel, RustBertError> {
         let generate_config = GenerateConfig {
             model_resource: conversation_config.model_resource,
             config_resource: conversation_config.config_resource,

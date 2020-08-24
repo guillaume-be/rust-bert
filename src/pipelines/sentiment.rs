@@ -54,6 +54,7 @@
 //! # ;
 //! ```
 
+use crate::common::error::RustBertError;
 use crate::pipelines::sequence_classification::{
     SequenceClassificationConfig, SequenceClassificationModel,
 };
@@ -102,7 +103,7 @@ impl SentimentModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(sentiment_config: SentimentConfig) -> anyhow::Result<SentimentModel> {
+    pub fn new(sentiment_config: SentimentConfig) -> Result<SentimentModel, RustBertError> {
         let sequence_classification_model = SequenceClassificationModel::new(sentiment_config)?;
         Ok(SentimentModel {
             sequence_classification_model,

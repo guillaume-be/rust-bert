@@ -10,16 +10,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[macro_use]
-extern crate anyhow;
 extern crate tch;
 
-pub fn main() -> anyhow::Result<()> {
+use rust_bert::RustBertError;
+
+pub fn main() -> Result<(), RustBertError> {
     let args: Vec<_> = std::env::args().collect();
-    ensure!(
-        args.len() == 3,
+    assert_eq!(
+        args.len(),
+        3,
         "usage: {} source.npz destination.ot",
-        args[0]
+        args[0].as_str()
     );
 
     let source_file = &args[1];

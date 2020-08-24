@@ -17,6 +17,7 @@
 //! or local resource. Default implementations for a number of `RemoteResources` are available as
 //! pre-trained models in each model module.
 
+use crate::common::error::RustBertError;
 use lazy_static::lazy_static;
 use reqwest::Client;
 use std::path::PathBuf;
@@ -182,26 +183,28 @@ fn _get_cache_directory() -> PathBuf {
 /// )));
 /// let local_path = download_resource(&model_resource);
 /// ```
-pub fn download_resource(resource: &Resource) -> anyhow::Result<&PathBuf> {
+pub fn download_resource(resource: &Resource) -> Result<&PathBuf, RustBertError> {
     match resource {
         Resource::Remote(remote_resource) => {
             let target = remote_resource.local_path.clone();
             let url = remote_resource.url.clone();
             if !target.exists() {
                 println!("Downloading {} to {:?}", url, target);
-                fs::create_dir_all(target.parent().unwrap()).unwrap();
-                let mut rt = Runtime::new().unwrap();
+                fs::create_dir_all(target.parent().unwrap())?;
+                let mut rt = Runtime::new()?;
                 let local = task::LocalSet::new();
                 local.block_on(&mut rt, async {
                     let client = Client::new();
-                    let mut output_file = tokio::fs::File::create(target).await.unwrap();
-                    let mut response = client.get(url.as_str()).send().await.unwrap();
-                    while let Some(chunk) = response.chunk().await.unwrap() {
-                        output_file.write_all(&chunk).await.unwrap();
+                    let output_file = tokio::fs::File::create(target).await?;
+                    let mut output_file = tokio::io::BufWriter::new(output_file);
+                    let mut response = client.get(&url).send().await?;
+                    while let Some(chunk) = response.chunk().await? {
+                        output_file.write(&chunk).await?;
                     }
-                });
+                    output_file.flush().await?;
+                    Ok::<(), RustBertError>(())
+                })?;
             }
-
             Ok(resource.get_local_path())
         }
         Resource::Local(_) => Ok(resource.get_local_path()),
