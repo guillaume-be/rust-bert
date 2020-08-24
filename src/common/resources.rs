@@ -195,11 +195,13 @@ pub fn download_resource(resource: &Resource) -> Result<&PathBuf, RustBertError>
                 let local = task::LocalSet::new();
                 local.block_on(&mut rt, async {
                     let client = Client::new();
-                    let mut output_file = tokio::fs::File::create(target).await?;
-                    let mut response = client.get(url.as_str()).send().await?;
+                    let output_file = tokio::fs::File::create(target).await?;
+                    let mut output_file = tokio::io::BufWriter::new(output_file);
+                    let mut response = client.get(&url).send().await?;
                     while let Some(chunk) = response.chunk().await? {
-                        output_file.write_all(&chunk).await?;
+                        output_file.write(&chunk).await?;
                     }
+                    output_file.flush().await?;
                     Ok::<(), RustBertError>(())
                 })?;
             }
