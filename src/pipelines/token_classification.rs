@@ -29,6 +29,7 @@
 //!    Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT_NER)),
 //!    None, //merges resource only relevant with ModelType::Roberta
 //!    false, //lowercase
+//!    false, //add_prefix_space
 //!    LabelAggregationOption::Mode
 //! );
 //!
@@ -211,6 +212,8 @@ pub struct TokenClassificationConfig {
     pub merges_resource: Option<Resource>,
     /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
+    /// Flag indicating if the tokenizer should add a white space before each tokenized input (needed for some Roberta models)
+    pub add_prefix_space: bool,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
     /// Sub-tokens aggregation method (default: `LabelAggregationOption::First`)
@@ -235,6 +238,7 @@ impl TokenClassificationConfig {
         vocab_resource: Resource,
         merges_resource: Option<Resource>,
         lower_case: bool,
+        add_prefix_space: bool,
         label_aggregation_function: LabelAggregationOption,
     ) -> TokenClassificationConfig {
         TokenClassificationConfig {
@@ -244,6 +248,7 @@ impl TokenClassificationConfig {
             vocab_resource,
             merges_resource,
             lower_case,
+            add_prefix_space,
             device: Device::cuda_if_available(),
             label_aggregation_function,
         }
@@ -266,6 +271,7 @@ impl Default for TokenClassificationConfig {
             )),
             merges_resource: None,
             lower_case: false,
+            add_prefix_space: false,
             device: Device::cuda_if_available(),
             label_aggregation_function: LabelAggregationOption::First,
         }
@@ -486,6 +492,7 @@ impl TokenClassificationModel {
             vocab_path.to_str().unwrap(),
             merges_path.map(|path| path.to_str().unwrap()),
             config.lower_case,
+            config.add_prefix_space,
         )?;
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);

@@ -32,6 +32,7 @@ fn bart_lm_model() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         false,
+        false,
     )?;
     let config = BartConfig::from_file(config_path);
     let bart_model = BartModel::new(&vs.root(), &config, false);

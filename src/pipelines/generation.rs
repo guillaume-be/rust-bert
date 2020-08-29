@@ -619,6 +619,7 @@ impl BartGenerator {
             vocab_path.to_str().unwrap(),
             merges_path.to_str().unwrap(),
             false,
+            false,
         )?;
         let config = BartConfig::from_file(config_path);
         let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);

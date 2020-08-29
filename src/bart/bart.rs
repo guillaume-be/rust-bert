@@ -787,7 +787,8 @@ impl BartForSequenceClassification {
             None,
             train,
         );
-
+        input_ids.print();
+        println!("{:?}", decoder_outputs.double_value(&[0, 0, 0]));
         let eos_mask = input_ids.eq(self.eos_token_id);
         let reshape = eos_mask.sum1(&[1], true, Int64);
         let sentence_representation = decoder_outputs
@@ -801,6 +802,8 @@ impl BartForSequenceClassification {
                 *decoder_outputs.size().last().unwrap(),
             ))
             .select(1, -1);
+
+        // sentence_representation.print();
 
         let logits = self
             .classification_head

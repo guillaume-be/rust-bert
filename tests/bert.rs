@@ -391,6 +391,7 @@ fn bert_question_answering() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
         None, //merges resource only relevant with ModelType::Roberta
         true, //lowercase
+        false,
     );
 
     let qa_model = QuestionAnsweringModel::new(config)?;

@@ -28,6 +28,7 @@
 //!    Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2)),
 //!    None, //merges resource only relevant with ModelType::Roberta
 //!    true, //lowercase
+//!    false, //add_prefix_space
 //! );
 //!
 //! //Create the model
@@ -103,6 +104,8 @@ pub struct SequenceClassificationConfig {
     pub merges_resource: Option<Resource>,
     /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
+    /// Flag indicating if the tokenizer should add a white space before each tokenized input (needed for some Roberta models)
+    pub add_prefix_space: bool,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
 }
@@ -125,6 +128,7 @@ impl SequenceClassificationConfig {
         vocab_resource: Resource,
         merges_resource: Option<Resource>,
         lower_case: bool,
+        add_prefix_space: bool,
     ) -> SequenceClassificationConfig {
         SequenceClassificationConfig {
             model_type,
@@ -133,6 +137,7 @@ impl SequenceClassificationConfig {
             vocab_resource,
             merges_resource,
             lower_case,
+            add_prefix_space,
             device: Device::cuda_if_available(),
         }
     }
@@ -154,6 +159,7 @@ impl Default for SequenceClassificationConfig {
             )),
             merges_resource: None,
             lower_case: true,
+            add_prefix_space: false,
             device: Device::cuda_if_available(),
         }
     }
@@ -355,6 +361,7 @@ impl SequenceClassificationModel {
             vocab_path.to_str().unwrap(),
             merges_path.map(|path| path.to_str().unwrap()),
             config.lower_case,
+            config.add_prefix_space,
         )?;
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);

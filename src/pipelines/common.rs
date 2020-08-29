@@ -131,6 +131,7 @@ impl TokenizerOption {
         vocab_path: &str,
         merges_path: Option<&str>,
         lower_case: bool,
+        add_prefix_space: bool,
     ) -> Result<Self, RustBertError> {
         Ok(match model_type {
             ModelType::Bert | ModelType::DistilBert | ModelType::Electra => {
@@ -140,6 +141,7 @@ impl TokenizerOption {
                 vocab_path,
                 merges_path.expect("No merges specified!"),
                 lower_case,
+                add_prefix_space,
             )?),
             ModelType::Marian => TokenizerOption::Marian(MarianTokenizer::from_files(
                 vocab_path,

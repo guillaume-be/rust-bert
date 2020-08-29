@@ -191,6 +191,8 @@ pub struct QuestionAnsweringConfig {
     pub model_type: ModelType,
     /// Flag indicating if the model expects a lower casing of the input
     pub lower_case: bool,
+    /// Flag indicating if the tokenizer should add a white space before each tokenized input (needed for some Roberta models)
+    pub add_prefix_space: bool,
 }
 
 impl QuestionAnsweringConfig {
@@ -211,6 +213,7 @@ impl QuestionAnsweringConfig {
         vocab_resource: Resource,
         merges_resource: Option<Resource>,
         lower_case: bool,
+        add_prefix_space: bool,
     ) -> QuestionAnsweringConfig {
         QuestionAnsweringConfig {
             model_type,
@@ -219,6 +222,7 @@ impl QuestionAnsweringConfig {
             vocab_resource,
             merges_resource,
             lower_case,
+            add_prefix_space,
             device: Device::cuda_if_available(),
         }
     }
@@ -240,6 +244,7 @@ impl Default for QuestionAnsweringConfig {
             device: Device::cuda_if_available(),
             model_type: ModelType::DistilBert,
             lower_case: false,
+            add_prefix_space: false,
         }
     }
 }
@@ -372,7 +377,7 @@ pub struct QuestionAnsweringModel {
     doc_stride: usize,
     max_query_length: usize,
     max_answer_len: usize,
-    distilbert_qa: QuestionAnsweringOption,
+    qa_model: QuestionAnsweringOption,
     var_store: VarStore,
 }
 
@@ -412,6 +417,7 @@ impl QuestionAnsweringModel {
             vocab_path.to_str().unwrap(),
             merges_path.map(|path| path.to_str().unwrap()),
             question_answering_config.lower_case,
+            question_answering_config.add_prefix_space,
         )?;
         let pad_idx = tokenizer
             .get_pad_id()
@@ -444,7 +450,7 @@ impl QuestionAnsweringModel {
             doc_stride: 128,
             max_query_length: 64,
             max_answer_len: 15,
-            distilbert_qa: qa_model,
+            qa_model,
             var_store,
         })
     }
@@ -530,12 +536,9 @@ impl QuestionAnsweringModel {
                 let attention_masks =
                     Tensor::stack(&attention_masks, 0).to(self.var_store.device());
 
-                let (start_logits, end_logits) = self.distilbert_qa.forward_t(
-                    Some(input_ids),
-                    Some(attention_masks),
-                    None,
-                    false,
-                );
+                let (start_logits, end_logits) =
+                    self.qa_model
+                        .forward_t(Some(input_ids), Some(attention_masks), None, false);
 
                 let start_logits = start_logits.detach();
                 let end_logits = end_logits.detach();
