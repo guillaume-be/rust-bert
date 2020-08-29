@@ -13,7 +13,7 @@ The following models are currently implemented:
  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|**ALBERT**|**T5**|
 :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:|:----:|:----:
 Masked LM|✅ |✅ |✅ | | | |✅| |✅ | |
-Sequence classification|✅ |✅ |✅| | | | | |✅ | |
+Sequence classification|✅ |✅ |✅| | |✅ | | |✅ | |
 Token classification|✅ |✅ | ✅| | | |✅| |✅ | |
 Question answering|✅ |✅ |✅| | | | | |✅ | |
 Multiple choices| |✅ |✅| | | | | |✅ | |
@@ -23,7 +23,7 @@ Summarization | | | | | |✅| | | | |
 Translation | | | | | |✅| |✅ | |✅|
 
 ## Ready-to-use pipelines
-
+	
 Based on Huggingface's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
 
 **Disclaimer**

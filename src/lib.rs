@@ -33,7 +33,7 @@
 //!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|**ALBERT**|**T5**
 //! :-----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:
 //! Masked LM|✅ |✅ |✅ | | | |✅| |✅ | |
-//! Sequence classification|✅ |✅ |✅| | | | | |✅ | |
+//! Sequence classification|✅ |✅ |✅| | |✅| | |✅ | |
 //! Token classification|✅ |✅ | ✅| | | |✅| |✅ | |
 //! Question answering|✅ |✅ |✅| | | | | |✅ | |
 //! Multiple choices| |✅ |✅| | | | | |✅ | |

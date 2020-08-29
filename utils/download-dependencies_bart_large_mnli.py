@@ -27,25 +27,26 @@ vocab_path = str(target_path / 'vocab.txt')
 merges_path = str(target_path / 'merges.txt')
 model_path = str(target_path / 'model.bin')
 
-# shutil.copy(temp_config, config_path)
-# shutil.copy(temp_vocab, vocab_path)
-# shutil.copy(temp_merges, merges_path)
-# shutil.copy(temp_weights, model_path)
-#
-# weights = torch.load(temp_weights, map_location='cpu')
-# nps = {}
-# for k, v in weights.items():
-#     k = k.replace("gamma", "weight").replace("beta", "bias")
-#     nps[k] = np.ascontiguousarray(v.cpu().numpy())
-#
+shutil.copy(temp_config, config_path)
+shutil.copy(temp_vocab, vocab_path)
+shutil.copy(temp_merges, merges_path)
+shutil.copy(temp_weights, model_path)
+
+weights = torch.load(temp_weights, map_location='cpu')
+nps = {}
+for k, v in weights.items():
+    print(k)
+    k = k.replace("gamma", "weight").replace("beta", "bias")
+    nps[k] = np.ascontiguousarray(v.cpu().numpy())
+
 # np.savez(target_path / 'model.npz', **nps)
-
-source = str(target_path / 'model.npz')
-target = str(target_path / 'model.ot')
-
-toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
-
-subprocess.call(['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])
-
+#
+# source = str(target_path / 'model.npz')
+# target = str(target_path / 'model.ot')
+#
+# toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
+#
+# subprocess.call(['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])
+#
 # os.remove(str(target_path / 'model.bin'))
 # os.remove(str(target_path / 'model.npz'))
