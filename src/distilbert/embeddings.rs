@@ -124,7 +124,6 @@ impl ModuleT for DistilBertEmbedding {
         let word_embed = input.apply(&self.word_embeddings);
         let position_embed = position_ids.apply(&self.position_embeddings);
 
-        //        position_embed.get(0).get(0).print();
         let embeddings = word_embed + position_embed;
         let embeddings = embeddings
             .apply(&self.layer_norm)

@@ -64,7 +64,7 @@ fn bart_lm_model() -> anyhow::Result<()> {
 
     assert_eq!(output.size(), vec!(1, 6, 1024));
     assert_eq!(encoder_outputs.size(), vec!(1, 6, 1024));
-    assert!((output.double_value(&[0, output.size()[1] - 1, 0]) - (-0.2420)).abs() < 1e-4);
+    assert!((output.double_value(&[0, 0, 0]) - 0.7877).abs() < 1e-4);
     Ok(())
 }
 
@@ -105,9 +105,9 @@ about exoplanets like K2-18b."];
     let output = model.summarize(&input);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], "Scientists have found water vapour on K2-18b, a planet 110 light-years from Earth. This \
-    is the first such discovery in a planet in its star's habitable zone. The planet is not too hot and not too cold \
-    for liquid water to exist.");
+    assert_eq!(output[0], "K2-18b is the first discovery of water on a planet in its star's habitable zone. \
+    Scientists found water vapour in the atmosphere of the planet. The planet is 110 light-years from Earth \
+    and is not too hot or cold for liquid water to exist.");
 
     Ok(())
 }
