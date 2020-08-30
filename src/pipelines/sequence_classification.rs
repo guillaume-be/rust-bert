@@ -28,7 +28,8 @@
 //!    Resource::Remote(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2)),
 //!    None, //merges resource only relevant with ModelType::Roberta
 //!    true, //lowercase
-//!    false, //add_prefix_space
+//!    None, //strip_accents
+//!    None, //add_prefix_space
 //! );
 //!
 //! //Create the model
@@ -104,8 +105,10 @@ pub struct SequenceClassificationConfig {
     pub merges_resource: Option<Resource>,
     /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
+    /// Flag indicating if the tokenizer should strip accents (normalization). Only used for BERT / ALBERT models
+    pub strip_accents: Option<bool>,
     /// Flag indicating if the tokenizer should add a white space before each tokenized input (needed for some Roberta models)
-    pub add_prefix_space: bool,
+    pub add_prefix_space: Option<bool>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
 }
@@ -128,7 +131,8 @@ impl SequenceClassificationConfig {
         vocab_resource: Resource,
         merges_resource: Option<Resource>,
         lower_case: bool,
-        add_prefix_space: bool,
+        strip_accents: impl Into<Option<bool>>,
+        add_prefix_space: impl Into<Option<bool>>,
     ) -> SequenceClassificationConfig {
         SequenceClassificationConfig {
             model_type,
@@ -137,7 +141,8 @@ impl SequenceClassificationConfig {
             vocab_resource,
             merges_resource,
             lower_case,
-            add_prefix_space,
+            strip_accents: strip_accents.into(),
+            add_prefix_space: add_prefix_space.into(),
             device: Device::cuda_if_available(),
         }
     }
@@ -159,7 +164,8 @@ impl Default for SequenceClassificationConfig {
             )),
             merges_resource: None,
             lower_case: true,
-            add_prefix_space: false,
+            strip_accents: None,
+            add_prefix_space: None,
             device: Device::cuda_if_available(),
         }
     }
@@ -361,6 +367,7 @@ impl SequenceClassificationModel {
             vocab_path.to_str().unwrap(),
             merges_path.map(|path| path.to_str().unwrap()),
             config.lower_case,
+            config.strip_accents,
             config.add_prefix_space,
         )?;
         let mut var_store = VarStore::new(device);

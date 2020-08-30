@@ -42,7 +42,8 @@
 //! let weights_path = download_resource(&weights_resource)?;
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
+//! let tokenizer: BertTokenizer =
+//!     BertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
 //! let config = BertConfig::from_file(config_path);
 //! let bert_model = BertForMaskedLM::new(&vs.root(), &config);
 //! vs.load(weights_path)?;

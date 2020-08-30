@@ -191,8 +191,10 @@ pub struct QuestionAnsweringConfig {
     pub model_type: ModelType,
     /// Flag indicating if the model expects a lower casing of the input
     pub lower_case: bool,
+    /// Flag indicating if the tokenizer should strip accents (normalization). Only used for BERT / ALBERT models
+    pub strip_accents: Option<bool>,
     /// Flag indicating if the tokenizer should add a white space before each tokenized input (needed for some Roberta models)
-    pub add_prefix_space: bool,
+    pub add_prefix_space: Option<bool>,
 }
 
 impl QuestionAnsweringConfig {
@@ -213,7 +215,8 @@ impl QuestionAnsweringConfig {
         vocab_resource: Resource,
         merges_resource: Option<Resource>,
         lower_case: bool,
-        add_prefix_space: bool,
+        strip_accents: impl Into<Option<bool>>,
+        add_prefix_space: impl Into<Option<bool>>,
     ) -> QuestionAnsweringConfig {
         QuestionAnsweringConfig {
             model_type,
@@ -222,7 +225,8 @@ impl QuestionAnsweringConfig {
             vocab_resource,
             merges_resource,
             lower_case,
-            add_prefix_space,
+            strip_accents: strip_accents.into(),
+            add_prefix_space: add_prefix_space.into(),
             device: Device::cuda_if_available(),
         }
     }
@@ -244,7 +248,8 @@ impl Default for QuestionAnsweringConfig {
             device: Device::cuda_if_available(),
             model_type: ModelType::DistilBert,
             lower_case: false,
-            add_prefix_space: false,
+            add_prefix_space: None,
+            strip_accents: None,
         }
     }
 }
@@ -417,6 +422,7 @@ impl QuestionAnsweringModel {
             vocab_path.to_str().unwrap(),
             merges_path.map(|path| path.to_str().unwrap()),
             question_answering_config.lower_case,
+            question_answering_config.strip_accents,
             question_answering_config.add_prefix_space,
         )?;
         let pad_idx = tokenizer

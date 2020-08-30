@@ -42,7 +42,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 /// # Identifies the type of model
 pub enum ModelType {
     Bert,
@@ -131,33 +131,106 @@ impl TokenizerOption {
         vocab_path: &str,
         merges_path: Option<&str>,
         lower_case: bool,
-        add_prefix_space: bool,
+        strip_accents: Option<bool>,
+        add_prefix_space: Option<bool>,
     ) -> Result<Self, RustBertError> {
-        Ok(match model_type {
+        let tokenizer = match model_type {
             ModelType::Bert | ModelType::DistilBert | ModelType::Electra => {
-                TokenizerOption::Bert(BertTokenizer::from_file(vocab_path, lower_case)?)
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::Bert(BertTokenizer::from_file(
+                    vocab_path,
+                    lower_case,
+                    strip_accents.unwrap_or(lower_case),
+                )?)
             }
-            ModelType::Roberta => TokenizerOption::Roberta(RobertaTokenizer::from_file(
-                vocab_path,
-                merges_path.expect("No merges specified!"),
-                lower_case,
-                add_prefix_space,
-            )?),
-            ModelType::Marian => TokenizerOption::Marian(MarianTokenizer::from_files(
-                vocab_path,
-                merges_path.expect("No merges specified!"),
-                lower_case,
-            )?),
-            ModelType::T5 => TokenizerOption::T5(T5Tokenizer::from_file(vocab_path, lower_case)?),
+            ModelType::Roberta => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::Roberta(RobertaTokenizer::from_file(
+                    vocab_path,
+                    merges_path.expect("No merges specified!"),
+                    lower_case,
+                    add_prefix_space.unwrap_or(false),
+                )?)
+            }
+            ModelType::Marian => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::Marian(MarianTokenizer::from_files(
+                    vocab_path,
+                    merges_path.expect("No merges specified!"),
+                    lower_case,
+                )?)
+            }
+            ModelType::T5 => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::T5(T5Tokenizer::from_file(vocab_path, lower_case)?)
+            }
             ModelType::XLMRoberta => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
                 TokenizerOption::XLMRoberta(XLMRobertaTokenizer::from_file(vocab_path, lower_case)?)
             }
-            ModelType::Albert => TokenizerOption::Albert(AlbertTokenizer::from_file(
-                vocab_path,
-                lower_case,
-                !lower_case,
-            )?),
-        })
+            ModelType::Albert => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::Albert(AlbertTokenizer::from_file(
+                    vocab_path,
+                    lower_case,
+                    strip_accents.unwrap_or(lower_case),
+                )?)
+            }
+        };
+        Ok(tokenizer)
     }
 
     /// Returns the model type

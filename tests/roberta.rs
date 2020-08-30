@@ -346,6 +346,7 @@ fn roberta_question_answering() -> anyhow::Result<()> {
             RobertaMergesResources::ROBERTA_QA,
         ))), //merges resource only relevant with ModelType::Roberta
         true, //lowercase
+        None,
         true,
     );
 
