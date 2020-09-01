@@ -171,7 +171,7 @@ impl Default for SequenceClassificationConfig {
     }
 }
 
-/// # Abstraction that holds one particular token sequence classifier model, for any of the supported models
+/// # Abstraction that holds one particular sequence classification model, for any of the supported models
 pub enum SequenceClassificationOption {
     /// Bert for Sequence Classification
     Bert(BertForSequenceClassification),

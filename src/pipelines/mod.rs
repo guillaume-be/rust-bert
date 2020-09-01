@@ -270,3 +270,4 @@ pub mod sequence_classification;
 pub mod summarization;
 pub mod token_classification;
 pub mod translation;
+pub mod zero_shot_classification;

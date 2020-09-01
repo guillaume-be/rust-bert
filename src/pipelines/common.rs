@@ -45,6 +45,7 @@ use std::path::Path;
 #[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 /// # Identifies the type of model
 pub enum ModelType {
+    Bart,
     Bert,
     DistilBert,
     Roberta,
@@ -57,6 +58,8 @@ pub enum ModelType {
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
 pub enum ConfigOption {
+    /// Bart configuration
+    Bart(BartConfig),
     /// Bert configuration
     Bert(BertConfig),
     /// DistilBert configuration
@@ -91,6 +94,7 @@ impl ConfigOption {
     /// Interface method to load a configuration from file
     pub fn from_file(model_type: ModelType, path: &Path) -> Self {
         match model_type {
+            ModelType::Bart => ConfigOption::Bart(BartConfig::from_file(path)),
             ModelType::Bert | ModelType::Roberta | ModelType::XLMRoberta => {
                 ConfigOption::Bert(BertConfig::from_file(path))
             }
@@ -104,6 +108,9 @@ impl ConfigOption {
 
     pub fn get_label_mapping(self) -> HashMap<i64, String> {
         match self {
+            Self::Bart(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Bert(config) => config
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
@@ -148,7 +155,7 @@ impl TokenizerOption {
                     strip_accents.unwrap_or(lower_case),
                 )?)
             }
-            ModelType::Roberta => {
+            ModelType::Roberta | ModelType::Bart => {
                 if strip_accents.is_some() {
                     return Err(RustBertError::InvalidConfigurationError(format!(
                         "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
