@@ -575,7 +575,7 @@ impl TokenClassificationModel {
         input: &[&str],
         consolidate_sub_tokens: bool,
         return_special: bool,
-    ) -> Result<Vec<Token>, RustBertError> {
+    ) -> Vec<Token> {
         let (tokenized_input, input_tensor) = self.prepare_for_model(input.to_vec());
         let output = no_grad(|| {
             self.token_sequence_classifier.forward_t(
@@ -622,7 +622,7 @@ impl TokenClassificationModel {
         if consolidate_sub_tokens {
             self.consolidate_tokens(&mut tokens, &self.label_aggregation_function);
         }
-        Ok(tokens)
+        tokens
     }
 
     fn decode_token(

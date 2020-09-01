@@ -21,7 +21,6 @@ use crate::distilbert::DistilBertModelClassifier;
 use crate::pipelines::common::{ConfigOption, ModelType};
 use crate::resources::{RemoteResource, Resource};
 use crate::roberta::RobertaForSequenceClassification;
-use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::{nn, Device, Tensor};
 
@@ -228,54 +227,62 @@ impl ZeroShotClassificationOption {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<Tensor, RustBertError> {
+    ) -> Tensor {
         match *self {
-            Self::Bart(ref model) => match input_ids {
-                Some(input_ids) => Ok(model
-                    .forward_t(&input_ids, mask.as_ref(), None, None, None, train)
-                    .0),
-                None => {
-                    return {
-                        Err(RustBertError::ValueError(
-                            "`input_ids` must be provided when using a BART model".to_string(),
-                        ))
-                    }
-                }
-            },
-            Self::Bert(ref model) => Ok(model
-                .forward_t(
-                    input_ids,
-                    mask,
-                    token_type_ids,
-                    position_ids,
-                    input_embeds,
-                    train,
-                )
-                .0),
-            Self::DistilBert(ref model) => Ok(model
-                .forward_t(input_ids, mask, input_embeds, train)
-                .expect("Error in distilbert forward_t")
-                .0),
-            Self::Roberta(ref model) | Self::XLMRoberta(ref model) => Ok(model
-                .forward_t(
-                    input_ids,
-                    mask,
-                    token_type_ids,
-                    position_ids,
-                    input_embeds,
-                    train,
-                )
-                .0),
-            Self::Albert(ref model) => Ok(model
-                .forward_t(
-                    input_ids,
-                    mask,
-                    token_type_ids,
-                    position_ids,
-                    input_embeds,
-                    train,
-                )
-                .0),
+            Self::Bart(ref model) => {
+                model
+                    .forward_t(
+                        &input_ids.expect("`input_ids` must be provided for BART models"),
+                        mask.as_ref(),
+                        None,
+                        None,
+                        None,
+                        train,
+                    )
+                    .0
+            }
+            Self::Bert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
+            Self::DistilBert(ref model) => {
+                model
+                    .forward_t(input_ids, mask, input_embeds, train)
+                    .expect("Error in distilbert forward_t")
+                    .0
+            }
+            Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
+            Self::Albert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
         }
     }
 }

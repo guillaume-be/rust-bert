@@ -188,10 +188,9 @@ impl NERModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(&self, input: &[&str]) -> Result<Vec<Entity>, RustBertError> {
-        Ok(self
-            .token_classification_model
-            .predict(input, true, false)?
+    pub fn predict(&self, input: &[&str]) -> Vec<Entity> {
+        self.token_classification_model
+            .predict(input, true, false)
             .into_iter()
             .filter(|token| token.label != "O")
             .map(|token| Entity {
@@ -199,6 +198,6 @@ impl NERModel {
                 score: token.score,
                 label: token.label,
             })
-            .collect())
+            .collect()
     }
 }

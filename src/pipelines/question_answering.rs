@@ -506,7 +506,7 @@ impl QuestionAnsweringModel {
         qa_inputs: &[QaInput],
         top_k: i64,
         batch_size: usize,
-    ) -> Result<Vec<Vec<Answer>>, RustBertError> {
+    ) -> Vec<Vec<Answer>> {
         let examples: Vec<QaExample> = qa_inputs
             .iter()
             .map(|qa_input| QaExample::new(&qa_input.question, &qa_input.context))
@@ -620,7 +620,7 @@ impl QuestionAnsweringModel {
                 all_answers.push(vec![]);
             }
         }
-        Ok(all_answers)
+        all_answers
     }
 
     fn decode(&self, start: &Tensor, end: &Tensor, top_k: i64) -> (Vec<i64>, Vec<i64>, Vec<f64>) {

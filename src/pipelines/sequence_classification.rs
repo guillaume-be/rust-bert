@@ -289,54 +289,62 @@ impl SequenceClassificationOption {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<Tensor, RustBertError> {
+    ) -> Tensor {
         match *self {
-            Self::Bart(ref model) => match input_ids {
-                Some(input_ids) => Ok(model
-                    .forward_t(&input_ids, mask.as_ref(), None, None, None, train)
-                    .0),
-                None => {
-                    return {
-                        Err(RustBertError::ValueError(
-                            "`input_ids` must be provided when using a BART model".to_string(),
-                        ))
-                    }
-                }
-            },
-            Self::Bert(ref model) => Ok(model
-                .forward_t(
-                    input_ids,
-                    mask,
-                    token_type_ids,
-                    position_ids,
-                    input_embeds,
-                    train,
-                )
-                .0),
-            Self::DistilBert(ref model) => Ok(model
-                .forward_t(input_ids, mask, input_embeds, train)
-                .expect("Error in distilbert forward_t")
-                .0),
-            Self::Roberta(ref model) | Self::XLMRoberta(ref model) => Ok(model
-                .forward_t(
-                    input_ids,
-                    mask,
-                    token_type_ids,
-                    position_ids,
-                    input_embeds,
-                    train,
-                )
-                .0),
-            Self::Albert(ref model) => Ok(model
-                .forward_t(
-                    input_ids,
-                    mask,
-                    token_type_ids,
-                    position_ids,
-                    input_embeds,
-                    train,
-                )
-                .0),
+            Self::Bart(ref model) => {
+                model
+                    .forward_t(
+                        &input_ids.expect("`input_ids` must be provided for BART models"),
+                        mask.as_ref(),
+                        None,
+                        None,
+                        None,
+                        train,
+                    )
+                    .0
+            }
+            Self::Bert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
+            Self::DistilBert(ref model) => {
+                model
+                    .forward_t(input_ids, mask, input_embeds, train)
+                    .expect("Error in distilbert forward_t")
+                    .0
+            }
+            Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
+            Self::Albert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .0
+            }
         }
     }
 }
@@ -448,19 +456,19 @@ impl SequenceClassificationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(&self, input: &[&str]) -> Result<Vec<Label>, RustBertError> {
+    pub fn predict(&self, input: &[&str]) -> Vec<Label> {
         let input_tensor = self.prepare_for_model(input.to_vec());
         let output = no_grad(|| {
-            self.sequence_classifier.forward_t(
+            let output = self.sequence_classifier.forward_t(
                 Some(input_tensor.copy()),
                 None,
                 None,
                 None,
                 None,
                 false,
-            )
-        })?;
-        let output = output.softmax(-1, Kind::Float).detach().to(Device::Cpu);
+            );
+            output.softmax(-1, Kind::Float).detach().to(Device::Cpu)
+        });
         let label_indices = output.as_ref().argmax(-1, true).squeeze1(1);
         let scores = output
             .gather(1, &label_indices.unsqueeze(-1), false)
@@ -483,7 +491,7 @@ impl SequenceClassificationModel {
             };
             labels.push(label)
         }
-        Ok(labels)
+        labels
     }
 
     /// Multi-label classification of texts
@@ -520,16 +528,16 @@ impl SequenceClassificationModel {
     ) -> Result<Vec<Vec<Label>>, RustBertError> {
         let input_tensor = self.prepare_for_model(input.to_vec());
         let output = no_grad(|| {
-            self.sequence_classifier.forward_t(
+            let output = self.sequence_classifier.forward_t(
                 Some(input_tensor.copy()),
                 None,
                 None,
                 None,
                 None,
                 false,
-            )
-        })?;
-        let output = output.sigmoid().detach().to(Device::Cpu);
+            );
+            output.sigmoid().detach().to(Device::Cpu)
+        });
         let label_indices = output.as_ref().ge(threshold).nonzero();
 
         let mut labels: Vec<Vec<Label>> = vec![];
