@@ -137,8 +137,8 @@ impl SentimentModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(&self, input: &[&str]) -> Vec<Sentiment> {
-        let labels = self.sequence_classification_model.predict(input);
+    pub fn predict(&self, input: &[&str]) -> Result<Vec<Sentiment>, RustBertError> {
+        let labels = self.sequence_classification_model.predict(input)?;
         let mut sentiments = Vec::with_capacity(labels.len());
         for label in labels {
             let polarity = if label.id == 1 {
@@ -151,7 +151,7 @@ impl SentimentModel {
                 score: label.score,
             })
         }
-        sentiments
+        Ok(sentiments)
     }
 }
 

@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
     let qa_inputs = squad_processor(squad_path);
 
     //    Get answer
-    let answers = qa_model.predict(&qa_inputs, 1, 64);
+    let answers = qa_model.predict(&qa_inputs, 1, 64)?;
     println!("Sample answer: {:?}", answers.first().unwrap());
     println!("{}", answers.len());
     Ok(())

@@ -328,6 +328,9 @@ impl QuestionAnsweringOption {
             ModelType::T5 => {
                 panic!("QuestionAnswering not implemented for T5!");
             }
+            ModelType::Bart => {
+                panic!("QuestionAnswering not implemented for BART!");
+            }
         }
     }
 
@@ -503,7 +506,7 @@ impl QuestionAnsweringModel {
         qa_inputs: &[QaInput],
         top_k: i64,
         batch_size: usize,
-    ) -> Vec<Vec<Answer>> {
+    ) -> Result<Vec<Vec<Answer>>, RustBertError> {
         let examples: Vec<QaExample> = qa_inputs
             .iter()
             .map(|qa_input| QaExample::new(&qa_input.question, &qa_input.context))
@@ -617,7 +620,7 @@ impl QuestionAnsweringModel {
                 all_answers.push(vec![]);
             }
         }
-        all_answers
+        Ok(all_answers)
     }
 
     fn decode(&self, start: &Tensor, end: &Tensor, top_k: i64) -> (Vec<i64>, Vec<i64>, Vec<f64>) {

@@ -361,7 +361,7 @@ fn bert_pre_trained_ner() -> anyhow::Result<()> {
     ];
 
     //    Run model
-    let output = ner_model.predict(&input);
+    let output = ner_model.predict(&input)?;
 
     assert_eq!(output.len(), 4);
 
@@ -407,7 +407,7 @@ fn bert_question_answering() -> anyhow::Result<()> {
     let context = String::from("Amy lives in Amsterdam");
     let qa_input = QaInput { question, context };
 
-    let answers = qa_model.predict(&vec![qa_input], 1, 32);
+    let answers = qa_model.predict(&vec![qa_input], 1, 32)?;
 
     assert_eq!(answers.len(), 1 as usize);
     assert_eq!(answers[0].len(), 1 as usize);

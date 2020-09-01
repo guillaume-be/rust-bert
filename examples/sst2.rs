@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
                     .map(|v| v.as_str())
                     .collect::<Vec<&str>>()
                     .as_slice(),
-            ),
+            )?,
         );
     }
     let mut flat_outputs = vec![];

@@ -357,7 +357,7 @@ fn roberta_question_answering() -> anyhow::Result<()> {
     let context = String::from("Amy lives in Amsterdam");
     let qa_input = QaInput { question, context };
 
-    let answers = qa_model.predict(&vec![qa_input], 1, 32);
+    let answers = qa_model.predict(&vec![qa_input], 1, 32)?;
 
     assert_eq!(answers.len(), 1 as usize);
     assert_eq!(answers[0].len(), 1 as usize);
@@ -396,7 +396,7 @@ fn xlm_roberta_german_ner() -> anyhow::Result<()> {
         "Chongqing ist eine Stadt in China.",
     ];
 
-    let output = ner_model.predict(&input);
+    let output = ner_model.predict(&input)?;
 
     assert_eq!(output.len(), 4);
 
