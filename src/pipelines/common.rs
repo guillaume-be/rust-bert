@@ -282,6 +282,36 @@ impl TokenizerOption {
         }
     }
 
+    /// Interface method for pair encoding
+    pub fn encode_pair_list(
+        &self,
+        text_pair_list: Vec<(&str, &str)>,
+        max_len: usize,
+        truncation_strategy: &TruncationStrategy,
+        stride: usize,
+    ) -> Vec<TokenizedInput> {
+        match *self {
+            Self::Bert(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::Roberta(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::Marian(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::T5(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::Albert(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+        }
+    }
+
     /// Interface method to tokenization
     pub fn tokenize(&self, text: &str) -> Vec<String> {
         match *self {
