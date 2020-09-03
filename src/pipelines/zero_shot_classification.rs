@@ -89,7 +89,7 @@ impl Default for ZeroShotClassificationConfig {
     /// Provides a defaultSST-2 sentiment analysis model (English)
     fn default() -> ZeroShotClassificationConfig {
         ZeroShotClassificationConfig {
-            model_type: ModelType::DistilBert,
+            model_type: ModelType::Bart,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 BartModelResources::BART_MNLI,
             )),
@@ -293,7 +293,7 @@ impl ZeroShotClassificationOption {
 /// # ZeroShotClassificationModel for Zero Shot Classification
 pub struct ZeroShotClassificationModel {
     tokenizer: TokenizerOption,
-    sequence_classifier: ZeroShotClassificationOption,
+    zero_shot_classifier: ZeroShotClassificationOption,
     var_store: VarStore,
 }
 
@@ -342,21 +342,18 @@ impl ZeroShotClassificationModel {
         var_store.load(weights_path)?;
         Ok(ZeroShotClassificationModel {
             tokenizer,
-            sequence_classifier,
+            zero_shot_classifier: sequence_classifier,
             var_store,
         })
     }
 
-    fn prepare_for_model<F>(
+    pub fn prepare_for_model(
         &self,
         input: &[&str],
         labels: &[&str],
-        template: Option<F>,
+        template: Option<Box<dyn Fn(&str) -> String>>,
         max_len: usize,
-    ) -> Tensor
-    where
-        F: Fn(&str) -> String,
-    {
+    ) -> Tensor {
         let label_sentences: Vec<String> = match template {
             Some(function) => labels.into_iter().map(|label| function(label)).collect(),
             None => labels
@@ -382,15 +379,18 @@ impl ZeroShotClassificationModel {
             .map(|input| input.token_ids.len())
             .max()
             .unwrap();
-        let tokenized_input_tensors: Vec<tch::Tensor> = tokenized_input
-            .iter()
-            .map(|input| input.token_ids.clone())
-            .map(|mut input| {
-                input.extend(vec![0; max_len - input.len()]);
-                input
-            })
-            .map(|input| Tensor::of_slice(&(input)))
-            .collect::<Vec<_>>();
+        let tokenized_input_tensors: Vec<tch::Tensor> =
+            tokenized_input
+                .iter()
+                .map(|input| input.token_ids.clone())
+                .map(|mut input| {
+                    input.extend(vec![self.tokenizer.get_pad_id().expect(
+                        "The Tokenizer used for zero shot classification should contain a PAD id"
+                    ); max_len - input.len()]);
+                    input
+                })
+                .map(|input| Tensor::of_slice(&(input)))
+                .collect::<Vec<_>>();
         Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())
     }
     //

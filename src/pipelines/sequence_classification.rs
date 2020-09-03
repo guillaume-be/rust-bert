@@ -422,7 +422,12 @@ impl SequenceClassificationModel {
             .iter()
             .map(|input| input.token_ids.clone())
             .map(|mut input| {
-                input.extend(vec![self.tokenizer.get_pad_id(); max_len - input.len()]);
+                input.extend(vec![
+                    self.tokenizer.get_pad_id().expect(
+                        "The Tokenizer used for sequence classification should contain a PAD id"
+                    );
+                    max_len - input.len()
+                ]);
                 input
             })
             .map(|input| Tensor::of_slice(&(input)))
