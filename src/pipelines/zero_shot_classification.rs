@@ -19,13 +19,15 @@ use crate::bart::{
 use crate::bert::BertForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::pipelines::sequence_classification::Label;
 use crate::resources::{download_resource, RemoteResource, Resource};
 use crate::roberta::RobertaForSequenceClassification;
 use crate::RustBertError;
+use itertools::Itertools;
 use rust_tokenizers::{TokenizedInput, TruncationStrategy};
 use std::borrow::Borrow;
 use tch::nn::VarStore;
-use tch::{nn, Device, Tensor};
+use tch::{nn, no_grad, Device, Tensor};
 
 /// # Configuration for ZeroShotClassificationModel
 /// Contains information regarding the model to load and device to place the model on.
@@ -347,24 +349,24 @@ impl ZeroShotClassificationModel {
         })
     }
 
-    pub fn prepare_for_model(
+    fn prepare_for_model(
         &self,
-        input: &[&str],
+        inputs: &[&str],
         labels: &[&str],
         template: Option<Box<dyn Fn(&str) -> String>>,
         max_len: usize,
     ) -> Tensor {
         let label_sentences: Vec<String> = match template {
-            Some(function) => labels.into_iter().map(|label| function(label)).collect(),
+            Some(function) => labels.iter().map(|label| function(label)).collect(),
             None => labels
                 .into_iter()
-                .map(|&label| format!("This example is {}.", label))
+                .map(|label| format!("This example is {}.", label))
                 .collect(),
         };
 
-        let text_pair_list = input
+        let text_pair_list = inputs
             .into_iter()
-            .zip(label_sentences.iter())
+            .cartesian_product(label_sentences.iter())
             .map(|(&s, label)| (s, label.as_str()))
             .collect();
 
@@ -393,68 +395,77 @@ impl ZeroShotClassificationModel {
                 .collect::<Vec<_>>();
         Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())
     }
-    //
-    // /// Classify texts
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `input` - `&[&str]` Array of texts to classify.
-    // ///
-    // /// # Returns
-    // ///
-    // /// * `Vec<Label>` containing labels for input texts
-    // ///
-    // /// # Example
-    // ///
-    // /// ```no_run
-    // /// # fn main() -> anyhow::Result<()> {
-    // /// # use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
-    // ///
-    // /// let sequence_classification_model =  SequenceClassificationModel::new(Default::default())?;
-    // /// let input = [
-    // ///     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
-    // ///     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
-    // ///     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
-    // /// ];
-    // /// let output = sequence_classification_model.predict(&input);
-    // /// # Ok(())
-    // /// # }
-    // /// ```
-    // pub fn predict(&self, input: &[&str]) -> Vec<Label> {
-    //     let input_tensor = self.prepare_for_model(input.to_vec());
-    //     let output = no_grad(|| {
-    //         let output = self.sequence_classifier.forward_t(
-    //             Some(input_tensor.copy()),
-    //             None,
-    //             None,
-    //             None,
-    //             None,
-    //             false,
-    //         );
-    //         output.softmax(-1, Kind::Float).detach().to(Device::Cpu)
-    //     });
-    //     let label_indices = output.as_ref().argmax(-1, true).squeeze1(1);
-    //     let scores = output
-    //         .gather(1, &label_indices.unsqueeze(-1), false)
-    //         .squeeze1(1);
-    //     let label_indices = label_indices.iter::<i64>().unwrap().collect::<Vec<i64>>();
-    //     let scores = scores.iter::<f64>().unwrap().collect::<Vec<f64>>();
-    //
-    //     let mut labels: Vec<Label> = vec![];
-    //     for sentence_idx in 0..label_indices.len() {
-    //         let label_string = self
-    //             .label_mapping
-    //             .get(&label_indices[sentence_idx])
-    //             .unwrap()
-    //             .clone();
-    //         let label = Label {
-    //             text: label_string,
-    //             score: scores[sentence_idx],
-    //             id: label_indices[sentence_idx],
-    //             sentence: sentence_idx,
-    //         };
-    //         labels.push(label)
-    //     }
-    //     labels
-    // }
+
+    /// Classify texts
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - `&[&str]` Array of texts to classify.
+    /// * `labels` - `&[&str]` Possible labels for the inputs.
+    /// * `multilabel` - `bool` Flag indicating if 1 and exactly 1 label per sentence is true, or if 0, 1 or more labels can be true for each sentence.
+    ///
+    /// # Returns
+    ///
+    /// * `Vec<Vec<Label>>` containing a vector of labels for each input text
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// # use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
+    ///
+    /// let sequence_classification_model =  SequenceClassificationModel::new(Default::default())?;
+    /// let input = [
+    ///     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
+    ///     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
+    ///     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
+    /// ];
+    /// let output = sequence_classification_model.predict(&input);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn predict(
+        &self,
+        inputs: &[&str],
+        labels: &[&str],
+        template: Option<Box<dyn Fn(&str) -> String>>,
+        max_length: usize,
+    ) -> Vec<Vec<Label>> {
+        let num_inputs = inputs.len();
+        let input_tensor = self.prepare_for_model(inputs, labels, template, max_length);
+        let output = no_grad(|| {
+            let output = self.sequence_classifier.forward_t(
+                Some(input_tensor),
+                None,
+                None,
+                None,
+                None,
+                false,
+            );
+            // output.softmax(-1, Kind::Float).detach().to(Device::Cpu)
+        });
+        let label_indices = output.as_ref().argmax(-1, true).squeeze1(1);
+        let scores = output
+            .gather(1, &label_indices.unsqueeze(-1), false)
+            .squeeze1(1);
+        let label_indices = label_indices.iter::<i64>().unwrap().collect::<Vec<i64>>();
+        let scores = scores.iter::<f64>().unwrap().collect::<Vec<f64>>();
+
+        let mut labels: Vec<Label> = vec![];
+        for sentence_idx in 0..label_indices.len() {
+            let label_string = self
+                .label_mapping
+                .get(&label_indices[sentence_idx])
+                .unwrap()
+                .clone();
+            let label = Label {
+                text: label_string,
+                score: scores[sentence_idx],
+                id: label_indices[sentence_idx],
+                sentence: sentence_idx,
+            };
+            labels.push(label)
+        }
+        labels
+    }
 }
