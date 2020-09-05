@@ -36,7 +36,7 @@
 //!     local_path: PathBuf::from("path/to/vocab.txt"),
 //! });
 //! let merges_resource = Resource::Local(LocalResource {
-//!     local_path: PathBuf::from("path/to/vocab.txt"),
+//!     local_path: PathBuf::from("path/to/merges.txt"),
 //! });
 //! let weights_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/model.ot"),
