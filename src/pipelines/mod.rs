@@ -176,7 +176,86 @@
 //! # ;
 //! ```
 //!
-//! #### 6. Sentiment analysis
+//! #### 6. Zero-shot classification
+//! Performs zero-shot classification on input sentences with provided labels using a model fine-tuned for Natural Language Inference.
+//! ```no_run
+//! # use rust_bert::pipelines::zero_shot_classification::ZeroShotClassificationModel;
+//! # fn main() -> anyhow::Result<()> {
+//! let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
+//!  let input_sentence = "Who are you voting for in 2020?";
+//!  let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
+//!  let candidate_labels = &["politics", "public health", "economics", "sports"];
+//!  let output = sequence_classification_model.predict_multilabel(
+//!      &[input_sentence, input_sequence_2],
+//!      candidate_labels,
+//!      None,
+//!      128,
+//!  );
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! outputs:
+//! ```no_run
+//! # use rust_bert::pipelines::sequence_classification::Label;
+//! let output = [
+//!     [
+//!         Label {
+//!             text: "politics".to_string(),
+//!             score: 0.972,
+//!             id: 0,
+//!             sentence: 0,
+//!         },
+//!         Label {
+//!             text: "public health".to_string(),
+//!             score: 0.032,
+//!             id: 1,
+//!             sentence: 0,
+//!         },
+//!         Label {
+//!             text: "economics".to_string(),
+//!             score: 0.006,
+//!             id: 2,
+//!             sentence: 0,
+//!         },
+//!         Label {
+//!             text: "sports".to_string(),
+//!             score: 0.004,
+//!             id: 3,
+//!             sentence: 0,
+//!         },
+//!     ],
+//!     [
+//!         Label {
+//!             text: "politics".to_string(),
+//!             score: 0.975,
+//!             id: 0,
+//!             sentence: 1,
+//!         },
+//!         Label {
+//!             text: "economics".to_string(),
+//!             score: 0.852,
+//!             id: 2,
+//!             sentence: 1,
+//!         },
+//!         Label {
+//!             text: "public health".to_string(),
+//!             score: 0.0818,
+//!             id: 1,
+//!             sentence: 1,
+//!         },
+//!         Label {
+//!             text: "sports".to_string(),
+//!             score: 0.001,
+//!             id: 3,
+//!             sentence: 1,
+//!         },
+//!     ],
+//! ]
+//! .to_vec();
+//! ```
+//!
+//! #### 7. Sentiment analysis
 //! Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 //! ```no_run
 //! use rust_bert::pipelines::sentiment::SentimentModel;
@@ -215,7 +294,7 @@
 //! # ;
 //! ```
 //!
-//! #### 7. Named Entity Recognition
+//! #### 8. Named Entity Recognition
 //! Extracts entities (Person, Location, Organization, Miscellaneous) from text. The default NER mode is an English BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 //! Additional pre-trained models are available for English, German, Spanish and Dutch.
 //! ```no_run

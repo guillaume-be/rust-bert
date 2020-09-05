@@ -10,6 +10,7 @@
 //!     - Translation
 //!     - Summarization
 //!     - Multi-turn dialogue
+//!     - Zero-shot classification
 //!     - Sentiment Analysis
 //!     - Named Entity Recognition
 //!     - Question-Answering
