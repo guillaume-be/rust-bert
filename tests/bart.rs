@@ -3,6 +3,7 @@ use rust_bert::bart::{
     BartVocabResources,
 };
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
+use rust_bert::pipelines::zero_shot_classification::ZeroShotClassificationModel;
 use rust_bert::resources::{download_resource, RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::{RobertaTokenizer, Tokenizer, TruncationStrategy};
@@ -154,5 +155,77 @@ about exoplanets like K2-18b."];
     Montreal team used data from the NASA's Hubble telescope to assess changes in the light coming from the \
     star as the planet passed between it and Earth.");
 
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
+fn bart_zero_shot_classification() -> anyhow::Result<()> {
+    //    Set-up model model
+    let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
+
+    let input_sentence = "Who are you voting for in 2020?";
+    let input_sequence_2 = "The prime minister has announced a stimulus package.";
+    let candidate_labels = &["politics", "public health", "economics", "sports"];
+
+    let output = sequence_classification_model.predict(
+        &[input_sentence, input_sequence_2],
+        candidate_labels,
+        Some(Box::new(|label: &str| {
+            format!("This example is about {}.", label)
+        })),
+        128,
+    );
+
+    assert_eq!(output.len(), 2);
+
+    // Prediction scores
+    assert_eq!(output[0].text, "politics");
+    assert!((output[0].score - 0.9679).abs() < 1e-4);
+    assert_eq!(output[1].text, "economics");
+    assert!((output[1].score - 0.5208).abs() < 1e-4);
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
+fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
+    //    Set-up model model
+    let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
+
+    let input_sentence = "Who are you voting for in 2020?";
+    let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
+    let candidate_labels = &["politics", "public health", "economics", "sports"];
+
+    let output = sequence_classification_model.predict_multilabel(
+        &[input_sentence, input_sequence_2],
+        candidate_labels,
+        Some(Box::new(|label: &str| {
+            format!("This example is about {}.", label)
+        })),
+        128,
+    );
+
+    assert_eq!(output.len(), 2);
+    assert_eq!(output[0].len(), candidate_labels.len());
+    // First sentence label scores
+    assert_eq!(output[0][0].text, "politics");
+    assert!((output[0][0].score - 0.9805).abs() < 1e-4);
+    assert_eq!(output[0][1].text, "public health");
+    assert!((output[0][1].score - 0.0130).abs() < 1e-4);
+    assert_eq!(output[0][2].text, "economics");
+    assert!((output[0][2].score - 0.0041).abs() < 1e-4);
+    assert_eq!(output[0][3].text, "sports");
+    assert!((output[0][3].score - 0.0013).abs() < 1e-4);
+
+    // Second sentence label scores
+    assert_eq!(output[1][0].text, "politics");
+    assert!((output[1][0].score - 0.9432).abs() < 1e-4);
+    assert_eq!(output[1][1].text, "public health");
+    assert!((output[1][1].score - 0.0045).abs() < 1e-4);
+    assert_eq!(output[1][2].text, "economics");
+    assert!((output[1][2].score - 0.9001).abs() < 1e-4);
+    assert_eq!(output[1][3].text, "sports");
+    assert!((output[1][3].score - 0.0004).abs() < 1e-4);
     Ok(())
 }

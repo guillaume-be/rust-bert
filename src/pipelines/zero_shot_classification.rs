@@ -361,7 +361,7 @@ impl ZeroShotClassificationModel {
             Some(function) => labels.iter().map(|label| function(label)).collect(),
             None => labels
                 .into_iter()
-                .map(|label| format!("This example is {}.", label))
+                .map(|label| format!("This example is about {}.", label))
                 .collect(),
         };
 
@@ -442,6 +442,26 @@ impl ZeroShotClassificationModel {
     /// # Ok(())
     /// # }
     /// ```
+    ///
+    /// outputs:
+    /// ```no_run
+    /// # use rust_bert::pipelines::sequence_classification::Label;
+    /// let output = [
+    ///     Label {
+    ///         text: "politics".to_string(),
+    ///         score: 0.959,
+    ///         id: 0,
+    ///         sentence: 0,
+    ///     },
+    ///     Label {
+    ///         text: "economics".to_string(),
+    ///         score: 0.655,
+    ///         id: 2,
+    ///         sentence: 1,
+    ///     },
+    /// ]
+    /// .to_vec();
+    /// ```
     pub fn predict(
         &self,
         inputs: &[&str],
@@ -465,7 +485,6 @@ impl ZeroShotClassificationModel {
 
         let scores = output.softmax(1, Float).select(-1, -1);
         let label_indices = scores.as_ref().argmax(-1, true).squeeze1(1);
-        label_indices.print();
         let scores = scores
             .gather(1, &label_indices.unsqueeze(-1), false)
             .squeeze1(1);
@@ -576,7 +595,8 @@ impl ZeroShotClassificationModel {
     ///             sentence: 1,
     ///         },
     ///     ],
-    /// ];
+    /// ]
+    /// .to_vec();
     /// ```
     pub fn predict_multilabel(
         &self,
