@@ -26,6 +26,7 @@ use crate::RustBertError;
 use itertools::Itertools;
 use rust_tokenizers::{TokenizedInput, TruncationStrategy};
 use std::borrow::Borrow;
+use tch::kind::Kind::{Bool, Float};
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
 
@@ -339,12 +340,12 @@ impl ZeroShotClassificationModel {
         )?;
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
-        let sequence_classifier =
+        let zero_shot_classifier =
             ZeroShotClassificationOption::new(config.model_type, &var_store.root(), &model_config);
         var_store.load(weights_path)?;
         Ok(ZeroShotClassificationModel {
             tokenizer,
-            zero_shot_classifier: sequence_classifier,
+            zero_shot_classifier,
             var_store,
         })
     }
@@ -355,7 +356,7 @@ impl ZeroShotClassificationModel {
         labels: &[&str],
         template: Option<Box<dyn Fn(&str) -> String>>,
         max_len: usize,
-    ) -> Tensor {
+    ) -> (Tensor, Tensor) {
         let label_sentences: Vec<String> = match template {
             Some(function) => labels.iter().map(|label| function(label)).collect(),
             None => labels
@@ -393,34 +394,51 @@ impl ZeroShotClassificationModel {
                 })
                 .map(|input| Tensor::of_slice(&(input)))
                 .collect::<Vec<_>>();
-        Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())
+
+        let mask = input_tensor
+            .ne(self
+                .tokenizer
+                .get_pad_id()
+                .expect("The Tokenizer used for zero shot classification should contain a PAD id"))
+            .to_kind(Bool);
+
+        (
+            Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device()),
+            mask,
+        )
     }
 
-    /// Classify texts
+    /// Zero shot classification with 1 (and exactly 1) true label.
     ///
     /// # Arguments
     ///
     /// * `input` - `&[&str]` Array of texts to classify.
     /// * `labels` - `&[&str]` Possible labels for the inputs.
-    /// * `multilabel` - `bool` Flag indicating if 1 and exactly 1 label per sentence is true, or if 0, 1 or more labels can be true for each sentence.
+    /// * `template` - `Option<Box<dyn Fn(&str) -> String>>` closure to build label propositions. If None, will default to `"This example is {}."`.
+    /// * `max_length` -`usize` Maximum sequence length for the inputs. If needed, the input sequence will be truncated before the label template.
     ///
     /// # Returns
     ///
-    /// * `Vec<Vec<Label>>` containing a vector of labels for each input text
+    /// * `Vec<Label>` containing with the most likely label for each input sentence.
     ///
     /// # Example
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// # use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
+    /// use rust_bert::pipelines::zero_shot_classification::ZeroShotClassificationModel;
     ///
-    /// let sequence_classification_model =  SequenceClassificationModel::new(Default::default())?;
-    /// let input = [
-    ///     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
-    ///     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
-    ///     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
-    /// ];
-    /// let output = sequence_classification_model.predict(&input);
+    /// let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
+    ///
+    /// let input_sentence = "Who are you voting for in 2020?";
+    /// let input_sequence_2 = "The central bank is meeting today to discuss monetary policy.";
+    /// let candidate_labels = &["politics", "public health", "economics", "sports"];
+    ///
+    /// let output = sequence_classification_model.predict(
+    ///     &[input_sentence, input_sequence_2],
+    ///     candidate_labels,
+    ///     None,
+    ///     128,
+    /// );
     /// # Ok(())
     /// # }
     /// ```
@@ -430,42 +448,119 @@ impl ZeroShotClassificationModel {
         labels: &[&str],
         template: Option<Box<dyn Fn(&str) -> String>>,
         max_length: usize,
-    ) -> Vec<Vec<Label>> {
+    ) -> Vec<Label> {
         let num_inputs = inputs.len();
-        let input_tensor = self.prepare_for_model(inputs, labels, template, max_length);
+        let (input_tensor, mask) = self.prepare_for_model(inputs, labels, template, max_length);
         let output = no_grad(|| {
-            let output = self.sequence_classifier.forward_t(
+            let output = self.zero_shot_classifier.forward_t(
                 Some(input_tensor),
-                None,
+                Some(mask),
                 None,
                 None,
                 None,
                 false,
             );
-            // output.softmax(-1, Kind::Float).detach().to(Device::Cpu)
+            output.view((num_inputs as i64, labels.len() as i64, -1i64))
         });
-        let label_indices = output.as_ref().argmax(-1, true).squeeze1(1);
-        let scores = output
+
+        let scores = output.softmax(1, Float).select(-1, -1);
+        let label_indices = scores.as_ref().argmax(-1, true).squeeze1(1);
+        label_indices.print();
+        let scores = scores
             .gather(1, &label_indices.unsqueeze(-1), false)
             .squeeze1(1);
         let label_indices = label_indices.iter::<i64>().unwrap().collect::<Vec<i64>>();
         let scores = scores.iter::<f64>().unwrap().collect::<Vec<f64>>();
 
-        let mut labels: Vec<Label> = vec![];
+        let mut output_labels: Vec<Label> = vec![];
         for sentence_idx in 0..label_indices.len() {
-            let label_string = self
-                .label_mapping
-                .get(&label_indices[sentence_idx])
-                .unwrap()
-                .clone();
+            let label_string = labels[label_indices[sentence_idx] as usize].to_string();
             let label = Label {
                 text: label_string,
                 score: scores[sentence_idx],
                 id: label_indices[sentence_idx],
                 sentence: sentence_idx,
             };
-            labels.push(label)
+            output_labels.push(label)
         }
-        labels
+        output_labels
+    }
+
+    /// Zero shot multi-label classification with 0, 1 or no true label.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - `&[&str]` Array of texts to classify.
+    /// * `labels` - `&[&str]` Possible labels for the inputs.
+    /// * `template` - `Option<Box<dyn Fn(&str) -> String>>` closure to build label propositions. If None, will default to `"This example is {}."`.
+    /// * `max_length` -`usize` Maximum sequence length for the inputs. If needed, the input sequence will be truncated before the label template.
+    ///
+    /// # Returns
+    ///
+    /// * `Vec<Vec<Label>>` containing a vector of labels and their probability for each input text
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::zero_shot_classification::ZeroShotClassificationModel;
+    ///
+    /// let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
+    ///
+    /// let input_sentence = "Who are you voting for in 2020?";
+    /// let input_sequence_2 = "The central bank is meeting today to discuss monetary policy.";
+    /// let candidate_labels = &["politics", "public health", "economics", "sports"];
+    ///
+    /// let output = sequence_classification_model.predict(
+    ///     &[input_sentence, input_sequence_2],
+    ///     candidate_labels,
+    ///     None,
+    ///     128,
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn predict_multilabel(
+        &self,
+        inputs: &[&str],
+        labels: &[&str],
+        template: Option<Box<dyn Fn(&str) -> String>>,
+        max_length: usize,
+    ) -> Vec<Vec<Label>> {
+        let num_inputs = inputs.len();
+        let (input_tensor, mask) = self.prepare_for_model(inputs, labels, template, max_length);
+        let output = no_grad(|| {
+            let output = self.zero_shot_classifier.forward_t(
+                Some(input_tensor),
+                Some(mask),
+                None,
+                None,
+                None,
+                false,
+            );
+            output.view((num_inputs as i64, labels.len() as i64, -1i64))
+        });
+
+        let scores = output.softmax(1, Float).select(-1, -1);
+        let label_indices = scores.as_ref().argmax(-1, true).squeeze1(1);
+        label_indices.print();
+        let scores = scores
+            .gather(1, &label_indices.unsqueeze(-1), false)
+            .squeeze1(1);
+        let label_indices = label_indices.iter::<i64>().unwrap().collect::<Vec<i64>>();
+        let scores = scores.iter::<f64>().unwrap().collect::<Vec<f64>>();
+
+        let mut output_labels: Vec<Label> = vec![];
+        for sentence_idx in 0..label_indices.len() {
+            let label_string = labels[label_indices[sentence_idx] as usize].to_string();
+            let label = Label {
+                text: label_string,
+                score: scores[sentence_idx],
+                id: label_indices[sentence_idx],
+                sentence: sentence_idx,
+            };
+            output_labels.push(label)
+        }
+        output_labels
     }
 }
