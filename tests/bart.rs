@@ -3,7 +3,9 @@ use rust_bert::bart::{
     BartVocabResources,
 };
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
-use rust_bert::pipelines::zero_shot_classification::ZeroShotClassificationModel;
+use rust_bert::pipelines::zero_shot_classification::{
+    ZeroShotClassificationConfig, ZeroShotClassificationModel,
+};
 use rust_bert::resources::{download_resource, RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::{RobertaTokenizer, Tokenizer, TruncationStrategy};
@@ -162,7 +164,11 @@ about exoplanets like K2-18b."];
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_zero_shot_classification() -> anyhow::Result<()> {
     //    Set-up model model
-    let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
+    let zero_shot_config = ZeroShotClassificationConfig {
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
 
     let input_sentence = "Who are you voting for in 2020?";
     let input_sequence_2 = "The prime minister has announced a stimulus package.";
@@ -191,7 +197,11 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
     //    Set-up model model
-    let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
+    let zero_shot_config = ZeroShotClassificationConfig {
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
 
     let input_sentence = "Who are you voting for in 2020?";
     let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
