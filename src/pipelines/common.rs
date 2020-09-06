@@ -42,9 +42,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 /// # Identifies the type of model
 pub enum ModelType {
+    Bart,
     Bert,
     DistilBert,
     Roberta,
@@ -57,6 +58,8 @@ pub enum ModelType {
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
 pub enum ConfigOption {
+    /// Bart configuration
+    Bart(BartConfig),
     /// Bert configuration
     Bert(BertConfig),
     /// DistilBert configuration
@@ -91,6 +94,7 @@ impl ConfigOption {
     /// Interface method to load a configuration from file
     pub fn from_file(model_type: ModelType, path: &Path) -> Self {
         match model_type {
+            ModelType::Bart => ConfigOption::Bart(BartConfig::from_file(path)),
             ModelType::Bert | ModelType::Roberta | ModelType::XLMRoberta => {
                 ConfigOption::Bert(BertConfig::from_file(path))
             }
@@ -104,6 +108,9 @@ impl ConfigOption {
 
     pub fn get_label_mapping(self) -> HashMap<i64, String> {
         match self {
+            Self::Bart(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Bert(config) => config
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
@@ -131,31 +138,106 @@ impl TokenizerOption {
         vocab_path: &str,
         merges_path: Option<&str>,
         lower_case: bool,
+        strip_accents: Option<bool>,
+        add_prefix_space: Option<bool>,
     ) -> Result<Self, RustBertError> {
-        Ok(match model_type {
+        let tokenizer = match model_type {
             ModelType::Bert | ModelType::DistilBert | ModelType::Electra => {
-                TokenizerOption::Bert(BertTokenizer::from_file(vocab_path, lower_case)?)
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::Bert(BertTokenizer::from_file(
+                    vocab_path,
+                    lower_case,
+                    strip_accents.unwrap_or(lower_case),
+                )?)
             }
-            ModelType::Roberta => TokenizerOption::Roberta(RobertaTokenizer::from_file(
-                vocab_path,
-                merges_path.expect("No merges specified!"),
-                lower_case,
-            )?),
-            ModelType::Marian => TokenizerOption::Marian(MarianTokenizer::from_files(
-                vocab_path,
-                merges_path.expect("No merges specified!"),
-                lower_case,
-            )?),
-            ModelType::T5 => TokenizerOption::T5(T5Tokenizer::from_file(vocab_path, lower_case)?),
+            ModelType::Roberta | ModelType::Bart => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::Roberta(RobertaTokenizer::from_file(
+                    vocab_path,
+                    merges_path.expect("No merges specified!"),
+                    lower_case,
+                    add_prefix_space.unwrap_or(false),
+                )?)
+            }
+            ModelType::Marian => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::Marian(MarianTokenizer::from_files(
+                    vocab_path,
+                    merges_path.expect("No merges specified!"),
+                    lower_case,
+                )?)
+            }
+            ModelType::T5 => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::T5(T5Tokenizer::from_file(vocab_path, lower_case)?)
+            }
             ModelType::XLMRoberta => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
                 TokenizerOption::XLMRoberta(XLMRobertaTokenizer::from_file(vocab_path, lower_case)?)
             }
-            ModelType::Albert => TokenizerOption::Albert(AlbertTokenizer::from_file(
-                vocab_path,
-                lower_case,
-                !lower_case,
-            )?),
-        })
+            ModelType::Albert => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::Albert(AlbertTokenizer::from_file(
+                    vocab_path,
+                    lower_case,
+                    strip_accents.unwrap_or(lower_case),
+                )?)
+            }
+        };
+        Ok(tokenizer)
     }
 
     /// Returns the model type
@@ -196,6 +278,36 @@ impl TokenizerOption {
             }
             Self::Albert(ref tokenizer) => {
                 tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
+            }
+        }
+    }
+
+    /// Interface method for pair encoding
+    pub fn encode_pair_list(
+        &self,
+        text_pair_list: Vec<(&str, &str)>,
+        max_len: usize,
+        truncation_strategy: &TruncationStrategy,
+        stride: usize,
+    ) -> Vec<TokenizedInput> {
+        match *self {
+            Self::Bert(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::Roberta(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::Marian(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::T5(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
+            Self::Albert(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
             }
         }
     }

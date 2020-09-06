@@ -15,6 +15,12 @@ pub enum RustBertError {
 
     #[error("Tokenizer error: {0}")]
     TokenizerError(String),
+
+    #[error("Invalid configuration error: {0}")]
+    InvalidConfigurationError(String),
+
+    #[error("Value error: {0}")]
+    ValueError(String),
 }
 
 impl From<reqwest::Error> for RustBertError {

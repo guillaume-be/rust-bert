@@ -48,6 +48,7 @@ fn main() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
+        false,
     )?;
     let config = BertConfig::from_file(config_path);
     let bert_model = RobertaForMaskedLM::new(&vs.root(), &config);

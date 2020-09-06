@@ -650,6 +650,9 @@ impl TranslationOption {
             ModelType::Albert => {
                 panic!("Translation not implemented for Albert!");
             }
+            ModelType::Bart => {
+                panic!("Translation not implemented for BART!");
+            }
         }
     }
 

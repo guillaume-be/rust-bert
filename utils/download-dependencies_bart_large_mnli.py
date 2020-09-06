@@ -8,12 +8,12 @@ import numpy as np
 import torch
 import subprocess
 
-config_path = BART_PRETRAINED_CONFIG_ARCHIVE_MAP['facebook/bart-large']
+config_path = BART_PRETRAINED_CONFIG_ARCHIVE_MAP['facebook/bart-large-mnli']
 vocab_path = vocab_url
 merges_path = merges_url
-weights_path = 'facebook/bart-large'
+weights_path = 'facebook/bart-large-mnli'
 
-target_path = Path.home() / 'rustbert' / 'bart-large'
+target_path = Path.home() / 'rustbert' / 'bart-large-mnli'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
@@ -35,18 +35,18 @@ shutil.copy(temp_weights, model_path)
 weights = torch.load(temp_weights, map_location='cpu')
 nps = {}
 for k, v in weights.items():
+    print(k)
     k = k.replace("gamma", "weight").replace("beta", "bias")
     nps[k] = np.ascontiguousarray(v.cpu().numpy())
 
-np.savez(target_path / 'model.npz', **nps)
-
-source = str(target_path / 'model.npz')
-target = str(target_path / 'model.ot')
-
-toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
-
-subprocess.call(
-    ['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])
-
-os.remove(str(target_path / 'model.bin'))
-os.remove(str(target_path / 'model.npz'))
+# np.savez(target_path / 'model.npz', **nps)
+#
+# source = str(target_path / 'model.npz')
+# target = str(target_path / 'model.ot')
+#
+# toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
+#
+# subprocess.call(['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])
+#
+# os.remove(str(target_path / 'model.bin'))
+# os.remove(str(target_path / 'model.npz'))

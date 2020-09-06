@@ -8,8 +8,8 @@ use rust_bert::pipelines::token_classification::TokenClassificationConfig;
 use rust_bert::resources::{download_resource, RemoteResource, Resource};
 use rust_bert::roberta::{
     RobertaConfigResources, RobertaForMaskedLM, RobertaForMultipleChoice,
-    RobertaForQuestionAnswering, RobertaForSequenceClassification, RobertaForTokenClassification,
-    RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
+    RobertaForSequenceClassification, RobertaForTokenClassification, RobertaMergesResources,
+    RobertaModelResources, RobertaVocabResources,
 };
 use rust_bert::Config;
 use rust_tokenizers::{RobertaTokenizer, Tokenizer, TruncationStrategy, Vocab};
@@ -43,6 +43,7 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
+        false,
     )?;
     let config = BertConfig::from_file(config_path);
     let roberta_model = RobertaForMaskedLM::new(&vs.root(), &config);
@@ -127,6 +128,7 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
+        false,
     )?;
     let mut config = BertConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
@@ -201,6 +203,7 @@ fn roberta_for_multiple_choice() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
+        false,
     )?;
     let mut config = BertConfig::from_file(config_path);
     config.output_attentions = Some(true);
@@ -272,6 +275,7 @@ fn roberta_for_token_classification() -> anyhow::Result<()> {
         vocab_path.to_str().unwrap(),
         merges_path.to_str().unwrap(),
         true,
+        false,
     )?;
     let mut config = BertConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
@@ -325,81 +329,6 @@ fn roberta_for_token_classification() -> anyhow::Result<()> {
 }
 
 #[test]
-fn roberta_for_question_answering() -> anyhow::Result<()> {
-    //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaConfigResources::ROBERTA,
-    ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaVocabResources::ROBERTA,
-    ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaMergesResources::ROBERTA,
-    ));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
-    let merges_path = download_resource(&merges_resource)?;
-
-    //    Set-up model
-    let device = Device::Cpu;
-    let vs = nn::VarStore::new(device);
-    let tokenizer: RobertaTokenizer = RobertaTokenizer::from_file(
-        vocab_path.to_str().unwrap(),
-        merges_path.to_str().unwrap(),
-        true,
-    )?;
-    let mut config = BertConfig::from_file(config_path);
-    let mut dummy_label_mapping = HashMap::new();
-    dummy_label_mapping.insert(0, String::from("Positive"));
-    dummy_label_mapping.insert(1, String::from("Negative"));
-    dummy_label_mapping.insert(3, String::from("Neutral"));
-    config.id2label = Some(dummy_label_mapping);
-    config.output_attentions = Some(true);
-    config.output_hidden_states = Some(true);
-    let roberta_model = RobertaForQuestionAnswering::new(&vs.root(), &config);
-
-    //    Define input
-    let input = [
-        "Looks like one thing is missing",
-        "It\'s like comparing oranges to apples",
-    ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
-    let max_len = tokenized_input
-        .iter()
-        .map(|input| input.token_ids.len())
-        .max()
-        .unwrap();
-    let tokenized_input = tokenized_input
-        .iter()
-        .map(|input| input.token_ids.clone())
-        .map(|mut input| {
-            input.extend(vec![0; max_len - input.len()]);
-            input
-        })
-        .map(|input| Tensor::of_slice(&(input)))
-        .collect::<Vec<_>>();
-    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
-
-    //    Forward pass
-    let (start_scores, end_scores, all_hidden_states, all_attentions) =
-        no_grad(|| roberta_model.forward_t(Some(input_tensor), None, None, None, None, false));
-
-    assert_eq!(start_scores.size(), &[2, 9]);
-    assert_eq!(end_scores.size(), &[2, 9]);
-    assert_eq!(
-        config.num_hidden_layers as usize,
-        all_hidden_states.unwrap().len()
-    );
-    assert_eq!(
-        config.num_hidden_layers as usize,
-        all_attentions.unwrap().len()
-    );
-
-    Ok(())
-}
-
-#[test]
 fn roberta_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let config = QuestionAnsweringConfig::new(
@@ -417,6 +346,8 @@ fn roberta_question_answering() -> anyhow::Result<()> {
             RobertaMergesResources::ROBERTA_QA,
         ))), //merges resource only relevant with ModelType::Roberta
         true, //lowercase
+        None,
+        true,
     );
 
     let qa_model = QuestionAnsweringModel::new(config)?;

@@ -59,7 +59,8 @@ fn distilbert_masked_lm() -> anyhow::Result<()> {
     //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let mut vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
+    let tokenizer: BertTokenizer =
+        BertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
     let config = DistilBertConfig::from_file(config_path);
     let distil_bert_model = DistilBertModelMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
@@ -128,7 +129,8 @@ fn distilbert_for_question_answering() -> anyhow::Result<()> {
     //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
+    let tokenizer: BertTokenizer =
+        BertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
     let mut config = DistilBertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
@@ -187,7 +189,8 @@ fn distilbert_for_token_classification() -> anyhow::Result<()> {
     //    Set-up masked LM model
     let device = Device::cuda_if_available();
     let vs = nn::VarStore::new(device);
-    let tokenizer: BertTokenizer = BertTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
+    let tokenizer: BertTokenizer =
+        BertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
     let mut config = DistilBertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);

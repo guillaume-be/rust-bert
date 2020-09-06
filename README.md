@@ -13,7 +13,7 @@ The following models are currently implemented:
  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|**ALBERT**|**T5**|
 :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:|:----:|:----:
 Masked LM|✅ |✅ |✅ | | | |✅| |✅ | |
-Sequence classification|✅ |✅ |✅| | | | | |✅ | |
+Sequence classification|✅ |✅ |✅| | |✅ | | |✅ | |
 Token classification|✅ |✅ | ✅| | | |✅| |✅ | |
 Question answering|✅ |✅ |✅| | | | | |✅ | |
 Multiple choices| |✅ |✅| | | | | |✅ | |
@@ -23,7 +23,7 @@ Summarization | | | | | |✅| | | | |
 Translation | | | | | |✅| |✅ | |✅|
 
 ## Ready-to-use pipelines
-
+	
 Based on Huggingface's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
 
 **Disclaimer**
@@ -161,7 +161,32 @@ Example output:
 ]
 ```
 
-#### 6. Sentiment analysis
+#### 6. Zero-shot classification
+Performs zero-shot classification on input sentences with provided labels using a model fine-tuned for Natural Language Inference.
+```rust
+    let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
+
+    let input_sentence = "Who are you voting for in 2020?";
+    let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
+    let candidate_labels = &["politics", "public health", "economics", "sports"];
+
+    let output = sequence_classification_model.predict_multilabel(
+        &[input_sentence, input_sequence_2],
+        candidate_labels,
+        None,
+        128,
+    );
+```
+
+Output:
+```
+[
+  [ Label { "politics", score: 0.972 }, Label { "public health", score: 0.032 }, Label {"economics", score: 0.006 }, Label {"sports", score: 0.004 } ],
+  [ Label { "politics", score: 0.975 }, Label { "public health", score: 0.0818 }, Label {"economics", score: 0.852 }, Label {"sports", score: 0.001 } ],
+]
+```
+
+#### 7. Sentiment analysis
 Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
 ```rust
     let sentiment_classifier = SentimentModel::new(Default::default())?;
@@ -185,7 +210,7 @@ Output:
 ]
 ```
 
-#### 7. Named Entity Recognition
+#### 8. Named Entity Recognition
 Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz).
 Models are currently available for English, German, Spanish and Dutch.
 ```rust

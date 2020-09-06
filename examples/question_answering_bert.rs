@@ -30,6 +30,8 @@ fn main() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
         None,  //merges resource only relevant with ModelType::Roberta
         false, //lowercase
+        false,
+        None,
     );
 
     let qa_model = QuestionAnsweringModel::new(config)?;

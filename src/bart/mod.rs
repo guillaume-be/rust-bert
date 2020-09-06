@@ -47,6 +47,7 @@
 //!     vocab_path.to_str().unwrap(),
 //!     merges_path.to_str().unwrap(),
 //!     true,
+//!     false,
 //! )?;
 //! let config = BartConfig::from_file(config_path);
 //! let bart_model = BartModel::new(&vs.root(), &config, false);

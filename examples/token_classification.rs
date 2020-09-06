@@ -32,6 +32,8 @@ fn main() -> anyhow::Result<()> {
         )),
         None,  //merges resource only relevant with ModelType::Roberta
         false, //lowercase
+        false,
+        None,
         LabelAggregationOption::Mode,
     );
 

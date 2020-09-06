@@ -8,10 +8,10 @@ import numpy as np
 import torch
 import subprocess
 
-config_path = BART_PRETRAINED_CONFIG_ARCHIVE_MAP['bart-large-cnn']
+config_path = BART_PRETRAINED_CONFIG_ARCHIVE_MAP['facebook/bart-large-cnn']
 vocab_path = vocab_url
 merges_path = merges_url
-weights_path = 'bart-large-cnn'
+weights_path = 'facebook/bart-large-cnn'
 
 target_path = Path.home() / 'rustbert' / 'bart-large-cnn'
 
