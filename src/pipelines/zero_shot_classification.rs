@@ -56,7 +56,7 @@
 //!             sentence: 0,
 //!         },
 //!         Label {
-//!             text: "economics".to_string(),
+//!             text: "economy".to_string(),
 //!             score: 0.006,
 //!             id: 2,
 //!             sentence: 0,
@@ -71,13 +71,13 @@
 //!     [
 //!         Label {
 //!             text: "politics".to_string(),
-//!             score: 0.975,
+//!             score: 0.943,
 //!             id: 0,
 //!             sentence: 1,
 //!         },
 //!         Label {
-//!             text: "economics".to_string(),
-//!             score: 0.852,
+//!             text: "economy".to_string(),
+//!             score: 0.985,
 //!             id: 2,
 //!             sentence: 1,
 //!         },
@@ -517,7 +517,7 @@ impl ZeroShotClassificationModel {
     /// let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
     ///
     /// let input_sentence = "Who are you voting for in 2020?";
-    /// let input_sequence_2 = "The central bank is meeting today to discuss monetary policy.";
+    /// let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
     /// let candidate_labels = &["politics", "public health", "economics", "sports"];
     ///
     /// let output = sequence_classification_model.predict(
@@ -541,8 +541,8 @@ impl ZeroShotClassificationModel {
     ///         sentence: 0,
     ///     },
     ///     Label {
-    ///         text: "economics".to_string(),
-    ///         score: 0.655,
+    ///         text: "economy".to_string(),
+    ///         score: 0.642,
     ///         id: 2,
     ///         sentence: 1,
     ///     },
@@ -644,7 +644,7 @@ impl ZeroShotClassificationModel {
     ///             sentence: 0,
     ///         },
     ///         Label {
-    ///             text: "economics".to_string(),
+    ///             text: "economy".to_string(),
     ///             score: 0.006,
     ///             id: 2,
     ///             sentence: 0,
@@ -664,7 +664,7 @@ impl ZeroShotClassificationModel {
     ///             sentence: 1,
     ///         },
     ///         Label {
-    ///             text: "economics".to_string(),
+    ///             text: "economy".to_string(),
     ///             score: 0.852,
     ///             id: 2,
     ///             sentence: 1,

@@ -171,8 +171,8 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
     let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
 
     let input_sentence = "Who are you voting for in 2020?";
-    let input_sequence_2 = "The prime minister has announced a stimulus package.";
-    let candidate_labels = &["politics", "public health", "economics", "sports"];
+    let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
+    let candidate_labels = &["politics", "public health", "economy", "sports"];
 
     let output = sequence_classification_model.predict(
         &[input_sentence, input_sequence_2],
@@ -187,9 +187,9 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
 
     // Prediction scores
     assert_eq!(output[0].text, "politics");
-    assert!((output[0].score - 0.9679).abs() < 1e-4);
-    assert_eq!(output[1].text, "economics");
-    assert!((output[1].score - 0.5208).abs() < 1e-4);
+    assert!((output[0].score - 0.9630).abs() < 1e-4);
+    assert_eq!(output[1].text, "economy");
+    assert!((output[1].score - 0.6416).abs() < 1e-4);
     Ok(())
 }
 
@@ -205,7 +205,7 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
 
     let input_sentence = "Who are you voting for in 2020?";
     let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
-    let candidate_labels = &["politics", "public health", "economics", "sports"];
+    let candidate_labels = &["politics", "public health", "economy", "sports"];
 
     let output = sequence_classification_model.predict_multilabel(
         &[input_sentence, input_sequence_2],
@@ -223,8 +223,8 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
     assert!((output[0][0].score - 0.9805).abs() < 1e-4);
     assert_eq!(output[0][1].text, "public health");
     assert!((output[0][1].score - 0.0130).abs() < 1e-4);
-    assert_eq!(output[0][2].text, "economics");
-    assert!((output[0][2].score - 0.0041).abs() < 1e-4);
+    assert_eq!(output[0][2].text, "economy");
+    assert!((output[0][2].score - 0.0255).abs() < 1e-4);
     assert_eq!(output[0][3].text, "sports");
     assert!((output[0][3].score - 0.0013).abs() < 1e-4);
 
@@ -233,8 +233,8 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
     assert!((output[1][0].score - 0.9432).abs() < 1e-4);
     assert_eq!(output[1][1].text, "public health");
     assert!((output[1][1].score - 0.0045).abs() < 1e-4);
-    assert_eq!(output[1][2].text, "economics");
-    assert!((output[1][2].score - 0.9001).abs() < 1e-4);
+    assert_eq!(output[1][2].text, "economy");
+    assert!((output[1][2].score - 0.9851).abs() < 1e-4);
     assert_eq!(output[1][3].text, "sports");
     assert!((output[1][3].score - 0.0004).abs() < 1e-4);
     Ok(())
