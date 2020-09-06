@@ -38,6 +38,7 @@ fn ss2_processor(file_path: PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
     }
     Ok(records)
 }
+
 fn main() -> anyhow::Result<()> {
     //    Set-up classifier
     let sentiment_classifier = SentimentModel::new(Default::default())?;
