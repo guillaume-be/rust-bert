@@ -70,6 +70,7 @@ pub mod openai_gpt;
 pub mod pipelines;
 pub mod roberta;
 pub mod t5;
+pub mod xlnet;
 
 pub use common::error::RustBertError;
 pub use common::resources;
