@@ -29,6 +29,12 @@ impl From<reqwest::Error> for RustBertError {
     }
 }
 
+impl From<cached_path::Error> for RustBertError {
+    fn from(error: cached_path::Error) -> Self {
+        RustBertError::FileDownloadError(error.to_string())
+    }
+}
+
 impl From<std::io::Error> for RustBertError {
     fn from(error: std::io::Error) -> Self {
         RustBertError::IOError(error.to_string())
