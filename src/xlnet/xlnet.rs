@@ -92,6 +92,7 @@ pub struct XLNetConfig {
     pub vocab_size: i64,
     pub d_model: i64,
     pub n_layer: i64,
+    pub d_head: i64,
     pub n_head: i64,
     pub d_inner: i64,
     pub ff_activation: Activation,

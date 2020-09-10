@@ -1,4 +1,5 @@
 // Copyright 2018 Google AI and Google Brain team.
+// Copyright 2018 Carnegie Mellon University Authors.
 // Copyright 2020-present, the HuggingFace Inc. team.
 // Copyright 2020 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
