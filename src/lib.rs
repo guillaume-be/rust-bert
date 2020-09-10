@@ -72,6 +72,5 @@ pub mod roberta;
 pub mod t5;
 
 pub use common::error::RustBertError;
-pub use common::file_utils;
 pub use common::resources;
 pub use common::Config;
