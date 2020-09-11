@@ -5,7 +5,7 @@ use rust_bert::distilbert::{
 };
 use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 use rust_bert::pipelines::sentiment::{SentimentModel, SentimentPolarity};
-use rust_bert::resources::{download_resource, RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::bert_tokenizer::BertTokenizer;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
@@ -52,9 +52,9 @@ fn distilbert_masked_lm() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertModelResources::DISTIL_BERT,
     ));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
-    let weights_path = download_resource(&weights_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
+    let weights_path = weights_resource.get_local_path()?;
 
     //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -123,8 +123,8 @@ fn distilbert_for_question_answering() -> anyhow::Result<()> {
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertVocabResources::DISTIL_BERT_SQUAD,
     ));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
 
     //    Set-up masked LM model
     let device = Device::cuda_if_available();
@@ -183,8 +183,8 @@ fn distilbert_for_token_classification() -> anyhow::Result<()> {
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertVocabResources::DISTIL_BERT,
     ));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
 
     //    Set-up masked LM model
     let device = Device::cuda_if_available();

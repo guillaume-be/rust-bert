@@ -6,7 +6,7 @@ use rust_bert::openai_gpt::{
 use rust_bert::pipelines::generation::{
     Cache, GenerateConfig, LMHeadModel, LanguageGenerator, OpenAIGenerator,
 };
-use rust_bert::resources::{download_resource, RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
@@ -26,10 +26,10 @@ fn openai_gpt_lm_model() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         OpenAiGptModelResources::GPT,
     ));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
-    let merges_path = download_resource(&merges_resource)?;
-    let weights_path = download_resource(&weights_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
+    let merges_path = merges_resource.get_local_path()?;
+    let weights_path = weights_resource.get_local_path()?;
 
     //    Set-up masked LM model
     let device = Device::Cpu;

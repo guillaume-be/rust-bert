@@ -11,7 +11,7 @@ use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
-use rust_bert::resources::{download_resource, RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
 use std::collections::HashMap;
@@ -26,9 +26,9 @@ fn bert_masked_lm() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
     let weights_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
-    let weights_path = download_resource(&weights_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
+    let weights_path = weights_resource.get_local_path()?;
 
     //    Set-up masked LM model
     let device = Device::Cpu;
@@ -102,8 +102,8 @@ fn bert_for_sequence_classification() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
     let vocab_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
 
     //    Set-up model
     let device = Device::Cpu;
@@ -167,8 +167,8 @@ fn bert_for_multiple_choice() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
     let vocab_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
 
     //    Set-up model
     let device = Device::Cpu;
@@ -229,8 +229,8 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
     let vocab_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
 
     //    Set-up model
     let device = Device::Cpu;
@@ -295,8 +295,8 @@ fn bert_for_question_answering() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
     let vocab_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
 
     //    Set-up model
     let device = Device::Cpu;

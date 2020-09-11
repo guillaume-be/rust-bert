@@ -185,12 +185,12 @@ fn _get_cache_directory() -> PathBuf {
 /// # Example
 ///
 /// ```no_run
-/// use rust_bert::resources::{download_resource, RemoteResource, Resource};
+/// use rust_bert::resources::{RemoteResource, Resource};
 /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
 ///     "distilbert-sst2/model.ot",
 ///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
 /// )));
-/// let local_path = download_resource(&model_resource);
+/// let local_path = model_resource.get_local_path();
 /// ```
 pub fn download_resource(resource: &Resource) -> Result<PathBuf, RustBertError> {
     Ok(resource.get_local_path()?)
