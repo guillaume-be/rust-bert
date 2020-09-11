@@ -12,9 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::dropout::Dropout;
+use crate::xlnet::encoder::XLNetLayer;
 use crate::Config;
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use tch::nn::Init;
+use tch::{nn, Device, Kind, Tensor};
 
 /// # XLNet Pretrained model weight files
 pub struct XLNetModelResources;
@@ -62,7 +67,7 @@ pub enum Activation {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 /// # Attention type for the model (bidirectional or unidirectional)
 pub enum AttentionType {
     /// Bidirectional (XLNet)
@@ -72,7 +77,7 @@ pub enum AttentionType {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 /// # Summary type for the model when used for summarization
 pub enum SummaryType {
     /// Hidden state stored in the last token
@@ -125,3 +130,79 @@ pub struct XLNetConfig {
 }
 
 impl Config<XLNetConfig> for XLNetConfig {}
+
+pub struct XLNetModel {
+    mem_len: Option<i64>,
+    reuse_len: Option<i64>,
+    same_length: bool,
+    attention_type: AttentionType,
+    bi_data: bool,
+    clamp_len: Option<i64>,
+    word_embeddings: nn::Embedding,
+    mask_emb: Tensor,
+    layers: Vec<XLNetLayer>,
+    dropout: Dropout,
+}
+
+impl XLNetModel {
+    pub fn new<'p, P>(p: P, config: &XLNetConfig, generation_mode: bool) -> XLNetModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let mem_len = config.mem_len;
+        let reuse_len = config.reuse_len;
+        let same_length = config.same_length;
+        let attention_type = config.attn_type;
+        let bi_data = config.bi_data;
+        let clamp_len = config.clamp_len;
+
+        let word_embeddings: nn::Embedding = nn::embedding(
+            p / "word_embedding",
+            config.vocab_size,
+            config.d_model,
+            Default::default(),
+        );
+
+        let mask_emb = p.var("mask_emb", &[1, 1, config.d_model], Init::Const(0f64));
+        let mut layers: Vec<XLNetLayer> = vec![];
+        let p_layers = p / "layer";
+        for layer_index in 0..config.n_layer {
+            layers.push(XLNetLayer::new(&p_layers / layer_index, config));
+        }
+
+        let dropout = Dropout::new(config.dropout);
+
+        XLNetModel {
+            mem_len,
+            reuse_len,
+            same_length,
+            attention_type,
+            bi_data,
+            clamp_len,
+            word_embeddings,
+            mask_emb,
+            layers,
+            dropout,
+        }
+    }
+
+    fn create_mask(&self, q_len: i64, m_len: i64, device: Device) -> Tensor {
+        let attention_mask = Tensor::ones(&[q_len, q_len], (Kind::Int64, device));
+        let attention_mask_pad = Tensor::zeros(&[q_len, m_len], (Kind::Int64, device));
+        let mask_up = attention_mask.triu(1);
+        let mut output = Tensor::cat(&[&attention_mask_pad, &mask_up], 1);
+        if self.same_length {
+            let mask_low = attention_mask.tril(-1);
+            output = Tensor::cat(
+                &[
+                    output.slice(1, 0, q_len, 1) + mask_low,
+                    output.slice(1, q_len, q_len + m_len, 1),
+                ],
+                1,
+            );
+        }
+        output
+    }
+}
