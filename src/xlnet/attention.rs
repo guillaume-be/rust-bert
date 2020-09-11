@@ -236,8 +236,8 @@ impl XLNetRelativeAttention {
         mut layer_state: Option<LayerState>,
         target_mapping: Option<&Tensor>,
         train: bool,
-    ) {
-        let (output_g, output_h, attention_probas_g, attention_probas_h) = if g.is_some() {
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<Tensor>) {
+        if g.is_some() {
             let cat_value = if let Some(mems) = &layer_state {
                 if mems.prev_content.size().len() > 1 {
                     Some(Tensor::cat(&[&mems.prev_content, h], 0))
@@ -298,9 +298,44 @@ impl XLNetRelativeAttention {
             };
 
             let output_g = self.post_attention(g.unwrap(), &attention_vec_g, true, train);
-            (output_g, output_h, attention_probas_g, attention_probas_h)
+            (
+                output_g,
+                Some(output_h),
+                attention_probas_g,
+                attention_probas_h,
+            )
         } else {
-            //     ToDo
-        };
+            let cat_value = if let Some(mems) = &layer_state {
+                if mems.prev_content.size().len() > 1 {
+                    Some(Tensor::cat(&[&mems.prev_content, h], 0))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            let cat = match &cat_value {
+                Some(value) => value,
+                None => h,
+            };
+
+            let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.q]);
+            let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.k]);
+            let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.v]);
+            let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.r]);
+
+            let (attention_vec, attention_probas) = self.rel_attention_core(
+                &q_head_h,
+                &k_head_h,
+                &v_head_h,
+                &k_head_r,
+                seg_mat,
+                attn_mask_h,
+                train,
+            );
+
+            let output_h = self.post_attention(h, &attention_vec, true, train);
+            (output_h, None, attention_probas, None)
+        }
     }
 }
