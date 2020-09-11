@@ -193,5 +193,5 @@ fn _get_cache_directory() -> PathBuf {
 /// let local_path = model_resource.get_local_path();
 /// ```
 pub fn download_resource(resource: &Resource) -> Result<PathBuf, RustBertError> {
-    Ok(resource.get_local_path()?)
+    resource.get_local_path()
 }
