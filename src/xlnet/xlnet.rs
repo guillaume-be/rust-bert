@@ -121,6 +121,7 @@ pub struct XLNetConfig {
     pub label2id: Option<HashMap<String, i64>>,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
+    pub chunk_size_feed_forward: Option<i64>,
 }
 
 impl Config<XLNetConfig> for XLNetConfig {}

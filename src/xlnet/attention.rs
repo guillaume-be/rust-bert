@@ -299,10 +299,10 @@ impl XLNetRelativeAttention {
 
             let output_g = self.post_attention(g.unwrap(), &attention_vec_g, true, train);
             (
-                output_g,
-                Some(output_h),
-                attention_probas_g,
+                output_h,
+                Some(output_g),
                 attention_probas_h,
+                attention_probas_g,
             )
         } else {
             let cat_value = if let Some(mems) = &layer_state {
