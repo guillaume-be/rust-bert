@@ -38,7 +38,7 @@ pub enum Resource {
 impl Resource {
     /// Gets the local path for a given resource.
     ///
-    /// If the resource is a remote resource, it is downlaoded and cached. Then the path
+    /// If the resource is a remote resource, it is downloaded and cached. Then the path
     /// to the local cache is returned.
     ///
     /// # Returns
@@ -165,6 +165,10 @@ fn _get_cache_directory() -> PathBuf {
     home
 }
 
+#[deprecated(
+    since = "0.9.1",
+    note = "Please use `Resource.get_local_path()` instead"
+)]
 /// # (Download) the resource and return a path to its local path
 /// This function will download remote resource to their local path if they do not exist yet.
 /// Then for both `LocalResource` and `RemoteResource`, it will the local path to the resource.
