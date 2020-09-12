@@ -69,3 +69,5 @@ pub use bart_model::{
     BartForSequenceClassification, BartMergesResources, BartModel, BartModelResources,
     BartVocabResources,
 };
+
+pub(crate) use encoder::BartEncoderOutput;

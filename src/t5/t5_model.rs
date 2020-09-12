@@ -9,7 +9,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::pipelines::generation::{Cache, LMHeadModel};
+use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use crate::t5::attention::LayerState;
 use crate::t5::encoder::T5Stack;
 use crate::Config;
@@ -684,16 +684,7 @@ impl LMHeadModel for T5ForConditionalGeneration {
         encoder_outputs: Option<&Tensor>,
         decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<
-        (
-            Tensor,
-            Option<Tensor>,
-            Cache,
-            Option<Vec<Tensor>>,
-            Option<Vec<Tensor>>,
-        ),
-        &'static str,
-    > {
+    ) -> Result<LMModelOutput, &'static str> {
         let (decoder_output, encoder_hidden_states, new_cache, _, _, _, _) = match cache {
             Cache::T5Cache(cached_layer_states) => self.base_model.forward_t(
                 input_ids.as_ref(),
@@ -723,12 +714,12 @@ impl LMHeadModel for T5ForConditionalGeneration {
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None)
             * (self.model_dim.powf(-0.5));
 
-        Ok((
+        Ok(LMModelOutput {
             lm_logits,
-            Some(encoder_hidden_states),
-            Cache::T5Cache(new_cache),
-            None,
-            None,
-        ))
+            encoder_hidden_state: Some(encoder_hidden_states),
+            cache: Cache::T5Cache(new_cache),
+            all_hidden_states: None,
+            all_attentions: None,
+        })
     }
 }

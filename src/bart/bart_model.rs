@@ -13,9 +13,9 @@
 
 use crate::bart::attention::LayerState;
 use crate::bart::decoder::BartDecoder;
-use crate::bart::encoder::BartEncoder;
+use crate::bart::encoder::{BartEncoder, BartEncoderOutput};
 use crate::common::dropout::Dropout;
-use crate::pipelines::generation::{Cache, LMHeadModel};
+use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use crate::Config;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -346,15 +346,7 @@ impl BartModel {
     /// let decoder_attention_mask =
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    /// let (
-    ///     decoder_output,
-    ///     encoder_hidden_states,
-    ///     decoder_cache,
-    ///     all_encoder_hidden_states,
-    ///     all_encoder_attentions,
-    ///     all_decoder_hidden_states,
-    ///     all_decoder_attentions,
-    /// ) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     bart_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
@@ -371,19 +363,11 @@ impl BartModel {
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         decoder_input_ids: Option<&Tensor>,
-        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        encoder_output: Option<BartEncoderOutput>,
         decoder_attention_mask: Option<&Tensor>,
         layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> (
-        Tensor,
-        Tensor,
-        Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-    ) {
+    ) -> BartModelOutput {
         let (decoder_input_ids, decoder_padding_mask, causal_mask) = if self.generation_mode {
             (decoder_input_ids.unwrap().copy(), None, None)
         } else {
@@ -398,43 +382,37 @@ impl BartModel {
                 decoder_attention_mask,
             )
         };
-        let (encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions) =
-            match encoder_outputs {
-                Some(value) => value,
-                None => {
-                    assert!(
-                        input_ids.is_some(),
-                        "input_ids must be provided when encoder output is not pre-computed"
-                    );
-                    self.encoder.forward_t(
-                        input_ids.unwrap(),
-                        attention_mask,
-                        &self.embeddings,
-                        train,
-                    )
-                }
-            };
+        let encoder_output = match encoder_output {
+            Some(value) => value,
+            None => {
+                assert!(
+                    input_ids.is_some(),
+                    "input_ids must be provided when encoder output is not pre-computed"
+                );
+                self.encoder
+                    .forward_t(input_ids.unwrap(), attention_mask, &self.embeddings, train)
+            }
+        };
 
-        let (decoder_outputs, decoder_cache, all_decoder_hidden_states, all_decoder_attentions) =
-            self.decoder.forward_t(
-                &decoder_input_ids,
-                &encoder_hidden_states,
-                attention_mask,
-                decoder_padding_mask.as_ref(),
-                causal_mask.as_ref(),
-                &self.embeddings,
-                layer_states,
-                train,
-            );
-        (
-            decoder_outputs,
-            encoder_hidden_states,
-            decoder_cache.1,
-            all_decoder_hidden_states,
-            all_decoder_attentions,
-            all_encoder_hidden_states,
-            all_encoder_attentions,
-        )
+        let decoder_output = self.decoder.forward_t(
+            &decoder_input_ids,
+            &encoder_output.hidden_state,
+            attention_mask,
+            decoder_padding_mask.as_ref(),
+            causal_mask.as_ref(),
+            &self.embeddings,
+            layer_states,
+            train,
+        );
+        BartModelOutput {
+            decoder_hidden_state: decoder_output.hidden_state,
+            encoder_hidden_state: encoder_output.hidden_state,
+            cache: decoder_output.next_decoder_cache,
+            all_decoder_hidden_states: decoder_output.all_hidden_states,
+            all_decoder_attentions: decoder_output.all_attentions,
+            all_encoder_hidden_states: encoder_output.all_hidden_states,
+            all_encoder_attentions: encoder_output.all_attentions,
+        }
     }
 }
 
@@ -525,9 +503,7 @@ impl BartForConditionalGeneration {
     ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states, cache,
-    ///       all_encoder_hidden_states, all_encoder_attentions,
-    ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
+    ///  let model_output = no_grad(|| {
     ///    bart_model
     ///         .forward_t(Some(&input_tensor),
     ///                    Some(&encoder_attention_mask),
@@ -542,58 +518,41 @@ impl BartForConditionalGeneration {
         &self,
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        encoder_output: Option<BartEncoderOutput>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> (
-        Tensor,
-        Tensor,
-        Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-    ) {
-        let (
-            decoder_outputs,
-            encoder_hidden_states,
-            decoder_cache,
-            all_decoder_hidden_states,
-            all_decoder_attentions,
-            all_encoder_hidden_states,
-            all_encoder_attentions,
-        ) = self.base_model.forward_t(
+    ) -> BartModelOutput {
+        let base_model_output = self.base_model.forward_t(
             input_ids,
             attention_mask,
             decoder_input_ids,
-            encoder_outputs,
+            encoder_output,
             decoder_attention_mask,
             old_layer_states,
             train,
         );
 
-        let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        (
-            lm_logits,
-            encoder_hidden_states,
-            decoder_cache,
-            all_decoder_hidden_states,
-            all_decoder_attentions,
-            all_encoder_hidden_states,
-            all_encoder_attentions,
-        )
+        let lm_logits = base_model_output
+            .decoder_hidden_state
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None);
+        BartModelOutput {
+            decoder_hidden_state: lm_logits,
+            ..base_model_output
+        }
     }
 
     pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
-        let (encoder_hidden_states, _, _) = self.base_model.encoder.forward_t(
-            input_ids,
-            attention_mask,
-            &self.base_model.embeddings,
-            false,
-        );
-        encoder_hidden_states
+        self.base_model
+            .encoder
+            .forward_t(
+                input_ids,
+                attention_mask,
+                &self.base_model.embeddings,
+                false,
+            )
+            .hidden_state
     }
 }
 
@@ -740,9 +699,7 @@ impl BartForSequenceClassification {
     ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states, cache,
-    ///       all_encoder_hidden_states, all_encoder_attentions,
-    ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
+    ///  let model_output = no_grad(|| {
     ///    bart_model
     ///         .forward_t(Some(&input_tensor),
     ///                    Some(&encoder_attention_mask),
@@ -757,60 +714,51 @@ impl BartForSequenceClassification {
         &self,
         input_ids: &Tensor,
         attention_mask: Option<&Tensor>,
-        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        encoder_output: Option<BartEncoderOutput>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         train: bool,
-    ) -> (
-        Tensor,
-        Tensor,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-    ) {
-        let (
-            decoder_outputs,
-            encoder_hidden_states,
-            _,
-            all_decoder_hidden_states,
-            all_decoder_attentions,
-            all_encoder_hidden_states,
-            all_encoder_attentions,
-        ) = self.base_model.forward_t(
+    ) -> BartModelOutput {
+        let base_model_output = self.base_model.forward_t(
             Some(input_ids),
             attention_mask,
             decoder_input_ids,
-            encoder_outputs,
+            encoder_output,
             decoder_attention_mask,
             None,
             train,
         );
         let eos_mask = input_ids.eq(self.eos_token_id);
         let reshape = eos_mask.sum1(&[1], true, Int64);
-        let sentence_representation = decoder_outputs
+        let sentence_representation = base_model_output
+            .decoder_hidden_state
             .permute(&[2, 0, 1])
             .masked_select(&eos_mask)
             .view((-1, reshape.size()[0] * reshape.int64_value(&[0, 0])))
             .transpose(0, 1)
             .view((
-                decoder_outputs.size()[0],
+                base_model_output.decoder_hidden_state.size()[0],
                 -1,
-                *decoder_outputs.size().last().unwrap(),
+                *base_model_output
+                    .decoder_hidden_state
+                    .size()
+                    .last()
+                    .unwrap(),
             ))
             .select(1, -1);
 
         let logits = self
             .classification_head
             .forward_t(&sentence_representation, train);
-        (
-            logits,
-            encoder_hidden_states,
-            all_decoder_hidden_states,
-            all_decoder_attentions,
-            all_encoder_hidden_states,
-            all_encoder_attentions,
-        )
+        BartModelOutput {
+            decoder_hidden_state: logits,
+            encoder_hidden_state: base_model_output.encoder_hidden_state,
+            cache: None,
+            all_decoder_hidden_states: base_model_output.all_decoder_hidden_states,
+            all_decoder_attentions: base_model_output.all_decoder_attentions,
+            all_encoder_hidden_states: base_model_output.all_encoder_hidden_states,
+            all_encoder_attentions: base_model_output.all_encoder_attentions,
+        }
     }
 }
 
@@ -860,9 +808,7 @@ impl LMHeadModel for BartForConditionalGeneration {
     ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    ///  let (decoder_output, encoder_hidden_states, cache,
-    ///       all_encoder_hidden_states, all_encoder_attentions,
-    ///       all_decoder_hidden_states, all_decoder_attentions) = no_grad(|| {
+    ///  let model_output = no_grad(|| {
     ///    bart_model
     ///         .forward_t(Some(&input_tensor),
     ///                    Some(&encoder_attention_mask),
@@ -884,22 +830,17 @@ impl LMHeadModel for BartForConditionalGeneration {
         encoder_outputs: Option<&Tensor>,
         decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<
-        (
-            Tensor,
-            Option<Tensor>,
-            Cache,
-            Option<Vec<Tensor>>,
-            Option<Vec<Tensor>>,
-        ),
-        &'static str,
-    > {
-        let (decoder_output, encoder_hidden_states, new_cache, _, _, _, _) = match cache {
+    ) -> Result<LMModelOutput, &'static str> {
+        let base_model_output = match cache {
             Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref(),
-                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                Some(BartEncoderOutput {
+                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
+                    all_hidden_states: None,
+                    all_attentions: None,
+                }),
                 None,
                 cached_layer_states,
                 train,
@@ -909,21 +850,37 @@ impl LMHeadModel for BartForConditionalGeneration {
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref(),
-                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                Some(BartEncoderOutput {
+                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
+                    all_hidden_states: None,
+                    all_attentions: None,
+                }),
                 None,
                 None,
                 train,
             ),
-            _ => Err("Cache not compatible with BART Model")?,
+            _ => return Err("Cache not compatible with BART Model"),
         };
 
-        let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        Ok((
+        let lm_logits = base_model_output
+            .decoder_hidden_state
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None);
+        Ok(LMModelOutput {
             lm_logits,
-            Some(encoder_hidden_states),
-            Cache::BARTCache(new_cache),
-            None,
-            None,
-        ))
+            encoder_hidden_state: Some(base_model_output.encoder_hidden_state),
+            cache: Cache::BARTCache(base_model_output.cache),
+            all_hidden_states: None,
+            all_attentions: None,
+        })
     }
+}
+
+pub struct BartModelOutput {
+    pub decoder_hidden_state: Tensor,
+    pub encoder_hidden_state: Tensor,
+    pub cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+    pub all_decoder_hidden_states: Option<Vec<Tensor>>,
+    pub all_decoder_attentions: Option<Vec<Tensor>>,
+    pub all_encoder_hidden_states: Option<Vec<Tensor>>,
+    pub all_encoder_attentions: Option<Vec<Tensor>>,
 }

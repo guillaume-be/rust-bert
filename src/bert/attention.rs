@@ -86,7 +86,7 @@ impl BertSelfAttention {
     fn flatten(&self, x: Tensor, bs: i64, dim_per_head: i64) -> Tensor {
         x.transpose(1, 2)
             .contiguous()
-            .view((bs, -1, &self.num_attention_heads * dim_per_head))
+            .view((bs, -1, self.num_attention_heads * dim_per_head))
     }
 
     pub fn forward_t(

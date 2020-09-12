@@ -62,7 +62,7 @@ fn gpt2_lm_model() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (output, _, past, _, _) = gpt2_model
+    let model_output = gpt2_model
         .forward_t(
             &Some(input_tensor),
             Cache::None,
@@ -76,11 +76,16 @@ fn gpt2_lm_model() -> anyhow::Result<()> {
         )
         .unwrap();
 
-    let next_word_id = output.get(0).get(-1).argmax(-1, true).int64_value(&[0]);
+    let next_word_id = model_output
+        .lm_logits
+        .get(0)
+        .get(-1)
+        .argmax(-1, true)
+        .int64_value(&[0]);
     let next_word = tokenizer.decode(vec![next_word_id], true, true);
 
-    assert_eq!(output.size(), vec!(1, 4, 50257));
-    match past {
+    assert_eq!(model_output.lm_logits.size(), vec!(1, 4, 50257));
+    match model_output.cache {
         Cache::GPT2Cache(past) => {
             assert!(past.is_some());
             assert_eq!(past.as_ref().unwrap().len(), config.n_layer as usize);
@@ -92,7 +97,13 @@ fn gpt2_lm_model() -> anyhow::Result<()> {
         _ => panic!("Wrong cache returned for GPT2"),
     }
     assert!(
-        (output.double_value(&[0, output.size()[1] - 1, next_word_id]) - (-69.4948)).abs() < 1e-4
+        (model_output.lm_logits.double_value(&[
+            0,
+            model_output.lm_logits.size()[1] - 1,
+            next_word_id
+        ]) - (-69.4948))
+            .abs()
+            < 1e-4
     );
     assert_eq!(next_word_id, 1936i64);
     assert_eq!(next_word, String::from(" five"));

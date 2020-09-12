@@ -16,7 +16,7 @@ use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::Gpt2Config;
 use crate::openai_gpt::transformer::Block;
-use crate::pipelines::generation::{Cache, LMHeadModel};
+use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
@@ -388,7 +388,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///  let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, _, _, hidden_states, attentions) = no_grad(|| {
+    ///  let model_output = no_grad(|| {
     ///    gpt_model
     ///         .forward_t(&Some(input_tensor),
     ///                    Cache::None,
@@ -412,16 +412,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
         _encoder_outputs: Option<&Tensor>,
         _decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<
-        (
-            Tensor,
-            Option<Tensor>,
-            Cache,
-            Option<Vec<Tensor>>,
-            Option<Vec<Tensor>>,
-        ),
-        &'static str,
-    > {
+    ) -> Result<LMModelOutput, &'static str> {
         let (output, all_hidden_states, all_attentions) = self.transformer.forward_t(
             input_ids,
             attention_mask,
@@ -432,12 +423,12 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
         )?;
 
         let lm_logits = output.apply(&self.lm_head);
-        Ok((
+        Ok(LMModelOutput {
             lm_logits,
-            None,
-            Cache::None,
+            encoder_hidden_state: None,
+            cache: Cache::None,
             all_hidden_states,
             all_attentions,
-        ))
+        })
     }
 }
