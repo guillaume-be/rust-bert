@@ -11,7 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
-use crate::distilbert::distilbert::DistilBertConfig;
+use crate::distilbert::distilbert_model::DistilBertConfig;
 use std::borrow::Borrow;
 use tch::kind::Kind::Float;
 use tch::nn::{embedding, EmbeddingConfig, ModuleT};

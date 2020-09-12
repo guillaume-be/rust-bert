@@ -55,10 +55,10 @@ pub struct T5Attention {
     inner_dim: i64,
     output_attentions: bool,
     store_cache: bool,
-    q: nn::Linear,
-    k: nn::Linear,
-    v: nn::Linear,
-    o: nn::Linear,
+    query: nn::Linear,
+    key: nn::Linear,
+    value: nn::Linear,
+    output: nn::Linear,
     relative_attention_bias: Option<nn::Embedding>,
 }
 
@@ -82,10 +82,10 @@ impl T5Attention {
         };
 
         let inner_dim = config.num_heads * config.d_kv;
-        let k = nn::linear(p / "k", config.d_model, inner_dim, linear_config);
-        let v = nn::linear(p / "v", config.d_model, inner_dim, linear_config);
-        let q = nn::linear(p / "q", config.d_model, inner_dim, linear_config);
-        let o = nn::linear(p / "o", inner_dim, config.d_model, linear_config);
+        let key = nn::linear(p / "k", config.d_model, inner_dim, linear_config);
+        let value = nn::linear(p / "v", config.d_model, inner_dim, linear_config);
+        let query = nn::linear(p / "q", config.d_model, inner_dim, linear_config);
+        let output = nn::linear(p / "o", inner_dim, config.d_model, linear_config);
 
         let dropout = Dropout::new(config.dropout_rate);
         let relative_attention_bias = if has_relative_attention_bias {
@@ -110,10 +110,10 @@ impl T5Attention {
             inner_dim,
             output_attentions,
             store_cache,
-            q,
-            k,
-            v,
-            o,
+            query,
+            key,
+            value,
+            output,
             relative_attention_bias,
         }
     }
@@ -155,17 +155,17 @@ impl T5Attention {
             None => real_query_length,
         };
 
-        let q: Tensor = self.shape(hidden_states.as_ref().apply(&self.q), bs);
+        let q: Tensor = self.shape(hidden_states.as_ref().apply(&self.query), bs);
 
         let (mut k, mut v) = if kv.is_none() {
             (
-                self.shape(hidden_states.apply(&self.k), bs),
-                self.shape(hidden_states.apply(&self.v), bs),
+                self.shape(hidden_states.apply(&self.key), bs),
+                self.shape(hidden_states.apply(&self.value), bs),
             )
         } else {
             (
-                self.shape(kv.as_ref().unwrap().apply(&self.k), bs),
-                self.shape(kv.as_ref().unwrap().apply(&self.v), bs),
+                self.shape(kv.as_ref().unwrap().apply(&self.key), bs),
+                self.shape(kv.as_ref().unwrap().apply(&self.value), bs),
             )
         };
 
@@ -219,7 +219,7 @@ impl T5Attention {
             .apply_t(&self.dropout, train);
         let context = self
             .unshape(attention_weights.matmul(&v), bs)
-            .apply(&self.o);
+            .apply(&self.output);
 
         let attention_weights = if self.output_attentions {
             Some(attention_weights)

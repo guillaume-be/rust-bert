@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::albert::albert::Activation;
+use crate::albert::albert_model::Activation;
 use crate::albert::attention::AlbertSelfAttention;
 use crate::albert::AlbertConfig;
 use crate::common::activations::{_gelu, _gelu_new, _mish, _relu};

@@ -717,7 +717,7 @@ impl LMHeadModel for T5ForConditionalGeneration {
                 None,
                 train,
             ),
-            _ => Err("Cache not compatible with T5 Model")?,
+            _ => return Err("Cache not compatible with T5 Model"),
         };
 
         let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None)

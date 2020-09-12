@@ -10,7 +10,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/bert.rs`, run with `cargo run --example bert`.
+//! A full working example is provided in `examples/bert`, run with `cargo run --example bert`.
 //! The example below illustrate a Masked language model example, the structure is similar for other models.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
@@ -53,11 +53,11 @@
 //! ```
 
 mod attention;
-mod bert;
+mod bert_model;
 mod embeddings;
 pub(crate) mod encoder;
 
-pub use bert::{
+pub use bert_model::{
     Activation, BertConfig, BertConfigResources, BertForMaskedLM, BertForMultipleChoice,
     BertForQuestionAnswering, BertForSequenceClassification, BertForTokenClassification, BertModel,
     BertModelResources, BertVocabResources,

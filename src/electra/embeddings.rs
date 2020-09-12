@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
-use crate::electra::electra::ElectraConfig;
+use crate::electra::electra_model::ElectraConfig;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};

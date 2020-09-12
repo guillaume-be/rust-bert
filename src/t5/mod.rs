@@ -6,7 +6,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example (translation) is provided in `examples/t5.rs`, run with `cargo run --example t5`.
+//! A full working example (translation) is provided in `examples/t5`, run with `cargo run --example t5`.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
@@ -51,10 +51,10 @@
 mod attention;
 mod encoder;
 mod layer_norm;
-mod t5;
+mod t5_model;
 
 pub use attention::LayerState;
-pub use t5::{
+pub use t5_model::{
     T5Config, T5ConfigResources, T5ForConditionalGeneration, T5Model, T5ModelResources, T5Prefix,
     T5VocabResources,
 };

@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::bart::attention::{LayerState, SelfAttention};
-use crate::bart::bart::Activation;
+use crate::bart::bart_model::Activation;
 use crate::bart::embeddings::{
     EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
 };

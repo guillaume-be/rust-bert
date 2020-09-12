@@ -57,9 +57,9 @@
 //! # }
 //! ```
 
-mod marian;
+mod marian_model;
 
-pub use marian::{
+pub use marian_model::{
     MarianConfigResources, MarianForConditionalGeneration, MarianModelResources, MarianPrefix,
     MarianSpmResources, MarianVocabResources,
 };

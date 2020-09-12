@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bert::bert::BertConfig;
+use crate::bert::bert_model::BertConfig;
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};

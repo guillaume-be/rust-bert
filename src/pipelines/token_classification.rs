@@ -707,9 +707,9 @@ impl TokenClassificationModel {
             if sub_tokens.len() > 1 {
                 let (label_index, label) =
                     self.consolidate_labels(sub_tokens, label_aggregation_function);
-                let sentence = (&sub_tokens[0]).sentence;
-                let index = (&sub_tokens[0]).index;
-                let word_index = (&sub_tokens[0]).word_index;
+                let sentence = (sub_tokens[0]).sentence;
+                let index = (sub_tokens[0]).index;
+                let word_index = (sub_tokens[0]).word_index;
                 let offset_start = match &sub_tokens.first().unwrap().offset {
                     Some(offset) => Some(offset.begin),
                     None => None,

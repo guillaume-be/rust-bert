@@ -306,12 +306,10 @@ impl Conversation {
     pub fn get_last_input(&self) -> Option<&str> {
         if self.new_user_input.is_some() {
             Some(self.new_user_input.as_ref().unwrap().as_str())
+        } else if self.past_user_inputs.len() > 0 {
+            Some(self.past_user_inputs.last().unwrap().as_str())
         } else {
-            if self.past_user_inputs.len() > 0 {
-                Some(self.past_user_inputs.last().unwrap().as_str())
-            } else {
-                None
-            }
+            None
         }
     }
 

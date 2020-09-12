@@ -13,7 +13,7 @@
 use crate::common::activations::{_gelu, _relu};
 use crate::common::dropout::Dropout;
 use crate::distilbert::attention::MultiHeadSelfAttention;
-use crate::distilbert::distilbert::{Activation, DistilBertConfig};
+use crate::distilbert::distilbert_model::{Activation, DistilBertConfig};
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LayerNorm;
 use tch::{nn, Tensor};

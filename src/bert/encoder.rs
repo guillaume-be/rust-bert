@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::bert::attention::{BertAttention, BertIntermediate, BertOutput};
-use crate::bert::bert::BertConfig;
+use crate::bert::bert_model::BertConfig;
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bert::bert::{Activation, BertConfig};
+use crate::bert::bert_model::{Activation, BertConfig};
 use crate::common::activations::{_gelu, _mish, _relu};
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
