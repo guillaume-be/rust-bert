@@ -374,7 +374,7 @@ impl ZeroShotClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
         }
     }
