@@ -33,7 +33,7 @@ pub struct AlbertVocabResources;
 impl AlbertModelResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
-        "albert-base-v2/model.ot",
+        "albert-base-v2/model",
         "https://cdn.huggingface.co/albert-base-v2/rust_model.ot",
     );
 }
@@ -41,7 +41,7 @@ impl AlbertModelResources {
 impl AlbertConfigResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
-        "albert-base-v2/config.json",
+        "albert-base-v2/config",
         "https://cdn.huggingface.co/albert-base-v2-config.json",
     );
 }
@@ -49,7 +49,7 @@ impl AlbertConfigResources {
 impl AlbertVocabResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
-        "albert-base-v2/spiece.model",
+        "albert-base-v2/spiece",
         "https://cdn.huggingface.co/albert-base-v2-spiece.model",
     );
 }

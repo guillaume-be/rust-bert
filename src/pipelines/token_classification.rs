@@ -116,7 +116,7 @@ use crate::bert::{
     BertConfigResources, BertForTokenClassification, BertModelResources, BertVocabResources,
 };
 use crate::common::error::RustBertError;
-use crate::common::resources::{download_resource, RemoteResource, Resource};
+use crate::common::resources::{RemoteResource, Resource};
 use crate::distilbert::DistilBertForTokenClassification;
 use crate::electra::ElectraForTokenClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
@@ -485,11 +485,11 @@ impl TokenClassificationModel {
     pub fn new(
         config: TokenClassificationConfig,
     ) -> Result<TokenClassificationModel, RustBertError> {
-        let config_path = download_resource(&config.config_resource)?;
-        let vocab_path = download_resource(&config.vocab_resource)?;
-        let weights_path = download_resource(&config.model_resource)?;
+        let config_path = config.config_resource.get_local_path()?;
+        let vocab_path = config.vocab_resource.get_local_path()?;
+        let weights_path = config.model_resource.get_local_path()?;
         let merges_path = if let Some(merges_resource) = &config.merges_resource {
-            Some(download_resource(merges_resource).expect("Failure downloading resource"))
+            Some(merges_resource.get_local_path()?)
         } else {
             None
         };
@@ -499,7 +499,7 @@ impl TokenClassificationModel {
         let tokenizer = TokenizerOption::from_file(
             config.model_type,
             vocab_path.to_str().unwrap(),
-            merges_path.map(|path| path.to_str().unwrap()),
+            merges_path.as_deref().map(|path| path.to_str().unwrap()),
             config.lower_case,
             config.strip_accents,
             config.add_prefix_space,

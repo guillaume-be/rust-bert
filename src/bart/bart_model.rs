@@ -39,22 +39,22 @@ pub struct BartMergesResources;
 impl BartModelResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART: (&'static str, &'static str) = (
-        "bart/model.ot",
+        "bart/model",
         "https://cdn.huggingface.co/facebook/bart-large/rust_model.ot",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_CNN: (&'static str, &'static str) = (
-        "bart-cnn/model.ot",
+        "bart-cnn/model",
         "https://cdn.huggingface.co/facebook/bart-large-cnn/rust_model.ot",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_XSUM: (&'static str, &'static str) = (
-        "bart-xsum/model.ot",
+        "bart-xsum/model",
         "https://cdn.huggingface.co/facebook/bart-large-xsum/rust_model.ot",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_MNLI: (&'static str, &'static str) = (
-        "bart-large-mnli/model.ot",
+        "bart-large-mnli/model",
         "https://cdn.huggingface.co/facebook/bart-large-mnli/rust_model.ot",
     );
 }
@@ -62,22 +62,22 @@ impl BartModelResources {
 impl BartConfigResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART: (&'static str, &'static str) = (
-        "bart/config.json",
+        "bart/config",
         "https://cdn.huggingface.co/facebook/bart-large/config.json",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_CNN: (&'static str, &'static str) = (
-        "bart-cnn/config.json",
+        "bart-cnn/config",
         "https://cdn.huggingface.co/facebook/bart-large-cnn/config.json",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_XSUM: (&'static str, &'static str) = (
-        "bart-xsum/config.json",
+        "bart-xsum/config",
         "https://cdn.huggingface.co/facebook/bart-large-xsum/config.json",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_MNLI: (&'static str, &'static str) = (
-        "bart-large-mnli/config.json",
+        "bart-large-mnli/config",
         "https://cdn.huggingface.co/facebook/bart-large-mnli/config.json",
     );
 }
@@ -85,22 +85,22 @@ impl BartConfigResources {
 impl BartVocabResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART: (&'static str, &'static str) = (
-        "bart/vocab.txt",
+        "bart/vocab",
         "https://cdn.huggingface.co/roberta-large-vocab.json",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_CNN: (&'static str, &'static str) = (
-        "bart-cnn/vocab.txt",
+        "bart-cnn/vocab",
         "https://cdn.huggingface.co/roberta-large-vocab.json",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_XSUM: (&'static str, &'static str) = (
-        "bart-xsum/vocab.txt",
+        "bart-xsum/vocab",
         "https://cdn.huggingface.co/roberta-large-vocab.json",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_MNLI: (&'static str, &'static str) = (
-        "bart-large-mnli/vocab.txt",
+        "bart-large-mnli/vocab",
         "https://cdn.huggingface.co/roberta-large-vocab.json",
     );
 }
@@ -108,22 +108,22 @@ impl BartVocabResources {
 impl BartMergesResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART: (&'static str, &'static str) = (
-        "bart/merges.txt",
+        "bart/merges",
         "https://cdn.huggingface.co/roberta-large-merges.txt",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_CNN: (&'static str, &'static str) = (
-        "bart-cnn/merges.txt",
+        "bart-cnn/merges",
         "https://cdn.huggingface.co/roberta-large-merges.txt",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_XSUM: (&'static str, &'static str) = (
-        "bart-xsum/merges.txt",
+        "bart-xsum/merges",
         "https://cdn.huggingface.co/roberta-large-merges.txt",
     );
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const BART_MNLI: (&'static str, &'static str) = (
-        "bart-large-mnli/merges.txt",
+        "bart-large-mnli/merges",
         "https://cdn.huggingface.co/roberta-large-merges.txt",
     );
 }

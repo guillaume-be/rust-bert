@@ -46,7 +46,7 @@
 use crate::albert::AlbertForQuestionAnswering;
 use crate::bert::BertForQuestionAnswering;
 use crate::common::error::RustBertError;
-use crate::common::resources::{download_resource, RemoteResource, Resource};
+use crate::common::resources::{RemoteResource, Resource};
 use crate::distilbert::{
     DistilBertConfigResources, DistilBertForQuestionAnswering, DistilBertModelResources,
     DistilBertVocabResources,
@@ -409,12 +409,12 @@ impl QuestionAnsweringModel {
     pub fn new(
         question_answering_config: QuestionAnsweringConfig,
     ) -> Result<QuestionAnsweringModel, RustBertError> {
-        let config_path = download_resource(&question_answering_config.config_resource)?;
-        let vocab_path = download_resource(&question_answering_config.vocab_resource)?;
-        let weights_path = download_resource(&question_answering_config.model_resource)?;
+        let config_path = question_answering_config.config_resource.get_local_path()?;
+        let vocab_path = question_answering_config.vocab_resource.get_local_path()?;
+        let weights_path = question_answering_config.model_resource.get_local_path()?;
         let merges_path = if let Some(merges_resource) = &question_answering_config.merges_resource
         {
-            Some(download_resource(merges_resource).expect("Failure downloading resource"))
+            Some(merges_resource.get_local_path()?)
         } else {
             None
         };
@@ -423,7 +423,7 @@ impl QuestionAnsweringModel {
         let tokenizer = TokenizerOption::from_file(
             question_answering_config.model_type,
             vocab_path.to_str().unwrap(),
-            merges_path.map(|path| path.to_str().unwrap()),
+            merges_path.as_deref().map(|path| path.to_str().unwrap()),
             question_answering_config.lower_case,
             question_answering_config.strip_accents,
             question_answering_config.add_prefix_space,

@@ -92,7 +92,7 @@ pub enum TokenizerOption {
 
 impl ConfigOption {
     /// Interface method to load a configuration from file
-    pub fn from_file(model_type: ModelType, path: &Path) -> Self {
+    pub fn from_file<P: AsRef<Path>>(model_type: ModelType, path: P) -> Self {
         match model_type {
             ModelType::Bart => ConfigOption::Bart(BartConfig::from_file(path)),
             ModelType::Bert | ModelType::Roberta | ModelType::XLMRoberta => {

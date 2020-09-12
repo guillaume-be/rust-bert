@@ -19,7 +19,7 @@
 //! #
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
-//! use rust_bert::resources::{download_resource, LocalResource, Resource};
+//! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::t5::{T5Config, T5ForConditionalGeneration};
 //! use rust_bert::Config;
 //! use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
@@ -33,9 +33,9 @@
 //! let weights_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/model.ot"),
 //! });
-//! let config_path = download_resource(&config_resource)?;
-//! let spiece_path = download_resource(&sentence_piece_resource)?;
-//! let weights_path = download_resource(&weights_resource)?;
+//! let config_path = config_resource.get_local_path()?;
+//! let spiece_path = sentence_piece_resource.get_local_path()?;
+//! let weights_path = weights_resource.get_local_path()?;
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
