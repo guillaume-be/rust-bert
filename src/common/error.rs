@@ -23,8 +23,8 @@ pub enum RustBertError {
     ValueError(String),
 }
 
-impl From<reqwest::Error> for RustBertError {
-    fn from(error: reqwest::Error) -> Self {
+impl From<cached_path::Error> for RustBertError {
+    fn from(error: cached_path::Error) -> Self {
         RustBertError::FileDownloadError(error.to_string())
     }
 }

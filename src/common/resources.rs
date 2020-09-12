@@ -18,13 +18,10 @@
 //! pre-trained models in each model module.
 
 use crate::common::error::RustBertError;
+use cached_path::Cache;
 use lazy_static::lazy_static;
-use reqwest::Client;
+use std::env;
 use std::path::PathBuf;
-use std::{env, fs};
-use tokio::prelude::*;
-use tokio::runtime::Runtime;
-use tokio::task;
 
 extern crate dirs;
 
@@ -39,7 +36,10 @@ pub enum Resource {
 }
 
 impl Resource {
-    /// Gets the local path for a given resource
+    /// Gets the local path for a given resource.
+    ///
+    /// If the resource is a remote resource, it is downloaded and cached. Then the path
+    /// to the local cache is returned.
     ///
     /// # Returns
     ///
@@ -55,10 +55,15 @@ impl Resource {
     /// });
     /// let config_path = config_resource.get_local_path();
     /// ```
-    pub fn get_local_path(&self) -> &PathBuf {
+    pub fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
         match self {
-            Resource::Local(resource) => &resource.local_path,
-            Resource::Remote(resource) => &resource.local_path,
+            Resource::Local(resource) => Ok(resource.local_path.clone()),
+            Resource::Remote(resource) => {
+                let cached_path =
+                    CACHE.cached_path_in_subdir(&resource.url, Some(&resource.cache_subdir))?;
+                println!("Downloaded {} to {:?}", resource.url, cached_path);
+                Ok(cached_path)
+            }
         }
     }
 }
@@ -75,8 +80,8 @@ pub struct LocalResource {
 pub struct RemoteResource {
     /// Remote path/url for the resource
     pub url: String,
-    /// Local path for the resource
-    pub local_path: PathBuf,
+    /// Local subdirectory of the cache root where this resource is saved
+    pub cache_subdir: String,
 }
 
 impl RemoteResource {
@@ -86,7 +91,7 @@ impl RemoteResource {
     /// # Arguments
     ///
     /// * `url` - `&str` Location of the remote resource
-    /// * `target` - `PathBuf` Local path to save teh resource to
+    /// * `cache_subdir` - `&str` Local subdirectory of the cache root to save the resource to
     ///
     /// # Returns
     ///
@@ -96,16 +101,15 @@ impl RemoteResource {
     ///
     /// ```no_run
     /// use rust_bert::resources::{RemoteResource, Resource};
-    /// use std::path::PathBuf;
     /// let config_resource = Resource::Remote(RemoteResource::new(
     ///     "http://config_json_location",
-    ///     PathBuf::from("path/to/config.json"),
+    ///     "configs",
     /// ));
     /// ```
-    pub fn new(url: &str, target: PathBuf) -> RemoteResource {
+    pub fn new(url: &str, cache_subdir: &str) -> RemoteResource {
         RemoteResource {
             url: url.to_string(),
-            local_path: target,
+            cache_subdir: cache_subdir.to_string(),
         }
     }
 
@@ -126,16 +130,17 @@ impl RemoteResource {
     /// ```no_run
     /// use rust_bert::resources::{RemoteResource, Resource};
     /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
-    ///     "distilbert-sst2/model.ot",
+    ///     "distilbert-sst2",
     ///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
     /// )));
     /// ```
     pub fn from_pretrained(name_url_tuple: (&str, &str)) -> RemoteResource {
-        let name = name_url_tuple.0;
+        let name = name_url_tuple.0.to_string();
         let url = name_url_tuple.1.to_string();
-        let mut local_path = CACHE_DIRECTORY.to_path_buf();
-        local_path.push(name);
-        RemoteResource { url, local_path }
+        RemoteResource {
+            url,
+            cache_subdir: name,
+        }
     }
 }
 
@@ -144,7 +149,7 @@ lazy_static! {
 /// # Global cache directory
 /// If the environment variable `RUSTBERT_CACHE` is set, will save the cache model files at that
 /// location. Otherwise defaults to `~/.cache/.rustbert`.
-    pub static ref CACHE_DIRECTORY: PathBuf = _get_cache_directory();
+    pub static ref CACHE: Cache = Cache::builder().dir(_get_cache_directory()).build().unwrap();
 }
 
 fn _get_cache_directory() -> PathBuf {
@@ -160,6 +165,10 @@ fn _get_cache_directory() -> PathBuf {
     home
 }
 
+#[deprecated(
+    since = "0.9.1",
+    note = "Please use `Resource.get_local_path()` instead"
+)]
 /// # (Download) the resource and return a path to its local path
 /// This function will download remote resource to their local path if they do not exist yet.
 /// Then for both `LocalResource` and `RemoteResource`, it will the local path to the resource.
@@ -176,37 +185,13 @@ fn _get_cache_directory() -> PathBuf {
 /// # Example
 ///
 /// ```no_run
-/// use rust_bert::resources::{download_resource, RemoteResource, Resource};
+/// use rust_bert::resources::{RemoteResource, Resource};
 /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
 ///     "distilbert-sst2/model.ot",
 ///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
 /// )));
-/// let local_path = download_resource(&model_resource);
+/// let local_path = model_resource.get_local_path();
 /// ```
-pub fn download_resource(resource: &Resource) -> Result<&PathBuf, RustBertError> {
-    match resource {
-        Resource::Remote(remote_resource) => {
-            let target = remote_resource.local_path.clone();
-            let url = remote_resource.url.clone();
-            if !target.exists() {
-                println!("Downloading {} to {:?}", url, target);
-                fs::create_dir_all(target.parent().unwrap())?;
-                let mut rt = Runtime::new()?;
-                let local = task::LocalSet::new();
-                local.block_on(&mut rt, async {
-                    let client = Client::new();
-                    let output_file = tokio::fs::File::create(target).await?;
-                    let mut output_file = tokio::io::BufWriter::new(output_file);
-                    let mut response = client.get(&url).send().await?;
-                    while let Some(chunk) = response.chunk().await? {
-                        output_file.write(&chunk).await?;
-                    }
-                    output_file.flush().await?;
-                    Ok::<(), RustBertError>(())
-                })?;
-            }
-            Ok(resource.get_local_path())
-        }
-        Resource::Local(_) => Ok(resource.get_local_path()),
-    }
+pub fn download_resource(resource: &Resource) -> Result<PathBuf, RustBertError> {
+    resource.get_local_path()
 }
