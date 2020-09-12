@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::xlnet::attention::LayerState;
 use crate::xlnet::encoder::XLNetLayer;
 use crate::Config;
 use serde::{Deserialize, Serialize};
@@ -138,6 +139,7 @@ pub struct XLNetModel {
     attention_type: AttentionType,
     bi_data: bool,
     clamp_len: Option<i64>,
+    d_model: i64,
     word_embeddings: nn::Embedding,
     mask_emb: Tensor,
     layers: Vec<XLNetLayer>,
@@ -157,6 +159,7 @@ impl XLNetModel {
         let attention_type = config.attn_type;
         let bi_data = config.bi_data;
         let clamp_len = config.clamp_len;
+        let d_model = config.d_model;
 
         let word_embeddings: nn::Embedding = nn::embedding(
             p / "word_embedding",
@@ -181,6 +184,7 @@ impl XLNetModel {
             attention_type,
             bi_data,
             clamp_len,
+            d_model,
             word_embeddings,
             mask_emb,
             layers,
@@ -204,5 +208,100 @@ impl XLNetModel {
             );
         }
         output
+    }
+
+    fn cache_mem(
+        &self,
+        current_output: &Tensor,
+        previous_cached_state: Option<LayerState>,
+    ) -> LayerState {
+        let cutoff = match self.mem_len {
+            None => 0i64,
+            Some(0) => 0i64,
+            Some(value) => -value,
+        };
+        let cur_length = current_output.size()[0];
+        LayerState {
+            prev_content: match (self.reuse_len, previous_cached_state) {
+                (Some(value), Some(previous_past)) if value > 0 => {
+                    let current_output = current_output.slice(0, 0, value, 1);
+                    Tensor::cat(&[&previous_past.prev_content, &current_output], 0)
+                        .slice(0, cutoff, cur_length, 1)
+                }
+                (Some(_), Some(previous_past)) | (None, Some(previous_past)) => {
+                    Tensor::cat(&[&previous_past.prev_content, current_output], 0)
+                        .slice(0, cutoff, cur_length, 1)
+                }
+                (Some(value), None) if value > 0 => {
+                    let current_output = current_output.slice(0, 0, value, 1);
+                    current_output.slice(0, cutoff, cur_length, 1)
+                }
+                (Some(_), None) | (None, None) => current_output.slice(0, cutoff, cur_length, 1),
+            },
+        }
+    }
+
+    fn positional_embedding(
+        &self,
+        position_sequence: &Tensor,
+        inverse_frequency: &Tensor,
+        batch_size: Option<i64>,
+    ) -> Tensor {
+        let sinusoid = Tensor::einsum("i,d->id", &[position_sequence, inverse_frequency]);
+        let mut positional_embeddings =
+            Tensor::cat(&[sinusoid.sin(), sinusoid.cos()], -1).unsqueeze(1);
+
+        if let Some(bsz) = batch_size {
+            positional_embeddings = positional_embeddings.expand(&[-1, bsz, -1], true)
+        };
+        positional_embeddings
+    }
+
+    fn relative_positional_encoding(
+        &self,
+        q_len: i64,
+        k_len: i64,
+        batch_size: Option<i64>,
+        device: Device,
+    ) -> Tensor {
+        let frequency_sequence = Tensor::arange2(0, self.d_model, 2, (Kind::Float, device));
+        let inverse_frequency = 1f64 / Tensor::pow2(10000f64, &(frequency_sequence / self.d_model));
+
+        let (begin, end) = match self.attention_type {
+            AttentionType::bi => (k_len, -q_len),
+            AttentionType::uni => (k_len, -1),
+        };
+        let mut forward_positions_sequence = Tensor::arange2(begin, end, -1, (Kind::Float, device));
+        match self.clamp_len {
+            Some(clamp_value) if clamp_value > 0 => {
+                forward_positions_sequence.clamp(-clamp_value, clamp_value);
+            }
+            _ => {}
+        }
+        if self.bi_data {
+            let mut backward_positions_sequence =
+                Tensor::arange2(-begin, -end, 1, (Kind::Float, device));
+            match self.clamp_len {
+                Some(clamp_value) if clamp_value > 0 => {
+                    backward_positions_sequence.clamp(-clamp_value, clamp_value);
+                }
+                _ => {}
+            }
+            let bsz = match batch_size {
+                Some(value) => Some(value / 2),
+                None => None,
+            };
+
+            let forward_positions_embeddings =
+                self.positional_embedding(&forward_positions_sequence, &inverse_frequency, bsz);
+            let backward_positions_embeddings =
+                self.positional_embedding(&backward_positions_sequence, &inverse_frequency, bsz);
+            Tensor::cat(
+                &[forward_positions_embeddings, backward_positions_embeddings],
+                1,
+            )
+        } else {
+            self.positional_embedding(&forward_positions_sequence, &inverse_frequency, batch_size)
+        }
     }
 }
