@@ -224,7 +224,7 @@ impl<T: BertEmbedding> BertModel<T> {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (output, pooled_output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     bert_model
     ///         .forward_t(
     ///             Some(input_tensor),
@@ -249,7 +249,7 @@ impl<T: BertEmbedding> BertModel<T> {
         encoder_hidden_states: &Option<Tensor>,
         encoder_mask: &Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    ) -> Result<BertModelOutput, &'static str> {
         let (input_shape, device) = match &input_ids {
             Some(input_value) => match &input_embeds {
                 Some(_) => {
@@ -275,7 +275,7 @@ impl<T: BertEmbedding> BertModel<T> {
             2 => {
                 if self.is_decoder {
                     let seq_ids = Tensor::arange(input_shape[1], (Float, device));
-                    let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&vec![
+                    let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&[
                         input_shape[0],
                         input_shape[1],
                         1,
@@ -342,12 +342,12 @@ impl<T: BertEmbedding> BertModel<T> {
 
         let pooled_output = self.pooler.forward(&hidden_state);
 
-        Ok((
+        Ok(BertModelOutput {
             hidden_state,
             pooled_output,
             all_hidden_states,
             all_attentions,
-        ))
+        })
     }
 }
 
@@ -510,7 +510,7 @@ impl BertForMaskedLM {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
     ///         Some(input_tensor),
     ///         Some(mask),
@@ -533,8 +533,8 @@ impl BertForMaskedLM {
         encoder_hidden_states: &Option<Tensor>,
         encoder_mask: &Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self
+    ) -> BertMaskedLMOutput {
+        let model_output = self
             .bert
             .forward_t(
                 input_ids,
@@ -548,8 +548,12 @@ impl BertForMaskedLM {
             )
             .unwrap();
 
-        let prediction_scores = self.cls.forward(&hidden_state);
-        (prediction_scores, all_hidden_states, all_attentions)
+        let prediction_scores = self.cls.forward(&model_output.hidden_state);
+        BertMaskedLMOutput {
+            prediction_scores,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        }
     }
 }
 
@@ -650,7 +654,7 @@ impl BertForSequenceClassification {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (labels, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
     ///         Some(input_tensor),
     ///         Some(mask),
@@ -669,8 +673,8 @@ impl BertForSequenceClassification {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (_, pooled_output, all_hidden_states, all_attentions) = self
+    ) -> BertSequenceClassificationOutput {
+        let model_output = self
             .bert
             .forward_t(
                 input_ids,
@@ -684,10 +688,15 @@ impl BertForSequenceClassification {
             )
             .unwrap();
 
-        let output = pooled_output
+        let logits = model_output
+            .pooled_output
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
-        (output, all_hidden_states, all_attentions)
+        BertSequenceClassificationOutput {
+            logits,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        }
     }
 }
 
@@ -779,7 +788,7 @@ impl BertForMultipleChoice {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[num_choices, sequence_length], true);
     ///
-    /// let (choices, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
     ///         input_tensor,
     ///         Some(mask),
@@ -796,7 +805,7 @@ impl BertForMultipleChoice {
         token_type_ids: Option<Tensor>,
         position_ids: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    ) -> BertSequenceClassificationOutput {
         let num_choices = input_ids.size()[1];
 
         let input_ids = input_ids.view((-1, *input_ids.size().last().unwrap()));
@@ -813,7 +822,7 @@ impl BertForMultipleChoice {
             None => None,
         };
 
-        let (_, pooled_output, all_hidden_states, all_attentions) = self
+        let model_output = self
             .bert
             .forward_t(
                 Some(input_ids),
@@ -827,11 +836,16 @@ impl BertForMultipleChoice {
             )
             .unwrap();
 
-        let output = pooled_output
+        let logits = model_output
+            .pooled_output
             .apply_t(&self.dropout, train)
             .apply(&self.classifier)
             .view((-1, num_choices));
-        (output, all_hidden_states, all_attentions)
+        BertSequenceClassificationOutput {
+            logits,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        }
     }
 }
 
@@ -933,7 +947,7 @@ impl BertForTokenClassification {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (token_labels, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
     ///         Some(input_tensor),
     ///         Some(mask),
@@ -952,8 +966,8 @@ impl BertForTokenClassification {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self
+    ) -> BertTokenClassificationOutput {
+        let model_output = self
             .bert
             .forward_t(
                 input_ids,
@@ -967,10 +981,15 @@ impl BertForTokenClassification {
             )
             .unwrap();
 
-        let sequence_output = hidden_state
+        let logits = model_output
+            .hidden_state
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
-        (sequence_output, all_hidden_states, all_attentions)
+        BertTokenClassificationOutput {
+            logits,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        }
     }
 }
 
@@ -1064,7 +1083,7 @@ impl BertForQuestionAnswering {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
     ///         Some(input_tensor),
     ///         Some(mask),
@@ -1083,8 +1102,8 @@ impl BertForQuestionAnswering {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self
+    ) -> BertQuestionAnsweringOutput {
+        let model_output = self
             .bert
             .forward_t(
                 input_ids,
@@ -1098,12 +1117,49 @@ impl BertForQuestionAnswering {
             )
             .unwrap();
 
-        let sequence_output = hidden_state.apply(&self.qa_outputs);
+        let sequence_output = model_output.hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
         let start_logits = start_logits.squeeze1(-1);
         let end_logits = end_logits.squeeze1(-1);
 
-        (start_logits, end_logits, all_hidden_states, all_attentions)
+        BertQuestionAnsweringOutput {
+            start_logits,
+            end_logits,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        }
     }
+}
+
+pub struct BertModelOutput {
+    pub hidden_state: Tensor,
+    pub pooled_output: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct BertMaskedLMOutput {
+    pub prediction_scores: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct BertSequenceClassificationOutput {
+    pub logits: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct BertTokenClassificationOutput {
+    pub logits: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct BertQuestionAnsweringOutput {
+    pub start_logits: Tensor,
+    pub end_logits: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
 }

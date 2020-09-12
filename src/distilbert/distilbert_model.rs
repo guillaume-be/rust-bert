@@ -15,7 +15,7 @@ extern crate tch;
 use self::tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
 use crate::distilbert::embeddings::DistilBertEmbedding;
-use crate::distilbert::transformer::Transformer;
+use crate::distilbert::transformer::{DistilBertTransformerOutput, Transformer};
 use crate::Config;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap};
@@ -202,7 +202,7 @@ impl DistilBertModel {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     distilbert_model
     ///         .forward_t(Some(input_tensor), Some(mask), None, false)
     ///         .unwrap()
@@ -214,7 +214,7 @@ impl DistilBertModel {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    ) -> Result<DistilBertTransformerOutput, &'static str> {
         let input_embeddings = match input {
             Some(input_value) => match input_embeds {
                 Some(_) => {
@@ -335,7 +335,7 @@ impl DistilBertModelClassifier {
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///  let model_output = no_grad(|| {
     ///    distilbert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -349,24 +349,28 @@ impl DistilBertModelClassifier {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) =
-            match self
-                .distil_bert_model
-                .forward_t(input, mask, input_embeds, train)
-            {
-                Ok(value) => value,
-                Err(err) => return Err(err),
-            };
+    ) -> Result<DistilBertSequenceClassificationOutput, &'static str> {
+        let model_output = match self
+            .distil_bert_model
+            .forward_t(input, mask, input_embeds, train)
+        {
+            Ok(value) => value,
+            Err(err) => return Err(err),
+        };
 
-        let output = output
+        let logits = model_output
+            .hidden_state
             .select(1, 0)
             .apply(&self.pre_classifier)
             .relu()
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
 
-        Ok((output, all_hidden_states, all_attentions))
+        Ok(DistilBertSequenceClassificationOutput {
+            logits,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        })
     }
 }
 
@@ -473,7 +477,7 @@ impl DistilBertModelMaskedLM {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     distilbert_model
     ///         .forward_t(Some(input_tensor), Some(mask), None, false)
     ///         .unwrap()
@@ -485,23 +489,27 @@ impl DistilBertModelMaskedLM {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) =
-            match self
-                .distil_bert_model
-                .forward_t(input, mask, input_embeds, train)
-            {
-                Ok(value) => value,
-                Err(err) => return Err(err),
-            };
+    ) -> Result<DistilBertMaskedLMOutput, &'static str> {
+        let model_output = match self
+            .distil_bert_model
+            .forward_t(input, mask, input_embeds, train)
+        {
+            Ok(value) => value,
+            Err(err) => return Err(err),
+        };
 
-        let output = output
+        let prediction_scores = model_output
+            .hidden_state
             .apply(&self.vocab_transform)
             .gelu()
             .apply(&self.vocab_layer_norm)
             .apply(&self.vocab_projector);
 
-        Ok((output, all_hidden_states, all_attentions))
+        Ok(DistilBertMaskedLMOutput {
+            prediction_scores,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        })
     }
 }
 
@@ -591,7 +599,7 @@ impl DistilBertForQuestionAnswering {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let (start_scores, end_score, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     distilbert_model
     ///         .forward_t(Some(input_tensor), Some(mask), None, false)
     ///         .unwrap()
@@ -603,24 +611,31 @@ impl DistilBertForQuestionAnswering {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) =
-            match self
-                .distil_bert_model
-                .forward_t(input, mask, input_embeds, train)
-            {
-                Ok(value) => value,
-                Err(err) => return Err(err),
-            };
+    ) -> Result<DistilBertQuestionAnsweringOutput, &'static str> {
+        let model_output = match self
+            .distil_bert_model
+            .forward_t(input, mask, input_embeds, train)
+        {
+            Ok(value) => value,
+            Err(err) => return Err(err),
+        };
 
-        let output = output.apply_t(&self.dropout, train).apply(&self.qa_outputs);
+        let output = model_output
+            .hidden_state
+            .apply_t(&self.dropout, train)
+            .apply(&self.qa_outputs);
 
         let logits = output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
         let start_logits = start_logits.squeeze1(-1);
         let end_logits = end_logits.squeeze1(-1);
 
-        Ok((start_logits, end_logits, all_hidden_states, all_attentions))
+        Ok(DistilBertQuestionAnsweringOutput {
+            start_logits,
+            end_logits,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        })
     }
 }
 
@@ -715,7 +730,7 @@ impl DistilBertForTokenClassification {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     distilbert_model
     ///         .forward_t(Some(input_tensor), Some(mask), None, false)
     ///         .unwrap()
@@ -727,18 +742,49 @@ impl DistilBertForTokenClassification {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) =
-            match self
-                .distil_bert_model
-                .forward_t(input, mask, input_embeds, train)
-            {
-                Ok(value) => value,
-                Err(err) => return Err(err),
-            };
+    ) -> Result<DistilBertTokenClassificationOutput, &'static str> {
+        let model_output = match self
+            .distil_bert_model
+            .forward_t(input, mask, input_embeds, train)
+        {
+            Ok(value) => value,
+            Err(err) => return Err(err),
+        };
 
-        let output = output.apply_t(&self.dropout, train).apply(&self.classifier);
+        let logits = model_output
+            .hidden_state
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
 
-        Ok((output, all_hidden_states, all_attentions))
+        Ok(DistilBertTokenClassificationOutput {
+            logits,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        })
     }
+}
+
+pub struct DistilBertMaskedLMOutput {
+    pub prediction_scores: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct DistilBertSequenceClassificationOutput {
+    pub logits: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct DistilBertTokenClassificationOutput {
+    pub logits: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct DistilBertQuestionAnsweringOutput {
+    pub start_logits: Tensor,
+    pub end_logits: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
 }

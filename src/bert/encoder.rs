@@ -34,7 +34,7 @@ impl BertLayer {
         let attention = BertAttention::new(p / "attention", &config);
         let (is_decoder, cross_attention) = match config.is_decoder {
             Some(value) => {
-                if value == true {
+                if value {
                     (
                         value,
                         Some(BertAttention::new(p / "cross_attention", &config)),
@@ -150,28 +150,23 @@ impl BertEncoder {
 
         let mut hidden_state = hidden_states.copy();
         let mut attention_weights: Option<Tensor>;
-        let mut layers = self.layers.iter();
-        loop {
-            match layers.next() {
-                Some(layer) => {
-                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                        hidden_states.push(hidden_state.as_ref().copy());
-                    };
 
-                    let temp = layer.forward_t(
-                        &hidden_state,
-                        &mask,
-                        encoder_hidden_states,
-                        encoder_mask,
-                        train,
-                    );
-                    hidden_state = temp.0;
-                    attention_weights = temp.1;
-                    if let Some(attentions) = all_attentions.borrow_mut() {
-                        attentions.push(attention_weights.as_ref().unwrap().copy());
-                    };
-                }
-                None => break,
+        for layer in &self.layers {
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
+            };
+
+            let temp = layer.forward_t(
+                &hidden_state,
+                &mask,
+                encoder_hidden_states,
+                encoder_mask,
+                train,
+            );
+            hidden_state = temp.0;
+            attention_weights = temp.1;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.as_ref().unwrap().copy());
             };
         }
 

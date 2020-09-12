@@ -306,7 +306,7 @@ impl RobertaForMaskedLM {
         encoder_mask: &Option<Tensor>,
         train: bool,
     ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self
+        let model_output = self
             .roberta
             .forward_t(
                 input_ids,
@@ -320,8 +320,12 @@ impl RobertaForMaskedLM {
             )
             .unwrap();
 
-        let prediction_scores = self.lm_head.forward(&hidden_state);
-        (prediction_scores, all_hidden_states, all_attentions)
+        let prediction_scores = self.lm_head.forward(&model_output.hidden_state);
+        (
+            prediction_scores,
+            model_output.all_hidden_states,
+            model_output.all_attentions,
+        )
     }
 }
 
@@ -480,7 +484,7 @@ impl RobertaForSequenceClassification {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self
+        let model_output = self
             .roberta
             .forward_t(
                 input_ids,
@@ -494,8 +498,12 @@ impl RobertaForSequenceClassification {
             )
             .unwrap();
 
-        let output = self.classifier.forward_t(&hidden_state, train);
-        (output, all_hidden_states, all_attentions)
+        let output = self.classifier.forward_t(&model_output.hidden_state, train);
+        (
+            output,
+            model_output.all_hidden_states,
+            model_output.all_attentions,
+        )
     }
 }
 
@@ -623,7 +631,7 @@ impl RobertaForMultipleChoice {
             None => None,
         };
 
-        let (_, pooled_output, all_hidden_states, all_attentions) = self
+        let model_output = self
             .roberta
             .forward_t(
                 flat_input_ids,
@@ -637,11 +645,16 @@ impl RobertaForMultipleChoice {
             )
             .unwrap();
 
-        let output = pooled_output
+        let output = model_output
+            .pooled_output
             .apply_t(&self.dropout, train)
             .apply(&self.classifier)
             .view((-1, num_choices));
-        (output, all_hidden_states, all_attentions)
+        (
+            output,
+            model_output.all_hidden_states,
+            model_output.all_attentions,
+        )
     }
 }
 
@@ -765,7 +778,7 @@ impl RobertaForTokenClassification {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self
+        let model_output = self
             .roberta
             .forward_t(
                 input_ids,
@@ -779,10 +792,15 @@ impl RobertaForTokenClassification {
             )
             .unwrap();
 
-        let sequence_output = hidden_state
+        let sequence_output = model_output
+            .hidden_state
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
-        (sequence_output, all_hidden_states, all_attentions)
+        (
+            sequence_output,
+            model_output.all_hidden_states,
+            model_output.all_attentions,
+        )
     }
 }
 
@@ -901,7 +919,7 @@ impl RobertaForQuestionAnswering {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> (Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_state, _, all_hidden_states, all_attentions) = self
+        let model_output = self
             .roberta
             .forward_t(
                 input_ids,
@@ -915,12 +933,17 @@ impl RobertaForQuestionAnswering {
             )
             .unwrap();
 
-        let sequence_output = hidden_state.apply(&self.qa_outputs);
+        let sequence_output = model_output.hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
         let start_logits = start_logits.squeeze1(-1);
         let end_logits = end_logits.squeeze1(-1);
 
-        (start_logits, end_logits, all_hidden_states, all_attentions)
+        (
+            start_logits,
+            end_logits,
+            model_output.all_hidden_states,
+            model_output.all_attentions,
+        )
     }
 }

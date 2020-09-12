@@ -356,13 +356,13 @@ impl QuestionAnsweringOption {
         match *self {
             Self::Bert(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
-                (outputs.0, outputs.1)
+                (outputs.start_logits, outputs.end_logits)
             }
             Self::DistilBert(ref model) => {
                 let outputs = model
                     .forward_t(input_ids, mask, input_embeds, train)
                     .expect("Error in distilbert forward_t");
-                (outputs.0, outputs.1)
+                (outputs.start_logits, outputs.end_logits)
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
