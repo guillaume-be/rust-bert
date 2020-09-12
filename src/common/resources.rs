@@ -25,7 +25,7 @@ use std::path::PathBuf;
 
 extern crate dirs;
 
-/// # Resource Enum expected by the `download_resource` function
+/// # Resource Enum pointing to model, configuration or vocabulary resources
 /// Can be of type:
 /// - LocalResource
 /// - RemoteResource
@@ -61,7 +61,6 @@ impl Resource {
             Resource::Remote(resource) => {
                 let cached_path =
                     CACHE.cached_path_in_subdir(&resource.url, Some(&resource.cache_subdir))?;
-                println!("Downloaded {} to {:?}", resource.url, cached_path);
                 Ok(cached_path)
             }
         }
