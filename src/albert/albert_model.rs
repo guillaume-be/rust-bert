@@ -104,13 +104,6 @@ pub struct AlbertConfig {
 
 impl Config<AlbertConfig> for AlbertConfig {}
 
-pub struct AlbertOutput {
-    pub hidden_state: Tensor,
-    pub pooled_output: Tensor,
-    pub all_hidden_states: Option<Vec<Tensor>>,
-    pub all_attentions: Option<Vec<Vec<Tensor>>>,
-}
-
 /// # ALBERT Base model
 /// Base architecture for ALBERT models. Task-specific models will be built from this common base model
 /// It is made of the following blocks:
@@ -183,11 +176,11 @@ impl AlbertModel {
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
     ///
     /// # Returns
-    ///
-    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `pooled_output` - `Tensor` of shape (*batch size*, *hidden_size*)
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* of nested length *inner_group_num* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `AlbertOutput` containing:
+    ///   - `hidden_state` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `pooled_output` - `Tensor` of shape (*batch size*, *hidden_size*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* of nested length *inner_group_num* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -1065,6 +1058,13 @@ impl AlbertForMultipleChoice {
             all_attentions: base_model_output.all_attentions,
         })
     }
+}
+
+pub struct AlbertOutput {
+    pub hidden_state: Tensor,
+    pub pooled_output: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Vec<Tensor>>>,
 }
 
 pub struct AlbertMaskedLMOutput {

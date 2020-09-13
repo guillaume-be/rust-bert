@@ -282,15 +282,7 @@ impl T5Model {
     /// let decoder_attention_mask =
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    /// let (
-    ///     decoder_output,
-    ///     encoder_hidden_states,
-    ///     decoder_cache,
-    ///     all_encoder_hidden_states,
-    ///     all_encoder_attentions,
-    ///     all_decoder_hidden_states,
-    ///     all_decoder_attentions,
-    /// ) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     t5_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
@@ -488,15 +480,7 @@ impl T5ForConditionalGeneration {
     /// let decoder_attention_mask =
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    /// let (
-    ///     decoder_output,
-    ///     encoder_hidden_states,
-    ///     decoder_cache,
-    ///     all_encoder_hidden_states,
-    ///     all_encoder_attentions,
-    ///     all_decoder_hidden_states,
-    ///     all_decoder_attentions,
-    /// ) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     t5_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
@@ -608,15 +592,7 @@ impl LMHeadModel for T5ForConditionalGeneration {
     /// let decoder_attention_mask =
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    /// let (
-    ///     decoder_output,
-    ///     encoder_hidden_states,
-    ///     decoder_cache,
-    ///     all_encoder_hidden_states,
-    ///     all_encoder_attentions,
-    ///     all_decoder_hidden_states,
-    ///     all_decoder_attentions,
-    /// ) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     t5_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),

@@ -7,6 +7,10 @@ jobs:
       - rustup component add rustfmt
       script:
         - cargo fmt -- --check
+    - before_script:
+      - rustup component add clippy
+      script:
+        - cargo clippy --all-targets --all-features -- -D warnings
     - script:
       - cargo build --verbose
     - os:
