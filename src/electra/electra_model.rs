@@ -212,7 +212,7 @@ impl ElectraModel {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     electra_model
     ///         .forward_t(
     ///             Some(input_tensor),
@@ -233,7 +233,7 @@ impl ElectraModel {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    ) -> Result<ElectraModelOutput, &'static str> {
         let (input_shape, device) = match &input_ids {
             Some(input_value) => match &input_embeds {
                 Some(_) => {
@@ -288,7 +288,11 @@ impl ElectraModel {
             train,
         );
 
-        Ok((hidden_state, all_hidden_states, all_attentions))
+        Ok(ElectraModelOutput {
+            hidden_state,
+            all_hidden_states,
+            all_attentions,
+        })
     }
 }
 
@@ -590,7 +594,7 @@ impl ElectraForMaskedLM {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     electra_model.forward_t(
     ///         Some(input_tensor),
     ///         Some(mask),
@@ -609,8 +613,8 @@ impl ElectraForMaskedLM {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_states, all_hidden_states, all_attentions) = self
+    ) -> ElectraMaskedLMOutput {
+        let model_output = self
             .electra
             .forward_t(
                 input_ids,
@@ -621,9 +625,13 @@ impl ElectraForMaskedLM {
                 train,
             )
             .unwrap();
-        let hidden_states = self.generator_head.forward(&hidden_states);
-        let hidden_states = hidden_states.apply(&self.lm_head);
-        (hidden_states, all_hidden_states, all_attentions)
+        let hidden_states = self.generator_head.forward(&model_output.hidden_state);
+        let prediction_scores = hidden_states.apply(&self.lm_head);
+        ElectraMaskedLMOutput {
+            prediction_scores,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        }
     }
 }
 
@@ -712,7 +720,7 @@ impl ElectraDiscriminator {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///  let model_output = no_grad(|| {
     ///    electra_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -730,8 +738,8 @@ impl ElectraDiscriminator {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_states, all_hidden_states, all_attentions) = self
+    ) -> ElectraDiscriminatorOutput {
+        let model_output = self
             .electra
             .forward_t(
                 input_ids,
@@ -742,8 +750,15 @@ impl ElectraDiscriminator {
                 train,
             )
             .unwrap();
-        let probabilities = self.discriminator_head.forward(&hidden_states).sigmoid();
-        (probabilities, all_hidden_states, all_attentions)
+        let probabilities = self
+            .discriminator_head
+            .forward(&model_output.hidden_state)
+            .sigmoid();
+        ElectraDiscriminatorOutput {
+            probabilities,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        }
     }
 }
 
@@ -845,7 +860,7 @@ impl ElectraForTokenClassification {
     ///  let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///  let position_ids = Tensor::arange(sequence_length, (Int64, device)).expand(&[batch_size, sequence_length], true);
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///  let model_output = no_grad(|| {
     ///    electra_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -863,8 +878,8 @@ impl ElectraForTokenClassification {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let (hidden_states, all_hidden_states, all_attentions) = self
+    ) -> ElectraTokenClassificationOutput {
+        let model_output = self
             .electra
             .forward_t(
                 input_ids,
@@ -875,9 +890,38 @@ impl ElectraForTokenClassification {
                 train,
             )
             .unwrap();
-        let output = hidden_states
+        let logits = model_output
+            .hidden_state
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
-        (output, all_hidden_states, all_attentions)
+        ElectraTokenClassificationOutput {
+            logits,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        }
     }
+}
+
+pub struct ElectraModelOutput {
+    pub hidden_state: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct ElectraDiscriminatorOutput {
+    pub probabilities: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct ElectraMaskedLMOutput {
+    pub prediction_scores: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct ElectraTokenClassificationOutput {
+    pub logits: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
 }

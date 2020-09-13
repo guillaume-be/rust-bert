@@ -684,7 +684,7 @@ impl QuestionAnsweringModel {
                         vec![],
                         None,
                     )
-                    .0
+                    .token_ids
                     .len()
                     + 1
             }
@@ -700,7 +700,7 @@ impl QuestionAnsweringModel {
                     vec![],
                     None,
                 )
-                .0
+                .token_ids
                 .len(),
         };
 
@@ -716,7 +716,7 @@ impl QuestionAnsweringModel {
                 vec![],
                 Some(vec![]),
             )
-            .0
+            .token_ids
             .len();
 
         let mut spans: Vec<QaFeature> = vec![];
@@ -823,14 +823,7 @@ impl QuestionAnsweringModel {
             )
             .unwrap();
 
-        let (
-            mut token_ids,
-            mut segment_ids,
-            special_tokens_mask,
-            mut token_offsets,
-            mut reference_offsets,
-            mut mask,
-        ) = self.tokenizer.build_input_with_special_tokens(
+        let mut tokenized_input = self.tokenizer.build_input_with_special_tokens(
             truncated_query,
             truncated_context,
             vec![],
@@ -840,25 +833,43 @@ impl QuestionAnsweringModel {
             vec![],
             None,
         );
-        let mut attention_mask = vec![1; token_ids.len()];
-        if token_ids.len() < max_seq_length {
-            token_ids.append(&mut vec![self.pad_idx; max_seq_length - token_ids.len()]);
-            segment_ids.append(&mut vec![0; max_seq_length - segment_ids.len()]);
+        let mut attention_mask = vec![1; tokenized_input.token_ids.len()];
+        if tokenized_input.token_ids.len() < max_seq_length {
+            tokenized_input.token_ids.append(&mut vec![
+                self.pad_idx;
+                max_seq_length
+                    - tokenized_input.token_ids.len()
+            ]);
+            tokenized_input.segment_ids.append(&mut vec![
+                0;
+                max_seq_length
+                    - tokenized_input.segment_ids.len()
+            ]);
             attention_mask.append(&mut vec![0; max_seq_length - attention_mask.len()]);
-            token_offsets.append(&mut vec![None; max_seq_length - token_offsets.len()]);
-            reference_offsets.append(&mut vec![vec!(); max_seq_length - token_offsets.len()]);
-            mask.append(&mut vec![Mask::Special; max_seq_length - mask.len()]);
+            tokenized_input.token_offsets.append(&mut vec![
+                None;
+                max_seq_length
+                    - tokenized_input
+                        .token_offsets
+                        .len()
+            ]);
+            tokenized_input.reference_offsets.append(&mut vec![
+                vec!();
+                max_seq_length
+                    - tokenized_input
+                        .token_offsets
+                        .len()
+            ]);
+            tokenized_input.mask.append(&mut vec![
+                Mask::Special;
+                max_seq_length - tokenized_input.mask.len()
+            ]);
         }
         (
             TokenizedInput {
-                token_ids,
-                segment_ids,
-                special_tokens_mask,
                 overflowing_tokens,
                 num_truncated_tokens,
-                token_offsets,
-                reference_offsets,
-                mask,
+                ..tokenized_input
             },
             attention_mask,
         )

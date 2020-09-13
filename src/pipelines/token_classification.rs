@@ -438,7 +438,7 @@ impl TokenClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
             Self::Albert(ref model) => {
                 model

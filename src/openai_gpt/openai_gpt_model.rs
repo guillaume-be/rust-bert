@@ -192,7 +192,7 @@ impl OpenAiGptModel {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (output, hidden_states, attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     gpt_model
     ///         .forward_t(
     ///             &Some(input_tensor),
@@ -213,7 +213,7 @@ impl OpenAiGptModel {
         position_ids: &Option<Tensor>,
         input_embeds: &Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    ) -> Result<OpenAiGptOutput, &'static str> {
         let (input_embeddings, seq_length) = match input_ids {
             Some(input_value) => match input_embeds {
                 Some(_) => {
@@ -267,25 +267,23 @@ impl OpenAiGptModel {
             None
         };
 
-        let mut layers = self.h.iter();
-        loop {
-            match layers.next() {
-                Some(layer) => {
-                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                        hidden_states.push(hidden_state.as_ref().copy());
-                    };
+        for layer in &self.h {
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
+            };
 
-                    let temp = layer.forward_t(&hidden_state, &attention_mask, train);
-                    hidden_state = temp.0;
-                    if let Some(attentions) = all_attentions.borrow_mut() {
-                        attentions.push(temp.1.as_ref().unwrap().copy());
-                    };
-                }
-                None => break,
+            let temp = layer.forward_t(&hidden_state, &attention_mask, train);
+            hidden_state = temp.0;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(temp.1.as_ref().unwrap().copy());
             };
         }
 
-        Ok((hidden_state, all_hidden_states, all_attentions))
+        Ok(OpenAiGptOutput {
+            hidden_state,
+            all_hidden_states,
+            all_attentions,
+        })
     }
 }
 
@@ -413,7 +411,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
         _decoder_input_ids: &Option<Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, &'static str> {
-        let (output, all_hidden_states, all_attentions) = self.transformer.forward_t(
+        let model_output = self.transformer.forward_t(
             input_ids,
             attention_mask,
             token_type_ids,
@@ -422,13 +420,19 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
             train,
         )?;
 
-        let lm_logits = output.apply(&self.lm_head);
+        let lm_logits = model_output.hidden_state.apply(&self.lm_head);
         Ok(LMModelOutput {
             lm_logits,
             encoder_hidden_state: None,
             cache: Cache::None,
-            all_hidden_states,
-            all_attentions,
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
         })
     }
+}
+
+pub struct OpenAiGptOutput {
+    pub hidden_state: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
 }

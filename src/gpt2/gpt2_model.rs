@@ -352,7 +352,7 @@ impl Gpt2Model {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (output, past, hidden_states, attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     gpt2_model
     ///         .forward_t(
     ///             &Some(input_tensor),
@@ -375,15 +375,7 @@ impl Gpt2Model {
         position_ids: &Option<Tensor>,
         input_embeds: &Option<Tensor>,
         train: bool,
-    ) -> Result<
-        (
-            Tensor,
-            Option<Vec<Tensor>>,
-            Option<Vec<Tensor>>,
-            Option<Vec<Tensor>>,
-        ),
-        &'static str,
-    > {
+    ) -> Result<Gpt2ModelOutput, &'static str> {
         let (input_embeddings, seq_length) = match input_ids {
             Some(input_value) => match input_embeds {
                 Some(_) => {
@@ -466,34 +458,29 @@ impl Gpt2Model {
             None
         };
 
-        let mut layer_iter = self.h.iter().zip(layer_past);
-        loop {
-            match layer_iter.next() {
-                Some(layer_values) => {
-                    let (layer, past) = layer_values;
-                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                        hidden_states.push(hidden_state.as_ref().copy());
-                    };
+        let layer_iter = self.h.iter().zip(layer_past);
+        for layer_values in layer_iter {
+            let (layer, past) = layer_values;
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
+            };
 
-                    let temp = layer.forward_t(&hidden_state, &past, &attention_mask, train);
-                    hidden_state = temp.0;
-                    if let Some(presents) = all_presents.borrow_mut() {
-                        presents.push(temp.1.as_ref().copy());
-                    };
-                    if let Some(attentions) = all_attentions.borrow_mut() {
-                        attentions.push(temp.2.as_ref().unwrap().copy());
-                    };
-                }
-                None => break,
+            let temp = layer.forward_t(&hidden_state, &past, &attention_mask, train);
+            hidden_state = temp.0;
+            if let Some(presents) = all_presents.borrow_mut() {
+                presents.push(temp.1.as_ref().copy());
+            };
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(temp.2.as_ref().unwrap().copy());
             };
         }
 
-        Ok((
-            hidden_state.apply(&self.ln_f),
-            all_presents,
+        Ok(Gpt2ModelOutput {
+            hidden_state: hidden_state.apply(&self.ln_f),
+            cache: all_presents,
             all_hidden_states,
             all_attentions,
-        ))
+        })
     }
 }
 
@@ -636,7 +623,7 @@ impl LMHeadModel for GPT2LMHeadModel {
         _decoder_input_ids: &Option<Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, &'static str> {
-        let (output, past, all_hidden_states, all_attentions) = match layer_past {
+        let model_output = match layer_past {
             Cache::GPT2Cache(layer_past) => Ok(self.transformer.forward_t(
                 input_ids,
                 &layer_past,
@@ -658,13 +645,20 @@ impl LMHeadModel for GPT2LMHeadModel {
             _ => Err("Cache not compatible with GPT2 model"),
         }?;
 
-        let lm_logits = output.apply(&self.lm_head);
+        let lm_logits = model_output.hidden_state.apply(&self.lm_head);
         Ok(LMModelOutput {
             lm_logits,
             encoder_hidden_state: None,
-            cache: Cache::GPT2Cache(past),
-            all_hidden_states,
-            all_attentions,
+            cache: Cache::GPT2Cache(model_output.cache),
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
         })
     }
+}
+
+pub struct Gpt2ModelOutput {
+    pub hidden_state: Tensor,
+    pub cache: Option<Vec<Tensor>>,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
 }

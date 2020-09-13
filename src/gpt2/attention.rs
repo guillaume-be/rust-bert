@@ -128,7 +128,7 @@ impl Attention {
     fn flatten(&self, x: Tensor) -> Tensor {
         x.transpose(1, 2)
             .contiguous()
-            .view((x.size()[0], -1, &self.n_head * self.dim_per_head))
+            .view((x.size()[0], -1, self.n_head * self.dim_per_head))
     }
 
     fn attention(
@@ -141,7 +141,7 @@ impl Attention {
     ) -> (Tensor, Option<Tensor>) {
         let mut w = query.matmul(&key);
         if self.scale {
-            w = w / (*value.size().last().unwrap() as f64).sqrt();
+            w /= (*value.size().last().unwrap() as f64).sqrt();
         }
 
         let (nd, ns) = (w.size()[2], w.size()[3]);
@@ -149,7 +149,7 @@ impl Attention {
 
         let mut w: Tensor = w * &b + 1e4 * (&b - 1);
         if let Some(mask) = attention_mask {
-            w = w + mask;
+            w += mask;
         }
         w = w.softmax(-1, Float).apply_t(&self.attn_dropout, train);
         let output = w.matmul(&value);

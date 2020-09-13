@@ -70,4 +70,5 @@ pub use bart_model::{
     BartVocabResources,
 };
 
+pub(crate) use bart_model::BartModelOutput;
 pub(crate) use encoder::BartEncoderOutput;

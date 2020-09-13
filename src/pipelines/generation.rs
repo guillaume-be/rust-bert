@@ -73,7 +73,9 @@ use crate::openai_gpt::{
     OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptMergesResources,
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
-use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
+use crate::pipelines::generation::private_generation_utils::{
+    GenerateOptions, PrivateLanguageGenerator,
+};
 use crate::t5::{
     LayerState as T5LayerState, T5Config, T5ConfigResources, T5ForConditionalGeneration,
     T5ModelResources, T5VocabResources,
@@ -104,19 +106,19 @@ pub struct GenerateConfig {
     /// Merges resource (default: pretrained GPT2 model)
     pub merges_resource: Resource,
     /// Minimum sequence length (default: 0)
-    pub min_length: u64,
+    pub min_length: i64,
     /// Maximum sequence length (default: 20)
-    pub max_length: u64,
+    pub max_length: i64,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
     pub early_stopping: bool,
     /// Number of beams for beam search (default: 5)
-    pub num_beams: u64,
+    pub num_beams: i64,
     /// Temperature setting. Values higher than 1 will improve originality at the risk of reducing relevance (default: 1.0)
     pub temperature: f64,
     /// Top_k values for sampling tokens. Value higher than 0 will enable the feature (default: 0)
-    pub top_k: u64,
+    pub top_k: i64,
     /// Top_p value for [Nucleus sampling, Holtzman et al.](http://arxiv.org/abs/1904.09751). Keep top tokens until cumulative probability reaches top_p (default: 0.9)
     pub top_p: f64,
     /// Repetition penalty (mostly useful for CTRL decoders). Values higher than 1 will penalize tokens that have been already generated. (default: 1.0)
@@ -124,9 +126,9 @@ pub struct GenerateConfig {
     /// Exponential penalty based on the length of the hypotheses generated (default: 1.0)
     pub length_penalty: f64,
     /// Number of allowed repetitions of n-grams. Values higher than 0 turn on this feature (default: 3)
-    pub no_repeat_ngram_size: u64,
+    pub no_repeat_ngram_size: i64,
     /// Number of sequences to return for each prompt text (default: 1)
-    pub num_return_sequences: u64,
+    pub num_return_sequences: i64,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
 }
@@ -179,11 +181,11 @@ impl GenerateConfig {
             "length_penalty must be strictly greater than 0"
         );
         assert!(
-            self.num_return_sequences > 0u64,
+            self.num_return_sequences > 0i64,
             "num_return_sequences must be strictly greater than 0"
         );
         assert!(
-            self.num_beams > 0u64,
+            self.num_beams > 0i64,
             "num_beams must be strictly greater than 0"
         );
 
@@ -245,8 +247,8 @@ impl OpenAIGenerator {
         generate_config.validate();
 
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if &generate_config.model_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
+        let model_resource = if generate_config.model_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(
                 OpenAiGptModelResources::GPT,
@@ -255,8 +257,8 @@ impl OpenAIGenerator {
             generate_config.model_resource.clone()
         };
 
-        let config_resource = if &generate_config.config_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
+        let config_resource = if generate_config.config_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(
                 OpenAiGptConfigResources::GPT,
@@ -265,8 +267,8 @@ impl OpenAIGenerator {
             generate_config.config_resource.clone()
         };
 
-        let vocab_resource = if &generate_config.vocab_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
+        let vocab_resource = if generate_config.vocab_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(
                 OpenAiGptVocabResources::GPT,
@@ -275,8 +277,8 @@ impl OpenAIGenerator {
             generate_config.vocab_resource.clone()
         };
 
-        let merges_resource = if &generate_config.merges_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
+        let merges_resource = if generate_config.merges_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(
                 OpenAiGptMergesResources::GPT,
@@ -575,32 +577,32 @@ impl BartGenerator {
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<BartGenerator, RustBertError> {
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if &generate_config.model_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
+        let model_resource = if generate_config.model_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART))
         } else {
             generate_config.model_resource.clone()
         };
 
-        let config_resource = if &generate_config.config_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
+        let config_resource = if generate_config.config_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART))
         } else {
             generate_config.config_resource.clone()
         };
 
-        let vocab_resource = if &generate_config.vocab_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
+        let vocab_resource = if generate_config.vocab_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART))
         } else {
             generate_config.vocab_resource.clone()
         };
 
-        let merges_resource = if &generate_config.merges_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
+        let merges_resource = if generate_config.merges_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART))
         } else {
@@ -702,7 +704,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         max_length: i64,
     ) {
         if current_length == 1 {
-            self.force_token_id_generation(scores, &vec![self.get_bos_id().unwrap()]);
+            self.force_token_id_generation(scores, &[self.get_bos_id().unwrap()]);
         } else if current_length == max_length - 1 {
             self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
         }
@@ -747,7 +749,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     fn encode_prompt_text(
         &self,
         prompt_text: Vec<&str>,
-        max_len: u64,
+        max_len: i64,
         pad_token_id: Option<i64>,
     ) -> Tensor {
         let tokens = self.get_tokenizer().encode_list(
@@ -797,7 +799,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         match past {
             Cache::BARTCache(old_cache_option) => match old_cache_option {
                 Some(old_cache) => {
-                    for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
+                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
                         if self_layer_state.is_some() {
                             self_layer_state
                                 .as_mut()
@@ -1022,7 +1024,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
     fn encode_prompt_text(
         &self,
         prompt_text: Vec<&str>,
-        max_len: u64,
+        max_len: i64,
         pad_token_id: Option<i64>,
     ) -> Tensor {
         let tokens = self.get_tokenizer().encode_list(
@@ -1072,7 +1074,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         match past {
             Cache::BARTCache(old_cache_option) => match old_cache_option {
                 Some(old_cache) => {
-                    for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
+                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
                         if self_layer_state.is_some() {
                             self_layer_state
                                 .as_mut()
@@ -1119,24 +1121,24 @@ pub struct T5Generator {
 impl T5Generator {
     pub fn new(generate_config: GenerateConfig) -> Result<T5Generator, RustBertError> {
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if &generate_config.model_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
+        let model_resource = if generate_config.model_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL))
         } else {
             generate_config.model_resource.clone()
         };
 
-        let config_resource = if &generate_config.config_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
+        let config_resource = if generate_config.config_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL))
         } else {
             generate_config.config_resource.clone()
         };
 
-        let vocab_resource = if &generate_config.vocab_resource
-            == &Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
+        let vocab_resource = if generate_config.vocab_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL))
         } else {
@@ -1254,7 +1256,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     fn encode_prompt_text(
         &self,
         prompt_text: Vec<&str>,
-        max_len: u64,
+        max_len: i64,
         pad_token_id: Option<i64>,
     ) -> Tensor {
         let tokens = self.get_tokenizer().encode_list(
@@ -1304,7 +1306,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
         match past {
             Cache::T5Cache(old_cache_option) => match old_cache_option {
                 Some(old_cache) => {
-                    for (self_layer_state, encoder_layer_state) in old_cache.into_iter() {
+                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
                         if self_layer_state.is_some() {
                             self_layer_state
                                 .as_mut()
@@ -1351,6 +1353,23 @@ pub(crate) mod private_generation_utils {
     use tch::kind::Kind::{Bool, Float, Int64};
     use tch::{nn, Device, Tensor};
 
+    pub struct GenerateOptions {
+        pub min_length: i64,
+        pub max_length: i64,
+        pub do_sample: bool,
+        pub temperature: f64,
+        pub top_k: i64,
+        pub top_p: f64,
+        pub repetition_penalty: f64,
+        pub no_repeat_ngram_size: i64,
+        pub pad_token_id: Option<i64>,
+        pub eos_token_ids: Option<Vec<i64>>,
+        pub num_return_sequences: i64,
+        pub early_stopping: bool,
+        pub num_beams: i64,
+        pub length_penalty: f64,
+    }
+
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         fn get_model(&self) -> &T;
         fn get_tokenizer(&self) -> &U;
@@ -1394,7 +1413,7 @@ pub(crate) mod private_generation_utils {
         fn encode_prompt_text(
             &self,
             prompt_text: Vec<&str>,
-            max_len: u64,
+            max_len: i64,
             pad_token_id: Option<i64>,
         ) -> Tensor {
             let tokens = self.get_tokenizer().tokenize_list(prompt_text);
@@ -1460,7 +1479,7 @@ pub(crate) mod private_generation_utils {
             &self,
             next_token_logits: &mut Tensor,
             batch_size: i64,
-            num_beams: u64,
+            num_beams: i64,
             prev_output_tokens: &Tensor,
             repetition_penalty: f64,
         ) {
@@ -1469,7 +1488,7 @@ pub(crate) mod private_generation_utils {
                     let token = prev_output_tokens.get(i).int64_value(&[token_position]);
                     let updated_value = &next_token_logits.double_value(&[i, token]);
                     if updated_value < &0f64 {
-                        &next_token_logits.get(i).index_fill_(
+                        let _ = next_token_logits.get(i).index_fill_(
                             0,
                             &Tensor::of_slice(&[token])
                                 .to_kind(Int64)
@@ -1477,7 +1496,7 @@ pub(crate) mod private_generation_utils {
                             updated_value * repetition_penalty,
                         );
                     } else {
-                        &next_token_logits.get(i).index_fill_(
+                        let _ = next_token_logits.get(i).index_fill_(
                             0,
                             &Tensor::of_slice(&[token])
                                 .to_kind(Int64)
@@ -1521,11 +1540,10 @@ pub(crate) mod private_generation_utils {
                         let ngram = &hypothesis_input_ids[ngram.0 as usize..ngram.1 as usize + 1];
                         let key = ngram[..no_repeat_ngram_size as usize - 1].to_vec();
                         let value = *ngram.last().unwrap();
-                        if generated_ngram.contains_key(&key) {
-                            generated_ngram.get_mut(&key).unwrap().push(value)
-                        } else {
-                            generated_ngram.insert(key, vec![value]);
-                        }
+                        generated_ngram
+                            .entry(key)
+                            .or_insert_with(|| vec![value])
+                            .push(value);
                     }
                     let hypothesis_banned_tokens = match generated_ngram.get(query) {
                         Some(banned_tokens) => banned_tokens.clone(),
@@ -1551,21 +1569,20 @@ pub(crate) mod private_generation_utils {
                 let top_k = vocab_size - min(max(top_k, min_tokens_to_keep), vocab_size);
                 let (_, indices_to_remove) = logits.topk(top_k, -1, false, false);
                 for index in 0..*logits.size().first().unwrap() {
-                    &logits.get(index).index_fill_(
+                    let _ = logits.get(index).index_fill_(
                         0,
                         &indices_to_remove.get(index),
                         std::f64::NEG_INFINITY,
                     );
                 }
             }
-
             if top_p < 1f64 {
                 let (sorted_logits, sorted_indices) = logits.sort(-1, true);
                 let cumulative_probabilities = sorted_logits.softmax(-1, Float).cumsum(-1, Float);
                 let mut sorted_indices_to_remove =
                     cumulative_probabilities.ge(top_p).to_kind(Int64);
                 if min_tokens_to_keep > 1 {
-                    &sorted_indices_to_remove.index_fill_(
+                    let _ = sorted_indices_to_remove.index_fill_(
                         1,
                         &Tensor::arange1(0, min_tokens_to_keep + 1, (Int64, logits.device())),
                         0,
@@ -1597,31 +1614,22 @@ pub(crate) mod private_generation_utils {
             input_ids: Tensor,
             encoder_outputs: Option<Tensor>,
             cur_len: i64,
-            min_length: i64,
-            max_length: i64,
-            do_sample: bool,
-            temperature: f64,
-            top_k: i64,
-            top_p: f64,
-            repetition_penalty: f64,
-            no_repeat_ngram_size: i64,
-            pad_token_id: Option<i64>,
-            eos_token_ids: Option<Vec<i64>>,
             batch_size: i64,
             attention_mask: Tensor,
+            gen_opt: GenerateOptions,
         ) -> Tensor {
             let mut unfinished_sentences =
                 Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()));
             let mut sentence_lengths: Tensor =
                 Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()))
-                    * max_length as i64;
+                    * gen_opt.max_length as i64;
             let mut attention_mask = attention_mask.copy();
             let mut input_ids = input_ids.copy();
             let mut past: Cache = Cache::None;
             let mut outputs: Tensor;
             let mut current_length = cur_len;
 
-            while current_length < max_length {
+            while current_length < gen_opt.max_length {
                 let (
                     prepared_input,
                     prepared_attention_mask,
@@ -1653,26 +1661,26 @@ pub(crate) mod private_generation_utils {
 
                 let mut next_token_logits = outputs.select(1, -1);
                 //            Reduce probability for repeated inputs
-                if repetition_penalty > 1f64 {
+                if gen_opt.repetition_penalty > 1f64 {
                     self.enforce_repetition_penalty(
                         &mut next_token_logits,
                         batch_size,
                         1,
                         &input_ids,
-                        repetition_penalty,
+                        gen_opt.repetition_penalty,
                     )
                 }
                 //            Get banned tokens and set their probability to 0
-                if no_repeat_ngram_size > 0 {
+                if gen_opt.no_repeat_ngram_size > 0 {
                     let banned_tokens = self.get_banned_tokens(
                         &input_ids,
-                        no_repeat_ngram_size as i64,
+                        gen_opt.no_repeat_ngram_size as i64,
                         current_length as i64,
                     );
                     for (batch_index, index_banned_token) in
                         (0..banned_tokens.len() as i64).zip(banned_tokens)
                     {
-                        &next_token_logits.get(batch_index).index_fill_(
+                        let _ = next_token_logits.get(batch_index).index_fill_(
                             0,
                             &Tensor::of_slice(&index_banned_token)
                                 .to_device(next_token_logits.device()),
@@ -1682,21 +1690,26 @@ pub(crate) mod private_generation_utils {
                 }
 
                 //            Do not allow eos token if min length is not reached
-                if (&eos_token_ids.is_some()) & (current_length < min_length) {
-                    &next_token_logits.index_fill_(
+                if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
+                    let _ = next_token_logits.index_fill_(
                         1,
-                        &Tensor::of_slice(eos_token_ids.as_ref().unwrap())
+                        &Tensor::of_slice(gen_opt.eos_token_ids.as_ref().unwrap())
                             .to(next_token_logits.device()),
                         std::f64::NEG_INFINITY,
                     );
                 }
 
                 //            Top-k and top-p sampling
-                let next_token = if do_sample {
-                    if temperature > 1f64 {
-                        next_token_logits = next_token_logits / temperature;
+                let next_token = if gen_opt.do_sample {
+                    if gen_opt.temperature > 1f64 {
+                        next_token_logits /= gen_opt.temperature;
                     }
-                    self.top_k_top_p_filtering(&mut next_token_logits, top_k as i64, top_p, 1);
+                    self.top_k_top_p_filtering(
+                        &mut next_token_logits,
+                        gen_opt.top_k as i64,
+                        gen_opt.top_p,
+                        1,
+                    );
                     let probabilities = next_token_logits.softmax(-1, Float);
                     probabilities.multinomial(1, false).squeeze1(1)
                 } else {
@@ -1704,17 +1717,17 @@ pub(crate) mod private_generation_utils {
                 };
 
                 //            Add tokens to unfinished sentences
-                let tokens_to_add = match &eos_token_ids {
+                let tokens_to_add = match &gen_opt.eos_token_ids {
                     Some(_) => {
                         next_token * &unfinished_sentences
-                            - pad_token_id.unwrap() * (&unfinished_sentences - 1)
+                            - gen_opt.pad_token_id.unwrap() * (&unfinished_sentences - 1)
                     }
                     None => next_token,
                 };
 
                 input_ids = Tensor::cat(&[input_ids, tokens_to_add.unsqueeze(-1)], -1);
-                if eos_token_ids.is_some() {
-                    for eos_token_id in eos_token_ids.as_ref().unwrap() {
+                if gen_opt.eos_token_ids.is_some() {
+                    for eos_token_id in gen_opt.eos_token_ids.as_ref().unwrap() {
                         let sentence_with_eos = tokens_to_add.eq(*eos_token_id).to_kind(Int64);
                         let sentence_with_eos: Tensor = sentence_with_eos * &unfinished_sentences;
                         let _ = sentence_lengths.masked_fill_(
@@ -1746,7 +1759,7 @@ pub(crate) mod private_generation_utils {
             }
 
             let decoded = if i64::from(&sentence_lengths.min().ne1(&sentence_lengths.max())) > 0 {
-                match pad_token_id {
+                match gen_opt.pad_token_id {
                     Some(pad_value) => {
                         let decoded: Tensor = Tensor::ones(
                             &[batch_size, i64::from(sentence_lengths.max())],
@@ -1783,33 +1796,27 @@ pub(crate) mod private_generation_utils {
             input_ids: Tensor,
             encoder_outputs: Option<Tensor>,
             cur_len: i64,
-            min_length: i64,
-            max_length: i64,
-            do_sample: bool,
-            early_stopping: bool,
-            temperature: f64,
-            top_k: i64,
-            top_p: f64,
-            repetition_penalty: f64,
-            no_repeat_ngram_size: i64,
-            pad_token_id: Option<i64>,
-            eos_token_ids: Option<Vec<i64>>,
             batch_size: i64,
-            num_return_sequences: i64,
-            length_penalty: f64,
-            num_beams: i64,
             attention_mask: Tensor,
+            gen_opt: GenerateOptions,
         ) -> Tensor {
             let mut hypotheses = (0..batch_size)
-                .map(|_| BeamHypotheses::new(num_beams, max_length, length_penalty, early_stopping))
+                .map(|_| {
+                    BeamHypotheses::new(
+                        gen_opt.num_beams,
+                        gen_opt.max_length,
+                        gen_opt.length_penalty,
+                        gen_opt.early_stopping,
+                    )
+                })
                 .collect::<Vec<BeamHypotheses>>();
 
             let vocab_size = self.get_vocab_size();
             let beam_scores = Tensor::zeros(
-                &[batch_size, num_beams],
+                &[batch_size, gen_opt.num_beams],
                 (Float, self.get_var_store().device()),
             );
-            if !do_sample {
+            if !gen_opt.do_sample {
                 let _ = beam_scores
                     .slice(1, 1, *beam_scores.size().last().unwrap(), 1)
                     .fill_(-1e9);
@@ -1827,7 +1834,7 @@ pub(crate) mod private_generation_utils {
             let mut encoder_outputs = encoder_outputs;
             let mut current_length = cur_len;
 
-            while current_length < max_length {
+            while current_length < gen_opt.max_length {
                 let (
                     prepared_input,
                     prepared_attention_mask,
@@ -1860,42 +1867,47 @@ pub(crate) mod private_generation_utils {
                 let mut next_token_logits = outputs.select(1, -1);
 
                 //            Reduce probability for repeated inputs
-                if repetition_penalty > 1f64 {
+                if gen_opt.repetition_penalty > 1f64 {
                     self.enforce_repetition_penalty(
                         &mut next_token_logits,
                         batch_size,
                         1,
                         &input_ids,
-                        repetition_penalty,
+                        gen_opt.repetition_penalty,
                     )
                 }
 
-                if temperature > 1f64 {
-                    next_token_logits = next_token_logits / temperature;
+                if gen_opt.temperature > 1f64 {
+                    next_token_logits /= gen_opt.temperature;
                 }
                 let mut scores = next_token_logits.log_softmax(-1, Float);
-                if self.is_encoder_decoder() & !do_sample {
-                    self.prepare_scores_for_generation(&mut scores, current_length, max_length);
+                if self.is_encoder_decoder() & !gen_opt.do_sample {
+                    self.prepare_scores_for_generation(
+                        &mut scores,
+                        current_length,
+                        gen_opt.max_length,
+                    );
                 }
                 //            Do not allow eos token if min length is not reached
-                if (&eos_token_ids.is_some()) & (current_length < min_length) {
-                    &scores.index_fill_(
+                if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
+                    let _ = scores.index_fill_(
                         1,
-                        &Tensor::of_slice(eos_token_ids.as_ref().unwrap()).to(scores.device()),
+                        &Tensor::of_slice(gen_opt.eos_token_ids.as_ref().unwrap())
+                            .to(scores.device()),
                         std::f64::NEG_INFINITY,
                     );
                 }
                 //            Get banned tokens and set their probability to 0
-                if no_repeat_ngram_size > 0 {
+                if gen_opt.no_repeat_ngram_size > 0 {
                     let banned_tokens = self.get_banned_tokens(
                         &input_ids,
-                        no_repeat_ngram_size as i64,
-                        current_length as i64,
+                        gen_opt.no_repeat_ngram_size,
+                        current_length,
                     );
                     for (batch_index, index_banned_token) in
                         (0..banned_tokens.len() as i64).zip(banned_tokens)
                     {
-                        &scores.get(batch_index).index_fill_(
+                        let _ = scores.get(batch_index).index_fill_(
                             0,
                             &Tensor::of_slice(&index_banned_token)
                                 .to_device(next_token_logits.device()),
@@ -1904,16 +1916,16 @@ pub(crate) mod private_generation_utils {
                     }
                 }
 
-                let (next_scores, next_tokens) = if do_sample {
+                let (next_scores, next_tokens) = if gen_opt.do_sample {
                     let mut _scores: Tensor =
                         &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
-                    self.top_k_top_p_filtering(&mut _scores, top_k as i64, top_p, 2);
+                    self.top_k_top_p_filtering(&mut _scores, gen_opt.top_k, gen_opt.top_p, 2);
                     let _scores = _scores
                         .contiguous()
-                        .view((batch_size, num_beams * vocab_size));
+                        .view((batch_size, gen_opt.num_beams * vocab_size));
 
                     let probabilities = _scores.softmax(-1, Float);
-                    let next_tokens = probabilities.multinomial(2 * num_beams, false);
+                    let next_tokens = probabilities.multinomial(2 * gen_opt.num_beams, false);
                     let next_scores = _scores.gather(-1, &next_tokens, false);
                     let (next_scores, next_scores_indices) = next_scores.sort(1, true);
                     let next_tokens = next_tokens.gather(-1, &next_scores_indices, false);
@@ -1923,25 +1935,25 @@ pub(crate) mod private_generation_utils {
                         &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
                     let next_scores = next_scores
                         .contiguous()
-                        .view((batch_size, num_beams * vocab_size));
-                    next_scores.topk(2 * num_beams, 1, true, true)
+                        .view((batch_size, gen_opt.num_beams * vocab_size));
+                    next_scores.topk(2 * gen_opt.num_beams, 1, true, true)
                 };
 
                 let mut next_batch_beam: Vec<(f64, i64, i64)> = vec![];
                 for batch_index in 0..batch_size {
                     if done[batch_index as usize] {
                         assert!(
-                            hypotheses[batch_index as usize].len() >= num_beams,
+                            hypotheses[batch_index as usize].len() >= gen_opt.num_beams,
                             "Batch cannot be completed if all beams have not been generated"
                         );
                         assert!(
-                            eos_token_ids.is_some() & pad_token_id.is_some(),
+                            gen_opt.eos_token_ids.is_some() & gen_opt.pad_token_id.is_some(),
                             "EOS and Padding tokens need to be defined if the number of generated \
                              beams is greater than the target number fo beams"
                         );
                         next_batch_beam.append(
-                            &mut (0..num_beams)
-                                .map(|_| (0f64, pad_token_id.unwrap(), 0i64))
+                            &mut (0..gen_opt.num_beams)
+                                .map(|_| (0f64, gen_opt.pad_token_id.unwrap(), 0i64))
                                 .collect::<Vec<(f64, i64, i64)>>(),
                         );
                         continue;
@@ -1960,11 +1972,11 @@ pub(crate) mod private_generation_utils {
                         let beam_id = beam_token_id / vocab_size;
                         let token_id = beam_token_id % vocab_size;
 
-                        let effective_beam_id = batch_index * num_beams + beam_id;
+                        let effective_beam_id = batch_index * gen_opt.num_beams + beam_id;
 
-                        if eos_token_ids.as_ref().is_some() {
-                            if eos_token_ids.as_ref().unwrap().contains(&token_id) {
-                                if beam_token_rank >= num_beams {
+                        if gen_opt.eos_token_ids.as_ref().is_some() {
+                            if gen_opt.eos_token_ids.as_ref().unwrap().contains(&token_id) {
+                                if beam_token_rank >= gen_opt.num_beams {
                                     beam_token_rank += 1;
                                     continue;
                                 }
@@ -1985,7 +1997,7 @@ pub(crate) mod private_generation_utils {
                             ));
                         }
 
-                        if (next_sentence_beam.len() as i64 == num_beams)
+                        if (next_sentence_beam.len() as i64 == gen_opt.num_beams)
                             | (beam_token_rank == beam_token_rank_max_value)
                         {
                             break;
@@ -1993,15 +2005,14 @@ pub(crate) mod private_generation_utils {
                         beam_token_rank += 1;
                     }
 
-                    done[batch_index as usize] = done[batch_index as usize]
-                        | hypotheses[batch_index as usize].is_done(
-                            f64::from(next_scores.get(batch_index).max()),
-                            current_length,
-                        );
+                    done[batch_index as usize] |= hypotheses[batch_index as usize].is_done(
+                        f64::from(next_scores.get(batch_index).max()),
+                        current_length,
+                    );
 
                     assert_eq!(
                         next_sentence_beam.len() as i64,
-                        num_beams,
+                        gen_opt.num_beams,
                         "Beam incomplete"
                     );
                     next_batch_beam.append(&mut next_sentence_beam);
@@ -2062,8 +2073,8 @@ pub(crate) mod private_generation_utils {
                     batch_index += 1;
                     continue;
                 }
-                for beam_index in 0..num_beams {
-                    let effective_beam_id = batch_index * num_beams + beam_index;
+                for beam_index in 0..gen_opt.num_beams {
+                    let effective_beam_id = batch_index * gen_opt.num_beams + beam_index;
                     let final_score = f64::from(beam_scores.get(effective_beam_id));
                     let final_tokens = input_ids.get(effective_beam_id);
                     hypotheses[batch_index as usize].add(final_tokens, final_score);
@@ -2071,10 +2082,13 @@ pub(crate) mod private_generation_utils {
                 batch_index += 1;
             }
 
-            let (output_batch_size, output_num_return_sequences_per_batch) = if do_sample {
+            let (output_batch_size, output_num_return_sequences_per_batch) = if gen_opt.do_sample {
                 (batch_size, 1)
             } else {
-                (batch_size * num_return_sequences, num_return_sequences)
+                (
+                    batch_size * gen_opt.num_return_sequences,
+                    gen_opt.num_return_sequences,
+                )
             };
 
             let mut sentence_lengths =
@@ -2083,7 +2097,7 @@ pub(crate) mod private_generation_utils {
 
             for (hypothesis_index, hypothesis) in hypotheses.iter().enumerate() {
                 let mut sorted_hypotheses = hypothesis.clone();
-                &sorted_hypotheses
+                sorted_hypotheses
                     .beams
                     .sort_by_key(|(score, _)| OrderedFloat(*score));
                 for j in 0..output_num_return_sequences_per_batch {
@@ -2101,12 +2115,13 @@ pub(crate) mod private_generation_utils {
 
             let decoded = if i64::from(sentence_lengths.max()) != i64::from(sentence_lengths.min())
             {
-                let sentence_max_length = min(i64::from(sentence_lengths.max()) + 1, max_length);
+                let sentence_max_length =
+                    min(i64::from(sentence_lengths.max()) + 1, gen_opt.max_length);
                 let decoded: Tensor = Tensor::ones(
                     &[output_batch_size, sentence_max_length],
                     (Int64, input_ids.device()),
-                ) * pad_token_id.unwrap();
-                for hypothesis_index in 0..best_ids.len() {
+                ) * gen_opt.pad_token_id.unwrap();
+                for (hypothesis_index, best_id) in best_ids.iter().enumerate() {
                     let _ = decoded.get(hypothesis_index as i64).index_copy_(
                         0,
                         &Tensor::arange1(
@@ -2114,14 +2129,14 @@ pub(crate) mod private_generation_utils {
                             i64::from(sentence_lengths.get(hypothesis_index as i64)),
                             (Int64, input_ids.device()),
                         ),
-                        &best_ids[hypothesis_index],
+                        &best_id,
                     );
                     let sentence_length = i64::from(sentence_lengths.get(hypothesis_index as i64));
-                    if sentence_length < max_length {
+                    if sentence_length < gen_opt.max_length {
                         let _ = decoded.get(hypothesis_index as i64).index_fill_(
                             0,
                             &Tensor::of_slice(&[sentence_length]).to_device(input_ids.device()),
-                            eos_token_ids.as_ref().unwrap()[0],
+                            gen_opt.eos_token_ids.as_ref().unwrap()[0],
                         );
                     }
                 }
@@ -2231,7 +2246,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let config = PrivateLanguageGenerator::get_config(self);
         let max_length = config.max_length;
         let encoding_max_len = if self.is_encoder_decoder() {
-            1024u64
+            1024i64
         } else {
             max_length
         };
@@ -2377,49 +2392,45 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             (input_ids, attention_mask)
         };
 
+        let gen_opt = GenerateOptions {
+            min_length,
+            max_length,
+            do_sample,
+            temperature,
+            top_k,
+            top_p,
+            repetition_penalty,
+            no_repeat_ngram_size,
+            pad_token_id,
+            eos_token_ids,
+            num_return_sequences,
+            early_stopping,
+            num_beams,
+            length_penalty,
+        };
+
         let decoded = no_grad(|| {
             if num_beams > 1 {
                 self.generate_beam_search(
                     input_ids,
                     encoder_outputs,
                     cur_len,
-                    min_length as i64,
-                    max_length as i64,
-                    do_sample,
-                    early_stopping,
-                    temperature,
-                    top_k as i64,
-                    top_p,
-                    repetition_penalty,
-                    no_repeat_ngram_size as i64,
-                    pad_token_id,
-                    eos_token_ids,
                     effective_batch_size,
-                    num_return_sequences as i64,
-                    length_penalty,
-                    num_beams as i64,
                     attention_mask,
+                    gen_opt,
                 )
             } else {
                 self.generate_no_beam_search(
                     input_ids,
                     encoder_outputs,
                     cur_len,
-                    min_length as i64,
-                    max_length as i64,
-                    do_sample,
-                    temperature,
-                    top_k as i64,
-                    top_p,
-                    repetition_penalty,
-                    no_repeat_ngram_size as i64,
-                    pad_token_id,
-                    eos_token_ids,
                     effective_batch_size,
                     attention_mask,
+                    gen_opt,
                 )
             }
         });
+
         let num_sequences = *decoded.size().first().unwrap();
         let mut output_ids = Vec::with_capacity(num_sequences as usize);
         for sequence_index in 0..num_sequences {

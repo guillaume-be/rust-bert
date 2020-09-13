@@ -70,21 +70,21 @@ pub struct ConversationConfig {
     /// Merges resource (default: DialoGPT-medium)
     pub merges_resource: Resource,
     /// Minimum sequence length (default: 0)
-    pub min_length: u64,
+    pub min_length: i64,
     /// Maximum sequence length (default: 20)
-    pub max_length: u64,
+    pub max_length: i64,
     /// Minimum free length available for generated responses (default: 32)
-    pub min_length_for_response: u64,
+    pub min_length_for_response: i64,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
     pub early_stopping: bool,
     /// Number of beams for beam search (default: 5)
-    pub num_beams: u64,
+    pub num_beams: i64,
     /// Temperature setting. Values higher than 1 will improve originality at the risk of reducing relevance (default: 1.0)
     pub temperature: f64,
     /// Top_k values for sampling tokens. Value higher than 0 will enable the feature (default: 0)
-    pub top_k: u64,
+    pub top_k: i64,
     /// Top_p value for [Nucleus sampling, Holtzman et al.](http://arxiv.org/abs/1904.09751). Keep top tokens until cumulative probability reaches top_p (default: 0.9)
     pub top_p: f64,
     /// Repetition penalty (mostly useful for CTRL decoders). Values higher than 1 will penalize tokens that have been already generated. (default: 1.0)
@@ -92,9 +92,9 @@ pub struct ConversationConfig {
     /// Exponential penalty based on the length of the hypotheses generated (default: 1.0)
     pub length_penalty: f64,
     /// Number of allowed repetitions of n-grams. Values higher than 0 turn on this feature (default: 3)
-    pub no_repeat_ngram_size: u64,
+    pub no_repeat_ngram_size: i64,
     /// Number of sequences to return for each prompt text (default: 1)
-    pub num_return_sequences: u64,
+    pub num_return_sequences: i64,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
 }
@@ -306,7 +306,7 @@ impl Conversation {
     pub fn get_last_input(&self) -> Option<&str> {
         if self.new_user_input.is_some() {
             Some(self.new_user_input.as_ref().unwrap().as_str())
-        } else if self.past_user_inputs.len() > 0 {
+        } else if !self.past_user_inputs.is_empty() {
             Some(self.past_user_inputs.last().unwrap().as_str())
         } else {
             None
@@ -564,12 +564,18 @@ impl ConversationManager {
     }
 }
 
+impl Default for ConversationManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// # Conversation model
 /// Processes a ConversationManager and generate system responses for active conversations.
 pub struct ConversationModel {
     model: GPT2Generator,
     eos_token_id: i64,
-    max_allowed_context_length: u64,
+    max_allowed_context_length: i64,
 }
 
 impl ConversationModel {
@@ -615,7 +621,7 @@ impl ConversationModel {
         let model = GPT2Generator::new(generate_config)?;
         let eos_token_id = *model.get_eos_ids().as_ref().unwrap().first().unwrap();
         let max_allowed_length =
-            conversation_config.max_length as u64 - conversation_config.min_length_for_response;
+            conversation_config.max_length - conversation_config.min_length_for_response;
         Ok(ConversationModel {
             model,
             eos_token_id,

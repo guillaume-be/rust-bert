@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartConfig, BartEncoderOutput, BartModel, LayerState};
+use crate::bart::{BartConfig, BartEncoderOutput, BartModel, BartModelOutput, LayerState};
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use std::borrow::Borrow;
 use tch::nn::Init;
@@ -325,15 +325,7 @@ impl MarianForConditionalGeneration {
     /// let decoder_attention_mask =
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    /// let (
-    ///     decoder_output,
-    ///     encoder_hidden_states,
-    ///     cache,
-    ///     all_encoder_hidden_states,
-    ///     all_encoder_attentions,
-    ///     all_decoder_hidden_states,
-    ///     all_decoder_attentions,
-    /// ) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     marian_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
@@ -354,15 +346,7 @@ impl MarianForConditionalGeneration {
         decoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> (
-        Tensor,
-        Tensor,
-        Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-    ) {
+    ) -> BartModelOutput {
         let base_model_output = self.base_model.forward_t(
             input_ids,
             attention_mask,
@@ -376,20 +360,14 @@ impl MarianForConditionalGeneration {
         let lm_logits = base_model_output
             .decoder_hidden_state
             .linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        (
-            lm_logits,
-            base_model_output.encoder_hidden_state,
-            base_model_output.cache,
-            base_model_output.all_decoder_hidden_states,
-            base_model_output.all_decoder_attentions,
-            base_model_output.all_encoder_hidden_states,
-            base_model_output.all_encoder_attentions,
-        )
+        BartModelOutput {
+            decoder_hidden_state: lm_logits,
+            ..base_model_output
+        }
     }
 
     pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
-        let encoder_hidden_states = self
-            .base_model
+        self.base_model
             .encoder
             .forward_t(
                 input_ids,
@@ -397,8 +375,7 @@ impl MarianForConditionalGeneration {
                 &self.base_model.embeddings,
                 false,
             )
-            .hidden_state;
-        encoder_hidden_states
+            .hidden_state
     }
 }
 
@@ -450,15 +427,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
     /// let decoder_attention_mask =
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
-    /// let (
-    ///     decoder_output,
-    ///     encoder_hidden_states,
-    ///     cache,
-    ///     all_encoder_hidden_states,
-    ///     all_encoder_attentions,
-    ///     all_decoder_hidden_states,
-    ///     all_decoder_attentions,
-    /// ) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     marian_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
@@ -509,7 +478,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
                 None,
                 train,
             ),
-            _ => Err("Cache not compatible with Marian Model")?,
+            _ => return Err("Cache not compatible with Marian Model"),
         };
 
         let lm_logits = base_model_output
