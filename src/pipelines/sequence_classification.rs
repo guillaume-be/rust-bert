@@ -569,7 +569,7 @@ impl SequenceClassificationModel {
             };
             sequence_labels.push(label);
         }
-        if sequence_labels.len() > 0 {
+        if !sequence_labels.is_empty() {
             labels.push(sequence_labels);
         }
         Ok(labels)

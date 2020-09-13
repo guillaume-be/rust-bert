@@ -447,13 +447,13 @@ impl ZeroShotClassificationModel {
         let label_sentences: Vec<String> = match template {
             Some(function) => labels.iter().map(|label| function(label)).collect(),
             None => labels
-                .into_iter()
+                .iter()
                 .map(|label| format!("This example is about {}.", label))
                 .collect(),
         };
 
         let text_pair_list = inputs
-            .into_iter()
+            .iter()
             .cartesian_product(label_sentences.iter())
             .map(|(&s, label)| (s, label.as_str()))
             .collect();

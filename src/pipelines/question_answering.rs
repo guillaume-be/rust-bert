@@ -160,7 +160,7 @@ impl QaExample {
         }
 
         if !current_word.is_empty() {
-            doc_tokens.push(current_word.clone());
+            doc_tokens.push(current_word);
         }
         (doc_tokens, char_to_word_offset)
     }
@@ -437,12 +437,9 @@ impl QuestionAnsweringModel {
         let mut var_store = VarStore::new(device);
         let mut model_config =
             ConfigOption::from_file(question_answering_config.model_type, config_path);
-        match model_config {
-            //        The config for the current pre-trained question answering model indicates position embeddings which does not seem accurate
-            ConfigOption::DistilBert(ref mut config) => {
-                config.sinusoidal_pos_embds = false;
-            }
-            _ => (),
+
+        if let ConfigOption::DistilBert(ref mut config) = model_config {
+            config.sinusoidal_pos_embds = false;
         };
 
         let qa_model = QuestionAnsweringOption::new(
@@ -605,7 +602,7 @@ impl QuestionAnsweringModel {
                     feature_id_start = max_feature_id;
                     let example_answers = example_top_k_answers_map
                         .entry(example_id)
-                        .or_insert(vec![]);
+                        .or_insert_with(Vec::new);
                     example_answers.extend(answers);
                 }
             });
@@ -792,8 +789,8 @@ impl QuestionAnsweringModel {
 
     fn encode_qa_pair(
         &self,
-        truncated_query: &Vec<i64>,
-        spans_token_ids: &Vec<i64>,
+        truncated_query: &[i64],
+        spans_token_ids: &[i64],
         max_seq_length: usize,
         doc_stride: usize,
         sequence_pair_added_tokens: usize,
@@ -809,8 +806,8 @@ impl QuestionAnsweringModel {
 
         let (truncated_query, truncated_context, _, _, _, _, _, _, overflowing_tokens, _) =
             truncate_sequences(
-                truncated_query.clone(),
-                Some(spans_token_ids.clone()),
+                truncated_query.into(),
+                Some(spans_token_ids.into()),
                 vec![],
                 None,
                 vec![],

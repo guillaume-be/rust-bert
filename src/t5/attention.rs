@@ -198,18 +198,18 @@ impl T5Attention {
                 let length = temp_value.size()[2];
                 temp_value = temp_value.slice(2, length - 1, length, 1);
             };
-            if attention_mask.is_some() {
-                temp_value = temp_value + attention_mask.unwrap();
+            if let Some(attention_mask) = attention_mask {
+                temp_value += attention_mask;
             };
             Some(temp_value)
         } else {
             None
         };
 
-        let position_bias = if position_bias.is_none() {
-            calculated_position_bias.as_ref().unwrap()
+        let position_bias = if let Some(position_bias) = position_bias {
+            position_bias
         } else {
-            position_bias.unwrap()
+            calculated_position_bias.as_ref().unwrap()
         };
 
         scores += position_bias;
@@ -247,7 +247,7 @@ impl T5Attention {
         let mut num_buckets = num_buckets;
         let mut ret = n.zeros_like();
         let n = if bidirectional {
-            num_buckets = num_buckets / 2;
+            num_buckets /= 2;
             ret += n.lt(0).to_kind(Kind::Int64) * num_buckets;
             n.abs()
         } else {

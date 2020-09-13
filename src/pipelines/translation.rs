@@ -91,311 +91,176 @@ pub enum Language {
     GermanToFrench,
 }
 
-struct RemoteTranslationResources;
+struct RemoteTranslationResources {
+    model_resource: (&'static str, &'static str),
+    config_resource: (&'static str, &'static str),
+    vocab_resource: (&'static str, &'static str),
+    merges_resource: (&'static str, &'static str),
+    prefix: Option<&'static str>,
+    model_type: ModelType,
+}
 
 impl RemoteTranslationResources {
-    pub const ENGLISH2FRENCH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ENGLISH2ROMANCE,
-        MarianConfigResources::ENGLISH2ROMANCE,
-        MarianVocabResources::ENGLISH2ROMANCE,
-        MarianSpmResources::ENGLISH2ROMANCE,
-        MarianPrefix::ENGLISH2FRENCH,
-        ModelType::Marian,
-    );
-    pub const ENGLISH2FRENCH_V2: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        T5ModelResources::T5_BASE,
-        T5ConfigResources::T5_BASE,
-        T5VocabResources::T5_BASE,
-        T5VocabResources::T5_BASE,
-        T5Prefix::ENGLISH2FRENCH,
-        ModelType::T5,
-    );
-    pub const ENGLISH2GERMAN_V2: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        T5ModelResources::T5_BASE,
-        T5ConfigResources::T5_BASE,
-        T5VocabResources::T5_BASE,
-        T5VocabResources::T5_BASE,
-        T5Prefix::ENGLISH2GERMAN,
-        ModelType::T5,
-    );
-    pub const ENGLISH2CATALAN: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ENGLISH2ROMANCE,
-        MarianConfigResources::ENGLISH2ROMANCE,
-        MarianVocabResources::ENGLISH2ROMANCE,
-        MarianSpmResources::ENGLISH2ROMANCE,
-        MarianPrefix::ENGLISH2CATALAN,
-        ModelType::Marian,
-    );
-    pub const ENGLISH2SPANISH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ENGLISH2ROMANCE,
-        MarianConfigResources::ENGLISH2ROMANCE,
-        MarianVocabResources::ENGLISH2ROMANCE,
-        MarianSpmResources::ENGLISH2ROMANCE,
-        MarianPrefix::ENGLISH2SPANISH,
-        ModelType::Marian,
-    );
-    pub const ENGLISH2PORTUGUESE: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ENGLISH2ROMANCE,
-        MarianConfigResources::ENGLISH2ROMANCE,
-        MarianVocabResources::ENGLISH2ROMANCE,
-        MarianSpmResources::ENGLISH2ROMANCE,
-        MarianPrefix::ENGLISH2PORTUGUESE,
-        ModelType::Marian,
-    );
-    pub const ENGLISH2ITALIAN: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ENGLISH2ROMANCE,
-        MarianConfigResources::ENGLISH2ROMANCE,
-        MarianVocabResources::ENGLISH2ROMANCE,
-        MarianSpmResources::ENGLISH2ROMANCE,
-        MarianPrefix::ENGLISH2ITALIAN,
-        ModelType::Marian,
-    );
-    pub const ENGLISH2ROMANIAN: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ENGLISH2ROMANCE,
-        MarianConfigResources::ENGLISH2ROMANCE,
-        MarianVocabResources::ENGLISH2ROMANCE,
-        MarianSpmResources::ENGLISH2ROMANCE,
-        MarianPrefix::ENGLISH2ROMANIAN,
-        ModelType::Marian,
-    );
-    pub const ENGLISH2GERMAN: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ENGLISH2GERMAN,
-        MarianConfigResources::ENGLISH2GERMAN,
-        MarianVocabResources::ENGLISH2GERMAN,
-        MarianSpmResources::ENGLISH2GERMAN,
-        MarianPrefix::ENGLISH2GERMAN,
-        ModelType::Marian,
-    );
-    pub const ENGLISH2RUSSIAN: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ENGLISH2RUSSIAN,
-        MarianConfigResources::ENGLISH2RUSSIAN,
-        MarianVocabResources::ENGLISH2RUSSIAN,
-        MarianSpmResources::ENGLISH2RUSSIAN,
-        MarianPrefix::ENGLISH2RUSSIAN,
-        ModelType::Marian,
-    );
-
-    pub const FRENCH2ENGLISH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ROMANCE2ENGLISH,
-        MarianConfigResources::ROMANCE2ENGLISH,
-        MarianVocabResources::ROMANCE2ENGLISH,
-        MarianSpmResources::ROMANCE2ENGLISH,
-        MarianPrefix::FRENCH2ENGLISH,
-        ModelType::Marian,
-    );
-    pub const CATALAN2ENGLISH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ROMANCE2ENGLISH,
-        MarianConfigResources::ROMANCE2ENGLISH,
-        MarianVocabResources::ROMANCE2ENGLISH,
-        MarianSpmResources::ROMANCE2ENGLISH,
-        MarianPrefix::CATALAN2ENGLISH,
-        ModelType::Marian,
-    );
-    pub const SPANISH2ENGLISH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ROMANCE2ENGLISH,
-        MarianConfigResources::ROMANCE2ENGLISH,
-        MarianVocabResources::ROMANCE2ENGLISH,
-        MarianSpmResources::ROMANCE2ENGLISH,
-        MarianPrefix::SPANISH2ENGLISH,
-        ModelType::Marian,
-    );
-    pub const PORTUGUESE2ENGLISH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ROMANCE2ENGLISH,
-        MarianConfigResources::ROMANCE2ENGLISH,
-        MarianVocabResources::ROMANCE2ENGLISH,
-        MarianSpmResources::ROMANCE2ENGLISH,
-        MarianPrefix::PORTUGUESE2ENGLISH,
-        ModelType::Marian,
-    );
-    pub const ITALIAN2ENGLISH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ROMANCE2ENGLISH,
-        MarianConfigResources::ROMANCE2ENGLISH,
-        MarianVocabResources::ROMANCE2ENGLISH,
-        MarianSpmResources::ROMANCE2ENGLISH,
-        MarianPrefix::ITALIAN2ENGLISH,
-        ModelType::Marian,
-    );
-    pub const ROMANIAN2ENGLISH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::ROMANCE2ENGLISH,
-        MarianConfigResources::ROMANCE2ENGLISH,
-        MarianVocabResources::ROMANCE2ENGLISH,
-        MarianSpmResources::ROMANCE2ENGLISH,
-        MarianPrefix::ROMANIAN2ENGLISH,
-        ModelType::Marian,
-    );
-    pub const GERMAN2ENGLISH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::GERMAN2ENGLISH,
-        MarianConfigResources::GERMAN2ENGLISH,
-        MarianVocabResources::GERMAN2ENGLISH,
-        MarianSpmResources::GERMAN2ENGLISH,
-        MarianPrefix::GERMAN2ENGLISH,
-        ModelType::Marian,
-    );
-    pub const RUSSIAN2ENGLISH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::RUSSIAN2ENGLISH,
-        MarianConfigResources::RUSSIAN2ENGLISH,
-        MarianVocabResources::RUSSIAN2ENGLISH,
-        MarianSpmResources::RUSSIAN2ENGLISH,
-        MarianPrefix::RUSSIAN2ENGLISH,
-        ModelType::Marian,
-    );
-
-    pub const FRENCH2GERMAN: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::FRENCH2GERMAN,
-        MarianConfigResources::FRENCH2GERMAN,
-        MarianVocabResources::FRENCH2GERMAN,
-        MarianSpmResources::FRENCH2GERMAN,
-        MarianPrefix::FRENCH2GERMAN,
-        ModelType::Marian,
-    );
-    pub const GERMAN2FRENCH: (
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        (&'static str, &'static str),
-        Option<&'static str>,
-        ModelType,
-    ) = (
-        MarianModelResources::GERMAN2FRENCH,
-        MarianConfigResources::GERMAN2FRENCH,
-        MarianVocabResources::GERMAN2FRENCH,
-        MarianSpmResources::GERMAN2FRENCH,
-        MarianPrefix::GERMAN2FRENCH,
-        ModelType::Marian,
-    );
+    pub const ENGLISH2FRENCH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2ROMANCE,
+        config_resource: MarianConfigResources::ENGLISH2ROMANCE,
+        vocab_resource: MarianVocabResources::ENGLISH2ROMANCE,
+        merges_resource: MarianSpmResources::ENGLISH2ROMANCE,
+        prefix: MarianPrefix::ENGLISH2FRENCH,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2FRENCH_V2: RemoteTranslationResources = Self {
+        model_resource: T5ModelResources::T5_BASE,
+        config_resource: T5ConfigResources::T5_BASE,
+        vocab_resource: T5VocabResources::T5_BASE,
+        merges_resource: T5VocabResources::T5_BASE,
+        prefix: T5Prefix::ENGLISH2FRENCH,
+        model_type: ModelType::T5,
+    };
+    pub const ENGLISH2GERMAN_V2: RemoteTranslationResources = Self {
+        model_resource: T5ModelResources::T5_BASE,
+        config_resource: T5ConfigResources::T5_BASE,
+        vocab_resource: T5VocabResources::T5_BASE,
+        merges_resource: T5VocabResources::T5_BASE,
+        prefix: T5Prefix::ENGLISH2GERMAN,
+        model_type: ModelType::T5,
+    };
+    pub const ENGLISH2CATALAN: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2ROMANCE,
+        config_resource: MarianConfigResources::ENGLISH2ROMANCE,
+        vocab_resource: MarianVocabResources::ENGLISH2ROMANCE,
+        merges_resource: MarianSpmResources::ENGLISH2ROMANCE,
+        prefix: MarianPrefix::ENGLISH2CATALAN,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2SPANISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2ROMANCE,
+        config_resource: MarianConfigResources::ENGLISH2ROMANCE,
+        vocab_resource: MarianVocabResources::ENGLISH2ROMANCE,
+        merges_resource: MarianSpmResources::ENGLISH2ROMANCE,
+        prefix: MarianPrefix::ENGLISH2SPANISH,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2PORTUGUESE: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2ROMANCE,
+        config_resource: MarianConfigResources::ENGLISH2ROMANCE,
+        vocab_resource: MarianVocabResources::ENGLISH2ROMANCE,
+        merges_resource: MarianSpmResources::ENGLISH2ROMANCE,
+        prefix: MarianPrefix::ENGLISH2PORTUGUESE,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2ITALIAN: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2ROMANCE,
+        config_resource: MarianConfigResources::ENGLISH2ROMANCE,
+        vocab_resource: MarianVocabResources::ENGLISH2ROMANCE,
+        merges_resource: MarianSpmResources::ENGLISH2ROMANCE,
+        prefix: MarianPrefix::ENGLISH2ITALIAN,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2ROMANIAN: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2ROMANCE,
+        config_resource: MarianConfigResources::ENGLISH2ROMANCE,
+        vocab_resource: MarianVocabResources::ENGLISH2ROMANCE,
+        merges_resource: MarianSpmResources::ENGLISH2ROMANCE,
+        prefix: MarianPrefix::ENGLISH2ROMANIAN,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2GERMAN: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2GERMAN,
+        config_resource: MarianConfigResources::ENGLISH2GERMAN,
+        vocab_resource: MarianVocabResources::ENGLISH2GERMAN,
+        merges_resource: MarianSpmResources::ENGLISH2GERMAN,
+        prefix: MarianPrefix::ENGLISH2GERMAN,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2RUSSIAN: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2RUSSIAN,
+        config_resource: MarianConfigResources::ENGLISH2RUSSIAN,
+        vocab_resource: MarianVocabResources::ENGLISH2RUSSIAN,
+        merges_resource: MarianSpmResources::ENGLISH2RUSSIAN,
+        prefix: MarianPrefix::ENGLISH2RUSSIAN,
+        model_type: ModelType::Marian,
+    };
+    pub const FRENCH2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ROMANCE2ENGLISH,
+        config_resource: MarianConfigResources::ROMANCE2ENGLISH,
+        vocab_resource: MarianVocabResources::ROMANCE2ENGLISH,
+        merges_resource: MarianSpmResources::ROMANCE2ENGLISH,
+        prefix: MarianPrefix::FRENCH2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const CATALAN2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ROMANCE2ENGLISH,
+        config_resource: MarianConfigResources::ROMANCE2ENGLISH,
+        vocab_resource: MarianVocabResources::ROMANCE2ENGLISH,
+        merges_resource: MarianSpmResources::ROMANCE2ENGLISH,
+        prefix: MarianPrefix::CATALAN2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const SPANISH2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ROMANCE2ENGLISH,
+        config_resource: MarianConfigResources::ROMANCE2ENGLISH,
+        vocab_resource: MarianVocabResources::ROMANCE2ENGLISH,
+        merges_resource: MarianSpmResources::ROMANCE2ENGLISH,
+        prefix: MarianPrefix::SPANISH2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const PORTUGUESE2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ROMANCE2ENGLISH,
+        config_resource: MarianConfigResources::ROMANCE2ENGLISH,
+        vocab_resource: MarianVocabResources::ROMANCE2ENGLISH,
+        merges_resource: MarianSpmResources::ROMANCE2ENGLISH,
+        prefix: MarianPrefix::PORTUGUESE2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const ITALIAN2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ROMANCE2ENGLISH,
+        config_resource: MarianConfigResources::ROMANCE2ENGLISH,
+        vocab_resource: MarianVocabResources::ROMANCE2ENGLISH,
+        merges_resource: MarianSpmResources::ROMANCE2ENGLISH,
+        prefix: MarianPrefix::ITALIAN2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const ROMANIAN2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ROMANCE2ENGLISH,
+        config_resource: MarianConfigResources::ROMANCE2ENGLISH,
+        vocab_resource: MarianVocabResources::ROMANCE2ENGLISH,
+        merges_resource: MarianSpmResources::ROMANCE2ENGLISH,
+        prefix: MarianPrefix::ROMANIAN2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const GERMAN2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::GERMAN2ENGLISH,
+        config_resource: MarianConfigResources::GERMAN2ENGLISH,
+        vocab_resource: MarianVocabResources::GERMAN2ENGLISH,
+        merges_resource: MarianSpmResources::GERMAN2ENGLISH,
+        prefix: MarianPrefix::GERMAN2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const RUSSIAN2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::RUSSIAN2ENGLISH,
+        config_resource: MarianConfigResources::RUSSIAN2ENGLISH,
+        vocab_resource: MarianVocabResources::RUSSIAN2ENGLISH,
+        merges_resource: MarianSpmResources::RUSSIAN2ENGLISH,
+        prefix: MarianPrefix::RUSSIAN2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const FRENCH2GERMAN: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::FRENCH2GERMAN,
+        config_resource: MarianConfigResources::FRENCH2GERMAN,
+        vocab_resource: MarianVocabResources::FRENCH2GERMAN,
+        merges_resource: MarianSpmResources::FRENCH2GERMAN,
+        prefix: MarianPrefix::FRENCH2GERMAN,
+        model_type: ModelType::Marian,
+    };
+    pub const GERMAN2FRENCH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::GERMAN2FRENCH,
+        config_resource: MarianConfigResources::GERMAN2FRENCH,
+        vocab_resource: MarianVocabResources::GERMAN2FRENCH,
+        merges_resource: MarianSpmResources::GERMAN2FRENCH,
+        prefix: MarianPrefix::GERMAN2FRENCH,
+        model_type: ModelType::Marian,
+    };
 }
 
 /// # Configuration for text translation
@@ -463,37 +328,44 @@ impl TranslationConfig {
     /// # }
     /// ```
     pub fn new(language: Language, device: Device) -> TranslationConfig {
-        let (model_resource, config_resource, vocab_resource, merges_resource, prefix, model_type) =
-            match language {
-                Language::EnglishToFrench => RemoteTranslationResources::ENGLISH2FRENCH,
-                Language::EnglishToCatalan => RemoteTranslationResources::ENGLISH2CATALAN,
-                Language::EnglishToSpanish => RemoteTranslationResources::ENGLISH2SPANISH,
-                Language::EnglishToPortuguese => RemoteTranslationResources::ENGLISH2PORTUGUESE,
-                Language::EnglishToItalian => RemoteTranslationResources::ENGLISH2ITALIAN,
-                Language::EnglishToRomanian => RemoteTranslationResources::ENGLISH2ROMANIAN,
-                Language::EnglishToGerman => RemoteTranslationResources::ENGLISH2GERMAN,
-                Language::EnglishToRussian => RemoteTranslationResources::ENGLISH2RUSSIAN,
+        let translation_resource = match language {
+            Language::EnglishToFrench => RemoteTranslationResources::ENGLISH2FRENCH,
+            Language::EnglishToCatalan => RemoteTranslationResources::ENGLISH2CATALAN,
+            Language::EnglishToSpanish => RemoteTranslationResources::ENGLISH2SPANISH,
+            Language::EnglishToPortuguese => RemoteTranslationResources::ENGLISH2PORTUGUESE,
+            Language::EnglishToItalian => RemoteTranslationResources::ENGLISH2ITALIAN,
+            Language::EnglishToRomanian => RemoteTranslationResources::ENGLISH2ROMANIAN,
+            Language::EnglishToGerman => RemoteTranslationResources::ENGLISH2GERMAN,
+            Language::EnglishToRussian => RemoteTranslationResources::ENGLISH2RUSSIAN,
 
-                Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
-                Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
-                Language::SpanishToEnglish => RemoteTranslationResources::SPANISH2ENGLISH,
-                Language::PortugueseToEnglish => RemoteTranslationResources::PORTUGUESE2ENGLISH,
-                Language::ItalianToEnglish => RemoteTranslationResources::ITALIAN2ENGLISH,
-                Language::RomanianToEnglish => RemoteTranslationResources::ROMANIAN2ENGLISH,
-                Language::GermanToEnglish => RemoteTranslationResources::GERMAN2ENGLISH,
-                Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
+            Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
+            Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
+            Language::SpanishToEnglish => RemoteTranslationResources::SPANISH2ENGLISH,
+            Language::PortugueseToEnglish => RemoteTranslationResources::PORTUGUESE2ENGLISH,
+            Language::ItalianToEnglish => RemoteTranslationResources::ITALIAN2ENGLISH,
+            Language::RomanianToEnglish => RemoteTranslationResources::ROMANIAN2ENGLISH,
+            Language::GermanToEnglish => RemoteTranslationResources::GERMAN2ENGLISH,
+            Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
 
-                Language::EnglishToFrenchV2 => RemoteTranslationResources::ENGLISH2FRENCH_V2,
-                Language::EnglishToGermanV2 => RemoteTranslationResources::ENGLISH2GERMAN_V2,
+            Language::EnglishToFrenchV2 => RemoteTranslationResources::ENGLISH2FRENCH_V2,
+            Language::EnglishToGermanV2 => RemoteTranslationResources::ENGLISH2GERMAN_V2,
 
-                Language::FrenchToGerman => RemoteTranslationResources::FRENCH2GERMAN,
-                Language::GermanToFrench => RemoteTranslationResources::GERMAN2FRENCH,
-            };
-        let model_resource = Resource::Remote(RemoteResource::from_pretrained(model_resource));
-        let config_resource = Resource::Remote(RemoteResource::from_pretrained(config_resource));
-        let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(vocab_resource));
-        let merges_resource = Resource::Remote(RemoteResource::from_pretrained(merges_resource));
-        let prefix = match prefix {
+            Language::FrenchToGerman => RemoteTranslationResources::FRENCH2GERMAN,
+            Language::GermanToFrench => RemoteTranslationResources::GERMAN2FRENCH,
+        };
+        let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+            translation_resource.model_resource,
+        ));
+        let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+            translation_resource.config_resource,
+        ));
+        let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+            translation_resource.vocab_resource,
+        ));
+        let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+            translation_resource.merges_resource,
+        ));
+        let prefix = match translation_resource.prefix {
             Some(value) => Some(value.to_string()),
             None => None,
         };
@@ -516,7 +388,7 @@ impl TranslationConfig {
             num_return_sequences: 1,
             device,
             prefix,
-            model_type,
+            model_type: translation_resource.model_type,
         }
     }
 
@@ -740,10 +612,10 @@ impl TranslationModel {
     pub fn translate(&self, texts: &[&str]) -> Vec<String> {
         match &self.prefix {
             Some(value) => {
-                let texts: Vec<String> = texts
-                    .into_iter()
+                let texts = texts
+                    .iter()
                     .map(|&v| format!("{} {}", value, v))
-                    .collect();
+                    .collect::<Vec<String>>();
                 self.model
                     .generate(Some(texts.iter().map(AsRef::as_ref).collect()), None)
             }
