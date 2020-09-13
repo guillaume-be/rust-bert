@@ -27,8 +27,10 @@ fn main() -> anyhow::Result<()> {
 
     //    Run model
     let output = sequence_classification_model.predict_multilabel(&input, 0.05);
-    for label in output {
-        println!("{:?}", label);
+    if let Ok(labels) = output {
+        for label in labels {
+            println!("{:?}", label);
+        }
     }
 
     Ok(())

@@ -11,7 +11,7 @@
 // limitations under the License.
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use crate::t5::attention::LayerState;
-use crate::t5::encoder::T5Stack;
+use crate::t5::encoder::{T5Stack, T5StackOutput};
 use crate::Config;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -308,52 +308,30 @@ impl T5Model {
         &self,
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        encoder_outputs: Option<T5StackOutput>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         input_embeds: Option<Tensor>,
         decoder_input_embeds: Option<Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> (
-        Tensor,
-        Tensor,
-        Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-    ) {
-        let (encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions) =
-            match encoder_outputs {
-                Some(value) => value,
-                None => {
-                    let (
-                        encoder_hidden_states,
-                        all_encoder_hidden_states,
-                        all_encoder_attentions,
-                        _,
-                    ) = self
-                        .encoder
-                        .forward_t(
-                            input_ids,
-                            attention_mask,
-                            None,
-                            None,
-                            input_embeds,
-                            &self.embeddings,
-                            None,
-                            train,
-                        )
-                        .unwrap();
-                    (
-                        encoder_hidden_states,
-                        all_encoder_hidden_states,
-                        all_encoder_attentions,
-                    )
-                }
-            };
-
+    ) -> T5ModelOutput {
+        let encoder_output = match encoder_outputs {
+            Some(value) => value,
+            None => self
+                .encoder
+                .forward_t(
+                    input_ids,
+                    attention_mask,
+                    None,
+                    None,
+                    input_embeds,
+                    &self.embeddings,
+                    None,
+                    train,
+                )
+                .unwrap(),
+        };
         let (calculated_decoder_input_ids, calculated_decoder_input_embeds) =
             if old_layer_states.is_some() {
                 let decoder_input_ids = match decoder_input_ids {
@@ -377,29 +355,28 @@ impl T5Model {
             (decoder_input_ids, decoder_input_embeds)
         };
 
-        let (decoder_outputs, all_decoder_hidden_states, all_decoder_attentions, decoder_cache) =
-            self.decoder
-                .forward_t(
-                    decoder_input_ids,
-                    decoder_attention_mask,
-                    Some(&encoder_hidden_states),
-                    attention_mask,
-                    decoder_input_embeds,
-                    &self.embeddings,
-                    old_layer_states,
-                    train,
-                )
-                .unwrap();
-
-        (
-            decoder_outputs,
-            encoder_hidden_states,
-            decoder_cache,
-            all_decoder_hidden_states,
-            all_decoder_attentions,
-            all_encoder_hidden_states,
-            all_encoder_attentions,
-        )
+        let decoder_output = self
+            .decoder
+            .forward_t(
+                decoder_input_ids,
+                decoder_attention_mask,
+                Some(&encoder_output.hidden_state),
+                attention_mask,
+                decoder_input_embeds,
+                &self.embeddings,
+                old_layer_states,
+                train,
+            )
+            .unwrap();
+        T5ModelOutput {
+            decoder_hidden_state: decoder_output.hidden_state,
+            encoder_hidden_state: encoder_output.hidden_state,
+            next_cache: decoder_output.next_cache,
+            decoder_all_hidden_states: decoder_output.all_hidden_states,
+            decoder_all_attentions: decoder_output.all_attentions,
+            encoder_all_hidden_states: encoder_output.all_hidden_states,
+            encoder_all_attentions: encoder_output.all_attentions,
+        }
     }
 }
 
@@ -537,31 +514,15 @@ impl T5ForConditionalGeneration {
         &self,
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        encoder_outputs: Option<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>)>,
+        encoder_outputs: Option<T5StackOutput>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         input_embeds: Option<Tensor>,
         decoder_input_embeds: Option<Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> (
-        Tensor,
-        Tensor,
-        Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-        Option<Vec<Tensor>>,
-    ) {
-        let (
-            decoder_outputs,
-            encoder_hidden_states,
-            decoder_cache,
-            all_decoder_hidden_states,
-            all_decoder_attentions,
-            all_encoder_hidden_states,
-            all_encoder_attentions,
-        ) = self.base_model.forward_t(
+    ) -> T5ModelOutput {
+        let model_output = self.base_model.forward_t(
             input_ids,
             attention_mask,
             encoder_outputs,
@@ -572,23 +533,19 @@ impl T5ForConditionalGeneration {
             old_layer_states,
             train,
         );
-        let lm_logits = decoder_outputs.linear::<Tensor>(&self.base_model.embeddings.ws, None)
+        let lm_logits = model_output
+            .decoder_hidden_state
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
             * (self.model_dim.powf(-0.5));
 
-        (
-            lm_logits,
-            encoder_hidden_states,
-            decoder_cache,
-            all_decoder_hidden_states,
-            all_decoder_attentions,
-            all_encoder_hidden_states,
-            all_encoder_attentions,
-        )
+        T5ModelOutput {
+            decoder_hidden_state: lm_logits,
+            ..model_output
+        }
     }
 
     pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
-        let (encoder_hidden_states, _, _, _) = self
-            .base_model
+        self.base_model
             .encoder
             .forward_t(
                 Some(input_ids),
@@ -600,8 +557,8 @@ impl T5ForConditionalGeneration {
                 None,
                 false,
             )
-            .unwrap();
-        encoder_hidden_states
+            .unwrap()
+            .hidden_state
     }
 }
 
@@ -685,11 +642,16 @@ impl LMHeadModel for T5ForConditionalGeneration {
         decoder_input_ids: &Option<Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, &'static str> {
-        let (decoder_output, encoder_hidden_states, new_cache, _, _, _, _) = match cache {
+        let model_output = match cache {
             Cache::T5Cache(cached_layer_states) => self.base_model.forward_t(
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
-                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                Some(T5StackOutput {
+                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
+                    all_hidden_states: None,
+                    all_attentions: None,
+                    next_cache: None,
+                }),
                 Option::from(decoder_input_ids),
                 None,
                 None,
@@ -700,7 +662,12 @@ impl LMHeadModel for T5ForConditionalGeneration {
             Cache::None => self.base_model.forward_t(
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
-                Some((encoder_outputs.as_ref().unwrap().copy(), None, None)),
+                Some(T5StackOutput {
+                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
+                    all_hidden_states: None,
+                    all_attentions: None,
+                    next_cache: None,
+                }),
                 Option::from(decoder_input_ids),
                 None,
                 None,
@@ -711,15 +678,27 @@ impl LMHeadModel for T5ForConditionalGeneration {
             _ => return Err("Cache not compatible with T5 Model"),
         };
 
-        let lm_logits = decoder_output.linear::<Tensor>(&self.base_model.embeddings.ws, None)
+        let lm_logits = model_output
+            .decoder_hidden_state
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
             * (self.model_dim.powf(-0.5));
 
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: Some(encoder_hidden_states),
-            cache: Cache::T5Cache(new_cache),
+            encoder_hidden_state: Some(model_output.encoder_hidden_state),
+            cache: Cache::T5Cache(model_output.next_cache),
             all_hidden_states: None,
             all_attentions: None,
         })
     }
+}
+
+pub struct T5ModelOutput {
+    pub decoder_hidden_state: Tensor,
+    pub encoder_hidden_state: Tensor,
+    pub next_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+    pub decoder_all_hidden_states: Option<Vec<Tensor>>,
+    pub decoder_all_attentions: Option<Vec<Tensor>>,
+    pub encoder_all_hidden_states: Option<Vec<Tensor>>,
+    pub encoder_all_attentions: Option<Vec<Tensor>>,
 }
