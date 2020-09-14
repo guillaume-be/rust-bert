@@ -476,7 +476,7 @@ impl Gpt2Model {
         }
 
         Ok(Gpt2ModelOutput {
-            hidden_state: hidden_state.apply(&self.ln_f),
+            output: hidden_state.apply(&self.ln_f),
             cache: all_presents,
             all_hidden_states,
             all_attentions,
@@ -623,7 +623,7 @@ impl LMHeadModel for GPT2LMHeadModel {
         _decoder_input_ids: &Option<Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, &'static str> {
-        let model_output = match layer_past {
+        let base_model_output = match layer_past {
             Cache::GPT2Cache(layer_past) => Ok(self.transformer.forward_t(
                 input_ids,
                 &layer_past,
@@ -645,19 +645,19 @@ impl LMHeadModel for GPT2LMHeadModel {
             _ => Err("Cache not compatible with GPT2 model"),
         }?;
 
-        let lm_logits = model_output.hidden_state.apply(&self.lm_head);
+        let lm_logits = base_model_output.output.apply(&self.lm_head);
         Ok(LMModelOutput {
             lm_logits,
             encoder_hidden_state: None,
-            cache: Cache::GPT2Cache(model_output.cache),
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            cache: Cache::GPT2Cache(base_model_output.cache),
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         })
     }
 }
 
 pub struct Gpt2ModelOutput {
-    pub hidden_state: Tensor,
+    pub output: Tensor,
     pub cache: Option<Vec<Tensor>>,
     pub all_hidden_states: Option<Vec<Tensor>>,
     pub all_attentions: Option<Vec<Tensor>>,

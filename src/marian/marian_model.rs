@@ -358,10 +358,10 @@ impl MarianForConditionalGeneration {
         );
 
         let lm_logits = base_model_output
-            .decoder_hidden_state
+            .decoder_output
             .linear::<Tensor>(&self.base_model.embeddings.ws, None);
         BartModelOutput {
-            decoder_hidden_state: lm_logits,
+            decoder_output: lm_logits,
             ..base_model_output
         }
     }
@@ -482,7 +482,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
         };
 
         let lm_logits = base_model_output
-            .decoder_hidden_state
+            .decoder_output
             .linear::<Tensor>(&self.base_model.embeddings.ws, None)
             + &self.final_logits_bias;
         Ok(LMModelOutput {

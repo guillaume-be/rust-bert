@@ -259,8 +259,12 @@ impl AlbertTransformer {
     }
 }
 
+/// Container holding the ALBERT transformer output
 pub struct AlbertTransformerOutput {
+    /// Last hidden states of the transformer
     pub hidden_state: Tensor,
+    /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers. As layers in ALBERT can be made of a number of sub-layers, a vector of vector is used to store al of the attentions
     pub all_attentions: Option<Vec<Vec<Tensor>>>,
 }

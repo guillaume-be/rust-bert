@@ -199,10 +199,9 @@ impl T5Attention {
                 temp_value = temp_value.slice(2, length - 1, length, 1);
             };
             if let Some(attention_mask) = attention_mask {
-                Some(temp_value + attention_mask)
-            } else {
-                Some(temp_value)
-            }
+                temp_value = temp_value + attention_mask
+            };
+            temp_value
         } else {
             None
         };

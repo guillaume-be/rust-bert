@@ -78,10 +78,7 @@ fn main() -> anyhow::Result<()> {
 
     //    Print masked tokens
     println!("{:?}", model_output.encoder_hidden_state);
-    println!("{:?}", model_output.decoder_hidden_state);
-    println!(
-        "{:?}",
-        model_output.decoder_hidden_state.double_value(&[0, 0, 0])
-    );
+    println!("{:?}", model_output.decoder_output);
+    println!("{:?}", model_output.decoder_output.double_value(&[0, 0, 0]));
     Ok(())
 }

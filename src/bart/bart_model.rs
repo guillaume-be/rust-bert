@@ -405,7 +405,7 @@ impl BartModel {
             train,
         );
         BartModelOutput {
-            decoder_hidden_state: decoder_output.hidden_state,
+            decoder_output: decoder_output.hidden_state,
             encoder_hidden_state: encoder_output.hidden_state,
             cache: decoder_output.next_decoder_cache,
             all_decoder_hidden_states: decoder_output.all_hidden_states,
@@ -535,10 +535,10 @@ impl BartForConditionalGeneration {
         );
 
         let lm_logits = base_model_output
-            .decoder_hidden_state
+            .decoder_output
             .linear::<Tensor>(&self.base_model.embeddings.ws, None);
         BartModelOutput {
-            decoder_hidden_state: lm_logits,
+            decoder_output: lm_logits,
             ..base_model_output
         }
     }
@@ -731,19 +731,15 @@ impl BartForSequenceClassification {
         let eos_mask = input_ids.eq(self.eos_token_id);
         let reshape = eos_mask.sum1(&[1], true, Int64);
         let sentence_representation = base_model_output
-            .decoder_hidden_state
+            .decoder_output
             .permute(&[2, 0, 1])
             .masked_select(&eos_mask)
             .view((-1, reshape.size()[0] * reshape.int64_value(&[0, 0])))
             .transpose(0, 1)
             .view((
-                base_model_output.decoder_hidden_state.size()[0],
+                base_model_output.decoder_output.size()[0],
                 -1,
-                *base_model_output
-                    .decoder_hidden_state
-                    .size()
-                    .last()
-                    .unwrap(),
+                *base_model_output.decoder_output.size().last().unwrap(),
             ))
             .select(1, -1);
 
@@ -751,7 +747,7 @@ impl BartForSequenceClassification {
             .classification_head
             .forward_t(&sentence_representation, train);
         BartModelOutput {
-            decoder_hidden_state: logits,
+            decoder_output: logits,
             encoder_hidden_state: base_model_output.encoder_hidden_state,
             cache: None,
             all_decoder_hidden_states: base_model_output.all_decoder_hidden_states,
@@ -863,7 +859,7 @@ impl LMHeadModel for BartForConditionalGeneration {
         };
 
         let lm_logits = base_model_output
-            .decoder_hidden_state
+            .decoder_output
             .linear::<Tensor>(&self.base_model.embeddings.ws, None);
         Ok(LMModelOutput {
             lm_logits,
@@ -876,7 +872,7 @@ impl LMHeadModel for BartForConditionalGeneration {
 }
 
 pub struct BartModelOutput {
-    pub decoder_hidden_state: Tensor,
+    pub decoder_output: Tensor,
     pub encoder_hidden_state: Tensor,
     pub cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
     pub all_decoder_hidden_states: Option<Vec<Tensor>>,
