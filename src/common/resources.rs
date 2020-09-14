@@ -18,7 +18,7 @@
 //! pre-trained models in each model module.
 
 use crate::common::error::RustBertError;
-use cached_path::Cache;
+use cached_path::{Cache, Options};
 use lazy_static::lazy_static;
 use std::env;
 use std::path::PathBuf;
@@ -59,8 +59,10 @@ impl Resource {
         match self {
             Resource::Local(resource) => Ok(resource.local_path.clone()),
             Resource::Remote(resource) => {
-                let cached_path =
-                    CACHE.cached_path_in_subdir(&resource.url, Some(&resource.cache_subdir))?;
+                let cached_path = CACHE.cached_path_with_options(
+                    &resource.url,
+                    &Options::default().subdir(&resource.cache_subdir),
+                )?;
                 Ok(cached_path)
             }
         }
