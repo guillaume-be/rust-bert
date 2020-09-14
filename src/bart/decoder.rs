@@ -372,10 +372,16 @@ impl BartDecoder {
     }
 }
 
+///Container holding a BART decoder output
 pub struct BartDecoderOutput {
+    /// last decoder layer hidden state
     pub hidden_state: Tensor,
+    /// Padding mask for the encoder positions to attend to
     pub encoder_padding_mask: Option<Tensor>,
+    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
     pub next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+    /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }

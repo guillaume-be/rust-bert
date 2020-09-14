@@ -286,8 +286,12 @@ impl BartEncoder {
     }
 }
 
+/// Container holding a BART encoder output
 pub struct BartEncoderOutput {
+    /// Last encoder layer hidden state
     pub hidden_state: Tensor,
+    /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }

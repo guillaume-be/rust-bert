@@ -201,7 +201,7 @@ impl T5Attention {
             if let Some(attention_mask) = attention_mask {
                 temp_value = temp_value + attention_mask
             };
-            temp_value
+            Some(temp_value)
         } else {
             None
         };
