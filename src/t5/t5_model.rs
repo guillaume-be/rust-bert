@@ -251,14 +251,14 @@ impl T5Model {
     ///
     /// # Returns
     ///
-    /// * `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *hidden_size*) representing the activations of the last decoder hidden state
-    /// * `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
-    /// * `decoder_cache` - `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
-    /// both the self attention and the encoder cross attention of each layer of the decoder.
-    /// * `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
-    /// * `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
-    /// * `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
-    /// * `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    /// * `T5ModelOutput` containing:
+    ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *hidden_size*) representing the activations of the last decoder hidden state
+    ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
+    ///   - `cache` - `Option<Vec<(Option<Vec<LayerState, LayerState>>)>>` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
+    ///   - `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -361,13 +361,13 @@ impl T5Model {
             )
             .unwrap();
         T5ModelOutput {
-            decoder_hidden_state: decoder_output.hidden_state,
+            decoder_output: decoder_output.hidden_state,
             encoder_hidden_state: encoder_output.hidden_state,
             next_cache: decoder_output.next_cache,
-            decoder_all_hidden_states: decoder_output.all_hidden_states,
-            decoder_all_attentions: decoder_output.all_attentions,
-            encoder_all_hidden_states: encoder_output.all_hidden_states,
-            encoder_all_attentions: encoder_output.all_attentions,
+            all_decoder_hidden_states: decoder_output.all_hidden_states,
+            all_decoder_attentions: decoder_output.all_attentions,
+            all_encoder_hidden_states: encoder_output.all_hidden_states,
+            all_encoder_attentions: encoder_output.all_attentions,
         }
     }
 }
@@ -449,14 +449,14 @@ impl T5ForConditionalGeneration {
     ///
     /// # Returns
     ///
-    /// * `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *hidden_size*) representing the activations of the last decoder hidden state
-    /// * `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
-    /// * `decoder_cache` - `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
-    /// both the self attention and the encoder cross attention of each layer of the decoder.
-    /// * `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
-    /// * `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
-    /// * `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
-    /// * `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    /// * `T5ModelOutput` containing:
+    ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *vocab_size*) representing the logits for each sequence position and vocabulary item
+    ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
+    ///   - `cache` - `Option<Vec<(Option<Vec<LayerState, LayerState>>)>>` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
+    ///   - `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -518,12 +518,12 @@ impl T5ForConditionalGeneration {
             train,
         );
         let lm_logits = model_output
-            .decoder_hidden_state
+            .decoder_output
             .linear::<Tensor>(&self.base_model.embeddings.ws, None)
             * (self.model_dim.powf(-0.5));
 
         T5ModelOutput {
-            decoder_hidden_state: lm_logits,
+            decoder_output: lm_logits,
             ..model_output
         }
     }
@@ -563,13 +563,14 @@ impl LMHeadModel for T5ForConditionalGeneration {
     ///
     /// # Returns
     ///
-    /// * `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
-    /// * `past` - `T5Cache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
-    ///     both the self attention and the encoder cross attention of each layer of the decoder.
-    /// * `encoder_hidden_states` - `Option<Tensor>` Hidden states for the encoder
-    /// * `hidden_states` - None
-    /// * `attentions` - None
-
+    /// * `LMModelOutput` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    ///   - `cache` - `T5Cache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
+    ///      both the self attention and the encoder cross attention of each layer of the decoder.
+    ///   - `encoder_hidden_states` - `Option<Tensor>` Hidden states for the encoder
+    ///   - `all_hidden_states` - None
+    ///   - `all_attentions` - None
+    ///
     /// # Example
     ///
     /// ```no_run
@@ -655,7 +656,7 @@ impl LMHeadModel for T5ForConditionalGeneration {
         };
 
         let lm_logits = model_output
-            .decoder_hidden_state
+            .decoder_output
             .linear::<Tensor>(&self.base_model.embeddings.ws, None)
             * (self.model_dim.powf(-0.5));
 
@@ -669,12 +670,23 @@ impl LMHeadModel for T5ForConditionalGeneration {
     }
 }
 
+/// Container holding a T5 model output. The decoder output may hold the hidden state of
+/// the last layer of the decoder, or may hold logits for a custom head module after the
+/// decoder (e.g. for language modeling tasks)
 pub struct T5ModelOutput {
-    pub decoder_hidden_state: Tensor,
+    /// Hidden state of the last layer of the decoder, or logits for a custom head
+    /// module after the decoder (e.g. for language modeling tasks)
+    pub decoder_output: Tensor,
+    /// Hidden state for the last layer of the encoder
     pub encoder_hidden_state: Tensor,
+    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
     pub next_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-    pub decoder_all_hidden_states: Option<Vec<Tensor>>,
-    pub decoder_all_attentions: Option<Vec<Tensor>>,
-    pub encoder_all_hidden_states: Option<Vec<Tensor>>,
-    pub encoder_all_attentions: Option<Vec<Tensor>>,
+    /// Hidden states for all layers of the decoder
+    pub all_decoder_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all layers of the decoder
+    pub all_decoder_attentions: Option<Vec<Tensor>>,
+    /// Hidden states for all layers of the encoder
+    pub all_encoder_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all layers of the encoder
+    pub all_encoder_attentions: Option<Vec<Tensor>>,
 }

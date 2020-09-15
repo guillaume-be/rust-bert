@@ -85,7 +85,7 @@ fn main() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (output, _, _) = no_grad(|| {
+    let model_output = no_grad(|| {
         bert_model.forward_t(
             Some(input_tensor),
             None,
@@ -99,8 +99,16 @@ fn main() -> anyhow::Result<()> {
     });
 
     //    Print masked tokens
-    let index_1 = output.get(0).get(4).argmax(0, false);
-    let index_2 = output.get(1).get(5).argmax(0, false);
+    let index_1 = model_output
+        .prediction_scores
+        .get(0)
+        .get(4)
+        .argmax(0, false);
+    let index_2 = model_output
+        .prediction_scores
+        .get(1)
+        .get(5)
+        .argmax(0, false);
     let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 

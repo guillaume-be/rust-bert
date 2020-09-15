@@ -282,7 +282,7 @@ impl RobertaForMaskedLM {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
     ///         Some(input_tensor),
     ///         Some(mask),
@@ -305,7 +305,7 @@ impl RobertaForMaskedLM {
         encoder_hidden_states: &Option<Tensor>,
         encoder_mask: &Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    ) -> RobertaMaskedLMOutput {
         let model_output = self
             .roberta
             .forward_t(
@@ -321,11 +321,11 @@ impl RobertaForMaskedLM {
             .unwrap();
 
         let prediction_scores = self.lm_head.forward(&model_output.hidden_state);
-        (
+        RobertaMaskedLMOutput {
             prediction_scores,
-            model_output.all_hidden_states,
-            model_output.all_attentions,
-        )
+            all_hidden_states: model_output.all_hidden_states,
+            all_attentions: model_output.all_attentions,
+        }
     }
 }
 
@@ -438,9 +438,10 @@ impl RobertaForSequenceClassification {
     ///
     /// # Returns
     ///
-    /// * `labels` - `Tensor` of shape (*batch size*, *num_labels*)
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `RobertaSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *num_labels*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -464,7 +465,7 @@ impl RobertaForSequenceClassification {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (labels, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
     ///         Some(input_tensor),
     ///         Some(mask),
@@ -483,8 +484,8 @@ impl RobertaForSequenceClassification {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let model_output = self
+    ) -> RobertaSequenceClassificationOutput {
+        let base_model_output = self
             .roberta
             .forward_t(
                 input_ids,
@@ -498,12 +499,14 @@ impl RobertaForSequenceClassification {
             )
             .unwrap();
 
-        let output = self.classifier.forward_t(&model_output.hidden_state, train);
-        (
-            output,
-            model_output.all_hidden_states,
-            model_output.all_attentions,
-        )
+        let logits = self
+            .classifier
+            .forward_t(&base_model_output.hidden_state, train);
+        RobertaSequenceClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        }
     }
 }
 
@@ -571,9 +574,10 @@ impl RobertaForMultipleChoice {
     ///
     /// # Returns
     ///
-    /// * `output` - `Tensor` of shape (*1*, *batch size*) containing the logits for each of the alternatives given
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `RobertaSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*1*, *batch size*) containing the logits for each of the alternatives given
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -597,7 +601,7 @@ impl RobertaForMultipleChoice {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[num_choices, sequence_length], true);
     ///
-    /// let (choices, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
     ///         input_tensor,
     ///         Some(mask),
@@ -614,7 +618,7 @@ impl RobertaForMultipleChoice {
         token_type_ids: Option<Tensor>,
         position_ids: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    ) -> RobertaSequenceClassificationOutput {
         let num_choices = input_ids.size()[1];
 
         let flat_input_ids = Some(input_ids.view((-1i64, *input_ids.size().last().unwrap())));
@@ -631,7 +635,7 @@ impl RobertaForMultipleChoice {
             None => None,
         };
 
-        let model_output = self
+        let base_model_output = self
             .roberta
             .forward_t(
                 flat_input_ids,
@@ -645,16 +649,16 @@ impl RobertaForMultipleChoice {
             )
             .unwrap();
 
-        let output = model_output
+        let logits = base_model_output
             .pooled_output
             .apply_t(&self.dropout, train)
             .apply(&self.classifier)
             .view((-1, num_choices));
-        (
-            output,
-            model_output.all_hidden_states,
-            model_output.all_attentions,
-        )
+        RobertaSequenceClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        }
     }
 }
 
@@ -732,9 +736,10 @@ impl RobertaForTokenClassification {
     ///
     /// # Returns
     ///
-    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) containing the logits for each of the input tokens and classes
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `RobertaTokenClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) containing the logits for each of the input tokens and classes
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -758,7 +763,7 @@ impl RobertaForTokenClassification {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (token_labels, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
     ///         Some(input_tensor),
     ///         Some(mask),
@@ -777,8 +782,8 @@ impl RobertaForTokenClassification {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let model_output = self
+    ) -> RobertaTokenClassificationOutput {
+        let base_model_output = self
             .roberta
             .forward_t(
                 input_ids,
@@ -792,15 +797,16 @@ impl RobertaForTokenClassification {
             )
             .unwrap();
 
-        let sequence_output = model_output
+        let logits = base_model_output
             .hidden_state
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
-        (
-            sequence_output,
-            model_output.all_hidden_states,
-            model_output.all_attentions,
-        )
+
+        RobertaTokenClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        }
     }
 }
 
@@ -872,10 +878,11 @@ impl RobertaForQuestionAnswering {
     ///
     /// # Returns
     ///
-    /// * `start_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
-    /// * `end_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `RobertaQuestionAnsweringOutput` containing:
+    ///   - `start_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    ///   - `end_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -899,7 +906,7 @@ impl RobertaForQuestionAnswering {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
     ///         Some(input_tensor),
     ///         Some(mask),
@@ -918,8 +925,8 @@ impl RobertaForQuestionAnswering {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
-        let model_output = self
+    ) -> RobertaQuestionAnsweringOutput {
+        let base_model_output = self
             .roberta
             .forward_t(
                 input_ids,
@@ -933,17 +940,59 @@ impl RobertaForQuestionAnswering {
             )
             .unwrap();
 
-        let sequence_output = model_output.hidden_state.apply(&self.qa_outputs);
+        let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
         let start_logits = start_logits.squeeze1(-1);
         let end_logits = end_logits.squeeze1(-1);
 
-        (
+        RobertaQuestionAnsweringOutput {
             start_logits,
             end_logits,
-            model_output.all_hidden_states,
-            model_output.all_attentions,
-        )
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        }
     }
+}
+
+/// Container for the RoBERTa masked LM model output.
+pub struct RobertaMaskedLMOutput {
+    /// Logits for the vocabulary items at each sequence position
+    pub prediction_scores: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the RoBERTa sequence classification model output.
+pub struct RobertaSequenceClassificationOutput {
+    /// Logits for each input (sequence) for each target class
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the RoBERTa token classification model output.
+pub struct RobertaTokenClassificationOutput {
+    /// Logits for each sequence item (token) for each target class
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the RoBERTa question answering model output.
+pub struct RobertaQuestionAnsweringOutput {
+    /// Logits for the start position for token of each input sequence
+    pub start_logits: Tensor,
+    /// Logits for the end position for token of each input sequence
+    pub end_logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
 }

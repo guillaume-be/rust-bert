@@ -779,6 +779,7 @@ impl LMHeadModel for BartForConditionalGeneration {
     ///
     ///
     /// # Returns
+    ///
     /// * `LMModelOutput` containing:
     ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
     ///   - `cache` - `BartCache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for

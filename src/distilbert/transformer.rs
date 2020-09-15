@@ -185,8 +185,12 @@ impl Transformer {
     }
 }
 
+/// Container for the DistilBert transformer output.
 pub struct DistilBertTransformerOutput {
+    /// Last hidden states from the model
     pub hidden_state: Tensor,
+    /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }

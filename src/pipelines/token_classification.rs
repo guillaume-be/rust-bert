@@ -426,7 +426,7 @@ impl TokenClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
             Self::Electra(ref model) => {
                 model

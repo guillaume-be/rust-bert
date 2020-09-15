@@ -60,5 +60,5 @@ mod transformer;
 
 pub use openai_gpt_model::{
     OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptMergesResources, OpenAiGptModel,
-    OpenAiGptModelResources, OpenAiGptOutput, OpenAiGptVocabResources,
+    OpenAiGptModelOutput, OpenAiGptModelResources, OpenAiGptVocabResources,
 };

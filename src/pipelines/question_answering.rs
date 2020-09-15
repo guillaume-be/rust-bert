@@ -366,7 +366,7 @@ impl QuestionAnsweringOption {
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
-                (outputs.0, outputs.1)
+                (outputs.start_logits, outputs.end_logits)
             }
             Self::Albert(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
