@@ -18,7 +18,7 @@
 //! pre-trained models in each model module.
 
 use crate::common::error::RustBertError;
-use cached_path::{Cache, Options};
+use cached_path::{Cache, Options, ProgressBar};
 use lazy_static::lazy_static;
 use std::env;
 use std::path::PathBuf;
@@ -150,7 +150,10 @@ lazy_static! {
 /// # Global cache directory
 /// If the environment variable `RUSTBERT_CACHE` is set, will save the cache model files at that
 /// location. Otherwise defaults to `~/.cache/.rustbert`.
-    pub static ref CACHE: Cache = Cache::builder().dir(_get_cache_directory()).build().unwrap();
+    pub static ref CACHE: Cache = Cache::builder()
+        .dir(_get_cache_directory())
+        .progress_bar(Some(ProgressBar::Light))
+        .build().unwrap();
 }
 
 fn _get_cache_directory() -> PathBuf {
