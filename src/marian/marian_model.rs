@@ -13,6 +13,7 @@
 
 use crate::bart::{BartConfig, BartEncoderOutput, BartModel, BartModelOutput, LayerState};
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::Init;
 use tch::{nn, Tensor};
@@ -454,7 +455,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
         encoder_outputs: Option<&Tensor>,
         decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<LMModelOutput, &'static str> {
+    ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match cache {
             Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
                 input_ids.as_ref(),
@@ -482,7 +483,11 @@ impl LMHeadModel for MarianForConditionalGeneration {
                 None,
                 train,
             ),
-            _ => return Err("Cache not compatible with Marian Model"),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with Marian Model".into(),
+                ));
+            }
         };
 
         let lm_logits = base_model_output

@@ -16,7 +16,7 @@ use self::tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
 use crate::distilbert::embeddings::DistilBertEmbedding;
 use crate::distilbert::transformer::{DistilBertTransformerOutput, Transformer};
-use crate::Config;
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap};
 
@@ -215,18 +215,22 @@ impl DistilBertModel {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<DistilBertTransformerOutput, &'static str> {
+    ) -> Result<DistilBertTransformerOutput, RustBertError> {
         let input_embeddings = match input {
             Some(input_value) => match input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => input_value.apply_t(&self.embeddings, train),
             },
             None => match input_embeds {
                 Some(embeds) => embeds,
                 None => {
-                    return Err("At least one of input ids or input embeddings must be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -351,16 +355,12 @@ impl DistilBertModelClassifier {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<DistilBertSequenceClassificationOutput, &'static str> {
-        let model_output = match self
-            .distil_bert_model
-            .forward_t(input, mask, input_embeds, train)
-        {
-            Ok(value) => value,
-            Err(err) => return Err(err),
-        };
+    ) -> Result<DistilBertSequenceClassificationOutput, RustBertError> {
+        let base_model_output =
+            self.distil_bert_model
+                .forward_t(input, mask, input_embeds, train)?;
 
-        let logits = model_output
+        let logits = base_model_output
             .hidden_state
             .select(1, 0)
             .apply(&self.pre_classifier)
@@ -370,8 +370,8 @@ impl DistilBertModelClassifier {
 
         Ok(DistilBertSequenceClassificationOutput {
             logits,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         })
     }
 }
@@ -492,16 +492,12 @@ impl DistilBertModelMaskedLM {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<DistilBertMaskedLMOutput, &'static str> {
-        let model_output = match self
-            .distil_bert_model
-            .forward_t(input, mask, input_embeds, train)
-        {
-            Ok(value) => value,
-            Err(err) => return Err(err),
-        };
+    ) -> Result<DistilBertMaskedLMOutput, RustBertError> {
+        let base_model_output =
+            self.distil_bert_model
+                .forward_t(input, mask, input_embeds, train)?;
 
-        let prediction_scores = model_output
+        let prediction_scores = base_model_output
             .hidden_state
             .apply(&self.vocab_transform)
             .gelu()
@@ -510,8 +506,8 @@ impl DistilBertModelMaskedLM {
 
         Ok(DistilBertMaskedLMOutput {
             prediction_scores,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         })
     }
 }
@@ -615,16 +611,12 @@ impl DistilBertForQuestionAnswering {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<DistilBertQuestionAnsweringOutput, &'static str> {
-        let model_output = match self
-            .distil_bert_model
-            .forward_t(input, mask, input_embeds, train)
-        {
-            Ok(value) => value,
-            Err(err) => return Err(err),
-        };
+    ) -> Result<DistilBertQuestionAnsweringOutput, RustBertError> {
+        let base_model_output =
+            self.distil_bert_model
+                .forward_t(input, mask, input_embeds, train)?;
 
-        let output = model_output
+        let output = base_model_output
             .hidden_state
             .apply_t(&self.dropout, train)
             .apply(&self.qa_outputs);
@@ -637,8 +629,8 @@ impl DistilBertForQuestionAnswering {
         Ok(DistilBertQuestionAnsweringOutput {
             start_logits,
             end_logits,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         })
     }
 }
@@ -747,24 +739,20 @@ impl DistilBertForTokenClassification {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<DistilBertTokenClassificationOutput, &'static str> {
-        let model_output = match self
-            .distil_bert_model
-            .forward_t(input, mask, input_embeds, train)
-        {
-            Ok(value) => value,
-            Err(err) => return Err(err),
-        };
+    ) -> Result<DistilBertTokenClassificationOutput, RustBertError> {
+        let base_model_output =
+            self.distil_bert_model
+                .forward_t(input, mask, input_embeds, train)?;
 
-        let logits = model_output
+        let logits = base_model_output
             .hidden_state
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
 
         Ok(DistilBertTokenClassificationOutput {
             logits,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         })
     }
 }

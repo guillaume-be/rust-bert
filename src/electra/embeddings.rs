@@ -14,6 +14,7 @@
 
 use crate::common::dropout::Dropout;
 use crate::electra::electra_model::ElectraConfig;
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
@@ -91,11 +92,13 @@ impl ElectraEmbeddings {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<Tensor, &'static str> {
+    ) -> Result<Tensor, RustBertError> {
         let (input_embeddings, input_shape) = match input_ids {
             Some(input_value) => match input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (
                     input_value.apply_t(&self.word_embeddings, train),
@@ -108,7 +111,9 @@ impl ElectraEmbeddings {
                     (embeds, size)
                 }
                 None => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };

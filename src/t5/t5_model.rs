@@ -12,7 +12,7 @@
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use crate::t5::attention::LayerState;
 use crate::t5::encoder::{T5Stack, T5StackOutput};
-use crate::Config;
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use tch::nn::embedding;
@@ -506,7 +506,7 @@ impl T5ForConditionalGeneration {
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
     ) -> T5ModelOutput {
-        let model_output = self.base_model.forward_t(
+        let base_model_output = self.base_model.forward_t(
             input_ids,
             attention_mask,
             encoder_outputs,
@@ -517,14 +517,14 @@ impl T5ForConditionalGeneration {
             old_layer_states,
             train,
         );
-        let lm_logits = model_output
+        let lm_logits = base_model_output
             .decoder_output
             .linear::<Tensor>(&self.base_model.embeddings.ws, None)
             * (self.model_dim.powf(-0.5));
 
         T5ModelOutput {
             decoder_output: lm_logits,
-            ..model_output
+            ..base_model_output
         }
     }
 
@@ -618,8 +618,8 @@ impl LMHeadModel for T5ForConditionalGeneration {
         encoder_outputs: Option<&Tensor>,
         decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<LMModelOutput, &'static str> {
-        let model_output = match cache {
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match cache {
             Cache::T5Cache(cached_layer_states) => self.base_model.forward_t(
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
@@ -652,18 +652,22 @@ impl LMHeadModel for T5ForConditionalGeneration {
                 None,
                 train,
             ),
-            _ => return Err("Cache not compatible with T5 Model"),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with T5 Model".into(),
+                ));
+            }
         };
 
-        let lm_logits = model_output
+        let lm_logits = base_model_output
             .decoder_output
             .linear::<Tensor>(&self.base_model.embeddings.ws, None)
             * (self.model_dim.powf(-0.5));
 
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: Some(model_output.encoder_hidden_state),
-            cache: Cache::T5Cache(model_output.next_cache),
+            encoder_hidden_state: Some(base_model_output.encoder_hidden_state),
+            cache: Cache::T5Cache(base_model_output.next_cache),
             all_hidden_states: None,
             all_attentions: None,
         })

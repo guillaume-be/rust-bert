@@ -17,6 +17,7 @@ use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::Gpt2Config;
 use crate::openai_gpt::transformer::Block;
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
@@ -214,11 +215,13 @@ impl OpenAiGptModel {
         position_ids: &Option<Tensor>,
         input_embeds: &Option<Tensor>,
         train: bool,
-    ) -> Result<OpenAiGptModelOutput, &'static str> {
+    ) -> Result<OpenAiGptModelOutput, RustBertError> {
         let (input_embeddings, seq_length) = match input_ids {
             Some(input_value) => match input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (
                     input_value.apply(&self.tokens_embed),
@@ -228,7 +231,9 @@ impl OpenAiGptModel {
             None => match input_embeds {
                 Some(embeds) => (embeds.copy(), embeds.size()[1]),
                 None => {
-                    return Err("At least one of input ids or input embeddings must be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -412,8 +417,8 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
         _encoder_outputs: Option<&Tensor>,
         _decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<LMModelOutput, &'static str> {
-        let model_output = self.transformer.forward_t(
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = self.transformer.forward_t(
             input_ids,
             attention_mask,
             token_type_ids,
@@ -422,13 +427,13 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
             train,
         )?;
 
-        let lm_logits = model_output.hidden_state.apply(&self.lm_head);
+        let lm_logits = base_model_output.hidden_state.apply(&self.lm_head);
         Ok(LMModelOutput {
             lm_logits,
             encoder_hidden_state: None,
             cache: Cache::None,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         })
     }
 }

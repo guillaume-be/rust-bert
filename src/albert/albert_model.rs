@@ -15,7 +15,7 @@ use crate::albert::embeddings::AlbertEmbeddings;
 use crate::albert::encoder::AlbertTransformer;
 use crate::common::activations::{_gelu, _gelu_new, _mish, _relu, _tanh};
 use crate::common::dropout::Dropout;
-use crate::Config;
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap};
 use tch::nn::Module;
@@ -223,18 +223,22 @@ impl AlbertModel {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<AlbertOutput, &'static str> {
+    ) -> Result<AlbertOutput, RustBertError> {
         let (input_shape, device) = match &input_ids {
             Some(input_value) => match &input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (input_value.size(), input_value.device()),
             },
             None => match &input_embeds {
                 Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
                 None => {
-                    return Err("At least one of input ids or input embeddings must be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -1003,11 +1007,13 @@ impl AlbertForMultipleChoice {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<AlbertSequenceClassificationOutput, &'static str> {
+    ) -> Result<AlbertSequenceClassificationOutput, RustBertError> {
         let (input_ids, input_embeds, num_choices) = match &input_ids {
             Some(input_value) => match &input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (
                     Some(input_value.view((-1, *input_value.size().last().unwrap()))),
@@ -1022,7 +1028,9 @@ impl AlbertForMultipleChoice {
                     embeds.size()[1],
                 ),
                 None => {
-                    return Err("At least one of input ids or input embeddings must be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };

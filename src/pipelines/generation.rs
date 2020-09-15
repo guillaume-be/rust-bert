@@ -2613,7 +2613,7 @@ pub trait LMHeadModel {
         encoder_outputs: Option<&Tensor>,
         decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<LMModelOutput, &'static str>;
+    ) -> Result<LMModelOutput, RustBertError>;
 }
 
 /// Container holding a language model output for generation tasks

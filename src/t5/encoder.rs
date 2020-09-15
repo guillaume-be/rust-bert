@@ -14,6 +14,7 @@ use crate::common::dropout::Dropout;
 use crate::t5::attention::{LayerState, T5LayerCrossAttention, T5LayerSelfAttention};
 use crate::t5::layer_norm::T5LayerNorm;
 use crate::t5::T5Config;
+use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LinearConfig;
 use tch::{nn, Kind, Tensor};
@@ -264,11 +265,13 @@ impl T5Stack {
         embeddings: &nn::Embedding,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> Result<T5StackOutput, &'static str> {
+    ) -> Result<T5StackOutput, RustBertError> {
         let (input_embeddings, input_shape) = match input_ids {
             Some(input_ids_value) => match input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (input_ids_value.apply(embeddings), input_ids_value.size()),
             },
@@ -278,7 +281,9 @@ impl T5Stack {
                     (embeds, size)
                 }
                 None => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -331,7 +336,9 @@ impl T5Stack {
                 }
             }
             _ => {
-                return Err("Invalid attention mask dimension, must be 2 or 3");
+                return Err(RustBertError::ValueError(
+                    "Invalid attention mask dimension, must be 2 or 3".into(),
+                ));
             }
         };
 
@@ -355,7 +362,9 @@ impl T5Stack {
                 2 => encoder_mask.unsqueeze(1).unsqueeze(1),
                 3 => encoder_mask.unsqueeze(1),
                 _ => {
-                    return Err("Invalid encoder attention mask dimension, must be 2 or 3");
+                    return Err(RustBertError::ValueError(
+                        "Invalid attention mask dimension, must be 2 or 3".into(),
+                    ));
                 }
             };
             Some((encoder_mask.ones_like() - encoder_mask) * -1e9)

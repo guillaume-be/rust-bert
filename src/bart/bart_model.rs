@@ -16,7 +16,7 @@ use crate::bart::decoder::BartDecoder;
 use crate::bart::encoder::{BartEncoder, BartEncoderOutput};
 use crate::common::dropout::Dropout;
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
-use crate::Config;
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -831,7 +831,7 @@ impl LMHeadModel for BartForConditionalGeneration {
         encoder_outputs: Option<&Tensor>,
         decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<LMModelOutput, &'static str> {
+    ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match cache {
             Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
                 input_ids.as_ref(),
@@ -860,7 +860,11 @@ impl LMHeadModel for BartForConditionalGeneration {
                 None,
                 train,
             ),
-            _ => return Err("Cache not compatible with BART Model"),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with BART Model".into(),
+                ));
+            }
         };
 
         let lm_logits = base_model_output

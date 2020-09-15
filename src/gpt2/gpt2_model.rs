@@ -16,7 +16,7 @@ use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::transformer::Block;
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
-use crate::Config;
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
@@ -376,11 +376,13 @@ impl Gpt2Model {
         position_ids: &Option<Tensor>,
         input_embeds: &Option<Tensor>,
         train: bool,
-    ) -> Result<Gpt2ModelOutput, &'static str> {
+    ) -> Result<Gpt2ModelOutput, RustBertError> {
         let (input_embeddings, seq_length) = match input_ids {
             Some(input_value) => match input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (
                     input_value.apply(&self.wte),
@@ -390,7 +392,9 @@ impl Gpt2Model {
             None => match input_embeds {
                 Some(embeds) => (embeds.copy(), embeds.size()[1]),
                 None => {
-                    return Err("At least one of input ids or input embeddings must be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -624,9 +628,9 @@ impl LMHeadModel for GPT2LMHeadModel {
         _encoder_outputs: Option<&Tensor>,
         _decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<LMModelOutput, &'static str> {
+    ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match layer_past {
-            Cache::GPT2Cache(layer_past) => Ok(self.transformer.forward_t(
+            Cache::GPT2Cache(layer_past) => self.transformer.forward_t(
                 input_ids,
                 &layer_past,
                 attention_mask,
@@ -634,8 +638,8 @@ impl LMHeadModel for GPT2LMHeadModel {
                 position_ids,
                 input_embeds,
                 train,
-            )?),
-            Cache::None => Ok(self.transformer.forward_t(
+            ),
+            Cache::None => self.transformer.forward_t(
                 input_ids,
                 &None,
                 attention_mask,
@@ -643,8 +647,12 @@ impl LMHeadModel for GPT2LMHeadModel {
                 position_ids,
                 input_embeds,
                 train,
-            )?),
-            _ => Err("Cache not compatible with GPT2 model"),
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with GPT2 Model".into(),
+                ));
+            }
         }?;
 
         let lm_logits = base_model_output.output.apply(&self.lm_head);

@@ -203,9 +203,11 @@ impl Conversation {
     /// let mut conversation = Conversation::new_empty();
     /// conversation.add_user_input("Hi there!");
     /// ```
-    pub fn add_user_input(&mut self, text: &str) -> Result<(), &'static str> {
+    pub fn add_user_input(&mut self, text: &str) -> Result<(), RustBertError> {
         if self.new_user_input.is_some() {
-            Err("User input already provided for this conversation")
+            Err(RustBertError::ValueError(
+                "User input already provided for this conversation".into(),
+            ))
         } else {
             self.new_user_input = Some(text.to_string());
             Ok(())

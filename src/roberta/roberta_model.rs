@@ -306,7 +306,7 @@ impl RobertaForMaskedLM {
         encoder_mask: &Option<Tensor>,
         train: bool,
     ) -> RobertaMaskedLMOutput {
-        let model_output = self
+        let base_model_output = self
             .roberta
             .forward_t(
                 input_ids,
@@ -320,11 +320,11 @@ impl RobertaForMaskedLM {
             )
             .unwrap();
 
-        let prediction_scores = self.lm_head.forward(&model_output.hidden_state);
+        let prediction_scores = self.lm_head.forward(&base_model_output.hidden_state);
         RobertaMaskedLMOutput {
             prediction_scores,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         }
     }
 }

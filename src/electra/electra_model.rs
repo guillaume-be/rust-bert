@@ -17,7 +17,7 @@ use crate::bert::{Activation, BertConfig};
 use crate::common::activations::{_gelu, _mish, _relu};
 use crate::common::dropout::Dropout;
 use crate::electra::embeddings::ElectraEmbeddings;
-use crate::Config;
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap};
 use tch::{nn, Kind, Tensor};
@@ -234,18 +234,22 @@ impl ElectraModel {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<ElectraModelOutput, &'static str> {
+    ) -> Result<ElectraModelOutput, RustBertError> {
         let (input_shape, device) = match &input_ids {
             Some(input_value) => match &input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (input_value.size(), input_value.device()),
             },
             None => match &input_embeds {
                 Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
                 None => {
-                    return Err("At least one of input ids or input embeddings must be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -259,7 +263,9 @@ impl ElectraModel {
             3 => mask.unsqueeze(1),
             2 => mask.unsqueeze(1).unsqueeze(1),
             _ => {
-                return Err("Invalid attention mask dimension, must be 2 or 3");
+                return Err(RustBertError::ValueError(
+                    "Invalid attention mask dimension, must be 2 or 3".into(),
+                ));
             }
         };
 
@@ -614,7 +620,7 @@ impl ElectraForMaskedLM {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> ElectraMaskedLMOutput {
-        let model_output = self
+        let base_model_output = self
             .electra
             .forward_t(
                 input_ids,
@@ -625,12 +631,12 @@ impl ElectraForMaskedLM {
                 train,
             )
             .unwrap();
-        let hidden_states = self.generator_head.forward(&model_output.hidden_state);
+        let hidden_states = self.generator_head.forward(&base_model_output.hidden_state);
         let prediction_scores = hidden_states.apply(&self.lm_head);
         ElectraMaskedLMOutput {
             prediction_scores,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         }
     }
 }
@@ -740,7 +746,7 @@ impl ElectraDiscriminator {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> ElectraDiscriminatorOutput {
-        let model_output = self
+        let base_model_output = self
             .electra
             .forward_t(
                 input_ids,
@@ -753,12 +759,12 @@ impl ElectraDiscriminator {
             .unwrap();
         let probabilities = self
             .discriminator_head
-            .forward(&model_output.hidden_state)
+            .forward(&base_model_output.hidden_state)
             .sigmoid();
         ElectraDiscriminatorOutput {
             probabilities,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         }
     }
 }
@@ -881,7 +887,7 @@ impl ElectraForTokenClassification {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> ElectraTokenClassificationOutput {
-        let model_output = self
+        let base_model_output = self
             .electra
             .forward_t(
                 input_ids,
@@ -892,14 +898,14 @@ impl ElectraForTokenClassification {
                 train,
             )
             .unwrap();
-        let logits = model_output
+        let logits = base_model_output
             .hidden_state
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
         ElectraTokenClassificationOutput {
             logits,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         }
     }
 }

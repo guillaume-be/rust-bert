@@ -16,7 +16,7 @@ use crate::bert::encoder::{BertEncoder, BertPooler};
 use crate::common::activations::{_gelu, _mish, _relu};
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
-use crate::Config;
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -250,18 +250,22 @@ impl<T: BertEmbedding> BertModel<T> {
         encoder_hidden_states: &Option<Tensor>,
         encoder_mask: &Option<Tensor>,
         train: bool,
-    ) -> Result<BertModelOutput, &'static str> {
+    ) -> Result<BertModelOutput, RustBertError> {
         let (input_shape, device) = match &input_ids {
             Some(input_value) => match &input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (input_value.size(), input_value.device()),
             },
             None => match &input_embeds {
                 Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
                 None => {
-                    return Err("At least one of input ids or input embeddings must be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -288,7 +292,9 @@ impl<T: BertEmbedding> BertModel<T> {
                 }
             }
             _ => {
-                return Err("Invalid attention mask dimension, must be 2 or 3");
+                return Err(RustBertError::ValueError(
+                    "Invalid attention mask dimension, must be 2 or 3".into(),
+                ));
             }
         };
 
@@ -313,7 +319,9 @@ impl<T: BertEmbedding> BertModel<T> {
                     2 => Some(encoder_mask.unsqueeze(1).unsqueeze(1)),
                     3 => Some(encoder_mask.unsqueeze(1)),
                     _ => {
-                        return Err("Invalid encoder attention mask dimension, must be 2 or 3");
+                        return Err(RustBertError::ValueError(
+                            "Invalid attention mask dimension, must be 2 or 3".into(),
+                        ));
                     }
                 }
             } else {
@@ -536,7 +544,7 @@ impl BertForMaskedLM {
         encoder_mask: &Option<Tensor>,
         train: bool,
     ) -> BertMaskedLMOutput {
-        let model_output = self
+        let base_model_output = self
             .bert
             .forward_t(
                 input_ids,
@@ -550,11 +558,11 @@ impl BertForMaskedLM {
             )
             .unwrap();
 
-        let prediction_scores = self.cls.forward(&model_output.hidden_state);
+        let prediction_scores = self.cls.forward(&base_model_output.hidden_state);
         BertMaskedLMOutput {
             prediction_scores,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         }
     }
 }
@@ -677,7 +685,7 @@ impl BertForSequenceClassification {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> BertSequenceClassificationOutput {
-        let model_output = self
+        let base_model_output = self
             .bert
             .forward_t(
                 input_ids,
@@ -691,14 +699,14 @@ impl BertForSequenceClassification {
             )
             .unwrap();
 
-        let logits = model_output
+        let logits = base_model_output
             .pooled_output
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
         BertSequenceClassificationOutput {
             logits,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         }
     }
 }
@@ -826,7 +834,7 @@ impl BertForMultipleChoice {
             None => None,
         };
 
-        let model_output = self
+        let base_model_output = self
             .bert
             .forward_t(
                 Some(input_ids),
@@ -840,15 +848,15 @@ impl BertForMultipleChoice {
             )
             .unwrap();
 
-        let logits = model_output
+        let logits = base_model_output
             .pooled_output
             .apply_t(&self.dropout, train)
             .apply(&self.classifier)
             .view((-1, num_choices));
         BertSequenceClassificationOutput {
             logits,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         }
     }
 }
@@ -972,7 +980,7 @@ impl BertForTokenClassification {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> BertTokenClassificationOutput {
-        let model_output = self
+        let base_model_output = self
             .bert
             .forward_t(
                 input_ids,
@@ -986,14 +994,14 @@ impl BertForTokenClassification {
             )
             .unwrap();
 
-        let logits = model_output
+        let logits = base_model_output
             .hidden_state
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
         BertTokenClassificationOutput {
             logits,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         }
     }
 }
@@ -1109,7 +1117,7 @@ impl BertForQuestionAnswering {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> BertQuestionAnsweringOutput {
-        let model_output = self
+        let base_model_output = self
             .bert
             .forward_t(
                 input_ids,
@@ -1123,7 +1131,7 @@ impl BertForQuestionAnswering {
             )
             .unwrap();
 
-        let sequence_output = model_output.hidden_state.apply(&self.qa_outputs);
+        let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
         let start_logits = start_logits.squeeze1(-1);
@@ -1132,8 +1140,8 @@ impl BertForQuestionAnswering {
         BertQuestionAnsweringOutput {
             start_logits,
             end_logits,
-            all_hidden_states: model_output.all_hidden_states,
-            all_attentions: model_output.all_attentions,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         }
     }
 }
