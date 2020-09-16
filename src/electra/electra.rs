@@ -34,12 +34,12 @@ pub struct ElectraVocabResources;
 impl ElectraModelResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
     pub const BASE_GENERATOR: (&'static str, &'static str) = (
-        "electra-base-generator/model.ot",
+        "electra-base-generator/model",
         "https://cdn.huggingface.co/google/electra-base-generator/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
     pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = (
-        "electra-base-discriminator/model.ot",
+        "electra-base-discriminator/model",
         "https://cdn.huggingface.co/google/electra-base-discriminator/rust_model.ot",
     );
 }
@@ -47,12 +47,12 @@ impl ElectraModelResources {
 impl ElectraConfigResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
     pub const BASE_GENERATOR: (&'static str, &'static str) = (
-        "electra-base-generator/config.json",
+        "electra-base-generator/config",
         "https://cdn.huggingface.co/google/electra-base-generator/config.json",
     );
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
     pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = (
-        "electra-base-discriminator/config.json",
+        "electra-base-discriminator/config",
         "https://cdn.huggingface.co/google/electra-base-discriminator/config.json",
     );
 }
@@ -60,12 +60,12 @@ impl ElectraConfigResources {
 impl ElectraVocabResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
     pub const BASE_GENERATOR: (&'static str, &'static str) = (
-        "electra-base-generator/vocab.txt",
+        "electra-base-generator/vocab",
         "https://cdn.huggingface.co/google/electra-base-generator/vocab.txt",
     );
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
     pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = (
-        "electra-base-discriminator/vocab.txt",
+        "electra-base-discriminator/vocab",
         "https://cdn.huggingface.co/google/electra-base-discriminator/vocab.txt",
     );
 }

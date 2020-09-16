@@ -9,6 +9,10 @@ jobs:
         - cargo fmt -- --check
     - script:
       - cargo build --verbose
+    - os:
+      - windows
+      script:
+        - cargo build --verbose
     - script:
       - sudo apt-get install python3-pip python3-setuptools
       - pip3 install --upgrade pip

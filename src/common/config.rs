@@ -36,7 +36,7 @@ where
     /// let config_path = Path::new("path/to/config.json");
     /// let config = Gpt2Config::from_file(config_path);
     /// ```
-    fn from_file(path: &Path) -> T {
+    fn from_file<P: AsRef<Path>>(path: P) -> T {
         let f = File::open(path).expect("Could not open configuration file.");
         let br = BufReader::new(f);
         let config: T = serde_json::from_reader(br).expect("could not parse configuration");

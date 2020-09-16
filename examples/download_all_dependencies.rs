@@ -16,7 +16,7 @@ use rust_bert::openai_gpt::{
     OpenAiGptConfigResources, OpenAiGptMergesResources, OpenAiGptModelResources,
     OpenAiGptVocabResources,
 };
-use rust_bert::resources::{download_resource, RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::roberta::{
     RobertaConfigResources, RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
 };
@@ -40,10 +40,10 @@ fn download_distil_gpt2() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         Gpt2ModelResources::DISTIL_GPT2,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&merges_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = merges_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -58,9 +58,9 @@ fn download_distilbert_sst2() -> anyhow::Result<()> {
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertVocabResources::DISTIL_BERT_SST2,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -75,9 +75,9 @@ fn download_distilbert_qa() -> anyhow::Result<()> {
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertVocabResources::DISTIL_BERT_SQUAD,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -92,9 +92,9 @@ fn download_distilbert() -> anyhow::Result<()> {
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
         DistilBertVocabResources::DISTIL_BERT,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -108,10 +108,10 @@ fn download_gpt2() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let weights_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&merges_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = merges_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -129,10 +129,10 @@ fn download_gpt() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         OpenAiGptModelResources::GPT,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&merges_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = merges_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -150,10 +150,10 @@ fn download_roberta() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaModelResources::ROBERTA,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&merges_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = merges_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -165,9 +165,9 @@ fn download_bert() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
     let weights_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -182,9 +182,9 @@ fn download_bert_ner() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         BertModelResources::BERT_NER,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -198,10 +198,10 @@ fn download_bart() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
     let weights_resource =
         Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&merges_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = merges_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -219,10 +219,10 @@ fn download_bart_cnn() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         BartModelResources::BART_CNN,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&merges_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = merges_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -237,9 +237,9 @@ fn download_electra_generator() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         ElectraModelResources::BASE_GENERATOR,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -254,9 +254,9 @@ fn download_electra_discriminator() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         ElectraModelResources::BASE_DISCRIMINATOR,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -271,9 +271,9 @@ fn download_albert_base_v2() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         AlbertModelResources::ALBERT_BASE_V2,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -291,10 +291,10 @@ fn _download_dialogpt() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         Gpt2ModelResources::DIALOGPT_MEDIUM,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&merges_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = merges_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -306,9 +306,9 @@ fn download_t5_small() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
     let weights_resource =
         Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -326,10 +326,10 @@ fn download_roberta_qa() -> anyhow::Result<()> {
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaMergesResources::ROBERTA_QA,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&merges_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = merges_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -342,9 +342,9 @@ fn download_bert_qa() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA));
     let weights_resource =
         Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_QA));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 
@@ -359,9 +359,9 @@ fn download_xlm_roberta_ner_german() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         RobertaModelResources::XLM_ROBERTA_NER_DE,
     ));
-    let _ = download_resource(&config_resource)?;
-    let _ = download_resource(&vocab_resource)?;
-    let _ = download_resource(&weights_resource)?;
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
     Ok(())
 }
 

@@ -63,7 +63,7 @@ use crate::bart::{
     BartModelResources, BartVocabResources, LayerState as BartLayerState,
 };
 use crate::common::error::RustBertError;
-use crate::common::resources::{download_resource, RemoteResource, Resource};
+use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
     GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources,
     Gpt2VocabResources,
@@ -285,10 +285,10 @@ impl OpenAIGenerator {
             generate_config.merges_resource.clone()
         };
 
-        let config_path = download_resource(&config_resource)?;
-        let vocab_path = download_resource(&vocab_resource)?;
-        let merges_path = download_resource(&merges_resource)?;
-        let weights_path = download_resource(&model_resource)?;
+        let config_path = config_resource.get_local_path()?;
+        let vocab_path = vocab_resource.get_local_path()?;
+        let merges_path = merges_resource.get_local_path()?;
+        let weights_path = model_resource.get_local_path()?;
         let device = generate_config.device;
 
         let mut var_store = nn::VarStore::new(device);
@@ -403,10 +403,10 @@ impl GPT2Generator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<GPT2Generator, RustBertError> {
-        let config_path = download_resource(&generate_config.config_resource)?;
-        let vocab_path = download_resource(&generate_config.vocab_resource)?;
-        let merges_path = download_resource(&generate_config.merges_resource)?;
-        let weights_path = download_resource(&generate_config.model_resource)?;
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();
@@ -607,10 +607,10 @@ impl BartGenerator {
             generate_config.merges_resource.clone()
         };
 
-        let config_path = download_resource(&config_resource)?;
-        let vocab_path = download_resource(&vocab_resource)?;
-        let merges_path = download_resource(&merges_resource)?;
-        let weights_path = download_resource(&model_resource)?;
+        let config_path = config_resource.get_local_path()?;
+        let vocab_path = vocab_resource.get_local_path()?;
+        let merges_path = merges_resource.get_local_path()?;
+        let weights_path = model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();
@@ -881,10 +881,10 @@ impl MarianGenerator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<MarianGenerator, RustBertError> {
-        let config_path = download_resource(&generate_config.config_resource)?;
-        let vocab_path = download_resource(&generate_config.vocab_resource)?;
-        let sentence_piece_path = download_resource(&generate_config.merges_resource)?;
-        let weights_path = download_resource(&generate_config.model_resource)?;
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let sentence_piece_path = generate_config.merges_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();
@@ -1143,9 +1143,9 @@ impl T5Generator {
             generate_config.vocab_resource.clone()
         };
 
-        let config_path = download_resource(&config_resource)?;
-        let vocab_path = download_resource(&vocab_resource)?;
-        let weights_path = download_resource(&model_resource)?;
+        let config_path = config_resource.get_local_path()?;
+        let vocab_path = vocab_resource.get_local_path()?;
+        let weights_path = model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();
