@@ -408,13 +408,13 @@ impl TokenClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
             Self::DistilBert(ref model) => {
                 model
                     .forward_t(input_ids, mask, input_embeds, train)
                     .expect("Error in distilbert forward_t")
-                    .0
+                    .logits
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
                 model
@@ -426,7 +426,7 @@ impl TokenClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
             Self::Electra(ref model) => {
                 model
@@ -438,7 +438,7 @@ impl TokenClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
             Self::Albert(ref model) => {
                 model
@@ -450,7 +450,7 @@ impl TokenClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
         }
     }
@@ -632,7 +632,7 @@ impl TokenClassificationModel {
 
     fn decode_token(
         &self,
-        original_sentence_chars: &Vec<char>,
+        original_sentence_chars: &[char],
         sentence_tokens: &TokenizedInput,
         input_tensor: &Tensor,
         labels: &Tensor,
@@ -700,16 +700,16 @@ impl TokenClassificationModel {
         label_aggregation_function: &LabelAggregationOption,
     ) {
         let mut tokens_to_replace = vec![];
-        let mut token_iter = tokens.iter_consolidate_tokens();
+        let token_iter = tokens.iter_consolidate_tokens();
         let mut cursor = 0;
 
-        while let Some(sub_tokens) = token_iter.next() {
+        for sub_tokens in token_iter {
             if sub_tokens.len() > 1 {
                 let (label_index, label) =
                     self.consolidate_labels(sub_tokens, label_aggregation_function);
-                let sentence = (&sub_tokens[0]).sentence;
-                let index = (&sub_tokens[0]).index;
-                let word_index = (&sub_tokens[0]).word_index;
+                let sentence = (sub_tokens[0]).sentence;
+                let index = (sub_tokens[0]).index;
+                let word_index = (sub_tokens[0]).word_index;
                 let offset_start = match &sub_tokens.first().unwrap().offset {
                     Some(offset) => Some(offset.begin),
                     None => None,
@@ -718,14 +718,15 @@ impl TokenClassificationModel {
                     Some(offset) => Some(offset.end),
                     None => None,
                 };
-                let offset = if offset_start.is_some() & offset_end.is_some() {
-                    Some(Offset::new(offset_start.unwrap(), offset_end.unwrap()))
-                } else {
-                    None
-                };
+                let offset =
+                    if let (Some(offset_start), Some(offset_end)) = (offset_start, offset_end) {
+                        Some(Offset::new(offset_start, offset_end))
+                    } else {
+                        None
+                    };
                 let mut text = String::new();
                 let mut score = 1f64;
-                for current_sub_token in sub_tokens.into_iter() {
+                for current_sub_token in sub_tokens.iter() {
                     text.push_str(current_sub_token.text.as_str());
                     score *= if current_sub_token.label_index == label_index {
                         current_sub_token.score

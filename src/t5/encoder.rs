@@ -14,6 +14,7 @@ use crate::common::dropout::Dropout;
 use crate::t5::attention::{LayerState, T5LayerCrossAttention, T5LayerSelfAttention};
 use crate::t5::layer_norm::T5LayerNorm;
 use crate::t5::T5Config;
+use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LinearConfig;
 use tch::{nn, Kind, Tensor};
@@ -148,12 +149,7 @@ impl T5Block {
         encoder_decoder_position_bias: Option<&Tensor>,
         mut layer_states: (Option<LayerState>, Option<LayerState>),
         train: bool,
-    ) -> (
-        Tensor,
-        (Option<Tensor>, Option<Tensor>),
-        (Option<Tensor>, Option<Tensor>),
-        (Option<LayerState>, Option<LayerState>),
-    ) {
+    ) -> T5BlockOutput {
         let (
             hidden_states,
             self_attention_weights,
@@ -190,17 +186,17 @@ impl T5Block {
             (hidden_states, None, None, None)
         };
 
-        let attention_weights = (self_attention_weights, cross_attention_weights);
-        let position_bias = (self_attention_position_bias, cross_attention_position_bias);
         layer_states = (self_attention_layer_past, cross_attention_layer_past);
         let hidden_states = self.ff_layer.forward_t(&hidden_states, train);
 
-        (
+        T5BlockOutput {
             hidden_states,
-            attention_weights,
-            position_bias,
-            layer_states,
-        )
+            self_attention_weights,
+            cross_attention_weights,
+            self_attention_position_bias,
+            cross_attention_position_bias,
+            cache: layer_states,
+        }
     }
 }
 
@@ -269,19 +265,13 @@ impl T5Stack {
         embeddings: &nn::Embedding,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> Result<
-        (
-            Tensor,
-            Option<Vec<Tensor>>,
-            Option<Vec<Tensor>>,
-            Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-        ),
-        &'static str,
-    > {
+    ) -> Result<T5StackOutput, RustBertError> {
         let (input_embeddings, input_shape) = match input_ids {
             Some(input_ids_value) => match input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (input_ids_value.apply(embeddings), input_ids_value.size()),
             },
@@ -291,7 +281,9 @@ impl T5Stack {
                     (embeds, size)
                 }
                 None => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -332,7 +324,7 @@ impl T5Stack {
                 if self.is_decoder {
                     let seq_ids =
                         Tensor::arange(input_shape[1], (Kind::Float, input_embeddings.device()));
-                    let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&vec![
+                    let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&[
                         input_shape[0],
                         input_shape[1],
                         1,
@@ -344,7 +336,9 @@ impl T5Stack {
                 }
             }
             _ => {
-                return Err("Invalid attention mask dimension, must be 2 or 3");
+                return Err(RustBertError::ValueError(
+                    "Invalid attention mask dimension, must be 2 or 3".into(),
+                ));
             }
         };
 
@@ -368,7 +362,9 @@ impl T5Stack {
                 2 => encoder_mask.unsqueeze(1).unsqueeze(1),
                 3 => encoder_mask.unsqueeze(1),
                 _ => {
-                    return Err("Invalid encoder attention mask dimension, must be 2 or 3");
+                    return Err(RustBertError::ValueError(
+                        "Invalid attention mask dimension, must be 2 or 3".into(),
+                    ));
                 }
             };
             Some((encoder_mask.ones_like() - encoder_mask) * -1e9)
@@ -386,7 +382,7 @@ impl T5Stack {
         } else {
             None
         };
-        let mut next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>> =
+        let mut next_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>> =
             if self.store_cache {
                 if old_layer_states.is_some() {
                     old_layer_states
@@ -400,42 +396,36 @@ impl T5Stack {
         let mut encoder_decoder_position_bias = None;
         let mut attention_weights: Option<Tensor>;
         let mut hidden_state = input_embeddings.apply_t(&self.dropout, train);
-        let mut blocks = self.blocks.iter().enumerate();
 
-        loop {
-            match blocks.next() {
-                Some((layer_idx, layer)) => {
-                    let layer_state = match &next_decoder_cache {
-                        Some(values) => values[layer_idx].to_owned(),
-                        None => (None, None),
-                    };
-                    let temp = layer.forward_t(
-                        &hidden_state,
-                        position_bias.as_ref(),
-                        extended_attention_mask.as_ref(),
-                        encoder_hidden_states,
-                        extended_encoder_attention_mask.as_ref(),
-                        encoder_decoder_position_bias.as_ref(),
-                        layer_state,
-                        train,
-                    );
-                    if layer_idx == 0 {
-                        position_bias = (temp.2).0;
-                        encoder_decoder_position_bias = (temp.2).1;
-                    }
-                    hidden_state = temp.0;
-                    attention_weights = (temp.1).1;
-                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                        hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
-                    };
-                    if let Some(attentions) = all_attentions.borrow_mut() {
-                        attentions.push(attention_weights.as_ref().unwrap().copy());
-                    };
-                    if let Some(value) = &mut next_decoder_cache {
-                        value[layer_idx] = temp.3
-                    };
-                }
-                None => break,
+        for (layer_idx, layer) in self.blocks.iter().enumerate() {
+            let layer_state = match &next_cache {
+                Some(values) => values[layer_idx].to_owned(),
+                None => (None, None),
+            };
+            let block_output = layer.forward_t(
+                &hidden_state,
+                position_bias.as_ref(),
+                extended_attention_mask.as_ref(),
+                encoder_hidden_states,
+                extended_encoder_attention_mask.as_ref(),
+                encoder_decoder_position_bias.as_ref(),
+                layer_state,
+                train,
+            );
+            if layer_idx == 0 {
+                position_bias = block_output.self_attention_position_bias;
+                encoder_decoder_position_bias = block_output.cross_attention_position_bias;
+            }
+            hidden_state = block_output.hidden_states;
+            attention_weights = block_output.cross_attention_weights;
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
+            };
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.as_ref().unwrap().copy());
+            };
+            if let Some(value) = &mut next_cache {
+                value[layer_idx] = block_output.cache
             };
         }
 
@@ -443,11 +433,27 @@ impl T5Stack {
             .apply(&self.final_layer_norm)
             .apply_t(&self.dropout, train);
 
-        Ok((
+        Ok(T5StackOutput {
             hidden_state,
             all_hidden_states,
             all_attentions,
-            next_decoder_cache,
-        ))
+            next_cache,
+        })
     }
+}
+
+pub struct T5BlockOutput {
+    pub hidden_states: Tensor,
+    pub self_attention_weights: Option<Tensor>,
+    pub cross_attention_weights: Option<Tensor>,
+    pub self_attention_position_bias: Option<Tensor>,
+    pub cross_attention_position_bias: Option<Tensor>,
+    pub cache: (Option<LayerState>, Option<LayerState>),
+}
+
+pub struct T5StackOutput {
+    pub hidden_state: Tensor,
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    pub all_attentions: Option<Vec<Tensor>>,
+    pub next_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
 }

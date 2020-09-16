@@ -58,23 +58,34 @@ fn electra_masked_lm() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (output, all_hidden_states, all_attentions) =
+    let model_output =
         no_grad(|| electra_model.forward_t(Some(input_tensor), None, None, None, None, false));
 
     //    Decode output
-    let index_1 = output.get(0).get(4).argmax(0, false);
-    let index_2 = output.get(1).get(7).argmax(0, false);
+    let index_1 = model_output
+        .prediction_scores
+        .get(0)
+        .get(4)
+        .argmax(0, false);
+    let index_2 = model_output
+        .prediction_scores
+        .get(1)
+        .get(7)
+        .argmax(0, false);
     let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 
-    assert_eq!(output.size(), &[2, 10, config.vocab_size]);
     assert_eq!(
-        config.num_hidden_layers as usize,
-        all_hidden_states.unwrap().len()
+        model_output.prediction_scores.size(),
+        &[2, 10, config.vocab_size]
     );
     assert_eq!(
         config.num_hidden_layers as usize,
-        all_attentions.unwrap().len()
+        model_output.all_hidden_states.unwrap().len()
+    );
+    assert_eq!(
+        config.num_hidden_layers as usize,
+        model_output.all_attentions.unwrap().len()
     );
     assert_eq!("thing", word_1); // Outputs "person" : "Looks like one [person] is missing"
     assert_eq!("sunny", word_2); // Outputs "pear" : "It was a very nice and [sunny] day"
@@ -127,16 +138,20 @@ fn electra_discriminator() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(encoded_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (output, _, _) =
+    let model_output =
         no_grad(|| electra_model.forward_t(Some(input_tensor), None, None, None, None, false));
 
     //    Validate model predictions
     let expected_probabilities = vec![
         0.0101, 0.0030, 0.0010, 0.0018, 0.9489, 0.0067, 0.0026, 0.0017, 0.0311, 0.0101,
     ];
-    let probabilities = output.iter::<f64>().unwrap().collect::<Vec<f64>>();
+    let probabilities = model_output
+        .probabilities
+        .iter::<f64>()
+        .unwrap()
+        .collect::<Vec<f64>>();
 
-    assert_eq!(output.size(), &[10]);
+    assert_eq!(model_output.probabilities.size(), &[10]);
     for (expected, pred) in probabilities.iter().zip(expected_probabilities) {
         assert!((expected - pred).abs() < 1e-4);
     }

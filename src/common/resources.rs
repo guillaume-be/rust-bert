@@ -18,7 +18,7 @@
 //! pre-trained models in each model module.
 
 use crate::common::error::RustBertError;
-use cached_path::Cache;
+use cached_path::{Cache, Options, ProgressBar};
 use lazy_static::lazy_static;
 use std::env;
 use std::path::PathBuf;
@@ -59,8 +59,10 @@ impl Resource {
         match self {
             Resource::Local(resource) => Ok(resource.local_path.clone()),
             Resource::Remote(resource) => {
-                let cached_path =
-                    CACHE.cached_path_in_subdir(&resource.url, Some(&resource.cache_subdir))?;
+                let cached_path = CACHE.cached_path_with_options(
+                    &resource.url,
+                    &Options::default().subdir(&resource.cache_subdir),
+                )?;
                 Ok(cached_path)
             }
         }
@@ -148,11 +150,14 @@ lazy_static! {
 /// # Global cache directory
 /// If the environment variable `RUSTBERT_CACHE` is set, will save the cache model files at that
 /// location. Otherwise defaults to `~/.cache/.rustbert`.
-    pub static ref CACHE: Cache = Cache::builder().dir(_get_cache_directory()).build().unwrap();
+    pub static ref CACHE: Cache = Cache::builder()
+        .dir(_get_cache_directory())
+        .progress_bar(Some(ProgressBar::Light))
+        .build().unwrap();
 }
 
 fn _get_cache_directory() -> PathBuf {
-    let home = match env::var("RUSTBERT_CACHE") {
+    match env::var("RUSTBERT_CACHE") {
         Ok(value) => PathBuf::from(value),
         Err(_) => {
             let mut home = dirs::home_dir().unwrap();
@@ -160,8 +165,7 @@ fn _get_cache_directory() -> PathBuf {
             home.push(".rustbert");
             home
         }
-    };
-    home
+    }
 }
 
 #[deprecated(

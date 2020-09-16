@@ -11,7 +11,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/albert.rs`, run with `cargo run --example albert`.
+//! A full working example is provided in `examples/albert`, run with `cargo run --example albert`.
 //! The example below illustrate a Masked language model example, the structure is similar for other models.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
@@ -53,13 +53,15 @@
 //! # }
 //! ```
 
-mod albert;
+mod albert_model;
 mod attention;
 mod embeddings;
 mod encoder;
 
-pub use albert::{
+pub use albert_model::{
     AlbertConfig, AlbertConfigResources, AlbertForMaskedLM, AlbertForMultipleChoice,
     AlbertForQuestionAnswering, AlbertForSequenceClassification, AlbertForTokenClassification,
-    AlbertModel, AlbertModelResources, AlbertVocabResources,
+    AlbertMaskedLMOutput, AlbertModel, AlbertModelResources, AlbertOutput,
+    AlbertQuestionAnsweringOutput, AlbertSequenceClassificationOutput,
+    AlbertTokenClassificationOutput, AlbertVocabResources,
 };

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::albert::albert::Activation;
+use crate::albert::albert_model::Activation;
 use crate::albert::attention::AlbertSelfAttention;
 use crate::albert::AlbertConfig;
 use crate::common::activations::{_gelu, _gelu_new, _mish, _relu};
@@ -149,22 +149,17 @@ impl AlbertLayerGroup {
 
         let mut hidden_state = hidden_states.copy();
         let mut attention_weights: Option<Tensor>;
-        let mut layers = self.layers.iter();
-        loop {
-            match layers.next() {
-                Some(layer) => {
-                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                        hidden_states.push(hidden_state.as_ref().copy());
-                    };
 
-                    let temp = layer.forward_t(&hidden_state, &mask, train);
-                    hidden_state = temp.0;
-                    attention_weights = temp.1;
-                    if let Some(attentions) = all_attentions.borrow_mut() {
-                        attentions.push(attention_weights.as_ref().unwrap().copy());
-                    };
-                }
-                None => break,
+        for layer in &self.layers {
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
+            };
+
+            let temp = layer.forward_t(&hidden_state, &mask, train);
+            hidden_state = temp.0;
+            attention_weights = temp.1;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.as_ref().unwrap().copy());
             };
         }
 
@@ -226,7 +221,7 @@ impl AlbertTransformer {
         hidden_states: &Tensor,
         mask: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Vec<Tensor>>>) {
+    ) -> AlbertTransformerOutput {
         let mut hidden_state = hidden_states.apply(&self.embedding_hidden_mapping_in);
 
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
@@ -256,6 +251,20 @@ impl AlbertTransformer {
             };
         }
 
-        (hidden_state, all_hidden_states, all_attentions)
+        AlbertTransformerOutput {
+            hidden_state,
+            all_hidden_states,
+            all_attentions,
+        }
     }
+}
+
+/// Container holding the ALBERT transformer output
+pub struct AlbertTransformerOutput {
+    /// Last hidden states of the transformer
+    pub hidden_state: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers. As layers in ALBERT can be made of a number of sub-layers, a vector of vector is used to store al of the attentions
+    pub all_attentions: Option<Vec<Vec<Tensor>>>,
 }

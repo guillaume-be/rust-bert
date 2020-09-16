@@ -55,12 +55,14 @@
 //! ```
 
 mod attention;
-mod distilbert;
+mod distilbert_model;
 mod embeddings;
 mod transformer;
 
-pub use distilbert::{
+pub use distilbert_model::{
     Activation, DistilBertConfig, DistilBertConfigResources, DistilBertForQuestionAnswering,
-    DistilBertForTokenClassification, DistilBertModel, DistilBertModelClassifier,
-    DistilBertModelMaskedLM, DistilBertModelResources, DistilBertVocabResources,
+    DistilBertForTokenClassification, DistilBertMaskedLMOutput, DistilBertModel,
+    DistilBertModelClassifier, DistilBertModelMaskedLM, DistilBertModelResources,
+    DistilBertQuestionAnsweringOutput, DistilBertSequenceClassificationOutput,
+    DistilBertTokenClassificationOutput, DistilBertVocabResources,
 };

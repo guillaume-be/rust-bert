@@ -16,7 +16,6 @@
 //! generic pipelines. The model component is defined in the generic pipeline itself as the
 //! pre-processing, forward pass and postprocessing differs between pipelines while basic config and
 //! tokenization objects don't.
-//!
 use crate::albert::AlbertConfig;
 use crate::bart::BartConfig;
 use crate::bert::BertConfig;
@@ -335,87 +334,91 @@ impl TokenizerOption {
         original_offsets_2: Option<Vec<Vec<OffsetSize>>>,
         mask_1: Vec<Mask>,
         mask_2: Option<Vec<Mask>>,
-    ) -> (
-        Vec<i64>,
-        Vec<i8>,
-        Vec<i8>,
-        Vec<Option<Offset>>,
-        Vec<Vec<OffsetSize>>,
-        Vec<Mask>,
-    ) {
-        match *self {
-            Self::Bert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                tokens_1,
-                tokens_2,
-                offsets_1,
-                offsets_2,
-                original_offsets_1,
-                original_offsets_2,
-                mask_1,
-                mask_2,
-            ),
-            Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                tokens_1,
-                tokens_2,
-                offsets_1,
-                offsets_2,
-                original_offsets_1,
-                original_offsets_2,
-                mask_1,
-                mask_2,
-            ),
-            Self::XLMRoberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                tokens_1,
-                tokens_2,
-                offsets_1,
-                offsets_2,
-                original_offsets_1,
-                original_offsets_2,
-                mask_1,
-                mask_2,
-            ),
-            Self::Marian(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                tokens_1,
-                tokens_2,
-                offsets_1,
-                offsets_2,
-                original_offsets_1,
-                original_offsets_2,
-                mask_1,
-                mask_2,
-            ),
-            Self::T5(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                tokens_1,
-                tokens_2,
-                offsets_1,
-                offsets_2,
-                original_offsets_1,
-                original_offsets_2,
-                mask_1,
-                mask_2,
-            ),
-            Self::Albert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                tokens_1,
-                tokens_2,
-                offsets_1,
-                offsets_2,
-                original_offsets_1,
-                original_offsets_2,
-                mask_1,
-                mask_2,
-            ),
+    ) -> TokenizedInput {
+        let (token_ids, segment_ids, special_tokens_mask, token_offsets, reference_offsets, mask) =
+            match *self {
+                Self::Bert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                    tokens_1,
+                    tokens_2,
+                    offsets_1,
+                    offsets_2,
+                    original_offsets_1,
+                    original_offsets_2,
+                    mask_1,
+                    mask_2,
+                ),
+                Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                    tokens_1,
+                    tokens_2,
+                    offsets_1,
+                    offsets_2,
+                    original_offsets_1,
+                    original_offsets_2,
+                    mask_1,
+                    mask_2,
+                ),
+                Self::XLMRoberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                    tokens_1,
+                    tokens_2,
+                    offsets_1,
+                    offsets_2,
+                    original_offsets_1,
+                    original_offsets_2,
+                    mask_1,
+                    mask_2,
+                ),
+                Self::Marian(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                    tokens_1,
+                    tokens_2,
+                    offsets_1,
+                    offsets_2,
+                    original_offsets_1,
+                    original_offsets_2,
+                    mask_1,
+                    mask_2,
+                ),
+                Self::T5(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                    tokens_1,
+                    tokens_2,
+                    offsets_1,
+                    offsets_2,
+                    original_offsets_1,
+                    original_offsets_2,
+                    mask_1,
+                    mask_2,
+                ),
+                Self::Albert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                    tokens_1,
+                    tokens_2,
+                    offsets_1,
+                    offsets_2,
+                    original_offsets_1,
+                    original_offsets_2,
+                    mask_1,
+                    mask_2,
+                ),
+            };
+        TokenizedInput {
+            token_ids,
+            segment_ids,
+            special_tokens_mask,
+            overflowing_tokens: vec![],
+            num_truncated_tokens: 0,
+            token_offsets,
+            reference_offsets,
+            mask,
         }
     }
 
     /// Interface method to convert tokens to ids
-    pub fn convert_tokens_to_ids(&self, tokens: &Vec<String>) -> Vec<i64> {
+    pub fn convert_tokens_to_ids(&self, tokens: &[String]) -> Vec<i64> {
         match *self {
-            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
-            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
-            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
-            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
-            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
-            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
+            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
+            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
+            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
+            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
         }
     }
 

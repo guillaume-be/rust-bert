@@ -73,12 +73,12 @@ fn main() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (decoder_output, encoder_output, _, _, _, _, _) =
+    let model_output =
         no_grad(|| bart_model.forward_t(Some(&input_tensor), None, None, None, None, None, false));
 
     //    Print masked tokens
-    println!("{:?}", encoder_output);
-    println!("{:?}", decoder_output);
-    println!("{:?}", decoder_output.double_value(&[0, 0, 0]));
+    println!("{:?}", model_output.encoder_hidden_state);
+    println!("{:?}", model_output.decoder_output);
+    println!("{:?}", model_output.decoder_output.double_value(&[0, 0, 0]));
     Ok(())
 }

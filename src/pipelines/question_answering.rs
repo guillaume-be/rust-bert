@@ -160,7 +160,7 @@ impl QaExample {
         }
 
         if !current_word.is_empty() {
-            doc_tokens.push(current_word.clone());
+            doc_tokens.push(current_word);
         }
         (doc_tokens, char_to_word_offset)
     }
@@ -356,21 +356,21 @@ impl QuestionAnsweringOption {
         match *self {
             Self::Bert(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
-                (outputs.0, outputs.1)
+                (outputs.start_logits, outputs.end_logits)
             }
             Self::DistilBert(ref model) => {
                 let outputs = model
                     .forward_t(input_ids, mask, input_embeds, train)
                     .expect("Error in distilbert forward_t");
-                (outputs.0, outputs.1)
+                (outputs.start_logits, outputs.end_logits)
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
-                (outputs.0, outputs.1)
+                (outputs.start_logits, outputs.end_logits)
             }
             Self::Albert(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
-                (outputs.0, outputs.1)
+                (outputs.start_logits, outputs.end_logits)
             }
         }
     }
@@ -437,12 +437,9 @@ impl QuestionAnsweringModel {
         let mut var_store = VarStore::new(device);
         let mut model_config =
             ConfigOption::from_file(question_answering_config.model_type, config_path);
-        match model_config {
-            //        The config for the current pre-trained question answering model indicates position embeddings which does not seem accurate
-            ConfigOption::DistilBert(ref mut config) => {
-                config.sinusoidal_pos_embds = false;
-            }
-            _ => (),
+
+        if let ConfigOption::DistilBert(ref mut config) = model_config {
+            config.sinusoidal_pos_embds = false;
         };
 
         let qa_model = QuestionAnsweringOption::new(
@@ -605,7 +602,7 @@ impl QuestionAnsweringModel {
                     feature_id_start = max_feature_id;
                     let example_answers = example_top_k_answers_map
                         .entry(example_id)
-                        .or_insert(vec![]);
+                        .or_insert_with(Vec::new);
                     example_answers.extend(answers);
                 }
             });
@@ -684,7 +681,7 @@ impl QuestionAnsweringModel {
                         vec![],
                         None,
                     )
-                    .0
+                    .token_ids
                     .len()
                     + 1
             }
@@ -700,7 +697,7 @@ impl QuestionAnsweringModel {
                     vec![],
                     None,
                 )
-                .0
+                .token_ids
                 .len(),
         };
 
@@ -716,7 +713,7 @@ impl QuestionAnsweringModel {
                 vec![],
                 Some(vec![]),
             )
-            .0
+            .token_ids
             .len();
 
         let mut spans: Vec<QaFeature> = vec![];
@@ -792,8 +789,8 @@ impl QuestionAnsweringModel {
 
     fn encode_qa_pair(
         &self,
-        truncated_query: &Vec<i64>,
-        spans_token_ids: &Vec<i64>,
+        truncated_query: &[i64],
+        spans_token_ids: &[i64],
         max_seq_length: usize,
         doc_stride: usize,
         sequence_pair_added_tokens: usize,
@@ -809,8 +806,8 @@ impl QuestionAnsweringModel {
 
         let (truncated_query, truncated_context, _, _, _, _, _, _, overflowing_tokens, _) =
             truncate_sequences(
-                truncated_query.clone(),
-                Some(spans_token_ids.clone()),
+                truncated_query.into(),
+                Some(spans_token_ids.into()),
                 vec![],
                 None,
                 vec![],
@@ -823,14 +820,7 @@ impl QuestionAnsweringModel {
             )
             .unwrap();
 
-        let (
-            mut token_ids,
-            mut segment_ids,
-            special_tokens_mask,
-            mut token_offsets,
-            mut reference_offsets,
-            mut mask,
-        ) = self.tokenizer.build_input_with_special_tokens(
+        let mut tokenized_input = self.tokenizer.build_input_with_special_tokens(
             truncated_query,
             truncated_context,
             vec![],
@@ -840,25 +830,43 @@ impl QuestionAnsweringModel {
             vec![],
             None,
         );
-        let mut attention_mask = vec![1; token_ids.len()];
-        if token_ids.len() < max_seq_length {
-            token_ids.append(&mut vec![self.pad_idx; max_seq_length - token_ids.len()]);
-            segment_ids.append(&mut vec![0; max_seq_length - segment_ids.len()]);
+        let mut attention_mask = vec![1; tokenized_input.token_ids.len()];
+        if tokenized_input.token_ids.len() < max_seq_length {
+            tokenized_input.token_ids.append(&mut vec![
+                self.pad_idx;
+                max_seq_length
+                    - tokenized_input.token_ids.len()
+            ]);
+            tokenized_input.segment_ids.append(&mut vec![
+                0;
+                max_seq_length
+                    - tokenized_input.segment_ids.len()
+            ]);
             attention_mask.append(&mut vec![0; max_seq_length - attention_mask.len()]);
-            token_offsets.append(&mut vec![None; max_seq_length - token_offsets.len()]);
-            reference_offsets.append(&mut vec![vec!(); max_seq_length - token_offsets.len()]);
-            mask.append(&mut vec![Mask::Special; max_seq_length - mask.len()]);
+            tokenized_input.token_offsets.append(&mut vec![
+                None;
+                max_seq_length
+                    - tokenized_input
+                        .token_offsets
+                        .len()
+            ]);
+            tokenized_input.reference_offsets.append(&mut vec![
+                vec!();
+                max_seq_length
+                    - tokenized_input
+                        .token_offsets
+                        .len()
+            ]);
+            tokenized_input.mask.append(&mut vec![
+                Mask::Special;
+                max_seq_length - tokenized_input.mask.len()
+            ]);
         }
         (
             TokenizedInput {
-                token_ids,
-                segment_ids,
-                special_tokens_mask,
                 overflowing_tokens,
                 num_truncated_tokens,
-                token_offsets,
-                reference_offsets,
-                mask,
+                ..tokenized_input
             },
             attention_mask,
         )

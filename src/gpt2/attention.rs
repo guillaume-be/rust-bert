@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
-use crate::gpt2::gpt2::Gpt2Config;
+use crate::gpt2::gpt2_model::Gpt2Config;
 use std::borrow::Borrow;
 use tch::kind::Kind::Float;
 use tch::nn::{Init, Module};
@@ -128,20 +128,20 @@ impl Attention {
     fn flatten(&self, x: Tensor) -> Tensor {
         x.transpose(1, 2)
             .contiguous()
-            .view((x.size()[0], -1, &self.n_head * self.dim_per_head))
+            .view((x.size()[0], -1, self.n_head * self.dim_per_head))
     }
 
     fn attention(
         &self,
-        q: &Tensor,
-        k: &Tensor,
-        v: &Tensor,
+        query: &Tensor,
+        key: &Tensor,
+        value: &Tensor,
         attention_mask: &Option<Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
-        let mut w = q.matmul(&k);
+        let mut w = query.matmul(&key);
         if self.scale {
-            w = w / (*v.size().last().unwrap() as f64).sqrt();
+            w = w / (*value.size().last().unwrap() as f64).sqrt();
         }
 
         let (nd, ns) = (w.size()[2], w.size()[3]);
@@ -152,7 +152,7 @@ impl Attention {
             w = w + mask;
         }
         w = w.softmax(-1, Float).apply_t(&self.attn_dropout, train);
-        let output = w.matmul(&v);
+        let output = w.matmul(&value);
 
         if self.output_attentions {
             (output, Some(w))

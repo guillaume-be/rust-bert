@@ -75,7 +75,7 @@ fn main() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (output, _, _, _, _) = openai_gpt
+    let model_output = openai_gpt
         .forward_t(
             &Some(input_tensor),
             Cache::None,
@@ -89,7 +89,12 @@ fn main() -> anyhow::Result<()> {
         )
         .unwrap();
 
-    let next_word_id = output.get(0).get(-1).argmax(-1, true).int64_value(&[0]);
+    let next_word_id = model_output
+        .lm_logits
+        .get(0)
+        .get(-1)
+        .argmax(-1, true)
+        .int64_value(&[0]);
     let next_word = tokenizer.decode(vec![next_word_id], true, true);
     println!("Provided input: {}", input[0]);
     println!("Next word: {}", next_word);

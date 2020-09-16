@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     //    Get answer
-    let answers = qa_model.predict(&vec![qa_input_1, qa_input_2], 1, 32);
+    let answers = qa_model.predict(&[qa_input_1, qa_input_2], 1, 32);
     println!("{:?}", answers);
     Ok(())
 }

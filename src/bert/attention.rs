@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bert::bert::{Activation, BertConfig};
+use crate::bert::bert_model::{Activation, BertConfig};
 use crate::common::activations::{_gelu, _mish, _relu};
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
@@ -86,7 +86,7 @@ impl BertSelfAttention {
     fn flatten(&self, x: Tensor, bs: i64, dim_per_head: i64) -> Tensor {
         x.transpose(1, 2)
             .contiguous()
-            .view((bs, -1, &self.num_attention_heads * dim_per_head))
+            .view((bs, -1, self.num_attention_heads * dim_per_head))
     }
 
     pub fn forward_t(

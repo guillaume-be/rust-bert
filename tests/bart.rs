@@ -62,12 +62,12 @@ fn bart_lm_model() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (output, encoder_outputs, _, _, _, _, _) =
+    let model_output =
         bart_model.forward_t(Some(&input_tensor), None, None, None, None, None, false);
 
-    assert_eq!(output.size(), vec!(1, 6, 1024));
-    assert_eq!(encoder_outputs.size(), vec!(1, 6, 1024));
-    assert!((output.double_value(&[0, 0, 0]) - 0.7877).abs() < 1e-4);
+    assert_eq!(model_output.decoder_output.size(), vec!(1, 6, 1024));
+    assert_eq!(model_output.encoder_hidden_state.size(), vec!(1, 6, 1024));
+    assert!((model_output.decoder_output.double_value(&[0, 0, 0]) - 0.7877).abs() < 1e-4);
     Ok(())
 }
 

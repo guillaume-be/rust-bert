@@ -6,7 +6,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/bart.rs`, run with `cargo run --example bart`.
+//! A full working example is provided in `examples/bart`, run with `cargo run --example bart`.
 //! Alternatively, the summarization capabilities are illustrated in `examples/summarization.rs`, run with `cargo run --example summarization`.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
@@ -58,14 +58,16 @@
 //! ```
 
 mod attention;
-mod bart;
+mod bart_model;
 mod decoder;
 mod embeddings;
 mod encoder;
 
 pub use attention::LayerState;
-pub use bart::{
+pub use bart_model::{
     Activation, BartConfig, BartConfigResources, BartForConditionalGeneration,
-    BartForSequenceClassification, BartMergesResources, BartModel, BartModelResources,
-    BartVocabResources,
+    BartForSequenceClassification, BartMergesResources, BartModel, BartModelOutput,
+    BartModelResources, BartVocabResources,
 };
+
+pub(crate) use encoder::BartEncoderOutput;

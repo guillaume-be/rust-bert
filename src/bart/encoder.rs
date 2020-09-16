@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::bart::attention::SelfAttention;
-use crate::bart::bart::Activation;
+use crate::bart::bart_model::Activation;
 use crate::bart::embeddings::{
     EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
 };
@@ -232,7 +232,7 @@ impl BartEncoder {
         attention_mask: Option<&Tensor>,
         embeddings: &nn::Embedding,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    ) -> BartEncoderOutput {
         let attention_mask = match attention_mask {
             Some(mask) => Some(mask.eq(0).to_kind(Bool)),
             None => None,
@@ -260,33 +260,38 @@ impl BartEncoder {
 
         let mut hidden_state = x.copy();
         let mut attention_weights: Option<Tensor>;
-        let mut layers = self.layers.iter();
 
-        loop {
-            match layers.next() {
-                Some(layer) => {
-                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                        hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
-                    };
+        for layer in &self.layers {
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
+            };
 
-                    let temp = layer.forward_t(&hidden_state, attention_mask.as_ref(), train);
-                    hidden_state = temp.0;
-                    attention_weights = temp.1;
-                    if let Some(attentions) = all_attentions.borrow_mut() {
-                        attentions.push(attention_weights.as_ref().unwrap().copy());
-                    };
-                }
-                None => break,
+            let temp = layer.forward_t(&hidden_state, attention_mask.as_ref(), train);
+            hidden_state = temp.0;
+            attention_weights = temp.1;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.as_ref().unwrap().copy());
             };
         }
+
         if let Some(hidden_states) = all_hidden_states.borrow_mut() {
             hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
         };
 
-        (
-            hidden_state.transpose(0, 1),
+        BartEncoderOutput {
+            hidden_state: hidden_state.transpose(0, 1),
             all_hidden_states,
             all_attentions,
-        )
+        }
     }
+}
+
+/// Container holding a BART encoder output
+pub struct BartEncoderOutput {
+    /// Last encoder layer hidden state
+    pub hidden_state: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
 }

@@ -11,7 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
-use crate::distilbert::distilbert::DistilBertConfig;
+use crate::distilbert::distilbert_model::DistilBertConfig;
 use std::borrow::Borrow;
 use tch::kind::Kind::Float;
 use tch::nn::{embedding, EmbeddingConfig, ModuleT};
@@ -125,10 +125,8 @@ impl ModuleT for DistilBertEmbedding {
         let position_embed = position_ids.apply(&self.position_embeddings);
 
         let embeddings = word_embed + position_embed;
-        let embeddings = embeddings
-            .apply(&self.layer_norm)
-            .apply_t(&self.dropout, train);
-
         embeddings
+            .apply(&self.layer_norm)
+            .apply_t(&self.dropout, train)
     }
 }
