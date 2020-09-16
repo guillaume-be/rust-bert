@@ -15,8 +15,8 @@
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::transformer::Block;
-use crate::pipelines::generation::{Cache, LMHeadModel};
-use crate::Config;
+use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
@@ -313,10 +313,11 @@ impl Gpt2Model {
     ///
     /// # Returns
     ///
-    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*) representing the activations of the last hidden state
-    /// * `past` - `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `Gpt2ModelOutput` containing:
+    ///   - `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the activations of the last hidden state
+    ///   - `cache` - `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -352,7 +353,7 @@ impl Gpt2Model {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (output, past, hidden_states, attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     gpt2_model
     ///         .forward_t(
     ///             &Some(input_tensor),
@@ -375,19 +376,13 @@ impl Gpt2Model {
         position_ids: &Option<Tensor>,
         input_embeds: &Option<Tensor>,
         train: bool,
-    ) -> Result<
-        (
-            Tensor,
-            Option<Vec<Tensor>>,
-            Option<Vec<Tensor>>,
-            Option<Vec<Tensor>>,
-        ),
-        &'static str,
-    > {
+    ) -> Result<Gpt2ModelOutput, RustBertError> {
         let (input_embeddings, seq_length) = match input_ids {
             Some(input_value) => match input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (
                     input_value.apply(&self.wte),
@@ -397,7 +392,9 @@ impl Gpt2Model {
             None => match input_embeds {
                 Some(embeds) => (embeds.copy(), embeds.size()[1]),
                 None => {
-                    return Err("At least one of input ids or input embeddings must be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -466,34 +463,29 @@ impl Gpt2Model {
             None
         };
 
-        let mut layer_iter = self.h.iter().zip(layer_past);
-        loop {
-            match layer_iter.next() {
-                Some(layer_values) => {
-                    let (layer, past) = layer_values;
-                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                        hidden_states.push(hidden_state.as_ref().copy());
-                    };
+        let layer_iter = self.h.iter().zip(layer_past);
+        for layer_values in layer_iter {
+            let (layer, past) = layer_values;
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
+            };
 
-                    let temp = layer.forward_t(&hidden_state, &past, &attention_mask, train);
-                    hidden_state = temp.0;
-                    if let Some(presents) = all_presents.borrow_mut() {
-                        presents.push(temp.1.as_ref().copy());
-                    };
-                    if let Some(attentions) = all_attentions.borrow_mut() {
-                        attentions.push(temp.2.as_ref().unwrap().copy());
-                    };
-                }
-                None => break,
+            let temp = layer.forward_t(&hidden_state, &past, &attention_mask, train);
+            hidden_state = temp.0;
+            if let Some(presents) = all_presents.borrow_mut() {
+                presents.push(temp.1.as_ref().copy());
+            };
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(temp.2.as_ref().unwrap().copy());
             };
         }
 
-        Ok((
-            hidden_state.apply(&self.ln_f),
-            all_presents,
+        Ok(Gpt2ModelOutput {
+            output: hidden_state.apply(&self.ln_f),
+            cache: all_presents,
             all_hidden_states,
             all_attentions,
-        ))
+        })
     }
 }
 
@@ -567,11 +559,12 @@ impl LMHeadModel for GPT2LMHeadModel {
     ///
     /// # Returns
     ///
-    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
-    /// * `encoder_hidden_states` - None
-    /// * `past` - `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `LMModelOutput` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    ///   - `cache` - `Gpt2Cache` made of `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
+    ///   - `encoder_hidden_states` - None
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -608,7 +601,7 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
-    /// let (output, _, past, hidden_states, attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     gpt2_model
     ///         .forward_t(
     ///             &Some(input_tensor),
@@ -635,18 +628,9 @@ impl LMHeadModel for GPT2LMHeadModel {
         _encoder_outputs: Option<&Tensor>,
         _decoder_input_ids: &Option<Tensor>,
         train: bool,
-    ) -> Result<
-        (
-            Tensor,
-            Option<Tensor>,
-            Cache,
-            Option<Vec<Tensor>>,
-            Option<Vec<Tensor>>,
-        ),
-        &'static str,
-    > {
-        let (output, past, all_hidden_states, all_attentions) = match layer_past {
-            Cache::GPT2Cache(layer_past) => Ok(self.transformer.forward_t(
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match layer_past {
+            Cache::GPT2Cache(layer_past) => self.transformer.forward_t(
                 input_ids,
                 &layer_past,
                 attention_mask,
@@ -654,8 +638,8 @@ impl LMHeadModel for GPT2LMHeadModel {
                 position_ids,
                 input_embeds,
                 train,
-            )?),
-            Cache::None => Ok(self.transformer.forward_t(
+            ),
+            Cache::None => self.transformer.forward_t(
                 input_ids,
                 &None,
                 attention_mask,
@@ -663,17 +647,34 @@ impl LMHeadModel for GPT2LMHeadModel {
                 position_ids,
                 input_embeds,
                 train,
-            )?),
-            _ => Err("Cache not compatible with GPT2 model"),
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with GPT2 Model".into(),
+                ));
+            }
         }?;
 
-        let lm_logits = output.apply(&self.lm_head);
-        Ok((
+        let lm_logits = base_model_output.output.apply(&self.lm_head);
+        Ok(LMModelOutput {
             lm_logits,
-            None,
-            Cache::GPT2Cache(past),
-            all_hidden_states,
-            all_attentions,
-        ))
+            encoder_hidden_state: None,
+            cache: Cache::GPT2Cache(base_model_output.cache),
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
     }
+}
+
+/// Container for the GPT2 model output.
+pub struct Gpt2ModelOutput {
+    /// Hidden state of the last layer of the decoder, or logits for a custom head
+    /// module after the decoder (e.g. vocabulary logits for language modeling tasks)
+    pub output: Tensor,
+    /// Cached attention layers keys and values if the model is used for generation
+    pub cache: Option<Vec<Tensor>>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
 }

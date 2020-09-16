@@ -13,6 +13,7 @@
 
 use crate::bert::{BertConfig, BertEmbedding};
 use crate::common::dropout::Dropout;
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
@@ -174,11 +175,13 @@ impl BertEmbedding for RobertaEmbeddings {
         position_ids: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<Tensor, &'static str> {
+    ) -> Result<Tensor, RustBertError> {
         let (input_embeddings, input_shape) = match &input_ids {
             Some(input_value) => match &input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => (
                     input_value.apply_t(&self.word_embeddings, train),
@@ -188,7 +191,9 @@ impl BertEmbedding for RobertaEmbeddings {
             None => match &input_embeds {
                 Some(embeds) => (embeds.copy(), vec![embeds.size()[0], embeds.size()[1]]),
                 None => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };

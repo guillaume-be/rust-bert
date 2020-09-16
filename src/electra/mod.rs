@@ -56,11 +56,12 @@
 //! # }
 //! ```
 
-mod electra;
+mod electra_model;
 mod embeddings;
 
-pub use electra::{
+pub use electra_model::{
     ElectraConfig, ElectraConfigResources, ElectraDiscriminator, ElectraDiscriminatorHead,
-    ElectraForMaskedLM, ElectraForTokenClassification, ElectraGeneratorHead, ElectraModel,
-    ElectraModelResources, ElectraVocabResources,
+    ElectraDiscriminatorOutput, ElectraForMaskedLM, ElectraForTokenClassification,
+    ElectraGeneratorHead, ElectraMaskedLMOutput, ElectraModel, ElectraModelOutput,
+    ElectraModelResources, ElectraTokenClassificationOutput, ElectraVocabResources,
 };

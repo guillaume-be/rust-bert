@@ -66,12 +66,12 @@ fn main() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(encoded_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (output, _, _) =
+    let model_output =
         no_grad(|| electra_model.forward_t(Some(input_tensor), None, None, None, None, false));
 
     //    Print model predictions
     for (position, token) in tokenized_input[0].token_ids.iter().enumerate() {
-        let probability = output.double_value(&[position as i64]);
+        let probability = model_output.probabilities.double_value(&[position as i64]);
         let generated = if probability > 0.5 {
             "generated"
         } else {

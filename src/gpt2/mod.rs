@@ -56,10 +56,10 @@
 //! ```
 
 pub(crate) mod attention;
-mod gpt2;
+mod gpt2_model;
 pub(crate) mod transformer;
 
-pub use gpt2::{
+pub use gpt2_model::{
     GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2Model,
-    Gpt2ModelResources, Gpt2VocabResources, GptActivation,
+    Gpt2ModelOutput, Gpt2ModelResources, Gpt2VocabResources, GptActivation,
 };

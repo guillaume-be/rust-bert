@@ -332,7 +332,7 @@ impl ZeroShotClassificationOption {
                         None,
                         train,
                     )
-                    .0
+                    .decoder_output
             }
             Self::Bert(ref model) => {
                 model
@@ -344,13 +344,13 @@ impl ZeroShotClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
             Self::DistilBert(ref model) => {
                 model
                     .forward_t(input_ids, mask, input_embeds, train)
                     .expect("Error in distilbert forward_t")
-                    .0
+                    .logits
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
                 model
@@ -362,7 +362,7 @@ impl ZeroShotClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
             Self::Albert(ref model) => {
                 model
@@ -374,7 +374,7 @@ impl ZeroShotClassificationOption {
                         input_embeds,
                         train,
                     )
-                    .0
+                    .logits
             }
         }
     }
@@ -447,13 +447,13 @@ impl ZeroShotClassificationModel {
         let label_sentences: Vec<String> = match template {
             Some(function) => labels.iter().map(|label| function(label)).collect(),
             None => labels
-                .into_iter()
+                .iter()
                 .map(|label| format!("This example is about {}.", label))
                 .collect(),
         };
 
         let text_pair_list = inputs
-            .into_iter()
+            .iter()
             .cartesian_product(label_sentences.iter())
             .map(|(&s, label)| (s, label.as_str()))
             .collect();

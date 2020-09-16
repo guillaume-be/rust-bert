@@ -10,7 +10,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/robert.rs`, run with `cargo run --example roberta`.
+//! A full working example is provided in `examples/roberta.rs`, run with `cargo run --example roberta`.
 //! The example below illustrate a Masked language model example, the structure is similar for other models.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
@@ -63,10 +63,10 @@
 //! ```
 
 mod embeddings;
-mod roberta;
+mod roberta_model;
 
 pub use embeddings::RobertaEmbeddings;
-pub use roberta::{
+pub use roberta_model::{
     RobertaConfigResources, RobertaForMaskedLM, RobertaForMultipleChoice,
     RobertaForQuestionAnswering, RobertaForSequenceClassification, RobertaForTokenClassification,
     RobertaMergesResources, RobertaModelResources, RobertaVocabResources,

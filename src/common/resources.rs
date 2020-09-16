@@ -157,7 +157,7 @@ lazy_static! {
 }
 
 fn _get_cache_directory() -> PathBuf {
-    let home = match env::var("RUSTBERT_CACHE") {
+    match env::var("RUSTBERT_CACHE") {
         Ok(value) => PathBuf::from(value),
         Err(_) => {
             let mut home = dirs::home_dir().unwrap();
@@ -165,8 +165,7 @@ fn _get_cache_directory() -> PathBuf {
             home.push(".rustbert");
             home
         }
-    };
-    home
+    }
 }
 
 #[deprecated(

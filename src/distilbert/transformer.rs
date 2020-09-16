@@ -13,7 +13,7 @@
 use crate::common::activations::{_gelu, _relu};
 use crate::common::dropout::Dropout;
 use crate::distilbert::attention::MultiHeadSelfAttention;
-use crate::distilbert::distilbert::{Activation, DistilBertConfig};
+use crate::distilbert::distilbert_model::{Activation, DistilBertConfig};
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LayerNorm;
 use tch::{nn, Tensor};
@@ -149,7 +149,7 @@ impl Transformer {
         input: &Tensor,
         mask: Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
+    ) -> DistilBertTransformerOutput {
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
             Some(vec![])
         } else {
@@ -163,25 +163,34 @@ impl Transformer {
 
         let mut hidden_state = input.copy();
         let mut attention_weights: Option<Tensor>;
-        let mut layers = self.layers.iter();
-        loop {
-            match layers.next() {
-                Some(layer) => {
-                    if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                        hidden_states.push(hidden_state.as_ref().copy());
-                    };
 
-                    let temp = layer.forward_t(&hidden_state, &mask, train);
-                    hidden_state = temp.0;
-                    attention_weights = temp.1;
-                    if let Some(attentions) = all_attentions.borrow_mut() {
-                        attentions.push(attention_weights.as_ref().unwrap().copy());
-                    };
-                }
-                None => break,
+        for layer in &self.layers {
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
+            };
+
+            let temp = layer.forward_t(&hidden_state, &mask, train);
+            hidden_state = temp.0;
+            attention_weights = temp.1;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.as_ref().unwrap().copy());
             };
         }
 
-        (hidden_state, all_hidden_states, all_attentions)
+        DistilBertTransformerOutput {
+            hidden_state,
+            all_hidden_states,
+            all_attentions,
+        }
     }
+}
+
+/// Container for the DistilBert transformer output.
+pub struct DistilBertTransformerOutput {
+    /// Last hidden states from the model
+    pub hidden_state: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
 }

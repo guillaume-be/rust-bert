@@ -96,15 +96,23 @@ fn distilbert_masked_lm() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (output, _, _) = no_grad(|| {
+    let model_output = no_grad(|| {
         distil_bert_model
             .forward_t(Some(input_tensor), None, None, false)
             .unwrap()
     });
 
     //    Print masked tokens
-    let index_1 = output.get(0).get(4).argmax(0, false);
-    let index_2 = output.get(1).get(6).argmax(0, false);
+    let index_1 = model_output
+        .prediction_scores
+        .get(0)
+        .get(4)
+        .argmax(0, false);
+    let index_2 = model_output
+        .prediction_scores
+        .get(1)
+        .get(6)
+        .argmax(0, false);
     let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 
@@ -160,16 +168,22 @@ fn distilbert_for_question_answering() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (start_scores, end_scores, all_hidden_states, all_attentions) = no_grad(|| {
+    let model_output = no_grad(|| {
         distil_bert_model
             .forward_t(Some(input_tensor), None, None, false)
             .unwrap()
     });
 
-    assert_eq!(start_scores.size(), &[2, 11]);
-    assert_eq!(end_scores.size(), &[2, 11]);
-    assert_eq!(config.n_layers as usize, all_hidden_states.unwrap().len());
-    assert_eq!(config.n_layers as usize, all_attentions.unwrap().len());
+    assert_eq!(model_output.start_logits.size(), &[2, 11]);
+    assert_eq!(model_output.end_logits.size(), &[2, 11]);
+    assert_eq!(
+        config.n_layers as usize,
+        model_output.all_hidden_states.unwrap().len()
+    );
+    assert_eq!(
+        config.n_layers as usize,
+        model_output.all_attentions.unwrap().len()
+    );
 
     Ok(())
 }
@@ -226,15 +240,21 @@ fn distilbert_for_token_classification() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    let model_output = no_grad(|| {
         distil_bert_model
             .forward_t(Some(input_tensor), None, None, false)
             .unwrap()
     });
 
-    assert_eq!(output.size(), &[2, 11, 4]);
-    assert_eq!(config.n_layers as usize, all_hidden_states.unwrap().len());
-    assert_eq!(config.n_layers as usize, all_attentions.unwrap().len());
+    assert_eq!(model_output.logits.size(), &[2, 11, 4]);
+    assert_eq!(
+        config.n_layers as usize,
+        model_output.all_hidden_states.unwrap().len()
+    );
+    assert_eq!(
+        config.n_layers as usize,
+        model_output.all_attentions.unwrap().len()
+    );
 
     Ok(())
 }
@@ -249,7 +269,7 @@ fn distilbert_question_answering() -> anyhow::Result<()> {
     let context = String::from("Amy lives in Amsterdam");
     let qa_input = QaInput { question, context };
 
-    let answers = qa_model.predict(&vec![qa_input], 1, 32);
+    let answers = qa_model.predict(&[qa_input], 1, 32);
 
     assert_eq!(answers.len(), 1 as usize);
     assert_eq!(answers[0].len(), 1 as usize);

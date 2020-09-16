@@ -39,14 +39,14 @@ for k, v in weights.items():
     k = k.replace("gamma", "weight").replace("beta", "bias")
     nps[k] = np.ascontiguousarray(v.cpu().numpy())
 
-# np.savez(target_path / 'model.npz', **nps)
-#
-# source = str(target_path / 'model.npz')
-# target = str(target_path / 'model.ot')
-#
-# toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
-#
-# subprocess.call(['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])
-#
-# os.remove(str(target_path / 'model.bin'))
-# os.remove(str(target_path / 'model.npz'))
+np.savez(target_path / 'model.npz', **nps)
+
+source = str(target_path / 'model.npz')
+target = str(target_path / 'model.ot')
+
+toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
+
+subprocess.call(['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])
+
+os.remove(str(target_path / 'model.bin'))
+os.remove(str(target_path / 'model.npz'))

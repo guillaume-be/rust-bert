@@ -15,7 +15,7 @@
 use crate::common::activations::{_gelu_new, _relu, _swish};
 use crate::common::dropout::Dropout;
 use crate::gpt2::attention::{Attention, GPTConv1D};
-use crate::gpt2::gpt2::{Gpt2Config, GptActivation};
+use crate::gpt2::gpt2_model::{Gpt2Config, GptActivation};
 use std::borrow::Borrow;
 use tch::{nn, Tensor};
 

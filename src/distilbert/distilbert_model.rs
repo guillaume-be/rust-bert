@@ -15,8 +15,8 @@ extern crate tch;
 use self::tch::{nn, Tensor};
 use crate::common::dropout::Dropout;
 use crate::distilbert::embeddings::DistilBertEmbedding;
-use crate::distilbert::transformer::Transformer;
-use crate::Config;
+use crate::distilbert::transformer::{DistilBertTransformerOutput, Transformer};
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap};
 
@@ -180,9 +180,10 @@ impl DistilBertModel {
     ///
     /// # Returns
     ///
-    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*) representing the activations of the last hidden state
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `DistilBertTransformerOutput` containing:
+    ///   - `hidden_state` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -202,7 +203,7 @@ impl DistilBertModel {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     distilbert_model
     ///         .forward_t(Some(input_tensor), Some(mask), None, false)
     ///         .unwrap()
@@ -214,18 +215,22 @@ impl DistilBertModel {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
+    ) -> Result<DistilBertTransformerOutput, RustBertError> {
         let input_embeddings = match input {
             Some(input_value) => match input_embeds {
                 Some(_) => {
-                    return Err("Only one of input ids or input embeddings may be set");
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
                 }
                 None => input_value.apply_t(&self.embeddings, train),
             },
             None => match input_embeds {
                 Some(embeds) => embeds,
                 None => {
-                    return Err("At least one of input ids or input embeddings must be set");
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
                 }
             },
         };
@@ -313,9 +318,10 @@ impl DistilBertModelClassifier {
     ///
     /// # Returns
     ///
-    /// * `output` - `Tensor` of shape (*batch size*, *num_labels*) representing the logits for each class to predict
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `DistilBertSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *num_labels*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -335,7 +341,7 @@ impl DistilBertModelClassifier {
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    ///  let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    ///  let model_output = no_grad(|| {
     ///    distilbert_model
     ///         .forward_t(Some(input_tensor),
     ///                    Some(mask),
@@ -349,24 +355,24 @@ impl DistilBertModelClassifier {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) =
-            match self
-                .distil_bert_model
-                .forward_t(input, mask, input_embeds, train)
-            {
-                Ok(value) => value,
-                Err(err) => return Err(err),
-            };
+    ) -> Result<DistilBertSequenceClassificationOutput, RustBertError> {
+        let base_model_output =
+            self.distil_bert_model
+                .forward_t(input, mask, input_embeds, train)?;
 
-        let output = output
+        let logits = base_model_output
+            .hidden_state
             .select(1, 0)
             .apply(&self.pre_classifier)
             .relu()
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
 
-        Ok((output, all_hidden_states, all_attentions))
+        Ok(DistilBertSequenceClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
     }
 }
 
@@ -451,9 +457,10 @@ impl DistilBertModelMaskedLM {
     ///
     /// # Returns
     ///
-    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for position and vocabulary index
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `DistilBertMaskedLMOutput` containing:
+    ///   - `prediction_scores` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -473,7 +480,7 @@ impl DistilBertModelMaskedLM {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     distilbert_model
     ///         .forward_t(Some(input_tensor), Some(mask), None, false)
     ///         .unwrap()
@@ -485,23 +492,23 @@ impl DistilBertModelMaskedLM {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) =
-            match self
-                .distil_bert_model
-                .forward_t(input, mask, input_embeds, train)
-            {
-                Ok(value) => value,
-                Err(err) => return Err(err),
-            };
+    ) -> Result<DistilBertMaskedLMOutput, RustBertError> {
+        let base_model_output =
+            self.distil_bert_model
+                .forward_t(input, mask, input_embeds, train)?;
 
-        let output = output
+        let prediction_scores = base_model_output
+            .hidden_state
             .apply(&self.vocab_transform)
             .gelu()
             .apply(&self.vocab_layer_norm)
             .apply(&self.vocab_projector);
 
-        Ok((output, all_hidden_states, all_attentions))
+        Ok(DistilBertMaskedLMOutput {
+            prediction_scores,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
     }
 }
 
@@ -568,10 +575,11 @@ impl DistilBertForQuestionAnswering {
     ///
     /// # Returns
     ///
-    /// * `start_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
-    /// * `end_scores` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `DistilBertQuestionAnsweringOutput` containing:
+    ///   - `start_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    ///   - `end_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -591,7 +599,7 @@ impl DistilBertForQuestionAnswering {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let (start_scores, end_score, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     distilbert_model
     ///         .forward_t(Some(input_tensor), Some(mask), None, false)
     ///         .unwrap()
@@ -603,24 +611,27 @@ impl DistilBertForQuestionAnswering {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) =
-            match self
-                .distil_bert_model
-                .forward_t(input, mask, input_embeds, train)
-            {
-                Ok(value) => value,
-                Err(err) => return Err(err),
-            };
+    ) -> Result<DistilBertQuestionAnsweringOutput, RustBertError> {
+        let base_model_output =
+            self.distil_bert_model
+                .forward_t(input, mask, input_embeds, train)?;
 
-        let output = output.apply_t(&self.dropout, train).apply(&self.qa_outputs);
+        let output = base_model_output
+            .hidden_state
+            .apply_t(&self.dropout, train)
+            .apply(&self.qa_outputs);
 
         let logits = output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
         let start_logits = start_logits.squeeze1(-1);
         let end_logits = end_logits.squeeze1(-1);
 
-        Ok((start_logits, end_logits, all_hidden_states, all_attentions))
+        Ok(DistilBertQuestionAnsweringOutput {
+            start_logits,
+            end_logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
     }
 }
 
@@ -693,9 +704,10 @@ impl DistilBertForTokenClassification {
     ///
     /// # Returns
     ///
-    /// * `output` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) representing the logits for position and class
-    /// * `hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    /// * `attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    /// * `DistilBertTokenClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) containing the logits for each of the input tokens and classes
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -715,7 +727,7 @@ impl DistilBertForTokenClassification {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let (output, all_hidden_states, all_attentions) = no_grad(|| {
+    /// let model_output = no_grad(|| {
     ///     distilbert_model
     ///         .forward_t(Some(input_tensor), Some(mask), None, false)
     ///         .unwrap()
@@ -727,18 +739,60 @@ impl DistilBertForTokenClassification {
         mask: Option<Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>), &'static str> {
-        let (output, all_hidden_states, all_attentions) =
-            match self
-                .distil_bert_model
-                .forward_t(input, mask, input_embeds, train)
-            {
-                Ok(value) => value,
-                Err(err) => return Err(err),
-            };
+    ) -> Result<DistilBertTokenClassificationOutput, RustBertError> {
+        let base_model_output =
+            self.distil_bert_model
+                .forward_t(input, mask, input_embeds, train)?;
 
-        let output = output.apply_t(&self.dropout, train).apply(&self.classifier);
+        let logits = base_model_output
+            .hidden_state
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
 
-        Ok((output, all_hidden_states, all_attentions))
+        Ok(DistilBertTokenClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
     }
+}
+
+/// Container for the DistilBERT masked LM model output.
+pub struct DistilBertMaskedLMOutput {
+    /// Logits for the vocabulary items at each sequence position
+    pub prediction_scores: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the DistilBERT sequence classification model output
+pub struct DistilBertSequenceClassificationOutput {
+    /// Logits for each input (sequence) for each target class
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+/// Container for the DistilBERT token classification model output
+pub struct DistilBertTokenClassificationOutput {
+    /// Logits for each sequence item (token) for each target class
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+/// Container for the DistilBERT question answering model output
+pub struct DistilBertQuestionAnsweringOutput {
+    /// Logits for the start position for token of each input sequence
+    pub start_logits: Tensor,
+    /// Logits for the end position for token of each input sequence
+    pub end_logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
 }
