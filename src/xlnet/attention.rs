@@ -26,6 +26,14 @@ pub struct LayerState {
     pub prev_content: Tensor,
 }
 
+impl Clone for LayerState {
+    fn clone(&self) -> Self {
+        LayerState {
+            prev_content: self.prev_content.copy(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct XLNetRelativeAttention {
     num_attention_heads: i64,

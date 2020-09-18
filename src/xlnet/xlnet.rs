@@ -17,7 +17,7 @@ use crate::xlnet::attention::LayerState;
 use crate::xlnet::encoder::XLNetLayer;
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
 use tch::nn::Init;
 use tch::{nn, Device, Kind, Tensor};
@@ -144,6 +144,9 @@ pub struct XLNetModel {
     mask_emb: Tensor,
     layers: Vec<XLNetLayer>,
     dropout: Dropout,
+    output_attentions: bool,
+    output_hidden_states: bool,
+    use_cache: bool,
 }
 
 impl XLNetModel {
@@ -176,7 +179,18 @@ impl XLNetModel {
         }
 
         let dropout = Dropout::new(config.dropout);
-
+        let use_cache = match config.use_cache {
+            Some(value) => value,
+            None => true,
+        };
+        let output_attentions = match config.output_attentions {
+            Some(value) => value,
+            None => false,
+        };
+        let output_hidden_states = match config.output_hidden_states {
+            Some(value) => value,
+            None => false,
+        };
         XLNetModel {
             mem_len,
             reuse_len,
@@ -189,6 +203,9 @@ impl XLNetModel {
             mask_emb,
             layers,
             dropout,
+            output_attentions,
+            output_hidden_states,
+            use_cache,
         }
     }
 
@@ -213,7 +230,7 @@ impl XLNetModel {
     fn cache_mem(
         &self,
         current_output: &Tensor,
-        previous_cached_state: Option<LayerState>,
+        previous_cached_state: &Option<LayerState>,
     ) -> LayerState {
         let cutoff = match self.mem_len {
             None => 0i64,
@@ -274,7 +291,7 @@ impl XLNetModel {
         let mut forward_positions_sequence = Tensor::arange2(begin, end, -1, (Kind::Float, device));
         match self.clamp_len {
             Some(clamp_value) if clamp_value > 0 => {
-                forward_positions_sequence.clamp(-clamp_value, clamp_value);
+                let _ = forward_positions_sequence.clamp(-clamp_value, clamp_value);
             }
             _ => {}
         }
@@ -283,7 +300,7 @@ impl XLNetModel {
                 Tensor::arange2(-begin, -end, 1, (Kind::Float, device));
             match self.clamp_len {
                 Some(clamp_value) if clamp_value > 0 => {
-                    backward_positions_sequence.clamp(-clamp_value, clamp_value);
+                    let _ = backward_positions_sequence.clamp(-clamp_value, clamp_value);
                 }
                 _ => {}
             }
@@ -315,7 +332,7 @@ impl XLNetModel {
         token_type_ids: Option<&Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<(), RustBertError> {
+    ) -> Result<XLNetModelOutput, RustBertError> {
         let (word_emb_k, input_shape) = match input_ids {
             Some(input_value) => match input_embeds {
                 Some(_) => {
@@ -429,8 +446,8 @@ impl XLNetModel {
             None
         };
 
-        let output_h = word_emb_k.apply_t(&self.dropout, train);
-        let output_g = if let Some(target_mapping_value) = target_mapping {
+        let mut output_h = word_emb_k.apply_t(&self.dropout, train);
+        let mut output_g = if let Some(target_mapping_value) = &target_mapping {
             Some(
                 (&self
                     .mask_emb
@@ -464,6 +481,91 @@ impl XLNetModel {
             .relative_positional_encoding(q_len, k_len, Some(batch_size), output_h.device())
             .apply_t(&self.dropout, train);
 
-        Ok(())
+        let mut all_hidden_states: Option<Vec<(Tensor, Option<Tensor>)>> =
+            if self.output_hidden_states {
+                Some(vec![])
+            } else {
+                None
+            };
+        let mut all_attentions: Option<Vec<(Tensor, Tensor)>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
+
+        let mut next_cache: Option<Vec<Option<LayerState>>> = if self.use_cache {
+            if old_layer_states.is_some() {
+                old_layer_states
+            } else {
+                Some(vec![None; self.layers.len()])
+            }
+        } else {
+            None
+        };
+
+        for (layer_idx, layer) in self.layers.iter().enumerate() {
+            let layer_state = match &next_cache {
+                Some(values) => values[layer_idx].to_owned(),
+                None => None,
+            };
+            if let Some(next_cache_value) = next_cache.borrow_mut() {
+                next_cache_value[layer_idx] = Some(self.cache_mem(&output_h, &layer_state));
+            }
+            let temp = layer.forward_t(
+                &output_h,
+                output_g.as_ref(),
+                non_tgt_mask.as_ref(),
+                attn_mask.as_ref(),
+                &pos_emb,
+                seg_mat.as_ref(),
+                layer_state,
+                target_mapping.as_ref(),
+                train,
+            );
+            output_h = temp.0;
+            output_g = temp.1;
+            let attention_probas_h = temp.2;
+            let attention_probas_g = temp.3;
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push((
+                    output_h.copy(),
+                    if let Some(output) = &output_g {
+                        Some(output.copy())
+                    } else {
+                        None
+                    },
+                ));
+            };
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push((attention_probas_h.unwrap(), attention_probas_g.unwrap()));
+            };
+        }
+        let hidden_state = if let Some(output_g_value) = output_g {
+            output_g_value
+        } else {
+            output_h
+        }
+        .apply_t(&self.dropout, train)
+        .permute(&[1, 0, 2])
+        .contiguous();
+
+        Ok(XLNetModelOutput {
+            hidden_state,
+            next_cache,
+            all_hidden_states,
+            all_attentions,
+        })
     }
+}
+
+/// Container for the XLNet model output.
+pub struct XLNetModelOutput {
+    /// Last hidden states from the model
+    pub hidden_state: Tensor,
+    /// Cached hiden layer states for generation tasks
+    pub next_cache: Option<Vec<Option<LayerState>>>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<(Tensor, Option<Tensor>)>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<(Tensor, Tensor)>>,
 }

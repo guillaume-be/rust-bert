@@ -33,9 +33,9 @@ fn main() -> anyhow::Result<()> {
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
         XLNetModelResources::XLNET_BASE_V2,
     ));
-    let config_path = download_resource(&config_resource)?;
-    let vocab_path = download_resource(&vocab_resource)?;
-    let _weights_path = download_resource(&weights_resource)?;
+    let config_path = config_resource.get_local_path()?;
+    let vocab_path = vocab_resource.get_local_path()?;
+    let _weights_path = weights_resource.get_local_path()?;
 
     //    Set-up masked LM model
     let _device = Device::Cpu;
