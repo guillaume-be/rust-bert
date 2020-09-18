@@ -65,7 +65,7 @@ fn main() -> anyhow::Result<()> {
         .map(|input| Tensor::of_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
-
+    input_tensor.print();
     // Forward pass
     let model_output = no_grad(|| {
         xlnet_model

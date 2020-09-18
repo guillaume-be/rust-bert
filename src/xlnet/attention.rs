@@ -157,9 +157,9 @@ impl XLNetRelativeAttention {
     fn rel_shift_bnij(&self, x: &Tensor, klen: i64) -> Tensor {
         let shape = x.size();
         x.reshape(&[shape[0], shape[1], shape[3], shape[2]])
-            .narrow(2, 1, shape[1] - 1)
+            .narrow(2, 1, shape[3] - 1)
             .reshape(&[shape[0], shape[1], shape[2], shape[3] - 1])
-            .index_select(1, &Tensor::arange(klen, (Kind::Int64, x.device())))
+            .index_select(3, &Tensor::arange(klen, (Kind::Int64, x.device())))
     }
 
     fn rel_attention_core(
@@ -188,7 +188,6 @@ impl XLNetRelativeAttention {
             }
             None => Tensor::zeros(&[1], (Kind::Float, ac.device())),
         };
-
         let mut attention_score = (ac + bd + ef) * self.scale;
         if let Some(value) = attention_mask {
             attention_score = attention_score - value.permute(&[2, 3, 0, 1]) * 1e30;

@@ -283,7 +283,6 @@ impl XLNetModel {
     ) -> Tensor {
         let frequency_sequence = Tensor::arange2(0, self.d_model, 2, (Kind::Float, device));
         let inverse_frequency = 1f64 / Tensor::pow2(10000f64, &(frequency_sequence / self.d_model));
-
         let (begin, end) = match self.attention_type {
             AttentionType::bi => (k_len, -q_len),
             AttentionType::uni => (k_len, -1),
@@ -340,13 +339,16 @@ impl XLNetModel {
                         "Only one of input ids or input embeddings may be set".into(),
                     ));
                 }
-                None => (
-                    input_value
-                        .transpose(0, 1)
-                        .contiguous()
-                        .apply_t(&self.word_embeddings, train),
-                    input_value.size(),
-                ),
+                None => {
+                    let size = input_value.size();
+                    (
+                        input_value
+                            .transpose(0, 1)
+                            .contiguous()
+                            .apply_t(&self.word_embeddings, train),
+                        vec![size[1], size[0]],
+                    )
+                }
             },
             None => match input_embeds {
                 Some(embeds) => {
@@ -522,7 +524,6 @@ impl XLNetModel {
                 target_mapping.as_ref(),
                 train,
             );
-            panic!();
             output_h = temp.0;
             output_g = temp.1;
             let attention_probas_h = temp.2;
