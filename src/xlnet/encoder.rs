@@ -43,8 +43,8 @@ impl XLNetFeedForward {
         );
         let layer_2 = nn::linear(
             p / "layer_2",
-            config.d_model,
             config.d_inner,
+            config.d_model,
             Default::default(),
         );
 
@@ -87,7 +87,6 @@ impl XLNetFeedForward {
 pub struct XLNetLayer {
     rel_attn: XLNetRelativeAttention,
     ff: XLNetFeedForward,
-    dropout: Dropout,
 }
 
 impl XLNetLayer {
@@ -99,12 +98,7 @@ impl XLNetLayer {
 
         let rel_attn = XLNetRelativeAttention::new(p / "rel_attn", config);
         let ff = XLNetFeedForward::new(p / "ff", config);
-        let dropout = Dropout::new(config.dropout);
-        XLNetLayer {
-            rel_attn,
-            ff,
-            dropout,
-        }
+        XLNetLayer { rel_attn, ff }
     }
 
     pub fn forward_t(
@@ -115,7 +109,7 @@ impl XLNetLayer {
         attn_mask_g: Option<&Tensor>,
         r: &Tensor,
         seg_mat: Option<&Tensor>,
-        mut layer_state: Option<LayerState>,
+        layer_state: Option<LayerState>,
         target_mapping: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<Tensor>) {

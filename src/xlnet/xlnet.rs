@@ -34,15 +34,15 @@ pub struct XLNetVocabResources;
 impl XLNetModelResources {
     /// Shared under Apache 2.0 license by the XLNet Authors at https://github.com/zihangdai/xlnet. Modified with conversion to C-array format.
     pub const XLNET_BASE_V2: (&'static str, &'static str) = (
-        "xlnet-base-cased/model.ot",
-        "https://cdn.huggingface.co/xlnet-base-cased/rust_model.ot",
+        "xlnet-base-cased/model",
+        "https://cdn.huggingface.co/xlnet-base-cased-rust_model.ot",
     );
 }
 
 impl XLNetConfigResources {
     /// Shared under Apache 2.0 license by the XLNet Authors at https://github.com/zihangdai/xlnet. Modified with conversion to C-array format.
     pub const XLNET_BASE_V2: (&'static str, &'static str) = (
-        "xlnet-base-cased/config.json",
+        "xlnet-base-cased/config",
         "https://cdn.huggingface.co/xlnet-base-cased-config.json",
     );
 }
@@ -50,7 +50,7 @@ impl XLNetConfigResources {
 impl XLNetVocabResources {
     /// Shared under Apache 2.0 license by the XLNet Authors at https://github.com/zihangdai/xlnet. Modified with conversion to C-array format.
     pub const XLNET_BASE_V2: (&'static str, &'static str) = (
-        "xlnet-base-cased/spiece.model",
+        "xlnet-base-cased/spiece",
         "https://cdn.huggingface.co/xlnet-base-cased-spiece.model",
     );
 }
@@ -291,7 +291,7 @@ impl XLNetModel {
         let mut forward_positions_sequence = Tensor::arange2(begin, end, -1, (Kind::Float, device));
         match self.clamp_len {
             Some(clamp_value) if clamp_value > 0 => {
-                let _ = forward_positions_sequence.clamp(-clamp_value, clamp_value);
+                let _ = forward_positions_sequence.clamp_(-clamp_value, clamp_value);
             }
             _ => {}
         }
@@ -300,7 +300,7 @@ impl XLNetModel {
                 Tensor::arange2(-begin, -end, 1, (Kind::Float, device));
             match self.clamp_len {
                 Some(clamp_value) if clamp_value > 0 => {
-                    let _ = backward_positions_sequence.clamp(-clamp_value, clamp_value);
+                    let _ = backward_positions_sequence.clamp_(-clamp_value, clamp_value);
                 }
                 _ => {}
             }
@@ -522,6 +522,7 @@ impl XLNetModel {
                 target_mapping.as_ref(),
                 train,
             );
+            panic!();
             output_h = temp.0;
             output_g = temp.1;
             let attention_probas_h = temp.2;

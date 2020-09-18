@@ -113,7 +113,7 @@ impl XLNetRelativeAttention {
         );
         let seg_embed = p.var(
             "seg_embed",
-            &[config.n_head, config.d_head],
+            &[2, config.n_head, config.d_head],
             Init::KaimingUniform,
         );
 
@@ -152,14 +152,6 @@ impl XLNetRelativeAttention {
             layer_norm,
             scale,
         }
-    }
-
-    fn rel_shift(&self, x: &Tensor, klen: i64) -> Tensor {
-        let shape = x.size();
-        x.reshape(&[shape[1], shape[0], shape[2], shape[3]])
-            .narrow(0, 1, shape[1] - 1)
-            .reshape(&[shape[0], shape[1] - 1, shape[2], shape[3]])
-            .index_select(1, &Tensor::arange(klen, (Kind::Int64, x.device())))
     }
 
     fn rel_shift_bnij(&self, x: &Tensor, klen: i64) -> Tensor {
@@ -241,7 +233,7 @@ impl XLNetRelativeAttention {
         attn_mask_g: Option<&Tensor>,
         r: &Tensor,
         seg_mat: Option<&Tensor>,
-        mut layer_state: Option<LayerState>,
+        layer_state: Option<LayerState>,
         target_mapping: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<Tensor>) {
