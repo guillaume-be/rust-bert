@@ -316,7 +316,7 @@ impl XLNetModel {
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> Result<(), RustBertError> {
-        let (input_embeddings, input_shape) = match input_ids {
+        let (word_emb_k, input_shape) = match input_ids {
             Some(input_value) => match input_embeds {
                 Some(_) => {
                     return Err(RustBertError::ValueError(
@@ -375,7 +375,7 @@ impl XLNetModel {
 
         let mut attn_mask = match self.attention_type {
             AttentionType::uni => Some(
-                self.create_mask(q_len, m_len, input_embeddings.device())
+                self.create_mask(q_len, m_len, word_emb_k.device())
                     .unsqueeze(-1)
                     .unsqueeze(-1),
             ),
@@ -397,25 +397,72 @@ impl XLNetModel {
             (None, None) => None,
         };
 
-        let (data_mask, attn_mask) = if let Some(data_mask) = data_mask {
-            let data_mask = if m_len > 0 {
+        if let Some(data_mask_value) = &data_mask {
+            if m_len > 0 {
                 let mems_mask = Tensor::zeros(
-                    &[data_mask.size()[0], m_len, batch_size],
-                    (Kind::Bool, data_mask.device()),
+                    &[data_mask_value.size()[0], m_len, batch_size],
+                    (Kind::Bool, data_mask_value.device()),
                 );
-                Tensor::cat(&[mems_mask, data_mask], 1)
+                data_mask = Some(Tensor::cat(&[&mems_mask, data_mask_value], 1))
+            }
+            attn_mask = Some(if let Some(attn_mask) = attn_mask {
+                attn_mask + data_mask.unwrap().unsqueeze(-1)
             } else {
-                data_mask
-            };
-            let attn_mask = Some(if let Some(attn_mask) = attn_mask {
-                attn_mask + data_mask.unsqueeze(-1)
-            } else {
-                data_mask.unsqueeze(-1)
+                data_mask.unwrap().unsqueeze(-1)
             });
-            (Some(data_mask), attn_mask)
+        }
+
+        let non_tgt_mask = if let Some(attn_mask_value) = attn_mask {
+            attn_mask = Some(attn_mask_value.ge(0));
+            let mut non_tgt_mask = -Tensor::eye(q_len, (Kind::Int64, attn_mask_value.device()));
+            if m_len > 0 {
+                non_tgt_mask = Tensor::cat(
+                    &[
+                        Tensor::zeros(&[q_len, m_len], (Kind::Int64, attn_mask_value.device())),
+                        non_tgt_mask,
+                    ],
+                    -1,
+                );
+            }
+            Some((attn_mask_value + non_tgt_mask.unsqueeze(-1).unsqueeze(-1)).ge(0))
         } else {
-            (data_mask, attn_mask)
+            None
         };
+
+        let output_h = word_emb_k.apply_t(&self.dropout, train);
+        let output_g = if let Some(target_mapping_value) = target_mapping {
+            Some(
+                (&self
+                    .mask_emb
+                    .expand(&[target_mapping_value.size()[0], batch_size, -1], true))
+                    .apply_t(&self.dropout, train),
+            )
+        } else {
+            None
+        };
+
+        let seg_mat = if let Some(token_type_ids_value) = token_type_ids {
+            let cat_ids = if m_len > 0 {
+                let mem_pad = Tensor::zeros(
+                    &[m_len, batch_size],
+                    (Kind::Int64, token_type_ids_value.device()),
+                );
+                Tensor::cat(&[mem_pad, token_type_ids_value.copy()], 0)
+            } else {
+                token_type_ids_value.copy()
+            };
+            let seg_mat = token_type_ids_value
+                .unsqueeze(-1)
+                .ne1(&cat_ids.unsqueeze(0))
+                .to_kind(Kind::Int64);
+            Some(seg_mat.one_hot(2).to_kind(Kind::Float))
+        } else {
+            None
+        };
+
+        let pos_emb = self
+            .relative_positional_encoding(q_len, k_len, Some(batch_size), output_h.device())
+            .apply_t(&self.dropout, train);
 
         Ok(())
     }
