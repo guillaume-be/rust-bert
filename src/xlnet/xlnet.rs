@@ -238,15 +238,17 @@ impl XLNetModel {
             Some(0) => 0i64,
             Some(value) => -value,
         };
-        let cur_length = current_output.size()[0];
+        let mut cur_length = current_output.size()[0];
         LayerState {
             prev_content: match (self.reuse_len, previous_cached_state) {
                 (Some(value), Some(previous_past)) if value > 0 => {
                     let current_output = current_output.slice(0, 0, value, 1);
+                    cur_length += &previous_past.prev_content.size()[0];
                     Tensor::cat(&[&previous_past.prev_content, &current_output], 0)
                         .slice(0, cutoff, cur_length, 1)
                 }
                 (Some(_), Some(previous_past)) | (None, Some(previous_past)) => {
+                    cur_length += &previous_past.prev_content.size()[0];
                     Tensor::cat(&[&previous_past.prev_content, current_output], 0)
                         .slice(0, cutoff, cur_length, 1)
                 }

@@ -1505,26 +1505,27 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
             _ => Tensor::cat(&[input_ids, dummy_token], 1),
         };
         let sequence_length = input_ids.size()[1];
-        let mut perm_mask = Tensor::zeros(
+        let perm_mask = Tensor::zeros(
             &[effective_batch_size, sequence_length, sequence_length],
             (Kind::Float, input_ids.device()),
         );
-        let _ = perm_mask.narrow(2, sequence_length - 1, 1).fill_(1.0);
+        let _ = perm_mask.narrow(2, sequence_length - 2, 1).fill_(1.0);
 
-        let mut target_mapping = Tensor::zeros(
+        let target_mapping = Tensor::zeros(
             &[effective_batch_size, 1, sequence_length],
             (Kind::Float, input_ids.device()),
         );
-        let _ = target_mapping.masked_fill_(
-            &Tensor::of_slice(&[0, 0, sequence_length]).to(perm_mask.device()),
-            1.0,
-        );
+        let _ = target_mapping
+            .get(0)
+            .get(0)
+            .get(sequence_length - 1)
+            .fill_(1.0);
 
         match past {
             Cache::XLNetCache(past) => {
                 if past.is_some() {
                     (
-                        Some(input_ids.select(1, -1).unsqueeze(-1)),
+                        Some(input_ids),
                         Some(perm_mask),
                         None,
                         Some(target_mapping),
@@ -1587,16 +1588,16 @@ impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGe
 
         let config = PrivateLanguageGenerator::get_config(self);
 
-        let prefix = "In 1991, the remains of Russian Tsar Nicholas II and his family
-        (except for Alexei and Maria) are discovered. 
-        The voice of Nicholas's young son, Tsarevich Alexei Nikolaevich, narrates the 
-        remainder of the story. 1883 Western Siberia,
-        a young Grigori Rasputin is asked by his father and a group of men to perform magic.
-        Rasputin has a vision and denounces one of the men as a horse thief. Although his
-        father initially slaps him for making such an accusation, Rasputin watches as the
-        man is chased outside and beaten. Twenty years later, Rasputin sees a vision of
-        the Virgin Mary, prompting him to become a priest. Rasputin quickly becomes famous,
-        with people, even a bishop, begging for his blessing. <eod> </s> <eos>";
+        let prefix = "In 1991, the remains of Russian Tsar Nicholas II and his family \
+(except for Alexei and Maria) are discovered. \
+The voice of Nicholas's young son, Tsarevich Alexei Nikolaevich, narrates the \
+remainder of the story. 1883 Western Siberia, \
+a young Grigori Rasputin is asked by his father and a group of men to perform magic. \
+Rasputin has a vision and denounces one of the men as a horse thief. Although his \
+father initially slaps him for making such an accusation, Rasputin watches as the \
+man is chased outside and beaten. Twenty years later, Rasputin sees a vision of \
+the Virgin Mary, prompting him to become a priest. Rasputin quickly becomes famous, \
+with people, even a bishop, begging for his blessing. <eod> </s> <eos>";
 
         let max_length = config.max_length;
         let encoding_max_len = if self.is_encoder_decoder() {
@@ -1613,7 +1614,17 @@ impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGe
         };
 
         let input_ids = match prompt_texts {
-            Some(text) => self.encode_prompt_text(text, encoding_max_len, pad_token_id),
+            Some(texts) => {
+                let texts = texts
+                    .iter()
+                    .map(|text| format!("{} {}", prefix, text))
+                    .collect::<Vec<String>>();
+                self.encode_prompt_text(
+                    texts.iter().map(|s| s.as_str()).collect_vec(),
+                    encoding_max_len,
+                    pad_token_id,
+                )
+            }
             None => match self.get_bos_id() {
                 Some(bos_id) => {
                     Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id
@@ -1770,7 +1781,6 @@ pub(crate) mod private_generation_utils {
                 })
                 .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
                 .collect::<Vec<Tensor>>();
-
             Tensor::stack(&token_ids, 0)
         }
 
