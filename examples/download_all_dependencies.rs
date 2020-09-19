@@ -21,6 +21,7 @@ use rust_bert::roberta::{
     RobertaConfigResources, RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
 };
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
+use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
 
 /// This example downloads and caches all dependencies used in model tests. This allows for safe
 /// multi threaded testing (two test using the same resource would otherwise download the file to
@@ -365,6 +366,23 @@ fn download_xlm_roberta_ner_german() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn download_xlnet_base_cased() -> anyhow::Result<()> {
+    // Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models.
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        XLNetConfigResources::XLNET_BASE_CASED,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        XLNetVocabResources::XLNET_BASE_CASED,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        XLNetModelResources::XLNET_BASE_CASED,
+    ));
+    let _ = config_resource.get_local_path()?;
+    let _ = vocab_resource.get_local_path()?;
+    let _ = weights_resource.get_local_path()?;
+    Ok(())
+}
+
 fn main() -> anyhow::Result<()> {
     let _ = download_distil_gpt2();
     let _ = download_distilbert_sst2();
@@ -384,6 +402,7 @@ fn main() -> anyhow::Result<()> {
     let _ = download_roberta_qa();
     let _ = download_bert_qa();
     let _ = download_xlm_roberta_ner_german();
+    let _ = download_xlnet_base_cased();
 
     Ok(())
 }

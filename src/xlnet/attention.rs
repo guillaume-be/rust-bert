@@ -34,6 +34,12 @@ impl Clone for LayerState {
     }
 }
 
+impl LayerState {
+    pub(crate) fn reorder_cache(&mut self, new_indices: &Tensor) {
+        self.prev_content = self.prev_content.index_select(0, new_indices);
+    }
+}
+
 #[derive(Debug)]
 pub struct XLNetRelativeAttention {
     num_attention_heads: i64,

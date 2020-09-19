@@ -25,13 +25,13 @@ use tch::{nn, no_grad, Device, Tensor};
 fn main() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        XLNetConfigResources::XLNET_BASE_V2,
+        XLNetConfigResources::XLNET_BASE_CASED,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        XLNetVocabResources::XLNET_BASE_V2,
+        XLNetVocabResources::XLNET_BASE_CASED,
     ));
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
-        XLNetModelResources::XLNET_BASE_V2,
+        XLNetModelResources::XLNET_BASE_CASED,
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;

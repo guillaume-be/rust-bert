@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use crate::xlnet::attention::LayerState;
 use crate::xlnet::encoder::XLNetLayer;
 use crate::{Config, RustBertError};
@@ -33,7 +34,7 @@ pub struct XLNetVocabResources;
 
 impl XLNetModelResources {
     /// Shared under Apache 2.0 license by the XLNet Authors at https://github.com/zihangdai/xlnet. Modified with conversion to C-array format.
-    pub const XLNET_BASE_V2: (&'static str, &'static str) = (
+    pub const XLNET_BASE_CASED: (&'static str, &'static str) = (
         "xlnet-base-cased/model",
         "https://cdn.huggingface.co/xlnet-base-cased-rust_model.ot",
     );
@@ -41,7 +42,7 @@ impl XLNetModelResources {
 
 impl XLNetConfigResources {
     /// Shared under Apache 2.0 license by the XLNet Authors at https://github.com/zihangdai/xlnet. Modified with conversion to C-array format.
-    pub const XLNET_BASE_V2: (&'static str, &'static str) = (
+    pub const XLNET_BASE_CASED: (&'static str, &'static str) = (
         "xlnet-base-cased/config",
         "https://cdn.huggingface.co/xlnet-base-cased-config.json",
     );
@@ -49,7 +50,7 @@ impl XLNetConfigResources {
 
 impl XLNetVocabResources {
     /// Shared under Apache 2.0 license by the XLNet Authors at https://github.com/zihangdai/xlnet. Modified with conversion to C-array format.
-    pub const XLNET_BASE_V2: (&'static str, &'static str) = (
+    pub const XLNET_BASE_CASED: (&'static str, &'static str) = (
         "xlnet-base-cased/spiece",
         "https://cdn.huggingface.co/xlnet-base-cased-spiece.model",
     );
@@ -326,7 +327,7 @@ impl XLNetModel {
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<Option<LayerState>>>,
-        perm_mask: Option<Tensor>,
+        perm_mask: Option<&Tensor>,
         target_mapping: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         input_embeds: Option<Tensor>,
@@ -557,6 +558,132 @@ impl XLNetModel {
             all_hidden_states,
             all_attentions,
         })
+    }
+}
+
+pub struct XLNetLMHeadModel {
+    base_model: XLNetModel,
+    lm_head: nn::Linear,
+}
+
+impl XLNetLMHeadModel {
+    pub fn new<'p, P>(p: P, config: &XLNetConfig) -> XLNetLMHeadModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let base_model = XLNetModel::new(p / "transformer", config);
+        let lm_head = nn::linear(
+            p / "lm_loss",
+            config.d_model,
+            config.vocab_size,
+            Default::default(),
+        );
+
+        XLNetLMHeadModel {
+            base_model,
+            lm_head,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<Option<LayerState>>>,
+        perm_mask: Option<&Tensor>,
+        target_mapping: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = self.base_model.forward_t(
+            input_ids,
+            attention_mask,
+            old_layer_states,
+            perm_mask,
+            target_mapping,
+            token_type_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let lm_logits = base_model_output.hidden_state.apply(&self.lm_head);
+        let all_attentions = if let Some(all_attentions) = base_model_output.all_attentions {
+            Some(
+                all_attentions
+                    .into_iter()
+                    .map(|(u, _)| u)
+                    .collect::<Vec<Tensor>>(),
+            )
+        } else {
+            None
+        };
+        let all_hidden_states = if let Some(all_hidden_states) = base_model_output.all_hidden_states
+        {
+            Some(
+                all_hidden_states
+                    .into_iter()
+                    .map(|(u, _)| u)
+                    .collect::<Vec<Tensor>>(),
+            )
+        } else {
+            None
+        };
+
+        Ok(LMModelOutput {
+            lm_logits,
+            encoder_hidden_state: None,
+            cache: Cache::XLNetCache(base_model_output.next_cache),
+            all_hidden_states,
+            all_attentions,
+        })
+    }
+}
+
+impl LMHeadModel for XLNetLMHeadModel {
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        layer_past: Cache,
+        attention_mask: &Option<Tensor>,
+        _token_type_ids: &Option<Tensor>,
+        _position_ids: &Option<Tensor>,
+        _input_embeds: &Option<Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        match layer_past {
+            Cache::XLNetCache(layer_past) => self.forward_t(
+                input_ids.as_ref(),
+                None,
+                layer_past,
+                attention_mask.as_ref(),
+                // For XLNet the decoder_input_ids are used as a placeholder for the target mapping
+                decoder_input_ids.as_ref(),
+                None,
+                None,
+                train,
+            ),
+            Cache::None => self.forward_t(
+                input_ids.as_ref(),
+                None,
+                None,
+                attention_mask.as_ref(),
+                // For XLNet the decoder_input_ids are used as a placeholder for the target mapping
+                decoder_input_ids.as_ref(),
+                None,
+                None,
+                train,
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with XLNet Model".into(),
+                ));
+            }
+        }
     }
 }
 

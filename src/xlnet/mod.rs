@@ -2,6 +2,8 @@ mod attention;
 mod encoder;
 mod xlnet;
 
+pub use attention::LayerState;
 pub use xlnet::{
-    XLNetConfig, XLNetConfigResources, XLNetModel, XLNetModelResources, XLNetVocabResources,
+    XLNetConfig, XLNetConfigResources, XLNetLMHeadModel, XLNetModel, XLNetModelResources,
+    XLNetVocabResources,
 };

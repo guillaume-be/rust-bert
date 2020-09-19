@@ -80,18 +80,20 @@ use crate::t5::{
     LayerState as T5LayerState, T5Config, T5ConfigResources, T5ForConditionalGeneration,
     T5ModelResources, T5VocabResources,
 };
+use crate::xlnet::{LayerState, XLNetConfig, XLNetLMHeadModel};
 use crate::Config;
 use itertools::Itertools;
 use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
 use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
 use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
 use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
+use rust_tokenizers::preprocessing::vocab::xlnet_vocab::XLNetVocab;
 use rust_tokenizers::{
     Gpt2Tokenizer, Gpt2Vocab, OpenAiGptTokenizer, OpenAiGptVocab, RobertaTokenizer, RobertaVocab,
-    Tokenizer, TruncationStrategy, Vocab,
+    Tokenizer, TruncationStrategy, Vocab, XLNetTokenizer,
 };
 use tch::kind::Kind::Int64;
-use tch::{nn, no_grad, Device, Tensor};
+use tch::{nn, no_grad, Device, Kind, Tensor};
 
 extern crate ordered_float;
 
@@ -517,6 +519,29 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
                 Cache::GPT2Cache(None),
             ),
             _ => panic!("Cache type incompatible with GPT2"),
+        }
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        _encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::GPT2Cache(cached_decoder_state) => match cached_decoder_state {
+                Some(value) => {
+                    for layer_past in value.iter_mut() {
+                        *layer_past = layer_past.index_select(1, beam_indices);
+                    }
+                    None
+                }
+                None => None,
+            },
+            Cache::None => None,
+            _ => {
+                panic!("Invalid cache for GPT2 model");
+            }
         }
     }
 }
@@ -1334,11 +1359,285 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
 
 impl LanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> for T5Generator {}
 
+/// # Language generation model based on the XLNet architecture
+pub struct XLNetGenerator {
+    model: XLNetLMHeadModel,
+    tokenizer: XLNetTokenizer,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl XLNetGenerator {
+    /// Build a new `XLNetGenerator`
+    ///
+    /// # Arguments
+    ///
+    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::generation::{GenerateConfig, XLNetGenerator};
+    ///
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let xlnet_generator = XLNetGenerator::new(generate_config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(mut generate_config: GenerateConfig) -> Result<XLNetGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        // For XLNet a prompt text is added to the input for improved context and generation
+        generate_config.min_length += 167;
+        generate_config.max_length += 167;
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = XLNetTokenizer::from_file(vocab_path.to_str().unwrap(), false, true)?;
+        let config = XLNetConfig::from_file(config_path);
+        let model = XLNetLMHeadModel::new(&var_store.root(), &config);
+        var_store.load(weights_path)?;
+
+        let bos_token_id = Some(config.bos_token_id);
+        let eos_token_ids = Some(vec![config.eos_token_id]);
+        let pad_token_id = Some(config.pad_token_id);
+        let is_encoder_decoder = false;
+        let vocab_size = config.vocab_size;
+        let decoder_start_id = None;
+
+        Ok(XLNetGenerator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {
+    fn get_model(&self) -> &XLNetLMHeadModel {
+        &self.model
+    }
+    fn get_tokenizer(&self) -> &XLNetTokenizer {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        _encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        _attention_mask: Tensor,
+    ) -> (
+        Option<Tensor>,
+        Option<Tensor>,
+        Option<&'a Tensor>,
+        Option<Tensor>,
+        Cache,
+    ) {
+        let effective_batch_size = input_ids.size()[0];
+        let sequence_length = input_ids.size()[1];
+        let dummy_token = Tensor::zeros(
+            &[effective_batch_size, 1],
+            (Kind::Int64, input_ids.device()),
+        );
+        let offset = 2i64;
+        let input_ids = match &past {
+            Cache::XLNetCache(past) => {
+                if past.is_some() {
+                    Tensor::cat(
+                        &[
+                            input_ids.slice(1, sequence_length - offset, sequence_length, 1),
+                            dummy_token,
+                        ],
+                        1,
+                    )
+                } else {
+                    Tensor::cat(&[input_ids, dummy_token], 1)
+                }
+            }
+            _ => Tensor::cat(&[input_ids, dummy_token], 1),
+        };
+        let sequence_length = input_ids.size()[1];
+        let mut perm_mask = Tensor::zeros(
+            &[effective_batch_size, sequence_length, sequence_length],
+            (Kind::Float, input_ids.device()),
+        );
+        let _ = perm_mask.narrow(2, sequence_length - 1, 1).fill_(1.0);
+
+        let mut target_mapping = Tensor::zeros(
+            &[effective_batch_size, 1, sequence_length],
+            (Kind::Float, input_ids.device()),
+        );
+        let _ = target_mapping.masked_fill_(
+            &Tensor::of_slice(&[0, 0, sequence_length]).to(perm_mask.device()),
+            1.0,
+        );
+
+        match past {
+            Cache::XLNetCache(past) => {
+                if past.is_some() {
+                    (
+                        Some(input_ids.select(1, -1).unsqueeze(-1)),
+                        Some(perm_mask),
+                        None,
+                        Some(target_mapping),
+                        Cache::XLNetCache(past),
+                    )
+                } else {
+                    (
+                        Some(input_ids),
+                        Some(perm_mask),
+                        None,
+                        Some(target_mapping),
+                        Cache::XLNetCache(None),
+                    )
+                }
+            }
+            Cache::None => (
+                Some(input_ids),
+                Some(perm_mask),
+                None,
+                Some(target_mapping),
+                Cache::XLNetCache(None),
+            ),
+            _ => panic!("Cache type incompatible with XLNet"),
+        }
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        _encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::XLNetCache(old_cache_option) => match old_cache_option {
+                Some(old_cache) => {
+                    for layer_state in old_cache.iter_mut() {
+                        if layer_state.is_some() {
+                            layer_state.as_mut().unwrap().reorder_cache(beam_indices)
+                        };
+                    }
+                    None
+                }
+                None => None,
+            },
+            Cache::None => None,
+            _ => {
+                panic!("Invalid cache for XLNet model");
+            }
+        }
+    }
+}
+
+impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {
+    fn generate(
+        &self,
+        prompt_texts: Option<Vec<&str>>,
+        attention_mask: Option<Tensor>,
+    ) -> Vec<String> {
+        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
+
+        let config = PrivateLanguageGenerator::get_config(self);
+
+        let prefix = "In 1991, the remains of Russian Tsar Nicholas II and his family
+        (except for Alexei and Maria) are discovered. 
+        The voice of Nicholas's young son, Tsarevich Alexei Nikolaevich, narrates the 
+        remainder of the story. 1883 Western Siberia,
+        a young Grigori Rasputin is asked by his father and a group of men to perform magic.
+        Rasputin has a vision and denounces one of the men as a horse thief. Although his
+        father initially slaps him for making such an accusation, Rasputin watches as the
+        man is chased outside and beaten. Twenty years later, Rasputin sees a vision of
+        the Virgin Mary, prompting him to become a priest. Rasputin quickly becomes famous,
+        with people, even a bishop, begging for his blessing. <eod> </s> <eos>";
+
+        let max_length = config.max_length;
+        let encoding_max_len = if self.is_encoder_decoder() {
+            1024i64
+        } else {
+            max_length
+        };
+        let pad_token_id = match self.get_pad_id() {
+            Some(value) => Some(*value),
+            None => match &eos_token_ids {
+                Some(eos_ids) => Some(eos_ids[0]),
+                None => None,
+            },
+        };
+
+        let input_ids = match prompt_texts {
+            Some(text) => self.encode_prompt_text(text, encoding_max_len, pad_token_id),
+            None => match self.get_bos_id() {
+                Some(bos_id) => {
+                    Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id
+                }
+                None => panic!(
+                    "A model with a BOS token must be used to start generation with an empty input"
+                ),
+            },
+        };
+        let generated = self.generate_from_ids_and_past(input_ids, attention_mask);
+        let mut output = Vec::with_capacity(generated.len());
+        for generated_sequence in generated {
+            output.push(self.get_tokenizer().decode(generated_sequence, true, true));
+        }
+        output
+    }
+}
+
 #[derive(Debug)]
 pub enum Cache {
     GPT2Cache(Option<Vec<Tensor>>),
     BARTCache(Option<Vec<(Option<BartLayerState>, Option<BartLayerState>)>>),
     T5Cache(Option<Vec<(Option<T5LayerState>, Option<T5LayerState>)>>),
+    XLNetCache(Option<Vec<Option<LayerState>>>),
     None,
 }
 
@@ -2154,23 +2453,11 @@ pub(crate) mod private_generation_utils {
             &self,
             past: &mut Cache,
             _encoder_outputs: Option<Tensor>,
-            beam_indices: &Tensor,
+            _beam_indices: &Tensor,
         ) -> Option<Tensor> {
             match past {
                 Cache::None => None,
-                Cache::GPT2Cache(cached_decoder_state) => match cached_decoder_state {
-                    Some(value) => {
-                        for layer_past in value.iter_mut() {
-                            *layer_past = layer_past.index_select(1, beam_indices);
-                        }
-                        None
-                    }
-                    None => None,
-                },
-                Cache::BARTCache(_) => {
-                    panic!("Not implemented");
-                }
-                Cache::T5Cache(_) => {
+                _ => {
                     panic!("Not implemented");
                 }
             }
