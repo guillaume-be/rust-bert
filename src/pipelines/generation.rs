@@ -1515,11 +1515,7 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
             &[effective_batch_size, 1, sequence_length],
             (Kind::Float, input_ids.device()),
         );
-        let _ = target_mapping
-            .get(0)
-            .get(0)
-            .get(sequence_length - 1)
-            .fill_(1.0);
+        let _ = target_mapping.narrow(2, sequence_length - 1, 1).fill_(1.0);
 
         match past {
             Cache::XLNetCache(past) => {
@@ -1654,7 +1650,11 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>";
         let generated = self.generate_from_ids_and_past(input_ids, attention_mask);
         let mut output = Vec::with_capacity(generated.len());
         for generated_sequence in generated {
-            output.push(self.get_tokenizer().decode(generated_sequence, true, true));
+            output.push(self.get_tokenizer().decode(
+                generated_sequence.into_iter().skip(165).collect_vec(),
+                true,
+                true,
+            ));
         }
         output
     }
