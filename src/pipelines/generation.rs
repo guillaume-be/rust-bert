@@ -1509,7 +1509,7 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
             &[effective_batch_size, sequence_length, sequence_length],
             (Kind::Float, input_ids.device()),
         );
-        let _ = perm_mask.narrow(2, sequence_length - 2, 1).fill_(1.0);
+        let _ = perm_mask.narrow(2, sequence_length - 1, 1).fill_(1.0);
 
         let target_mapping = Tensor::zeros(
             &[effective_batch_size, 1, sequence_length],
@@ -1523,13 +1523,30 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
 
         match past {
             Cache::XLNetCache(past) => {
-                if past.is_some() {
+                if let Some(past) = past {
+                    // let new_past = Vec::with_capacity(past.len());
+                    let past = if let Some(first_past) = &past[0] {
+                        let past_len = first_past.prev_content.size()[0];
+                        past.iter()
+                            .map(|old_layer_state| {
+                                Some(LayerState {
+                                    prev_content: old_layer_state
+                                        .as_ref()
+                                        .unwrap()
+                                        .prev_content
+                                        .slice(0, 0, past_len - offset, 1),
+                                })
+                            })
+                            .collect()
+                    } else {
+                        past
+                    };
                     (
                         Some(input_ids),
                         Some(perm_mask),
                         None,
                         Some(target_mapping),
-                        Cache::XLNetCache(past),
+                        Cache::XLNetCache(Some(past)),
                     )
                 } else {
                     (

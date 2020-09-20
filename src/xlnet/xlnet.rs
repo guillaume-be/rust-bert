@@ -434,8 +434,7 @@ impl XLNetModel {
             });
         }
 
-        let non_tgt_mask = if let Some(attn_mask_value) = attn_mask {
-            attn_mask = Some(attn_mask_value.ge(0));
+        let non_tgt_mask = if let Some(attn_mask_value) = &attn_mask {
             let mut non_tgt_mask = -Tensor::eye(q_len, (Kind::Int64, attn_mask_value.device()));
             if m_len > 0 {
                 non_tgt_mask = Tensor::cat(
@@ -446,7 +445,7 @@ impl XLNetModel {
                     -1,
                 );
             }
-            Some((attn_mask_value + non_tgt_mask.unsqueeze(-1).unsqueeze(-1)).ge(0))
+            Some((attn_mask_value + non_tgt_mask.unsqueeze(-1).unsqueeze(-1)).gt(0))
         } else {
             None
         };
