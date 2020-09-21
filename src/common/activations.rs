@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 use tch::Tensor;
 
@@ -23,4 +24,22 @@ pub fn _gelu_new(x: &Tensor) -> Tensor {
 
 pub fn _tanh(x: &Tensor) -> Tensor {
     x.tanh()
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// # Activation function used in the attention layer and masked language model head
+pub enum Activation {
+    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
+    gelu,
+    /// Rectified Linear Unit
+    relu,
+    /// Swish ([Ramachandran, 2017](https://arxiv.org/abs/1710.05941))
+    swish,
+    /// Mish ([Misra, 2019](https://arxiv.org/abs/1908.08681))
+    mish,
+    /// Gaussian Error Linear Unit (New) ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
+    gelu_new,
+    /// Tanh
+    tanh,
 }

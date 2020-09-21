@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::Activation as BaseActivation;
 use crate::common::dropout::Dropout;
+use crate::common::summary::SummaryType;
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use crate::xlnet::attention::LayerState;
 use crate::xlnet::encoder::XLNetLayer;
@@ -78,20 +80,6 @@ pub enum AttentionType {
     uni,
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
-/// # Summary type for the model when used for summarization
-pub enum SummaryType {
-    /// Hidden state stored in the last token
-    last,
-    /// Hidden state stored in the first token
-    first,
-    /// Mean of all token hidden states
-    mean,
-    /// Hidden state stored in the CLS token
-    cls_index,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 /// # XLNet model configuration
 /// Defines the XLNet model architecture (e.g. number of layers, hidden layer size, label mapping...)
@@ -113,10 +101,11 @@ pub struct XLNetConfig {
     pub clamp_len: Option<i64>,
     pub bi_data: bool,
     pub same_length: bool,
-    pub summary_type: SummaryType,
-    pub summary_use_proj: bool,
-    pub summary_activation: Option<String>,
+    pub summary_type: Option<SummaryType>,
+    pub summary_use_proj: Option<bool>,
+    pub summary_activation: Option<BaseActivation>,
     pub summary_proj_to_labels: Option<bool>,
+    pub summary_first_dropout: Option<f64>,
     pub summary_last_dropout: Option<f64>,
     pub start_n_top: Option<i64>,
     pub end_n_top: Option<i64>,
