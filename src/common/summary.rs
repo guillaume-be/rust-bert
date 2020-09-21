@@ -16,7 +16,7 @@ use crate::xlnet::XLNetConfig;
 use crate::RustBertError;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
-use tch::{nn, Tensor};
+use tch::{nn, Kind, Tensor};
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -130,5 +130,52 @@ impl SequenceSummary {
             first_dropout,
             last_dropout,
         })
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        cls_index: Option<&Tensor>,
+        train: bool,
+    ) -> Tensor {
+        let mut output = match self.summary_type {
+            SummaryType::last => hidden_states.select(1, -1),
+            SummaryType::first => hidden_states.select(1, 0),
+            SummaryType::mean => hidden_states.mean1(&[1], false, Kind::Float),
+            SummaryType::cls_index => {
+                let cls_index = if let Some(cls_index_value) = cls_index {
+                    let mut expand_dim = vec![-1i64; cls_index_value.dim() - 1];
+                    expand_dim.push(*hidden_states.size().last().unwrap());
+                    cls_index_value
+                        .unsqueeze(-1)
+                        .unsqueeze(-1)
+                        .expand(expand_dim.as_slice(), true)
+                } else {
+                    let mut fill_value = hidden_states.size();
+                    fill_value.reverse();
+                    let fill_value = fill_value[2];
+                    hidden_states.select(-2, 0).full_like(fill_value)
+                };
+                hidden_states.gather(-2, &cls_index, false).squeeze1(-2)
+            }
+        };
+
+        if let Some(first_dropout) = &self.first_dropout {
+            output = output.apply_t(first_dropout, train)
+        };
+
+        if let Some(summary) = &self.summary {
+            output = output.apply(summary)
+        };
+
+        if let Some(activation_fn) = &self.activation {
+            output = activation_fn(&output)
+        };
+
+        if let Some(last_dropout) = &self.last_dropout {
+            output = output.apply_t(last_dropout, train)
+        };
+
+        output
     }
 }
