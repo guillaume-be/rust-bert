@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::activations::{_gelu_new, _relu, _swish};
 use crate::common::dropout::Dropout;
 use crate::xlnet::attention::{LayerState, XLNetRelativeAttention};
-use crate::xlnet::xlnet::Activation;
 use crate::xlnet::XLNetConfig;
 use std::borrow::Borrow;
 use tch::{nn, Tensor};
@@ -58,11 +56,7 @@ impl XLNetFeedForward {
             ..Default::default()
         };
         let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], layer_norm_config);
-        let activation = Box::new(match &config.ff_activation {
-            Activation::gelu => _gelu_new,
-            Activation::relu => _relu,
-            Activation::swish => _swish,
-        });
+        let activation = config.ff_activation.get_function();
 
         XLNetFeedForward {
             layer_1,

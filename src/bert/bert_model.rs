@@ -13,7 +13,7 @@
 
 use crate::bert::embeddings::{BertEmbedding, BertEmbeddings};
 use crate::bert::encoder::{BertEncoder, BertPooler};
-use crate::common::activations::{_gelu, _mish, _relu};
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::{Config, RustBertError};
@@ -85,18 +85,6 @@ impl BertVocabResources {
         "bert-qa/vocab",
         "https://cdn.huggingface.co/bert-large-cased-whole-word-masking-finetuned-squad-vocab.txt",
     );
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// # Activation function used in the attention layer and masked language model head
-pub enum Activation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
-    /// Mish ([Misra, 2019](https://arxiv.org/abs/1908.08681))
-    mish,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -379,11 +367,7 @@ impl BertPredictionHeadTransform {
             config.hidden_size,
             Default::default(),
         );
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
         let layer_norm_config = nn::LayerNormConfig {
             eps: 1e-12,
             ..Default::default()

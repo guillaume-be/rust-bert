@@ -43,3 +43,16 @@ pub enum Activation {
     /// Tanh
     tanh,
 }
+
+impl Activation {
+    pub fn get_function(&self) -> Box<fn(&Tensor) -> Tensor> {
+        Box::new(match self {
+            Activation::gelu => _gelu,
+            Activation::relu => _relu,
+            Activation::swish => _swish,
+            Activation::gelu_new => _gelu_new,
+            Activation::mish => _mish,
+            Activation::tanh => _tanh,
+        })
+    }
+}

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::bert::encoder::BertEncoder;
-use crate::bert::{Activation, BertConfig};
-use crate::common::activations::{_gelu, _mish, _relu};
+use crate::bert::BertConfig;
+use crate::common::activations::{Activation, _gelu};
 use crate::common::dropout::Dropout;
 use crate::electra::embeddings::ElectraEmbeddings;
 use crate::{Config, RustBertError};
@@ -356,11 +356,7 @@ impl ElectraDiscriminatorHead {
             1,
             Default::default(),
         );
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
         ElectraDiscriminatorHead {
             dense,
             dense_prediction,

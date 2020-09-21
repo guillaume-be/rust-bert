@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::activations::Activation as BaseActivation;
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::summary::SummaryType;
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
@@ -59,18 +59,6 @@ impl XLNetVocabResources {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// # Activation function used in the attention layer and masked language model head
-pub enum Activation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
-    /// Swish ([Ramachandran, 2017](https://arxiv.org/abs/1710.05941))
-    swish,
-}
-
-#[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 /// # Attention type for the model (bidirectional or unidirectional)
 pub enum AttentionType {
@@ -103,7 +91,7 @@ pub struct XLNetConfig {
     pub same_length: bool,
     pub summary_type: Option<SummaryType>,
     pub summary_use_proj: Option<bool>,
-    pub summary_activation: Option<BaseActivation>,
+    pub summary_activation: Option<Activation>,
     pub summary_proj_to_labels: Option<bool>,
     pub summary_first_dropout: Option<f64>,
     pub summary_last_dropout: Option<f64>,

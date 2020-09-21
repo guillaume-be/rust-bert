@@ -12,12 +12,11 @@
 // limitations under the License.
 
 use crate::bart::attention::{LayerState, SelfAttention};
-use crate::bart::bart_model::Activation;
 use crate::bart::embeddings::{
     EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
 };
 use crate::bart::BartConfig;
-use crate::common::activations::{_gelu, _gelu_new, _relu, _swish, _tanh};
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Bool;
@@ -86,13 +85,7 @@ impl DecoderLayer {
             Some(act_function) => act_function,
             None => &Activation::gelu,
         };
-        let activation = Box::new(match activation_function {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::swish => _swish,
-            Activation::gelu_new => _gelu_new,
-            Activation::tanh => _tanh,
-        });
+        let activation = activation_function.get_function();
         let fc1 = nn::linear(
             p / "fc1",
             config.d_model,

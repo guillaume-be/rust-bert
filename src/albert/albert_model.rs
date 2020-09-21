@@ -13,7 +13,7 @@
 
 use crate::albert::embeddings::AlbertEmbeddings;
 use crate::albert::encoder::AlbertTransformer;
-use crate::common::activations::{_gelu, _gelu_new, _mish, _relu, _tanh};
+use crate::common::activations::{Activation, _tanh};
 use crate::common::dropout::Dropout;
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
@@ -52,20 +52,6 @@ impl AlbertVocabResources {
         "albert-base-v2/spiece",
         "https://cdn.huggingface.co/albert-base-v2-spiece.model",
     );
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// # Activation function used in the attention layer and masked language model head
-pub enum Activation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu_new,
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
-    /// Mish ([Misra, 2019](https://arxiv.org/abs/1908.08681))
-    mish,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -323,12 +309,7 @@ impl AlbertMLMHead {
             Default::default(),
         );
 
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu_new => _gelu_new,
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
 
         AlbertMLMHead {
             layer_norm,

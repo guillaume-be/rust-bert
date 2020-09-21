@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::transformer::Block;
@@ -161,18 +162,6 @@ impl Gpt2MergesResources {
     );
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Debug, Serialize, Deserialize)]
-/// # Activation function used in the fully connected layers of the transformer block
-pub enum GptActivation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
-    /// Swish: a Self-Gated Activation Function ([Ramachandran et al., 2017](https://arxiv.org/pdf/1710.05941v1.pdf))
-    swish,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 /// # GPT2 model configuration
 /// Defines the GPT2 model architecture (e.g. number of layers, hidden layer size, vocab size...).
@@ -181,7 +170,7 @@ pub struct Gpt2Config {
     pub attn_pdrop: Option<f64>,
     pub embd_pdrop: Option<f64>,
     pub hidden_dropout_prob: Option<f64>,
-    pub afn: Option<GptActivation>,
+    pub afn: Option<Activation>,
     pub initializer_range: f64,
     pub layer_norm_epsilon: f64,
     pub n_ctx: i64,

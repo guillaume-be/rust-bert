@@ -66,8 +66,6 @@ impl From<XLNetConfig> for SummaryConfig {
 pub struct SequenceSummary {
     summary: Option<nn::Linear>,
     summary_type: SummaryType,
-    // summary_use_proj: bool,
-    // summary_proj_to_labels: bool,
     activation: Option<Box<fn(&Tensor) -> Tensor>>,
     first_dropout: Option<Dropout>,
     last_dropout: Option<Dropout>,

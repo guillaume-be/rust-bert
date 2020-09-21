@@ -11,10 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::albert::albert_model::Activation;
 use crate::albert::attention::AlbertSelfAttention;
 use crate::albert::AlbertConfig;
-use crate::common::activations::{_gelu, _gelu_new, _mish, _relu};
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
@@ -62,12 +60,7 @@ impl AlbertLayer {
             Default::default(),
         );
 
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu_new => _gelu_new,
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
 
         AlbertLayer {
             attention,
