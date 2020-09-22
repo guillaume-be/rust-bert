@@ -14,7 +14,7 @@
 
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
-use crate::common::summary::SummaryType;
+use crate::common::summary::{SequenceSummary, SummaryConfig, SummaryType};
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use crate::xlnet::attention::LayerState;
 use crate::xlnet::encoder::XLNetLayer;
@@ -675,4 +675,44 @@ pub struct XLNetModelOutput {
     pub all_hidden_states: Option<Vec<(Tensor, Option<Tensor>)>>,
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<(Tensor, Tensor)>>,
+}
+
+pub struct XLNetForSequenceClassification {
+    base_model: XLNetModel,
+    sequence_summary: SequenceSummary,
+    logits_proj: nn::Linear,
+}
+
+impl XLNetForSequenceClassification {
+    pub fn new<'p, P>(
+        p: P,
+        config: &XLNetConfig,
+    ) -> Result<XLNetForSequenceClassification, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let base_model = XLNetModel::new(p / "transformer", config);
+        let sequence_summary =
+            SequenceSummary::new(p / "sequence_summary", &SummaryConfig::from(config))?;
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+
+        let logits_proj = nn::linear(
+            p / "logits_proj ",
+            config.d_model,
+            num_labels,
+            Default::default(),
+        );
+
+        Ok(XLNetForSequenceClassification {
+            base_model,
+            sequence_summary,
+            logits_proj,
+        })
+    }
 }

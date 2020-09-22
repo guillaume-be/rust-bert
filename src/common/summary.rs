@@ -19,7 +19,7 @@ use std::borrow::Borrow;
 use tch::{nn, Kind, Tensor};
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 /// # Summary type for the model when used for summarization
 pub enum SummaryType {
     /// Hidden state stored in the last token
@@ -43,9 +43,9 @@ pub struct SummaryConfig {
     pub hidden_size: i64,
 }
 
-impl From<XLNetConfig> for SummaryConfig {
-    fn from(config: XLNetConfig) -> Self {
-        let num_labels = if let Some(id2label) = config.id2label {
+impl From<&XLNetConfig> for SummaryConfig {
+    fn from(config: &XLNetConfig) -> Self {
+        let num_labels = if let Some(id2label) = &config.id2label {
             Some(id2label.len() as i64)
         } else {
             None

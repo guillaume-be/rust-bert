@@ -27,7 +27,7 @@ pub fn _tanh(x: &Tensor) -> Tensor {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 /// # Activation function used in the attention layer and masked language model head
 pub enum Activation {
     /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
