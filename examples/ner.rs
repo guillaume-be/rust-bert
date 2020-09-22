@@ -22,10 +22,11 @@ fn main() -> anyhow::Result<()> {
     let input = [
         "My name is Amélie. I live in Москва.",
         "Chongqing is a city in China.",
+        "Asked John Smith about Acme Corp",
     ];
 
     //    Run model
-    let output = ner_model.predict(&input);
+    let output = ner_model.predict_full_entities(&input);
     for entity in output {
         println!("{:?}", entity);
     }
