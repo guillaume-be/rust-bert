@@ -260,10 +260,7 @@ impl BartModel {
     {
         let p = p.borrow();
 
-        let pad_token_id = match config.pad_token_id {
-            Some(value) => value,
-            None => 1,
-        };
+        let pad_token_id = config.pad_token_id.unwrap_or(1);
         let embedding_config = EmbeddingConfig {
             padding_idx: pad_token_id,
             ..Default::default()
@@ -635,10 +632,7 @@ impl BartForSequenceClassification {
 
         let base_model = BartModel::new(p / "model", config, false);
         let classification_head = BartClassificationHead::new(p / "classification_head", config);
-        let eos_token_id = match config.eos_token_id {
-            Some(value) => value,
-            None => 3,
-        };
+        let eos_token_id = config.eos_token_id.unwrap_or(3);
         BartForSequenceClassification {
             base_model,
             classification_head,

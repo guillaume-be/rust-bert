@@ -157,18 +157,9 @@ impl XLNetModel {
         }
 
         let dropout = Dropout::new(config.dropout);
-        let use_cache = match config.use_cache {
-            Some(value) => value,
-            None => true,
-        };
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let use_cache = config.use_cache.unwrap_or(true);
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
         XLNetModel {
             mem_len,
             reuse_len,

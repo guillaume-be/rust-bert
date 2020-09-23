@@ -47,10 +47,7 @@ impl XLNetFeedForward {
         );
 
         let dropout = Dropout::new(config.dropout);
-        let layer_norm_eps = match config.layer_norm_eps {
-            Some(value) => value,
-            None => 1e-12,
-        };
+        let layer_norm_eps = config.layer_norm_eps.unwrap_or(1e-12);
         let layer_norm_config = nn::LayerNormConfig {
             eps: layer_norm_eps,
             ..Default::default()

@@ -46,10 +46,7 @@ impl MLP {
             },
             None => _gelu_new,
         });
-        let resid_pdrop = match config.resid_pdrop {
-            Some(value) => value,
-            None => 0.1,
-        };
+        let resid_pdrop = config.resid_pdrop.unwrap_or(0.1);
         let dropout = Dropout::new(resid_pdrop);
         MLP {
             c_fc,

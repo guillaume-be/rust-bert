@@ -249,10 +249,7 @@ impl Gpt2Model {
             Default::default(),
         );
 
-        let embd_pdrop = match config.embd_pdrop {
-            Some(value) => value,
-            None => 0.1,
-        };
+        let embd_pdrop = config.embd_pdrop.unwrap_or(0.1);
         let drop = Dropout::new(embd_pdrop);
         let layer_norm_config = nn::LayerNormConfig {
             eps: config.layer_norm_epsilon,
@@ -264,18 +261,10 @@ impl Gpt2Model {
         for layer_index in 0..config.n_layer {
             h.push(Block::new(&h_path / layer_index, config, true));
         }
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let output_past = match config.output_past {
-            Some(value) => value,
-            None => true,
-        };
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_past = config.output_past.unwrap_or(true);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
+
         Gpt2Model {
             wte,
             wpe,

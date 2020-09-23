@@ -705,10 +705,7 @@ impl ConversationModel {
 
     fn clean_padding_indices(&self, model_output: &mut Vec<Vec<i64>>) -> Vec<(usize, usize)> {
         // In case inputs are sent as batch, this cleans the padding indices in the history for shorter outputs
-        let pad_token = match self.model.get_pad_id() {
-            Some(value) => *value,
-            None => self.eos_token_id,
-        };
+        let pad_token = self.model.get_pad_id().unwrap_or(self.eos_token_id);
         let mut removed_tokens = Vec::with_capacity(model_output.len());
         for sequence_history in model_output {
             let index_end = sequence_history
@@ -729,10 +726,7 @@ impl ConversationModel {
 
     fn concat_input_history(&self, inputs: Vec<Vec<i64>>, history: Vec<&Vec<i64>>) -> Tensor {
         // Concatenates the history token indices with new user input
-        let pad_token = match self.model.get_pad_id() {
-            Some(value) => *value,
-            None => self.eos_token_id,
-        };
+        let pad_token = self.model.get_pad_id().unwrap_or(self.eos_token_id);
 
         assert_eq!(
             inputs.len(),

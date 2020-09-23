@@ -229,27 +229,19 @@ impl AlbertModel {
             },
         };
 
-        let mask = match mask {
-            Some(value) => value,
-            None => Tensor::ones(&input_shape, (Kind::Int64, device)),
-        };
+        let mask = mask.unwrap_or(Tensor::ones(&input_shape, (Kind::Int64, device)));
 
         let extended_attention_mask = mask.unsqueeze(1).unsqueeze(2);
         let extended_attention_mask: Tensor =
             (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
 
-        let embedding_output = match self.embeddings.forward_t(
+        let embedding_output = self.embeddings.forward_t(
             input_ids,
             token_type_ids,
             position_ids,
             input_embeds,
             train,
-        ) {
-            Ok(value) => value,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        )?;
 
         let transformer_output =
             self.encoder
@@ -283,10 +275,7 @@ impl AlbertMLMHead {
     {
         let p = p.borrow();
 
-        let layer_norm_eps = match config.layer_norm_eps {
-            Some(value) => value,
-            None => 1e-12,
-        };
+        let layer_norm_eps = config.layer_norm_eps.unwrap_or(1e-12);
         let layer_norm_config = nn::LayerNormConfig {
             eps: layer_norm_eps,
             ..Default::default()
@@ -492,10 +481,7 @@ impl AlbertForSequenceClassification {
         let p = p.borrow();
 
         let albert = AlbertModel::new(p / "albert", config);
-        let classifier_dropout_prob = match config.classifier_dropout_prob {
-            Some(value) => value,
-            None => 0.1,
-        };
+        let classifier_dropout_prob = config.classifier_dropout_prob.unwrap_or(0.1);
         let dropout = Dropout::new(classifier_dropout_prob);
         let num_labels = config
             .id2label
@@ -1016,17 +1002,21 @@ impl AlbertForMultipleChoice {
             },
         };
 
-        let mask = match mask {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
+        let mask = if let Some(mask) = mask {
+            Some(mask.view((-1, *mask.size().last().unwrap())))
+        } else {
+            None
         };
-        let token_type_ids = match token_type_ids {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
+        let token_type_ids = if let Some(token_type_ids) = token_type_ids {
+            Some(token_type_ids.view((-1, *token_type_ids.size().last().unwrap())))
+        } else {
+            None
         };
-        let position_ids = match position_ids {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
+
+        let position_ids = if let Some(position_ids) = position_ids {
+            Some(position_ids.view((-1, *position_ids.size().last().unwrap())))
+        } else {
+            None
         };
 
         let base_model_output = self

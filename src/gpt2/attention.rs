@@ -77,20 +77,9 @@ impl Attention {
         let c_attn = GPTConv1D::new(p / "c_attn", config.n_embd * 3, config.n_embd);
         let c_proj = GPTConv1D::new(p / "c_proj", config.n_embd, config.n_embd);
 
-        let attn_pdrop = match config.attn_pdrop {
-            Some(value) => value,
-            None => 0.1,
-        };
-
-        let resid_pdrop = match config.resid_pdrop {
-            Some(value) => value,
-            None => 0.1,
-        };
-
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
+        let attn_pdrop = config.attn_pdrop.unwrap_or(0.1);
+        let resid_pdrop = config.resid_pdrop.unwrap_or(0.1);
+        let output_attentions = config.output_attentions.unwrap_or(false);
 
         let attn_dropout = Dropout::new(attn_pdrop);
         let resid_dropout = Dropout::new(resid_pdrop);

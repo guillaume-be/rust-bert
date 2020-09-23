@@ -657,10 +657,7 @@ impl BartGenerator {
             Some(value) => vec![value],
             None => vec![2],
         });
-        let pad_token_id = Some(match config.pad_token_id {
-            Some(value) => value,
-            None => 1,
-        });
+        let pad_token_id = Some(config.pad_token_id.unwrap_or(1));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id = Some(2);
@@ -1187,10 +1184,7 @@ impl T5Generator {
             Some(value) => vec![value],
             None => vec![1],
         });
-        let pad_token_id = Some(match config.pad_token_id {
-            Some(value) => value,
-            None => 0,
-        });
+        let pad_token_id = Some(config.pad_token_id.unwrap_or(0));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id = Some(0);

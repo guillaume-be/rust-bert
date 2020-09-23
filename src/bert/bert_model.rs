@@ -156,10 +156,7 @@ impl<T: BertEmbedding> BertModel<T> {
     {
         let p = p.borrow();
 
-        let is_decoder = match config.is_decoder {
-            Some(value) => value,
-            None => false,
-        };
+        let is_decoder = config.is_decoder.unwrap_or(false);
         let embeddings = T::new(p / "embeddings", config);
         let encoder = BertEncoder::new(p / "encoder", config);
         let pooler = BertPooler::new(p / "pooler", config);
@@ -258,10 +255,7 @@ impl<T: BertEmbedding> BertModel<T> {
             },
         };
 
-        let mask = match mask {
-            Some(value) => value,
-            None => Tensor::ones(&input_shape, (Kind::Int64, device)),
-        };
+        let mask = mask.unwrap_or(Tensor::ones(&input_shape, (Kind::Int64, device)));
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),

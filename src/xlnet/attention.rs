@@ -124,14 +124,8 @@ impl XLNetRelativeAttention {
         );
 
         let dropout = Dropout::new(config.dropout);
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let layer_norm_eps = match config.layer_norm_eps {
-            Some(value) => value,
-            None => 1e-12,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let layer_norm_eps = config.layer_norm_eps.unwrap_or(1e-12);
         let layer_norm_config = nn::LayerNormConfig {
             eps: layer_norm_eps,
             ..Default::default()

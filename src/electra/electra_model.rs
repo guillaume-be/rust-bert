@@ -254,10 +254,7 @@ impl ElectraModel {
             },
         };
 
-        let mask = match mask {
-            Some(value) => value,
-            None => Tensor::ones(&input_shape, (Kind::Int64, device)),
-        };
+        let mask = mask.unwrap_or(Tensor::ones(&input_shape, (Kind::Int64, device)));
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),
@@ -269,18 +266,13 @@ impl ElectraModel {
             }
         };
 
-        let hidden_states = match self.embeddings.forward_t(
+        let hidden_states = self.embeddings.forward_t(
             input_ids,
             token_type_ids,
             position_ids,
             input_embeds,
             train,
-        ) {
-            Ok(value) => value,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        )?;
 
         let hidden_states = match &self.embeddings_project {
             Some(layer) => hidden_states.apply(layer),

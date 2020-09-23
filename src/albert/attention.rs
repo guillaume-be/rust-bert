@@ -69,14 +69,8 @@ impl AlbertSelfAttention {
         );
         let dropout = Dropout::new(config.attention_probs_dropout_prob);
         let attention_head_size = config.hidden_size / config.num_attention_heads;
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let layer_norm_eps = match config.layer_norm_eps {
-            Some(value) => value,
-            None => 1e-12,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let layer_norm_eps = config.layer_norm_eps.unwrap_or(1e-12);
         let layer_norm_config = nn::LayerNormConfig {
             eps: layer_norm_eps,
             ..Default::default()

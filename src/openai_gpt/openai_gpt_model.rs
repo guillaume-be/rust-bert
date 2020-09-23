@@ -126,10 +126,7 @@ impl OpenAiGptModel {
             Default::default(),
         );
 
-        let embd_pdrop = match config.embd_pdrop {
-            Some(value) => value,
-            None => 0.1,
-        };
+        let embd_pdrop = config.embd_pdrop.unwrap_or(0.1);
         let drop = Dropout::new(embd_pdrop);
         let mut h: Vec<Block> = vec![];
         let h_path = p / "h";
