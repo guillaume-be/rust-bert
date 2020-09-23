@@ -665,18 +665,6 @@ impl LMHeadModel for XLNetLMHeadModel {
     }
 }
 
-/// Container for the XLNet model output.
-pub struct XLNetModelOutput {
-    /// Last hidden states from the model
-    pub hidden_state: Tensor,
-    /// Cached hiden layer states for generation tasks
-    pub next_cache: Option<Vec<Option<LayerState>>>,
-    /// Hidden states for all intermediate layers
-    pub all_hidden_states: Option<Vec<(Tensor, Option<Tensor>)>>,
-    /// Attention weights for all intermediate layers
-    pub all_attentions: Option<Vec<(Tensor, Tensor)>>,
-}
-
 pub struct XLNetForSequenceClassification {
     base_model: XLNetModel,
     sequence_summary: SequenceSummary,
@@ -703,7 +691,7 @@ impl XLNetForSequenceClassification {
             .len() as i64;
 
         let logits_proj = nn::linear(
-            p / "logits_proj ",
+            p / "logits_proj",
             config.d_model,
             num_labels,
             Default::default(),
@@ -715,4 +703,311 @@ impl XLNetForSequenceClassification {
             logits_proj,
         })
     }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<Option<LayerState>>>,
+        perm_mask: Option<&Tensor>,
+        target_mapping: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<XLNetSequenceClassificationOutput, RustBertError> {
+        let base_model_output = self.base_model.forward_t(
+            input_ids,
+            attention_mask,
+            old_layer_states,
+            perm_mask,
+            target_mapping,
+            token_type_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let logits = self
+            .sequence_summary
+            .forward_t(&base_model_output.hidden_state, None, train)
+            .apply(&self.logits_proj);
+
+        Ok(XLNetSequenceClassificationOutput {
+            logits,
+            next_cache: base_model_output.next_cache,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
+    }
+}
+
+pub struct XLNetForTokenClassification {
+    base_model: XLNetModel,
+    classifier: nn::Linear,
+}
+
+impl XLNetForTokenClassification {
+    pub fn new<'p, P>(
+        p: P,
+        config: &XLNetConfig,
+    ) -> Result<XLNetForTokenClassification, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let base_model = XLNetModel::new(p / "transformer", config);
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+
+        let classifier = nn::linear(
+            p / "classifier",
+            config.d_model,
+            num_labels,
+            Default::default(),
+        );
+
+        Ok(XLNetForTokenClassification {
+            base_model,
+            classifier,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<Option<LayerState>>>,
+        perm_mask: Option<&Tensor>,
+        target_mapping: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<XLNetTokenClassificationOutput, RustBertError> {
+        let base_model_output = self.base_model.forward_t(
+            input_ids,
+            attention_mask,
+            old_layer_states,
+            perm_mask,
+            target_mapping,
+            token_type_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let logits = base_model_output.hidden_state.apply(&self.classifier);
+
+        Ok(XLNetTokenClassificationOutput {
+            logits,
+            next_cache: base_model_output.next_cache,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
+    }
+}
+
+pub struct XLNetForMultipleChoice {
+    base_model: XLNetModel,
+    sequence_summary: SequenceSummary,
+    logits_proj: nn::Linear,
+}
+
+impl XLNetForMultipleChoice {
+    pub fn new<'p, P>(
+        p: P,
+        config: &XLNetConfig,
+    ) -> Result<XLNetForSequenceClassification, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let base_model = XLNetModel::new(p / "transformer", config);
+        let sequence_summary =
+            SequenceSummary::new(p / "sequence_summary", &SummaryConfig::from(config))?;
+
+        let logits_proj = nn::linear(p / "logits_proj", config.d_model, 1, Default::default());
+
+        Ok(XLNetForSequenceClassification {
+            base_model,
+            sequence_summary,
+            logits_proj,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<Option<LayerState>>>,
+        perm_mask: Option<&Tensor>,
+        target_mapping: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<XLNetSequenceClassificationOutput, RustBertError> {
+        let (input_ids, num_choices) = match input_ids {
+            Some(value) => (
+                Some(value.view((-1, *value.size().last().unwrap()))),
+                value.size()[1],
+            ),
+            None => (
+                None,
+                input_embeds
+                    .as_ref()
+                    .expect("At least one of input ids or input_embeds must be provided")
+                    .size()[1],
+            ),
+        };
+
+        let attention_mask = match attention_mask {
+            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
+            None => None,
+        };
+        let token_type_ids = match token_type_ids {
+            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
+            None => None,
+        };
+        let input_embeds = match input_embeds {
+            Some(value) => Some(value.view((-1, value.size()[1], value.size()[2]))),
+            None => None,
+        };
+        let base_model_output = self.base_model.forward_t(
+            input_ids.as_ref(),
+            attention_mask.as_ref(),
+            old_layer_states,
+            perm_mask,
+            target_mapping,
+            token_type_ids.as_ref(),
+            input_embeds,
+            train,
+        )?;
+
+        let logits = self
+            .sequence_summary
+            .forward_t(&base_model_output.hidden_state, None, train)
+            .apply(&self.logits_proj)
+            .view((-1, num_choices));
+
+        Ok(XLNetSequenceClassificationOutput {
+            logits,
+            next_cache: base_model_output.next_cache,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
+    }
+}
+
+pub struct XLNetForQuestionAnswering {
+    base_model: XLNetModel,
+    qa_outputs: nn::Linear,
+}
+
+impl XLNetForQuestionAnswering {
+    pub fn new<'p, P>(
+        p: P,
+        config: &XLNetConfig,
+    ) -> Result<XLNetForQuestionAnswering, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let base_model = XLNetModel::new(p / "transformer", config);
+        let qa_outputs = nn::linear(p / "qa_outputs", config.d_model, 2, Default::default());
+
+        Ok(XLNetForQuestionAnswering {
+            base_model,
+            qa_outputs,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<Option<LayerState>>>,
+        perm_mask: Option<&Tensor>,
+        target_mapping: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        train: bool,
+    ) -> Result<XLNetQuestionAnsweringOutput, RustBertError> {
+        let base_model_output = self.base_model.forward_t(
+            input_ids,
+            attention_mask,
+            old_layer_states,
+            perm_mask,
+            target_mapping,
+            token_type_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
+        let logits = sequence_output.split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze1(-1);
+        let end_logits = end_logits.squeeze1(-1);
+
+        Ok(XLNetQuestionAnsweringOutput {
+            start_logits,
+            end_logits,
+            next_cache: base_model_output.next_cache,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
+    }
+}
+
+/// Container for the XLNet model output.
+pub struct XLNetModelOutput {
+    /// Last hidden states from the model
+    pub hidden_state: Tensor,
+    /// Cached hiden layer states for generation tasks
+    pub next_cache: Option<Vec<Option<LayerState>>>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<(Tensor, Option<Tensor>)>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<(Tensor, Tensor)>>,
+}
+
+/// Container for the XLNet sequence classification model output.
+pub struct XLNetSequenceClassificationOutput {
+    /// Last hidden states from the model
+    pub logits: Tensor,
+    /// Cached hiden layer states for generation tasks
+    pub next_cache: Option<Vec<Option<LayerState>>>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<(Tensor, Option<Tensor>)>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<(Tensor, Tensor)>>,
+}
+
+/// Container for the XLNet token classification model output.
+pub struct XLNetTokenClassificationOutput {
+    /// Last hidden states from the model
+    pub logits: Tensor,
+    /// Cached hiden layer states for generation tasks
+    pub next_cache: Option<Vec<Option<LayerState>>>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<(Tensor, Option<Tensor>)>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<(Tensor, Tensor)>>,
+}
+
+/// Container for the XLNet question answering model output.
+pub struct XLNetQuestionAnsweringOutput {
+    /// Logits for the start position for token of each input sequence
+    pub start_logits: Tensor,
+    /// Logits for the end position for token of each input sequence
+    pub end_logits: Tensor,
+    /// Cached hiden layer states for generation tasks
+    pub next_cache: Option<Vec<Option<LayerState>>>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<(Tensor, Option<Tensor>)>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<(Tensor, Tensor)>>,
 }

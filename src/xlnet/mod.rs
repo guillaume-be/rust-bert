@@ -4,6 +4,7 @@ mod xlnet;
 
 pub use attention::LayerState;
 pub use xlnet::{
-    XLNetConfig, XLNetConfigResources, XLNetLMHeadModel, XLNetModel, XLNetModelResources,
-    XLNetVocabResources,
+    XLNetConfig, XLNetConfigResources, XLNetForMultipleChoice, XLNetForQuestionAnswering,
+    XLNetForSequenceClassification, XLNetForTokenClassification, XLNetLMHeadModel, XLNetModel,
+    XLNetModelResources, XLNetVocabResources,
 };
