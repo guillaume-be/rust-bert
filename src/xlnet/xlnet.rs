@@ -705,29 +705,32 @@ impl XLNetForSequenceClassification {
         token_type_ids: Option<&Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<XLNetSequenceClassificationOutput, RustBertError> {
-        let base_model_output = self.base_model.forward_t(
-            input_ids,
-            attention_mask,
-            old_layer_states,
-            perm_mask,
-            target_mapping,
-            token_type_ids,
-            input_embeds,
-            train,
-        )?;
+    ) -> XLNetSequenceClassificationOutput {
+        let base_model_output = self
+            .base_model
+            .forward_t(
+                input_ids,
+                attention_mask,
+                old_layer_states,
+                perm_mask,
+                target_mapping,
+                token_type_ids,
+                input_embeds,
+                train,
+            )
+            .unwrap();
 
         let logits = self
             .sequence_summary
             .forward_t(&base_model_output.hidden_state, None, train)
             .apply(&self.logits_proj);
 
-        Ok(XLNetSequenceClassificationOutput {
+        XLNetSequenceClassificationOutput {
             logits,
             next_cache: base_model_output.next_cache,
             all_hidden_states: base_model_output.all_hidden_states,
             all_attentions: base_model_output.all_attentions,
-        })
+        }
     }
 }
 
@@ -776,26 +779,29 @@ impl XLNetForTokenClassification {
         token_type_ids: Option<&Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<XLNetTokenClassificationOutput, RustBertError> {
-        let base_model_output = self.base_model.forward_t(
-            input_ids,
-            attention_mask,
-            old_layer_states,
-            perm_mask,
-            target_mapping,
-            token_type_ids,
-            input_embeds,
-            train,
-        )?;
+    ) -> XLNetTokenClassificationOutput {
+        let base_model_output = self
+            .base_model
+            .forward_t(
+                input_ids,
+                attention_mask,
+                old_layer_states,
+                perm_mask,
+                target_mapping,
+                token_type_ids,
+                input_embeds,
+                train,
+            )
+            .unwrap();
 
         let logits = base_model_output.hidden_state.apply(&self.classifier);
 
-        Ok(XLNetTokenClassificationOutput {
+        XLNetTokenClassificationOutput {
             logits,
             next_cache: base_model_output.next_cache,
             all_hidden_states: base_model_output.all_hidden_states,
             all_attentions: base_model_output.all_attentions,
-        })
+        }
     }
 }
 
@@ -838,7 +844,7 @@ impl XLNetForMultipleChoice {
         token_type_ids: Option<&Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<XLNetSequenceClassificationOutput, RustBertError> {
+    ) -> XLNetSequenceClassificationOutput {
         let (input_ids, num_choices) = match input_ids {
             Some(value) => (
                 Some(value.view((-1, *value.size().last().unwrap()))),
@@ -865,16 +871,19 @@ impl XLNetForMultipleChoice {
             Some(value) => Some(value.view((-1, value.size()[1], value.size()[2]))),
             None => None,
         };
-        let base_model_output = self.base_model.forward_t(
-            input_ids.as_ref(),
-            attention_mask.as_ref(),
-            old_layer_states,
-            perm_mask,
-            target_mapping,
-            token_type_ids.as_ref(),
-            input_embeds,
-            train,
-        )?;
+        let base_model_output = self
+            .base_model
+            .forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                old_layer_states,
+                perm_mask,
+                target_mapping,
+                token_type_ids.as_ref(),
+                input_embeds,
+                train,
+            )
+            .unwrap();
 
         let logits = self
             .sequence_summary
@@ -882,12 +891,12 @@ impl XLNetForMultipleChoice {
             .apply(&self.logits_proj)
             .view((-1, num_choices));
 
-        Ok(XLNetSequenceClassificationOutput {
+        XLNetSequenceClassificationOutput {
             logits,
             next_cache: base_model_output.next_cache,
             all_hidden_states: base_model_output.all_hidden_states,
             all_attentions: base_model_output.all_attentions,
-        })
+        }
     }
 }
 
@@ -925,17 +934,20 @@ impl XLNetForQuestionAnswering {
         token_type_ids: Option<&Tensor>,
         input_embeds: Option<Tensor>,
         train: bool,
-    ) -> Result<XLNetQuestionAnsweringOutput, RustBertError> {
-        let base_model_output = self.base_model.forward_t(
-            input_ids,
-            attention_mask,
-            old_layer_states,
-            perm_mask,
-            target_mapping,
-            token_type_ids,
-            input_embeds,
-            train,
-        )?;
+    ) -> XLNetQuestionAnsweringOutput {
+        let base_model_output = self
+            .base_model
+            .forward_t(
+                input_ids,
+                attention_mask,
+                old_layer_states,
+                perm_mask,
+                target_mapping,
+                token_type_ids,
+                input_embeds,
+                train,
+            )
+            .unwrap();
 
         let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);
@@ -943,13 +955,13 @@ impl XLNetForQuestionAnswering {
         let start_logits = start_logits.squeeze1(-1);
         let end_logits = end_logits.squeeze1(-1);
 
-        Ok(XLNetQuestionAnsweringOutput {
+        XLNetQuestionAnsweringOutput {
             start_logits,
             end_logits,
             next_cache: base_model_output.next_cache,
             all_hidden_states: base_model_output.all_hidden_states,
             all_attentions: base_model_output.all_attentions,
-        })
+        }
     }
 }
 
