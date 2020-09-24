@@ -1,28 +1,16 @@
-// Copyright 2018 Google AI and Google Brain team.
-// Copyright 2018 Carnegie Mellon University Authors.
-// Copyright 2020-present, the HuggingFace Inc. team.
-// Copyright 2020 Guillaume Becquin
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-extern crate anyhow;
-
+use rust_bert::pipelines::generation::{GenerateConfig, LanguageGenerator, XLNetGenerator};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::xlnet::{
-    XLNetConfig, XLNetConfigResources, XLNetLMHeadModel, XLNetModelResources, XLNetVocabResources,
+    XLNetConfig, XLNetConfigResources, XLNetForSequenceClassification, XLNetLMHeadModel,
+    XLNetModelResources, XLNetVocabResources,
 };
 use rust_bert::Config;
 use rust_tokenizers::{Tokenizer, TruncationStrategy, Vocab, XLNetTokenizer};
+use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Kind, Tensor};
 
-fn main() -> anyhow::Result<()> {
+#[test]
+fn xlnet_lm_model() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,
@@ -87,13 +75,55 @@ fn main() -> anyhow::Result<()> {
             .unwrap()
     });
 
-    let index_1 = model_output
-        .lm_logits
-        .get(0)
-        .argmax(1, false)
-        .int64_value(&[]);
-    let score_1 = model_output.lm_logits.double_value(&[0, 0, index_1]);
-    let word_1 = tokenizer.vocab().id_to_token(&index_1);
-    println!("{}, {}, {}", index_1, score_1, word_1);
+    let index_1 = model_output.lm_logits.get(0).argmax(1, false);
+    let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
+
+    println!("{}", word_1);
+    assert_eq!(model_output.lm_logits.size(), vec!(1, 1, 32000));
+    assert!((model_output.lm_logits.double_value(&[0, 0, 139]) - -5.3240).abs() < 1e-4);
+    Ok(())
+}
+
+#[test]
+fn xlnet_generation_beam_search() -> anyhow::Result<()> {
+    //    Set-up masked LM model
+    //    Set-up masked LM model
+    //    Resources paths
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        XLNetConfigResources::XLNET_BASE_CASED,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        XLNetVocabResources::XLNET_BASE_CASED,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        XLNetVocabResources::XLNET_BASE_CASED,
+    ));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        XLNetModelResources::XLNET_BASE_CASED,
+    ));
+
+    let generate_config = GenerateConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        max_length: 32,
+        do_sample: false,
+        num_beams: 3,
+        temperature: 1.0,
+        num_return_sequences: 1,
+        ..Default::default()
+    };
+    let model = XLNetGenerator::new(generate_config)?;
+
+    let input_context = "Once upon a time,";
+    let output = model.generate(Some(vec![input_context]), None);
+
+    assert_eq!(output.len(), 1);
+    assert_eq!(
+        output[0],
+        " Once upon a time, there was a time when there was only one man in the world who could do all the things he wanted to do. There was no one who"
+    );
+
     Ok(())
 }
