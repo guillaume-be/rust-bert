@@ -614,7 +614,7 @@ impl TranslationModel {
             Some(value) => {
                 let texts = texts
                     .iter()
-                    .map(|&v| format!("{} {}", value, v))
+                    .map(|&v| format!("{}{}", value, v))
                     .collect::<Vec<String>>();
                 self.model
                     .generate(Some(texts.iter().map(AsRef::as_ref).collect()), None)

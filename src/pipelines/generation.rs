@@ -1284,6 +1284,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
             .into_iter()
             .map(|mut input| {
                 let temp = vec![pad_token; max_len - input.len()];
+                input.push(self.eos_token_ids.as_ref().unwrap()[0]);
                 input.extend(temp);
                 input
             })
@@ -1299,10 +1300,10 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
         encoder_outputs: Option<Tensor>,
         beam_indices: &Tensor,
     ) -> Option<Tensor> {
-        let encoder_outputs = match encoder_outputs {
-            Some(value) => Some(value.index_select(0, beam_indices)),
-            None => None,
-        };
+        // let encoder_outputs = match encoder_outputs {
+        //     Some(value) => Some(value.index_select(0, beam_indices)),
+        //     None => None,
+        // };
         match past {
             Cache::T5Cache(old_cache_option) => match old_cache_option {
                 Some(old_cache) => {
@@ -1345,7 +1346,6 @@ pub enum Cache {
 pub(crate) mod private_generation_utils {
     use super::ordered_float::OrderedFloat;
     use crate::pipelines::generation::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
-    use itertools::Itertools;
     use rust_tokenizers::preprocessing::tokenizer::tokenization_utils::truncate_sequences;
     use rust_tokenizers::{Tokenizer, TruncationStrategy, Vocab};
     use std::cmp::{max, min};
@@ -1865,7 +1865,6 @@ pub(crate) mod private_generation_utils {
                 past = temp.cache;
 
                 let mut next_token_logits = outputs.select(1, -1);
-
                 //            Reduce probability for repeated inputs
                 if gen_opt.repetition_penalty > 1f64 {
                     self.enforce_repetition_penalty(
@@ -1881,6 +1880,7 @@ pub(crate) mod private_generation_utils {
                     next_token_logits /= gen_opt.temperature;
                 }
                 let mut scores = next_token_logits.log_softmax(-1, Float);
+
                 if self.is_encoder_decoder() & !gen_opt.do_sample {
                     self.prepare_scores_for_generation(
                         &mut scores,
@@ -1915,7 +1915,6 @@ pub(crate) mod private_generation_utils {
                         );
                     }
                 }
-
                 let (next_scores, next_tokens) = if gen_opt.do_sample {
                     let mut _scores: Tensor =
                         &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
@@ -1938,77 +1937,55 @@ pub(crate) mod private_generation_utils {
                         .view((batch_size, gen_opt.num_beams * vocab_size));
                     next_scores.topk(2 * gen_opt.num_beams, 1, true, true)
                 };
-
                 let mut next_batch_beam: Vec<(f64, i64, i64)> = vec![];
+                let done_hyp = (0..gen_opt.num_beams)
+                    .map(|_| (0f64, gen_opt.pad_token_id.unwrap(), 0i64))
+                    .collect::<Vec<(f64, i64, i64)>>();
+                let eos_token_ids = gen_opt.eos_token_ids.as_ref();
+                let beam_ids_tensor = &next_tokens.floor_divide1(vocab_size);
+                let token_id_tensor = &next_tokens - beam_ids_tensor * vocab_size;
+                let (max_scores, _) = next_scores.max2(1, false);
                 for batch_index in 0..batch_size {
                     if done[batch_index as usize] {
-                        assert!(
-                            hypotheses[batch_index as usize].len() >= gen_opt.num_beams,
-                            "Batch cannot be completed if all beams have not been generated"
-                        );
-                        assert!(
-                            gen_opt.eos_token_ids.is_some() & gen_opt.pad_token_id.is_some(),
-                            "EOS and Padding tokens need to be defined if the number of generated \
-                             beams is greater than the target number fo beams"
-                        );
-                        next_batch_beam.append(
-                            &mut (0..gen_opt.num_beams)
-                                .map(|_| (0f64, gen_opt.pad_token_id.unwrap(), 0i64))
-                                .collect::<Vec<(f64, i64, i64)>>(),
-                        );
+                        next_batch_beam.append(&mut done_hyp.clone());
                         continue;
                     }
 
                     let mut next_sentence_beam: Vec<(f64, i64, i64)> = vec![];
 
-                    let mut beam_token_rank = 0;
-                    let beam_token_rank_max_value =
-                        *next_tokens.get(batch_index).size().first().unwrap() - 1;
-                    loop {
-                        let beam_token_id =
-                            next_tokens.int64_value(&[batch_index, beam_token_rank]);
-                        let beam_token_score =
-                            next_scores.double_value(&[batch_index, beam_token_rank]);
-                        let beam_id = beam_token_id / vocab_size;
-                        let token_id = beam_token_id % vocab_size;
-
+                    let beam_ids: Vec<i64> = Vec::from(&beam_ids_tensor.get(batch_index));
+                    let token_ids: Vec<i64> = Vec::from(&token_id_tensor.get(batch_index));
+                    let beam_token_scores: Vec<f64> = Vec::from(next_scores.get(batch_index));
+                    for (beam_token_rank, (beam_id, (token_id, beam_token_score))) in beam_ids
+                        .into_iter()
+                        .zip(token_ids.into_iter().zip(beam_token_scores.into_iter()))
+                        .enumerate()
+                    {
                         let effective_beam_id = batch_index * gen_opt.num_beams + beam_id;
 
-                        if gen_opt.eos_token_ids.as_ref().is_some() {
-                            if gen_opt.eos_token_ids.as_ref().unwrap().contains(&token_id) {
-                                if beam_token_rank >= gen_opt.num_beams {
-                                    beam_token_rank += 1;
+                        match eos_token_ids {
+                            Some(value) if value[0] == token_id => {
+                                if beam_token_rank as i64 >= gen_opt.num_beams {
                                     continue;
-                                }
+                                };
                                 hypotheses[batch_index as usize]
-                                    .add(input_ids.get(effective_beam_id).copy(), beam_token_score)
-                            } else {
+                                    .add(input_ids.get(effective_beam_id).copy(), beam_token_score);
+                            }
+                            _ => {
                                 next_sentence_beam.push((
                                     beam_token_score,
                                     token_id,
                                     effective_beam_id,
                                 ));
                             }
-                        } else {
-                            next_sentence_beam.push((
-                                beam_token_score,
-                                token_id,
-                                effective_beam_id,
-                            ));
                         }
-
-                        if (next_sentence_beam.len() as i64 == gen_opt.num_beams)
-                            | (beam_token_rank == beam_token_rank_max_value)
-                        {
+                        if next_sentence_beam.len() as i64 == gen_opt.num_beams {
                             break;
                         }
-                        beam_token_rank += 1;
                     }
 
-                    done[batch_index as usize] |= hypotheses[batch_index as usize].is_done(
-                        f64::from(next_scores.get(batch_index).max()),
-                        current_length,
-                    );
+                    done[batch_index as usize] |= hypotheses[batch_index as usize]
+                        .is_done(max_scores.double_value(&[batch_index]), current_length);
 
                     assert_eq!(
                         next_sentence_beam.len() as i64,
@@ -2017,31 +1994,21 @@ pub(crate) mod private_generation_utils {
                     );
                     next_batch_beam.append(&mut next_sentence_beam);
                 }
+
                 if done.iter().all(|&x| x) {
                     break;
                 }
-
-                beam_scores = Tensor::of_slice(
-                    &next_batch_beam
-                        .iter()
-                        .map(|(score, _, _)| *score)
-                        .collect_vec(),
-                )
-                .to(input_ids.device());
-                beam_tokens = Tensor::of_slice(
-                    &next_batch_beam
-                        .iter()
-                        .map(|(_, token, _)| *token)
-                        .collect_vec(),
-                )
-                .to(input_ids.device());
-                beam_indices = Tensor::of_slice(
-                    &next_batch_beam
-                        .iter()
-                        .map(|(_, _, index)| *index)
-                        .collect_vec(),
-                )
-                .to(input_ids.device());
+                let mut beam_scores_values = Vec::with_capacity(next_batch_beam.len());
+                let mut beam_tokens_values = Vec::with_capacity(next_batch_beam.len());
+                let mut beam_indices_values = Vec::with_capacity(next_batch_beam.len());
+                for (score, token, index) in next_batch_beam {
+                    beam_scores_values.push(score);
+                    beam_tokens_values.push(token);
+                    beam_indices_values.push(index);
+                }
+                beam_scores = Tensor::of_slice(&beam_scores_values).to(input_ids.device());
+                beam_tokens = Tensor::of_slice(&beam_tokens_values).to(input_ids.device());
+                beam_indices = Tensor::of_slice(&beam_indices_values).to(input_ids.device());
 
                 input_ids = input_ids.index_select(0, &beam_indices);
                 input_ids = Tensor::cat(&[input_ids, beam_tokens.unsqueeze(1)], -1);
@@ -2486,7 +2453,7 @@ impl BeamHypotheses {
             early_stopping,
             num_beams,
             beams: Vec::with_capacity(num_beams as usize + 1),
-            worst_score: std::f64::INFINITY,
+            worst_score: 1e9f64,
         }
     }
 

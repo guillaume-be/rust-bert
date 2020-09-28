@@ -206,12 +206,12 @@ impl MarianSpmResources {
 }
 
 impl MarianPrefix {
-    pub const ENGLISH2FRENCH: Option<&'static str> = Some(">>fr<<");
-    pub const ENGLISH2CATALAN: Option<&'static str> = Some(">>ca<<");
-    pub const ENGLISH2SPANISH: Option<&'static str> = Some(">>es<<");
-    pub const ENGLISH2PORTUGUESE: Option<&'static str> = Some(">>pt<<");
-    pub const ENGLISH2ITALIAN: Option<&'static str> = Some(">>it<<");
-    pub const ENGLISH2ROMANIAN: Option<&'static str> = Some(">>ro<<");
+    pub const ENGLISH2FRENCH: Option<&'static str> = Some(">>fr<< ");
+    pub const ENGLISH2CATALAN: Option<&'static str> = Some(">>ca<< ");
+    pub const ENGLISH2SPANISH: Option<&'static str> = Some(">>es<< ");
+    pub const ENGLISH2PORTUGUESE: Option<&'static str> = Some(">>pt<< ");
+    pub const ENGLISH2ITALIAN: Option<&'static str> = Some(">>it<< ");
+    pub const ENGLISH2ROMANIAN: Option<&'static str> = Some(">>ro<< ");
     pub const ENGLISH2GERMAN: Option<&'static str> = None;
     pub const ENGLISH2RUSSIAN: Option<&'static str> = None;
     pub const FRENCH2ENGLISH: Option<&'static str> = None;
