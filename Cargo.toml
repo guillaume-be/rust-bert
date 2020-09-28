@@ -22,6 +22,29 @@ name = "convert-tensor"
 path = "src/convert-tensor.rs"
 doc = false
 
+[[bench]]
+name = "sst2_benchmark"
+harness = false
+
+[[bench]]
+name = "squad_benchmark"
+harness = false
+
+[[bench]]
+name = "summarization_benchmark"
+harness = false
+
+[[bench]]
+name = "translation_benchmark"
+harness = false
+
+[[bench]]
+name = "tensor_operations_benchmark"
+harness = false
+
+[profile.bench]
+opt-level = 3
+
 [features]
 doc-only = ["tch/doc-only"]
 all-tests = []
