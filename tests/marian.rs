@@ -2,7 +2,7 @@ use rust_bert::pipelines::translation::{Language, TranslationConfig, Translation
 use tch::Device;
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
+// #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn test_translation() -> anyhow::Result<()> {
     //    Set-up translation model
     let translation_config = TranslationConfig::new(Language::EnglishToFrench, Device::Cpu);
@@ -18,7 +18,7 @@ fn test_translation() -> anyhow::Result<()> {
         output[0],
         " Le rapide renard brun saute sur le chien paresseux"
     );
-    assert_eq!(output[1], " Le chien ne s'est pas réveillé.");
+    assert_eq!(output[1], " Le chien ne s'est pas réveillé");
 
     Ok(())
 }

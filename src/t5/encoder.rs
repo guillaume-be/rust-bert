@@ -343,7 +343,7 @@ impl T5Stack {
         };
 
         let extended_attention_mask: Option<Tensor> =
-            Some((extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0);
+            Some((extended_attention_mask.ones_like() - extended_attention_mask) * -1e9);
 
         let extended_encoder_attention_mask = if self.is_decoder & encoder_hidden_states.is_some() {
             let encoder_hidden_states = encoder_hidden_states.as_ref().unwrap();
@@ -355,7 +355,7 @@ impl T5Stack {
                         encoder_hidden_states_shape[0],
                         encoder_hidden_states_shape[1],
                     ],
-                    (Kind::Int64, input_embeddings.device()),
+                    (Kind::Int8, input_embeddings.device()),
                 ),
             };
             let encoder_mask = match encoder_mask.dim() {
