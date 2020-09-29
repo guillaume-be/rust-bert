@@ -377,7 +377,7 @@ impl TranslationConfig {
             min_length: 0,
             max_length: 512,
             do_sample: false,
-            early_stopping: false,
+            early_stopping: true,
             num_beams: 6,
             temperature: 1.0,
             top_k: 50,
@@ -454,7 +454,7 @@ impl TranslationConfig {
             min_length: 0,
             max_length: 512,
             do_sample: false,
-            early_stopping: false,
+            early_stopping: true,
             num_beams: 6,
             temperature: 1.0,
             top_k: 50,
@@ -617,7 +617,7 @@ impl TranslationModel {
             Some(value) => {
                 let texts = texts
                     .iter()
-                    .map(|&v| format!("{} {}", value, v))
+                    .map(|&v| format!("{}{}", value, v))
                     .collect::<Vec<String>>();
                 self.model
                     .generate(Some(texts.iter().map(AsRef::as_ref).collect()), None)

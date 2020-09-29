@@ -12,13 +12,13 @@ fn test_translation_t5() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL)),
         Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL)),
         Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL)),
-        Some("translate English to French: ".to_string()),
+        Some("translate English to French:".to_string()),
         Device::cuda_if_available(),
         ModelType::T5,
     );
     let model = TranslationModel::new(translation_config)?;
 
-    let input_context = "The quick brown fox jumps over the lazy dog";
+    let input_context = "The quick brown fox jumps over the lazy dog.";
 
     let output = model.translate(&[input_context]);
 
