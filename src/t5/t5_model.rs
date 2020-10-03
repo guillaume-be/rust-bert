@@ -324,28 +324,6 @@ impl T5Model {
                 )
                 .unwrap(),
         };
-        let (calculated_decoder_input_ids, calculated_decoder_input_embeds) =
-            if old_layer_states.is_some() {
-                let decoder_input_ids = match decoder_input_ids {
-                    Some(value) => Some(value.narrow(1, -1, 1)),
-                    None => None,
-                };
-                let decoder_input_embeds = match &decoder_input_embeds {
-                    Some(value) => Some(value.narrow(1, -1, 1)),
-                    None => None,
-                };
-                (decoder_input_ids, decoder_input_embeds)
-            } else {
-                (None, None)
-            };
-        let (decoder_input_ids, decoder_input_embeds) = if old_layer_states.is_some() {
-            (
-                calculated_decoder_input_ids.as_ref(),
-                calculated_decoder_input_embeds,
-            )
-        } else {
-            (decoder_input_ids, decoder_input_embeds)
-        };
 
         let decoder_output = self
             .decoder

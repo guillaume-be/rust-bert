@@ -46,6 +46,7 @@ impl LayerState {
 #[derive(Debug)]
 pub struct T5Attention {
     is_decoder: bool,
+    is_bidirectional: bool,
     has_relative_attention_bias: bool,
     relative_attention_num_buckets: i64,
     d_model: i64,
@@ -67,6 +68,7 @@ impl T5Attention {
         p: P,
         config: &T5Config,
         is_decoder: bool,
+        is_bidirectional: bool,
         store_cache: bool,
         output_attentions: bool,
         has_relative_attention_bias: bool,
@@ -101,6 +103,7 @@ impl T5Attention {
 
         T5Attention {
             is_decoder,
+            is_bidirectional,
             has_relative_attention_bias,
             relative_attention_num_buckets: config.relative_attention_num_buckets,
             d_model: config.d_model,
@@ -275,7 +278,7 @@ impl T5Attention {
 
         let rp_bucket = self.get_relative_position_bucket(
             &relative_position,
-            !self.is_decoder,
+            self.is_bidirectional,
             self.relative_attention_num_buckets,
             128,
         );
@@ -310,6 +313,7 @@ impl T5LayerSelfAttention {
             p / "SelfAttention",
             config,
             is_decoder,
+            !is_decoder,
             store_cache,
             output_attentions,
             has_relative_attention_bias,
@@ -375,6 +379,7 @@ impl T5LayerCrossAttention {
             p / "EncDecAttention",
             config,
             is_decoder,
+            true,
             store_cache,
             output_attentions,
             has_relative_attention_bias,

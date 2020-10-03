@@ -1239,7 +1239,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
                 None,
                 Some(attention_mask),
                 encoder_outputs,
-                Some(input_ids),
+                Some(input_ids.narrow(1, -1, 1)),
                 Cache::T5Cache(past),
             ),
             Cache::None => (
