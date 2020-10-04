@@ -40,11 +40,7 @@ impl MultiHeadSelfAttention {
         let out_lin = nn::linear(p / "out_lin", config.dim, config.dim, Default::default());
 
         let dropout = Dropout::new(config.attention_dropout);
-
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
 
         MultiHeadSelfAttention {
             n_heads: config.n_heads,

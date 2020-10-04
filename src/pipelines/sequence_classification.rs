@@ -68,6 +68,7 @@ use crate::distilbert::{
 };
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForSequenceClassification;
+use crate::xlnet::XLNetForSequenceClassification;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
     TokenizedInput, TruncationStrategy,
 };
@@ -184,6 +185,8 @@ pub enum SequenceClassificationOption {
     XLMRoberta(RobertaForSequenceClassification),
     /// Albert for Sequence Classification
     Albert(AlbertForSequenceClassification),
+    /// XLNet for Sequence Classification
+    XLNet(XLNetForSequenceClassification),
     /// Bart for Sequence Classification
     Bart(BartForSequenceClassification),
 }
@@ -247,6 +250,15 @@ impl SequenceClassificationOption {
                     panic!("You can only supply an AlbertConfig for Albert!");
                 }
             }
+            ModelType::XLNet => {
+                if let ConfigOption::XLNet(config) = config {
+                    SequenceClassificationOption::XLNet(
+                        XLNetForSequenceClassification::new(p, config).unwrap(),
+                    )
+                } else {
+                    panic!("You can only supply an XLNetConfig for XLNet!");
+                }
+            }
             ModelType::Bart => {
                 if let ConfigOption::Bart(config) = config {
                     SequenceClassificationOption::Bart(BartForSequenceClassification::new(
@@ -276,6 +288,7 @@ impl SequenceClassificationOption {
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::Albert(_) => ModelType::Albert,
+            Self::XLNet(_) => ModelType::XLNet,
             Self::Bart(_) => ModelType::Bart,
         }
     }
@@ -340,6 +353,20 @@ impl SequenceClassificationOption {
                         mask,
                         token_type_ids,
                         position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .logits
+            }
+            Self::XLNet(ref model) => {
+                model
+                    .forward_t(
+                        input_ids.as_ref(),
+                        mask.as_ref(),
+                        None,
+                        None,
+                        None,
+                        token_type_ids.as_ref(),
                         input_embeds,
                         train,
                     )

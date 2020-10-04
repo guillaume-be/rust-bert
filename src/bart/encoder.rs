@@ -12,12 +12,11 @@
 // limitations under the License.
 
 use crate::bart::attention::SelfAttention;
-use crate::bart::bart_model::Activation;
 use crate::bart::embeddings::{
     EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
 };
 use crate::bart::BartConfig;
-use crate::common::activations::{_gelu, _gelu_new, _relu, _swish, _tanh};
+use crate::common::activations::{Activation, TensorFunction};
 use crate::common::dropout::Dropout;
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Bool;
@@ -28,7 +27,7 @@ pub struct EncoderLayer {
     self_attention_layer_norm: nn::LayerNorm,
     dropout: Dropout,
     activation_dropout: Dropout,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
     fc1: nn::Linear,
     fc2: nn::Linear,
     final_layer_norm: nn::LayerNorm,
@@ -45,10 +44,7 @@ impl EncoderLayer {
             eps: 1e-5,
             ..Default::default()
         };
-        let output_attention = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attention = config.output_attentions.unwrap_or(false);
         let self_attention = SelfAttention::new(
             p / "self_attn",
             config.d_model,
@@ -69,13 +65,7 @@ impl EncoderLayer {
             Some(act_function) => act_function,
             None => &Activation::gelu,
         };
-        let activation = Box::new(match activation_function {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::swish => _swish,
-            Activation::gelu_new => _gelu_new,
-            Activation::tanh => _tanh,
-        });
+        let activation = activation_function.get_function();
         let fc1 = nn::linear(
             p / "fc1",
             config.d_model,
@@ -146,22 +136,10 @@ impl BartEncoder {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
-        let normalize_embedding = match config.normalize_embedding {
-            Some(value) => value,
-            None => true,
-        };
-        let static_position_embeddings = match config.static_position_embeddings {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
+        let normalize_embedding = config.normalize_embedding.unwrap_or(true);
+        let static_position_embeddings = config.static_position_embeddings.unwrap_or(false);
         let scale_embedding = match config.scale_embedding {
             Some(value) => {
                 if value {
@@ -189,10 +167,7 @@ impl BartEncoder {
             None
         };
 
-        let pad_token_id = match config.pad_token_id {
-            Some(value) => value,
-            None => 1,
-        };
+        let pad_token_id = config.pad_token_id.unwrap_or(1);
 
         let embed_positions = if static_position_embeddings {
             EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(

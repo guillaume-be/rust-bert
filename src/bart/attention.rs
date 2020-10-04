@@ -133,15 +133,14 @@ impl SelfAttention {
             target_sequence_length,
             bs,
         );
-        let key = match &layer_state {
-            Some(_) => {
-                if self.encoder_decoder_attention {
-                    None
-                } else {
-                    key
-                }
+        let key = if layer_state.is_some() {
+            if self.encoder_decoder_attention {
+                None
+            } else {
+                key
             }
-            None => key,
+        } else {
+            key
         };
 
         let (k, v) = if self.encoder_decoder_attention {

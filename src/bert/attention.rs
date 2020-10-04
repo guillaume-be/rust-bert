@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bert::bert_model::{Activation, BertConfig};
-use crate::common::activations::{_gelu, _mish, _relu};
+use crate::bert::bert_model::BertConfig;
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
 use tch::kind::Kind::Float;
@@ -223,7 +223,7 @@ impl BertAttention {
 
 pub struct BertIntermediate {
     lin: nn::Linear,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 impl BertIntermediate {
@@ -239,11 +239,7 @@ impl BertIntermediate {
             config.intermediate_size,
             Default::default(),
         );
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
         BertIntermediate { lin, activation }
     }
 

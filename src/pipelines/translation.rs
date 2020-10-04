@@ -522,6 +522,9 @@ impl TranslationOption {
             ModelType::Albert => {
                 panic!("Translation not implemented for Albert!");
             }
+            ModelType::XLNet => {
+                panic!("Translation not implemented for XLNet!");
+            }
             ModelType::Bart => {
                 panic!("Translation not implemented for BART!");
             }

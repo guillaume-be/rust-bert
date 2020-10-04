@@ -121,6 +121,7 @@ use crate::distilbert::DistilBertForTokenClassification;
 use crate::electra::ElectraForTokenClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForTokenClassification;
+use crate::xlnet::XLNetForTokenClassification;
 use itertools::Itertools;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
     ConsolidatableTokens, ConsolidatedTokenIterator, Mask, Offset, TokenTrait, TokenizedInput,
@@ -298,6 +299,8 @@ pub enum TokenClassificationOption {
     Electra(ElectraForTokenClassification),
     /// Albert for Token Classification
     Albert(AlbertForTokenClassification),
+    /// XLNet for Token Classification
+    XLNet(XLNetForTokenClassification),
 }
 
 impl TokenClassificationOption {
@@ -364,6 +367,15 @@ impl TokenClassificationOption {
                     panic!("You can only supply an AlbertConfig for Albert!");
                 }
             }
+            ModelType::XLNet => {
+                if let ConfigOption::XLNet(config) = config {
+                    TokenClassificationOption::XLNet(
+                        XLNetForTokenClassification::new(p, config).unwrap(),
+                    )
+                } else {
+                    panic!("You can only supply an AlbertConfig for Albert!");
+                }
+            }
             ModelType::Marian => {
                 panic!("TokenClassification not implemented for Marian!");
             }
@@ -385,6 +397,7 @@ impl TokenClassificationOption {
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::Electra(_) => ModelType::Electra,
             Self::Albert(_) => ModelType::Albert,
+            Self::XLNet(_) => ModelType::XLNet,
         }
     }
 
@@ -447,6 +460,20 @@ impl TokenClassificationOption {
                         mask,
                         token_type_ids,
                         position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .logits
+            }
+            Self::XLNet(ref model) => {
+                model
+                    .forward_t(
+                        input_ids.as_ref(),
+                        mask.as_ref(),
+                        None,
+                        None,
+                        None,
+                        token_type_ids.as_ref(),
                         input_embeds,
                         train,
                     )
@@ -658,6 +685,9 @@ impl TokenClassificationModel {
                     Tokenizer::decode(tokenizer, vec![token_id], false, false)
                 }
                 TokenizerOption::Albert(ref tokenizer) => {
+                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                }
+                TokenizerOption::XLNet(ref tokenizer) => {
                     Tokenizer::decode(tokenizer, vec![token_id], false, false)
                 }
                 TokenizerOption::Marian(_) => {

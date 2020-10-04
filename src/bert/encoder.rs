@@ -106,16 +106,8 @@ impl BertEncoder {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow() / "layer";
-        let output_attentions = if let Some(value) = config.output_attentions {
-            value
-        } else {
-            false
-        };
-        let output_hidden_states = if let Some(value) = config.output_hidden_states {
-            value
-        } else {
-            false
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
 
         let mut layers: Vec<BertLayer> = vec![];
         for layer_index in 0..config.num_hidden_layers {

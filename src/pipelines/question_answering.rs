@@ -53,6 +53,7 @@ use crate::distilbert::{
 };
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForQuestionAnswering;
+use crate::xlnet::XLNetForQuestionAnswering;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Mask;
 use rust_tokenizers::tokenization_utils::truncate_sequences;
 use rust_tokenizers::{TokenizedInput, TruncationStrategy};
@@ -266,6 +267,8 @@ pub enum QuestionAnsweringOption {
     XLMRoberta(RobertaForQuestionAnswering),
     /// Albert for Question Answering
     Albert(AlbertForQuestionAnswering),
+    /// XLNet for Question Answering
+    XLNet(XLNetForQuestionAnswering),
 }
 
 impl QuestionAnsweringOption {
@@ -319,6 +322,15 @@ impl QuestionAnsweringOption {
                     panic!("You can only supply an AlbertConfig for Albert!");
                 }
             }
+            ModelType::XLNet => {
+                if let ConfigOption::XLNet(config) = config {
+                    QuestionAnsweringOption::XLNet(
+                        XLNetForQuestionAnswering::new(p, config).unwrap(),
+                    )
+                } else {
+                    panic!("You can only supply a XLNetConfig for XLNet!");
+                }
+            }
             ModelType::Electra => {
                 panic!("QuestionAnswering not implemented for Electra!");
             }
@@ -342,6 +354,7 @@ impl QuestionAnsweringOption {
             Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::Albert(_) => ModelType::Albert,
+            Self::XLNet(_) => ModelType::XLNet,
         }
     }
 
@@ -370,6 +383,19 @@ impl QuestionAnsweringOption {
             }
             Self::Albert(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
+                (outputs.start_logits, outputs.end_logits)
+            }
+            Self::XLNet(ref model) => {
+                let outputs = model.forward_t(
+                    input_ids.as_ref(),
+                    mask.as_ref(),
+                    None,
+                    None,
+                    None,
+                    None,
+                    input_embeds,
+                    train,
+                );
                 (outputs.start_logits, outputs.end_logits)
             }
         }

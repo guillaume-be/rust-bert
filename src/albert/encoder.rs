@@ -11,10 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::albert::albert_model::Activation;
 use crate::albert::attention::AlbertSelfAttention;
 use crate::albert::AlbertConfig;
-use crate::common::activations::{_gelu, _gelu_new, _mish, _relu};
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
@@ -35,10 +33,7 @@ impl AlbertLayer {
 
         let attention = AlbertSelfAttention::new(p / "attention", &config);
 
-        let layer_norm_eps = match config.layer_norm_eps {
-            Some(value) => value,
-            None => 1e-12,
-        };
+        let layer_norm_eps = config.layer_norm_eps.unwrap_or(1e-12);
         let layer_norm_config = nn::LayerNormConfig {
             eps: layer_norm_eps,
             ..Default::default()
@@ -62,12 +57,7 @@ impl AlbertLayer {
             Default::default(),
         );
 
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu_new => _gelu_new,
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
 
         AlbertLayer {
             attention,
@@ -108,15 +98,8 @@ impl AlbertLayerGroup {
     {
         let p = p.borrow() / "albert_layers";
 
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
 
         let mut layers: Vec<AlbertLayer> = vec![];
         for layer_index in 0..config.inner_group_num {
@@ -184,15 +167,8 @@ impl AlbertTransformer {
         let p = p.borrow();
         let p_layers = p / "albert_layer_groups";
 
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
 
         let embedding_hidden_mapping_in = nn::linear(
             p / "embedding_hidden_mapping_in",

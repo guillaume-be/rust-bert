@@ -13,6 +13,7 @@
 extern crate tch;
 
 use self::tch::{nn, Tensor};
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::distilbert::embeddings::DistilBertEmbedding;
 use crate::distilbert::transformer::{DistilBertTransformerOutput, Transformer};
@@ -81,16 +82,6 @@ impl DistilBertVocabResources {
         "distilbert-qa/vocab",
         "https://cdn.huggingface.co/bert-large-cased-vocab.txt",
     );
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Serialize, Deserialize)]
-/// # Activation function used in the feed-forward layer in the transformer blocks
-pub enum Activation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

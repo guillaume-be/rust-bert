@@ -23,6 +23,7 @@ use crate::common::error::RustBertError;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::t5::T5Config;
+use crate::xlnet::XLNetConfig;
 use crate::Config;
 use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
     Mask, Offset, OffsetSize, Tokenizer,
@@ -33,9 +34,10 @@ use rust_tokenizers::preprocessing::tokenizer::xlm_roberta_tokenizer::XLMRoberta
 use rust_tokenizers::preprocessing::vocab::albert_vocab::AlbertVocab;
 use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
 use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
+use rust_tokenizers::preprocessing::vocab::xlnet_vocab::XLNetVocab;
 use rust_tokenizers::{
     AlbertTokenizer, BertTokenizer, BertVocab, RobertaTokenizer, RobertaVocab, TokenizedInput,
-    TruncationStrategy, XLMRobertaVocab,
+    TruncationStrategy, XLMRobertaVocab, XLNetTokenizer,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -53,6 +55,7 @@ pub enum ModelType {
     Marian,
     T5,
     Albert,
+    XLNet,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -71,6 +74,8 @@ pub enum ConfigOption {
     T5(T5Config),
     /// Albert configuration
     Albert(AlbertConfig),
+    /// XLNet configuration
+    XLNet(XLNetConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -87,6 +92,8 @@ pub enum TokenizerOption {
     T5(T5Tokenizer),
     /// Albert Tokenizer
     Albert(AlbertTokenizer),
+    /// Albert Tokenizer
+    XLNet(XLNetTokenizer),
 }
 
 impl ConfigOption {
@@ -102,6 +109,7 @@ impl ConfigOption {
             ModelType::Marian => ConfigOption::Marian(BartConfig::from_file(path)),
             ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
             ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
+            ModelType::XLNet => ConfigOption::XLNet(XLNetConfig::from_file(path)),
         }
     }
 
@@ -123,6 +131,9 @@ impl ConfigOption {
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Albert(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::XLNet(config) => config
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
@@ -235,6 +246,19 @@ impl TokenizerOption {
                     strip_accents.unwrap_or(lower_case),
                 )?)
             }
+            ModelType::XLNet => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::XLNet(XLNetTokenizer::from_file(
+                    vocab_path,
+                    lower_case,
+                    strip_accents.unwrap(),
+                )?)
+            }
         };
         Ok(tokenizer)
     }
@@ -248,6 +272,7 @@ impl TokenizerOption {
             Self::Marian(_) => ModelType::Marian,
             Self::T5(_) => ModelType::T5,
             Self::Albert(_) => ModelType::Albert,
+            Self::XLNet(_) => ModelType::XLNet,
         }
     }
 
@@ -276,6 +301,9 @@ impl TokenizerOption {
                 tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
             }
             Self::Albert(ref tokenizer) => {
+                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
+            }
+            Self::XLNet(ref tokenizer) => {
                 tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
             }
         }
@@ -308,6 +336,9 @@ impl TokenizerOption {
             Self::Albert(ref tokenizer) => {
                 tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
             }
+            Self::XLNet(ref tokenizer) => {
+                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+            }
         }
     }
 
@@ -320,6 +351,7 @@ impl TokenizerOption {
             Self::T5(ref tokenizer) => tokenizer.tokenize(text),
             Self::XLMRoberta(ref tokenizer) => tokenizer.tokenize(text),
             Self::Albert(ref tokenizer) => tokenizer.tokenize(text),
+            Self::XLNet(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
 
@@ -397,6 +429,16 @@ impl TokenizerOption {
                     mask_1,
                     mask_2,
                 ),
+                Self::XLNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                    tokens_1,
+                    tokens_2,
+                    offsets_1,
+                    offsets_2,
+                    original_offsets_1,
+                    original_offsets_2,
+                    mask_1,
+                    mask_2,
+                ),
             };
         TokenizedInput {
             token_ids,
@@ -419,6 +461,7 @@ impl TokenizerOption {
             Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
             Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
             Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
+            Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
         }
     }
 
@@ -464,7 +507,14 @@ impl TokenizerOption {
                 *tokenizer
                     .vocab()
                     .special_values
-                    .get(T5Vocab::pad_value())
+                    .get(AlbertVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::XLNet(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(XLNetVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
         }
@@ -499,6 +549,13 @@ impl TokenizerOption {
                     .vocab()
                     .special_values
                     .get(AlbertVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::XLNet(ref tokenizer) => Some(
+                *tokenizer
+                    .vocab()
+                    .special_values
+                    .get(XLNetVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Marian(_) => None,

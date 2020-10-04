@@ -13,7 +13,7 @@
 
 use crate::bert::embeddings::{BertEmbedding, BertEmbeddings};
 use crate::bert::encoder::{BertEncoder, BertPooler};
-use crate::common::activations::{_gelu, _mish, _relu};
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::{Config, RustBertError};
@@ -87,18 +87,6 @@ impl BertVocabResources {
     );
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// # Activation function used in the attention layer and masked language model head
-pub enum Activation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
-    /// Mish ([Misra, 2019](https://arxiv.org/abs/1908.08681))
-    mish,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 /// # BERT model configuration
 /// Defines the BERT model architecture (e.g. number of layers, hidden layer size, label mapping...)
@@ -168,10 +156,7 @@ impl<T: BertEmbedding> BertModel<T> {
     {
         let p = p.borrow();
 
-        let is_decoder = match config.is_decoder {
-            Some(value) => value,
-            None => false,
-        };
+        let is_decoder = config.is_decoder.unwrap_or(false);
         let embeddings = T::new(p / "embeddings", config);
         let encoder = BertEncoder::new(p / "encoder", config);
         let pooler = BertPooler::new(p / "pooler", config);
@@ -270,10 +255,7 @@ impl<T: BertEmbedding> BertModel<T> {
             },
         };
 
-        let mask = match mask {
-            Some(value) => value,
-            None => Tensor::ones(&input_shape, (Kind::Int64, device)),
-        };
+        let mask = mask.unwrap_or_else(|| Tensor::ones(&input_shape, (Kind::Int64, device)));
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),
@@ -379,11 +361,7 @@ impl BertPredictionHeadTransform {
             config.hidden_size,
             Default::default(),
         );
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
         let layer_norm_config = nn::LayerNormConfig {
             eps: 1e-12,
             ..Default::default()

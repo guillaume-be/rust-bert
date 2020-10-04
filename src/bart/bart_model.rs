@@ -14,6 +14,7 @@
 use crate::bart::attention::LayerState;
 use crate::bart::decoder::BartDecoder;
 use crate::bart::encoder::{BartEncoder, BartEncoderOutput};
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
 use crate::{Config, RustBertError};
@@ -126,21 +127,6 @@ impl BartMergesResources {
         "bart-large-mnli/merges",
         "https://cdn.huggingface.co/roberta-large-merges.txt",
     );
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Serialize, Deserialize)]
-pub enum Activation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
-    /// Swish ([Ramachandran, 2017](https://arxiv.org/abs/1710.05941))
-    swish,
-    /// Gaussian Error Linear Unit - OpenAI version ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu_new,
-    /// Tanh
-    tanh,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -274,10 +260,7 @@ impl BartModel {
     {
         let p = p.borrow();
 
-        let pad_token_id = match config.pad_token_id {
-            Some(value) => value,
-            None => 1,
-        };
+        let pad_token_id = config.pad_token_id.unwrap_or(1);
         let embedding_config = EmbeddingConfig {
             padding_idx: pad_token_id,
             ..Default::default()
@@ -649,10 +632,7 @@ impl BartForSequenceClassification {
 
         let base_model = BartModel::new(p / "model", config, false);
         let classification_head = BartClassificationHead::new(p / "classification_head", config);
-        let eos_token_id = match config.eos_token_id {
-            Some(value) => value,
-            None => 3,
-        };
+        let eos_token_id = config.eos_token_id.unwrap_or(3);
         BartForSequenceClassification {
             base_model,
             classification_head,

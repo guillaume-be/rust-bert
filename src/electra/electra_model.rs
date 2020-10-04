@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::bert::encoder::BertEncoder;
-use crate::bert::{Activation, BertConfig};
-use crate::common::activations::{_gelu, _mish, _relu};
+use crate::bert::BertConfig;
+use crate::common::activations::{Activation, _gelu};
 use crate::common::dropout::Dropout;
 use crate::electra::embeddings::ElectraEmbeddings;
 use crate::{Config, RustBertError};
@@ -150,7 +150,7 @@ impl ElectraModel {
             None
         };
         let bert_config = BertConfig {
-            hidden_act: config.hidden_act.clone(),
+            hidden_act: config.hidden_act,
             attention_probs_dropout_prob: config.attention_probs_dropout_prob,
             hidden_dropout_prob: config.hidden_dropout_prob,
             hidden_size: config.hidden_size,
@@ -254,10 +254,7 @@ impl ElectraModel {
             },
         };
 
-        let mask = match mask {
-            Some(value) => value,
-            None => Tensor::ones(&input_shape, (Kind::Int64, device)),
-        };
+        let mask = mask.unwrap_or_else(|| Tensor::ones(&input_shape, (Kind::Int64, device)));
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),
@@ -269,18 +266,13 @@ impl ElectraModel {
             }
         };
 
-        let hidden_states = match self.embeddings.forward_t(
+        let hidden_states = self.embeddings.forward_t(
             input_ids,
             token_type_ids,
             position_ids,
             input_embeds,
             train,
-        ) {
-            Ok(value) => value,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        )?;
 
         let hidden_states = match &self.embeddings_project {
             Some(layer) => hidden_states.apply(layer),
@@ -356,11 +348,7 @@ impl ElectraDiscriminatorHead {
             1,
             Default::default(),
         );
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
         ElectraDiscriminatorHead {
             dense,
             dense_prediction,
