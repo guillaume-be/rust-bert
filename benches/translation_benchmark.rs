@@ -85,11 +85,11 @@ fn bench_squad(c: &mut Criterion) {
         "They found that certain wavelengths of light, which are usually absorbed by water, weakened when the planet was in the way, indicating not only does K2-18b have an atmosphere, but the atmosphere contains water in vapour form.",
         "The team from UCL then analyzed the Montreal team's data using their own software and confirmed their conclusion.",
         "This was not the first time scientists have found signs of water on an exoplanet, but previous discoveries were made on planets with high temperatures or other pronounced differences from Earth.",
-        // "This is the first potentially habitable planet where the temperature is right and where we now know there is water,\" said UCL astronomer Angelos Tsiaras.",
-        // "It's the best candidate for habitability right now.\" \"It's a good sign\", said Ryan Cloutier of the Harvard–Smithsonian Center for Astrophysics, who was not one of either study's authors.",
-        // "Overall,\" he continued, \"the presence of water in its atmosphere certainly improves the prospect of K2-18b being a potentially habitable planet, but further observations will be required to say for sure. \"",
-        // "K2-18b was first identified in 2015 by the Kepler space telescope.",
-        // "It is about 110 light-years from Earth and larger but less dense.",
+        "This is the first potentially habitable planet where the temperature is right and where we now know there is water,\" said UCL astronomer Angelos Tsiaras.",
+        "It's the best candidate for habitability right now.\" \"It's a good sign\", said Ryan Cloutier of the Harvard–Smithsonian Center for Astrophysics, who was not one of either study's authors.",
+        "Overall,\" he continued, \"the presence of water in its atmosphere certainly improves the prospect of K2-18b being a potentially habitable planet, but further observations will be required to say for sure. \"",
+        "K2-18b was first identified in 2015 by the Kepler space telescope.",
+        "It is about 110 light-years from Earth and larger but less dense.",
     ];
     // (New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
     c.bench_function("Translation forward pass", |b| {

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::xlnet::attention::{LayerState, XLNetRelativeAttention};
 use crate::xlnet::XLNetConfig;
@@ -23,7 +24,7 @@ pub struct XLNetFeedForward {
     layer_2: nn::Linear,
     layer_norm: nn::LayerNorm,
     dropout: Dropout,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 impl XLNetFeedForward {

@@ -229,7 +229,7 @@ impl AlbertModel {
             },
         };
 
-        let mask = mask.unwrap_or(Tensor::ones(&input_shape, (Kind::Int64, device)));
+        let mask = mask.unwrap_or_else(|| Tensor::ones(&input_shape, (Kind::Int64, device)));
 
         let extended_attention_mask = mask.unsqueeze(1).unsqueeze(2);
         let extended_attention_mask: Tensor =

@@ -255,7 +255,7 @@ impl<T: BertEmbedding> BertModel<T> {
             },
         };
 
-        let mask = mask.unwrap_or(Tensor::ones(&input_shape, (Kind::Int64, device)));
+        let mask = mask.unwrap_or_else(|| Tensor::ones(&input_shape, (Kind::Int64, device)));
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),

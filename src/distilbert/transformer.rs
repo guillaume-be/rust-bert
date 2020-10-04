@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::distilbert::attention::MultiHeadSelfAttention;
 use crate::distilbert::distilbert_model::DistilBertConfig;
@@ -21,7 +22,7 @@ pub struct FeedForwardNetwork {
     lin1: nn::Linear,
     lin2: nn::Linear,
     dropout: Dropout,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 impl FeedForwardNetwork {

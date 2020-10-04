@@ -206,10 +206,9 @@ impl BertEmbedding for RobertaEmbeddings {
             },
         };
 
-        let token_type_ids = token_type_ids.unwrap_or(Tensor::zeros(
-            &input_shape,
-            (Kind::Int64, input_embeddings.device()),
-        ));
+        let token_type_ids = token_type_ids.unwrap_or_else(|| {
+            Tensor::zeros(&input_shape, (Kind::Int64, input_embeddings.device()))
+        });
 
         let position_embeddings = position_ids.apply(&self.position_embeddings);
         let token_type_embeddings = token_type_ids.apply(&self.token_type_embeddings);

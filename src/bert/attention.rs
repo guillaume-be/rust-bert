@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::bert::bert_model::BertConfig;
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
 use tch::kind::Kind::Float;
@@ -222,7 +223,7 @@ impl BertAttention {
 
 pub struct BertIntermediate {
     lin: nn::Linear,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 impl BertIntermediate {

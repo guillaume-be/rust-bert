@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::activations::{Activation, _gelu_new, _mish, _relu, _swish, _tanh};
+use crate::common::activations::{
+    Activation, TensorFunction, _gelu_new, _mish, _relu, _swish, _tanh,
+};
 use crate::common::dropout::Dropout;
 use crate::gpt2::attention::{Attention, GPTConv1D};
 use crate::gpt2::gpt2_model::Gpt2Config;
@@ -22,7 +24,7 @@ use tch::{nn, Tensor};
 pub struct MLP {
     c_fc: GPTConv1D,
     c_proj: GPTConv1D,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
     dropout: Dropout,
 }
 

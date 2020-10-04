@@ -197,16 +197,15 @@ impl BertEmbedding for BertEmbeddings {
 
         let seq_length = input_embeddings.as_ref().size()[1].to_owned();
 
-        let position_ids = position_ids.unwrap_or(
+        let position_ids = position_ids.unwrap_or_else(|| {
             Tensor::arange(seq_length, (Kind::Int64, input_embeddings.device()))
                 .unsqueeze(0)
-                .expand(&input_shape, true),
-        );
+                .expand(&input_shape, true)
+        });
 
-        let token_type_ids = token_type_ids.unwrap_or(Tensor::zeros(
-            &input_shape,
-            (Kind::Int64, input_embeddings.device()),
-        ));
+        let token_type_ids = token_type_ids.unwrap_or_else(|| {
+            Tensor::zeros(&input_shape, (Kind::Int64, input_embeddings.device()))
+        });
 
         let position_embeddings = position_ids.apply(&self.position_embeddings);
         let token_type_embeddings = token_type_ids.apply(&self.token_type_embeddings);

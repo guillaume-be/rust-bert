@@ -26,6 +26,8 @@ pub fn _tanh(x: &Tensor) -> Tensor {
     x.tanh()
 }
 
+pub type TensorFunction = Box<fn(&Tensor) -> Tensor>;
+
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 /// # Activation function used in the attention layer and masked language model head
@@ -45,7 +47,7 @@ pub enum Activation {
 }
 
 impl Activation {
-    pub fn get_function(&self) -> Box<fn(&Tensor) -> Tensor> {
+    pub fn get_function(&self) -> TensorFunction {
         Box::new(match self {
             Activation::gelu => _gelu,
             Activation::relu => _relu,

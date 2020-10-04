@@ -47,11 +47,11 @@ pub struct XLNetRelativeAttention {
     hidden_size: i64,
     dropout: Dropout,
     output_attentions: bool,
-    q: Tensor,
-    k: Tensor,
-    v: Tensor,
-    o: Tensor,
-    r: Tensor,
+    query: Tensor,
+    key: Tensor,
+    value: Tensor,
+    output: Tensor,
+    pos: Tensor,
     r_r_bias: Tensor,
     r_s_bias: Tensor,
     r_w_bias: Tensor,
@@ -72,31 +72,31 @@ impl XLNetRelativeAttention {
         );
         let p = p.borrow();
 
-        let q = p.var(
+        let query = p.var(
             "q",
             &[config.d_model, config.n_head, config.d_head],
             Init::KaimingUniform,
         );
 
-        let k = p.var(
+        let key = p.var(
             "k",
             &[config.d_model, config.n_head, config.d_head],
             Init::KaimingUniform,
         );
 
-        let v = p.var(
+        let value = p.var(
             "v",
             &[config.d_model, config.n_head, config.d_head],
             Init::KaimingUniform,
         );
 
-        let o = p.var(
+        let output = p.var(
             "o",
             &[config.d_model, config.n_head, config.d_head],
             Init::KaimingUniform,
         );
 
-        let r = p.var(
+        let pos = p.var(
             "r",
             &[config.d_model, config.n_head, config.d_head],
             Init::KaimingUniform,
@@ -140,11 +140,11 @@ impl XLNetRelativeAttention {
             hidden_size: config.d_model,
             dropout,
             output_attentions,
-            q,
-            k,
-            v,
-            o,
-            r,
+            query,
+            key,
+            value,
+            output,
+            pos,
             r_r_bias,
             r_s_bias,
             r_w_bias,
@@ -216,7 +216,7 @@ impl XLNetRelativeAttention {
         residual: bool,
         train: bool,
     ) -> Tensor {
-        let mut attention_out = Tensor::einsum("ibnd,hnd->ibh", &[attention_vector, &self.o])
+        let mut attention_out = Tensor::einsum("ibnd,hnd->ibh", &[attention_vector, &self.output])
             .apply_t(&self.dropout, train);
         if residual {
             attention_out = attention_out + h;
@@ -236,7 +236,7 @@ impl XLNetRelativeAttention {
         target_mapping: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<Tensor>) {
-        if g.is_some() {
+        if let Some(g) = g {
             let cat_value = if let Some(mems) = &layer_state {
                 if mems.prev_content.size().len() > 1 {
                     Some(Tensor::cat(&[&mems.prev_content, h], 0))
@@ -251,10 +251,10 @@ impl XLNetRelativeAttention {
                 None => h,
             };
 
-            let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.q]);
-            let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.k]);
-            let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.v]);
-            let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.r]);
+            let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.query]);
+            let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.key]);
+            let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.value]);
+            let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.pos]);
 
             let (attention_vec_h, attention_probas_h) = self.rel_attention_core(
                 &q_head_h,
@@ -267,7 +267,7 @@ impl XLNetRelativeAttention {
             );
 
             let output_h = self.post_attention(h, &attention_vec_h, true, train);
-            let q_head_g = Tensor::einsum("ibh,hnd->ibnd", &[g.unwrap(), &self.q]);
+            let q_head_g = Tensor::einsum("ibh,hnd->ibnd", &[g, &self.query]);
 
             let (attention_vec_g, attention_probas_g) = match target_mapping {
                 Some(target_mapping) => {
@@ -296,7 +296,7 @@ impl XLNetRelativeAttention {
                 ),
             };
 
-            let output_g = self.post_attention(g.unwrap(), &attention_vec_g, true, train);
+            let output_g = self.post_attention(g, &attention_vec_g, true, train);
             (
                 output_h,
                 Some(output_g),
@@ -318,10 +318,10 @@ impl XLNetRelativeAttention {
                 None => h,
             };
 
-            let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.q]);
-            let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.k]);
-            let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.v]);
-            let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.r]);
+            let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.query]);
+            let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.key]);
+            let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.value]);
+            let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.pos]);
 
             let (attention_vec, attention_probas) = self.rel_attention_core(
                 &q_head_h,

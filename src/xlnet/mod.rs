@@ -20,36 +20,36 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! use rust_bert::resources::{Resource, RemoteResource};
-//! use rust_bert::xlnet::{XLNetConfigResources, XLNetVocabResources, XLNetModelResources};
-//! use rust_bert::pipelines::generation::{GenerateConfig, XLNetGenerator, LanguageGenerator};
+//! use rust_bert::pipelines::generation::{GenerateConfig, LanguageGenerator, XLNetGenerator};
+//! use rust_bert::resources::{RemoteResource, Resource};
+//! use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
 //! let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-//!      XLNetConfigResources::XLNET_BASE_CASED,
-//!  ));
-//!  let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-//!      XLNetVocabResources::XLNET_BASE_CASED,
-//!  ));
-//!  let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-//!      XLNetVocabResources::XLNET_BASE_CASED,
-//!  ));
-//!  let model_resource = Resource::Remote(RemoteResource::from_pretrained(
-//!      XLNetModelResources::XLNET_BASE_CASED,
-//!  ));
-//!  let generate_config = GenerateConfig {
-//!      model_resource,
-//!      config_resource,
-//!      vocab_resource,
-//!      merges_resource,
-//!      max_length: 56,
-//!      do_sample: true,
-//!      num_beams: 3,
-//!      temperature: 1.0,
-//!      num_return_sequences: 1,
-//!      ..Default::default()
-//!  };
-//!  let model = XLNetGenerator::new(generate_config)?;
-//!  let input_context = "Once upon a time,";
-//!  let output = model.generate(Some(vec![input_context]), None);
+//!     XLNetConfigResources::XLNET_BASE_CASED,
+//! ));
+//! let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+//!     XLNetVocabResources::XLNET_BASE_CASED,
+//! ));
+//! let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+//!     XLNetVocabResources::XLNET_BASE_CASED,
+//! ));
+//! let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+//!     XLNetModelResources::XLNET_BASE_CASED,
+//! ));
+//! let generate_config = GenerateConfig {
+//!     model_resource,
+//!     config_resource,
+//!     vocab_resource,
+//!     merges_resource,
+//!     max_length: 56,
+//!     do_sample: true,
+//!     num_beams: 3,
+//!     temperature: 1.0,
+//!     num_return_sequences: 1,
+//!     ..Default::default()
+//! };
+//! let model = XLNetGenerator::new(generate_config)?;
+//! let input_context = "Once upon a time,";
+//! let output = model.generate(Some(vec![input_context]), None);
 //!
 //! # Ok(())
 //! # }
@@ -57,10 +57,10 @@
 
 mod attention;
 mod encoder;
-mod xlnet;
+mod xlnet_model;
 
 pub use attention::LayerState;
-pub use xlnet::{
+pub use xlnet_model::{
     XLNetConfig, XLNetConfigResources, XLNetForMultipleChoice, XLNetForQuestionAnswering,
     XLNetForSequenceClassification, XLNetForTokenClassification, XLNetLMHeadModel, XLNetModel,
     XLNetModelResources, XLNetVocabResources,

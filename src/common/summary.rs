@@ -10,7 +10,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::activations::{Activation, _gelu, _gelu_new, _mish, _relu, _swish, _tanh};
+use crate::common::activations::{
+    Activation, TensorFunction, _gelu, _gelu_new, _mish, _relu, _swish, _tanh,
+};
 use crate::common::dropout::Dropout;
 use crate::xlnet::XLNetConfig;
 use crate::RustBertError;
@@ -66,7 +68,7 @@ impl From<&XLNetConfig> for SummaryConfig {
 pub struct SequenceSummary {
     summary: Option<nn::Linear>,
     summary_type: SummaryType,
-    activation: Option<Box<fn(&Tensor) -> Tensor>>,
+    activation: Option<TensorFunction>,
     first_dropout: Option<Dropout>,
     last_dropout: Option<Dropout>,
 }

@@ -16,7 +16,7 @@ use crate::bart::embeddings::{
     EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
 };
 use crate::bart::BartConfig;
-use crate::common::activations::Activation;
+use crate::common::activations::{Activation, TensorFunction};
 use crate::common::dropout::Dropout;
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Bool;
@@ -27,7 +27,7 @@ pub struct EncoderLayer {
     self_attention_layer_norm: nn::LayerNorm,
     dropout: Dropout,
     activation_dropout: Dropout,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
     fc1: nn::Linear,
     fc2: nn::Linear,
     final_layer_norm: nn::LayerNorm,

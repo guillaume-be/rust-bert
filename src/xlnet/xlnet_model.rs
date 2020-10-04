@@ -114,7 +114,7 @@ impl Config<XLNetConfig> for XLNetConfig {}
 /// Base architecture for XLNet models. Task-specific models will be built from this common base model
 /// It is made of the following blocks:
 /// - `word_embeddings`: Word embeddings
-/// - `mask_emb`: Embedding for the masked tokens (`g` states)
+/// - `mask_emb`: Embedding for the query stream
 /// - `layers`: Vector of `XLNetLayer`. Each layer is made of a self-attention layers on the visible and hidden states and a post-attention layer
 pub struct XLNetModel {
     mem_len: Option<i64>,
@@ -138,16 +138,16 @@ impl XLNetModel {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BART model
+    /// * `p` - Variable store path for the root of the XLNet model
     /// * `config` - `XLNetConfig` object defining the model architecture
     ///
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::xlnet::{XLNetConfig, XLNetModel};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -329,16 +329,16 @@ impl XLNetModel {
     /// * `target_mapping ` - Optional tensor of shape (*batch size*, *num_tokens*, *sequence_length*) indicating the position of the masked words to predict.
     /// * `token_type_ids` - Optional tensor (*batch size*, *sequence_length*) indicating the sentence ID of the token (0: first sentence, 1: second sentence).
     /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
-    /// * `old_layer_states` - Optional vector of length `num_layers` containing optional `LayerStates` containing the last calculated key and value pairs for the attention layers. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `old_layer_states` - Optional vector of length `n_layer` containing optional `LayerStates` containing the last calculated content for the attention layers. This avoids recomputing attention weights at past positions and speeds up decoding.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
     ///
     /// # Returns
     ///
     /// * `XLNetModelOutput` containing:
     ///   - `hidden_state` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*) representing the activations of the last hidden state
-    ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past keys and values for both the attention layers with shape (*past_sequence_length*, *batch size*, *hidden_size*)
-    ///   - `all_hidden_states` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional embedding states if used)
-    ///   - `all_attentions` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional embedding states if used)
+    ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past content for the the attention layers with shape (*past_sequence_length*, *batch size*, *hidden_size*)
+    ///   - `all_hidden_states` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
+    ///   - `all_attentions` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
     ///
     /// # Example
     ///
@@ -370,7 +370,7 @@ impl XLNetModel {
     ///         None,
     ///         None,
     ///         None,
-    ///         false
+    ///         false,
     ///     )
     /// });
     /// ```
@@ -612,12 +612,38 @@ impl XLNetModel {
     }
 }
 
+/// # XLNetLMHeadModel
+/// XLNet model with a language model head for language generation tasks
+/// It is made of the following blocks:
+/// - `base_model`: `XLNetModel`
+/// - `lm_head`: Linear language modeling head, projecting the hidden state logits to the vocabulary space
 pub struct XLNetLMHeadModel {
     base_model: XLNetModel,
     lm_head: nn::Linear,
 }
 
 impl XLNetLMHeadModel {
+    /// Build a new `XLNetLMHeadModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the XLNet model
+    /// * `config` - `XLNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetLMHeadModel};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = XLNetConfig::from_file(config_path);
+    /// let xlnet_model = XLNetLMHeadModel::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &XLNetConfig) -> XLNetLMHeadModel
     where
         P: Borrow<nn::Path<'p>>,
@@ -638,6 +664,62 @@ impl XLNetLMHeadModel {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `perm_mask` - Optional tensor of shape (*batch size*, *sequence_length*, *sequence_length*). Mask to indicate the attention pattern for each input token (only used for pre-training over permutations, rather than simple token masking).
+    /// * `target_mapping ` - Optional tensor of shape (*batch size*, *num_tokens*, *sequence_length*) indicating the position of the masked words to predict.
+    /// * `token_type_ids` - Optional tensor (*batch size*, *sequence_length*) indicating the sentence ID of the token (0: first sentence, 1: second sentence).
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
+    /// * `old_layer_states` - Optional vector of length `num_layers` containing optional `LayerStates` containing the last calculated content for the attention layers. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LMModelOutput` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    ///   - `cache` - `XLNetCache` made of `Option<Vec<Option<LayerState>>>` of length *n_layers*  and shape (*past_sequence_length*, *batch size*, *hidden_size*) containing the previous content
+    ///   - `encoder_hidden_states` - None
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetLMHeadModel};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = XLNetConfig::from_file(config_path);
+    /// # let xlnet_model: XLNetLMHeadModel = XLNetLMHeadModel::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_mapping = Tensor::zeros(&[64, 1, 128], (Kind::Float, device));
+    /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     xlnet_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         None,
+    ///         Some(&target_mapping),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -694,6 +776,62 @@ impl XLNetLMHeadModel {
 }
 
 impl LMHeadModel for XLNetLMHeadModel {
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `perm_mask` - Optional tensor of shape (*batch size*, *sequence_length*, *sequence_length*). Mask to indicate the attention pattern for each input token (only used for pre-training over permutations, rather than simple token masking).
+    /// * `target_mapping ` - Optional tensor of shape (*batch size*, *num_tokens*, *sequence_length*) indicating the position of the masked words to predict.
+    /// * `token_type_ids` - Optional tensor (*batch size*, *sequence_length*) indicating the sentence ID of the token (0: first sentence, 1: second sentence).
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
+    /// * `old_layer_states` - Optional vector of length `num_layers` containing optional `LayerStates` containing the last calculated content for the attention layers. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LMModelOutput` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    ///   - `cache` - `XLNetCache` made of `Option<Vec<Option<LayerState>>>` of length *n_layers*  and shape (*past_sequence_length*, *batch size*, *hidden_size*) containing the previous content
+    ///   - `encoder_hidden_states` - None
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetLMHeadModel};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = XLNetConfig::from_file(config_path);
+    /// # let xlnet_model: XLNetLMHeadModel = XLNetLMHeadModel::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_mapping = Tensor::zeros(&[64, 1, 128], (Kind::Float, device));
+    /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     xlnet_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         None,
+    ///         Some(&target_mapping),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
     fn forward_t(
         &self,
         input_ids: &Option<Tensor>,
@@ -729,15 +867,19 @@ impl LMHeadModel for XLNetLMHeadModel {
                 None,
                 train,
             ),
-            _ => {
-                return Err(RustBertError::ValueError(
-                    "Cache not compatible with XLNet Model".into(),
-                ));
-            }
+            _ => Err(RustBertError::ValueError(
+                "Cache not compatible with XLNet Model".into(),
+            )),
         }
     }
 }
 
+/// # XLNetForSequenceClassification
+/// XLNet model with a classification head for sequence classification tasks
+/// It is made of the following blocks:
+/// - `base_model`: `XLNetModel`
+/// - `sequence_summary`: `SequenceSummary` to pool the base model hidden states
+/// - `logits_proj`: Linear layer projecting the hidden layer pooled output to the target space
 pub struct XLNetForSequenceClassification {
     base_model: XLNetModel,
     sequence_summary: SequenceSummary,
@@ -745,6 +887,27 @@ pub struct XLNetForSequenceClassification {
 }
 
 impl XLNetForSequenceClassification {
+    /// Build a new `XLNetForSequenceClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the XLNet model
+    /// * `config` - `XLNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetForSequenceClassification};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = XLNetConfig::from_file(config_path);
+    /// let xlnet_model = XLNetForSequenceClassification::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(
         p: P,
         config: &XLNetConfig,
@@ -777,6 +940,64 @@ impl XLNetForSequenceClassification {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `perm_mask` - Optional tensor of shape (*batch size*, *sequence_length*, *sequence_length*). Mask to indicate the attention pattern for each input token (only used for pre-training over permutations, rather than simple token masking).
+    /// * `target_mapping ` - Optional tensor of shape (*batch size*, *num_tokens*, *sequence_length*) indicating the position of the masked words to predict.
+    /// * `token_type_ids` - Optional tensor (*batch size*, *sequence_length*) indicating the sentence ID of the token (0: first sentence, 1: second sentence).
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
+    /// * `old_layer_states` - Optional vector of length `num_layers` containing optional `LayerStates` containing the last calculated content for the attention layers. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `XLNetSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *num_classes*) representing the logits for each batch item and class
+    ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past content for the the attention layers with shape (*past_sequence_length*, *batch size*, *hidden_size*)
+    ///   - `all_hidden_states` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
+    ///   - `all_attentions` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetForSequenceClassification};
+    /// # fn main() -> anyhow::Result<()> {
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = XLNetConfig::from_file(config_path);
+    /// # let xlnet_model: XLNetForSequenceClassification = XLNetForSequenceClassification::new(&vs.root(), &config)?;
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_mapping = Tensor::zeros(&[64, 1, 128], (Kind::Float, device));
+    /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     xlnet_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         None,
+    ///         Some(&target_mapping),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     )
+    /// });
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -816,12 +1037,38 @@ impl XLNetForSequenceClassification {
     }
 }
 
+/// # XLNetForTokenClassification
+/// XLNet model with a classification head for token-level classification tasks
+/// It is made of the following blocks:
+/// - `base_model`: `XLNetModel`
+/// - `classifier`: Linear layer projecting the hidden layer output to the target space
 pub struct XLNetForTokenClassification {
     base_model: XLNetModel,
     classifier: nn::Linear,
 }
 
 impl XLNetForTokenClassification {
+    /// Build a new `XLNetForTokenClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the XLNet model
+    /// * `config` - `XLNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetForTokenClassification};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = XLNetConfig::from_file(config_path);
+    /// let xlnet_model = XLNetForTokenClassification::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(
         p: P,
         config: &XLNetConfig,
@@ -851,6 +1098,64 @@ impl XLNetForTokenClassification {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `perm_mask` - Optional tensor of shape (*batch size*, *sequence_length*, *sequence_length*). Mask to indicate the attention pattern for each input token (only used for pre-training over permutations, rather than simple token masking).
+    /// * `target_mapping ` - Optional tensor of shape (*batch size*, *num_tokens*, *sequence_length*) indicating the position of the masked words to predict.
+    /// * `token_type_ids` - Optional tensor (*batch size*, *sequence_length*) indicating the sentence ID of the token (0: first sentence, 1: second sentence).
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
+    /// * `old_layer_states` - Optional vector of length `num_layers` containing optional `LayerStates` containing the last calculated content for the attention layers. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `XLNetTokenClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *num_classes*) representing the logits for each batch item, token position and class
+    ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past content for the the attention layers with shape (*past_sequence_length*, *batch size*, *hidden_size*)
+    ///   - `all_hidden_states` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
+    ///   - `all_attentions` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetForTokenClassification};
+    /// # fn main() -> anyhow::Result<()> {
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = XLNetConfig::from_file(config_path);
+    /// # let xlnet_model: XLNetForTokenClassification = XLNetForTokenClassification::new(&vs.root(), &config)?;
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_mapping = Tensor::zeros(&[64, 1, 128], (Kind::Float, device));
+    /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     xlnet_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         None,
+    ///         Some(&target_mapping),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     )
+    /// });
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -887,6 +1192,14 @@ impl XLNetForTokenClassification {
     }
 }
 
+/// # XLNetForMultipleChoice
+/// Multiple choices model using a XLNet base model and a linear classifier.
+/// Input should be in the form `[CLS] Context [SEP] Possible choice [SEP]`. The choice is made along the batch axis,
+/// assuming all elements of the batch are alternatives to be chosen from for a given context.
+/// It is made of the following blocks:
+/// - `base_model`: `XLNetModel`
+/// - `sequence_summary`: `SequenceSummary` to pool the base model hidden states
+/// - `logits_proj`: Linear layer projecting the hidden layer pooled output to a single value
 pub struct XLNetForMultipleChoice {
     base_model: XLNetModel,
     sequence_summary: SequenceSummary,
@@ -894,6 +1207,27 @@ pub struct XLNetForMultipleChoice {
 }
 
 impl XLNetForMultipleChoice {
+    /// Build a new `XLNetForMultipleChoice`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the XLNet model
+    /// * `config` - `XLNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetForMultipleChoice};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = XLNetConfig::from_file(config_path);
+    /// let xlnet_model = XLNetForMultipleChoice::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &XLNetConfig) -> Result<XLNetForMultipleChoice, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
@@ -913,6 +1247,64 @@ impl XLNetForMultipleChoice {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `perm_mask` - Optional tensor of shape (*batch size*, *sequence_length*, *sequence_length*). Mask to indicate the attention pattern for each input token (only used for pre-training over permutations, rather than simple token masking).
+    /// * `target_mapping ` - Optional tensor of shape (*batch size*, *num_tokens*, *sequence_length*) indicating the position of the masked words to predict.
+    /// * `token_type_ids` - Optional tensor (*batch size*, *sequence_length*) indicating the sentence ID of the token (0: first sentence, 1: second sentence).
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
+    /// * `old_layer_states` - Optional vector of length `num_layers` containing optional `LayerStates` containing the last calculated content for the attention layers. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `XLNetSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*1*, *batch size*) containing the logits for each of the alternatives given
+    ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past content for the the attention layers with shape (*past_sequence_length*, *batch size*, *hidden_size*)
+    ///   - `all_hidden_states` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
+    ///   - `all_attentions` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetForMultipleChoice};
+    /// # fn main() -> anyhow::Result<()> {
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = XLNetConfig::from_file(config_path);
+    /// # let xlnet_model: XLNetForMultipleChoice = XLNetForMultipleChoice::new(&vs.root(), &config)?;
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_mapping = Tensor::zeros(&[64, 1, 128], (Kind::Float, device));
+    /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     xlnet_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         None,
+    ///         Some(&target_mapping),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     )
+    /// });
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -979,12 +1371,40 @@ impl XLNetForMultipleChoice {
     }
 }
 
+/// # XLNet for question answering
+/// Extractive question-answering model based on a XLNet language model. Identifies the segment of a context that answers a provided question.
+/// Please note that a significant amount of pre- and post-processing is required to perform end-to-end question answering.
+/// See the question answering pipeline (also provided in this crate) for more details.
+/// It is made of the following blocks:
+/// - `base_model`: Base `XLNetModel`
+/// - `qa_outputs`: Linear layer for question answering
 pub struct XLNetForQuestionAnswering {
     base_model: XLNetModel,
     qa_outputs: nn::Linear,
 }
 
 impl XLNetForQuestionAnswering {
+    /// Build a new `XLNetForQuestionAnswering`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the XLNet model
+    /// * `config` - `XLNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetForQuestionAnswering};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = XLNetConfig::from_file(config_path);
+    /// let xlnet_model = XLNetForQuestionAnswering::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(
         p: P,
         config: &XLNetConfig,
@@ -1003,6 +1423,65 @@ impl XLNetForQuestionAnswering {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `perm_mask` - Optional tensor of shape (*batch size*, *sequence_length*, *sequence_length*). Mask to indicate the attention pattern for each input token (only used for pre-training over permutations, rather than simple token masking).
+    /// * `target_mapping ` - Optional tensor of shape (*batch size*, *num_tokens*, *sequence_length*) indicating the position of the masked words to predict.
+    /// * `token_type_ids` - Optional tensor (*batch size*, *sequence_length*) indicating the sentence ID of the token (0: first sentence, 1: second sentence).
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
+    /// * `old_layer_states` - Optional vector of length `num_layers` containing optional `LayerStates` containing the last calculated content for the attention layers. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `XLNetQuestionAnsweringOutput` containing:
+    ///   - `start_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    ///   - `end_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past content for the the attention layers with shape (*past_sequence_length*, *batch size*, *hidden_size*)
+    ///   - `all_hidden_states` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
+    ///   - `all_attentions` - `Option<Vec<(Tensor, Option<Tensor>)>>` of length *n_layer* with shape (*batch size*, *sequence_length*, *hidden_size*) (with optional query stream states if used)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::xlnet::{XLNetConfig, XLNetForMultipleChoice};
+    /// # fn main() -> anyhow::Result<()> {
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = XLNetConfig::from_file(config_path);
+    /// # let xlnet_model: XLNetForMultipleChoice = XLNetForMultipleChoice::new(&vs.root(), &config)?;
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let target_mapping = Tensor::zeros(&[64, 1, 128], (Kind::Float, device));
+    /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     xlnet_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         None,
+    ///         Some(&target_mapping),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     )
+    /// });
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
