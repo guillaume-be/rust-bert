@@ -373,3 +373,15 @@ impl SummarizationModel {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = SummarizationConfig::default();
+        let _: Box<dyn Send> = Box::new(SummarizationModel::new(config));
+    }
+}

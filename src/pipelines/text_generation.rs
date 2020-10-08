@@ -394,3 +394,15 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         output
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = TextGenerationConfig::default();
+        let _: Box<dyn Send> = Box::new(TextGenerationModel::new(config));
+    }
+}

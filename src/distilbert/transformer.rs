@@ -54,7 +54,7 @@ impl FeedForwardNetwork {
     }
 
     pub fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
-        (self.activation)(&input.apply(&self.lin1))
+        (self.activation.get_fn())(&input.apply(&self.lin1))
             .apply(&self.lin2)
             .apply_t(&self.dropout, train)
     }

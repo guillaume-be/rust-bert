@@ -11,11 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bert::embeddings::{BertEmbedding, BertEmbeddings};
 use crate::bert::encoder::{BertEncoder, BertPooler};
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
+use crate::{
+    bert::embeddings::{BertEmbedding, BertEmbeddings},
+    common::activations::TensorFunction,
+};
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -344,7 +347,7 @@ impl<T: BertEmbedding> BertModel<T> {
 
 pub struct BertPredictionHeadTransform {
     dense: nn::Linear,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
     layer_norm: nn::LayerNorm,
 }
 
@@ -377,7 +380,7 @@ impl BertPredictionHeadTransform {
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        ((&self.activation)(&hidden_states.apply(&self.dense))).apply(&self.layer_norm)
+        ((&self.activation.get_fn())(&hidden_states.apply(&self.dense))).apply(&self.layer_norm)
     }
 }
 
@@ -1176,4 +1179,31 @@ pub struct BertQuestionAnsweringOutput {
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
+}
+#[cfg(test)]
+mod test {
+    use tch::Device;
+
+    use crate::{
+        resources::{RemoteResource, Resource},
+        Config,
+    };
+
+    use super::*;
+
+    #[test]
+    #[ignore] // compilation is enough, no need to run
+    fn bart_model_send() {
+        let config_resource =
+            Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
+        let config_path = config_resource.get_local_path().expect("");
+
+        //    Set-up masked LM model
+        let device = Device::cuda_if_available();
+        let vs = tch::nn::VarStore::new(device);
+        let config = BertConfig::from_file(config_path);
+
+        let b: BertModel<BertEmbeddings> = BertModel::new(&vs.root(), &config);
+        let _: Box<dyn Send> = Box::new(b);
+    }
 }
