@@ -112,7 +112,8 @@ use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use crate::RustBertError;
 use itertools::Itertools;
-use rust_tokenizers::{TokenizedInput, TruncationStrategy};
+use rust_tokenizers::tokenizer::TruncationStrategy;
+use rust_tokenizers::TokenizedInput;
 use std::borrow::Borrow;
 use tch::kind::Kind::{Bool, Float};
 use tch::nn::VarStore;
@@ -151,7 +152,7 @@ impl ZeroShotClassificationConfig {
     /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
         model_resource: Resource,

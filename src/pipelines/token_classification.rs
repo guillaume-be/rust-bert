@@ -48,8 +48,8 @@
 //! Output: \
 //! ```no_run
 //! # use rust_bert::pipelines::token_classification::Token;
-//! use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Mask::Special;
 //! use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Mask, Offset};
+//! use rust_tokenizers::{Mask, Offset};
 //! # let output =
 //! [
 //!     Token {
@@ -61,7 +61,7 @@
 //!         index: 0,
 //!         word_index: 0,
 //!         offset: None,
-//!         mask: Special,
+//!         mask: Mask::Special,
 //!     },
 //!     Token {
 //!         text: String::from("My"),
@@ -123,9 +123,9 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
 use itertools::Itertools;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
+use rust_tokenizers::tokenizer::{Tokenizer, TruncationStrategy};
+use rust_tokenizers::{
     ConsolidatableTokens, ConsolidatedTokenIterator, Mask, Offset, TokenTrait, TokenizedInput,
-    Tokenizer, TruncationStrategy,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;

@@ -54,9 +54,8 @@ use crate::distilbert::{
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::Mask;
-use rust_tokenizers::tokenization_utils::truncate_sequences;
-use rust_tokenizers::{TokenizedInput, TruncationStrategy};
+use rust_tokenizers::tokenizer::{truncate_sequences, TruncationStrategy};
+use rust_tokenizers::{Mask, TokenizedInput};
 use std::borrow::Borrow;
 use std::cmp::min;
 use std::collections::HashMap;
@@ -208,7 +207,7 @@ impl QuestionAnsweringConfig {
     /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
         model_resource: Resource,

@@ -19,7 +19,8 @@ use rust_bert::albert::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{AlbertTokenizer, Tokenizer, TruncationStrategy, Vocab};
+use rust_tokenizers::tokenizer::{AlbertTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::Vocab;
 use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {

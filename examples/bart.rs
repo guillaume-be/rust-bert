@@ -18,7 +18,7 @@ use rust_bert::bart::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{RobertaTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {

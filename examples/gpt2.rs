@@ -19,7 +19,7 @@ use rust_bert::gpt2::{
 use rust_bert::pipelines::generation::{Cache, LMHeadModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {

@@ -83,14 +83,12 @@ use crate::t5::{
 use crate::xlnet::{LayerState, XLNetConfig, XLNetLMHeadModel};
 use crate::Config;
 use itertools::Itertools;
-use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
-use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
-use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
-use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
-use rust_tokenizers::preprocessing::vocab::xlnet_vocab::XLNetVocab;
-use rust_tokenizers::{
-    Gpt2Tokenizer, Gpt2Vocab, OpenAiGptTokenizer, OpenAiGptVocab, RobertaTokenizer, RobertaVocab,
-    Tokenizer, TruncationStrategy, Vocab, XLNetTokenizer,
+use rust_tokenizers::tokenizer::{
+    Gpt2Tokenizer, MarianTokenizer, OpenAiGptTokenizer, RobertaTokenizer, T5Tokenizer, Tokenizer,
+    TruncationStrategy, XLNetTokenizer,
+};
+use rust_tokenizers::vocab::{
+    Gpt2Vocab, MarianVocab, OpenAiGptVocab, RobertaVocab, T5Vocab, Vocab, XLNetVocab,
 };
 use tch::kind::Kind::Int64;
 use tch::{nn, no_grad, Device, Kind, Tensor};
@@ -1663,8 +1661,8 @@ pub enum Cache {
 pub(crate) mod private_generation_utils {
     use super::ordered_float::OrderedFloat;
     use crate::pipelines::generation::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
-    use rust_tokenizers::preprocessing::tokenizer::tokenization_utils::truncate_sequences;
-    use rust_tokenizers::{Tokenizer, TruncationStrategy, Vocab};
+    use rust_tokenizers::tokenizer::{truncate_sequences, Tokenizer, TruncationStrategy};
+    use rust_tokenizers::vocab::Vocab;
     use std::cmp::{max, min};
     use std::collections::HashMap;
     use tch::kind::Kind::{Bool, Float, Int64};

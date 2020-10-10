@@ -20,7 +20,7 @@ use rust_bert::openai_gpt::{
 use rust_bert::pipelines::generation::{Cache, LMHeadModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {

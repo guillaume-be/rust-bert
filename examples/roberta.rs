@@ -19,7 +19,8 @@ use rust_bert::roberta::{
     RobertaVocabResources,
 };
 use rust_bert::Config;
-use rust_tokenizers::{RobertaTokenizer, Tokenizer, TruncationStrategy, Vocab};
+use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::Vocab;
 use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {

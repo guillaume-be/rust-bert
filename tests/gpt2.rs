@@ -10,7 +10,7 @@ use rust_bert::pipelines::generation::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]

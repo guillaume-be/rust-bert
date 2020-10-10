@@ -69,9 +69,8 @@ use crate::distilbert::{
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
-    TokenizedInput, TruncationStrategy,
-};
+use rust_tokenizers::tokenizer::TruncationStrategy;
+use rust_tokenizers::TokenizedInput;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -125,7 +124,7 @@ impl SequenceClassificationConfig {
     /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
         model_resource: Resource,

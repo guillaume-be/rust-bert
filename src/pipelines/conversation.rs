@@ -52,7 +52,7 @@ use crate::gpt2::{
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
 use itertools::Itertools;
-use rust_tokenizers::Tokenizer;
+use rust_tokenizers::tokenizer::Tokenizer;
 use std::collections::HashMap;
 use tch::{Device, Tensor};
 use uuid::Uuid;

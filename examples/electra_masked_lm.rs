@@ -18,7 +18,8 @@ use rust_bert::electra::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
+use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::Vocab;
 use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {

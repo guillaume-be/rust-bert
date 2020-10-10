@@ -17,9 +17,8 @@ use rust_bert::distilbert::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::bert_tokenizer::BertTokenizer;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
-use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
+use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::Vocab;
 use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {
