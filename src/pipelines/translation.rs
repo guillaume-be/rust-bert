@@ -540,11 +540,14 @@ impl TranslationOption {
     }
 
     /// Interface method to generate() of the particular models.
-    pub fn generate(
+    pub fn generate<'a, S>(
         &self,
-        prompt_texts: Option<Vec<&str>>,
+        prompt_texts: Option<S>,
         attention_mask: Option<Tensor>,
-    ) -> Vec<String> {
+    ) -> Vec<String>
+    where
+        S: AsRef<[&'a str]>,
+    {
         match *self {
             Self::Marian(ref model) => model.generate(prompt_texts, attention_mask),
             Self::T5(ref model) => model.generate(prompt_texts, attention_mask),
@@ -612,17 +615,23 @@ impl TranslationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn translate(&self, texts: &[&str]) -> Vec<String> {
+    pub fn translate<'a, S>(&self, texts: S) -> Vec<String>
+    where
+        S: AsRef<[&'a str]>,
+    {
         match &self.prefix {
             Some(value) => {
                 let texts = texts
+                    .as_ref()
                     .iter()
                     .map(|&v| format!("{}{}", value, v))
                     .collect::<Vec<String>>();
-                self.model
-                    .generate(Some(texts.iter().map(AsRef::as_ref).collect()), None)
+                self.model.generate(
+                    Some(texts.iter().map(AsRef::as_ref).collect::<Vec<&str>>()),
+                    None,
+                )
             }
-            None => self.model.generate(Some(texts.to_vec()), None),
+            None => self.model.generate(Some(texts), None),
         }
     }
 }

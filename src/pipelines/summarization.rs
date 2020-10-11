@@ -236,7 +236,10 @@ impl SummarizationModel {
     /// # }
     /// ```
     /// (New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
-    pub fn summarize(&self, texts: &[&str]) -> Vec<String> {
-        self.model.generate(Some(texts.to_vec()), None)
+    pub fn summarize<'a, S>(&self, texts: S) -> Vec<String>
+    where
+        S: AsRef<[&'a str]>,
+    {
+        self.model.generate(Some(texts.as_ref()), None)
     }
 }

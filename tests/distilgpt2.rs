@@ -42,8 +42,7 @@ fn distilgpt2_lm_model() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["One two three four five six seven eight nine ten eleven"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())

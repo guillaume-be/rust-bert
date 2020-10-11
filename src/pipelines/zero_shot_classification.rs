@@ -484,10 +484,10 @@ impl ZeroShotClassificationModel {
             .iter()
             .cartesian_product(label_sentences.iter())
             .map(|(&s, label)| (s, label.as_str()))
-            .collect();
+            .collect::<Vec<(&str, &str)>>();
 
         let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_pair_list(
-            text_pair_list,
+            text_pair_list.as_ref(),
             max_len,
             &TruncationStrategy::LongestFirst,
             0,

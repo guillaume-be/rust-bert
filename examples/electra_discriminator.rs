@@ -51,7 +51,7 @@ fn main() -> anyhow::Result<()> {
     let input = ["One Two Three Ten Five Six Seven Eight"];
     let tokenized_input = MultiThreadedTokenizer::encode_list(
         &tokenizer,
-        input.to_vec(),
+        &input,
         128,
         &TruncationStrategy::LongestFirst,
         0,

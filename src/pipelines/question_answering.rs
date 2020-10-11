@@ -55,7 +55,7 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
 use rust_tokenizers::tokenizer::{truncate_sequences, TruncationStrategy};
-use rust_tokenizers::{Mask, TokenizedInput};
+use rust_tokenizers::{Mask, TokenIdsWithOffsets, TokenizedInput};
 use std::borrow::Borrow;
 use std::cmp::min;
 use std::collections::HashMap;
@@ -697,13 +697,12 @@ impl QuestionAnsweringModel {
             TokenizerOption::Roberta(_) => {
                 self.tokenizer
                     .build_input_with_special_tokens(
-                        vec![],
-                        None,
-                        vec![],
-                        None,
-                        vec![],
-                        None,
-                        vec![],
+                        TokenIdsWithOffsets {
+                            ids: vec![],
+                            offsets: vec![],
+                            reference_offsets: vec![],
+                            masks: vec![],
+                        },
                         None,
                     )
                     .token_ids
@@ -713,13 +712,12 @@ impl QuestionAnsweringModel {
             _ => self
                 .tokenizer
                 .build_input_with_special_tokens(
-                    vec![],
-                    None,
-                    vec![],
-                    None,
-                    vec![],
-                    None,
-                    vec![],
+                    TokenIdsWithOffsets {
+                        ids: vec![],
+                        offsets: vec![],
+                        reference_offsets: vec![],
+                        masks: vec![],
+                    },
                     None,
                 )
                 .token_ids
@@ -729,14 +727,18 @@ impl QuestionAnsweringModel {
         let sequence_pair_added_tokens = self
             .tokenizer
             .build_input_with_special_tokens(
-                vec![],
-                Some(vec![]),
-                vec![],
-                Some(vec![]),
-                vec![],
-                Some(vec![]),
-                vec![],
-                Some(vec![]),
+                TokenIdsWithOffsets {
+                    ids: vec![],
+                    offsets: vec![],
+                    reference_offsets: vec![],
+                    masks: vec![],
+                },
+                Some(TokenIdsWithOffsets {
+                    ids: vec![],
+                    offsets: vec![],
+                    reference_offsets: vec![],
+                    masks: vec![],
+                }),
             )
             .token_ids
             .len();
@@ -795,20 +797,21 @@ impl QuestionAnsweringModel {
         } else {
             0
         };
-        let (truncated_query, _, _, _, _, _, _, _, _, _) = truncate_sequences(
-            truncated_query,
-            None,
-            vec![],
-            None,
-            vec![],
-            None,
-            vec![],
+        let truncated_query = truncate_sequences(
+            TokenIdsWithOffsets {
+                ids: truncated_query,
+                offsets: vec![],
+                reference_offsets: vec![],
+                masks: vec![],
+            },
             None,
             num_query_tokens_to_remove,
             &TruncationStrategy::OnlyFirst,
             0,
         )
-        .unwrap();
+        .unwrap()
+        .0
+        .ids;
         truncated_query
     }
 
@@ -829,32 +832,28 @@ impl QuestionAnsweringModel {
             0
         };
 
-        let (truncated_query, truncated_context, _, _, _, _, _, _, overflowing_tokens, _) =
-            truncate_sequences(
-                truncated_query.into(),
-                Some(spans_token_ids.into()),
-                vec![],
-                None,
-                vec![],
-                None,
-                vec![],
-                None,
-                num_truncated_tokens,
-                &TruncationStrategy::OnlySecond,
-                max_seq_length - doc_stride - len_1 - sequence_pair_added_tokens,
-            )
-            .unwrap();
+        let (truncated_query, truncated_context, overflowing_tokens, _) = truncate_sequences(
+            TokenIdsWithOffsets {
+                ids: truncated_query.into(),
+                offsets: vec![],
+                reference_offsets: vec![],
+                masks: vec![],
+            },
+            Some(TokenIdsWithOffsets {
+                ids: spans_token_ids.into(),
+                offsets: vec![],
+                reference_offsets: vec![],
+                masks: vec![],
+            }),
+            num_truncated_tokens,
+            &TruncationStrategy::OnlySecond,
+            max_seq_length - doc_stride - len_1 - sequence_pair_added_tokens,
+        )
+        .unwrap();
 
-        let mut tokenized_input = self.tokenizer.build_input_with_special_tokens(
-            truncated_query,
-            truncated_context,
-            vec![],
-            None,
-            vec![],
-            None,
-            vec![],
-            None,
-        );
+        let mut tokenized_input = self
+            .tokenizer
+            .build_input_with_special_tokens(truncated_query, truncated_context);
         let mut attention_mask = vec![1; tokenized_input.token_ids.len()];
         if tokenized_input.token_ids.len() < max_seq_length {
             tokenized_input.token_ids.append(&mut vec![

@@ -435,10 +435,13 @@ impl SequenceClassificationModel {
         })
     }
 
-    fn prepare_for_model(&self, input: Vec<&str>) -> Tensor {
+    fn prepare_for_model<'a, S>(&self, input: S) -> Tensor
+    where
+        S: AsRef<[&'a str]>,
+    {
         let tokenized_input: Vec<TokenizedInput> =
             self.tokenizer
-                .encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+                .encode_list(input.as_ref(), 128, &TruncationStrategy::LongestFirst, 0);
         let max_len = tokenized_input
             .iter()
             .map(|input| input.token_ids.len())
@@ -487,8 +490,11 @@ impl SequenceClassificationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(&self, input: &[&str]) -> Vec<Label> {
-        let input_tensor = self.prepare_for_model(input.to_vec());
+    pub fn predict<'a, S>(&self, input: S) -> Vec<Label>
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let input_tensor = self.prepare_for_model(input.as_ref());
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
                 Some(input_tensor.copy()),

@@ -671,7 +671,7 @@ impl ConversationModel {
                 .map(|c| &c.history)
                 .collect_vec();
 
-            let prompt_ids = self.encode_prompts(texts.as_slice());
+            let prompt_ids = self.encode_prompts(texts.as_ref());
             let input_tensor = self.concat_input_history(prompt_ids, history);
             let input_length = *input_tensor.size().last().unwrap() as usize;
             let mut generated = self.model.generate_from_ids_and_past(input_tensor, None);
@@ -791,7 +791,7 @@ impl ConversationModel {
 
     fn encode_prompts(&self, texts: &[&str]) -> Vec<Vec<i64>> {
         // Encode the user prompt into token ids
-        let tokens = self.model.get_tokenizer().tokenize_list(texts.to_vec());
+        let tokens = self.model.get_tokenizer().tokenize_list(texts);
 
         tokens
             .into_iter()

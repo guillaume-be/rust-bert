@@ -69,8 +69,7 @@ fn distilbert_masked_lm() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -148,8 +147,7 @@ fn distilbert_for_question_answering() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -220,8 +218,7 @@ fn distilbert_for_token_classification() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())

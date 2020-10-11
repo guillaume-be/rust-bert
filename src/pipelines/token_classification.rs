@@ -546,10 +546,13 @@ impl TokenClassificationModel {
         })
     }
 
-    fn prepare_for_model(&self, input: Vec<&str>) -> (Vec<TokenizedInput>, Tensor) {
+    fn prepare_for_model<'a, S>(&self, input: S) -> (Vec<TokenizedInput>, Tensor)
+    where
+        S: AsRef<[&'a str]>,
+    {
         let tokenized_input: Vec<TokenizedInput> =
             self.tokenizer
-                .encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+                .encode_list(input.as_ref(), 128, &TruncationStrategy::LongestFirst, 0);
         let max_len = tokenized_input
             .iter()
             .map(|input| input.token_ids.len())
@@ -602,13 +605,16 @@ impl TokenClassificationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(
+    pub fn predict<'a, S>(
         &self,
-        input: &[&str],
+        input: S,
         consolidate_sub_tokens: bool,
         return_special: bool,
-    ) -> Vec<Token> {
-        let (tokenized_input, input_tensor) = self.prepare_for_model(input.to_vec());
+    ) -> Vec<Token>
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let (tokenized_input, input_tensor) = self.prepare_for_model(input.as_ref());
         let output = no_grad(|| {
             self.token_sequence_classifier.forward_t(
                 Some(input_tensor.copy()),
@@ -626,7 +632,7 @@ impl TokenClassificationModel {
         for sentence_idx in 0..labels_idx.size()[0] {
             let labels = labels_idx.get(sentence_idx);
             let sentence_tokens = &tokenized_input[sentence_idx as usize];
-            let original_chars = input[sentence_idx as usize].chars().collect_vec();
+            let original_chars = input.as_ref()[sentence_idx as usize].chars().collect_vec();
             let mut word_idx: u16 = 0;
             for position_idx in 0..sentence_tokens.token_ids.len() {
                 let mask = sentence_tokens.mask[position_idx];

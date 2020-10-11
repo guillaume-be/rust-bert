@@ -32,7 +32,7 @@ use rust_tokenizers::tokenizer::{
 use rust_tokenizers::vocab::{
     AlbertVocab, BertVocab, MarianVocab, RobertaVocab, T5Vocab, XLMRobertaVocab, XLNetVocab,
 };
-use rust_tokenizers::{Mask, Offset, OffsetSize, TokenizedInput};
+use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -273,7 +273,7 @@ impl TokenizerOption {
     /// Interface method
     pub fn encode_list(
         &self,
-        text_list: Vec<&str>,
+        text_list: &[&str],
         max_len: usize,
         truncation_strategy: &TruncationStrategy,
         stride: usize,
@@ -330,7 +330,7 @@ impl TokenizerOption {
     /// Interface method for pair encoding
     pub fn encode_pair_list(
         &self,
-        text_pair_list: Vec<(&str, &str)>,
+        text_pair_list: &[(&str, &str)],
         max_len: usize,
         truncation_strategy: &TruncationStrategy,
         stride: usize,
@@ -400,110 +400,61 @@ impl TokenizerOption {
     /// Interface method to build input with special tokens
     pub fn build_input_with_special_tokens(
         &self,
-        tokens_1: Vec<i64>,
-        tokens_2: Option<Vec<i64>>,
-        offsets_1: Vec<Option<Offset>>,
-        offsets_2: Option<Vec<Option<Offset>>>,
-        original_offsets_1: Vec<Vec<OffsetSize>>,
-        original_offsets_2: Option<Vec<Vec<OffsetSize>>>,
-        mask_1: Vec<Mask>,
-        mask_2: Option<Vec<Mask>>,
+        token_ids_with_offsets_1: TokenIdsWithOffsets,
+        token_ids_with_offsets_2: Option<TokenIdsWithOffsets>,
     ) -> TokenizedInput {
-        let (token_ids, segment_ids, special_tokens_mask, token_offsets, reference_offsets, mask) =
-            match *self {
-                Self::Bert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::XLMRoberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::Marian(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::T5(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::Albert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::XLNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-            };
+        let token_ids_with_special_tokens = match *self {
+            Self::Bert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Marian(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::T5(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Albert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::XLNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+        };
         TokenizedInput {
-            token_ids,
-            segment_ids,
-            special_tokens_mask,
+            token_ids: token_ids_with_special_tokens.token_ids,
+            segment_ids: token_ids_with_special_tokens.segment_ids,
+            special_tokens_mask: token_ids_with_special_tokens.special_tokens_mask,
             overflowing_tokens: vec![],
             num_truncated_tokens: 0,
-            token_offsets,
-            reference_offsets,
-            mask,
+            token_offsets: token_ids_with_special_tokens.token_offsets,
+            reference_offsets: token_ids_with_special_tokens.reference_offsets,
+            mask: token_ids_with_special_tokens.mask,
         }
     }
 
     /// Interface method to convert tokens to ids
     pub fn convert_tokens_to_ids(&self, tokens: &[String]) -> Vec<i64> {
         match *self {
-            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
+            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
+            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
+            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
+            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
+            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
+            Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
         }
     }
 
