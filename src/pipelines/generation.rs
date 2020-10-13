@@ -2073,38 +2073,7 @@ pub(crate) mod private_generation_utils {
                 }
                 current_length += 1;
             }
-
-            let decoded = if i64::from(&sentence_lengths.min().ne1(&sentence_lengths.max())) > 0 {
-                match gen_opt.pad_token_id {
-                    Some(pad_value) => {
-                        let decoded: Tensor = Tensor::ones(
-                            &[batch_size, i64::from(sentence_lengths.max())],
-                            (Int64, input_ids.device()),
-                        ) * pad_value;
-                        for hypothesis_index in 0..*input_ids.size().first().unwrap() {
-                            let _ = decoded.get(hypothesis_index).index_copy_(
-                                0,
-                                &Tensor::arange1(
-                                    0,
-                                    i64::from(sentence_lengths.get(hypothesis_index)),
-                                    (Int64, input_ids.device()),
-                                ),
-                                &input_ids.get(hypothesis_index).slice(
-                                    0,
-                                    0,
-                                    i64::from(sentence_lengths.get(hypothesis_index)),
-                                    1,
-                                ),
-                            );
-                        }
-                        decoded
-                    }
-                    None => input_ids,
-                }
-            } else {
-                input_ids
-            };
-            decoded
+            input_ids
         }
 
         fn generate_beam_search(
@@ -2691,7 +2660,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 )
             }
         });
-
         let num_sequences = *decoded.size().first().unwrap();
         let mut output_ids = Vec::with_capacity(num_sequences as usize);
         for sequence_index in 0..num_sequences {
