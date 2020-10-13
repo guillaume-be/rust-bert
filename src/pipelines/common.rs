@@ -448,13 +448,13 @@ impl TokenizerOption {
     /// Interface method to convert tokens to ids
     pub fn convert_tokens_to_ids(&self, tokens: &[String]) -> Vec<i64> {
         match *self {
-            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
-            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
-            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
-            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
-            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
-            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
-            Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens.into()),
+            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
 

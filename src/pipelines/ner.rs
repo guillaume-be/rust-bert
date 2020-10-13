@@ -188,7 +188,10 @@ impl NERModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(&self, input: &[&str]) -> Vec<Entity> {
+    pub fn predict<'a, S>(&self, input: S) -> Vec<Entity>
+    where
+        S: AsRef<[&'a str]>,
+    {
         self.token_classification_model
             .predict(input, true, false)
             .into_iter()
