@@ -737,13 +737,13 @@ impl ZeroShotClassificationModel {
         let mut output_labels = vec![];
         for sentence_idx in 0..num_inputs {
             let mut sentence_labels = vec![];
-            let sentence_scores = scores
+
+            for (label_index, score) in scores
                 .select(0, sentence_idx as i64)
                 .iter::<f64>()
                 .unwrap()
-                .collect::<Vec<f64>>();
-
-            for (label_index, score) in sentence_scores.into_iter().enumerate() {
+                .enumerate()
+            {
                 let label_string = labels[label_index].to_string();
                 let label = Label {
                     text: label_string,
