@@ -340,10 +340,10 @@ impl Conversation {
     fn append(&mut self, text: &str, ids: &[i64]) {
         match &self.new_user_input {
             Some(_) => {
+                self.mark_processed();
                 if self.past_user_inputs.len() >= self.generated_responses.len() {
                     self.generated_responses.push(text.to_string());
                 } else {
-                    self.mark_processed();
                     let _ = self.add_user_input(text);
                 }
             }
