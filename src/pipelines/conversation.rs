@@ -386,7 +386,7 @@ impl Conversation {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn load_from_history<'a, ST, SI, STR, SIN>(&mut self, texts: ST, ids: SI)
+    pub fn load_from_history<ST, SI, STR, SIN>(&mut self, texts: ST, ids: SI)
     where
         ST: AsRef<[STR]>,
         SI: AsRef<[SIN]>,
@@ -733,7 +733,7 @@ impl ConversationModel {
 
             let history = active_conversations
                 .iter()
-                .map(|c| c.history.iter().flatten().map(|&v| v).collect())
+                .map(|c| c.history.iter().flatten().copied().collect())
                 .collect_vec();
 
             let prompt_ids = self.encode_prompts(texts.as_slice());
@@ -795,7 +795,7 @@ impl ConversationModel {
         removed_tokens
     }
 
-    fn concat_input_history(&self, inputs: &Vec<Vec<i64>>, history: Vec<Vec<i64>>) -> Tensor {
+    fn concat_input_history(&self, inputs: &[Vec<i64>], history: Vec<Vec<i64>>) -> Tensor {
         // Concatenates the history token indices with new user input
         let pad_token = self.model.get_pad_id().unwrap_or(self.eos_token_id);
 
