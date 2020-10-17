@@ -286,9 +286,13 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
-            Self::Roberta(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
+            Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
             Self::Marian(ref tokenizer) => MultiThreadedTokenizer::encode_list(
                 tokenizer,
                 text_list,
@@ -343,9 +347,13 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
-            Self::Roberta(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
-            }
+            Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
             Self::Marian(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
                 tokenizer,
                 text_pair_list,
@@ -468,8 +476,7 @@ impl TokenizerOption {
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::Roberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(RobertaVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
@@ -517,8 +524,7 @@ impl TokenizerOption {
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Roberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(RobertaVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
