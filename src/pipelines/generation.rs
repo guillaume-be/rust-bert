@@ -2088,38 +2088,7 @@ pub(crate) mod private_generation_utils {
                 }
                 current_length += 1;
             }
-
-            let decoded = if i64::from(&sentence_lengths.min().ne1(&sentence_lengths.max())) > 0 {
-                match gen_opt.pad_token_id {
-                    Some(pad_value) => {
-                        let decoded: Tensor = Tensor::ones(
-                            &[batch_size, i64::from(sentence_lengths.max())],
-                            (Int64, input_ids.device()),
-                        ) * pad_value;
-                        for hypothesis_index in 0..*input_ids.size().first().unwrap() {
-                            let _ = decoded.get(hypothesis_index).index_copy_(
-                                0,
-                                &Tensor::arange1(
-                                    0,
-                                    i64::from(sentence_lengths.get(hypothesis_index)),
-                                    (Int64, input_ids.device()),
-                                ),
-                                &input_ids.get(hypothesis_index).slice(
-                                    0,
-                                    0,
-                                    i64::from(sentence_lengths.get(hypothesis_index)),
-                                    1,
-                                ),
-                            );
-                        }
-                        decoded
-                    }
-                    None => input_ids,
-                }
-            } else {
-                input_ids
-            };
-            decoded
+            input_ids
         }
 
         fn generate_beam_search(
@@ -2401,40 +2370,38 @@ pub(crate) mod private_generation_utils {
                     best_ids.push(best_hyp);
                 }
             }
-
-            let decoded = if i64::from(sentence_lengths.max()) != i64::from(sentence_lengths.min())
-            {
-                let sentence_max_length =
-                    min(i64::from(sentence_lengths.max()) + 1, gen_opt.max_length);
-                let decoded: Tensor = Tensor::ones(
-                    &[output_batch_size, sentence_max_length],
-                    (Int64, input_ids.device()),
-                ) * gen_opt.pad_token_id.unwrap();
-                for (hypothesis_index, best_id) in best_ids.iter().enumerate() {
-                    let _ = decoded.get(hypothesis_index as i64).index_copy_(
+            let sentence_max_length =
+                min(i64::from(sentence_lengths.max()) + 1, gen_opt.max_length);
+            let mut decoded = input_ids.new_empty(
+                &[output_batch_size, sentence_max_length],
+                (Int64, input_ids.device()),
+            );
+            if i64::from(sentence_lengths.max()) != i64::from(sentence_lengths.min()) {
+                let _ = decoded.fill_(
+                    gen_opt
+                        .pad_token_id
+                        .unwrap_or(gen_opt.eos_token_ids.as_ref().unwrap()[0]),
+                );
+            }
+            for (hypothesis_index, best_id) in best_ids.iter().enumerate() {
+                let _ = decoded.get(hypothesis_index as i64).index_copy_(
+                    0,
+                    &Tensor::arange1(
                         0,
-                        &Tensor::arange1(
-                            0,
-                            i64::from(sentence_lengths.get(hypothesis_index as i64)),
-                            (Int64, input_ids.device()),
-                        ),
-                        &best_id,
+                        i64::from(sentence_lengths.get(hypothesis_index as i64)),
+                        (Int64, input_ids.device()),
+                    ),
+                    &best_id,
+                );
+                let sentence_length = i64::from(sentence_lengths.get(hypothesis_index as i64));
+                if sentence_length < gen_opt.max_length {
+                    let _ = decoded.get(hypothesis_index as i64).index_fill_(
+                        0,
+                        &Tensor::of_slice(&[sentence_length]).to_device(input_ids.device()),
+                        gen_opt.eos_token_ids.as_ref().unwrap()[0],
                     );
-                    let sentence_length = i64::from(sentence_lengths.get(hypothesis_index as i64));
-                    if sentence_length < gen_opt.max_length {
-                        let _ = decoded.get(hypothesis_index as i64).index_fill_(
-                            0,
-                            &Tensor::of_slice(&[sentence_length]).to_device(input_ids.device()),
-                            gen_opt.eos_token_ids.as_ref().unwrap()[0],
-                        );
-                    }
                 }
-                decoded
-            } else {
-                Tensor::stack(&best_ids, 0)
-                    .to_kind(Int64)
-                    .to(input_ids.device())
-            };
+            }
             decoded
         }
 
@@ -2709,7 +2676,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 )
             }
         });
-
         let num_sequences = *decoded.size().first().unwrap();
         let mut output_ids = Vec::with_capacity(num_sequences as usize);
         for sequence_index in 0..num_sequences {

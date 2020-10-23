@@ -717,7 +717,9 @@ impl ConversationModel {
                 .iter()
                 .position(|&r| r != pad_token)
                 .unwrap();
-            sequence_history.drain(sequence_history.len() - index_end + 1..);
+            if index_end > 0 {
+                sequence_history.drain(sequence_history.len() - index_end + 1..);
+            }
             sequence_history.drain(..index_start);
             removed_tokens.push((index_start, index_end));
         }

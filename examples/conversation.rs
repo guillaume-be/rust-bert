@@ -12,10 +12,17 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
+use rust_bert::pipelines::conversation::{
+    ConversationConfig, ConversationManager, ConversationModel,
+};
 
 fn main() -> anyhow::Result<()> {
-    let conversation_model = ConversationModel::new(Default::default())?;
+    let config = ConversationConfig {
+        do_sample: false,
+        num_beams: 3,
+        ..Default::default()
+    };
+    let conversation_model = ConversationModel::new(config)?;
     let mut conversation_manager = ConversationManager::new();
 
     let conversation_1_id =
