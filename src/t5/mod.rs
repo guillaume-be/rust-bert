@@ -22,7 +22,7 @@
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::t5::{T5Config, T5ForConditionalGeneration};
 //! use rust_bert::Config;
-//! use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
+//! use rust_tokenizers::tokenizer::T5Tokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),

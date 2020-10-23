@@ -48,7 +48,6 @@
 //! Output: \
 //! ```no_run
 //! # use rust_bert::pipelines::token_classification::Token;
-//! use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Mask, Offset};
 //! use rust_tokenizers::{Mask, Offset};
 //! # let output =
 //! [

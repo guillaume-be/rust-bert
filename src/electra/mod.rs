@@ -25,12 +25,12 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! #
-//! use rust_tokenizers::BertTokenizer;
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::electra::{ElectraConfig, ElectraForMaskedLM};
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
+//! use rust_tokenizers::tokenizer::BertTokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),

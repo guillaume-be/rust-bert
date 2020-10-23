@@ -23,7 +23,7 @@
 //! use rust_bert::marian::MarianForConditionalGeneration;
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
-//! use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
+//! use rust_tokenizers::tokenizer::MarianTokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),

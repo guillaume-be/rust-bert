@@ -17,12 +17,12 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! #
-//! use rust_tokenizers::RobertaTokenizer;
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::bart::{BartConfig, BartModel};
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
+//! use rust_tokenizers::tokenizer::RobertaTokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
