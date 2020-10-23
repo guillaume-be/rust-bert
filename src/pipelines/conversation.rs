@@ -737,7 +737,7 @@ impl ConversationModel {
                 .collect_vec();
 
             let prompt_ids = self.encode_prompts(texts.as_ref());
-            let input_tensor = self.concat_input_history(prompt_ids, history);
+            let input_tensor = self.concat_input_history(prompt_ids.as_ref(), history);
             let input_length = *input_tensor.size().last().unwrap() as usize;
             let mut generated = self.model.generate_from_ids_and_past(input_tensor, None);
             let removed_padding_quantities = self.clean_padding_indices(&mut generated);
