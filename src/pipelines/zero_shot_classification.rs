@@ -765,7 +765,7 @@ impl ZeroShotClassificationModel {
                 .unwrap()
                 .enumerate()
             {
-                let label_string = labels[label_index].to_string();
+                let label_string = labels.as_ref()[label_index].to_string();
                 let label = Label {
                     text: label_string,
                     score,
