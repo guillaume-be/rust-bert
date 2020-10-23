@@ -144,7 +144,7 @@ pub struct Conversation {
     /// New user input that needs to be processed
     pub new_user_input: Option<String>,
     ///  History of the tokens passed as an input and generated so far used as context for next turn generation
-    pub history: Vec<i64>,
+    pub history: Vec<Vec<i64>>,
 }
 
 impl Conversation {
@@ -334,6 +334,71 @@ impl Conversation {
             Some(self.generated_responses.last().unwrap().as_str())
         } else {
             None
+        }
+    }
+
+    fn append(&mut self, text: &str, ids: &[i64]) {
+        match &self.new_user_input {
+            Some(_) => {
+                self.mark_processed();
+                if self.past_user_inputs.len() >= self.generated_responses.len() {
+                    self.generated_responses.push(text.to_string());
+                } else {
+                    let _ = self.add_user_input(text);
+                }
+            }
+            None => {
+                let _ = self.add_user_input(text);
+            }
+        }
+        self.history.push(ids.to_vec());
+    }
+
+    /// Initializes a conversation form a prior state. It is assumed that a conversation always
+    /// start from a user interaction.
+    ///
+    /// # Arguments
+    /// - texts: sequence of strings, alternating between past user inputs and past generated responses.
+    /// - ids: sequence of sequence of ids, alternating between past user inputs and past generated responses.
+    /// These can be generated via a `ConversationModel`'s `encode_prompts`.
+    ///
+    /// # Example:
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
+    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// let model = ConversationModel::new(Default::default())?;
+    ///
+    /// let mut conversation_manager = ConversationManager::new();
+    /// let history = [
+    ///     "Going to the movies tonight - any suggestions?",
+    ///     "The Big Lebowski",
+    ///     "Is it an action movie?",
+    /// ];
+    /// let encoded_history = model.encode_prompts(&history);
+    ///
+    /// let conversation_1_id = conversation_manager.create_empty();
+    /// let _ = conversation_manager
+    ///     .get(&conversation_1_id)
+    ///     .unwrap()
+    ///     .load_from_history(history, encoded_history);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn load_from_history<ST, SI, STR, SIN>(&mut self, texts: ST, ids: SI)
+    where
+        ST: AsRef<[STR]>,
+        SI: AsRef<[SIN]>,
+        STR: AsRef<str>,
+        SIN: AsRef<[i64]>,
+    {
+        for (round_text, round_ids) in texts.as_ref().iter().zip(ids.as_ref().iter()) {
+            self.append(round_text.as_ref(), round_ids.as_ref());
+        }
+
+        if texts.as_ref().len() / 2 == 1 {
+            self.history.pop();
         }
     }
 }
@@ -668,7 +733,7 @@ impl ConversationModel {
 
             let history = active_conversations
                 .iter()
-                .map(|c| &c.history)
+                .map(|c| c.history.iter().flatten().copied().collect())
                 .collect_vec();
 
             let prompt_ids = self.encode_prompts(texts.as_ref());
@@ -679,21 +744,25 @@ impl ConversationModel {
 
             let mut output = HashMap::with_capacity(active_uuid.len());
 
-            for (((conversation, generated_sequence), uuid), removed_padding) in
-                active_conversations
-                    .into_iter()
-                    .zip(generated.into_iter())
-                    .zip(active_uuid.into_iter())
-                    .zip(removed_padding_quantities.into_iter())
+            for (
+                ((conversation, (generated_sequence, conversation_promp_ids)), uuid),
+                removed_padding,
+            ) in active_conversations
+                .into_iter()
+                .zip(generated.into_iter().zip(prompt_ids.into_iter()))
+                .zip(active_uuid.into_iter())
+                .zip(removed_padding_quantities.into_iter())
             {
+                let generated_response = &generated_sequence[input_length - removed_padding.0..];
                 conversation
                     .generated_responses
                     .push(self.model.get_tokenizer().decode(
-                        generated_sequence[input_length - removed_padding.0..].to_vec(),
+                        generated_response.to_vec(),
                         true,
                         true,
                     ));
-                conversation.history = generated_sequence;
+                conversation.history.push(conversation_promp_ids);
+                conversation.history.push(generated_response.to_vec());
                 conversation.mark_processed();
                 output.insert(uuid, conversation.get_last_response().unwrap());
             }
@@ -726,7 +795,7 @@ impl ConversationModel {
         removed_tokens
     }
 
-    fn concat_input_history(&self, inputs: Vec<Vec<i64>>, history: Vec<&Vec<i64>>) -> Tensor {
+    fn concat_input_history(&self, inputs: &[Vec<i64>], history: Vec<Vec<i64>>) -> Tensor {
         // Concatenates the history token indices with new user input
         let pad_token = self.model.get_pad_id().unwrap_or(self.eos_token_id);
 
@@ -791,7 +860,26 @@ impl ConversationModel {
         *eos_indices.first().unwrap_or(&0usize)
     }
 
-    fn encode_prompts(&self, texts: &[&str]) -> Vec<Vec<i64>> {
+    /// Encodes prompts into Vectors of indices to be processed by the model. This method may be used to
+    /// initialize the history of a conversation with a prior state.
+    ///
+    /// # Example:
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
+    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// let model = ConversationModel::new(Default::default())?;
+    /// let history = [
+    ///     "Going to the movies tonight - any suggestions?",
+    ///     "The Big Lebowski",
+    ///     "Is it an action movie?",
+    /// ];
+    /// let encoded_history = model.encode_prompts(&history);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn encode_prompts(&self, texts: &[&str]) -> Vec<Vec<i64>> {
         // Encode the user prompt into token ids
         let tokens = self.model.get_tokenizer().tokenize_list(texts);
 
