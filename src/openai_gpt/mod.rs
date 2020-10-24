@@ -15,13 +15,13 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! use rust_tokenizers::OpenAiGptTokenizer;
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::gpt2::Gpt2Config;
 //! use rust_bert::openai_gpt::OpenAiGptModel;
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
+//! use rust_tokenizers::tokenizer::OpenAiGptTokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),

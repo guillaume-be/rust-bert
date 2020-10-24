@@ -19,7 +19,8 @@ use rust_bert::xlnet::{
     XLNetConfig, XLNetConfigResources, XLNetLMHeadModel, XLNetModelResources, XLNetVocabResources,
 };
 use rust_bert::Config;
-use rust_tokenizers::{Tokenizer, TruncationStrategy, Vocab, XLNetTokenizer};
+use rust_tokenizers::tokenizer::{MultiThreadedTokenizer, TruncationStrategy, XLNetTokenizer};
+use rust_tokenizers::vocab::Vocab;
 use tch::{nn, no_grad, Device, Kind, Tensor};
 
 fn main() -> anyhow::Result<()> {
@@ -48,8 +49,7 @@ fn main() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["One two three four"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())

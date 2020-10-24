@@ -112,7 +112,8 @@ use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use crate::RustBertError;
 use itertools::Itertools;
-use rust_tokenizers::{TokenizedInput, TruncationStrategy};
+use rust_tokenizers::tokenizer::TruncationStrategy;
+use rust_tokenizers::TokenizedInput;
 use std::borrow::Borrow;
 use tch::kind::Kind::{Bool, Float};
 use tch::nn::VarStore;
@@ -151,7 +152,7 @@ impl ZeroShotClassificationConfig {
     /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
         model_resource: Resource,
@@ -464,29 +465,39 @@ impl ZeroShotClassificationModel {
         })
     }
 
-    fn prepare_for_model(
+    fn prepare_for_model<'a, S, T>(
         &self,
-        inputs: &[&str],
-        labels: &[&str],
+        inputs: S,
+        labels: T,
         template: Option<Box<dyn Fn(&str) -> String>>,
         max_len: usize,
-    ) -> (Tensor, Tensor) {
+    ) -> (Tensor, Tensor)
+    where
+        S: AsRef<[&'a str]>,
+        T: AsRef<[&'a str]>,
+    {
         let label_sentences: Vec<String> = match template {
-            Some(function) => labels.iter().map(|label| function(label)).collect(),
+            Some(function) => labels
+                .as_ref()
+                .iter()
+                .map(|label| function(label))
+                .collect(),
             None => labels
+                .as_ref()
                 .iter()
                 .map(|label| format!("This example is about {}.", label))
                 .collect(),
         };
 
         let text_pair_list = inputs
+            .as_ref()
             .iter()
             .cartesian_product(label_sentences.iter())
             .map(|(&s, label)| (s, label.as_str()))
-            .collect();
+            .collect::<Vec<(&str, &str)>>();
 
         let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_pair_list(
-            text_pair_list,
+            text_pair_list.as_ref(),
             max_len,
             &TruncationStrategy::LongestFirst,
             0,
@@ -576,15 +587,20 @@ impl ZeroShotClassificationModel {
     /// ]
     /// .to_vec();
     /// ```
-    pub fn predict(
+    pub fn predict<'a, S, T>(
         &self,
-        inputs: &[&str],
-        labels: &[&str],
+        inputs: S,
+        labels: T,
         template: Option<Box<dyn Fn(&str) -> String>>,
         max_length: usize,
-    ) -> Vec<Label> {
-        let num_inputs = inputs.len();
-        let (input_tensor, mask) = self.prepare_for_model(inputs, labels, template, max_length);
+    ) -> Vec<Label>
+    where
+        S: AsRef<[&'a str]>,
+        T: AsRef<[&'a str]>,
+    {
+        let num_inputs = inputs.as_ref().len();
+        let (input_tensor, mask) =
+            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length);
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(input_tensor),
@@ -594,7 +610,7 @@ impl ZeroShotClassificationModel {
                 None,
                 false,
             );
-            output.view((num_inputs as i64, labels.len() as i64, -1i64))
+            output.view((num_inputs as i64, labels.as_ref().len() as i64, -1i64))
         });
 
         let scores = output.softmax(1, Float).select(-1, -1);
@@ -607,7 +623,7 @@ impl ZeroShotClassificationModel {
 
         let mut output_labels: Vec<Label> = vec![];
         for sentence_idx in 0..label_indices.len() {
-            let label_string = labels[label_indices[sentence_idx] as usize].to_string();
+            let label_string = labels.as_ref()[label_indices[sentence_idx] as usize].to_string();
             let label = Label {
                 text: label_string,
                 score: scores[sentence_idx],
@@ -712,15 +728,20 @@ impl ZeroShotClassificationModel {
     /// ]
     /// .to_vec();
     /// ```
-    pub fn predict_multilabel(
+    pub fn predict_multilabel<'a, S, T>(
         &self,
-        inputs: &[&str],
-        labels: &[&str],
+        inputs: S,
+        labels: T,
         template: Option<Box<dyn Fn(&str) -> String>>,
         max_length: usize,
-    ) -> Vec<Vec<Label>> {
-        let num_inputs = inputs.len();
-        let (input_tensor, mask) = self.prepare_for_model(inputs, labels, template, max_length);
+    ) -> Vec<Vec<Label>>
+    where
+        S: AsRef<[&'a str]>,
+        T: AsRef<[&'a str]>,
+    {
+        let num_inputs = inputs.as_ref().len();
+        let (input_tensor, mask) =
+            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length);
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(input_tensor),
@@ -730,7 +751,7 @@ impl ZeroShotClassificationModel {
                 None,
                 false,
             );
-            output.view((num_inputs as i64, labels.len() as i64, -1i64))
+            output.view((num_inputs as i64, labels.as_ref().len() as i64, -1i64))
         });
         let scores = output.slice(-1, 0, 3, 2).softmax(-1, Float).select(-1, -1);
 
@@ -744,7 +765,7 @@ impl ZeroShotClassificationModel {
                 .unwrap()
                 .enumerate()
             {
-                let label_string = labels[label_index].to_string();
+                let label_string = labels.as_ref()[label_index].to_string();
                 let label = Label {
                     text: label_string,
                     score,

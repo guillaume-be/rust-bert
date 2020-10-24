@@ -18,7 +18,9 @@ use rust_bert::electra::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{
+    BertTokenizer, MultiThreadedTokenizer, Tokenizer, TruncationStrategy,
+};
 use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {
@@ -47,8 +49,13 @@ fn main() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["One Two Three Ten Five Six Seven Eight"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = MultiThreadedTokenizer::encode_list(
+        &tokenizer,
+        &input,
+        128,
+        &TruncationStrategy::LongestFirst,
+        0,
+    );
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())

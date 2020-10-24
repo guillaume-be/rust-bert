@@ -83,14 +83,12 @@ use crate::t5::{
 use crate::xlnet::{LayerState, XLNetConfig, XLNetLMHeadModel};
 use crate::Config;
 use itertools::Itertools;
-use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
-use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
-use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
-use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
-use rust_tokenizers::preprocessing::vocab::xlnet_vocab::XLNetVocab;
-use rust_tokenizers::{
-    Gpt2Tokenizer, Gpt2Vocab, OpenAiGptTokenizer, OpenAiGptVocab, RobertaTokenizer, RobertaVocab,
-    Tokenizer, TruncationStrategy, Vocab, XLNetTokenizer,
+use rust_tokenizers::tokenizer::{
+    Gpt2Tokenizer, MarianTokenizer, OpenAiGptTokenizer, RobertaTokenizer, T5Tokenizer, Tokenizer,
+    TruncationStrategy, XLNetTokenizer,
+};
+use rust_tokenizers::vocab::{
+    Gpt2Vocab, MarianVocab, OpenAiGptVocab, RobertaVocab, T5Vocab, Vocab, XLNetVocab,
 };
 use tch::kind::Kind::Int64;
 use tch::{nn, no_grad, Device, Kind, Tensor};
@@ -768,14 +766,17 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         }
     }
 
-    fn encode_prompt_text(
+    fn encode_prompt_text<'a, S>(
         &self,
-        prompt_text: Vec<&str>,
+        prompt_text: S,
         max_len: i64,
         pad_token_id: Option<i64>,
-    ) -> Tensor {
+    ) -> Tensor
+    where
+        S: AsRef<[&'a str]>,
+    {
         let tokens = self.get_tokenizer().encode_list(
-            prompt_text,
+            prompt_text.as_ref(),
             max_len as usize,
             &TruncationStrategy::LongestFirst,
             0,
@@ -1043,14 +1044,17 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         }
     }
 
-    fn encode_prompt_text(
+    fn encode_prompt_text<'a, T>(
         &self,
-        prompt_text: Vec<&str>,
+        prompt_text: T,
         max_len: i64,
         pad_token_id: Option<i64>,
-    ) -> Tensor {
+    ) -> Tensor
+    where
+        T: AsRef<[&'a str]>,
+    {
         let tokens = self.get_tokenizer().encode_list(
-            prompt_text,
+            prompt_text.as_ref(),
             max_len as usize,
             &TruncationStrategy::LongestFirst,
             0,
@@ -1272,14 +1276,17 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
         }
     }
 
-    fn encode_prompt_text(
+    fn encode_prompt_text<'a, S>(
         &self,
-        prompt_text: Vec<&str>,
+        prompt_text: S,
         max_len: i64,
         pad_token_id: Option<i64>,
-    ) -> Tensor {
+    ) -> Tensor
+    where
+        S: AsRef<[&'a str]>,
+    {
         let tokens = self.get_tokenizer().encode_list(
-            prompt_text,
+            prompt_text.as_ref(),
             max_len as usize,
             &TruncationStrategy::LongestFirst,
             0,
@@ -1583,11 +1590,14 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
 }
 
 impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {
-    fn generate(
+    fn generate<'a, S>(
         &self,
-        prompt_texts: Option<Vec<&str>>,
+        prompt_texts: Option<S>,
         attention_mask: Option<Tensor>,
-    ) -> Vec<String> {
+    ) -> Vec<String>
+    where
+        S: AsRef<[&'a str]>,
+    {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
         let config = PrivateLanguageGenerator::get_config(self);
@@ -1620,6 +1630,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>";
         let input_ids = match prompt_texts {
             Some(texts) => {
                 let texts = texts
+                    .as_ref()
                     .iter()
                     .map(|text| format!("{} {}", prefix, text))
                     .collect::<Vec<String>>();
@@ -1663,8 +1674,9 @@ pub enum Cache {
 pub(crate) mod private_generation_utils {
     use super::ordered_float::OrderedFloat;
     use crate::pipelines::generation::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
-    use rust_tokenizers::preprocessing::tokenizer::tokenization_utils::truncate_sequences;
-    use rust_tokenizers::{Tokenizer, TruncationStrategy, Vocab};
+    use rust_tokenizers::tokenizer::{truncate_sequences, Tokenizer, TruncationStrategy};
+    use rust_tokenizers::vocab::Vocab;
+    use rust_tokenizers::TokenIdsWithOffsets;
     use std::cmp::{max, min};
     use std::collections::HashMap;
     use tch::kind::Kind::{Bool, Float, Int64};
@@ -1727,13 +1739,16 @@ pub(crate) mod private_generation_utils {
             (Some(input_ids), Some(attention_mask), None, None, past)
         }
 
-        fn encode_prompt_text(
+        fn encode_prompt_text<'a, S>(
             &self,
-            prompt_text: Vec<&str>,
+            prompt_text: S,
             max_len: i64,
             pad_token_id: Option<i64>,
-        ) -> Tensor {
-            let tokens = self.get_tokenizer().tokenize_list(prompt_text);
+        ) -> Tensor
+        where
+            S: AsRef<[&'a str]>,
+        {
+            let tokens = self.get_tokenizer().tokenize_list(prompt_text.as_ref());
             let token_ids = tokens
                 .into_iter()
                 .map(|prompt_tokens| self.get_tokenizer().convert_tokens_to_ids(&prompt_tokens))
@@ -1755,13 +1770,12 @@ pub(crate) mod private_generation_utils {
                 .zip(num_truncated_tokens)
                 .map(|(tokens, num_truncated_tokens)| {
                     truncate_sequences(
-                        tokens,
-                        None,
-                        vec![],
-                        None,
-                        vec![],
-                        None,
-                        vec![],
+                        TokenIdsWithOffsets {
+                            ids: tokens,
+                            offsets: vec![],
+                            reference_offsets: vec![],
+                            masks: vec![],
+                        },
                         None,
                         num_truncated_tokens,
                         &TruncationStrategy::LongestFirst,
@@ -1769,6 +1783,7 @@ pub(crate) mod private_generation_utils {
                     )
                     .unwrap()
                     .0
+                    .ids
                 })
                 .collect::<Vec<Vec<i64>>>();
 
@@ -2464,11 +2479,14 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// ]
     /// # ;
     /// ```
-    fn generate(
+    fn generate<'a, S>(
         &self,
-        prompt_texts: Option<Vec<&str>>,
+        prompt_texts: Option<S>,
         attention_mask: Option<Tensor>,
-    ) -> Vec<String> {
+    ) -> Vec<String>
+    where
+        S: AsRef<[&'a str]>,
+    {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
         let config = PrivateLanguageGenerator::get_config(self);

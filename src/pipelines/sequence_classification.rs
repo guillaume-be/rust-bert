@@ -69,9 +69,8 @@ use crate::distilbert::{
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
-    TokenizedInput, TruncationStrategy,
-};
+use rust_tokenizers::tokenizer::TruncationStrategy;
+use rust_tokenizers::TokenizedInput;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -125,7 +124,7 @@ impl SequenceClassificationConfig {
     /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
         model_resource: Resource,
@@ -436,10 +435,13 @@ impl SequenceClassificationModel {
         })
     }
 
-    fn prepare_for_model(&self, input: Vec<&str>) -> Tensor {
+    fn prepare_for_model<'a, S>(&self, input: S) -> Tensor
+    where
+        S: AsRef<[&'a str]>,
+    {
         let tokenized_input: Vec<TokenizedInput> =
             self.tokenizer
-                .encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+                .encode_list(input.as_ref(), 128, &TruncationStrategy::LongestFirst, 0);
         let max_len = tokenized_input
             .iter()
             .map(|input| input.token_ids.len())
@@ -488,8 +490,11 @@ impl SequenceClassificationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(&self, input: &[&str]) -> Vec<Label> {
-        let input_tensor = self.prepare_for_model(input.to_vec());
+    pub fn predict<'a, S>(&self, input: S) -> Vec<Label>
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let input_tensor = self.prepare_for_model(input.as_ref());
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
                 Some(input_tensor.copy()),

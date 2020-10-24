@@ -20,7 +20,7 @@ use rust_bert::openai_gpt::{
 use rust_bert::pipelines::generation::{Cache, LMHeadModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {
@@ -56,8 +56,7 @@ fn main() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["Wondering what the next word will"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())

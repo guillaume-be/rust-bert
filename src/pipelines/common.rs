@@ -25,20 +25,14 @@ use crate::electra::ElectraConfig;
 use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
 use crate::Config;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
-    Mask, Offset, OffsetSize, Tokenizer,
+use rust_tokenizers::tokenizer::{
+    AlbertTokenizer, BertTokenizer, MarianTokenizer, MultiThreadedTokenizer, RobertaTokenizer,
+    T5Tokenizer, Tokenizer, TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
 };
-use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
-use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
-use rust_tokenizers::preprocessing::tokenizer::xlm_roberta_tokenizer::XLMRobertaTokenizer;
-use rust_tokenizers::preprocessing::vocab::albert_vocab::AlbertVocab;
-use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
-use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
-use rust_tokenizers::preprocessing::vocab::xlnet_vocab::XLNetVocab;
-use rust_tokenizers::{
-    AlbertTokenizer, BertTokenizer, BertVocab, RobertaTokenizer, RobertaVocab, TokenizedInput,
-    TruncationStrategy, XLMRobertaVocab, XLNetTokenizer,
+use rust_tokenizers::vocab::{
+    AlbertVocab, BertVocab, MarianVocab, RobertaVocab, T5Vocab, XLMRobertaVocab, XLNetVocab,
 };
+use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -279,66 +273,122 @@ impl TokenizerOption {
     /// Interface method
     pub fn encode_list(
         &self,
-        text_list: Vec<&str>,
+        text_list: &[&str],
         max_len: usize,
         truncation_strategy: &TruncationStrategy,
         stride: usize,
     ) -> Vec<TokenizedInput> {
         match *self {
-            Self::Bert(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::Roberta(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::Marian(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::T5(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::XLMRoberta(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::Albert(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::XLNet(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
+            Self::Bert(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Marian(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::T5(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::XLMRoberta(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Albert(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::XLNet(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
         }
     }
 
     /// Interface method for pair encoding
     pub fn encode_pair_list(
         &self,
-        text_pair_list: Vec<(&str, &str)>,
+        text_pair_list: &[(&str, &str)],
         max_len: usize,
         truncation_strategy: &TruncationStrategy,
         stride: usize,
     ) -> Vec<TokenizedInput> {
         match *self {
-            Self::Bert(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
-            }
-            Self::Roberta(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
-            }
-            Self::Marian(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
-            }
-            Self::T5(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
-            }
-            Self::XLMRoberta(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
-            }
-            Self::Albert(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
-            }
-            Self::XLNet(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
-            }
+            Self::Bert(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Marian(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::T5(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::XLMRoberta(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Albert(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::XLNet(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
         }
     }
 
@@ -358,110 +408,61 @@ impl TokenizerOption {
     /// Interface method to build input with special tokens
     pub fn build_input_with_special_tokens(
         &self,
-        tokens_1: Vec<i64>,
-        tokens_2: Option<Vec<i64>>,
-        offsets_1: Vec<Option<Offset>>,
-        offsets_2: Option<Vec<Option<Offset>>>,
-        original_offsets_1: Vec<Vec<OffsetSize>>,
-        original_offsets_2: Option<Vec<Vec<OffsetSize>>>,
-        mask_1: Vec<Mask>,
-        mask_2: Option<Vec<Mask>>,
+        token_ids_with_offsets_1: TokenIdsWithOffsets,
+        token_ids_with_offsets_2: Option<TokenIdsWithOffsets>,
     ) -> TokenizedInput {
-        let (token_ids, segment_ids, special_tokens_mask, token_offsets, reference_offsets, mask) =
-            match *self {
-                Self::Bert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::XLMRoberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::Marian(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::T5(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::Albert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::XLNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-            };
+        let token_ids_with_special_tokens = match *self {
+            Self::Bert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Marian(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::T5(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Albert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::XLNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+        };
         TokenizedInput {
-            token_ids,
-            segment_ids,
-            special_tokens_mask,
+            token_ids: token_ids_with_special_tokens.token_ids,
+            segment_ids: token_ids_with_special_tokens.segment_ids,
+            special_tokens_mask: token_ids_with_special_tokens.special_tokens_mask,
             overflowing_tokens: vec![],
             num_truncated_tokens: 0,
-            token_offsets,
-            reference_offsets,
-            mask,
+            token_offsets: token_ids_with_special_tokens.token_offsets,
+            reference_offsets: token_ids_with_special_tokens.reference_offsets,
+            mask: token_ids_with_special_tokens.mask,
         }
     }
 
     /// Interface method to convert tokens to ids
     pub fn convert_tokens_to_ids(&self, tokens: &[String]) -> Vec<i64> {
         match *self {
-            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
+            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
 
@@ -469,50 +470,43 @@ impl TokenizerOption {
     pub fn get_pad_id(&self) -> Option<i64> {
         match *self {
             Self::Bert(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(BertVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::Roberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(RobertaVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::XLMRoberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(XLMRobertaVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::Marian(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(MarianVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::T5(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(T5Vocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::Albert(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(AlbertVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::XLNet(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(XLNetVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
@@ -524,36 +518,31 @@ impl TokenizerOption {
     pub fn get_sep_id(&self) -> Option<i64> {
         match *self {
             Self::Bert(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(BertVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Roberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(RobertaVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::XLMRoberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(XLMRobertaVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Albert(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(AlbertVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::XLNet(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(XLNetVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),

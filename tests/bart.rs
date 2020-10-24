@@ -8,7 +8,7 @@ use rust_bert::pipelines::zero_shot_classification::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{RobertaTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]
@@ -43,8 +43,7 @@ fn bart_lm_model() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["One two three four"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())

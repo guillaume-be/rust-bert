@@ -10,7 +10,7 @@ use rust_bert::pipelines::generation::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]
@@ -43,8 +43,7 @@ fn gpt2_lm_model() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["One two three four"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())

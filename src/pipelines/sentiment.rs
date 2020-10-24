@@ -133,7 +133,10 @@ impl SentimentModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(&self, input: &[&str]) -> Vec<Sentiment> {
+    pub fn predict<'a, S>(&self, input: S) -> Vec<Sentiment>
+    where
+        S: AsRef<[&'a str]>,
+    {
         let labels = self.sequence_classification_model.predict(input);
         let mut sentiments = Vec::with_capacity(labels.len());
         for label in labels {

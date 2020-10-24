@@ -6,7 +6,8 @@ use rust_bert::xlnet::{
     XLNetModelResources, XLNetVocabResources,
 };
 use rust_bert::Config;
-use rust_tokenizers::{Tokenizer, TruncationStrategy, Vocab, XLNetTokenizer};
+use rust_tokenizers::tokenizer::{MultiThreadedTokenizer, TruncationStrategy, XLNetTokenizer};
+use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Kind, Tensor};
 
@@ -39,8 +40,7 @@ fn xlnet_base_model() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["One two three four"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -145,8 +145,7 @@ fn xlnet_lm_model() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["One two three four"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -263,8 +262,7 @@ fn xlnet_for_sequence_classification() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["Very positive sentence", "Second sentence input"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -331,7 +329,10 @@ fn xlnet_for_multiple_choice() -> anyhow::Result<()> {
     let prompt = "In Italy, pizza served in formal settings, such as at a restaurant, is presented unsliced.";
     let inputs = ["Very positive sentence", "Second sentence input"];
     let tokenized_input = tokenizer.encode_pair_list(
-        inputs.iter().map(|&inp| (prompt, inp)).collect(),
+        inputs
+            .iter()
+            .map(|&inp| (prompt, inp))
+            .collect::<Vec<(&str, &str)>>(),
         128,
         &TruncationStrategy::LongestFirst,
         0,
@@ -400,8 +401,7 @@ fn xlnet_for_token_classification() -> anyhow::Result<()> {
 
     //    Define input
     let inputs = ["Where's Paris?", "In Kentucky, United States"];
-    let tokenized_input =
-        tokenizer.encode_list(inputs.into(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&inputs, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -459,7 +459,7 @@ fn xlnet_for_question_answering() -> anyhow::Result<()> {
     //    Define input
     let inputs = ["Where's Paris?", "Paris is in In Kentucky, United States"];
     let tokenized_input = tokenizer.encode_pair_list(
-        vec![(inputs[0], inputs[1])],
+        &[(inputs[0], inputs[1])],
         128,
         &TruncationStrategy::LongestFirst,
         0,

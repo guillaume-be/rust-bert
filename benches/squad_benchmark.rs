@@ -78,7 +78,7 @@ fn bench_squad(c: &mut Criterion) {
     }
     //    Define input
     let mut squad_path = PathBuf::from(env::var("squad_dataset")
-.expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));
+        .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));
     squad_path.push("dev-v2.0.json");
     let mut qa_inputs = squad_processor(squad_path);
     qa_inputs.truncate(1000);

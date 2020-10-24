@@ -6,7 +6,6 @@ use criterion::{black_box, Criterion};
 // use rust_bert::pipelines::translation::TranslationOption::{Marian, T5};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 // use rust_bert::resources::{LocalResource, Resource};
-// use rust_tokenizers::{Tokenizer, TruncationStrategy};
 use std::time::{Duration, Instant};
 use tch::Device;
 

@@ -8,7 +8,7 @@ use rust_bert::pipelines::generation::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]
@@ -45,8 +45,7 @@ fn openai_gpt_lm_model() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["Wondering what the next word will"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -231,7 +230,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
 
     assert_eq!(output.len(), 6);
 
-    //    Unpadded sequence (generation for `The dog is`) is identical to the
+    //    Un-padded sequence (generation for `The dog is`) is identical to the
     assert_eq!(
         output[0],
         "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be right"

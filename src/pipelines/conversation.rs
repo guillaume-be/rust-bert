@@ -52,7 +52,7 @@ use crate::gpt2::{
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
 use itertools::Itertools;
-use rust_tokenizers::Tokenizer;
+use rust_tokenizers::tokenizer::Tokenizer;
 use std::collections::HashMap;
 use tch::{Device, Tensor};
 use uuid::Uuid;
@@ -736,8 +736,8 @@ impl ConversationModel {
                 .map(|c| c.history.iter().flatten().copied().collect())
                 .collect_vec();
 
-            let prompt_ids = self.encode_prompts(texts.as_slice());
-            let input_tensor = self.concat_input_history(&prompt_ids, history);
+            let prompt_ids = self.encode_prompts(texts.as_ref());
+            let input_tensor = self.concat_input_history(prompt_ids.as_ref(), history);
             let input_length = *input_tensor.size().last().unwrap() as usize;
             let mut generated = self.model.generate_from_ids_and_past(input_tensor, None);
             let removed_padding_quantities = self.clean_padding_indices(&mut generated);
@@ -881,7 +881,7 @@ impl ConversationModel {
     /// ```
     pub fn encode_prompts(&self, texts: &[&str]) -> Vec<Vec<i64>> {
         // Encode the user prompt into token ids
-        let tokens = self.model.get_tokenizer().tokenize_list(texts.to_vec());
+        let tokens = self.model.get_tokenizer().tokenize_list(texts);
 
         tokens
             .into_iter()
