@@ -797,7 +797,7 @@ impl QuestionAnsweringModel {
         } else {
             0
         };
-        let truncated_query = truncate_sequences(
+        truncate_sequences(
             TokenIdsWithOffsets {
                 ids: truncated_query,
                 offsets: vec![],
@@ -811,8 +811,7 @@ impl QuestionAnsweringModel {
         )
         .unwrap()
         .0
-        .ids;
-        truncated_query
+        .ids
     }
 
     fn encode_qa_pair(
