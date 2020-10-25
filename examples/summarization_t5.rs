@@ -21,11 +21,11 @@ fn main() -> anyhow::Result<()> {
     // let summarization_model = SummarizationModel::new(Default::default())?;
 
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_BASE));
+        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_BASE));
+        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
     let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_BASE));
+        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
     let summarization_config = SummarizationConfig::new(
         ModelType::T5,
         weights_resource,
