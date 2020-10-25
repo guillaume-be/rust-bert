@@ -73,6 +73,7 @@ use crate::openai_gpt::{
     OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptMergesResources,
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
+use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation::private_generation_utils::{
     GenerateOptions, PrivateLanguageGenerator,
 };
@@ -208,7 +209,7 @@ impl GenerateConfig {
 /// # Language generation model based on the GPT architecture
 pub struct OpenAIGenerator {
     model: OpenAIGPTLMHeadModel,
-    tokenizer: OpenAiGptTokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -294,10 +295,13 @@ impl OpenAIGenerator {
         let device = generate_config.device;
 
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = OpenAiGptTokenizer::from_file(
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::OpenAiGpt,
             vocab_path.to_str().unwrap(),
-            merges_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
             true,
+            None,
+            None,
         )?;
         let config = Gpt2Config::from_file(config_path);
         let model = OpenAIGPTLMHeadModel::new(&var_store.root(), &config);
@@ -331,7 +335,7 @@ impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTok
     fn get_model(&self) -> &OpenAIGPTLMHeadModel {
         &self.model
     }
-    fn get_tokenizer(&self) -> &OpenAiGptTokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -1673,6 +1677,7 @@ pub enum Cache {
 
 pub(crate) mod private_generation_utils {
     use super::ordered_float::OrderedFloat;
+    use crate::pipelines::common::TokenizerOption;
     use crate::pipelines::generation::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
     use rust_tokenizers::tokenizer::{truncate_sequences, Tokenizer, TruncationStrategy};
     use rust_tokenizers::vocab::Vocab;
@@ -1701,7 +1706,7 @@ pub(crate) mod private_generation_utils {
 
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         fn get_model(&self) -> &T;
-        fn get_tokenizer(&self) -> &U;
+        fn get_tokenizer(&self) -> &TokenizerOption;
         fn get_var_store(&self) -> &nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
         fn get_bos_id(&self) -> &Option<i64>;

@@ -49,6 +49,7 @@ use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
+use crate::pipelines::common::ModelType;
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
 use itertools::Itertools;
@@ -61,6 +62,8 @@ use uuid::Uuid;
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
 /// different set of default parameters and sets the device to place the model on.
 pub struct ConversationConfig {
+    /// Model type
+    pub model_type: ModelType,
     /// Model weights resource (default: DialoGPT-medium)
     pub model_resource: Resource,
     /// Config resource (default: DialoGPT-medium)
@@ -102,6 +105,7 @@ pub struct ConversationConfig {
 impl Default for ConversationConfig {
     fn default() -> ConversationConfig {
         ConversationConfig {
+            model_type: ModelType::GPT2,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 Gpt2ModelResources::DIALOGPT_MEDIUM,
             )),
@@ -637,10 +641,74 @@ impl Default for ConversationManager {
     }
 }
 
+/// # Abstraction that holds one particular conversation model, for any of the supported models
+pub enum ConversationOption {
+    /// Conversation based on GPT2 model
+    GPT2(GPT2Generator),
+}
+
+impl ConversationOption {
+    pub fn new(config: ConversationConfig) -> Result<Self, RustBertError> {
+        let generate_config = GenerateConfig {
+            model_resource: config.model_resource,
+            config_resource: config.config_resource,
+            merges_resource: config.merges_resource,
+            vocab_resource: config.vocab_resource,
+            min_length: config.min_length,
+            max_length: config.max_length,
+            do_sample: config.do_sample,
+            early_stopping: config.early_stopping,
+            num_beams: config.num_beams,
+            temperature: config.temperature,
+            top_k: config.top_k,
+            top_p: config.top_p,
+            repetition_penalty: config.repetition_penalty,
+            length_penalty: config.length_penalty,
+            no_repeat_ngram_size: config.no_repeat_ngram_size,
+            num_return_sequences: config.num_return_sequences,
+            device: config.device,
+        };
+        match config.model_type {
+            ModelType::GPT2 => Ok(ConversationOption::GPT2(GPT2Generator::new(
+                generate_config,
+            )?)),
+            _ => Err(RustBertError::ValueError(
+                "GPT2 currently only supported model for conversation generation".to_string(),
+            )),
+        }
+    }
+
+    pub fn get_eos_id(&self) -> Result<i64, RustBertError> {
+        match self {
+            Self::GPT2(model_ref) => {
+                Ok(*model_ref.get_eos_ids().as_ref().unwrap().first().unwrap())
+            }
+        }
+    }
+
+    /// Returns the `ModelType` for this ConversationOption
+    pub fn model_type(&self) -> ModelType {
+        match *self {
+            Self::GPT2(_) => ModelType::GPT2,
+        }
+    }
+
+    /// Interface method to generate_from_ids_and_past() of the particular models.
+    pub fn generate_from_ids_and_past(
+        &self,
+        input_ids: Tensor,
+        attention_mask: Option<Tensor>,
+    ) -> Vec<Vec<i64>> {
+        match *self {
+            Self::GPT2(ref model) => model.generate_from_ids_and_past(input_ids, attention_mask),
+        }
+    }
+}
+
 /// # Conversation model
 /// Processes a ConversationManager and generate system responses for active conversations.
 pub struct ConversationModel {
-    model: GPT2Generator,
+    model: ConversationOption,
     eos_token_id: i64,
     max_allowed_context_length: i64,
 }
@@ -665,30 +733,10 @@ impl ConversationModel {
     pub fn new(
         conversation_config: ConversationConfig,
     ) -> Result<ConversationModel, RustBertError> {
-        let generate_config = GenerateConfig {
-            model_resource: conversation_config.model_resource,
-            config_resource: conversation_config.config_resource,
-            merges_resource: conversation_config.merges_resource,
-            vocab_resource: conversation_config.vocab_resource,
-            min_length: conversation_config.min_length,
-            max_length: conversation_config.max_length,
-            do_sample: conversation_config.do_sample,
-            early_stopping: conversation_config.early_stopping,
-            num_beams: conversation_config.num_beams,
-            temperature: conversation_config.temperature,
-            top_k: conversation_config.top_k,
-            top_p: conversation_config.top_p,
-            repetition_penalty: conversation_config.repetition_penalty,
-            length_penalty: conversation_config.length_penalty,
-            no_repeat_ngram_size: conversation_config.no_repeat_ngram_size,
-            num_return_sequences: conversation_config.num_return_sequences,
-            device: conversation_config.device,
-        };
-
-        let model = GPT2Generator::new(generate_config)?;
-        let eos_token_id = *model.get_eos_ids().as_ref().unwrap().first().unwrap();
         let max_allowed_length =
             conversation_config.max_length - conversation_config.min_length_for_response;
+        let model = ConversationOption::new(conversation_config)?;
+        let eos_token_id = model.get_eos_id()?;
         Ok(ConversationModel {
             model,
             eos_token_id,

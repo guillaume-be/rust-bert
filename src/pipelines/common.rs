@@ -22,12 +22,14 @@ use crate::bert::BertConfig;
 use crate::common::error::RustBertError;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
+use crate::gpt2::Gpt2Config;
 use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
 use crate::Config;
 use rust_tokenizers::tokenizer::{
-    AlbertTokenizer, BertTokenizer, MarianTokenizer, MultiThreadedTokenizer, RobertaTokenizer,
-    T5Tokenizer, Tokenizer, TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
+    AlbertTokenizer, BertTokenizer, Gpt2Tokenizer, MarianTokenizer, MultiThreadedTokenizer,
+    OpenAiGptTokenizer, RobertaTokenizer, T5Tokenizer, Tokenizer, TruncationStrategy,
+    XLMRobertaTokenizer, XLNetTokenizer,
 };
 use rust_tokenizers::vocab::{
     AlbertVocab, BertVocab, MarianVocab, RobertaVocab, T5Vocab, XLMRobertaVocab, XLNetVocab,
@@ -50,6 +52,8 @@ pub enum ModelType {
     T5,
     Albert,
     XLNet,
+    GPT2,
+    OpenAiGpt,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -70,6 +74,8 @@ pub enum ConfigOption {
     Albert(AlbertConfig),
     /// XLNet configuration
     XLNet(XLNetConfig),
+    /// GPT2 configuration
+    GPT2(Gpt2Config),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -78,7 +84,7 @@ pub enum TokenizerOption {
     Bert(BertTokenizer),
     /// Roberta Tokenizer
     Roberta(RobertaTokenizer),
-    /// Roberta Tokenizer
+    /// XLMRoberta Tokenizer
     XLMRoberta(XLMRobertaTokenizer),
     /// Marian Tokenizer
     Marian(MarianTokenizer),
@@ -86,8 +92,12 @@ pub enum TokenizerOption {
     T5(T5Tokenizer),
     /// Albert Tokenizer
     Albert(AlbertTokenizer),
-    /// Albert Tokenizer
+    /// XLNet Tokenizer
     XLNet(XLNetTokenizer),
+    /// GPT2 Tokenizer
+    GPT2(Gpt2Tokenizer),
+    /// GPT Tokenizer
+    OpenAiGpt(OpenAiGptTokenizer),
 }
 
 impl ConfigOption {
@@ -104,6 +114,8 @@ impl ConfigOption {
             ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
             ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
             ModelType::XLNet => ConfigOption::XLNet(XLNetConfig::from_file(path)),
+            ModelType::GPT2 => ConfigOption::GPT2(Gpt2Config::from_file(path)),
+            ModelType::OpenAiGpt => ConfigOption::GPT2(Gpt2Config::from_file(path)),
         }
     }
 
@@ -131,6 +143,7 @@ impl ConfigOption {
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
+            Self::GPT2(_) => panic!("GPT2 does not use a label mapping"),
         }
     }
 }
@@ -253,6 +266,16 @@ impl TokenizerOption {
                     strip_accents.unwrap(),
                 )?)
             }
+            ModelType::GPT2 => TokenizerOption::GPT2(Gpt2Tokenizer::from_file(
+                vocab_path,
+                merges_path.expect("No merges specified!"),
+                lower_case,
+            )?),
+            ModelType::OpenAiGpt => TokenizerOption::OpenAiGpt(OpenAiGptTokenizer::from_file(
+                vocab_path,
+                merges_path.expect("No merges specified!"),
+                lower_case,
+            )?),
         };
         Ok(tokenizer)
     }
@@ -267,6 +290,8 @@ impl TokenizerOption {
             Self::T5(_) => ModelType::T5,
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
+            Self::GPT2(_) => ModelType::GPT2,
+            Self::OpenAiGpt(_) => ModelType::OpenAiGpt,
         }
     }
 
@@ -322,6 +347,20 @@ impl TokenizerOption {
                 stride,
             ),
             Self::XLNet(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::GPT2(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::OpenAiGpt(ref tokenizer) => MultiThreadedTokenizer::encode_list(
                 tokenizer,
                 text_list,
                 max_len,
@@ -389,6 +428,20 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::GPT2(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::OpenAiGpt(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
         }
     }
 
@@ -402,6 +455,8 @@ impl TokenizerOption {
             Self::XLMRoberta(ref tokenizer) => tokenizer.tokenize(text),
             Self::Albert(ref tokenizer) => tokenizer.tokenize(text),
             Self::XLNet(ref tokenizer) => tokenizer.tokenize(text),
+            Self::GPT2(ref tokenizer) => tokenizer.tokenize(text),
+            Self::OpenAiGpt(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
 
@@ -440,6 +495,14 @@ impl TokenizerOption {
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
             ),
+            Self::GPT2(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::OpenAiGpt(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
         };
         TokenizedInput {
             token_ids: token_ids_with_special_tokens.token_ids,
@@ -463,6 +526,8 @@ impl TokenizerOption {
             Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::GPT2(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::OpenAiGpt(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
 
@@ -511,6 +576,8 @@ impl TokenizerOption {
                     .get(XLNetVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
+            Self::GPT2(ref tokenizer) => None,
+            Self::OpenAiGpt(ref tokenizer) => None,
         }
     }
 
@@ -549,6 +616,8 @@ impl TokenizerOption {
             ),
             Self::Marian(_) => None,
             Self::T5(_) => None,
+            Self::GPT2(_) => None,
+            Self::OpenAiGpt(_) => None,
         }
     }
 }
