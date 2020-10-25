@@ -67,13 +67,17 @@ use crate::bart::{
 };
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
-use crate::pipelines::generation::{BartGenerator, GenerateConfig, LanguageGenerator};
-use tch::Device;
+use crate::pipelines::common::ModelType;
+use crate::pipelines::generation::{BartGenerator, GenerateConfig, LanguageGenerator, T5Generator};
+use itertools::Itertools;
+use tch::{Device, Tensor};
 
 /// # Configuration for text summarization
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
 /// different set of default parameters and sets the device to place the model on.
 pub struct SummarizationConfig {
+    /// Model type
+    pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
     pub model_resource: Resource,
     /// Config resource (default: pretrained BART model on CNN-DM)
@@ -110,9 +114,39 @@ pub struct SummarizationConfig {
     pub device: Device,
 }
 
+impl SummarizationConfig {
+    /// Instantiate a new summarization configuration of the supplied type.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
+    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - The `Resource`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
+    pub fn new(
+        model_type: ModelType,
+        model_resource: Resource,
+        config_resource: Resource,
+        vocab_resource: Resource,
+        merges_resource: Resource,
+    ) -> SummarizationConfig {
+        SummarizationConfig {
+            model_type,
+            model_resource,
+            config_resource,
+            vocab_resource,
+            merges_resource,
+            device: Device::cuda_if_available(),
+            ..Default::default()
+        }
+    }
+}
+
 impl Default for SummarizationConfig {
     fn default() -> SummarizationConfig {
         SummarizationConfig {
+            model_type: ModelType::Bart,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 BartModelResources::BART_CNN,
             )),
@@ -142,9 +176,93 @@ impl Default for SummarizationConfig {
     }
 }
 
+/// # Abstraction that holds one particular summarization model, for any of the supported models
+pub enum SummarizationOption {
+    /// Summarizer based on BART model
+    Bart(BartGenerator),
+    /// Summarizer based on T5 model
+    T5(T5Generator),
+}
+
+impl SummarizationOption {
+    pub fn new(config: SummarizationConfig) -> Result<Self, RustBertError> {
+        let generate_config = GenerateConfig {
+            model_resource: config.model_resource,
+            config_resource: config.config_resource,
+            merges_resource: config.merges_resource,
+            vocab_resource: config.vocab_resource,
+            min_length: config.min_length,
+            max_length: config.max_length,
+            do_sample: config.do_sample,
+            early_stopping: config.early_stopping,
+            num_beams: config.num_beams,
+            temperature: config.temperature,
+            top_k: config.top_k,
+            top_p: config.top_p,
+            repetition_penalty: config.repetition_penalty,
+            length_penalty: config.length_penalty,
+            no_repeat_ngram_size: config.no_repeat_ngram_size,
+            num_return_sequences: config.num_return_sequences,
+            device: config.device,
+        };
+        Ok(match config.model_type {
+            ModelType::Bart => SummarizationOption::Bart(BartGenerator::new(generate_config)?),
+            ModelType::T5 => SummarizationOption::T5(T5Generator::new(generate_config)?),
+            ModelType::Bert => {
+                panic!("Summarization not implemented for Electra!");
+            }
+            ModelType::DistilBert => {
+                panic!("Summarization not implemented for DistilBert!");
+            }
+            ModelType::Roberta => {
+                panic!("Summarization not implemented for Roberta!");
+            }
+            ModelType::XLMRoberta => {
+                panic!("Summarization not implemented for XLMRoberta!");
+            }
+            ModelType::Electra => {
+                panic!("Summarization not implemented for Electra!");
+            }
+            ModelType::Albert => {
+                panic!("Summarization not implemented for Albert!");
+            }
+            ModelType::XLNet => {
+                panic!("Summarization not implemented for XLNet!");
+            }
+            ModelType::Marian => {
+                panic!("Summarization not implemented for Marian!");
+            }
+        })
+    }
+
+    /// Returns the `ModelType` for this SummarizationOption
+    pub fn model_type(&self) -> ModelType {
+        match *self {
+            Self::Bart(_) => ModelType::Bart,
+            Self::T5(_) => ModelType::T5,
+        }
+    }
+
+    /// Interface method to generate() of the particular models.
+    pub fn generate<'a, S>(
+        &self,
+        prompt_texts: Option<S>,
+        attention_mask: Option<Tensor>,
+    ) -> Vec<String>
+    where
+        S: AsRef<[&'a str]>,
+    {
+        match *self {
+            Self::Bart(ref model) => model.generate(prompt_texts, attention_mask),
+            Self::T5(ref model) => model.generate(prompt_texts, attention_mask),
+        }
+    }
+}
+
 /// # SummarizationModel to perform summarization
 pub struct SummarizationModel {
-    model: BartGenerator,
+    model: SummarizationOption,
+    prefix: Option<String>,
 }
 
 impl SummarizationModel {
@@ -167,29 +285,13 @@ impl SummarizationModel {
     pub fn new(
         summarization_config: SummarizationConfig,
     ) -> Result<SummarizationModel, RustBertError> {
-        let generate_config = GenerateConfig {
-            model_resource: summarization_config.model_resource,
-            config_resource: summarization_config.config_resource,
-            merges_resource: summarization_config.merges_resource,
-            vocab_resource: summarization_config.vocab_resource,
-            min_length: summarization_config.min_length,
-            max_length: summarization_config.max_length,
-            do_sample: summarization_config.do_sample,
-            early_stopping: summarization_config.early_stopping,
-            num_beams: summarization_config.num_beams,
-            temperature: summarization_config.temperature,
-            top_k: summarization_config.top_k,
-            top_p: summarization_config.top_p,
-            repetition_penalty: summarization_config.repetition_penalty,
-            length_penalty: summarization_config.length_penalty,
-            no_repeat_ngram_size: summarization_config.no_repeat_ngram_size,
-            num_return_sequences: summarization_config.num_return_sequences,
-            device: summarization_config.device,
+        let prefix = match summarization_config.model_type {
+            ModelType::T5 => Some("summarize: ".to_string()),
+            _ => None,
         };
+        let model = SummarizationOption::new(summarization_config)?;
 
-        let model = BartGenerator::new(generate_config)?;
-
-        Ok(SummarizationModel { model })
+        Ok(SummarizationModel { model, prefix })
     }
 
     /// Summarize texts provided
@@ -240,6 +342,19 @@ impl SummarizationModel {
     where
         S: AsRef<[&'a str]>,
     {
-        self.model.generate(Some(texts.as_ref()), None)
+        match &self.prefix {
+            None => self.model.generate(Some(texts), None),
+            Some(prefix) => {
+                let texts = texts
+                    .as_ref()
+                    .iter()
+                    .map(|text| format!("{}{}", prefix, text))
+                    .collect_vec();
+                self.model.generate(
+                    Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
+                    None,
+                )
+            }
+        }
     }
 }
