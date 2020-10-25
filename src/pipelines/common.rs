@@ -32,7 +32,8 @@ use rust_tokenizers::tokenizer::{
     XLMRobertaTokenizer, XLNetTokenizer,
 };
 use rust_tokenizers::vocab::{
-    AlbertVocab, BertVocab, MarianVocab, RobertaVocab, T5Vocab, XLMRobertaVocab, XLNetVocab,
+    AlbertVocab, BertVocab, Gpt2Vocab, MarianVocab, OpenAiGptVocab, RobertaVocab, T5Vocab, Vocab,
+    XLMRobertaVocab, XLNetVocab,
 };
 use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput};
 use serde::{Deserialize, Serialize};
@@ -460,6 +461,63 @@ impl TokenizerOption {
         }
     }
 
+    /// Interface method to tokenization
+    pub fn tokenize_list(&self, text: &[&str]) -> Vec<Vec<String>> {
+        match *self {
+            Self::Bert(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::Marian(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::T5(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::XLMRoberta(ref tokenizer) => {
+                MultiThreadedTokenizer::tokenize_list(tokenizer, text)
+            }
+            Self::Albert(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::XLNet(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::GPT2(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::OpenAiGpt(ref tokenizer) => {
+                MultiThreadedTokenizer::tokenize_list(tokenizer, text)
+            }
+        }
+    }
+
+    /// Interface method to decoding
+    pub fn decode(
+        &self,
+        token_ids: Vec<i64>,
+        skip_special_tokens: bool,
+        clean_up_tokenization_spaces: bool,
+    ) -> String {
+        match *self {
+            Self::Bert(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::Roberta(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::Marian(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::T5(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::Albert(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::XLNet(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::GPT2(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::OpenAiGpt(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+        }
+    }
+
     /// Interface method to build input with special tokens
     pub fn build_input_with_special_tokens(
         &self,
@@ -517,7 +575,11 @@ impl TokenizerOption {
     }
 
     /// Interface method to convert tokens to ids
-    pub fn convert_tokens_to_ids(&self, tokens: &[String]) -> Vec<i64> {
+    pub fn convert_tokens_to_ids<S, ST>(&self, tokens: S) -> Vec<i64>
+    where
+        S: AsRef<[ST]>,
+        ST: AsRef<str>,
+    {
         match *self {
             Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
@@ -528,6 +590,48 @@ impl TokenizerOption {
             Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::GPT2(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::OpenAiGpt(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+        }
+    }
+
+    /// Interface method
+    pub fn get_unk_id(&self) -> i64 {
+        match *self {
+            Self::Bert(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(BertVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::Roberta(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(RobertaVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::XLMRoberta(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(XLMRobertaVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::Marian(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(MarianVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::T5(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(T5Vocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::Albert(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(AlbertVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::XLNet(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(XLNetVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::GPT2(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(Gpt2Vocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::OpenAiGpt(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(OpenAiGptVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
         }
     }
 
@@ -576,8 +680,8 @@ impl TokenizerOption {
                     .get(XLNetVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
-            Self::GPT2(ref tokenizer) => None,
-            Self::OpenAiGpt(ref tokenizer) => None,
+            Self::GPT2(_) => None,
+            Self::OpenAiGpt(_) => None,
         }
     }
 

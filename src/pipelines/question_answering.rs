@@ -342,6 +342,12 @@ impl QuestionAnsweringOption {
             ModelType::Bart => {
                 panic!("QuestionAnswering not implemented for BART!");
             }
+            ModelType::GPT2 => {
+                panic!("QuestionAnswering not implemented for GPT2!");
+            }
+            ModelType::OpenAiGpt => {
+                panic!("QuestionAnswering not implemented for GPT!");
+            }
         }
     }
 

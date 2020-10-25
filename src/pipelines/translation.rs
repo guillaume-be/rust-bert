@@ -528,6 +528,12 @@ impl TranslationOption {
             ModelType::Bart => {
                 panic!("Translation not implemented for BART!");
             }
+            ModelType::GPT2 => {
+                panic!("Translation not implemented for GPT2!");
+            }
+            ModelType::OpenAiGpt => {
+                panic!("Translation not implemented for GPT!");
+            }
         }
     }
 

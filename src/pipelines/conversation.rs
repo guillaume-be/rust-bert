@@ -49,11 +49,10 @@ use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
-use crate::pipelines::common::ModelType;
+use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
 use itertools::Itertools;
-use rust_tokenizers::tokenizer::Tokenizer;
 use std::collections::HashMap;
 use tch::{Device, Tensor};
 use uuid::Uuid;
@@ -686,6 +685,12 @@ impl ConversationOption {
         }
     }
 
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        match self {
+            Self::GPT2(model_ref) => model_ref.get_tokenizer(),
+        }
+    }
+
     /// Returns the `ModelType` for this ConversationOption
     pub fn model_type(&self) -> ModelType {
         match *self {
@@ -711,6 +716,7 @@ pub struct ConversationModel {
     model: ConversationOption,
     eos_token_id: i64,
     max_allowed_context_length: i64,
+    device: Device,
 }
 
 impl ConversationModel {
@@ -735,12 +741,14 @@ impl ConversationModel {
     ) -> Result<ConversationModel, RustBertError> {
         let max_allowed_length =
             conversation_config.max_length - conversation_config.min_length_for_response;
+        let device = conversation_config.device;
         let model = ConversationOption::new(conversation_config)?;
         let eos_token_id = model.get_eos_id()?;
         Ok(ConversationModel {
             model,
             eos_token_id,
             max_allowed_context_length: max_allowed_length,
+            device,
         })
     }
 
@@ -822,7 +830,11 @@ impl ConversationModel {
 
     fn clean_padding_indices(&self, model_output: &mut Vec<Vec<i64>>) -> Vec<(usize, usize)> {
         // In case inputs are sent as batch, this cleans the padding indices in the history for shorter outputs
-        let pad_token = self.model.get_pad_id().unwrap_or(self.eos_token_id);
+        let pad_token = self
+            .model
+            .get_tokenizer()
+            .get_pad_id()
+            .unwrap_or(self.eos_token_id);
         let mut removed_tokens = Vec::with_capacity(model_output.len());
         for sequence_history in model_output {
             let index_end = sequence_history
@@ -845,7 +857,11 @@ impl ConversationModel {
 
     fn concat_input_history(&self, inputs: &[Vec<i64>], history: Vec<Vec<i64>>) -> Tensor {
         // Concatenates the history token indices with new user input
-        let pad_token = self.model.get_pad_id().unwrap_or(self.eos_token_id);
+        let pad_token = self
+            .model
+            .get_tokenizer()
+            .get_pad_id()
+            .unwrap_or(self.eos_token_id);
 
         assert_eq!(
             inputs.len(),
@@ -882,7 +898,7 @@ impl ConversationModel {
                 temp.extend_from_slice(&input[start..]);
                 temp
             })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.model.get_var_store().device()))
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.device))
             .collect::<Vec<Tensor>>();
         Tensor::stack(&concatenated_inputs, 0)
     }

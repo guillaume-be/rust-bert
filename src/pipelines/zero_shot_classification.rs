@@ -301,13 +301,19 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::Electra => {
-                panic!("SequenceClassification not implemented for Electra!");
+                panic!("ZeroShotClassification not implemented for Electra!");
             }
             ModelType::Marian => {
-                panic!("SequenceClassification not implemented for Marian!");
+                panic!("ZeroShotClassification not implemented for Marian!");
             }
             ModelType::T5 => {
-                panic!("SequenceClassification not implemented for T5!");
+                panic!("ZeroShotClassification not implemented for T5!");
+            }
+            ModelType::GPT2 => {
+                panic!("ZeroShotClassification not implemented for GPT2!");
+            }
+            ModelType::OpenAiGpt => {
+                panic!("ZeroShotClassification not implemented for GPT!");
             }
         }
     }

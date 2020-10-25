@@ -384,6 +384,12 @@ impl TokenClassificationOption {
             ModelType::Bart => {
                 panic!("TokenClassification not implemented for BART!");
             }
+            ModelType::GPT2 => {
+                panic!("TokenClassification not implemented for GPT2!");
+            }
+            ModelType::OpenAiGpt => {
+                panic!("TokenClassification not implemented for GPT!");
+            }
         }
     }
 
@@ -700,6 +706,12 @@ impl TokenClassificationModel {
                 }
                 TokenizerOption::T5(_) => {
                     panic!("TokenClassification not implemented for T5!");
+                }
+                TokenizerOption::GPT2(_) => {
+                    panic!("TokenClassification not implemented for GPT2!");
+                }
+                TokenizerOption::OpenAiGpt(_) => {
+                    panic!("TokenClassification not implemented for GPT!");
                 }
             },
             Some(offsets) => {

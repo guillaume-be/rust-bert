@@ -276,6 +276,12 @@ impl SequenceClassificationOption {
             ModelType::T5 => {
                 panic!("SequenceClassification not implemented for T5!");
             }
+            ModelType::GPT2 => {
+                panic!("SequenceClassification not implemented for GPT2!");
+            }
+            ModelType::OpenAiGpt => {
+                panic!("QuestionAnswering not implemented for GPT!");
+            }
         }
     }
 

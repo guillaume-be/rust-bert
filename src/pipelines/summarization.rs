@@ -232,6 +232,12 @@ impl SummarizationOption {
             ModelType::Marian => {
                 panic!("Summarization not implemented for Marian!");
             }
+            ModelType::GPT2 => {
+                panic!("Summarization not implemented for GPT2!");
+            }
+            ModelType::OpenAiGpt => {
+                panic!("Summarization not implemented for GPT!");
+            }
         })
     }
 

@@ -372,7 +372,7 @@ impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
 /// # Language generation model based on the GPT2 architecture
 pub struct GPT2Generator {
     model: GPT2LMHeadModel,
-    tokenizer: Gpt2Tokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -417,17 +417,20 @@ impl GPT2Generator {
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = Gpt2Tokenizer::from_file(
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::GPT2,
             vocab_path.to_str().unwrap(),
-            merges_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
             false,
+            None,
+            None,
         )?;
         let config = Gpt2Config::from_file(config_path);
         let model = GPT2LMHeadModel::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
-        let bos_token_id = Some(tokenizer.vocab().token_to_id(Gpt2Vocab::bos_value()));
-        let eos_token_ids = Some(vec![tokenizer.vocab().token_to_id(Gpt2Vocab::eos_value())]);
+        let bos_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::bos_value()])[0]);
+        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()]));
         let pad_token_id = None;
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
@@ -452,7 +455,7 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     fn get_model(&self) -> &GPT2LMHeadModel {
         &self.model
     }
-    fn get_tokenizer(&self) -> &Gpt2Tokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -553,7 +556,7 @@ impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Genera
 /// # Language generation model based on the Bart architecture
 pub struct BartGenerator {
     model: BartForConditionalGeneration,
-    tokenizer: RobertaTokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -644,11 +647,13 @@ impl BartGenerator {
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = RobertaTokenizer::from_file(
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::Bart,
             vocab_path.to_str().unwrap(),
-            merges_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
             false,
-            false,
+            None,
+            Some(false),
         )?;
         let config = BartConfig::from_file(config_path);
         let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
@@ -693,7 +698,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     fn get_model(&self) -> &BartForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &RobertaTokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -796,8 +801,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
             Some(value) => value,
             None => self
                 .get_tokenizer()
-                .vocab()
-                .token_to_id(RobertaVocab::unknown_value()),
+                .convert_tokens_to_ids(&[RobertaVocab::unknown_value()])[0],
         };
 
         let token_ids = token_ids
@@ -860,7 +864,7 @@ impl LanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokeni
 /// # Language generation model based on the Marian architecture for machine translation
 pub struct MarianGenerator {
     model: MarianForConditionalGeneration,
-    tokenizer: MarianTokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -918,24 +922,27 @@ impl MarianGenerator {
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = MarianTokenizer::from_files(
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::Marian,
             vocab_path.to_str().unwrap(),
-            sentence_piece_path.to_str().unwrap(),
+            Some(sentence_piece_path.to_str().unwrap()),
             false,
+            None,
+            None,
         )?;
+
         let config = BartConfig::from_file(config_path);
         let model = MarianForConditionalGeneration::new(&var_store.root(), &config, true);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(0);
-        let eos_token_ids = Some(vec![tokenizer
-            .vocab()
-            .token_to_id(MarianVocab::eos_value())]);
-        let pad_token_id = Some(tokenizer.vocab().token_to_id(MarianVocab::pad_value()));
+        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::eos_value()]));
+        let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::pad_value()])[0]);
 
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(tokenizer.vocab().token_to_id(MarianVocab::pad_value()));
+        let decoder_start_id =
+            Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::pad_value()])[0]);
 
         Ok(MarianGenerator {
             model,
@@ -966,7 +973,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
     fn get_model(&self) -> &MarianForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &MarianTokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -1072,10 +1079,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self
-                .get_tokenizer()
-                .vocab()
-                .token_to_id(RobertaVocab::unknown_value()),
+            None => self.get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids
@@ -1137,7 +1141,7 @@ impl LanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokeni
 
 pub struct T5Generator {
     model: T5ForConditionalGeneration,
-    tokenizer: T5Tokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -1182,7 +1186,15 @@ impl T5Generator {
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = T5Tokenizer::from_file(vocab_path.to_str().unwrap(), false)?;
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::T5,
+            vocab_path.to_str().unwrap(),
+            None,
+            false,
+            None,
+            None,
+        )?;
+
         let config = T5Config::from_file(config_path);
         let model = T5ForConditionalGeneration::new(&var_store.root(), &config, false, false);
         var_store.load(weights_path)?;
@@ -1216,7 +1228,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     fn get_model(&self) -> &T5ForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &T5Tokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -1304,10 +1316,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self
-                .get_tokenizer()
-                .vocab()
-                .token_to_id(T5Vocab::unknown_value()),
+            None => self.get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids
@@ -1364,7 +1373,7 @@ impl LanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> for T5G
 /// # Language generation model based on the XLNet architecture
 pub struct XLNetGenerator {
     model: XLNetLMHeadModel,
-    tokenizer: XLNetTokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -1411,7 +1420,15 @@ impl XLNetGenerator {
         generate_config.min_length += 167;
         generate_config.max_length += 167;
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = XLNetTokenizer::from_file(vocab_path.to_str().unwrap(), false, true)?;
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::XLNet,
+            vocab_path.to_str().unwrap(),
+            None,
+            false,
+            Some(true),
+            None,
+        )?;
+
         let config = XLNetConfig::from_file(config_path);
         let model = XLNetLMHeadModel::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
@@ -1442,7 +1459,7 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
     fn get_model(&self) -> &XLNetLMHeadModel {
         &self.model
     }
-    fn get_tokenizer(&self) -> &XLNetTokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -1796,7 +1813,7 @@ pub(crate) mod private_generation_utils {
 
             let pad_token = match pad_token_id {
                 Some(value) => value,
-                None => self.get_tokenizer().vocab().token_to_id(V::unknown_value()),
+                None => self.get_tokenizer().get_unk_id(),
             };
 
             let token_ids = token_ids
