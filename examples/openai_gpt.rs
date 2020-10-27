@@ -17,7 +17,7 @@ use rust_bert::openai_gpt::{
     OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptMergesResources,
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
-use rust_bert::pipelines::generation::{Cache, LMHeadModel};
+use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};

@@ -12,7 +12,7 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::generation::{GenerateConfig, LanguageGenerator, T5Generator};
+use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator, T5Generator};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 

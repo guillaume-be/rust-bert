@@ -12,7 +12,8 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
+use rust_bert::pipelines::generation_utils::GenerateConfig;
+use rust_bert::pipelines::text_generation::TextGenerationModel;
 
 fn main() -> anyhow::Result<()> {
     //    Set-up masked LM model
@@ -24,11 +25,11 @@ fn main() -> anyhow::Result<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = GPT2Generator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The dog";
     let second_input_context = "The cat was";
-    let output = model.generate(Some(vec![input_context, second_input_context]), None);
+    let output = model.generate(&[input_context, second_input_context], None);
 
     for sentence in output {
         println!("{:?}", sentence);

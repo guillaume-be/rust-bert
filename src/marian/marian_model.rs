@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::bart::{BartConfig, BartEncoderOutput, BartModel, BartModelOutput, LayerState};
-use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::Init;

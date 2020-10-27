@@ -50,8 +50,8 @@ use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
 use crate::pipelines::common::{ModelType, TokenizerOption};
-use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
+use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
+use crate::pipelines::generation_utils::{GPT2Generator, GenerateConfig, LanguageGenerator};
 use itertools::Itertools;
 use std::collections::HashMap;
 use tch::{Device, Tensor};
@@ -370,7 +370,7 @@ impl Conversation {
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
-    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
     /// let model = ConversationModel::new(Default::default())?;
     ///
     /// let mut conversation_manager = ConversationManager::new();
@@ -649,6 +649,7 @@ pub enum ConversationOption {
 impl ConversationOption {
     pub fn new(config: ConversationConfig) -> Result<Self, RustBertError> {
         let generate_config = GenerateConfig {
+            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -766,7 +767,7 @@ impl ConversationModel {
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
-    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
     /// let model = ConversationModel::new(Default::default())?;
     ///
     /// let mut conversation_manager = ConversationManager::new();
@@ -932,7 +933,7 @@ impl ConversationModel {
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
-    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
     /// let model = ConversationModel::new(Default::default())?;
     /// let history = [
     ///     "Going to the movies tonight - any suggestions?",

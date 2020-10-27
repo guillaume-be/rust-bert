@@ -21,7 +21,7 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation::LanguageGenerator;
+//! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::summarization::SummarizationModel;
 //! let mut model = SummarizationModel::new(Default::default())?;
 //!
@@ -68,7 +68,9 @@ use crate::bart::{
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::pipelines::common::ModelType;
-use crate::pipelines::generation::{BartGenerator, GenerateConfig, LanguageGenerator, T5Generator};
+use crate::pipelines::generation_utils::{
+    BartGenerator, GenerateConfig, LanguageGenerator, T5Generator,
+};
 use itertools::Itertools;
 use tch::{Device, Tensor};
 
@@ -187,6 +189,7 @@ pub enum SummarizationOption {
 impl SummarizationOption {
     pub fn new(config: SummarizationConfig) -> Result<Self, RustBertError> {
         let generate_config = GenerateConfig {
+            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -313,7 +316,7 @@ impl SummarizationModel {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
     /// use rust_bert::pipelines::summarization::SummarizationModel;
     /// let model = SummarizationModel::new(Default::default())?;
     ///

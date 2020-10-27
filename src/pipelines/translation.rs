@@ -33,7 +33,7 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation::LanguageGenerator;
+//! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 //! use tch::Device;
 //! let translation_config =
@@ -61,7 +61,7 @@ use crate::marian::{
     MarianVocabResources,
 };
 use crate::pipelines::common::ModelType;
-use crate::pipelines::generation::{
+use crate::pipelines::generation_utils::{
     GenerateConfig, LanguageGenerator, MarianGenerator, T5Generator,
 };
 use crate::t5::{T5ConfigResources, T5ModelResources, T5Prefix, T5VocabResources};
@@ -481,6 +481,7 @@ pub enum TranslationOption {
 impl TranslationOption {
     pub fn new(config: TranslationConfig) -> Self {
         let generate_config = GenerateConfig {
+            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -607,7 +608,7 @@ impl TranslationModel {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
     /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
     /// use tch::Device;
     ///

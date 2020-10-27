@@ -20,7 +20,7 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! use rust_bert::pipelines::generation::{GenerateConfig, LanguageGenerator, XLNetGenerator};
+//! use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator, XLNetGenerator};
 //! use rust_bert::resources::{RemoteResource, Resource};
 //! use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
 //! let config_resource = Resource::Remote(RemoteResource::from_pretrained(

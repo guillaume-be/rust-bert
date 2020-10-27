@@ -3,7 +3,7 @@ use rust_bert::openai_gpt::{
     OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptMergesResources,
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
-use rust_bert::pipelines::generation::{
+use rust_bert::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LanguageGenerator, OpenAIGenerator,
 };
 use rust_bert::resources::{RemoteResource, Resource};

@@ -14,7 +14,9 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::generation::{GenerateConfig, LanguageGenerator, XLNetGenerator};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::generation_utils::GenerateConfig;
+use rust_bert::pipelines::text_generation::TextGenerationModel;
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
 
@@ -35,6 +37,7 @@ fn main() -> anyhow::Result<()> {
     ));
 
     let generate_config = GenerateConfig {
+        model_type: ModelType::XLNet,
         model_resource,
         config_resource,
         vocab_resource,
@@ -46,10 +49,10 @@ fn main() -> anyhow::Result<()> {
         num_return_sequences: 1,
         ..Default::default()
     };
-    let model = XLNetGenerator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "Once upon a time,";
-    let output = model.generate(Some(vec![input_context]), None);
+    let output = model.generate(&[input_context], None);
 
     for sentence in output {
         println!("{}", sentence);

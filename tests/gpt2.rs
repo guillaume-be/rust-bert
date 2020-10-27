@@ -5,7 +5,7 @@ use rust_bert::gpt2::{
 use rust_bert::pipelines::conversation::{
     ConversationConfig, ConversationManager, ConversationModel,
 };
-use rust_bert::pipelines::generation::{
+use rust_bert::pipelines::generation_utils::{
     Cache, GPT2Generator, GenerateConfig, LMHeadModel, LanguageGenerator,
 };
 use rust_bert::resources::{RemoteResource, Resource};
