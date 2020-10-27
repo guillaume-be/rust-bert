@@ -653,7 +653,7 @@ impl BartGenerator {
             Some(merges_path.to_str().unwrap()),
             false,
             None,
-            Some(false),
+            false,
         )?;
         let config = BartConfig::from_file(config_path);
         let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
@@ -1425,7 +1425,7 @@ impl XLNetGenerator {
             vocab_path.to_str().unwrap(),
             None,
             false,
-            Some(true),
+            true,
             None,
         )?;
 

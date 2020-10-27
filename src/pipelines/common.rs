@@ -156,9 +156,12 @@ impl TokenizerOption {
         vocab_path: &str,
         merges_path: Option<&str>,
         lower_case: bool,
-        strip_accents: Option<bool>,
-        add_prefix_space: Option<bool>,
+        strip_accents: impl Into<Option<bool>>,
+        add_prefix_space: impl Into<Option<bool>>,
     ) -> Result<Self, RustBertError> {
+        let strip_accents = strip_accents.into();
+        let add_prefix_space = add_prefix_space.into();
+
         let tokenizer = match model_type {
             ModelType::Bert | ModelType::DistilBert | ModelType::Electra => {
                 if add_prefix_space.is_some() {
