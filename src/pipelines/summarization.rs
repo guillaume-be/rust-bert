@@ -262,8 +262,8 @@ impl SummarizationOption {
         S: AsRef<[&'a str]>,
     {
         match *self {
-            Self::Bart(ref model) => model.generate(prompt_texts, attention_mask),
-            Self::T5(ref model) => model.generate(prompt_texts, attention_mask),
+            Self::Bart(ref model) => model.generate(prompt_texts, attention_mask, None, None, None),
+            Self::T5(ref model) => model.generate(prompt_texts, attention_mask, None, None, None),
         }
     }
 }

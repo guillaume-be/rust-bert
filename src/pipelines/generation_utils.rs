@@ -1412,7 +1412,7 @@ impl XLNetGenerator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(mut generate_config: GenerateConfig) -> Result<XLNetGenerator, RustBertError> {
+    pub fn new(generate_config: GenerateConfig) -> Result<XLNetGenerator, RustBertError> {
         let config_path = generate_config.config_resource.get_local_path()?;
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
         let weights_path = generate_config.model_resource.get_local_path()?;
@@ -2434,11 +2434,20 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         &self,
         prompt_texts: Option<S>,
         attention_mask: Option<Tensor>,
+        min_length: impl Into<Option<i64>>,
+        max_length: impl Into<Option<i64>>,
+        decoder_start_token_id: impl Into<Option<i64>>,
     ) -> Vec<String>
     where
         S: AsRef<[&'a str]>,
     {
-        let generated = self.generate_indices(prompt_texts, attention_mask);
+        let generated = self.generate_indices(
+            prompt_texts,
+            attention_mask,
+            min_length,
+            max_length,
+            decoder_start_token_id,
+        );
         let mut output = Vec::with_capacity(generated.len());
         for generated_sequence in generated {
             output.push(self.get_tokenizer().decode(generated_sequence, true, true));
@@ -2490,6 +2499,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         &self,
         prompt_texts: Option<S>,
         attention_mask: Option<Tensor>,
+        min_length: impl Into<Option<i64>>,
+        max_length: impl Into<Option<i64>>,
+        decoder_start_token_id: impl Into<Option<i64>>,
     ) -> Vec<Vec<i64>>
     where
         S: AsRef<[&'a str]>,
@@ -2497,7 +2509,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
         let config = PrivateLanguageGenerator::get_config(self);
-        let max_length = config.max_length;
+        let max_length = max_length.into().unwrap_or(config.max_length);
         let encoding_max_len = if self.is_encoder_decoder() {
             1024i64
         } else {
@@ -2522,13 +2534,22 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 ),
             },
         };
-        self.generate_from_ids_and_past(input_ids, attention_mask)
+        self.generate_from_ids_and_past(
+            input_ids,
+            attention_mask,
+            min_length,
+            max_length,
+            decoder_start_token_id,
+        )
     }
 
     fn generate_from_ids_and_past(
         &self,
         input_ids: Tensor,
         attention_mask: Option<Tensor>,
+        min_length: impl Into<Option<i64>>,
+        max_length: impl Into<Option<i64>>,
+        decoder_start_token_id: impl Into<Option<i64>>,
     ) -> Vec<Vec<i64>> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
@@ -2536,8 +2557,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let do_sample = config.do_sample;
         let num_return_sequences = config.num_return_sequences;
         let num_beams = config.num_beams;
-        let min_length = config.min_length;
-        let max_length = config.max_length;
+        let min_length = min_length.into().unwrap_or(config.min_length);
+        let max_length = max_length.into().unwrap_or(config.max_length);
         let early_stopping = config.early_stopping;
         let temperature = config.temperature;
         let top_k = config.top_k;
@@ -2613,9 +2634,10 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 (input_ids, attention_mask)
             }
         } else {
-            let decoder_start_token_id = self
-                .get_decoder_start_id()
-                .expect("decoder start id must be specified for encoder decoders");
+            let decoder_start_token_id = decoder_start_token_id.into().unwrap_or(
+                self.get_decoder_start_id()
+                    .expect("decoder start id must be specified for encoder decoders"),
+            );
             let input_ids = Tensor::full(
                 &[effective_batch_size * num_beams as i64, 1],
                 decoder_start_token_id,

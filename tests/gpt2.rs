@@ -2,12 +2,12 @@ use rust_bert::gpt2::{
     GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources,
     Gpt2VocabResources,
 };
+use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::conversation::{
     ConversationConfig, ConversationManager, ConversationModel,
 };
-use rust_bert::pipelines::generation_utils::{
-    Cache, GPT2Generator, GenerateConfig, LMHeadModel, LanguageGenerator,
-};
+use rust_bert::pipelines::generation_utils::{Cache, GenerateConfig, LMHeadModel};
+use rust_bert::pipelines::text_generation::TextGenerationModel;
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
@@ -124,6 +124,7 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
 
     //    Set-up masked LM model
     let generate_config = GenerateConfig {
+        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -135,10 +136,10 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
         repetition_penalty: 1.1,
         ..Default::default()
     };
-    let model = GPT2Generator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The cat";
-    let output = model.generate(Some(vec![input_context]), None);
+    let output = model.generate(&[input_context], None);
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], "The cat was found in a field near the town of Keflavik, about 30 miles (48 kilometers) south-east of Moscow.\n\n\n");
@@ -160,6 +161,7 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
 
     //    Set-up masked LM model
     let generate_config = GenerateConfig {
+        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -171,10 +173,10 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = GPT2Generator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The dog";
-    let output = model.generate(Some(vec![input_context]), None);
+    let output = model.generate(&[input_context], None);
 
     assert_eq!(output.len(), 3);
     assert_eq!(
@@ -207,6 +209,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
 
     //    Set-up masked LM model
     let generate_config = GenerateConfig {
+        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -218,11 +221,11 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = GPT2Generator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat";
-    let output = model.generate(Some(vec![input_context_1, input_context_2]), None);
+    let output = model.generate(&[input_context_1, input_context_2], None);
 
     assert_eq!(output.len(), 6);
     assert_eq!(
@@ -267,6 +270,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
 
     //    Set-up masked LM model
     let generate_config = GenerateConfig {
+        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -278,11 +282,11 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = GPT2Generator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";
-    let output = model.generate(Some(vec![input_context_1, input_context_2]), None);
+    let output = model.generate(&[input_context_1, input_context_2], None);
 
     assert_eq!(output.len(), 6);
     assert_eq!(

@@ -1,5 +1,5 @@
 use rust_bert::pipelines::common::ModelType;
-use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator, XLNetGenerator};
+use rust_bert::pipelines::generation_utils::GenerateConfig;
 use rust_bert::pipelines::text_generation::TextGenerationModel;
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::xlnet::{
@@ -231,7 +231,7 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
     assert_eq!(output.len(), 1);
     assert_eq!(
         output[0],
-        " Once upon a time, there was a time when there was only one man in the world who could do all the things he wanted to do. There was no one who"
+        " Once upon a time, there was a time when there was only one man in the world who could do all the things he wanted to do. There was only"
     );
 
     Ok(())

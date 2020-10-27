@@ -96,14 +96,22 @@ impl TextGenerationOption {
         &self,
         prompt_texts: Option<S>,
         attention_mask: Option<Tensor>,
+        min_length: Option<i64>,
+        max_length: Option<i64>,
     ) -> Vec<Vec<i64>>
     where
         S: AsRef<[&'a str]>,
     {
         match *self {
-            Self::GPT2(ref model) => model.generate_indices(prompt_texts, attention_mask),
-            Self::GPT(ref model) => model.generate_indices(prompt_texts, attention_mask),
-            Self::XLNet(ref model) => model.generate_indices(prompt_texts, attention_mask),
+            Self::GPT2(ref model) => {
+                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
+            }
+            Self::GPT(ref model) => {
+                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
+            }
+            Self::XLNet(ref model) => {
+                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
+            }
         }
     }
 }
@@ -113,6 +121,8 @@ pub struct TextGenerationModel {
     model: TextGenerationOption,
     prefix: Option<String>,
     prefix_length: Option<i64>,
+    min_length: i64,
+    max_length: i64,
 }
 
 impl TextGenerationModel {
@@ -132,9 +142,7 @@ impl TextGenerationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(
-        mut generation_config: GenerateConfig,
-    ) -> Result<TextGenerationModel, RustBertError> {
+    pub fn new(generation_config: GenerateConfig) -> Result<TextGenerationModel, RustBertError> {
         let prefix = match generation_config.model_type {
             ModelType::XLNet => Some(
                 "In 1991, the remains of Russian Tsar Nicholas II and his family \
@@ -151,23 +159,22 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
             ),
             _ => None,
         };
+
+        let min_length = generation_config.min_length;
+        let max_length = generation_config.max_length;
+        let model = TextGenerationOption::new(generation_config)?;
         let prefix_length = if let Some(prefix) = &prefix {
             Some(model.get_tokenizer().tokenize(prefix).len() as i64)
         } else {
             None
         };
 
-        let model = TextGenerationOption::new(generation_config)?;
-
-        if let Some(prefix_length) = prefix_length {
-            generation_config.min_length += prefix_length;
-            generation_config.max_length += prefix_length;
-        }
-
         Ok(TextGenerationModel {
             model,
             prefix,
             prefix_length,
+            min_length,
+            max_length,
         })
     }
 
@@ -206,9 +213,9 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
             (None, Some(pipeline_prefix)) => (Some(pipeline_prefix.as_str()), self.prefix_length),
             (None, None) => (None, None),
         };
-        let generated_indices = match prefix {
-            None => self.model.generate_indices(Some(texts), None),
-            Some(prefix) => {
+        let generated_indices = match (prefix, prefix_length) {
+            (None, _) => self.model.generate_indices(Some(texts), None, None, None),
+            (Some(prefix), Some(prefix_length)) => {
                 let texts = texts
                     .as_ref()
                     .iter()
@@ -217,8 +224,11 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                 self.model.generate_indices(
                     Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
                     None,
+                    Some(self.min_length + prefix_length),
+                    Some(self.max_length + prefix_length),
                 )
             }
+            _ => panic!("Prefix length not defined but prefix provided!"),
         };
 
         let mut output = Vec::with_capacity(generated_indices.len());
