@@ -17,7 +17,6 @@
 //! By default, the dependencies for this model will be downloaded for a GPT2-medium model.
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
 //! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/gpt2
-//!
 use crate::common::error::RustBertError;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
@@ -38,8 +37,8 @@ pub enum TextGenerationOption {
 }
 
 impl TextGenerationOption {
-    pub fn new(config: GenerateConfig) -> Result<Self, RustBertError> {
-        Ok(match config.model_type {
+    pub fn new(config: GenerateConfig, model_type: ModelType) -> Result<Self, RustBertError> {
+        Ok(match model_type {
             ModelType::GPT2 => TextGenerationOption::GPT2(GPT2Generator::new(config)?),
             ModelType::OpenAiGpt => TextGenerationOption::GPT(OpenAIGenerator::new(config)?),
             ModelType::XLNet => TextGenerationOption::XLNet(XLNetGenerator::new(config)?),
@@ -131,19 +130,24 @@ impl TextGenerationModel {
     /// # Arguments
     ///
     /// * `generation_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
+    /// * `model_type` - `ModelType` enum variant indicating the type of model to use for generation
     ///
     /// # Example
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::text_generation::TextGenerationModel;
     ///
-    /// let generation_model = TextGenerationModel::new(Default::default())?;
+    /// let generation_model = TextGenerationModel::new(Default::default(), ModelType::GPT2)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generation_config: GenerateConfig) -> Result<TextGenerationModel, RustBertError> {
-        let prefix = match generation_config.model_type {
+    pub fn new(
+        generation_config: GenerateConfig,
+        model_type: ModelType,
+    ) -> Result<TextGenerationModel, RustBertError> {
+        let prefix = match model_type {
             ModelType::XLNet => Some(
                 "In 1991, the remains of Russian Tsar Nicholas II and his family \
 (except for Alexei and Maria) are discovered. \
@@ -162,7 +166,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
 
         let min_length = generation_config.min_length;
         let max_length = generation_config.max_length;
-        let model = TextGenerationOption::new(generation_config)?;
+        let model = TextGenerationOption::new(generation_config, model_type)?;
         let prefix_length = if let Some(prefix) = &prefix {
             Some(model.get_tokenizer().tokenize(prefix).len() as i64)
         } else {
@@ -183,6 +187,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
     /// # Arguments
     ///
     /// * `input` - `&[&str]` Array of texts to summarize.
+    /// * `prefix` - `impl Into<Option<&'a str>>`: Optional string to pass as a prefix for generation. Will be excluded from generated sequences.
     ///
     /// # Returns
     /// * `Vec<String>` Generated texts
@@ -191,13 +196,15 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::text_generation::TextGenerationModel;
-    /// let model = TextGenerationModel::new(Default::default())?;
+    ///
+    /// let model = TextGenerationModel::new(Default::default(), ModelType::XLNet)?;
     ///
     /// let input = ["The dog", "The cat was"];
+    /// let prefix = None;
     ///
-    /// let output = model.generate(&input, None);
+    /// let output = model.generate(&input, prefix);
     /// # Ok(())
     /// # }
     /// ```

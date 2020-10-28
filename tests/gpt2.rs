@@ -124,7 +124,6 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
 
     //    Set-up masked LM model
     let generate_config = GenerateConfig {
-        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -136,7 +135,7 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
         repetition_penalty: 1.1,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
 
     let input_context = "The cat";
     let output = model.generate(&[input_context], None);
@@ -161,7 +160,6 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
 
     //    Set-up masked LM model
     let generate_config = GenerateConfig {
-        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -173,7 +171,7 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
 
     let input_context = "The dog";
     let output = model.generate(&[input_context], None);
@@ -209,7 +207,6 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
 
     //    Set-up masked LM model
     let generate_config = GenerateConfig {
-        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -221,7 +218,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat";
@@ -270,7 +267,6 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
 
     //    Set-up masked LM model
     let generate_config = GenerateConfig {
-        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -282,7 +278,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";

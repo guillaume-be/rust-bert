@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Natural Language Generation pipeline
-//! Generate language based on a prompt. GPT2 and GPT available as base models.
+//! # Natural Language Generation utilities
+//! Set of text generation utilities, serving as a basis for TextGenerationModel, SummarizationModels and TranslationModels.
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //! Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
 //! This may impact the results and it is recommended to submit prompts of similar length for best results.
-//! All resources for this model can be downloaded using the Python utility script included in this repository.
-//! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
-//! 2. Run the conversion script python /utils/download-dependencies_gpt2.py (or /utils/download-dependencies_openaigpt.py)
-//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/gpt2 (~/rustbert/openai-gpt respectively)
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! use rust_bert::pipelines::generation_utils::{GPT2Generator, GenerateConfig, LanguageGenerator};
+//! use rust_bert::pipelines::generation_utils::{
+//!     GPT2Generator, GenerateConfig, LanguageGenerator,
+//! };
 //!
 //! let generate_config = GenerateConfig {
 //!     max_length: 30,
@@ -36,9 +34,19 @@
 //! };
 //! let mut gpt2_generator = GPT2Generator::new(generate_config)?;
 //!
+//! let min_length = Some(32);
+//! let max_length = Some(128);
+//! let decoder_start_id = None;
+//!
 //! let input_context = "The dog";
 //! let second_input_context = "The cat was";
-//! let output = gpt2_generator.generate(Some(vec![input_context, second_input_context]), None);
+//! let output = gpt2_generator.generate(
+//!     Some(vec![input_context, second_input_context]),
+//!     None,
+//!     min_length,
+//!     max_length,
+//!     decoder_start_id,
+//! );
 //! # Ok(())
 //! # }
 //! ```
@@ -98,8 +106,6 @@ extern crate ordered_float;
 
 /// # Configuration for text generation
 pub struct GenerateConfig {
-    /// Model type
-    pub model_type: ModelType,
     /// Model weights resource (default: pretrained GPT2 model)
     pub model_resource: Resource,
     /// Config resource (default: pretrained GPT2 model)
@@ -139,7 +145,6 @@ pub struct GenerateConfig {
 impl Default for GenerateConfig {
     fn default() -> GenerateConfig {
         GenerateConfig {
-            model_type: ModelType::GPT2,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 Gpt2ModelResources::GPT2,
             )),
@@ -2393,7 +2398,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{GPT2Generator, GenerateConfig, LanguageGenerator};
+    /// use rust_bert::pipelines::generation_utils::{
+    ///     GPT2Generator, GenerateConfig, LanguageGenerator,
+    /// };
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("gpt2");
@@ -2413,7 +2420,19 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let mut gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
-    /// let output = gpt2_generator.generate(Some(vec![input_context, second_input_context]), None);
+    ///
+    /// let attention_mask = None;
+    /// let min_length = 32;
+    /// let max_length = 128;
+    /// let decoder_start_token_id = None;
+    ///
+    /// let output = gpt2_generator.generate(
+    ///     Some(vec![input_context, second_input_context]),
+    ///     attention_mask,
+    ///     min_length,
+    ///     max_length,
+    ///     decoder_start_token_id,
+    /// );
     /// # Ok(())
     /// # }
     /// ```
@@ -2455,7 +2474,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         output
     }
 
-    /// Generate token indices without decoding (useful for token-level operations before returning final text).
+    /// Generate token indices without decoding (useful for token-level operations before returning final text or as validation step during training).
     ///
     /// # Arguments
     ///
@@ -2471,7 +2490,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{GPT2Generator, GenerateConfig, LanguageGenerator};
+    /// use rust_bert::pipelines::generation_utils::{
+    ///     GPT2Generator, GenerateConfig, LanguageGenerator,
+    /// };
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("gpt2");
@@ -2491,7 +2512,18 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let mut gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
-    /// let output = gpt2_generator.generate_indices(Some(vec![input_context, second_input_context]), None);
+    /// let attention_mask = None;
+    /// let min_length = 32;
+    /// let max_length = 128;
+    /// let decoder_start_token_id = None;
+    ///
+    /// let output = gpt2_generator.generate_indices(
+    ///     Some(vec![input_context, second_input_context]),
+    ///     attention_mask,
+    ///     min_length,
+    ///     max_length,
+    ///     decoder_start_token_id,
+    /// );
     /// # Ok(())
     /// # }
     /// ```
@@ -2634,10 +2666,10 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 (input_ids, attention_mask)
             }
         } else {
-            let decoder_start_token_id = decoder_start_token_id.into().unwrap_or(
+            let decoder_start_token_id = decoder_start_token_id.into().unwrap_or_else(|| {
                 self.get_decoder_start_id()
-                    .expect("decoder start id must be specified for encoder decoders"),
-            );
+                    .expect("decoder start id must be specified for encoder decoders")
+            });
             let input_ids = Tensor::full(
                 &[effective_batch_size * num_beams as i64, 1],
                 decoder_start_token_id,

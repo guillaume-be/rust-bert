@@ -154,11 +154,15 @@
 //! ```no_run
 //! use rust_bert::pipelines::generation_utils::GPT2Generator;
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
-//! let mut model = GPT2Generator::new(Default::default())?;
+//! use rust_bert::pipelines::text_generation::TextGenerationModel;
+//! use rust_bert::pipelines::common::ModelType;
+//! let mut model = TextGenerationModel::new(Default::default(), ModelType::GPT2)?;
 //! let input_context_1 = "The dog";
 //! let input_context_2 = "The cat was";
-//! let output = model.generate(Some(vec![input_context_1, input_context_2]), None);
+//!
+//! let prefix = None; // Optional prefix to append prompts with, will be excluded from the generated output
+//!
+//! let output = model.generate(&[input_context_1, input_context_2], prefix);
 //! # Ok(())
 //! # }
 //! ```

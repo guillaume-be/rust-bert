@@ -37,7 +37,6 @@ fn main() -> anyhow::Result<()> {
     ));
 
     let generate_config = GenerateConfig {
-        model_type: ModelType::XLNet,
         model_resource,
         config_resource,
         vocab_resource,
@@ -49,7 +48,7 @@ fn main() -> anyhow::Result<()> {
         num_return_sequences: 1,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config, ModelType::XLNet)?;
 
     let input_context = "Once upon a time,";
     let output = model.generate(&[input_context], None);

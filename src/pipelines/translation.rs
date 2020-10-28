@@ -481,7 +481,6 @@ pub enum TranslationOption {
 impl TranslationOption {
     pub fn new(config: TranslationConfig) -> Self {
         let generate_config = GenerateConfig {
-            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,

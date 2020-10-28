@@ -12,6 +12,7 @@
 
 extern crate anyhow;
 
+use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::generation_utils::GenerateConfig;
 use rust_bert::pipelines::text_generation::TextGenerationModel;
 
@@ -25,7 +26,7 @@ fn main() -> anyhow::Result<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
 
     let input_context = "The dog";
     let second_input_context = "The cat was";
