@@ -4,8 +4,8 @@ use rust_bert::openai_gpt::{
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
 use rust_bert::pipelines::common::ModelType;
-use rust_bert::pipelines::generation_utils::{Cache, GenerateConfig, LMHeadModel};
-use rust_bert::pipelines::text_generation::TextGenerationModel;
+use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
+use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
@@ -118,7 +118,8 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
     ));
 
     //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::OpenAiGpt,
         model_resource,
         config_resource,
         vocab_resource,
@@ -131,7 +132,7 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
         temperature: 1.1,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::OpenAiGpt)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "It was an intense machine dialogue. ";
     let output = model.generate(&[input_context], None);
@@ -159,7 +160,8 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
     ));
 
     //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::OpenAiGpt,
         model_resource,
         config_resource,
         vocab_resource,
@@ -171,7 +173,7 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::OpenAiGpt)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The dog is";
     let output = model.generate(&[input_context], None);
@@ -210,7 +212,8 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
     ));
 
     //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::OpenAiGpt,
         model_resource,
         config_resource,
         vocab_resource,
@@ -222,7 +225,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::OpenAiGpt)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat";
@@ -277,7 +280,8 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
     ));
 
     //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::OpenAiGpt,
         model_resource,
         config_resource,
         vocab_resource,
@@ -289,7 +293,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::OpenAiGpt)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat was in";

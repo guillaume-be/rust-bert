@@ -1,6 +1,5 @@
 use rust_bert::pipelines::common::ModelType;
-use rust_bert::pipelines::generation_utils::GenerateConfig;
-use rust_bert::pipelines::text_generation::TextGenerationModel;
+use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::xlnet::{
     XLNetConfig, XLNetConfigResources, XLNetForMultipleChoice, XLNetForQuestionAnswering,
@@ -210,7 +209,8 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
         XLNetModelResources::XLNET_BASE_CASED,
     ));
 
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::XLNet,
         model_resource,
         config_resource,
         vocab_resource,
@@ -222,7 +222,7 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
         num_return_sequences: 1,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::XLNet)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "Once upon a time,";
     let output = model.generate(&[input_context], None);

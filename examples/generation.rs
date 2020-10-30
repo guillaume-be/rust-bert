@@ -13,12 +13,12 @@
 extern crate anyhow;
 
 use rust_bert::pipelines::common::ModelType;
-use rust_bert::pipelines::generation_utils::GenerateConfig;
-use rust_bert::pipelines::text_generation::TextGenerationModel;
+use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 
 fn main() -> anyhow::Result<()> {
     //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::GPT2,
         max_length: 30,
         do_sample: true,
         num_beams: 5,
@@ -26,7 +26,7 @@ fn main() -> anyhow::Result<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The dog";
     let second_input_context = "The cat was";

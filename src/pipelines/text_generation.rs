@@ -18,13 +18,122 @@
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
 //! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/gpt2
 use crate::common::error::RustBertError;
+use crate::common::resources::RemoteResource;
+use crate::gpt2::{
+    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
+};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{
     GPT2Generator, GenerateConfig, LanguageGenerator, OpenAIGenerator, XLNetGenerator,
 };
+use crate::resources::Resource;
 use itertools::Itertools;
-use tch::Tensor;
+use tch::{Device, Tensor};
+
+/// # Configuration for text generation
+/// Contains information regarding the model to load, mirrors the GenerateConfig, with a
+/// different set of default parameters and sets the device to place the model on.
+pub struct TextGenerationConfig {
+    /// Model type
+    pub model_type: ModelType,
+    /// Model weights resource (default: pretrained BART model on CNN-DM)
+    pub model_resource: Resource,
+    /// Config resource (default: pretrained BART model on CNN-DM)
+    pub config_resource: Resource,
+    /// Vocab resource (default: pretrained BART model on CNN-DM)
+    pub vocab_resource: Resource,
+    /// Merges resource (default: pretrained BART model on CNN-DM)
+    pub merges_resource: Resource,
+    /// Minimum sequence length (default: 0)
+    pub min_length: i64,
+    /// Maximum sequence length (default: 20)
+    pub max_length: i64,
+    /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
+    pub do_sample: bool,
+    /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
+    pub early_stopping: bool,
+    /// Number of beams for beam search (default: 5)
+    pub num_beams: i64,
+    /// Temperature setting. Values higher than 1 will improve originality at the risk of reducing relevance (default: 1.0)
+    pub temperature: f64,
+    /// Top_k values for sampling tokens. Value higher than 0 will enable the feature (default: 0)
+    pub top_k: i64,
+    /// Top_p value for [Nucleus sampling, Holtzman et al.](http://arxiv.org/abs/1904.09751). Keep top tokens until cumulative probability reaches top_p (default: 0.9)
+    pub top_p: f64,
+    /// Repetition penalty (mostly useful for CTRL decoders). Values higher than 1 will penalize tokens that have been already generated. (default: 1.0)
+    pub repetition_penalty: f64,
+    /// Exponential penalty based on the length of the hypotheses generated (default: 1.0)
+    pub length_penalty: f64,
+    /// Number of allowed repetitions of n-grams. Values higher than 0 turn on this feature (default: 3)
+    pub no_repeat_ngram_size: i64,
+    /// Number of sequences to return for each prompt text (default: 1)
+    pub num_return_sequences: i64,
+    /// Device to place the model on (default: CUDA/GPU when available)
+    pub device: Device,
+}
+
+impl TextGenerationConfig {
+    /// Instantiate a new text generation configuration of the supplied type.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
+    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - The `Resource`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
+    pub fn new(
+        model_type: ModelType,
+        model_resource: Resource,
+        config_resource: Resource,
+        vocab_resource: Resource,
+        merges_resource: Resource,
+    ) -> TextGenerationConfig {
+        TextGenerationConfig {
+            model_type,
+            model_resource,
+            config_resource,
+            vocab_resource,
+            merges_resource,
+            device: Device::cuda_if_available(),
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for TextGenerationConfig {
+    fn default() -> TextGenerationConfig {
+        TextGenerationConfig {
+            model_type: ModelType::Bart,
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+                Gpt2ModelResources::GPT2_MEDIUM,
+            )),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+                Gpt2ConfigResources::GPT2_MEDIUM,
+            )),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+                Gpt2VocabResources::GPT2_MEDIUM,
+            )),
+            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+                Gpt2MergesResources::GPT2_MEDIUM,
+            )),
+            min_length: 0,
+            max_length: 20,
+            do_sample: true,
+            early_stopping: false,
+            num_beams: 5,
+            temperature: 1.0,
+            top_k: 0,
+            top_p: 0.9,
+            repetition_penalty: 1.0,
+            length_penalty: 1.0,
+            no_repeat_ngram_size: 3,
+            num_return_sequences: 1,
+            device: Device::cuda_if_available(),
+        }
+    }
+}
 
 /// # Abstraction that holds one particular textgeneration model, for any of the supported models
 pub enum TextGenerationOption {
@@ -37,11 +146,32 @@ pub enum TextGenerationOption {
 }
 
 impl TextGenerationOption {
-    pub fn new(config: GenerateConfig, model_type: ModelType) -> Result<Self, RustBertError> {
-        Ok(match model_type {
-            ModelType::GPT2 => TextGenerationOption::GPT2(GPT2Generator::new(config)?),
-            ModelType::OpenAiGpt => TextGenerationOption::GPT(OpenAIGenerator::new(config)?),
-            ModelType::XLNet => TextGenerationOption::XLNet(XLNetGenerator::new(config)?),
+    pub fn new(config: TextGenerationConfig) -> Result<Self, RustBertError> {
+        let generate_config = GenerateConfig {
+            model_resource: config.model_resource,
+            config_resource: config.config_resource,
+            merges_resource: config.merges_resource,
+            vocab_resource: config.vocab_resource,
+            min_length: config.min_length,
+            max_length: config.max_length,
+            do_sample: config.do_sample,
+            early_stopping: config.early_stopping,
+            num_beams: config.num_beams,
+            temperature: config.temperature,
+            top_k: config.top_k,
+            top_p: config.top_p,
+            repetition_penalty: config.repetition_penalty,
+            length_penalty: config.length_penalty,
+            no_repeat_ngram_size: config.no_repeat_ngram_size,
+            num_return_sequences: config.num_return_sequences,
+            device: config.device,
+        };
+        Ok(match config.model_type {
+            ModelType::GPT2 => TextGenerationOption::GPT2(GPT2Generator::new(generate_config)?),
+            ModelType::OpenAiGpt => {
+                TextGenerationOption::GPT(OpenAIGenerator::new(generate_config)?)
+            }
+            ModelType::XLNet => TextGenerationOption::XLNet(XLNetGenerator::new(generate_config)?),
             ModelType::Bert => {
                 panic!("Text generation not implemented for Electra!");
             }
@@ -139,15 +269,14 @@ impl TextGenerationModel {
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::text_generation::TextGenerationModel;
     ///
-    /// let generation_model = TextGenerationModel::new(Default::default(), ModelType::GPT2)?;
+    /// let generation_model = TextGenerationModel::new(Default::default())?;
     /// # Ok(())
     /// # }
     /// ```
     pub fn new(
-        generation_config: GenerateConfig,
-        model_type: ModelType,
+        generation_config: TextGenerationConfig,
     ) -> Result<TextGenerationModel, RustBertError> {
-        let prefix = match model_type {
+        let prefix = match generation_config.model_type {
             ModelType::XLNet => Some(
                 "In 1991, the remains of Russian Tsar Nicholas II and his family \
 (except for Alexei and Maria) are discovered. \
@@ -166,7 +295,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
 
         let min_length = generation_config.min_length;
         let max_length = generation_config.max_length;
-        let model = TextGenerationOption::new(generation_config, model_type)?;
+        let model = TextGenerationOption::new(generation_config)?;
         let prefix_length = if let Some(prefix) = &prefix {
             Some(model.get_tokenizer().tokenize(prefix).len() as i64)
         } else {
@@ -199,7 +328,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::text_generation::TextGenerationModel;
     ///
-    /// let model = TextGenerationModel::new(Default::default(), ModelType::XLNet)?;
+    /// let model = TextGenerationModel::new(Default::default())?;
     ///
     /// let input = ["The dog", "The cat was"];
     /// let prefix = None;

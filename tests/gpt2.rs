@@ -6,8 +6,8 @@ use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::conversation::{
     ConversationConfig, ConversationManager, ConversationModel,
 };
-use rust_bert::pipelines::generation_utils::{Cache, GenerateConfig, LMHeadModel};
-use rust_bert::pipelines::text_generation::TextGenerationModel;
+use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
+use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
@@ -123,7 +123,8 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -135,7 +136,7 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
         repetition_penalty: 1.1,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The cat";
     let output = model.generate(&[input_context], None);
@@ -159,7 +160,8 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -171,7 +173,7 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The dog";
     let output = model.generate(&[input_context], None);
@@ -206,7 +208,8 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -218,7 +221,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat";
@@ -266,7 +269,8 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::GPT2,
         model_resource,
         config_resource,
         vocab_resource,
@@ -278,7 +282,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = TextGenerationModel::new(generate_config, ModelType::GPT2)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";
