@@ -279,69 +279,99 @@ impl QuestionAnsweringOption {
     /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
     /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
     /// `model_type`)
-    pub fn new<'p, P>(model_type: ModelType, p: P, config: &ConfigOption) -> Self
+    pub fn new<'p, P>(
+        model_type: ModelType,
+        p: P,
+        config: &ConfigOption,
+    ) -> Result<Self, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         match model_type {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
-                    QuestionAnsweringOption::Bert(BertForQuestionAnswering::new(p, config))
+                    Ok(QuestionAnsweringOption::Bert(
+                        BertForQuestionAnswering::new(p, config),
+                    ))
                 } else {
-                    panic!("You can only supply a BertConfig for Bert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
                 }
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
-                    QuestionAnsweringOption::DistilBert(DistilBertForQuestionAnswering::new(
-                        p, config,
+                    Ok(QuestionAnsweringOption::DistilBert(
+                        DistilBertForQuestionAnswering::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a DistilBertConfig for DistilBert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+                    ))
                 }
             }
             ModelType::Roberta => {
                 if let ConfigOption::Bert(config) = config {
-                    QuestionAnsweringOption::Roberta(RobertaForQuestionAnswering::new(p, config))
+                    Ok(QuestionAnsweringOption::Roberta(
+                        RobertaForQuestionAnswering::new(p, config),
+                    ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Bert(config) = config {
-                    QuestionAnsweringOption::XLMRoberta(RobertaForQuestionAnswering::new(p, config))
+                    Ok(QuestionAnsweringOption::XLMRoberta(
+                        RobertaForQuestionAnswering::new(p, config),
+                    ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
-                    QuestionAnsweringOption::Albert(AlbertForQuestionAnswering::new(p, config))
+                    Ok(QuestionAnsweringOption::Albert(
+                        AlbertForQuestionAnswering::new(p, config),
+                    ))
                 } else {
-                    panic!("You can only supply an AlbertConfig for Albert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an AlbertConfig for Albert!".to_string(),
+                    ))
                 }
             }
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = config {
-                    QuestionAnsweringOption::XLNet(
-                        XLNetForQuestionAnswering::new(p, config).unwrap(),
-                    )
+                    Ok(QuestionAnsweringOption::XLNet(
+                        XLNetForQuestionAnswering::new(p, config)?,
+                    ))
                 } else {
-                    panic!("You can only supply a XLNetConfig for XLNet!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a XLNetConfig for XLNet!".to_string(),
+                    ))
                 }
             }
-            ModelType::Electra => {
-                panic!("QuestionAnswering not implemented for Electra!");
-            }
-            ModelType::Marian => {
-                panic!("QuestionAnswering not implemented for Marian!");
-            }
-            ModelType::T5 => {
-                panic!("QuestionAnswering not implemented for T5!");
-            }
-            ModelType::Bart => {
-                panic!("QuestionAnswering not implemented for BART!");
-            }
+            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
+                "QuestionAnswering not implemented for Electra!".to_string(),
+            )),
+            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
+                "QuestionAnswering not implemented for Marian!".to_string(),
+            )),
+            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
+                "QuestionAnswering not implemented for T5!".to_string(),
+            )),
+            ModelType::Bart => Err(RustBertError::InvalidConfigurationError(
+                "QuestionAnswering not implemented for BART!".to_string(),
+            )),
+            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
+                "QuestionAnswering not implemented for GPT2!".to_string(),
+            )),
+            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
+                "QuestionAnswering not implemented for GPT!".to_string(),
+            )),
         }
     }
 
@@ -471,7 +501,7 @@ impl QuestionAnsweringModel {
             question_answering_config.model_type,
             &var_store.root(),
             &model_config,
-        );
+        )?;
         var_store.load(weights_path)?;
         Ok(QuestionAnsweringModel {
             tokenizer,

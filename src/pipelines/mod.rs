@@ -47,7 +47,7 @@
 //! - French <-> German
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation::LanguageGenerator;
+//! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 //! use tch::Device;
 //! let translation_config =
@@ -74,7 +74,7 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation::LanguageGenerator;
+//! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::summarization::SummarizationModel;
 //!
 //! let mut model = SummarizationModel::new(Default::default())?;
@@ -152,13 +152,17 @@
 //! This may impact the results and it is recommended to submit prompts of similar length for best results. Additional information on the input parameters for generation is provided in this module's documentation.
 //!
 //! ```no_run
-//! use rust_bert::pipelines::generation::GPT2Generator;
+//! use rust_bert::pipelines::generation_utils::GPT2Generator;
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation::LanguageGenerator;
-//! let mut model = GPT2Generator::new(Default::default())?;
+//! use rust_bert::pipelines::text_generation::TextGenerationModel;
+//! use rust_bert::pipelines::common::ModelType;
+//! let mut model = TextGenerationModel::new(Default::default())?;
 //! let input_context_1 = "The dog";
 //! let input_context_2 = "The cat was";
-//! let output = model.generate(Some(vec![input_context_1, input_context_2]), None);
+//!
+//! let prefix = None; // Optional prefix to append prompts with, will be excluded from the generated output
+//!
+//! let output = model.generate(&[input_context_1, input_context_2], prefix);
 //! # Ok(())
 //! # }
 //! ```
@@ -341,12 +345,13 @@
 
 pub mod common;
 pub mod conversation;
-pub mod generation;
+pub mod generation_utils;
 pub mod ner;
 pub mod question_answering;
 pub mod sentiment;
 pub mod sequence_classification;
 pub mod summarization;
+pub mod text_generation;
 pub mod token_classification;
 pub mod translation;
 pub mod zero_shot_classification;

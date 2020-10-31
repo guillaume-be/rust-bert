@@ -16,7 +16,7 @@ use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::transformer::Block;
-use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
@@ -552,7 +552,7 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::{GPT2LMHeadModel, Gpt2Config};
-    /// use rust_bert::pipelines::generation::{Cache, LMHeadModel};
+    /// use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;

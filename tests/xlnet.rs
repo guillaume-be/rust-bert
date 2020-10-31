@@ -1,4 +1,5 @@
-use rust_bert::pipelines::generation::{GenerateConfig, LanguageGenerator, XLNetGenerator};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::xlnet::{
     XLNetConfig, XLNetConfigResources, XLNetForMultipleChoice, XLNetForQuestionAnswering,
@@ -208,7 +209,8 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
         XLNetModelResources::XLNET_BASE_CASED,
     ));
 
-    let generate_config = GenerateConfig {
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::XLNet,
         model_resource,
         config_resource,
         vocab_resource,
@@ -220,15 +222,15 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
         num_return_sequences: 1,
         ..Default::default()
     };
-    let model = XLNetGenerator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "Once upon a time,";
-    let output = model.generate(Some(vec![input_context]), None);
+    let output = model.generate(&[input_context], None);
 
     assert_eq!(output.len(), 1);
     assert_eq!(
         output[0],
-        " Once upon a time, there was a time when there was only one man in the world who could do all the things he wanted to do. There was no one who"
+        " Once upon a time, there was a time when there was only one man in the world who could do all the things he wanted to do. There was only"
     );
 
     Ok(())

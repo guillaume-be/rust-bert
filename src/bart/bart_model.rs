@@ -16,7 +16,7 @@ use crate::bart::decoder::BartDecoder;
 use crate::bart::encoder::{BartEncoder, BartEncoderOutput};
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
-use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -775,7 +775,7 @@ impl LMHeadModel for BartForConditionalGeneration {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::pipelines::generation::LMHeadModel;
+    /// use rust_bert::pipelines::generation_utils::LMHeadModel;
     /// use rust_bert::bart::{BartForConditionalGeneration, BartConfig};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");

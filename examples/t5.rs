@@ -12,7 +12,7 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::generation::{GenerateConfig, LanguageGenerator, T5Generator};
+use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator, T5Generator};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 
@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     //    Define input
     let input = ["translate English to German: This sentence will get translated to German"];
 
-    let output = t5_model.generate(Some(input.to_vec()), None);
+    let output = t5_model.generate(Some(input.to_vec()), None, None, None, None);
     println!("{:?}", output);
 
     Ok(())

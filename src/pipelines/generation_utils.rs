@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Natural Language Generation pipeline
-//! Generate language based on a prompt. GPT2 and GPT available as base models.
+//! # Natural Language Generation utilities
+//! Set of text generation utilities, serving as a basis for TextGenerationModel, SummarizationModels and TranslationModels.
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //! Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
 //! This may impact the results and it is recommended to submit prompts of similar length for best results.
-//! All resources for this model can be downloaded using the Python utility script included in this repository.
-//! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
-//! 2. Run the conversion script python /utils/download-dependencies_gpt2.py (or /utils/download-dependencies_openaigpt.py)
-//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/gpt2 (~/rustbert/openai-gpt respectively)
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! use rust_bert::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
+//! use rust_bert::pipelines::generation_utils::{
+//!     GPT2Generator, GenerateConfig, LanguageGenerator,
+//! };
 //!
 //! let generate_config = GenerateConfig {
 //!     max_length: 30,
@@ -36,9 +34,19 @@
 //! };
 //! let mut gpt2_generator = GPT2Generator::new(generate_config)?;
 //!
+//! let min_length = Some(32);
+//! let max_length = Some(128);
+//! let decoder_start_id = None;
+//!
 //! let input_context = "The dog";
 //! let second_input_context = "The cat was";
-//! let output = gpt2_generator.generate(Some(vec![input_context, second_input_context]), None);
+//! let output = gpt2_generator.generate(
+//!     Some(vec![input_context, second_input_context]),
+//!     None,
+//!     min_length,
+//!     max_length,
+//!     decoder_start_id,
+//! );
 //! # Ok(())
 //! # }
 //! ```
@@ -73,7 +81,8 @@ use crate::openai_gpt::{
     OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptMergesResources,
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
-use crate::pipelines::generation::private_generation_utils::{
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::{
     GenerateOptions, PrivateLanguageGenerator,
 };
 use crate::t5::{
@@ -208,7 +217,7 @@ impl GenerateConfig {
 /// # Language generation model based on the GPT architecture
 pub struct OpenAIGenerator {
     model: OpenAIGPTLMHeadModel,
-    tokenizer: OpenAiGptTokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -230,7 +239,7 @@ impl OpenAIGenerator {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::{GenerateConfig, OpenAIGenerator};
+    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, OpenAIGenerator};
     /// let generate_config = GenerateConfig {
     ///     max_length: 30,
     ///     do_sample: true,
@@ -294,10 +303,13 @@ impl OpenAIGenerator {
         let device = generate_config.device;
 
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = OpenAiGptTokenizer::from_file(
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::OpenAiGpt,
             vocab_path.to_str().unwrap(),
-            merges_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
             true,
+            None,
+            None,
         )?;
         let config = Gpt2Config::from_file(config_path);
         let model = OpenAIGPTLMHeadModel::new(&var_store.root(), &config);
@@ -331,7 +343,7 @@ impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTok
     fn get_model(&self) -> &OpenAIGPTLMHeadModel {
         &self.model
     }
-    fn get_tokenizer(&self) -> &OpenAiGptTokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -368,7 +380,7 @@ impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
 /// # Language generation model based on the GPT2 architecture
 pub struct GPT2Generator {
     model: GPT2LMHeadModel,
-    tokenizer: Gpt2Tokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -390,7 +402,7 @@ impl GPT2Generator {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::{GPT2Generator, GenerateConfig};
+    /// use rust_bert::pipelines::generation_utils::{GPT2Generator, GenerateConfig};
     ///
     /// let generate_config = GenerateConfig {
     ///     max_length: 30,
@@ -413,17 +425,20 @@ impl GPT2Generator {
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = Gpt2Tokenizer::from_file(
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::GPT2,
             vocab_path.to_str().unwrap(),
-            merges_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
             false,
+            None,
+            None,
         )?;
         let config = Gpt2Config::from_file(config_path);
         let model = GPT2LMHeadModel::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
-        let bos_token_id = Some(tokenizer.vocab().token_to_id(Gpt2Vocab::bos_value()));
-        let eos_token_ids = Some(vec![tokenizer.vocab().token_to_id(Gpt2Vocab::eos_value())]);
+        let bos_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::bos_value()])[0]);
+        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()]));
         let pad_token_id = None;
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
@@ -448,7 +463,7 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     fn get_model(&self) -> &GPT2LMHeadModel {
         &self.model
     }
-    fn get_tokenizer(&self) -> &Gpt2Tokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -549,7 +564,7 @@ impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Genera
 /// # Language generation model based on the Bart architecture
 pub struct BartGenerator {
     model: BartForConditionalGeneration,
-    tokenizer: RobertaTokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -577,7 +592,7 @@ impl BartGenerator {
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::{BartGenerator, GenerateConfig};
+    /// use rust_bert::pipelines::generation_utils::{BartGenerator, GenerateConfig};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("openai-gpt");
@@ -640,10 +655,12 @@ impl BartGenerator {
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = RobertaTokenizer::from_file(
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::Bart,
             vocab_path.to_str().unwrap(),
-            merges_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
             false,
+            None,
             false,
         )?;
         let config = BartConfig::from_file(config_path);
@@ -689,7 +706,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     fn get_model(&self) -> &BartForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &RobertaTokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -792,8 +809,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
             Some(value) => value,
             None => self
                 .get_tokenizer()
-                .vocab()
-                .token_to_id(RobertaVocab::unknown_value()),
+                .convert_tokens_to_ids(&[RobertaVocab::unknown_value()])[0],
         };
 
         let token_ids = token_ids
@@ -856,7 +872,7 @@ impl LanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokeni
 /// # Language generation model based on the Marian architecture for machine translation
 pub struct MarianGenerator {
     model: MarianForConditionalGeneration,
-    tokenizer: MarianTokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -884,7 +900,7 @@ impl MarianGenerator {
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::{GenerateConfig, MarianGenerator};
+    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, MarianGenerator};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("marian-mt-en-fr");
@@ -914,24 +930,27 @@ impl MarianGenerator {
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = MarianTokenizer::from_files(
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::Marian,
             vocab_path.to_str().unwrap(),
-            sentence_piece_path.to_str().unwrap(),
+            Some(sentence_piece_path.to_str().unwrap()),
             false,
+            None,
+            None,
         )?;
+
         let config = BartConfig::from_file(config_path);
         let model = MarianForConditionalGeneration::new(&var_store.root(), &config, true);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(0);
-        let eos_token_ids = Some(vec![tokenizer
-            .vocab()
-            .token_to_id(MarianVocab::eos_value())]);
-        let pad_token_id = Some(tokenizer.vocab().token_to_id(MarianVocab::pad_value()));
+        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::eos_value()]));
+        let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::pad_value()])[0]);
 
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(tokenizer.vocab().token_to_id(MarianVocab::pad_value()));
+        let decoder_start_id =
+            Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::pad_value()])[0]);
 
         Ok(MarianGenerator {
             model,
@@ -962,7 +981,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
     fn get_model(&self) -> &MarianForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &MarianTokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -1068,10 +1087,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self
-                .get_tokenizer()
-                .vocab()
-                .token_to_id(RobertaVocab::unknown_value()),
+            None => self.get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids
@@ -1133,7 +1149,7 @@ impl LanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokeni
 
 pub struct T5Generator {
     model: T5ForConditionalGeneration,
-    tokenizer: T5Tokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -1178,7 +1194,15 @@ impl T5Generator {
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = T5Tokenizer::from_file(vocab_path.to_str().unwrap(), false)?;
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::T5,
+            vocab_path.to_str().unwrap(),
+            None,
+            false,
+            None,
+            None,
+        )?;
+
         let config = T5Config::from_file(config_path);
         let model = T5ForConditionalGeneration::new(&var_store.root(), &config, false, false);
         var_store.load(weights_path)?;
@@ -1212,7 +1236,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     fn get_model(&self) -> &T5ForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &T5Tokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -1300,10 +1324,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self
-                .get_tokenizer()
-                .vocab()
-                .token_to_id(T5Vocab::unknown_value()),
+            None => self.get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids
@@ -1360,7 +1381,7 @@ impl LanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> for T5G
 /// # Language generation model based on the XLNet architecture
 pub struct XLNetGenerator {
     model: XLNetLMHeadModel,
-    tokenizer: XLNetTokenizer,
+    tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
@@ -1382,7 +1403,7 @@ impl XLNetGenerator {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::{GenerateConfig, XLNetGenerator};
+    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, XLNetGenerator};
     ///
     /// let generate_config = GenerateConfig {
     ///     max_length: 30,
@@ -1396,18 +1417,23 @@ impl XLNetGenerator {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(mut generate_config: GenerateConfig) -> Result<XLNetGenerator, RustBertError> {
+    pub fn new(generate_config: GenerateConfig) -> Result<XLNetGenerator, RustBertError> {
         let config_path = generate_config.config_resource.get_local_path()?;
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
         let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();
-        // For XLNet a prompt text is added to the input for improved context and generation
-        generate_config.min_length += 167;
-        generate_config.max_length += 167;
         let mut var_store = nn::VarStore::new(device);
-        let tokenizer = XLNetTokenizer::from_file(vocab_path.to_str().unwrap(), false, true)?;
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::XLNet,
+            vocab_path.to_str().unwrap(),
+            None,
+            false,
+            true,
+            None,
+        )?;
+
         let config = XLNetConfig::from_file(config_path);
         let model = XLNetLMHeadModel::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
@@ -1438,7 +1464,7 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
     fn get_model(&self) -> &XLNetLMHeadModel {
         &self.model
     }
-    fn get_tokenizer(&self) -> &XLNetTokenizer {
+    fn get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -1589,78 +1615,7 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
     }
 }
 
-impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {
-    fn generate<'a, S>(
-        &self,
-        prompt_texts: Option<S>,
-        attention_mask: Option<Tensor>,
-    ) -> Vec<String>
-    where
-        S: AsRef<[&'a str]>,
-    {
-        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
-
-        let config = PrivateLanguageGenerator::get_config(self);
-
-        let prefix = "In 1991, the remains of Russian Tsar Nicholas II and his family \
-(except for Alexei and Maria) are discovered. \
-The voice of Nicholas's young son, Tsarevich Alexei Nikolaevich, narrates the \
-remainder of the story. 1883 Western Siberia, \
-a young Grigori Rasputin is asked by his father and a group of men to perform magic. \
-Rasputin has a vision and denounces one of the men as a horse thief. Although his \
-father initially slaps him for making such an accusation, Rasputin watches as the \
-man is chased outside and beaten. Twenty years later, Rasputin sees a vision of \
-the Virgin Mary, prompting him to become a priest. Rasputin quickly becomes famous, \
-with people, even a bishop, begging for his blessing. <eod> </s> <eos>";
-
-        let max_length = config.max_length;
-        let encoding_max_len = if self.is_encoder_decoder() {
-            1024i64
-        } else {
-            max_length
-        };
-        let pad_token_id = match self.get_pad_id() {
-            Some(value) => Some(*value),
-            None => match &eos_token_ids {
-                Some(eos_ids) => Some(eos_ids[0]),
-                None => None,
-            },
-        };
-
-        let input_ids = match prompt_texts {
-            Some(texts) => {
-                let texts = texts
-                    .as_ref()
-                    .iter()
-                    .map(|text| format!("{} {}", prefix, text))
-                    .collect::<Vec<String>>();
-                self.encode_prompt_text(
-                    texts.iter().map(|s| s.as_str()).collect_vec(),
-                    encoding_max_len,
-                    pad_token_id,
-                )
-            }
-            None => match self.get_bos_id() {
-                Some(bos_id) => {
-                    Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id
-                }
-                None => panic!(
-                    "A model with a BOS token must be used to start generation with an empty input"
-                ),
-            },
-        };
-        let generated = self.generate_from_ids_and_past(input_ids, attention_mask);
-        let mut output = Vec::with_capacity(generated.len());
-        for generated_sequence in generated {
-            output.push(self.get_tokenizer().decode(
-                generated_sequence.into_iter().skip(165).collect_vec(),
-                true,
-                true,
-            ));
-        }
-        output
-    }
-}
+impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {}
 
 #[derive(Debug)]
 pub enum Cache {
@@ -1673,7 +1628,8 @@ pub enum Cache {
 
 pub(crate) mod private_generation_utils {
     use super::ordered_float::OrderedFloat;
-    use crate::pipelines::generation::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
+    use crate::pipelines::common::TokenizerOption;
+    use crate::pipelines::generation_utils::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
     use rust_tokenizers::tokenizer::{truncate_sequences, Tokenizer, TruncationStrategy};
     use rust_tokenizers::vocab::Vocab;
     use rust_tokenizers::TokenIdsWithOffsets;
@@ -1701,7 +1657,7 @@ pub(crate) mod private_generation_utils {
 
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         fn get_model(&self) -> &T;
-        fn get_tokenizer(&self) -> &U;
+        fn get_tokenizer(&self) -> &TokenizerOption;
         fn get_var_store(&self) -> &nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
         fn get_bos_id(&self) -> &Option<i64>;
@@ -1791,7 +1747,7 @@ pub(crate) mod private_generation_utils {
 
             let pad_token = match pad_token_id {
                 Some(value) => value,
-                None => self.get_tokenizer().vocab().token_to_id(V::unknown_value()),
+                None => self.get_tokenizer().get_unk_id(),
             };
 
             let token_ids = token_ids
@@ -2442,7 +2398,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
+    /// use rust_bert::pipelines::generation_utils::{
+    ///     GPT2Generator, GenerateConfig, LanguageGenerator,
+    /// };
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("gpt2");
@@ -2462,7 +2420,19 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let mut gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
-    /// let output = gpt2_generator.generate(Some(vec![input_context, second_input_context]), None);
+    ///
+    /// let attention_mask = None;
+    /// let min_length = 32;
+    /// let max_length = 128;
+    /// let decoder_start_token_id = None;
+    ///
+    /// let output = gpt2_generator.generate(
+    ///     Some(vec![input_context, second_input_context]),
+    ///     attention_mask,
+    ///     min_length,
+    ///     max_length,
+    ///     decoder_start_token_id,
+    /// );
     /// # Ok(())
     /// # }
     /// ```
@@ -2483,14 +2453,95 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         &self,
         prompt_texts: Option<S>,
         attention_mask: Option<Tensor>,
+        min_length: impl Into<Option<i64>>,
+        max_length: impl Into<Option<i64>>,
+        decoder_start_token_id: impl Into<Option<i64>>,
     ) -> Vec<String>
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let generated = self.generate_indices(
+            prompt_texts,
+            attention_mask,
+            min_length,
+            max_length,
+            decoder_start_token_id,
+        );
+        let mut output = Vec::with_capacity(generated.len());
+        for generated_sequence in generated {
+            output.push(self.get_tokenizer().decode(generated_sequence, true, true));
+        }
+        output
+    }
+
+    /// Generate token indices without decoding (useful for token-level operations before returning final text or as validation step during training).
+    ///
+    /// # Arguments
+    ///
+    /// * `prompt_texts` - `Option<Vec<&str>>` Optional vector of text prompts. An empty prompt to the model may be passed if the model implement a `bos_id`.
+    /// * `attention_mask` - `Option<Tensor>` Optional attention mask to hide portions of the prompt.
+    ///
+    /// # Returns
+    /// * `Vec<Vec<i64>>` Vector of Vector of generated token indices based on the prompts of length *number_of_prompts* x *num_return_sequences*.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// # use tch::Device;
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::generation_utils::{
+    ///     GPT2Generator, GenerateConfig, LanguageGenerator,
+    /// };
+    /// # let mut home: PathBuf = dirs::home_dir().unwrap();
+    /// # home.push("rustbert");
+    /// # home.push("gpt2");
+    /// # let config_path = &home.as_path().join("config.json");
+    /// # let vocab_path = &home.as_path().join("vocab.txt");
+    /// # let merges_path = &home.as_path().join("merges.txt");
+    /// # let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::cuda_if_available();
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let mut gpt2_generator = GPT2Generator::new(generate_config)?;
+    /// let input_context = "The dog";
+    /// let second_input_context = "The cat was";
+    /// let attention_mask = None;
+    /// let min_length = 32;
+    /// let max_length = 128;
+    /// let decoder_start_token_id = None;
+    ///
+    /// let output = gpt2_generator.generate_indices(
+    ///     Some(vec![input_context, second_input_context]),
+    ///     attention_mask,
+    ///     min_length,
+    ///     max_length,
+    ///     decoder_start_token_id,
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn generate_indices<'a, S>(
+        &self,
+        prompt_texts: Option<S>,
+        attention_mask: Option<Tensor>,
+        min_length: impl Into<Option<i64>>,
+        max_length: impl Into<Option<i64>>,
+        decoder_start_token_id: impl Into<Option<i64>>,
+    ) -> Vec<Vec<i64>>
     where
         S: AsRef<[&'a str]>,
     {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
         let config = PrivateLanguageGenerator::get_config(self);
-        let max_length = config.max_length;
+        let max_length = max_length.into().unwrap_or(config.max_length);
         let encoding_max_len = if self.is_encoder_decoder() {
             1024i64
         } else {
@@ -2515,18 +2566,22 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 ),
             },
         };
-        let generated = self.generate_from_ids_and_past(input_ids, attention_mask);
-        let mut output = Vec::with_capacity(generated.len());
-        for generated_sequence in generated {
-            output.push(self.get_tokenizer().decode(generated_sequence, true, true));
-        }
-        output
+        self.generate_from_ids_and_past(
+            input_ids,
+            attention_mask,
+            min_length,
+            max_length,
+            decoder_start_token_id,
+        )
     }
 
     fn generate_from_ids_and_past(
         &self,
         input_ids: Tensor,
         attention_mask: Option<Tensor>,
+        min_length: impl Into<Option<i64>>,
+        max_length: impl Into<Option<i64>>,
+        decoder_start_token_id: impl Into<Option<i64>>,
     ) -> Vec<Vec<i64>> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
@@ -2534,8 +2589,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let do_sample = config.do_sample;
         let num_return_sequences = config.num_return_sequences;
         let num_beams = config.num_beams;
-        let min_length = config.min_length;
-        let max_length = config.max_length;
+        let min_length = min_length.into().unwrap_or(config.min_length);
+        let max_length = max_length.into().unwrap_or(config.max_length);
         let early_stopping = config.early_stopping;
         let temperature = config.temperature;
         let top_k = config.top_k;
@@ -2611,9 +2666,10 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 (input_ids, attention_mask)
             }
         } else {
-            let decoder_start_token_id = self
-                .get_decoder_start_id()
-                .expect("decoder start id must be specified for encoder decoders");
+            let decoder_start_token_id = decoder_start_token_id.into().unwrap_or_else(|| {
+                self.get_decoder_start_id()
+                    .expect("decoder start id must be specified for encoder decoders")
+            });
             let input_ids = Tensor::full(
                 &[effective_batch_size * num_beams as i64, 1],
                 decoder_start_token_id,
@@ -2804,7 +2860,7 @@ pub trait LMHeadModel {
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::{GPT2LMHeadModel, Gpt2Config};
-    /// use rust_bert::pipelines::generation::{Cache, LMHeadModel};
+    /// use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;

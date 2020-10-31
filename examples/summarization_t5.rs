@@ -1,61 +1,39 @@
+// Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
+// Copyright 2019 Guillaume Becquin
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+extern crate anyhow;
+
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
-use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
-use tch::Device;
 
-#[test]
-fn test_translation_t5() -> anyhow::Result<()> {
-    //    Set-up translation model
-    let translation_config = TranslationConfig::new_from_resources(
-        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL)),
-        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL)),
-        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL)),
-        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL)),
-        Some("translate English to French:".to_string()),
-        Device::cuda_if_available(),
+fn main() -> anyhow::Result<()> {
+    // let summarization_model = SummarizationModel::new(Default::default())?;
+
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
+    let weights_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
+    let summarization_config = SummarizationConfig::new(
         ModelType::T5,
+        weights_resource,
+        config_resource,
+        vocab_resource.clone(),
+        vocab_resource,
     );
-    let model = TranslationModel::new(translation_config)?;
-
-    let input_context = "The quick brown fox jumps over the lazy dog.";
-
-    let output = model.translate(&[input_context]);
-
-    assert_eq!(
-        output[0],
-        " Le renard brun rapide saute au-dessus du chien paresseux."
-    );
-
-    Ok(())
-}
-
-#[test]
-fn test_summarization_t5() -> anyhow::Result<()> {
-    //    Set-up translation model
-    let summarization_config = SummarizationConfig {
-        model_type: ModelType::T5,
-        model_resource: Resource::Remote(RemoteResource::from_pretrained(
-            T5ModelResources::T5_SMALL,
-        )),
-        config_resource: Resource::Remote(RemoteResource::from_pretrained(
-            T5ConfigResources::T5_SMALL,
-        )),
-        vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-            T5VocabResources::T5_SMALL,
-        )),
-        merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-            T5VocabResources::T5_SMALL,
-        )),
-        min_length: 30,
-        max_length: 200,
-        early_stopping: true,
-        num_beams: 4,
-        length_penalty: 2.0,
-        ..Default::default()
-    };
-    let model = SummarizationModel::new(summarization_config)?;
+    let summarization_model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
@@ -79,14 +57,11 @@ on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optim
 telescope — scheduled for launch in 2021 — and the European Space Agency's 2028 ARIEL program, could reveal more \
 about exoplanets like K2-18b."];
 
-    let output = model.summarize(&input);
-
-    assert_eq! (
-    output[0],
-    " the presence of water vapour was confirmed in the atmosphere of K2-18b. this is the first \
-        such discovery in a planet in its star's habitable zone. previous discoveries were made on \
-        planets with high temperatures or other pronounced differences."
-    );
+    //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
+    let _output = summarization_model.summarize(&input);
+    for sentence in _output {
+        println!("{}", sentence);
+    }
 
     Ok(())
 }

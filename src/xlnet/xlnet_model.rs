@@ -15,7 +15,7 @@
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::summary::{SequenceSummary, SummaryConfig, SummaryType};
-use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::xlnet::attention::LayerState;
 use crate::xlnet::encoder::XLNetLayer;
 use crate::{Config, RustBertError};

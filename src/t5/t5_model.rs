@@ -9,7 +9,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::t5::attention::LayerState;
 use crate::t5::encoder::{T5Stack, T5StackOutput};
 use crate::{Config, RustBertError};

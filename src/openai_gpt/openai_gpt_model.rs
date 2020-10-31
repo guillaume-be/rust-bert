@@ -16,7 +16,7 @@ use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::Gpt2Config;
 use crate::openai_gpt::transformer::Block;
-use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
@@ -377,7 +377,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::Gpt2Config;
     /// use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
-    /// use rust_bert::pipelines::generation::{LMHeadModel, Cache};
+    /// use rust_bert::pipelines::generation_utils::{LMHeadModel, Cache};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
