@@ -199,89 +199,107 @@ impl SequenceClassificationOption {
     /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
     /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
     /// `model_type`)
-    pub fn new<'p, P>(model_type: ModelType, p: P, config: &ConfigOption) -> Self
+    pub fn new<'p, P>(
+        model_type: ModelType,
+        p: P,
+        config: &ConfigOption,
+    ) -> Result<Self, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         match model_type {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
-                    SequenceClassificationOption::Bert(BertForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::Bert(
+                        BertForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Bert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
                 }
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
-                    SequenceClassificationOption::DistilBert(DistilBertModelClassifier::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::DistilBert(
+                        DistilBertModelClassifier::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a DistilBertConfig for DistilBert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+                    ))
                 }
             }
             ModelType::Roberta => {
                 if let ConfigOption::Bert(config) = config {
-                    SequenceClassificationOption::Roberta(RobertaForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::Roberta(
+                        RobertaForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Bert(config) = config {
-                    SequenceClassificationOption::XLMRoberta(RobertaForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::XLMRoberta(
+                        RobertaForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
-                    SequenceClassificationOption::Albert(AlbertForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::Albert(
+                        AlbertForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply an AlbertConfig for Albert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an AlbertConfig for Albert!".to_string(),
+                    ))
                 }
             }
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = config {
-                    SequenceClassificationOption::XLNet(
+                    Ok(SequenceClassificationOption::XLNet(
                         XLNetForSequenceClassification::new(p, config).unwrap(),
-                    )
+                    ))
                 } else {
-                    panic!("You can only supply an XLNetConfig for XLNet!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an XLNetConfig for XLNet!".to_string(),
+                    ))
                 }
             }
             ModelType::Bart => {
                 if let ConfigOption::Bart(config) = config {
-                    SequenceClassificationOption::Bart(BartForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::Bart(
+                        BartForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Bert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
                 }
             }
-            ModelType::Electra => {
-                panic!("SequenceClassification not implemented for Electra!");
-            }
-            ModelType::Marian => {
-                panic!("SequenceClassification not implemented for Marian!");
-            }
-            ModelType::T5 => {
-                panic!("SequenceClassification not implemented for T5!");
-            }
-            ModelType::GPT2 => {
-                panic!("SequenceClassification not implemented for GPT2!");
-            }
-            ModelType::OpenAiGpt => {
-                panic!("QuestionAnswering not implemented for GPT!");
-            }
+            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
+                "SequenceClassification not implemented for Electra!".to_string(),
+            )),
+            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
+                "SequenceClassification not implemented for Marian!".to_string(),
+            )),
+            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
+                "SequenceClassification not implemented for T5!".to_string(),
+            )),
+            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
+                "SequenceClassification not implemented for GPT2!".to_string(),
+            )),
+            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
+                "QuestionAnswering not implemented for GPT!".to_string(),
+            )),
         }
     }
 
@@ -430,7 +448,7 @@ impl SequenceClassificationModel {
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let sequence_classifier =
-            SequenceClassificationOption::new(config.model_type, &var_store.root(), &model_config);
+            SequenceClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping();
         var_store.load(weights_path)?;
         Ok(SequenceClassificationModel {

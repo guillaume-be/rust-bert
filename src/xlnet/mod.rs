@@ -22,9 +22,9 @@
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::common::ModelType;
 //! use rust_bert::pipelines::generation_utils::{
-//!     GenerateConfig, LanguageGenerator, XLNetGenerator,
+//!     LanguageGenerator, XLNetGenerator,
 //! };
-//! use rust_bert::pipelines::text_generation::TextGenerationModel;
+//! use rust_bert::pipelines::text_generation::{TextGenerationModel, TextGenerationConfig};
 //! use rust_bert::resources::{RemoteResource, Resource};
 //! use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
 //! let config_resource = Resource::Remote(RemoteResource::from_pretrained(
@@ -39,7 +39,8 @@
 //! let model_resource = Resource::Remote(RemoteResource::from_pretrained(
 //!     XLNetModelResources::XLNET_BASE_CASED,
 //! ));
-//! let generate_config = GenerateConfig {
+//! let generate_config = TextGenerationConfig {
+//!     model_type: ModelType::XLNet,
 //!     model_resource,
 //!     config_resource,
 //!     vocab_resource,
@@ -51,8 +52,7 @@
 //!     num_return_sequences: 1,
 //!     ..Default::default()
 //! };
-//! let model_type = ModelType::XLNet;
-//! let model = TextGenerationModel::new(generate_config, model_type)?;
+//! let model = TextGenerationModel::new(generate_config)?;
 //! let input_context = "Once upon a time,";
 //! let output = model.generate(&[input_context], None);
 //!

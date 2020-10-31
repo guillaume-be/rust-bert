@@ -135,6 +135,30 @@ impl Default for ConversationConfig {
     }
 }
 
+impl From<ConversationConfig> for GenerateConfig {
+    fn from(config: ConversationConfig) -> GenerateConfig {
+        GenerateConfig {
+            model_resource: config.model_resource,
+            config_resource: config.config_resource,
+            merges_resource: config.merges_resource,
+            vocab_resource: config.vocab_resource,
+            min_length: config.min_length,
+            max_length: config.max_length,
+            do_sample: config.do_sample,
+            early_stopping: config.early_stopping,
+            num_beams: config.num_beams,
+            temperature: config.temperature,
+            top_k: config.top_k,
+            top_p: config.top_p,
+            repetition_penalty: config.repetition_penalty,
+            length_penalty: config.length_penalty,
+            no_repeat_ngram_size: config.no_repeat_ngram_size,
+            num_return_sequences: config.num_return_sequences,
+            device: config.device,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// Data structure keeping track of a conversation in the system. It contains past user inputs and
 /// generated answers, a history of the tokens generated and a placeholder for new user inputs to be
@@ -648,30 +672,9 @@ pub enum ConversationOption {
 
 impl ConversationOption {
     pub fn new(config: ConversationConfig) -> Result<Self, RustBertError> {
-        let generate_config = GenerateConfig {
-            model_resource: config.model_resource,
-            config_resource: config.config_resource,
-            merges_resource: config.merges_resource,
-            vocab_resource: config.vocab_resource,
-            min_length: config.min_length,
-            max_length: config.max_length,
-            do_sample: config.do_sample,
-            early_stopping: config.early_stopping,
-            num_beams: config.num_beams,
-            temperature: config.temperature,
-            top_k: config.top_k,
-            top_p: config.top_p,
-            repetition_penalty: config.repetition_penalty,
-            length_penalty: config.length_penalty,
-            no_repeat_ngram_size: config.no_repeat_ngram_size,
-            num_return_sequences: config.num_return_sequences,
-            device: config.device,
-        };
         match config.model_type {
-            ModelType::GPT2 => Ok(ConversationOption::GPT2(GPT2Generator::new(
-                generate_config,
-            )?)),
-            _ => Err(RustBertError::ValueError(
+            ModelType::GPT2 => Ok(ConversationOption::GPT2(GPT2Generator::new(config.into())?)),
+            _ => Err(RustBertError::InvalidConfigurationError(
                 "GPT2 currently only supported model for conversation generation".to_string(),
             )),
         }

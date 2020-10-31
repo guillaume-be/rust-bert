@@ -232,89 +232,107 @@ impl ZeroShotClassificationOption {
     /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
     /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
     /// `model_type`)
-    pub fn new<'p, P>(model_type: ModelType, p: P, config: &ConfigOption) -> Self
+    pub fn new<'p, P>(
+        model_type: ModelType,
+        p: P,
+        config: &ConfigOption,
+    ) -> Result<Self, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         match model_type {
             ModelType::Bart => {
                 if let ConfigOption::Bart(config) = config {
-                    ZeroShotClassificationOption::Bart(BartForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::Bart(
+                        BartForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BartConfig for Bart!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BartConfig for Bart!".to_string(),
+                    ))
                 }
             }
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
-                    ZeroShotClassificationOption::Bert(BertForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::Bert(
+                        BertForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Bert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
                 }
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
-                    ZeroShotClassificationOption::DistilBert(DistilBertModelClassifier::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::DistilBert(
+                        DistilBertModelClassifier::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a DistilBertConfig for DistilBert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+                    ))
                 }
             }
             ModelType::Roberta => {
                 if let ConfigOption::Bert(config) = config {
-                    ZeroShotClassificationOption::Roberta(RobertaForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::Roberta(
+                        RobertaForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Bert(config) = config {
-                    ZeroShotClassificationOption::XLMRoberta(RobertaForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::XLMRoberta(
+                        RobertaForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
-                    ZeroShotClassificationOption::Albert(AlbertForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::Albert(
+                        AlbertForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply an AlbertConfig for Albert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an AlbertConfig for Albert!".to_string(),
+                    ))
                 }
             }
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = config {
-                    ZeroShotClassificationOption::XLNet(
+                    Ok(ZeroShotClassificationOption::XLNet(
                         XLNetForSequenceClassification::new(p, config).unwrap(),
-                    )
+                    ))
                 } else {
-                    panic!("You can only supply an AlbertConfig for Albert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an AlbertConfig for Albert!".to_string(),
+                    ))
                 }
             }
-            ModelType::Electra => {
-                panic!("ZeroShotClassification not implemented for Electra!");
-            }
-            ModelType::Marian => {
-                panic!("ZeroShotClassification not implemented for Marian!");
-            }
-            ModelType::T5 => {
-                panic!("ZeroShotClassification not implemented for T5!");
-            }
-            ModelType::GPT2 => {
-                panic!("ZeroShotClassification not implemented for GPT2!");
-            }
-            ModelType::OpenAiGpt => {
-                panic!("ZeroShotClassification not implemented for GPT!");
-            }
+            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
+                "ZeroShotClassification not implemented for Electra!".to_string(),
+            )),
+            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
+                "ZeroShotClassification not implemented for Marian!".to_string(),
+            )),
+            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
+                "ZeroShotClassification not implemented for T5!".to_string(),
+            )),
+            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
+                "ZeroShotClassification not implemented for GPT2!".to_string(),
+            )),
+            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
+                "ZeroShotClassification not implemented for GPT!".to_string(),
+            )),
         }
     }
 
@@ -462,7 +480,7 @@ impl ZeroShotClassificationModel {
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let zero_shot_classifier =
-            ZeroShotClassificationOption::new(config.model_type, &var_store.root(), &model_config);
+            ZeroShotClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
         var_store.load(weights_path)?;
         Ok(ZeroShotClassificationModel {
             tokenizer,

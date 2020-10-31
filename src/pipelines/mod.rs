@@ -156,7 +156,7 @@
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::text_generation::TextGenerationModel;
 //! use rust_bert::pipelines::common::ModelType;
-//! let mut model = TextGenerationModel::new(Default::default(), ModelType::GPT2)?;
+//! let mut model = TextGenerationModel::new(Default::default())?;
 //! let input_context_1 = "The dog";
 //! let input_context_2 = "The cat was";
 //!

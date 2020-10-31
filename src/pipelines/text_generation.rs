@@ -135,19 +135,9 @@ impl Default for TextGenerationConfig {
     }
 }
 
-/// # Abstraction that holds one particular textgeneration model, for any of the supported models
-pub enum TextGenerationOption {
-    /// Text Generator based on GPT2 model
-    GPT2(GPT2Generator),
-    /// Text Generator based on GPT model
-    GPT(OpenAIGenerator),
-    /// Text Generator based on XLNet model
-    XLNet(XLNetGenerator),
-}
-
-impl TextGenerationOption {
-    pub fn new(config: TextGenerationConfig) -> Result<Self, RustBertError> {
-        let generate_config = GenerateConfig {
+impl From<TextGenerationConfig> for GenerateConfig {
+    fn from(config: TextGenerationConfig) -> GenerateConfig {
+        GenerateConfig {
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -165,41 +155,60 @@ impl TextGenerationOption {
             no_repeat_ngram_size: config.no_repeat_ngram_size,
             num_return_sequences: config.num_return_sequences,
             device: config.device,
-        };
-        Ok(match config.model_type {
-            ModelType::GPT2 => TextGenerationOption::GPT2(GPT2Generator::new(generate_config)?),
-            ModelType::OpenAiGpt => {
-                TextGenerationOption::GPT(OpenAIGenerator::new(generate_config)?)
-            }
-            ModelType::XLNet => TextGenerationOption::XLNet(XLNetGenerator::new(generate_config)?),
-            ModelType::Bert => {
-                panic!("Text generation not implemented for Electra!");
-            }
-            ModelType::Bart => {
-                panic!("Text generation not implemented for BART!");
-            }
-            ModelType::T5 => {
-                panic!("Text generation not implemented for T5!");
-            }
-            ModelType::DistilBert => {
-                panic!("Text generation not implemented for DistilBert!");
-            }
-            ModelType::Roberta => {
-                panic!("Text generation not implemented for Roberta!");
-            }
-            ModelType::XLMRoberta => {
-                panic!("Text generation not implemented for XLMRoberta!");
-            }
-            ModelType::Electra => {
-                panic!("Text generation not implemented for Electra!");
-            }
-            ModelType::Albert => {
-                panic!("Text generation not implemented for Albert!");
-            }
-            ModelType::Marian => {
-                panic!("Text generation not implemented for Marian!");
-            }
-        })
+        }
+    }
+}
+
+/// # Abstraction that holds one particular textgeneration model, for any of the supported models
+pub enum TextGenerationOption {
+    /// Text Generator based on GPT2 model
+    GPT2(GPT2Generator),
+    /// Text Generator based on GPT model
+    GPT(OpenAIGenerator),
+    /// Text Generator based on XLNet model
+    XLNet(XLNetGenerator),
+}
+
+impl TextGenerationOption {
+    pub fn new(config: TextGenerationConfig) -> Result<Self, RustBertError> {
+        match config.model_type {
+            ModelType::GPT2 => Ok(TextGenerationOption::GPT2(GPT2Generator::new(
+                config.into(),
+            )?)),
+            ModelType::OpenAiGpt => Ok(TextGenerationOption::GPT(OpenAIGenerator::new(
+                config.into(),
+            )?)),
+            ModelType::XLNet => Ok(TextGenerationOption::XLNet(XLNetGenerator::new(
+                config.into(),
+            )?)),
+            ModelType::Bert => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for Electra!".to_string(),
+            )),
+            ModelType::Bart => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for BART!".to_string(),
+            )),
+            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for T5!".to_string(),
+            )),
+            ModelType::DistilBert => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for DistilBert!".to_string(),
+            )),
+            ModelType::Roberta => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for Roberta!".to_string(),
+            )),
+            ModelType::XLMRoberta => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for XLMRoberta!".to_string(),
+            )),
+            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for Electra!".to_string(),
+            )),
+            ModelType::Albert => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for Albert!".to_string(),
+            )),
+            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for Marian!".to_string(),
+            )),
+        }
     }
 
     /// Returns the `ModelType` for this TextGenerationOption

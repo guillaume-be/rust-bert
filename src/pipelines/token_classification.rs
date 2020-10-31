@@ -311,85 +311,107 @@ impl TokenClassificationOption {
     /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
     /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
     /// `model_type`)
-    pub fn new<'p, P>(model_type: ModelType, p: P, config: &ConfigOption) -> Self
+    pub fn new<'p, P>(
+        model_type: ModelType,
+        p: P,
+        config: &ConfigOption,
+    ) -> Result<Self, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         match model_type {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
-                    TokenClassificationOption::Bert(BertForTokenClassification::new(p, config))
+                    Ok(TokenClassificationOption::Bert(
+                        BertForTokenClassification::new(p, config),
+                    ))
                 } else {
-                    panic!("You can only supply a BertConfig for Bert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
                 }
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
-                    TokenClassificationOption::DistilBert(DistilBertForTokenClassification::new(
-                        p, config,
+                    Ok(TokenClassificationOption::DistilBert(
+                        DistilBertForTokenClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a DistilBertConfig for DistilBert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+                    ))
                 }
             }
             ModelType::Roberta => {
                 if let ConfigOption::Bert(config) = config {
-                    TokenClassificationOption::Roberta(RobertaForTokenClassification::new(
-                        p, config,
+                    Ok(TokenClassificationOption::Roberta(
+                        RobertaForTokenClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Bert(config) = config {
-                    TokenClassificationOption::XLMRoberta(RobertaForTokenClassification::new(
-                        p, config,
+                    Ok(TokenClassificationOption::XLMRoberta(
+                        RobertaForTokenClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for XLMRoberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for XLMRoberta!".to_string(),
+                    ))
                 }
             }
             ModelType::Electra => {
                 if let ConfigOption::Electra(config) = config {
-                    TokenClassificationOption::Electra(ElectraForTokenClassification::new(
-                        p, config,
+                    Ok(TokenClassificationOption::Electra(
+                        ElectraForTokenClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
-                    TokenClassificationOption::Albert(AlbertForTokenClassification::new(p, config))
+                    Ok(TokenClassificationOption::Albert(
+                        AlbertForTokenClassification::new(p, config),
+                    ))
                 } else {
-                    panic!("You can only supply an AlbertConfig for Albert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an AlbertConfig for Albert!".to_string(),
+                    ))
                 }
             }
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = config {
-                    TokenClassificationOption::XLNet(
+                    Ok(TokenClassificationOption::XLNet(
                         XLNetForTokenClassification::new(p, config).unwrap(),
-                    )
+                    ))
                 } else {
-                    panic!("You can only supply an AlbertConfig for Albert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an AlbertConfig for Albert!".to_string(),
+                    ))
                 }
             }
-            ModelType::Marian => {
-                panic!("TokenClassification not implemented for Marian!");
-            }
-            ModelType::T5 => {
-                panic!("TokenClassification not implemented for T5!");
-            }
-            ModelType::Bart => {
-                panic!("TokenClassification not implemented for BART!");
-            }
-            ModelType::GPT2 => {
-                panic!("TokenClassification not implemented for GPT2!");
-            }
-            ModelType::OpenAiGpt => {
-                panic!("TokenClassification not implemented for GPT!");
-            }
+            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
+                "TokenClassification not implemented for Marian!".to_string(),
+            )),
+            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
+                "TokenClassification not implemented for T5!".to_string(),
+            )),
+            ModelType::Bart => Err(RustBertError::InvalidConfigurationError(
+                "TokenClassification not implemented for BART!".to_string(),
+            )),
+            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
+                "TokenClassification not implemented for GPT2!".to_string(),
+            )),
+            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
+                "TokenClassification not implemented for GPT!".to_string(),
+            )),
         }
     }
 
@@ -539,7 +561,7 @@ impl TokenClassificationModel {
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let token_sequence_classifier =
-            TokenClassificationOption::new(config.model_type, &var_store.root(), &model_config);
+            TokenClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping();
         var_store.load(weights_path)?;
         Ok(TokenClassificationModel {

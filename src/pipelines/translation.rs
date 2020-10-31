@@ -470,17 +470,9 @@ impl TranslationConfig {
     }
 }
 
-/// # Abstraction that holds one particular translation model, for any of the supported models
-pub enum TranslationOption {
-    /// Translator based on Marian model
-    Marian(MarianGenerator),
-    /// Translator based on T5 model
-    T5(T5Generator),
-}
-
-impl TranslationOption {
-    pub fn new(config: TranslationConfig) -> Self {
-        let generate_config = GenerateConfig {
+impl From<TranslationConfig> for GenerateConfig {
+    fn from(config: TranslationConfig) -> GenerateConfig {
+        GenerateConfig {
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -498,42 +490,55 @@ impl TranslationOption {
             no_repeat_ngram_size: config.no_repeat_ngram_size,
             num_return_sequences: config.num_return_sequences,
             device: config.device,
-        };
+        }
+    }
+}
+
+/// # Abstraction that holds one particular translation model, for any of the supported models
+pub enum TranslationOption {
+    /// Translator based on Marian model
+    Marian(MarianGenerator),
+    /// Translator based on T5 model
+    T5(T5Generator),
+}
+
+impl TranslationOption {
+    pub fn new(config: TranslationConfig) -> Result<Self, RustBertError> {
         match config.model_type {
-            ModelType::Marian => {
-                TranslationOption::Marian(MarianGenerator::new(generate_config).unwrap())
-            }
-            ModelType::T5 => TranslationOption::T5(T5Generator::new(generate_config).unwrap()),
-            ModelType::Bert => {
-                panic!("Translation not implemented for Electra!");
-            }
-            ModelType::DistilBert => {
-                panic!("Translation not implemented for DistilBert!");
-            }
-            ModelType::Roberta => {
-                panic!("Translation not implemented for Roberta!");
-            }
-            ModelType::XLMRoberta => {
-                panic!("Translation not implemented for XLMRoberta!");
-            }
-            ModelType::Electra => {
-                panic!("Translation not implemented for Electra!");
-            }
-            ModelType::Albert => {
-                panic!("Translation not implemented for Albert!");
-            }
-            ModelType::XLNet => {
-                panic!("Translation not implemented for XLNet!");
-            }
-            ModelType::Bart => {
-                panic!("Translation not implemented for BART!");
-            }
-            ModelType::GPT2 => {
-                panic!("Translation not implemented for GPT2!");
-            }
-            ModelType::OpenAiGpt => {
-                panic!("Translation not implemented for GPT!");
-            }
+            ModelType::Marian => Ok(TranslationOption::Marian(MarianGenerator::new(
+                config.into(),
+            )?)),
+            ModelType::T5 => Ok(TranslationOption::T5(T5Generator::new(config.into())?)),
+            ModelType::Bert => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for Electra!".to_string(),
+            )),
+            ModelType::DistilBert => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for DistilBert!".to_string(),
+            )),
+            ModelType::Roberta => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for Roberta!".to_string(),
+            )),
+            ModelType::XLMRoberta => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for XLMRoberta!".to_string(),
+            )),
+            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for Electra!".to_string(),
+            )),
+            ModelType::Albert => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for Albert!".to_string(),
+            )),
+            ModelType::XLNet => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for XLNet!".to_string(),
+            )),
+            ModelType::Bart => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for BART!".to_string(),
+            )),
+            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for GPT2!".to_string(),
+            )),
+            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for GPT!".to_string(),
+            )),
         }
     }
 
@@ -591,7 +596,7 @@ impl TranslationModel {
     /// ```
     pub fn new(translation_config: TranslationConfig) -> Result<TranslationModel, RustBertError> {
         let prefix = translation_config.prefix.clone();
-        let model = TranslationOption::new(translation_config);
+        let model = TranslationOption::new(translation_config)?;
 
         Ok(TranslationModel { model, prefix })
     }

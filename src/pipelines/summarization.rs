@@ -178,17 +178,9 @@ impl Default for SummarizationConfig {
     }
 }
 
-/// # Abstraction that holds one particular summarization model, for any of the supported models
-pub enum SummarizationOption {
-    /// Summarizer based on BART model
-    Bart(BartGenerator),
-    /// Summarizer based on T5 model
-    T5(T5Generator),
-}
-
-impl SummarizationOption {
-    pub fn new(config: SummarizationConfig) -> Result<Self, RustBertError> {
-        let generate_config = GenerateConfig {
+impl From<SummarizationConfig> for GenerateConfig {
+    fn from(config: SummarizationConfig) -> GenerateConfig {
+        GenerateConfig {
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -206,41 +198,56 @@ impl SummarizationOption {
             no_repeat_ngram_size: config.no_repeat_ngram_size,
             num_return_sequences: config.num_return_sequences,
             device: config.device,
-        };
-        Ok(match config.model_type {
-            ModelType::Bart => SummarizationOption::Bart(BartGenerator::new(generate_config)?),
-            ModelType::T5 => SummarizationOption::T5(T5Generator::new(generate_config)?),
-            ModelType::Bert => {
-                panic!("Summarization not implemented for Electra!");
-            }
-            ModelType::DistilBert => {
-                panic!("Summarization not implemented for DistilBert!");
-            }
-            ModelType::Roberta => {
-                panic!("Summarization not implemented for Roberta!");
-            }
-            ModelType::XLMRoberta => {
-                panic!("Summarization not implemented for XLMRoberta!");
-            }
-            ModelType::Electra => {
-                panic!("Summarization not implemented for Electra!");
-            }
-            ModelType::Albert => {
-                panic!("Summarization not implemented for Albert!");
-            }
-            ModelType::XLNet => {
-                panic!("Summarization not implemented for XLNet!");
-            }
-            ModelType::Marian => {
-                panic!("Summarization not implemented for Marian!");
-            }
-            ModelType::GPT2 => {
-                panic!("Summarization not implemented for GPT2!");
-            }
-            ModelType::OpenAiGpt => {
-                panic!("Summarization not implemented for GPT!");
-            }
-        })
+        }
+    }
+}
+
+/// # Abstraction that holds one particular summarization model, for any of the supported models
+pub enum SummarizationOption {
+    /// Summarizer based on BART model
+    Bart(BartGenerator),
+    /// Summarizer based on T5 model
+    T5(T5Generator),
+}
+
+impl SummarizationOption {
+    pub fn new(config: SummarizationConfig) -> Result<Self, RustBertError> {
+        match config.model_type {
+            ModelType::Bart => Ok(SummarizationOption::Bart(BartGenerator::new(
+                config.into(),
+            )?)),
+            ModelType::T5 => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
+            ModelType::Bert => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for Electra!".to_string(),
+            )),
+            ModelType::DistilBert => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for DistilBert!".to_string(),
+            )),
+            ModelType::Roberta => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for Roberta!".to_string(),
+            )),
+            ModelType::XLMRoberta => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for XLMRoberta!".to_string(),
+            )),
+            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for Electra!".to_string(),
+            )),
+            ModelType::Albert => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for Albert!".to_string(),
+            )),
+            ModelType::XLNet => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for XLNet!".to_string(),
+            )),
+            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for Marian!".to_string(),
+            )),
+            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for GPT2!".to_string(),
+            )),
+            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
+                "Summarization not implemented for GPT!".to_string(),
+            )),
+        }
     }
 
     /// Returns the `ModelType` for this SummarizationOption
