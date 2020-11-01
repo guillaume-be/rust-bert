@@ -36,7 +36,10 @@ impl MLP {
         let c_fc = GPTConv1D::new(p / "c_fc", config.n_embd * 4, config.n_embd);
         let c_proj = GPTConv1D::new(p / "c_proj", config.n_embd, config.n_embd * 4);
         let activation = match &config.afn {
-            Some(activation_enum) => activation_enum,
+            Some(activation_enum) => match activation_enum {
+                Activation::gelu => &Activation::gelu_new,
+                default => default,
+            },
             None => &Activation::gelu_new,
         }
         .get_function();
