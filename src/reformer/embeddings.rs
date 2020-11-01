@@ -11,12 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::dropout::Dropout;
 use crate::reformer::attention_utils::get_least_common_mult_chunk_len;
 use crate::reformer::ReformerConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::Init;
-use tch::{nn, Tensor};
+use tch::{nn, Kind, Tensor};
 
 #[derive(Debug)]
 /// # Axial position embeddings implementation for Reformer model
@@ -67,7 +68,7 @@ impl AxialPositionEmbeddings {
         })
     }
 
-    pub fn forward_t(&self, position_ids: &Tensor, train: bool) -> Result<Tensor, RustBertError> {
+    pub fn forward_t(&self, position_ids: &Tensor, train: bool) -> Tensor {
         let input_shape = position_ids.size();
         let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
 
@@ -82,7 +83,7 @@ impl AxialPositionEmbeddings {
             })
             .collect::<Vec<Tensor>>();
 
-        Ok(if train {
+        if train {
             if self.dropout_prob > 0.0 {
                 Tensor::cat(&broadcasted_weights, -1)
                     .transpose(2, 1)
@@ -99,7 +100,7 @@ impl AxialPositionEmbeddings {
                 )
             }
         } else {
-            let max_position_id = position_ids.max().int64_value(&[0]);
+            let max_position_id = i64::from(position_ids.max());
             let required_pos_encodings_columns =
                 -(-(max_position_id + 1) / self.axial_pos_shape[1]);
 
@@ -126,6 +127,163 @@ impl AxialPositionEmbeddings {
                 );
             }
             Tensor::cat(&output_tensors, 0)
+        }
+    }
+}
+
+#[derive(Debug)]
+/// # Position embeddings implementation for Reformer model
+pub struct BasePositionEmbeddings {
+    embeddings: nn::Embedding,
+    dropout: Dropout,
+}
+
+impl BasePositionEmbeddings {
+    pub fn new<'p, P>(p: P, config: &ReformerConfig) -> BasePositionEmbeddings
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let embeddings = nn::embedding(
+            p / "embedding",
+            config.max_position_embeddings,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        BasePositionEmbeddings {
+            embeddings,
+            dropout,
+        }
+    }
+
+    pub fn forward_t(&self, position_ids: &Tensor, train: bool) -> Tensor {
+        position_ids
+            .apply(&self.embeddings)
+            .apply_t(&self.dropout, train)
+    }
+}
+
+#[derive(Debug)]
+pub enum PositionEmbedding {
+    AxialPositionEmbeddings(AxialPositionEmbeddings),
+    BasePositionEmbeddings(BasePositionEmbeddings),
+}
+
+impl PositionEmbedding {
+    pub fn forward_t(&self, position_ids: &Tensor, train: bool) -> Tensor {
+        match self {
+            PositionEmbedding::AxialPositionEmbeddings(ref embeddings) => {
+                embeddings.forward_t(position_ids, train)
+            }
+            PositionEmbedding::BasePositionEmbeddings(ref embeddings) => {
+                embeddings.forward_t(position_ids, train)
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+/// # Embeddings implementation for Reformer model
+pub struct ReformerEmbeddings {
+    position_embeddings: PositionEmbedding,
+    word_embeddings: nn::Embedding,
+    dropout: Dropout,
+}
+
+impl ReformerEmbeddings {
+    pub fn new<'p, P>(p: P, config: &ReformerConfig) -> Result<ReformerEmbeddings, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let word_embeddings = nn::embedding(
+            p / "word_embeddings",
+            config.vocab_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let position_embeddings = if config.axial_pos_embds {
+            PositionEmbedding::AxialPositionEmbeddings(AxialPositionEmbeddings::new(
+                p / "position_embeddings",
+                config,
+            )?)
+        } else {
+            PositionEmbedding::BasePositionEmbeddings(BasePositionEmbeddings::new(
+                p / "position_embeddings",
+                config,
+            ))
+        };
+
+        Ok(ReformerEmbeddings {
+            position_embeddings,
+            word_embeddings,
+            dropout,
         })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        start_ids_pos_encoding: i64,
+        train: bool,
+    ) -> Result<Tensor, RustBertError> {
+        let (input_embeddings, input_shape, device) = match input_ids {
+            Some(input_value) => match input_embeds {
+                Some(_) => {
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
+                }
+                None => (
+                    input_value.apply_t(&self.word_embeddings, train),
+                    input_value.size(),
+                    input_value.device(),
+                ),
+            },
+            None => match input_embeds {
+                Some(embeds) => {
+                    let size = vec![embeds.size()[0], embeds.size()[1]];
+                    let device = embeds.device();
+                    (embeds, size, device)
+                }
+                None => {
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
+                }
+            },
+        };
+
+        let calc_position_ids = if position_ids.is_none() {
+            Some(
+                Tensor::arange2(
+                    start_ids_pos_encoding,
+                    start_ids_pos_encoding + input_shape[1],
+                    1,
+                    (Kind::Int64, device),
+                )
+                .unsqueeze(0)
+                .expand(&input_shape, true),
+            )
+        } else {
+            None
+        };
+
+        let position_ids = if let Some(position_ids) = position_ids {
+            position_ids
+        } else {
+            calc_position_ids.as_ref().unwrap()
+        };
+
+        Ok(self.position_embeddings.forward_t(position_ids, train)
+            + input_embeddings.apply_t(&self.dropout, train))
     }
 }
