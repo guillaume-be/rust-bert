@@ -185,7 +185,7 @@ impl ConsolidatableTokens<Token> for Vec<Token> {
     }
 }
 
-pub struct LabelAggregationFunction(Box<fn(&[Token]) -> (i64, String)>);
+type LabelAggregationFunction = Box<fn(&[Token]) -> (i64, String)>;
 
 /// # Enum defining the label aggregation method for sub tokens
 /// Defines the behaviour for labels aggregation if the consolidation of sub-tokens is enabled.
@@ -850,7 +850,7 @@ impl TokenClassificationModel {
                     .map(|((label_index, label), _)| (label_index, label.to_owned()))
                     .unwrap()
             }
-            LabelAggregationOption::Custom(function) => function.0(tokens),
+            LabelAggregationOption::Custom(function) => function(tokens),
         }
     }
 }

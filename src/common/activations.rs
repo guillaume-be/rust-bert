@@ -33,7 +33,7 @@ impl TensorFunction {
         Self(fun)
     }
 
-    pub fn get_fn(&self) -> &Box<fn(&Tensor) -> Tensor> {
+    pub fn get_fn(&self) -> &fn(&Tensor) -> Tensor {
         &self.0
     }
 }
