@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::reformer::attention::AttentionType;
+use std::cmp::min;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use tch::{Kind, Tensor};
@@ -60,10 +61,33 @@ pub fn get_least_common_mult_chunk_len(
     }
 }
 
+pub fn get_min_chunk_len(
+    attention_types: &[AttentionType],
+    lsh_attn_chunk_length: Option<i64>,
+    local_attn_chunk_length: Option<i64>,
+) -> i64 {
+    let num_unique_attention_type =
+        HashSet::<&AttentionType>::from_iter(attention_types.iter()).len();
+    match num_unique_attention_type {
+        1 => {
+            if attention_types[0] == AttentionType::lsh {
+                lsh_attn_chunk_length.unwrap_or(64)
+            } else {
+                local_attn_chunk_length.unwrap_or(64)
+            }
+        }
+        2 => min(
+            lsh_attn_chunk_length.unwrap_or(64),
+            local_attn_chunk_length.unwrap_or(64),
+        ),
+        _ => panic!("Impossible scenario - only 2 attention types supported"),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::reformer::attention::AttentionType;
-    use crate::reformer::attention_utils::get_least_common_mult_chunk_len;
+    use crate::reformer::attention_utils::{get_least_common_mult_chunk_len, get_min_chunk_len};
     use crate::reformer::lcm;
 
     #[test]
@@ -77,41 +101,74 @@ mod test {
     }
 
     #[test]
-    fn test_get_least_common_mult_chunk_len_multiple_types() {
-        let attention_types = &[
-            AttentionType::lsh,
-            AttentionType::local,
-            AttentionType::lsh,
-            AttentionType::local,
-            AttentionType::lsh,
-            AttentionType::local,
-        ];
+    fn test_get_least_common_mult_chunk_len() {
+        // Given
         let lsh_attn_chunk_length = Some(48);
         let local_attn_chunk_length = Some(32);
 
-        assert_eq!(
-            get_least_common_mult_chunk_len(
-                attention_types,
-                lsh_attn_chunk_length,
-                local_attn_chunk_length
-            ),
-            96
-        );
+        // When
+        let attention_types = [
+            vec![
+                AttentionType::lsh,
+                AttentionType::local,
+                AttentionType::lsh,
+                AttentionType::local,
+                AttentionType::lsh,
+                AttentionType::local,
+            ],
+            vec![AttentionType::lsh, AttentionType::lsh, AttentionType::lsh],
+            vec![
+                AttentionType::local,
+                AttentionType::local,
+                AttentionType::local,
+            ],
+        ];
+        let expected_results = [96, 48, 32];
+
+        // Then
+        for (test_types, expected_result) in attention_types.iter().zip(expected_results.iter()) {
+            assert_eq!(
+                get_least_common_mult_chunk_len(
+                    test_types,
+                    lsh_attn_chunk_length,
+                    local_attn_chunk_length
+                ),
+                *expected_result
+            );
+        }
     }
 
     #[test]
-    fn test_get_least_common_mult_chunk_len_single_type() {
-        let attention_types = &[AttentionType::lsh, AttentionType::lsh, AttentionType::lsh];
+    fn test_get_min_chunk_len() {
+        // Given
         let lsh_attn_chunk_length = Some(48);
         let local_attn_chunk_length = Some(32);
 
-        assert_eq!(
-            get_least_common_mult_chunk_len(
-                attention_types,
-                lsh_attn_chunk_length,
-                local_attn_chunk_length
-            ),
-            48
-        );
+        // When
+        let attention_types = [
+            vec![
+                AttentionType::lsh,
+                AttentionType::local,
+                AttentionType::lsh,
+                AttentionType::local,
+                AttentionType::lsh,
+                AttentionType::local,
+            ],
+            vec![AttentionType::lsh, AttentionType::lsh, AttentionType::lsh],
+            vec![
+                AttentionType::local,
+                AttentionType::local,
+                AttentionType::local,
+            ],
+        ];
+        let expected_results = [32, 48, 32];
+
+        // Then
+        for (test_types, expected_result) in attention_types.iter().zip(expected_results.iter()) {
+            assert_eq!(
+                get_min_chunk_len(test_types, lsh_attn_chunk_length, local_attn_chunk_length),
+                *expected_result
+            );
+        }
     }
 }
