@@ -14,7 +14,7 @@
 use serde::{Deserialize, Serialize};
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq, Eq, Hash)]
 /// # Attention type for the model (local or LSH)
 pub enum AttentionType {
     /// Local attention
