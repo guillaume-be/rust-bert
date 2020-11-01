@@ -68,6 +68,7 @@ pub mod gpt2;
 pub mod marian;
 pub mod openai_gpt;
 pub mod pipelines;
+pub mod reformer;
 pub mod roberta;
 pub mod t5;
 pub mod xlnet;
