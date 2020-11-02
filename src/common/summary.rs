@@ -10,9 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::activations::{
-    Activation, TensorFunction, _gelu, _gelu_new, _mish, _relu, _swish, _tanh,
-};
+use crate::common::activations::{Activation, TensorFunction};
 use crate::common::dropout::Dropout;
 use crate::xlnet::XLNetConfig;
 use crate::RustBertError;
@@ -101,16 +99,7 @@ impl SequenceSummary {
         };
 
         let activation = if config.summary_activation.is_some() {
-            Some(Box::new(
-                match config.summary_activation.as_ref().unwrap() {
-                    Activation::gelu => _gelu,
-                    Activation::relu => _relu,
-                    Activation::swish => _swish,
-                    Activation::gelu_new => _gelu_new,
-                    Activation::mish => _mish,
-                    Activation::tanh => _tanh,
-                },
-            ))
+            Some(config.summary_activation.as_ref().unwrap().get_function())
         } else {
             None
         };
@@ -171,7 +160,7 @@ impl SequenceSummary {
         };
 
         if let Some(activation_fn) = &self.activation {
-            output = activation_fn(&output)
+            output = activation_fn.get_fn()(&output)
         };
 
         if let Some(last_dropout) = &self.last_dropout {

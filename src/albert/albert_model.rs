@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::albert::embeddings::AlbertEmbeddings;
 use crate::albert::encoder::AlbertTransformer;
-use crate::common::activations::{Activation, _tanh};
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::{albert::embeddings::AlbertEmbeddings, common::activations::TensorFunction};
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap};
@@ -101,7 +101,7 @@ pub struct AlbertModel {
     embeddings: AlbertEmbeddings,
     encoder: AlbertTransformer,
     pooler: nn::Linear,
-    pooler_activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    pooler_activation: TensorFunction,
 }
 
 impl AlbertModel {
@@ -140,7 +140,7 @@ impl AlbertModel {
             config.hidden_size,
             Default::default(),
         );
-        let pooler_activation = Box::new(_tanh);
+        let pooler_activation = Activation::tanh.get_function();
 
         AlbertModel {
             embeddings,
@@ -250,7 +250,7 @@ impl AlbertModel {
         let pooled_output = self
             .pooler
             .forward(&transformer_output.hidden_state.select(1, 0));
-        let pooled_output = (self.pooler_activation)(&pooled_output);
+        let pooled_output = (self.pooler_activation.get_fn())(&pooled_output);
 
         Ok(AlbertOutput {
             hidden_state: transformer_output.hidden_state,
@@ -265,7 +265,7 @@ pub struct AlbertMLMHead {
     layer_norm: nn::LayerNorm,
     dense: nn::Linear,
     decoder: nn::Linear,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 impl AlbertMLMHead {
@@ -309,7 +309,7 @@ impl AlbertMLMHead {
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        let output: Tensor = (self.activation)(&hidden_states.apply(&self.dense));
+        let output: Tensor = (self.activation.get_fn())(&hidden_states.apply(&self.dense));
         output.apply(&self.layer_norm).apply(&self.decoder)
     }
 }

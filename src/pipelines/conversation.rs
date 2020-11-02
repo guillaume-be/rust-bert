@@ -966,3 +966,15 @@ impl ConversationModel {
             .collect::<Vec<Vec<i64>>>()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = ConversationConfig::default();
+        let _: Box<dyn Send> = Box::new(ConversationModel::new(config));
+    }
+}

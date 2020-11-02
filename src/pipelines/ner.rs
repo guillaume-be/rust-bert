@@ -204,3 +204,14 @@ impl NERModel {
             .collect()
     }
 }
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = NERConfig::default();
+        let _: Box<dyn Send> = Box::new(NERModel::new(config));
+    }
+}

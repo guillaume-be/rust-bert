@@ -11,13 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::attention::{LayerState, SelfAttention};
 use crate::bart::embeddings::{
     EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
 };
 use crate::bart::BartConfig;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::{
+    bart::attention::{LayerState, SelfAttention},
+    common::activations::TensorFunction,
+};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Bool;
 use tch::{nn, Tensor};
@@ -29,7 +32,7 @@ pub struct DecoderLayer {
     encoder_attention_layer_norm: nn::LayerNorm,
     dropout: Dropout,
     activation_dropout: Dropout,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
     fc1: nn::Linear,
     fc2: nn::Linear,
     final_layer_norm: nn::LayerNorm,
@@ -147,7 +150,7 @@ impl DecoderLayer {
         );
         let output1: Tensor = output1.apply_t(&self.dropout, train) + output;
         let output1 = output1.apply(&self.encoder_attention_layer_norm);
-        let output2 = (self.activation)(&output1.apply(&self.fc1));
+        let output2 = (self.activation.get_fn())(&output1.apply(&self.fc1));
         let output2 = output2
             .apply_t(&self.activation_dropout, train)
             .apply(&self.fc2)
