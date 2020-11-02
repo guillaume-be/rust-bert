@@ -84,11 +84,42 @@ pub fn get_min_chunk_len(
     }
 }
 
+pub fn look_adjacent(vectors: Tensor, num_chunks_before: i64, num_chunks_after: i64) -> Tensor {
+    if (num_chunks_before == 0) & (num_chunks_after == 0) {
+        vectors
+    } else {
+        let mut calc_slices =
+            Vec::with_capacity((num_chunks_before + num_chunks_after + 1) as usize);
+        let mut ref_slices =
+            Vec::with_capacity((num_chunks_before + num_chunks_after + 1) as usize);
+        for i in -num_chunks_before..num_chunks_after + 1 {
+            calc_slices.push(Tensor::cat(
+                &[
+                    &vectors.slice(2, i, vectors.size()[2], 1),
+                    &vectors.slice(2, 0, i, 1),
+                ],
+                2,
+            ))
+        }
+        for i in -num_chunks_before..num_chunks_after + 1 {
+            if i == 0 {
+                ref_slices.push(&vectors)
+            } else {
+                ref_slices.push(&calc_slices[(i + num_chunks_before) as usize])
+            }
+        }
+        Tensor::cat(ref_slices.as_slice(), 3)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::reformer::attention::AttentionType;
-    use crate::reformer::attention_utils::{get_least_common_mult_chunk_len, get_min_chunk_len};
+    use crate::reformer::attention_utils::{
+        get_least_common_mult_chunk_len, get_min_chunk_len, look_adjacent,
+    };
     use crate::reformer::lcm;
+    use tch::{Device, Kind, Tensor};
 
     #[test]
     fn test_lcm_calculation() {
