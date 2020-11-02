@@ -15,6 +15,7 @@ use crate::common::activations::Activation;
 use crate::reformer::attention::AttentionType;
 use crate::Config;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 /// # Reformer Pretrained model weight files
@@ -77,7 +78,7 @@ pub struct ReformerConfig {
     pub max_position_embeddings: i64,
     pub vocab_size: i64,
     pub num_attention_heads: i64,
-    pub num_buckets: Vec<i64>,
+    pub num_buckets: Value,
     pub local_attn_chunk_length: Option<i64>,
     pub local_num_chunks_after: Option<i64>,
     pub local_num_chunks_before: Option<i64>,

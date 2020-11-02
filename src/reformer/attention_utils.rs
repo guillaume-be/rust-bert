@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::reformer::attention::AttentionType;
+use crate::RustBertError;
 use std::cmp::min;
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -110,6 +111,55 @@ pub fn look_adjacent(vectors: Tensor, num_chunks_before: i64, num_chunks_after: 
         }
         Tensor::cat(ref_slices.as_slice(), 3)
     }
+}
+
+pub fn split_hidden_size_dim(
+    input: &Tensor,
+    num_attention_heads: i64,
+    attention_head_size: i64,
+) -> Tensor {
+    let mut new_x_shape = input.size();
+    let _ = new_x_shape.pop();
+    new_x_shape.push(num_attention_heads);
+    new_x_shape.push(attention_head_size);
+    input.view(new_x_shape.as_slice()).transpose(2, 1)
+}
+
+pub fn merge_hidden_size_dim(
+    input: &Tensor,
+    num_attention_heads: i64,
+    attention_head_size: i64,
+) -> Tensor {
+    let new_shape = [
+        input.size()[0],
+        -1,
+        num_attention_heads * attention_head_size,
+    ];
+    input.permute(&[0, 2, 1, 3]).reshape(&new_shape)
+}
+
+pub fn split_seq_length_dim_to(
+    vectors: &Tensor,
+    dim_factor_1: i64,
+    dim_factor_2: i64,
+    num_attention_heads: i64,
+    attention_head_size: Option<i64>,
+) -> Result<Tensor, RustBertError> {
+    let input_size = vectors.size();
+    let batch_size = input_size[0];
+    let mut split_dim_shape = vec![batch_size, num_attention_heads, dim_factor_1, dim_factor_2];
+
+    if input_size.len() == 4 {
+        let attention_head_size = if let Some(attention_head_size_value) = attention_head_size {
+            attention_head_size_value
+        } else {
+            return Err(RustBertError::ValueError(
+                "attention_head_size must be provided for inputs of dimension 4".to_string(),
+            ));
+        };
+        split_dim_shape.push(attention_head_size);
+    };
+    Ok(vectors.reshape(split_dim_shape.as_slice()))
 }
 
 #[cfg(test)]
