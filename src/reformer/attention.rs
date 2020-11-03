@@ -543,4 +543,26 @@ impl LSHSelfAttention {
         indices.select(1, -1).copy_(&chunk_sequence_indices);
         indices
     }
+
+    fn len_norm(&self, input_tensor: &Tensor, epsilon: f64) -> Tensor {
+        let variance = (input_tensor * input_tensor).mean1(&[-1], true, input_tensor.kind());
+        input_tensor * (variance + epsilon).rsqrt()
+    }
+
+    fn len_and_dim_norm(&self, input_tensor: &Tensor) -> Tensor {
+        self.len_norm(input_tensor, 1e-6)
+            * Tensor::of_slice(&[self.attention_head_size])
+                .to_kind(input_tensor.kind())
+                .to_device(input_tensor.device())
+                .rsqrt()
+    }
+
+    fn gather_by_expansion(&self, vectors: &Tensor, idxs: &Tensor, num_hashes: i64) -> Tensor {
+        let expanded_indices = idxs
+            .unsqueeze(-1)
+            .expand(&[-1, -1, -1, self.attention_head_size], true);
+        vectors
+            .repeat(&[1, 1, num_hashes, 1])
+            .gather(2, &expanded_indices, false)
+    }
 }
