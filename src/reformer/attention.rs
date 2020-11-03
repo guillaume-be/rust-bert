@@ -22,6 +22,16 @@ use std::convert::{TryFrom, TryInto};
 use tch::nn::LinearConfig;
 use tch::{nn, Kind, Tensor};
 
+#[derive(Debug)]
+/// # Cache for Reformer attention layers
+/// Stores the cached value of buckets and states to avoid recalculation (e.g. at each generation step)
+pub struct LayerState {
+    /// Cached buckets
+    pub prev_buckets: Tensor,
+    /// Cached states
+    pub prev_states: Tensor,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq, Eq, Hash)]
 /// # Attention type for the model (local or LSH)
@@ -68,6 +78,21 @@ impl TryFrom<&Value> for NumBuckets {
             _ => Err(RustBertError::InvalidConfigurationError(
                 "Expected an integer or list of integers for num_buckets".to_string(),
             )),
+        }
+    }
+}
+
+impl NumBuckets {
+    pub fn max_bucket(&self) -> i64 {
+        match self {
+            NumBuckets::Integer(int_value) => *int_value,
+            NumBuckets::Array(array_value) => {
+                let mut product = 1;
+                for value in array_value {
+                    product *= value;
+                }
+                product
+            }
         }
     }
 }
@@ -423,5 +448,99 @@ impl LSHSelfAttention {
         } else {
             None
         }
+    }
+
+    fn get_relevant_hidden_states_and_buckets(
+        &self,
+        query_vectors: &Tensor,
+        attention_mask: Option<&Tensor>,
+        num_hashes: i64,
+        hidden_states: &Tensor,
+        past_states: &Tensor,
+        past_buckets: &Tensor,
+    ) -> (Tensor, Tensor, Tensor) {
+        let hidden_states = Tensor::cat(&[past_states, hidden_states], 1);
+        let hidden_states_shape = hidden_states.size();
+        let (batch_size, sequence_length) = (hidden_states_shape[0], hidden_states_shape[1]);
+        let max_bucket = self.num_buckets.max_bucket();
+        let increase_num_buckets = i64::from(past_buckets.max()) > num_hashes * max_bucket - 1;
+
+        let query_buckets = self.hash_vectors(
+            query_vectors,
+            num_hashes,
+            attention_mask,
+            increase_num_buckets,
+        );
+
+        let concat_buckets = Tensor::cat(&[past_buckets, &query_buckets.unsqueeze(-1)], -1);
+        let bucket_indices = stable_argsort(&concat_buckets, -1);
+
+        let relevant_bucket_indices = bucket_indices.eq(bucket_indices.size().last().unwrap() - 1);
+        let relevant_bucket_indices_chunk =
+            self.expand_to_indices_in_relevant_chunk(&relevant_bucket_indices, sequence_length);
+        let relevant_bucket_indices_chunk = bucket_indices.index(&[
+            relevant_bucket_indices_chunk.get(0),
+            relevant_bucket_indices_chunk.get(1),
+            relevant_bucket_indices_chunk.get(2),
+            relevant_bucket_indices_chunk.get(3),
+        ]);
+
+        let bucket_indices_batch_offset = sequence_length
+            * (batch_size
+                * Tensor::arange(
+                    *relevant_bucket_indices_chunk.size().last().unwrap(),
+                    (Kind::Int64, hidden_states.device()),
+                )
+                / *relevant_bucket_indices_chunk.size().last().unwrap());
+
+        let relevant_bucket_indices_chunk_all_batch =
+            &relevant_bucket_indices_chunk + bucket_indices_batch_offset;
+
+        let relevant_hidden_states = hidden_states
+            .reshape(&[-1, self.hidden_size])
+            .index_select(0, &relevant_bucket_indices_chunk_all_batch)
+            .reshape(&[batch_size, self.num_attention_heads, -1, self.hidden_size]);
+
+        let relevant_bucket_indices_chunk = relevant_bucket_indices_chunk.reshape(&[
+            batch_size,
+            self.num_attention_heads,
+            num_hashes,
+            -1,
+        ]);
+
+        (
+            relevant_hidden_states,
+            relevant_bucket_indices_chunk,
+            query_buckets,
+        )
+    }
+
+    fn expand_to_indices_in_relevant_chunk(
+        &self,
+        indices: &Tensor,
+        sequence_length: i64,
+    ) -> Tensor {
+        let start_indices_chunk = ((indices.select(1, -1) / self.chunk_length)
+            - self.num_chunks_before)
+            * self.chunk_length;
+        let total_chunk_size =
+            self.chunk_length * (1 + self.num_chunks_before + self.num_chunks_after);
+
+        let expanded_start_indices = start_indices_chunk
+            .unsqueeze(-1)
+            .expand(&[indices.size()[0], total_chunk_size], true);
+        let chunk_sequence_indices = expanded_start_indices
+            + Tensor::arange(total_chunk_size, (Kind::Int64, indices.device()))
+                .unsqueeze(0)
+                .expand(&[indices.size()[0], total_chunk_size], true);
+
+        let chunk_sequence_indices = chunk_sequence_indices.flatten(0, 1) / sequence_length;
+        let mut indices = indices
+            .unsqueeze(1)
+            .expand(&[indices.size()[0], total_chunk_size, -1], true)
+            .flatten(0, 1);
+
+        indices.select(1, -1).copy_(&chunk_sequence_indices);
+        indices
     }
 }
