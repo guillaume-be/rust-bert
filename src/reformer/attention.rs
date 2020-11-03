@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::reformer::attention_utils::{look_adjacent, split_seq_length_dim_to, stable_argsort};
 use crate::reformer::ReformerConfig;
 use crate::RustBertError;
 use serde::{Deserialize, Serialize};
@@ -89,8 +90,8 @@ pub struct LSHSelfAttention {
     hidden_size: i64,
     query_key: nn::Linear,
     value: nn::Linear,
-    self_mask_value: f64,
-    mask_value: f64,
+    self_mask_value: Tensor,
+    mask_value: Tensor,
 }
 
 impl LSHSelfAttention {
@@ -123,8 +124,8 @@ impl LSHSelfAttention {
         let query_key = nn::linear(p / "query_key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
-        let self_mask_value = -1e5;
-        let mask_value = -1e9;
+        let self_mask_value = Tensor::of_slice(&[-1e5]);
+        let mask_value = Tensor::of_slice(&[1e9]);
 
         Ok(LSHSelfAttention {
             chunk_length,
@@ -264,5 +265,163 @@ impl LSHSelfAttention {
         let offsets = offsets.expand(&offset_shape, true);
 
         (buckets + offsets).flatten(2, 3)
+    }
+
+    fn get_sorted_bucket_indices_undo_sorted_bucket_indices(
+        &self,
+        buckets: &Tensor,
+    ) -> (Tensor, Tensor) {
+        tch::no_grad(|| {
+            let sorted_bucket_indices = stable_argsort(buckets, -1);
+            let indices = Tensor::arange(
+                *sorted_bucket_indices.size().last().unwrap(),
+                (Kind::Int64, buckets.device()),
+            )
+            .view([1, 1, -1])
+            .expand(sorted_bucket_indices.size().as_slice(), true);
+
+            let mut undo_sorted_bucket_indices = sorted_bucket_indices.new_empty(
+                sorted_bucket_indices.size().as_slice(),
+                (Kind::Int64, buckets.device()),
+            );
+            let _ = undo_sorted_bucket_indices.scatter_(-1, &sorted_bucket_indices, &indices);
+            (sorted_bucket_indices, undo_sorted_bucket_indices)
+        })
+    }
+
+    fn attend(
+        &self,
+        query_vectors: Tensor,
+        mut key_vectors: Tensor,
+        mut value_vectors: Tensor,
+        sorted_bucket_indices_per_hash: Tensor,
+        attention_mask: Option<&Tensor>,
+        do_standard_self_attention: bool,
+        do_cached_attention: bool,
+        train: bool,
+    ) -> Result<(Tensor, Tensor, Tensor), RustBertError> {
+        if !do_standard_self_attention {
+            key_vectors = look_adjacent(key_vectors, self.num_chunks_before, self.num_chunks_after);
+            value_vectors =
+                look_adjacent(value_vectors, self.num_chunks_before, self.num_chunks_after);
+        }
+
+        let mut query_key_dots = query_vectors.matmul(&key_vectors.transpose(-1, -2));
+
+        let (query_bucket_idx, key_value_bucket_idx) = if !do_standard_self_attention {
+            let query_bucket_idx = split_seq_length_dim_to(
+                &sorted_bucket_indices_per_hash,
+                -1,
+                self.chunk_length,
+                self.num_attention_heads,
+                None,
+            )?;
+            let key_value_bucket_idx = look_adjacent(
+                query_bucket_idx.copy(),
+                self.num_chunks_before,
+                self.num_chunks_after,
+            );
+            (query_bucket_idx, key_value_bucket_idx)
+        } else if do_standard_self_attention & (query_key_dots.dim() > 4) {
+            let mut query_shape = sorted_bucket_indices_per_hash.size();
+            query_shape[sorted_bucket_indices_per_hash.dim() - 1] = 1;
+            let query_bucket_idx = sorted_bucket_indices_per_hash.new_full(
+                query_shape.as_slice(),
+                i64::from(sorted_bucket_indices_per_hash.max()),
+                (Kind::Int64, sorted_bucket_indices_per_hash.device()),
+            );
+            (query_bucket_idx, sorted_bucket_indices_per_hash)
+        } else if do_standard_self_attention & (query_key_dots.dim() <= 4) {
+            let query_bucket_idx = query_key_dots.select(3, -1).ones_like()
+                * (query_key_dots.size().last().unwrap() - 1);
+            let mut query_shape = query_bucket_idx.size();
+            query_shape[query_bucket_idx.dim() - 1] = -1;
+            let key_value_bucket_idx = Tensor::arange(
+                *query_key_dots.size().last().unwrap(),
+                (Kind::Int64, query_key_dots.device()),
+            )
+            .unsqueeze(0)
+            .unsqueeze(0)
+            .expand(query_shape.as_slice(), true);
+            (query_bucket_idx, key_value_bucket_idx)
+        } else {
+            (
+                sorted_bucket_indices_per_hash.copy(),
+                sorted_bucket_indices_per_hash,
+            )
+        };
+
+        if !do_cached_attention {
+            let mask = self.compute_attention_mask(
+                &query_bucket_idx,
+                &key_value_bucket_idx,
+                attention_mask,
+                query_key_dots.size().as_slice(),
+                do_standard_self_attention,
+            );
+
+            if let Some(mask) = mask {
+                query_key_dots = query_key_dots.where1(&mask, &self.mask_value);
+            }
+        }
+        {
+            let self_mask = query_bucket_idx
+                .unsqueeze(-1)
+                .ne1(&key_value_bucket_idx.unsqueeze(-2));
+            query_key_dots = query_key_dots.where1(&self_mask, &self.self_mask_value);
+        }
+
+        let mut logits = query_key_dots.logsumexp(&[-1], true);
+        let attention_probs = (query_key_dots - &logits)
+            .exp()
+            .apply_t(&self.dropout, train);
+
+        let mut out_vectors = attention_probs.matmul(&value_vectors);
+        if out_vectors.dim() > 4 {
+            logits = logits.flatten(2, 3).squeeze1(-1);
+            out_vectors = out_vectors.flatten(2, 3)
+        }
+
+        Ok((out_vectors, logits, attention_probs))
+    }
+
+    fn compute_attention_mask(
+        &self,
+        query_indices: &Tensor,
+        key_indices: &Tensor,
+        attention_mask: Option<&Tensor>,
+        query_key_dot_shape: &[i64],
+        do_standard_self_attention: bool,
+    ) -> Option<Tensor> {
+        let attention_mask = if let Some(attention_mask_value) = attention_mask {
+            let mut attention_mask = attention_mask_value.unsqueeze(1);
+            if !do_standard_self_attention {
+                let mut query_shape = query_indices.size();
+                query_shape[query_indices.dim() - 1] = -1;
+                attention_mask = attention_mask
+                    .unsqueeze(1)
+                    .expand(query_shape.as_slice(), true);
+                attention_mask = attention_mask.gather(-1, key_indices, false);
+            }
+            Some(
+                attention_mask
+                    .unsqueeze(-2)
+                    .expand(query_key_dot_shape, true),
+            )
+        } else {
+            None
+        };
+
+        if self.is_decoder {
+            let causal_mask = query_indices.unsqueeze(-1).ge1(&key_indices.unsqueeze(-2));
+            let attention_mask = if let Some(attention_mask) = attention_mask {
+                causal_mask * attention_mask
+            } else {
+                causal_mask
+            };
+            Some(attention_mask)
+        } else {
+            None
+        }
     }
 }
