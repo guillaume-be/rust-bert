@@ -12,7 +12,9 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
-use crate::reformer::attention_utils::{look_adjacent, split_seq_length_dim_to, stable_argsort};
+use crate::reformer::attention_utils::{
+    look_adjacent, split_hidden_size_dim, split_seq_length_dim_to, stable_argsort,
+};
 use crate::reformer::ReformerConfig;
 use crate::RustBertError;
 use serde::{Deserialize, Serialize};
@@ -27,7 +29,7 @@ use tch::{nn, Kind, Tensor};
 /// Stores the cached value of buckets and states to avoid recalculation (e.g. at each generation step)
 pub struct LayerState {
     /// Cached buckets
-    pub prev_buckets: Tensor,
+    pub prev_buckets: Option<Tensor>,
     /// Cached states
     pub prev_states: Tensor,
 }
@@ -117,10 +119,15 @@ pub struct LSHSelfAttention {
     value: nn::Linear,
     self_mask_value: Tensor,
     mask_value: Tensor,
+    use_cache: bool,
 }
 
 impl LSHSelfAttention {
-    pub fn new<'p, P>(p: P, config: &ReformerConfig) -> Result<LSHSelfAttention, RustBertError>
+    pub fn new<'p, P>(
+        p: P,
+        config: &ReformerConfig,
+        use_cache: bool,
+    ) -> Result<LSHSelfAttention, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -170,6 +177,7 @@ impl LSHSelfAttention {
             value,
             self_mask_value,
             mask_value,
+            use_cache,
         })
     }
 
@@ -564,5 +572,158 @@ impl LSHSelfAttention {
         vectors
             .repeat(&[1, 1, num_hashes, 1])
             .gather(2, &expanded_indices, false)
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        num_hashes: Option<i64>,
+        buckets: Option<&Tensor>,
+        layer_state: Option<LayerState>,
+        train: bool,
+    ) -> Result<(), RustBertError> {
+        let input_size = hidden_states.size();
+        let (batch_size, sequence_length) = (input_size[0], input_size[1]);
+        let num_hashes = num_hashes.unwrap_or(self.num_hashes);
+
+        let do_cached_attention = self.use_cache & layer_state.is_some();
+
+        let (
+            key_value_hidden_states,
+            mut query_key_vectors,
+            mut value_vectors,
+            query_vectors,
+            sorted_bucket_idx,
+            mut buckets,
+            query_key_split,
+        ) = if do_cached_attention {
+            let layer_state = layer_state.unwrap();
+
+            let mut query_vectors = split_hidden_size_dim(
+                &hidden_states.apply(&self.query_key),
+                self.num_attention_heads,
+                self.attention_head_size,
+            );
+
+            let (
+                key_value_hidden_states,
+                query_key_vectors,
+                value_vectors,
+                sorted_bucket_idx,
+                buckets,
+                query_key_split,
+            ) = if let Some(prev_buckets) = layer_state.prev_buckets {
+                let (key_value_hidden_states, sorted_bucket_idx, buckets) = self
+                    .get_relevant_hidden_states_and_buckets(
+                        &query_vectors,
+                        attention_mask,
+                        num_hashes,
+                        hidden_states,
+                        &layer_state.prev_states,
+                        &prev_buckets,
+                    );
+                let query_key_vectors = self.query_per_attention_head(&key_value_hidden_states);
+                let value_vectors = self.value_per_attention_head(&key_value_hidden_states);
+
+                let query_key_vectors = split_seq_length_dim_to(
+                    &query_key_vectors,
+                    num_hashes,
+                    -1,
+                    self.num_attention_heads,
+                    Some(self.attention_head_size),
+                )?;
+
+                let value_vectors = split_seq_length_dim_to(
+                    &value_vectors,
+                    num_hashes,
+                    -1,
+                    self.num_attention_heads,
+                    Some(self.attention_head_size),
+                )?;
+
+                query_vectors = query_vectors.unsqueeze(2).repeat(&[1, 1, num_hashes, 1, 1]);
+                (
+                    key_value_hidden_states,
+                    query_key_vectors,
+                    value_vectors,
+                    Some(sorted_bucket_idx),
+                    Some(buckets),
+                    true,
+                )
+            } else {
+                let key_value_hidden_states =
+                    Tensor::cat(&[&layer_state.prev_states, hidden_states], 1);
+                let query_key_vectors = key_value_hidden_states.apply(&self.query_key);
+                let value_vectors = key_value_hidden_states.apply(&self.value);
+                (
+                    key_value_hidden_states,
+                    query_key_vectors,
+                    value_vectors,
+                    None,
+                    None,
+                    false,
+                )
+            };
+            (
+                Some(key_value_hidden_states),
+                query_key_vectors,
+                value_vectors,
+                Some(query_vectors),
+                sorted_bucket_idx,
+                buckets,
+                query_key_split,
+            )
+        } else {
+            (
+                None,
+                hidden_states.apply(&self.query_key),
+                hidden_states.apply(&self.value),
+                None,
+                None,
+                None,
+                false,
+            )
+        };
+
+        if !query_key_split {
+            query_key_vectors = split_hidden_size_dim(
+                &query_key_vectors,
+                self.num_attention_heads,
+                self.attention_head_size,
+            );
+            value_vectors = split_hidden_size_dim(
+                &value_vectors,
+                self.num_attention_heads,
+                self.attention_head_size,
+            );
+        }
+
+        if do_cached_attention
+            & layer_state.is_some()
+            & layer_state.unwrap().prev_buckets.is_some()
+            & key_value_hidden_states.unwrap().size()[1]
+            > self.chunk_length
+        {
+            buckets =
+                Some(self.hash_vectors(&query_key_vectors, num_hashes, attention_mask, false));
+        }
+
+        let do_standard_attention =
+            (sequence_length <= self.chunk_length) | (self.use_cache & layer_state.is_some());
+
+        if !do_standard_attention {
+            buckets = if let Some(bucket_value) = buckets {
+                Some(bucket_value.view(&[
+                    batch_size,
+                    self.num_attention_heads,
+                    num_hashes * sequence_length,
+                ]))
+            } else {
+                Some(self.hash_vectors(&query_key_vectors, num_hashes, attention_mask, false))
+            }
+        }
+
+        Ok(())
     }
 }
