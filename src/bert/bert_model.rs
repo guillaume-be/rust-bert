@@ -386,7 +386,10 @@ impl<T: BertEmbedding> BertModel<T> {
             train,
         );
 
-        let pooled_output = self.pooler.as_ref().map(|pooler| pooler.forward(&hidden_state));
+        let pooled_output = self
+            .pooler
+            .as_ref()
+            .map(|pooler| pooler.forward(&hidden_state));
 
         Ok(BertModelOutput {
             hidden_state,

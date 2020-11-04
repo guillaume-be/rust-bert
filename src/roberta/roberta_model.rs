@@ -235,7 +235,8 @@ impl RobertaForMaskedLM {
     {
         let p = p.borrow();
 
-        let roberta = BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
+        let roberta =
+            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
         let lm_head = RobertaLMHead::new(p / "lm_head", config);
 
         RobertaForMaskedLM { roberta, lm_head }
@@ -416,7 +417,8 @@ impl RobertaForSequenceClassification {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let roberta = BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
+        let roberta =
+            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
         let classifier = RobertaClassificationHead::new(p / "classifier", config);
 
         RobertaForSequenceClassification {
@@ -703,7 +705,8 @@ impl RobertaForTokenClassification {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let roberta = BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
+        let roberta =
+            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config
             .id2label
@@ -851,7 +854,8 @@ impl RobertaForQuestionAnswering {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let roberta = BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
+        let roberta =
+            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
         let num_labels = 2;
         let qa_outputs = nn::linear(
             p / "qa_outputs",
