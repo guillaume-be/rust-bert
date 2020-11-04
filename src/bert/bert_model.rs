@@ -313,18 +313,13 @@ impl<T: BertEmbedding> BertModel<T> {
                 None
             };
 
-        let embedding_output = match self.embeddings.forward_t(
+        let embedding_output = self.embeddings.forward_t(
             input_ids,
             token_type_ids,
             position_ids,
             input_embeds,
             train,
-        ) {
-            Ok(value) => value,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        )?;
 
         let (hidden_state, all_hidden_states, all_attentions) = self.encoder.forward_t(
             &embedding_output,
