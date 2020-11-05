@@ -124,7 +124,7 @@ impl Config<BertConfig> for BertConfig {}
 pub struct BertModel<T: BertEmbedding> {
     embeddings: T,
     encoder: BertEncoder,
-    pooler: BertPooler,
+    pooler: Option<BertPooler>,
     is_decoder: bool,
 }
 
@@ -162,7 +162,59 @@ impl<T: BertEmbedding> BertModel<T> {
         let is_decoder = config.is_decoder.unwrap_or(false);
         let embeddings = T::new(p / "embeddings", config);
         let encoder = BertEncoder::new(p / "encoder", config);
-        let pooler = BertPooler::new(p / "pooler", config);
+        let pooler = Some(BertPooler::new(p / "pooler", config));
+
+        BertModel {
+            embeddings,
+            encoder,
+            pooler,
+            is_decoder,
+        }
+    }
+
+    /// Build a new `BertModel` with an optional Pooling layer
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BERT model
+    /// * `config` - `BertConfig` object defining the model architecture and decoder status
+    /// * `add_pooling_layer` - Enable/Disable an optional pooling layer at the end of the model
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertEmbeddings, BertModel};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let bert: BertModel<BertEmbeddings> = BertModel::new_with_optional_pooler(&p.root() / "bert", &config, false);
+    /// ```
+    pub fn new_with_optional_pooler<'p, P>(
+        p: P,
+        config: &BertConfig,
+        add_pooling_layer: bool,
+    ) -> BertModel<T>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let is_decoder = config.is_decoder.unwrap_or(false);
+        let embeddings = T::new(p / "embeddings", config);
+        let encoder = BertEncoder::new(p / "encoder", config);
+
+        let pooler = {
+            if add_pooling_layer {
+                Some(BertPooler::new(p / "pooler", config))
+            } else {
+                None
+            }
+        };
 
         BertModel {
             embeddings,
@@ -334,7 +386,10 @@ impl<T: BertEmbedding> BertModel<T> {
             train,
         );
 
-        let pooled_output = self.pooler.forward(&hidden_state);
+        let pooled_output = self
+            .pooler
+            .as_ref()
+            .map(|pooler| pooler.forward(&hidden_state));
 
         Ok(BertModelOutput {
             hidden_state,
@@ -682,6 +737,7 @@ impl BertForSequenceClassification {
 
         let logits = base_model_output
             .pooled_output
+            .unwrap()
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
         BertSequenceClassificationOutput {
@@ -831,6 +887,7 @@ impl BertForMultipleChoice {
 
         let logits = base_model_output
             .pooled_output
+            .unwrap()
             .apply_t(&self.dropout, train)
             .apply(&self.classifier)
             .view((-1, num_choices));
@@ -1132,7 +1189,7 @@ pub struct BertModelOutput {
     /// Last hidden states from the model
     pub hidden_state: Tensor,
     /// Pooled output (hidden state for the first token)
-    pub pooled_output: Tensor,
+    pub pooled_output: Option<Tensor>,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
