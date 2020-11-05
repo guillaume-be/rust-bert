@@ -162,14 +162,24 @@ pub fn split_seq_length_dim_to(
     Ok(vectors.reshape(split_dim_shape.as_slice()))
 }
 
+pub fn reverse_sort(
+    out_vectors: &Tensor,
+    logits: &Tensor,
+    undo_sorted_bucket_idx: &Tensor,
+) -> (Tensor, Tensor) {
+    let expanded_undo_sort_indices = undo_sorted_bucket_idx
+        .unsqueeze(-1)
+        .expand(out_vectors.size().as_slice(), true);
+    let out_vectors = out_vectors.gather(2, &expanded_undo_sort_indices, true);
+    let logits = logits.gather(2, &undo_sorted_bucket_idx, true);
+    (out_vectors, logits)
+}
+
 #[cfg(test)]
 mod test {
     use crate::reformer::attention::AttentionType;
-    use crate::reformer::attention_utils::{
-        get_least_common_mult_chunk_len, get_min_chunk_len, look_adjacent,
-    };
+    use crate::reformer::attention_utils::{get_least_common_mult_chunk_len, get_min_chunk_len};
     use crate::reformer::lcm;
-    use tch::{Device, Kind, Tensor};
 
     #[test]
     fn test_lcm_calculation() {
