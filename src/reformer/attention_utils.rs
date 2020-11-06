@@ -175,6 +175,16 @@ pub fn reverse_sort(
     (out_vectors, logits)
 }
 
+pub fn retrieve_relevant_hidden_states(
+    previous_hidden_states: &Tensor,
+    chunk_length: i64,
+    num_chunks_before: i64,
+) -> Tensor {
+    let end_position = previous_hidden_states.size()[1];
+    let start_position = ((end_position / chunk_length) - num_chunks_before) * chunk_length;
+    previous_hidden_states.slice(1, start_position, end_position, 1)
+}
+
 #[cfg(test)]
 mod test {
     use crate::reformer::attention::AttentionType;

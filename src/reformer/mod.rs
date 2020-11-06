@@ -4,7 +4,7 @@ mod embeddings;
 mod reformer_model;
 
 // ToDo, remove
-pub use attention::LSHSelfAttention;
+pub use attention::{LSHSelfAttention, LocalSelfAttention};
 pub use embeddings::ReformerEmbeddings;
 // -------------
 pub use attention_utils::lcm;

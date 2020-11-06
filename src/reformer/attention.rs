@@ -13,8 +13,8 @@
 
 use crate::common::dropout::Dropout;
 use crate::reformer::attention_utils::{
-    look_adjacent, merge_hidden_size_dim, reverse_sort, split_hidden_size_dim,
-    split_seq_length_dim_to, stable_argsort,
+    look_adjacent, merge_hidden_size_dim, retrieve_relevant_hidden_states, reverse_sort,
+    split_hidden_size_dim, split_seq_length_dim_to, stable_argsort,
 };
 use crate::reformer::ReformerConfig;
 use crate::RustBertError;
@@ -23,7 +23,7 @@ use serde_json::Value;
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
 use tch::nn::LinearConfig;
-use tch::{nn, Kind, Tensor};
+use tch::{manual_seed, nn, Kind, Tensor};
 
 #[derive(Debug)]
 /// # Cache for Reformer attention layers
@@ -160,7 +160,7 @@ impl LSHSelfAttention {
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
         let self_mask_value = Tensor::of_slice(&[-1e5]);
-        let mask_value = Tensor::of_slice(&[1e9]);
+        let mask_value = Tensor::of_slice(&[-1e9]);
 
         Ok(LSHSelfAttention {
             chunk_length,
@@ -826,5 +826,211 @@ impl LSHSelfAttention {
         };
 
         Ok((out_vectors, attention_probs, buckets))
+    }
+}
+
+#[derive(Debug)]
+/// # Local Self Attention for Reformer model
+pub struct LocalSelfAttention {
+    chunk_length: i64,
+    num_chunks_before: i64,
+    num_chunks_after: i64,
+    is_decoder: bool,
+    dropout: Dropout,
+    pad_token_id: i64,
+    num_attention_heads: i64,
+    attention_head_size: i64,
+    all_head_size: i64,
+    hidden_size: i64,
+    query: nn::Linear,
+    key: nn::Linear,
+    value: nn::Linear,
+    mask_value: Tensor,
+    use_cache: bool,
+    output_attentions: bool,
+}
+
+impl LocalSelfAttention {
+    pub fn new<'p, P>(
+        p: P,
+        config: &ReformerConfig,
+        output_attentions: bool,
+        use_cache: bool,
+    ) -> LocalSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let chunk_length = config.local_attn_chunk_length.unwrap_or(64);
+        let num_chunks_before = config.local_num_chunks_before.unwrap_or(1);
+        let num_chunks_after = config.local_num_chunks_after.unwrap_or(0);
+        let is_decoder = config.is_decoder;
+        let pad_token_id = config.pad_token_id;
+
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+
+        let num_attention_heads = config.num_attention_heads;
+        let attention_head_size = config.attention_head_size;
+        let all_head_size = num_attention_heads * attention_head_size;
+        let hidden_size = config.hidden_size;
+
+        let linear_config = LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+        let query = nn::linear(p / "query", hidden_size, all_head_size, linear_config);
+        let key = nn::linear(p / "query", hidden_size, all_head_size, linear_config);
+        let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
+
+        let mask_value = Tensor::of_slice(&[-1e9]);
+
+        LocalSelfAttention {
+            chunk_length,
+            num_chunks_before,
+            num_chunks_after,
+            is_decoder,
+            dropout,
+            pad_token_id,
+            num_attention_heads,
+            attention_head_size,
+            all_head_size,
+            hidden_size,
+            query,
+            key,
+            value,
+            mask_value,
+            use_cache,
+            output_attentions,
+        }
+    }
+
+    fn compute_attention_mask(
+        &self,
+        query_indices: &Tensor,
+        key_indices: &Tensor,
+        attention_mask: Option<&Tensor>,
+        query_key_dots_shape: &[i64],
+        do_standard_attention: bool,
+    ) -> Option<Tensor> {
+        let mut attention_mask = attention_mask.map(|mask| {
+            let mut mask = mask.to_kind(Kind::Int8);
+            if !do_standard_attention {
+                mask = split_seq_length_dim_to(&mask, -1, self.chunk_length, 1, None).unwrap();
+                mask = look_adjacent(mask, self.num_chunks_before, self.num_chunks_after);
+            }
+            mask.unsqueeze(-2).expand(query_key_dots_shape, true)
+        });
+
+        if self.is_decoder {
+            let causal_mask = query_indices.unsqueeze(-1).ge1(&key_indices.unsqueeze(-2));
+            attention_mask = Some(if let Some(mask) = attention_mask {
+                causal_mask * mask
+            } else {
+                causal_mask
+            });
+        };
+        attention_mask
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        layer_state: Option<LayerState>,
+    ) -> Result<(), RustBertError> {
+        let input_size = hidden_states.size();
+        let (batch_size, sequence_length) = (input_size[0], input_size[1]);
+
+        let (query_vectors, key_vectors, value_vectors) = if layer_state.is_some() & self.use_cache
+        {
+            let layer_state_value = layer_state.as_ref().unwrap();
+            let key_value_hidden_states = retrieve_relevant_hidden_states(
+                &layer_state_value.prev_states,
+                self.chunk_length,
+                self.num_chunks_before,
+            );
+            let key_value_hidden_states =
+                Tensor::cat(&[&key_value_hidden_states, hidden_states], 1);
+            let query_vectors = hidden_states.apply(&self.query);
+            let key_vectors = key_value_hidden_states.apply(&self.key);
+            let value_vectors = key_value_hidden_states.apply(&self.value);
+            (query_vectors, key_vectors, value_vectors)
+        } else {
+            let query_vectors = hidden_states.apply(&self.query);
+            let key_vectors = hidden_states.apply(&self.key);
+            let value_vectors = hidden_states.apply(&self.value);
+            (query_vectors, key_vectors, value_vectors)
+        };
+        let mut query_vectors = split_hidden_size_dim(
+            &query_vectors,
+            self.num_attention_heads,
+            self.attention_head_size,
+        );
+        let key_vectors = split_hidden_size_dim(
+            &key_vectors,
+            self.num_attention_heads,
+            self.attention_head_size,
+        );
+        let mut value_vectors = split_hidden_size_dim(
+            &value_vectors,
+            self.num_attention_heads,
+            self.attention_head_size,
+        );
+
+        let key_kind_device = (key_vectors.kind(), key_vectors.device());
+        let mut key_vectors = key_vectors
+            / Tensor::of_slice(&[self.attention_head_size])
+                .to_kind(key_kind_device.0)
+                .to(key_kind_device.1)
+                .sqrt();
+
+        let indices = Tensor::arange(sequence_length, (Kind::Int64, query_vectors.device()))
+            .repeat(&[batch_size, self.num_attention_heads, 1]);
+
+        let do_standard_attention = sequence_length <= self.chunk_length;
+
+        let (query_indices, key_indices) = if !do_standard_attention {
+            query_vectors = split_seq_length_dim_to(
+                &query_vectors,
+                -1,
+                self.chunk_length,
+                self.num_attention_heads,
+                Some(self.attention_head_size),
+            )?;
+            key_vectors = split_seq_length_dim_to(
+                &key_vectors,
+                -1,
+                self.chunk_length,
+                self.num_attention_heads,
+                Some(self.attention_head_size),
+            )?;
+            value_vectors = split_seq_length_dim_to(
+                &value_vectors,
+                -1,
+                self.chunk_length,
+                self.num_attention_heads,
+                Some(self.attention_head_size),
+            )?;
+
+            let query_indices = split_seq_length_dim_to(
+                &indices,
+                -1,
+                self.chunk_length,
+                self.num_attention_heads,
+                None,
+            )?;
+            let key_indices = query_indices.copy();
+
+            key_vectors = look_adjacent(key_vectors, self.num_chunks_before, self.num_chunks_after);
+            value_vectors =
+                look_adjacent(value_vectors, self.num_chunks_before, self.num_chunks_after);
+            let key_indices =
+                look_adjacent(key_indices, self.num_chunks_before, self.num_chunks_after);
+            (query_indices, key_indices)
+        } else {
+            (indices.copy(), indices.copy())
+        };
+        Ok(())
     }
 }
