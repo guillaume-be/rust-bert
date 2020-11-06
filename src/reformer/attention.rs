@@ -23,7 +23,7 @@ use serde_json::Value;
 use std::borrow::Borrow;
 use std::convert::{TryFrom, TryInto};
 use tch::nn::LinearConfig;
-use tch::{manual_seed, nn, Kind, Tensor};
+use tch::{nn, Kind, Tensor};
 
 #[derive(Debug)]
 /// # Cache for Reformer attention layers
@@ -938,7 +938,8 @@ impl LocalSelfAttention {
         hidden_states: &Tensor,
         attention_mask: Option<&Tensor>,
         layer_state: Option<LayerState>,
-    ) -> Result<(), RustBertError> {
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>), RustBertError> {
         let input_size = hidden_states.size();
         let (batch_size, sequence_length) = (input_size[0], input_size[1]);
 
@@ -1031,6 +1032,39 @@ impl LocalSelfAttention {
         } else {
             (indices.copy(), indices.copy())
         };
-        Ok(())
+
+        let mut query_key_dots = query_vectors.matmul(&key_vectors.transpose(-1, -2));
+        let attention_mask = self.compute_attention_mask(
+            &query_indices,
+            &key_indices,
+            attention_mask,
+            query_key_dots.size().as_slice(),
+            do_standard_attention,
+        );
+
+        if let Some(mask) = attention_mask {
+            query_key_dots = query_key_dots.where1(&mask, &self.mask_value);
+        }
+
+        let logits = query_key_dots.logsumexp(&[-1], true);
+        let attention_probs = (query_key_dots - logits)
+            .exp()
+            .apply_t(&self.dropout, train);
+
+        let mut out_vectors = attention_probs.matmul(&value_vectors);
+        if !do_standard_attention {
+            out_vectors = out_vectors.flatten(2, 3);
+        }
+        out_vectors = merge_hidden_size_dim(
+            &out_vectors,
+            self.num_attention_heads,
+            self.attention_head_size,
+        );
+        let attention_probs = if self.output_attentions {
+            Some(attention_probs)
+        } else {
+            None
+        };
+        Ok((out_vectors, attention_probs))
     }
 }
