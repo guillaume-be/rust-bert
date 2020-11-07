@@ -584,7 +584,7 @@ impl LSHSelfAttention {
         attention_mask: Option<&Tensor>,
         num_hashes: Option<i64>,
         buckets: Option<Tensor>,
-        layer_state: Option<LayerState>,
+        layer_state: Option<&LayerState>,
         train: bool,
     ) -> Result<(Tensor, Option<Tensor>, Option<Tensor>), RustBertError> {
         let input_size = hidden_states.size();
@@ -937,7 +937,7 @@ impl LocalSelfAttention {
         &self,
         hidden_states: &Tensor,
         attention_mask: Option<&Tensor>,
-        layer_state: Option<LayerState>,
+        layer_state: Option<&LayerState>,
         train: bool,
     ) -> Result<(Tensor, Option<Tensor>), RustBertError> {
         let input_size = hidden_states.size();
@@ -1066,5 +1066,213 @@ impl LocalSelfAttention {
             None
         };
         Ok((out_vectors, attention_probs))
+    }
+}
+
+pub enum AttentionModule {
+    LSHSelfAttention(LSHSelfAttention),
+    LocalSelfAttention(LocalSelfAttention),
+}
+
+impl AttentionModule {
+    pub fn new<'p, P>(
+        p: P,
+        attention_type: AttentionType,
+        config: &ReformerConfig,
+        output_attentions: bool,
+        use_past: bool,
+    ) -> Result<Self, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        Ok(match attention_type {
+            AttentionType::lsh => AttentionModule::LSHSelfAttention(LSHSelfAttention::new(
+                p,
+                config,
+                output_attentions,
+                use_past,
+            )?),
+            AttentionType::local => AttentionModule::LocalSelfAttention(LocalSelfAttention::new(
+                p,
+                config,
+                output_attentions,
+                use_past,
+            )),
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        num_hashes: Option<i64>,
+        buckets: Option<Tensor>,
+        layer_state: Option<&LayerState>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>, Option<Tensor>), RustBertError> {
+        match self {
+            AttentionModule::LSHSelfAttention(ref attention) => attention.forward_t(
+                hidden_states,
+                attention_mask,
+                num_hashes,
+                buckets,
+                layer_state,
+                train,
+            ),
+            AttentionModule::LocalSelfAttention(ref attention) => {
+                let output =
+                    attention.forward_t(hidden_states, attention_mask, layer_state, train)?;
+                Ok((output.0, output.1, None))
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+/// # Reformer attention dense layer
+pub struct ReformerSelfOutput {
+    dense: nn::Linear,
+    dropout: Dropout,
+}
+
+impl ReformerSelfOutput {
+    pub fn new<'p, P>(p: P, config: &ReformerConfig) -> ReformerSelfOutput
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let linear_config = LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+        let dense = nn::linear(
+            p / "dense",
+            config.num_attention_heads * config.attention_head_size,
+            config.hidden_size,
+            linear_config,
+        );
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+
+        ReformerSelfOutput { dense, dropout }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        hidden_states
+            .apply(&self.dense)
+            .apply_t(&self.dropout, train)
+    }
+}
+
+/// # Reformer attention layer
+pub struct ReformerAttention {
+    self_attention: AttentionModule,
+    layer_norm: nn::LayerNorm,
+    self_output: ReformerSelfOutput,
+    output_attentions: bool,
+    use_past: bool,
+}
+
+impl ReformerAttention {
+    pub fn new<'p, P>(
+        p: P,
+        config: &ReformerConfig,
+        attention_type: AttentionType,
+        output_attentions: bool,
+        use_past: bool,
+    ) -> Result<ReformerAttention, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_eps.unwrap_or(1e-12),
+            ..Default::default()
+        };
+        let layer_norm = nn::layer_norm(
+            p / "layer_norm",
+            vec![config.hidden_size],
+            layer_norm_config,
+        );
+
+        let self_attention = AttentionModule::new(
+            p / "self_attention",
+            attention_type,
+            config,
+            output_attentions,
+            use_past,
+        )?;
+
+        let self_output = ReformerSelfOutput::new(p / "output", config);
+
+        Ok(ReformerAttention {
+            self_attention,
+            layer_norm,
+            self_output,
+            output_attentions,
+            use_past,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        num_hashes: Option<i64>,
+        buckets: Option<Tensor>,
+        layer_state: Option<LayerState>,
+        original_sequence_length: i64,
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>), RustBertError> {
+        let hidden_states = hidden_states.apply(&self.layer_norm);
+
+        let (hidden_states, attention_probs, buckets) = self.self_attention.forward_t(
+            &hidden_states,
+            attention_mask,
+            num_hashes,
+            buckets,
+            layer_state.as_ref(),
+            train,
+        )?;
+
+        let new_layer_state = if self.use_past {
+            let prev_buckets = if let Some(buckets_value) = &buckets {
+                if layer_state.is_none()
+                    | (layer_state.is_some() & layer_state.as_ref().unwrap().prev_buckets.is_none())
+                {
+                    if original_sequence_length > 1 {
+                        Some(buckets_value.slice(3, 0, original_sequence_length, 1))
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(Tensor::cat(
+                        &[
+                            buckets_value,
+                            &layer_state.as_ref().unwrap().prev_buckets.as_ref().unwrap(),
+                        ],
+                        -1,
+                    ))
+                }
+            } else {
+                None
+            };
+
+            let prev_states = if let Some(layer_state_value) = &layer_state {
+                Tensor::cat(&[&layer_state_value.prev_states, &hidden_states], 1)
+            } else {
+                hidden_states.slice(1, 0, original_sequence_length, 1)
+            };
+            Some(LayerState {
+                prev_buckets,
+                prev_states,
+            })
+        } else {
+            None
+        };
+
+        let attention_output = self.self_output.forward_t(&hidden_states, train);
+
+        Ok((attention_output, attention_probs, buckets, new_layer_state))
     }
 }
