@@ -1163,6 +1163,13 @@ impl ReformerSelfOutput {
     }
 }
 
+pub struct ReformerAttentionOutput {
+    pub attention_output: Tensor,
+    pub attention_probs: Option<Tensor>,
+    pub buckets: Option<Tensor>,
+    pub new_layer_state: Option<LayerState>,
+}
+
 /// # Reformer attention layer
 pub struct ReformerAttention {
     self_attention: AttentionModule,
@@ -1221,7 +1228,7 @@ impl ReformerAttention {
         layer_state: Option<LayerState>,
         original_sequence_length: i64,
         train: bool,
-    ) -> Result<(Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>), RustBertError> {
+    ) -> Result<ReformerAttentionOutput, RustBertError> {
         let hidden_states = hidden_states.apply(&self.layer_norm);
 
         let (hidden_states, attention_probs, buckets) = self.self_attention.forward_t(
@@ -1271,6 +1278,11 @@ impl ReformerAttention {
 
         let attention_output = self.self_output.forward_t(&hidden_states, train);
 
-        Ok((attention_output, attention_probs, buckets, new_layer_state))
+        Ok(ReformerAttentionOutput {
+            attention_output,
+            attention_probs,
+            buckets,
+            new_layer_state,
+        })
     }
 }

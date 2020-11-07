@@ -13,7 +13,9 @@
 
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
-use crate::reformer::ReformerConfig;
+use crate::reformer::attention::{AttentionType, LayerState};
+use crate::reformer::{ReformerAttention, ReformerConfig};
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::{nn, Tensor};
 
@@ -140,5 +142,78 @@ impl ChunkReformerFeedForward {
         let hidden_states = hidden_states.apply(&self.layer_norm);
         let hidden_states = self.dense.forward_t(&hidden_states, train);
         self.output.forward_t(&hidden_states, train)
+    }
+}
+
+pub struct ReformerLayerOutput {
+    pub attention_output: Tensor,
+    pub hidden_states: Tensor,
+    pub attention_probs: Option<Tensor>,
+    pub buckets: Option<Tensor>,
+    pub new_layer_state: Option<LayerState>,
+}
+
+pub struct ReformerLayer {
+    attention: ReformerAttention,
+    feed_forward: ChunkReformerFeedForward,
+}
+
+impl ReformerLayer {
+    pub fn new<'p, P>(
+        p: P,
+        config: &ReformerConfig,
+        attention_type: AttentionType,
+        output_attentions: bool,
+        use_past: bool,
+    ) -> Result<ReformerLayer, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let attention = ReformerAttention::new(
+            p / "attention",
+            config,
+            attention_type,
+            output_attentions,
+            use_past,
+        )?;
+        let feed_forward = ChunkReformerFeedForward::new(p / "feed_forward", config);
+
+        Ok(ReformerLayer {
+            attention,
+            feed_forward,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        prev_attention_output: &Tensor,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        num_hashes: Option<i64>,
+        layer_state: Option<LayerState>,
+        original_sequence_length: i64,
+        train: bool,
+    ) -> Result<ReformerLayerOutput, RustBertError> {
+        let attention_layer_output = self.attention.forward_t(
+            hidden_states,
+            attention_mask,
+            num_hashes,
+            None,
+            layer_state,
+            original_sequence_length,
+            train,
+        )?;
+
+        let attention_output = prev_attention_output + attention_layer_output.attention_output;
+        let hidden_states = hidden_states + self.feed_forward.forward_t(&attention_output, train);
+        Ok(ReformerLayerOutput {
+            attention_output,
+            hidden_states,
+            attention_probs: attention_layer_output.attention_probs,
+            buckets: attention_layer_output.buckets,
+            new_layer_state: attention_layer_output.new_layer_state,
+        })
     }
 }
