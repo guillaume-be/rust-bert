@@ -569,8 +569,8 @@ impl LSHSelfAttention {
                 .rsqrt()
     }
 
-    fn gather_by_expansion(&self, vectors: &Tensor, idxs: &Tensor, num_hashes: i64) -> Tensor {
-        let expanded_indices = idxs
+    fn gather_by_expansion(&self, vectors: &Tensor, indices: &Tensor, num_hashes: i64) -> Tensor {
+        let expanded_indices = indices
             .unsqueeze(-1)
             .expand(&[-1, -1, -1, self.attention_head_size], true);
         vectors

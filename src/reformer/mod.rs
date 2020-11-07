@@ -1,6 +1,7 @@
 mod attention;
 mod attention_utils;
 mod embeddings;
+mod encoder;
 mod reformer_model;
 
 // ToDo, remove
