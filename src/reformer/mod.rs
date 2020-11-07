@@ -5,7 +5,7 @@ mod encoder;
 mod reformer_model;
 
 // ToDo, remove
-pub use attention::{LSHSelfAttention, LocalSelfAttention};
+pub use attention::ReformerAttention;
 pub use embeddings::ReformerEmbeddings;
 // -------------
 pub use attention_utils::lcm;

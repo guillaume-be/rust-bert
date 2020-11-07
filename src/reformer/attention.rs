@@ -1168,7 +1168,6 @@ pub struct ReformerAttention {
     self_attention: AttentionModule,
     layer_norm: nn::LayerNorm,
     self_output: ReformerSelfOutput,
-    output_attentions: bool,
     use_past: bool,
 }
 
@@ -1209,7 +1208,6 @@ impl ReformerAttention {
             self_attention,
             layer_norm,
             self_output,
-            output_attentions,
             use_past,
         })
     }
