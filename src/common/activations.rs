@@ -26,8 +26,22 @@ pub fn _tanh(x: &Tensor) -> Tensor {
     x.tanh()
 }
 
-pub type TensorFunction = Box<fn(&Tensor) -> Tensor>;
+pub struct TensorFunction(Box<fn(&Tensor) -> Tensor>);
 
+impl TensorFunction {
+    pub fn new(fun: Box<fn(&Tensor) -> Tensor>) -> Self {
+        Self(fun)
+    }
+
+    pub fn get_fn(&self) -> &fn(&Tensor) -> Tensor {
+        &self.0
+    }
+}
+impl std::fmt::Debug for TensorFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "TensorFunction")
+    }
+}
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 /// # Activation function used in the attention layer and masked language model head
@@ -48,13 +62,23 @@ pub enum Activation {
 
 impl Activation {
     pub fn get_function(&self) -> TensorFunction {
-        Box::new(match self {
+        TensorFunction::new(Box::new(match self {
             Activation::gelu => _gelu,
             Activation::relu => _relu,
             Activation::swish => _swish,
             Activation::gelu_new => _gelu_new,
             Activation::mish => _mish,
             Activation::tanh => _tanh,
-        })
+        }))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    #[ignore]
+    fn tensorfunction_send() {
+        let _: Box<dyn Send> = Box::new(Activation::gelu.get_function());
     }
 }

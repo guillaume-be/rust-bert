@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::activations::{
-    Activation, TensorFunction, _gelu_new, _mish, _relu, _swish, _tanh,
-};
+use crate::common::activations::{Activation, TensorFunction};
 use crate::common::dropout::Dropout;
 use crate::gpt2::attention::{Attention, GPTConv1D};
 use crate::gpt2::gpt2_model::Gpt2Config;
@@ -37,17 +35,14 @@ impl MLP {
 
         let c_fc = GPTConv1D::new(p / "c_fc", config.n_embd * 4, config.n_embd);
         let c_proj = GPTConv1D::new(p / "c_proj", config.n_embd, config.n_embd * 4);
-        let activation = Box::new(match &config.afn {
+        let activation = match &config.afn {
             Some(activation_enum) => match activation_enum {
-                Activation::gelu => _gelu_new,
-                Activation::relu => _relu,
-                Activation::swish => _swish,
-                Activation::gelu_new => _gelu_new,
-                Activation::mish => _mish,
-                Activation::tanh => _tanh,
+                Activation::gelu => &Activation::gelu_new,
+                default => default,
             },
-            None => _gelu_new,
-        });
+            None => &Activation::gelu_new,
+        }
+        .get_function();
         let resid_pdrop = config.resid_pdrop.unwrap_or(0.1);
         let dropout = Dropout::new(resid_pdrop);
         MLP {
@@ -59,7 +54,7 @@ impl MLP {
     }
 
     pub fn forward_t(&self, x: &Tensor, train: bool) -> Tensor {
-        let h = (self.activation)(&x.apply(&self.c_fc));
+        let h = (self.activation.get_fn())(&x.apply(&self.c_fc));
         h.apply(&self.c_proj).apply_t(&self.dropout, train)
     }
 }

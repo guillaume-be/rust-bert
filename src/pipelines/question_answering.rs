@@ -982,3 +982,15 @@ pub fn squad_processor(file_path: PathBuf) -> Vec<QaInput> {
     }
     qa_inputs
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = QuestionAnsweringConfig::default();
+        let _: Box<dyn Send> = Box::new(QuestionAnsweringModel::new(config));
+    }
+}

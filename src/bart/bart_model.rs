@@ -880,3 +880,30 @@ pub struct BartModelOutput {
     /// Attention weights for all layers of the encoder
     pub all_encoder_attentions: Option<Vec<Tensor>>,
 }
+
+#[cfg(test)]
+mod test {
+    use tch::Device;
+
+    use crate::{
+        resources::{RemoteResource, Resource},
+        Config,
+    };
+
+    use super::{BartConfig, BartConfigResources, BartModel};
+
+    #[test]
+    #[ignore] // compilation is enough, no need to run
+    fn bart_model_send() {
+        let config_resource =
+            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+        let config_path = config_resource.get_local_path().expect("");
+
+        //    Set-up masked LM model
+        let device = Device::cuda_if_available();
+        let vs = tch::nn::VarStore::new(device);
+        let config = BartConfig::from_file(config_path);
+
+        let _: Box<dyn Send> = Box::new(BartModel::new(&vs.root(), &config, false));
+    }
+}

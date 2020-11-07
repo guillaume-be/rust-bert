@@ -648,3 +648,14 @@ impl TranslationModel {
         }
     }
 }
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = TranslationConfig::new(Language::FrenchToEnglish, Device::cuda_if_available());
+        let _: Box<dyn Send> = Box::new(TranslationModel::new(config));
+    }
+}

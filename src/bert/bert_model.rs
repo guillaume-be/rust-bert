@@ -11,11 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bert::embeddings::{BertEmbedding, BertEmbeddings};
 use crate::bert::encoder::{BertEncoder, BertPooler};
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
+use crate::{
+    bert::embeddings::{BertEmbedding, BertEmbeddings},
+    common::activations::TensorFunction,
+};
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -121,7 +124,7 @@ impl Config<BertConfig> for BertConfig {}
 pub struct BertModel<T: BertEmbedding> {
     embeddings: T,
     encoder: BertEncoder,
-    pooler: BertPooler,
+    pooler: Option<BertPooler>,
     is_decoder: bool,
 }
 
@@ -159,7 +162,59 @@ impl<T: BertEmbedding> BertModel<T> {
         let is_decoder = config.is_decoder.unwrap_or(false);
         let embeddings = T::new(p / "embeddings", config);
         let encoder = BertEncoder::new(p / "encoder", config);
-        let pooler = BertPooler::new(p / "pooler", config);
+        let pooler = Some(BertPooler::new(p / "pooler", config));
+
+        BertModel {
+            embeddings,
+            encoder,
+            pooler,
+            is_decoder,
+        }
+    }
+
+    /// Build a new `BertModel` with an optional Pooling layer
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BERT model
+    /// * `config` - `BertConfig` object defining the model architecture and decoder status
+    /// * `add_pooling_layer` - Enable/Disable an optional pooling layer at the end of the model
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertEmbeddings, BertModel};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let bert: BertModel<BertEmbeddings> = BertModel::new_with_optional_pooler(&p.root() / "bert", &config, false);
+    /// ```
+    pub fn new_with_optional_pooler<'p, P>(
+        p: P,
+        config: &BertConfig,
+        add_pooling_layer: bool,
+    ) -> BertModel<T>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let is_decoder = config.is_decoder.unwrap_or(false);
+        let embeddings = T::new(p / "embeddings", config);
+        let encoder = BertEncoder::new(p / "encoder", config);
+
+        let pooler = {
+            if add_pooling_layer {
+                Some(BertPooler::new(p / "pooler", config))
+            } else {
+                None
+            }
+        };
 
         BertModel {
             embeddings,
@@ -310,18 +365,13 @@ impl<T: BertEmbedding> BertModel<T> {
                 None
             };
 
-        let embedding_output = match self.embeddings.forward_t(
+        let embedding_output = self.embeddings.forward_t(
             input_ids,
             token_type_ids,
             position_ids,
             input_embeds,
             train,
-        ) {
-            Ok(value) => value,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        )?;
 
         let (hidden_state, all_hidden_states, all_attentions) = self.encoder.forward_t(
             &embedding_output,
@@ -331,7 +381,10 @@ impl<T: BertEmbedding> BertModel<T> {
             train,
         );
 
-        let pooled_output = self.pooler.forward(&hidden_state);
+        let pooled_output = self
+            .pooler
+            .as_ref()
+            .map(|pooler| pooler.forward(&hidden_state));
 
         Ok(BertModelOutput {
             hidden_state,
@@ -344,7 +397,7 @@ impl<T: BertEmbedding> BertModel<T> {
 
 pub struct BertPredictionHeadTransform {
     dense: nn::Linear,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
     layer_norm: nn::LayerNorm,
 }
 
@@ -377,7 +430,7 @@ impl BertPredictionHeadTransform {
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        ((&self.activation)(&hidden_states.apply(&self.dense))).apply(&self.layer_norm)
+        ((&self.activation.get_fn())(&hidden_states.apply(&self.dense))).apply(&self.layer_norm)
     }
 }
 
@@ -679,6 +732,7 @@ impl BertForSequenceClassification {
 
         let logits = base_model_output
             .pooled_output
+            .unwrap()
             .apply_t(&self.dropout, train)
             .apply(&self.classifier);
         BertSequenceClassificationOutput {
@@ -828,6 +882,7 @@ impl BertForMultipleChoice {
 
         let logits = base_model_output
             .pooled_output
+            .unwrap()
             .apply_t(&self.dropout, train)
             .apply(&self.classifier)
             .view((-1, num_choices));
@@ -1129,7 +1184,7 @@ pub struct BertModelOutput {
     /// Last hidden states from the model
     pub hidden_state: Tensor,
     /// Pooled output (hidden state for the first token)
-    pub pooled_output: Tensor,
+    pub pooled_output: Option<Tensor>,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
@@ -1176,4 +1231,31 @@ pub struct BertQuestionAnsweringOutput {
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
+}
+#[cfg(test)]
+mod test {
+    use tch::Device;
+
+    use crate::{
+        resources::{RemoteResource, Resource},
+        Config,
+    };
+
+    use super::*;
+
+    #[test]
+    #[ignore] // compilation is enough, no need to run
+    fn bart_model_send() {
+        let config_resource =
+            Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
+        let config_path = config_resource.get_local_path().expect("");
+
+        //    Set-up masked LM model
+        let device = Device::cuda_if_available();
+        let vs = tch::nn::VarStore::new(device);
+        let config = BertConfig::from_file(config_path);
+
+        let b: BertModel<BertEmbeddings> = BertModel::new(&vs.root(), &config);
+        let _: Box<dyn Send> = Box::new(b);
+    }
 }

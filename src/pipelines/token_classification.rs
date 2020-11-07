@@ -185,6 +185,8 @@ impl ConsolidatableTokens<Token> for Vec<Token> {
     }
 }
 
+type LabelAggregationFunction = Box<fn(&[Token]) -> (i64, String)>;
+
 /// # Enum defining the label aggregation method for sub tokens
 /// Defines the behaviour for labels aggregation if the consolidation of sub-tokens is enabled.
 pub enum LabelAggregationOption {
@@ -195,7 +197,7 @@ pub enum LabelAggregationOption {
     /// The most frequent sub- token is  assigned to the entire token
     Mode,
     /// The user can provide a function mapping a `&Vec<Token>` to a `(i64, String)` tuple corresponding to the label index, label String to return
-    Custom(Box<dyn Fn(&[Token]) -> (i64, String)>),
+    Custom(LabelAggregationFunction),
 }
 
 /// # Configuration for TokenClassificationModel
