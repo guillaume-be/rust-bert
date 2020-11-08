@@ -62,7 +62,7 @@ pub fn get_least_common_mult_chunk_len(
     }
 }
 
-pub fn _get_min_chunk_len(
+pub fn get_min_chunk_len(
     attention_types: &[AttentionType],
     lsh_attn_chunk_length: Option<i64>,
     local_attn_chunk_length: Option<i64>,
@@ -188,8 +188,9 @@ pub fn retrieve_relevant_hidden_states(
 #[cfg(test)]
 mod test {
     use crate::reformer::attention::AttentionType;
-    use crate::reformer::attention_utils::{_get_min_chunk_len, get_least_common_mult_chunk_len};
-    use crate::reformer::lcm;
+    use crate::reformer::attention_utils::{
+        get_least_common_mult_chunk_len, get_min_chunk_len, lcm,
+    };
 
     #[test]
     fn test_lcm_calculation() {
@@ -267,7 +268,7 @@ mod test {
         // Then
         for (test_types, expected_result) in attention_types.iter().zip(expected_results.iter()) {
             assert_eq!(
-                _get_min_chunk_len(test_types, lsh_attn_chunk_length, local_attn_chunk_length),
+                get_min_chunk_len(test_types, lsh_attn_chunk_length, local_attn_chunk_length),
                 *expected_result
             );
         }

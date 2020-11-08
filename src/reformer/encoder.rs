@@ -13,8 +13,8 @@
 
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
-use crate::reformer::attention::{AttentionType, LayerState};
-use crate::reformer::{ReformerAttention, ReformerConfig};
+use crate::reformer::attention::{AttentionType, LayerState, ReformerAttention};
+use crate::reformer::ReformerConfig;
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
@@ -216,8 +216,8 @@ impl ReformerLayer {
     }
 }
 
-///Container holding a Reformer encoder output
-pub struct ReformerEncoderOutput {
+///Container holding a Reformer model output
+pub struct ReformerModelOutput {
     /// last encoder layer hidden state
     pub hidden_states: Tensor,
     /// Hidden states for all intermediate layers
@@ -290,7 +290,7 @@ impl ReformerEncoder {
         old_layer_states: Option<Vec<Option<LayerState>>>,
         original_sequence_length: i64,
         train: bool,
-    ) -> Result<ReformerEncoderOutput, RustBertError> {
+    ) -> Result<ReformerModelOutput, RustBertError> {
         let mut hidden_state = hidden_states.copy();
         let mut attention_output = hidden_states.copy();
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
@@ -329,7 +329,7 @@ impl ReformerEncoder {
             next_cache[layer_idx] = temp.new_layer_state;
         }
 
-        hidden_state = hidden_state
+        hidden_state = Tensor::cat(&[hidden_state, attention_output], -1)
             .apply(&self.layer_norm)
             .apply_t(&self.dropout, train);
 
@@ -339,7 +339,7 @@ impl ReformerEncoder {
             None
         };
 
-        Ok(ReformerEncoderOutput {
+        Ok(ReformerModelOutput {
             hidden_states: hidden_state,
             all_hidden_states,
             all_attentions,

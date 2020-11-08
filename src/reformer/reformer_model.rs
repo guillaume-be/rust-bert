@@ -12,11 +12,16 @@
 // limitations under the License.
 
 use crate::common::activations::Activation;
-use crate::reformer::attention::AttentionType;
-use crate::Config;
+use crate::reformer::attention::{AttentionType, LayerState};
+use crate::reformer::attention_utils::{get_least_common_mult_chunk_len, get_min_chunk_len};
+use crate::reformer::embeddings::ReformerEmbeddings;
+use crate::reformer::encoder::{ReformerEncoder, ReformerModelOutput};
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use tch::{nn, Device, Kind, Tensor};
 
 /// # Reformer Pretrained model weight files
 pub struct ReformerModelResources;
@@ -97,3 +102,261 @@ pub struct ReformerConfig {
 }
 
 impl Config<ReformerConfig> for ReformerConfig {}
+
+pub struct ReformerLMHead {
+    decoder: nn::Linear,
+    chunk_size_lm_head: i64,
+}
+
+impl ReformerLMHead {
+    pub fn new<'p, P>(p: P, config: &ReformerConfig) -> ReformerLMHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let decoder = nn::linear(
+            p / "decoder",
+            2 * config.hidden_size,
+            config.vocab_size,
+            Default::default(),
+        );
+
+        ReformerLMHead {
+            decoder,
+            chunk_size_lm_head: config.chunk_size_lm_head,
+        }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        if self.chunk_size_lm_head > 0 {
+            let num_chunks = hidden_states.size()[1] / self.chunk_size_lm_head;
+            let input_tensors_chunk = hidden_states.chunk(num_chunks, 1);
+            let output_chunks = input_tensors_chunk
+                .iter()
+                .map(|v| v.apply(&self.decoder))
+                .collect::<Vec<Tensor>>();
+            Tensor::cat(output_chunks.as_slice(), 1)
+        } else {
+            hidden_states.apply(&self.decoder)
+        }
+    }
+}
+
+pub struct PaddedReformerInput {
+    pub input_ids: Option<Tensor>,
+    pub input_embeds: Option<Tensor>,
+    pub attention_mask: Option<Tensor>,
+    pub position_ids: Option<Tensor>,
+    pub new_input_shape: Vec<i64>,
+}
+
+pub struct ReformerModel {
+    embeddings: ReformerEmbeddings,
+    encoder: ReformerEncoder,
+    least_common_mult_chunk_length: i64,
+    min_chunk_length: i64,
+    pad_token_id: i64,
+}
+
+impl ReformerModel {
+    pub fn new<'p, P>(p: P, config: &ReformerConfig) -> Result<ReformerModel, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let embeddings = ReformerEmbeddings::new(p / "embeddings", config)?;
+        let encoder = ReformerEncoder::new(p / "encoder", config)?;
+
+        let least_common_mult_chunk_length = get_least_common_mult_chunk_len(
+            config.attn_layers.as_slice(),
+            config.lsh_attn_chunk_length,
+            config.local_attn_chunk_length,
+        );
+        let min_chunk_length = get_min_chunk_len(
+            config.attn_layers.as_slice(),
+            config.lsh_attn_chunk_length,
+            config.local_attn_chunk_length,
+        );
+
+        let pad_token_id = config.pad_token_id;
+
+        Ok(ReformerModel {
+            embeddings,
+            encoder,
+            least_common_mult_chunk_length,
+            min_chunk_length,
+            pad_token_id,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        num_hashes: Option<i64>,
+        old_layer_states: Option<Vec<Option<LayerState>>>,
+        train: bool,
+    ) -> Result<ReformerModelOutput, RustBertError> {
+        let (input_shape, device) = if let Some(input_ids) = input_ids {
+            (input_ids.size(), input_ids.device())
+        } else if let Some(input_embeds) = &input_embeds {
+            (input_embeds.size(), input_embeds.device())
+        } else {
+            return Err(RustBertError::ValueError(
+                "At least one of input ids or input embeddings must be set".into(),
+            ));
+        };
+
+        let original_sequence_length = *input_shape.last().unwrap();
+
+        let must_pad_to_match_chunk_length =
+            (input_shape.last().unwrap() & self.least_common_mult_chunk_length != 0)
+                & (*input_shape.last().unwrap() as i64 > self.min_chunk_length)
+                & old_layer_states.is_some();
+
+        let start_idx_pos_encodings = if let Some(layer_states) = &old_layer_states {
+            if let Some(layer_state) = &layer_states[0] {
+                layer_state.prev_states.size()[1]
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        let encoder_outputs = if must_pad_to_match_chunk_length {
+            let padding_length = self.least_common_mult_chunk_length
+                - input_shape.last().unwrap() % self.least_common_mult_chunk_length;
+            let padded_input = self.pad_to_mult_of_chunk_length(
+                input_ids,
+                input_embeds,
+                attention_mask,
+                position_ids,
+                input_shape.as_slice(),
+                padding_length,
+                device,
+            )?;
+            let embedding_output = self.embeddings.forward_t(
+                padded_input.input_ids.as_ref(),
+                padded_input.position_ids.as_ref(),
+                padded_input.input_embeds,
+                start_idx_pos_encodings,
+                train,
+            )?;
+
+            let mut encoder_output = self.encoder.forward_t(
+                &embedding_output,
+                padded_input.attention_mask.as_ref(),
+                num_hashes,
+                old_layer_states,
+                original_sequence_length,
+                train,
+            )?;
+            encoder_output.hidden_states =
+                encoder_output
+                    .hidden_states
+                    .slice(1, 0, original_sequence_length, 1);
+            encoder_output
+        } else {
+            let embedding_output = self.embeddings.forward_t(
+                input_ids,
+                position_ids,
+                input_embeds,
+                start_idx_pos_encodings,
+                train,
+            )?;
+
+            self.encoder.forward_t(
+                &embedding_output,
+                attention_mask,
+                num_hashes,
+                old_layer_states,
+                original_sequence_length,
+                train,
+            )?
+        };
+        Ok(encoder_outputs)
+    }
+
+    fn pad_to_mult_of_chunk_length(
+        &self,
+        input_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_shape: &[i64],
+        padding_length: i64,
+        device: Device,
+    ) -> Result<PaddedReformerInput, RustBertError> {
+        let input_ids_padding = Tensor::full(
+            &[input_shape[0], padding_length],
+            self.pad_token_id,
+            (Kind::Int64, device),
+        );
+
+        let attention_mask = Some(if let Some(attention_mask) = attention_mask {
+            let attention_mask_padding = Tensor::zeros(
+                &[input_shape[0], padding_length],
+                (attention_mask.kind(), device),
+            );
+            Tensor::cat(&[attention_mask, &attention_mask_padding], -1)
+        } else {
+            Tensor::cat(
+                &[
+                    Tensor::ones(input_shape, (Kind::Int8, device)),
+                    Tensor::zeros(&[input_shape[0], padding_length], (Kind::Int8, device)),
+                ],
+                -1,
+            )
+        });
+
+        let mut new_input_shape = vec![];
+
+        let (input_ids, position_ids) = if let Some(input_ids) = input_ids {
+            let input_ids = Tensor::cat(&[input_ids, &input_ids_padding], -1);
+            new_input_shape = input_ids.size();
+            let position_ids = if let Some(position_ids) = position_ids {
+                let position_ids_padding = Tensor::arange2(
+                    *input_shape.last().unwrap(),
+                    self.least_common_mult_chunk_length,
+                    1,
+                    (Kind::Int64, device),
+                )
+                .unsqueeze(0)
+                .expand(&[input_shape[0], padding_length], true);
+                Some(Tensor::cat(&[position_ids, &position_ids_padding], -1))
+            } else {
+                None
+            };
+            (Some(input_ids), position_ids)
+        } else {
+            (None, None)
+        };
+
+        let input_embeds = if let Some(input_embeds) = input_embeds {
+            let input_embeds_padding = self.embeddings.forward_t(
+                Some(&input_ids_padding),
+                None,
+                None,
+                *input_shape.last().unwrap(),
+                false,
+            )?;
+            let input_embeds = Tensor::cat(&[input_embeds, input_embeds_padding], -1);
+            new_input_shape = input_embeds.size();
+            Some(input_embeds)
+        } else {
+            None
+        };
+        Ok(PaddedReformerInput {
+            input_ids,
+            input_embeds,
+            attention_mask,
+            position_ids,
+            new_input_shape,
+        })
+    }
+}
