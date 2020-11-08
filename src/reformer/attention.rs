@@ -35,6 +35,19 @@ pub struct LayerState {
     pub prev_states: Tensor,
 }
 
+impl Clone for LayerState {
+    fn clone(&self) -> Self {
+        let prev_buckets = if let Some(prev_buckets) = &self.prev_buckets {
+            Some(prev_buckets.copy())
+        } else {
+            None
+        };
+        LayerState {
+            prev_buckets,
+            prev_states: self.prev_states.copy(),
+        }
+    }
+}
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq, Eq, Hash)]
 /// # Attention type for the model (local or LSH)
@@ -100,7 +113,6 @@ impl NumBuckets {
     }
 }
 
-#[derive(Debug)]
 /// # LSH Self Attention for Reformer model
 pub struct LSHSelfAttention {
     chunk_length: i64,
@@ -110,11 +122,9 @@ pub struct LSHSelfAttention {
     num_chunks_after: i64,
     hash_seed: Option<i64>,
     is_decoder: bool,
-    max_position_embeddings: i64,
     dropout: Dropout,
     num_attention_heads: i64,
     attention_head_size: i64,
-    all_head_size: i64,
     hidden_size: i64,
     query_key: nn::Linear,
     value: nn::Linear,
@@ -143,7 +153,6 @@ impl LSHSelfAttention {
         let num_chunks_after = config.lsh_num_chunks_after.unwrap_or(0);
         let hash_seed = config.hash_seed;
         let is_decoder = config.is_decoder;
-        let max_position_embeddings = config.max_position_embeddings;
 
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
@@ -170,11 +179,9 @@ impl LSHSelfAttention {
             num_chunks_after,
             hash_seed,
             is_decoder,
-            max_position_embeddings,
             dropout,
             num_attention_heads,
             attention_head_size,
-            all_head_size,
             hidden_size,
             query_key,
             value,
@@ -840,7 +847,6 @@ pub struct LocalSelfAttention {
     pad_token_id: i64,
     num_attention_heads: i64,
     attention_head_size: i64,
-    all_head_size: i64,
     hidden_size: i64,
     query: nn::Linear,
     key: nn::Linear,
@@ -894,7 +900,6 @@ impl LocalSelfAttention {
             pad_token_id,
             num_attention_heads,
             attention_head_size,
-            all_head_size,
             hidden_size,
             query,
             key,
@@ -1077,7 +1082,7 @@ pub enum AttentionModule {
 impl AttentionModule {
     pub fn new<'p, P>(
         p: P,
-        attention_type: AttentionType,
+        attention_type: &AttentionType,
         config: &ReformerConfig,
         output_attentions: bool,
         use_past: bool,
@@ -1182,7 +1187,7 @@ impl ReformerAttention {
     pub fn new<'p, P>(
         p: P,
         config: &ReformerConfig,
-        attention_type: AttentionType,
+        attention_type: &AttentionType,
         output_attentions: bool,
         use_past: bool,
     ) -> Result<ReformerAttention, RustBertError>

@@ -16,11 +16,9 @@ use crate::common::dropout::Dropout;
 use crate::reformer::attention::{AttentionType, LayerState};
 use crate::reformer::{ReformerAttention, ReformerConfig};
 use crate::RustBertError;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
-#[derive(Debug)]
-/// # Reformer attention dense layer
 pub struct ReformerFeedForwardDense {
     dense: nn::Linear,
     dropout: Dropout,
@@ -162,7 +160,7 @@ impl ReformerLayer {
     pub fn new<'p, P>(
         p: P,
         config: &ReformerConfig,
-        attention_type: AttentionType,
+        attention_type: &AttentionType,
         output_attentions: bool,
         use_past: bool,
     ) -> Result<ReformerLayer, RustBertError>
@@ -214,6 +212,138 @@ impl ReformerLayer {
             attention_probs: attention_layer_output.attention_probs,
             buckets: attention_layer_output.buckets,
             new_layer_state: attention_layer_output.new_layer_state,
+        })
+    }
+}
+
+///Container holding a Reformer encoder output
+pub struct ReformerEncoderOutput {
+    /// last encoder layer hidden state
+    pub hidden_states: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
+    pub next_cache: Option<Vec<Option<LayerState>>>,
+}
+
+pub struct ReformerEncoder {
+    layers: Vec<ReformerLayer>,
+    layer_norm: nn::LayerNorm,
+    dropout: Dropout,
+    output_attentions: bool,
+    output_hidden_states: bool,
+    use_cache: bool,
+}
+
+impl ReformerEncoder {
+    pub fn new<'p, P>(p: P, config: &ReformerConfig) -> Result<ReformerEncoder, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let use_cache = config.use_cache.unwrap_or(true);
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
+
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_eps.unwrap_or(1e-12),
+            ..Default::default()
+        };
+        let layer_norm = nn::layer_norm(
+            p / "layer_norm",
+            vec![2 * config.hidden_size],
+            layer_norm_config,
+        );
+
+        let mut layers: Vec<ReformerLayer> = vec![];
+        let p_layers = p / "layers";
+        for (layer_index, attention_type) in config.attn_layers.iter().enumerate() {
+            layers.push(ReformerLayer::new(
+                &p_layers / layer_index,
+                config,
+                attention_type,
+                output_attentions,
+                use_cache,
+            )?);
+        }
+
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+
+        Ok(ReformerEncoder {
+            layers,
+            layer_norm,
+            dropout,
+            output_attentions,
+            output_hidden_states,
+            use_cache,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        num_hashes: Option<i64>,
+        old_layer_states: Option<Vec<Option<LayerState>>>,
+        original_sequence_length: i64,
+        train: bool,
+    ) -> Result<ReformerEncoderOutput, RustBertError> {
+        let mut hidden_state = hidden_states.copy();
+        let mut attention_output = hidden_states.copy();
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(Vec::with_capacity(self.layers.len()))
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(Vec::with_capacity(self.layers.len()))
+        } else {
+            None
+        };
+        let old_cache = old_layer_states.unwrap_or(vec![None; self.layers.len()]);
+        let mut next_cache = vec![None; self.layers.len()];
+        for (layer_idx, (layer, old_cache)) in
+            self.layers.iter().zip(old_cache.into_iter()).enumerate()
+        {
+            let temp = layer.forward_t(
+                &attention_output,
+                &hidden_state,
+                attention_mask,
+                num_hashes,
+                old_cache,
+                original_sequence_length,
+                train,
+            )?;
+            attention_output = temp.attention_output;
+            hidden_state = temp.hidden_states;
+
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.copy());
+            };
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(temp.attention_probs.unwrap());
+            };
+            next_cache[layer_idx] = temp.new_layer_state;
+        }
+
+        hidden_state = hidden_state
+            .apply(&self.layer_norm)
+            .apply_t(&self.dropout, train);
+
+        let next_cache = if self.use_cache {
+            Some(next_cache)
+        } else {
+            None
+        };
+
+        Ok(ReformerEncoderOutput {
+            hidden_states: hidden_state,
+            all_hidden_states,
+            all_attentions,
+            next_cache,
         })
     }
 }

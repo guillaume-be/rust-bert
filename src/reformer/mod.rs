@@ -7,7 +7,7 @@ mod reformer_model;
 // ToDo, remove
 pub use attention::ReformerAttention;
 pub use embeddings::ReformerEmbeddings;
-pub use encoder::ReformerLayer;
+pub use encoder::ReformerEncoder;
 // -------------
 pub use attention_utils::lcm;
 
