@@ -11,7 +11,7 @@ use rust_bert::resources::{RemoteResource, Resource};
 use std::time::{Duration, Instant};
 use tch::Device;
 
-fn create_summarization_model() -> TextGenerationModel {
+fn create_text_generation_model() -> TextGenerationModel {
     let config = TextGenerationConfig {
         model_type: ModelType::GPT2,
         model_resource: Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)),
@@ -54,7 +54,7 @@ fn bench_generation(c: &mut Criterion) {
     unsafe {
         torch_sys::dummy_cuda_dependency();
     }
-    let model = create_summarization_model();
+    let model = create_text_generation_model();
 
     //    Define input
     let input = ["Hello, I'm a language model,"];
