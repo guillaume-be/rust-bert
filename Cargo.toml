@@ -39,6 +39,10 @@ name = "translation_benchmark"
 harness = false
 
 [[bench]]
+name = "generation_benchmark"
+harness = false
+
+[[bench]]
 name = "tensor_operations_benchmark"
 harness = false
 
