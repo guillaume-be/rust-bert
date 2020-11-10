@@ -886,7 +886,7 @@ impl LocalSelfAttention {
             ..Default::default()
         };
         let query = nn::linear(p / "query", hidden_size, all_head_size, linear_config);
-        let key = nn::linear(p / "query", hidden_size, all_head_size, linear_config);
+        let key = nn::linear(p / "key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
         let mask_value = Tensor::of_slice(&[-1e9]);

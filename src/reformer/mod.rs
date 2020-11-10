@@ -6,5 +6,5 @@ mod reformer_model;
 
 pub use reformer_model::{
     ReformerConfig, ReformerConfigResources, ReformerModel, ReformerModelResources,
-    ReformerVocabResources,
+    ReformerModelWithLMHead, ReformerVocabResources,
 };

@@ -15,7 +15,8 @@
 extern crate anyhow;
 
 use rust_bert::reformer::{
-    ReformerConfig, ReformerConfigResources, ReformerModelResources, ReformerVocabResources,
+    ReformerConfig, ReformerConfigResources, ReformerModelResources, ReformerModelWithLMHead,
+    ReformerVocabResources,
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
@@ -35,15 +36,15 @@ fn main() -> anyhow::Result<()> {
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
-    let _weights_path = weights_resource.get_local_path()?;
+    let weights_path = weights_resource.get_local_path()?;
 
     //    Set-up masked LM model
     let device = Device::cuda_if_available();
-    let mut _vs = nn::VarStore::new(device);
+    let mut vs = nn::VarStore::new(device);
     let _tokenizer = ReformerTokenizer::from_file(vocab_path.to_str().unwrap(), false)?;
-    let _config = ReformerConfig::from_file(config_path);
-    // let xlnet_model = XLNetLMHeadModel::new(&vs.root(), &config);
-    // vs.load(weights_path)?;
+    let config = ReformerConfig::from_file(config_path);
+    let reformer_model = ReformerModelWithLMHead::new(&vs.root(), &config);
+    vs.load(weights_path)?;
 
     Ok(())
 }
