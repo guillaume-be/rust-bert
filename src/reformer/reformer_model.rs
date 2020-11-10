@@ -360,3 +360,87 @@ impl ReformerModel {
         })
     }
 }
+
+pub struct ReformerModelWithLMHead {
+    reformer: ReformerModel,
+    lm_head: ReformerLMHead,
+}
+
+impl ReformerModelWithLMHead {
+    pub fn new<'p, P>(
+        p: P,
+        config: &ReformerConfig,
+    ) -> Result<ReformerModelWithLMHead, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        if !config.is_decoder {
+            return Err(RustBertError::InvalidConfigurationError("Reformer must be a decoder to be used as a language model. `is_decoder` has been set to `false`.".to_string()));
+        }
+
+        if let Some(lsh_num_chunks_after) = config.lsh_num_chunks_after {
+            if config.attn_layers.contains(&AttentionType::lsh) & (lsh_num_chunks_after != 0) {
+                return Err(RustBertError::InvalidConfigurationError(
+                    format!("For text generation using LSH attention ensure `config.lsh_num_chunks_after` is set to 0 (currently {})", lsh_num_chunks_after),
+                ));
+            }
+        }
+
+        if let Some(local_num_chunks_after) = config.local_num_chunks_after {
+            if config.attn_layers.contains(&AttentionType::local) & (local_num_chunks_after != 0) {
+                return Err(RustBertError::InvalidConfigurationError(
+                    format!("For text generation using local attention ensure `config.local_num_chunks_after` is set to 0 (currently {})", local_num_chunks_after),
+                ));
+            }
+        }
+
+        let reformer = ReformerModel::new(p / "reformer", config)?;
+        let lm_head = ReformerLMHead::new(p / "lm_head", config);
+
+        Ok(ReformerModelWithLMHead { reformer, lm_head })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        num_hashes: Option<i64>,
+        old_layer_states: Option<Vec<Option<LayerState>>>,
+        train: bool,
+    ) -> Result<ReformerLMModelOutput, RustBertError> {
+        let reformer_output = self.reformer.forward_t(
+            input_ids,
+            position_ids,
+            input_embeds,
+            attention_mask,
+            num_hashes,
+            old_layer_states,
+            train,
+        )?;
+
+        let logits = self.lm_head.forward(&reformer_output.hidden_states);
+
+        Ok(ReformerLMModelOutput {
+            logits,
+            all_hidden_states: reformer_output.all_hidden_states,
+            all_attentions: reformer_output.all_attentions,
+            next_cache: reformer_output.next_cache,
+        })
+    }
+}
+
+///Container holding a Reformer model with LM head output
+pub struct ReformerLMModelOutput {
+    /// logits
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
+    pub next_cache: Option<Vec<Option<LayerState>>>,
+}
