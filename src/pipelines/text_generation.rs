@@ -105,7 +105,7 @@ impl TextGenerationConfig {
 impl Default for TextGenerationConfig {
     fn default() -> TextGenerationConfig {
         TextGenerationConfig {
-            model_type: ModelType::Bart,
+            model_type: ModelType::GPT2,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 Gpt2ModelResources::GPT2_MEDIUM,
             )),
