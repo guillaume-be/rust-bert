@@ -66,9 +66,9 @@ fn main() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let model_output =
+    let _model_output =
         reformer_model.forward_t(Some(&input_tensor), None, None, None, None, None, false)?;
 
-    model_output.logits.print();
+    _model_output.logits.print();
     Ok(())
 }

@@ -370,7 +370,7 @@ impl LSHSelfAttention {
                 self.num_chunks_after,
             );
             (query_bucket_idx, key_value_bucket_idx)
-        } else if do_standard_self_attention & (query_key_dots.dim() > 4) {
+        } else if do_cached_attention & (query_key_dots.dim() > 4) {
             let mut query_shape = sorted_bucket_indices_per_hash.size();
             query_shape[sorted_bucket_indices_per_hash.dim() - 1] = 1;
             let query_bucket_idx = sorted_bucket_indices_per_hash.new_full(
@@ -379,7 +379,7 @@ impl LSHSelfAttention {
                 (Kind::Int64, sorted_bucket_indices_per_hash.device()),
             );
             (query_bucket_idx, sorted_bucket_indices_per_hash)
-        } else if do_standard_self_attention & (query_key_dots.dim() <= 4) {
+        } else if do_cached_attention & (query_key_dots.dim() <= 4) {
             let query_bucket_idx = query_key_dots.select(3, -1).ones_like()
                 * (query_key_dots.size().last().unwrap() - 1);
             let mut query_shape = query_bucket_idx.size();

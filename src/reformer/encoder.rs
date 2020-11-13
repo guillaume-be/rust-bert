@@ -329,7 +329,7 @@ impl ReformerEncoder {
             next_cache[layer_idx] = temp.new_layer_state;
         }
 
-        hidden_state = Tensor::cat(&[hidden_state, attention_output], -1)
+        hidden_state = Tensor::cat(&[attention_output, hidden_state], -1)
             .apply(&self.layer_norm)
             .apply_t(&self.dropout, train);
 
