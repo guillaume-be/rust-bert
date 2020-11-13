@@ -79,7 +79,7 @@ impl AxialPositionEmbeddings {
                 let mut new_shape = vec![batch_size];
                 new_shape.extend(&self.axial_pos_shape);
                 new_shape.push(*tensor.size().last().unwrap());
-                tensor.view(new_shape.as_slice())
+                tensor.expand(new_shape.as_slice(), true)
             })
             .collect::<Vec<Tensor>>();
 
@@ -102,8 +102,7 @@ impl AxialPositionEmbeddings {
         } else {
             let max_position_id = i64::from(position_ids.max());
             let required_pos_encodings_columns =
-                -(-(max_position_id + 1) / self.axial_pos_shape[1]);
-
+                (max_position_id + 1) / self.axial_pos_shape[1] + 1;
             let position_encodings = Tensor::cat(
                 &broadcasted_weights
                     .iter()

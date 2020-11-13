@@ -168,8 +168,12 @@ impl LSHSelfAttention {
         let query_key = nn::linear(p / "query_key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
-        let self_mask_value = Tensor::of_slice(&[-1e5]);
-        let mask_value = Tensor::of_slice(&[-1e9]);
+        let self_mask_value = Tensor::of_slice(&[-1e5])
+            .to_kind(Kind::Float)
+            .to(p.device());
+        let mask_value = Tensor::of_slice(&[-1e9])
+            .to_kind(Kind::Float)
+            .to(p.device());
 
         Ok(LSHSelfAttention {
             chunk_length,
@@ -710,13 +714,13 @@ impl LSHSelfAttention {
             );
         }
 
-        if do_cached_attention
-            & layer_state.is_some()
-            & layer_state.as_ref().unwrap().prev_buckets.is_some()
-            & (key_value_hidden_states.unwrap().size()[1] > self.chunk_length)
-        {
-            buckets =
-                Some(self.hash_vectors(&query_key_vectors, num_hashes, attention_mask, false));
+        if do_cached_attention & layer_state.is_some() {
+            if layer_state.as_ref().unwrap().prev_buckets.is_some()
+                & (key_value_hidden_states.unwrap().size()[1] > self.chunk_length)
+            {
+                buckets =
+                    Some(self.hash_vectors(&query_key_vectors, num_hashes, attention_mask, false));
+            }
         }
 
         let do_standard_attention =
@@ -761,7 +765,13 @@ impl LSHSelfAttention {
                 Some(self.attention_head_size),
             )?;
             (sorted_bucket_idx_per_hash, Some(undo_sorted_bucket_idx))
-        } else if do_cached_attention & layer_state.as_ref().unwrap().prev_buckets.is_some() {
+        } else if do_cached_attention & {
+            if let Some(layer_state_value) = layer_state {
+                layer_state_value.prev_buckets.is_some()
+            } else {
+                false
+            }
+        } {
             (sorted_bucket_idx.unwrap().copy(), None)
         } else {
             (
@@ -792,7 +802,13 @@ impl LSHSelfAttention {
         }
 
         if (!do_standard_attention
-            | (do_cached_attention & layer_state.as_ref().unwrap().prev_buckets.is_some()))
+            | (do_cached_attention & {
+                if let Some(layer_state_value) = layer_state {
+                    layer_state_value.prev_buckets.is_some()
+                } else {
+                    false
+                }
+            }))
             & (num_hashes > 1)
         {
             out_vectors = split_seq_length_dim_to(
@@ -889,7 +905,9 @@ impl LocalSelfAttention {
         let key = nn::linear(p / "key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
-        let mask_value = Tensor::of_slice(&[-1e9]);
+        let mask_value = Tensor::of_slice(&[-1e9])
+            .to_kind(Kind::Float)
+            .to(p.device());
 
         LocalSelfAttention {
             chunk_length,
