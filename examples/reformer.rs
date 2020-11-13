@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
     vs.load(weights_path)?;
 
     //    Define input
-    let input = ["One two three four five six seven eight nine ten eleven"];
+    let input = ["One two three four five six seven eight nine ten eleven One two three four five six seven eight nine ten eleven One two three four five six seven eight nine ten eleven"];
     let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()

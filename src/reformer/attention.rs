@@ -297,8 +297,13 @@ impl LSHSelfAttention {
                     .unsqueeze(1)
                     .unsqueeze(1)
                     .expand(&buckets.size(), true)
-                    .to_kind(Kind::Int8);
-                buckets = buckets.where1(&buckets_mask, &Tensor::of_slice(&[num_buckets - 1]))
+                    .to_kind(Kind::Bool);
+                buckets = buckets.where1(
+                    &buckets_mask,
+                    &Tensor::of_slice(&[num_buckets - 1])
+                        .to_kind(Kind::Float)
+                        .to(buckets_mask.device()),
+                )
             } else if increase_num_buckets {
                 num_buckets += 1;
             }
@@ -320,7 +325,7 @@ impl LSHSelfAttention {
         buckets: &Tensor,
     ) -> (Tensor, Tensor) {
         tch::no_grad(|| {
-            let sorted_bucket_indices = stable_argsort(buckets, -1);
+            let sorted_bucket_indices = stable_argsort(buckets, buckets.dim() as i64 - 1);
             let indices = Tensor::arange(
                 *sorted_bucket_indices.size().last().unwrap(),
                 (Kind::Int64, buckets.device()),
@@ -409,14 +414,15 @@ impl LSHSelfAttention {
             );
 
             if let Some(mask) = mask {
-                query_key_dots = query_key_dots.where1(&mask, &self.mask_value);
+                query_key_dots = query_key_dots.where1(&mask.to_kind(Kind::Bool), &self.mask_value);
             }
         }
         {
             let self_mask = query_bucket_idx
                 .unsqueeze(-1)
                 .ne1(&key_value_bucket_idx.unsqueeze(-2));
-            query_key_dots = query_key_dots.where1(&self_mask, &self.self_mask_value);
+            query_key_dots =
+                query_key_dots.where1(&self_mask.to_kind(Kind::Bool), &self.self_mask_value);
         }
 
         let mut logits = query_key_dots.logsumexp(&[-1], true);
@@ -496,7 +502,7 @@ impl LSHSelfAttention {
         );
 
         let concat_buckets = Tensor::cat(&[past_buckets, &query_buckets.unsqueeze(-1)], -1);
-        let bucket_indices = stable_argsort(&concat_buckets, -1);
+        let bucket_indices = stable_argsort(&concat_buckets, concat_buckets.dim() as i64 - 1);
 
         let relevant_bucket_indices = bucket_indices.eq(bucket_indices.size().last().unwrap() - 1);
         let relevant_bucket_indices_chunk =
@@ -1066,7 +1072,7 @@ impl LocalSelfAttention {
         );
 
         if let Some(mask) = attention_mask {
-            query_key_dots = query_key_dots.where1(&mask, &self.mask_value);
+            query_key_dots = query_key_dots.where1(&mask.to_kind(Kind::Bool), &self.mask_value);
         }
 
         let logits = query_key_dots.logsumexp(&[-1], true);
@@ -1265,9 +1271,13 @@ impl ReformerAttention {
 
         let new_layer_state = if self.use_past {
             let prev_buckets = if let Some(buckets_value) = &buckets {
-                if layer_state.is_none()
-                    | (layer_state.is_some() & layer_state.as_ref().unwrap().prev_buckets.is_none())
-                {
+                if layer_state.is_none() | {
+                    if layer_state.is_some() {
+                        layer_state.as_ref().unwrap().prev_buckets.is_none()
+                    } else {
+                        false
+                    }
+                } {
                     if original_sequence_length > 1 {
                         Some(buckets_value.slice(3, 0, original_sequence_length, 1))
                     } else {

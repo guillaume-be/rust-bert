@@ -214,9 +214,9 @@ impl ReformerModel {
         let original_sequence_length = *input_shape.last().unwrap();
 
         let must_pad_to_match_chunk_length =
-            (input_shape.last().unwrap() & self.least_common_mult_chunk_length != 0)
+            (input_shape.last().unwrap() % self.least_common_mult_chunk_length != 0)
                 & (*input_shape.last().unwrap() as i64 > self.min_chunk_length)
-                & old_layer_states.is_some();
+                & old_layer_states.is_none();
 
         let start_idx_pos_encodings = if let Some(layer_states) = &old_layer_states {
             if let Some(layer_state) = &layer_states[0] {
