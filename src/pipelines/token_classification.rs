@@ -414,6 +414,9 @@ impl TokenClassificationOption {
             ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
                 "TokenClassification not implemented for GPT!".to_string(),
             )),
+            ModelType::Reformer => Err(RustBertError::InvalidConfigurationError(
+                "TokenClassification not implemented for Reformer!".to_string(),
+            )),
         }
     }
 
@@ -736,6 +739,9 @@ impl TokenClassificationModel {
                 }
                 TokenizerOption::OpenAiGpt(_) => {
                     panic!("TokenClassification not implemented for GPT!");
+                }
+                TokenizerOption::Reformer(_) => {
+                    panic!("TokenClassification not implemented for Reformer!");
                 }
             },
             Some(offsets) => {

@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::common::activations::Activation;
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::reformer::attention::{AttentionType, LayerState};
 use crate::reformer::attention_utils::{get_least_common_mult_chunk_len, get_min_chunk_len};
 use crate::reformer::embeddings::ReformerEmbeddings;
@@ -443,4 +444,53 @@ pub struct ReformerLMModelOutput {
     pub all_attentions: Option<Vec<Tensor>>,
     /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
     pub next_cache: Option<Vec<Option<LayerState>>>,
+}
+
+impl LMHeadModel for ReformerModelWithLMHead {
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        cache: Cache,
+        attention_mask: &Option<Tensor>,
+        _token_type_ids: &Option<Tensor>,
+        _position_ids: &Option<Tensor>,
+        _input_embeds: &Option<Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        _decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let output = match cache {
+            Cache::ReformerCache(cached_layer_states) => self.forward_t(
+                input_ids.as_ref(),
+                None,
+                None,
+                attention_mask.as_ref(),
+                None,
+                cached_layer_states,
+                train,
+            ),
+            Cache::None => self.forward_t(
+                input_ids.as_ref(),
+                None,
+                None,
+                attention_mask.as_ref(),
+                None,
+                None,
+                train,
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with Reformer Model".into(),
+                ));
+            }
+        }?;
+
+        Ok(LMModelOutput {
+            lm_logits: output.logits,
+            encoder_hidden_state: None,
+            cache: Cache::ReformerCache(output.next_cache),
+            all_hidden_states: None,
+            all_attentions: None,
+        })
+    }
 }

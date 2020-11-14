@@ -208,6 +208,9 @@ impl TextGenerationOption {
             ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
                 "Text generation not implemented for Marian!".to_string(),
             )),
+            ModelType::Reformer => Err(RustBertError::InvalidConfigurationError(
+                "Text generation not implemented for Reformer!".to_string(),
+            )),
         }
     }
 

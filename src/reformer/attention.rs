@@ -48,6 +48,16 @@ impl Clone for LayerState {
         }
     }
 }
+
+impl LayerState {
+    pub(crate) fn reorder_cache(&mut self, new_indices: &Tensor) {
+        self.prev_states = self.prev_states.index_select(0, new_indices);
+        if let Some(prev_buckets_value) = &self.prev_buckets {
+            self.prev_buckets = Some(prev_buckets_value.index_select(0, new_indices));
+        }
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq, Eq, Hash)]
 /// # Attention type for the model (local or LSH)

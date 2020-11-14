@@ -372,6 +372,9 @@ impl QuestionAnsweringOption {
             ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
                 "QuestionAnswering not implemented for GPT!".to_string(),
             )),
+            ModelType::Reformer => Err(RustBertError::InvalidConfigurationError(
+                "QuestionAnswering not implemented for Reformer!".to_string(),
+            )),
         }
     }
 

@@ -85,6 +85,10 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     GenerateOptions, PrivateLanguageGenerator,
 };
+use crate::reformer::{
+    LayerState as ReformerLayerState, ReformerConfig, ReformerConfigResources,
+    ReformerModelResources, ReformerModelWithLMHead, ReformerVocabResources,
+};
 use crate::t5::{
     LayerState as T5LayerState, T5Config, T5ConfigResources, T5ForConditionalGeneration,
     T5ModelResources, T5VocabResources,
@@ -93,11 +97,11 @@ use crate::xlnet::{LayerState, XLNetConfig, XLNetLMHeadModel};
 use crate::Config;
 use itertools::Itertools;
 use rust_tokenizers::tokenizer::{
-    Gpt2Tokenizer, MarianTokenizer, OpenAiGptTokenizer, RobertaTokenizer, T5Tokenizer, Tokenizer,
-    TruncationStrategy, XLNetTokenizer,
+    Gpt2Tokenizer, MarianTokenizer, OpenAiGptTokenizer, ReformerTokenizer, RobertaTokenizer,
+    T5Tokenizer, Tokenizer, TruncationStrategy, XLNetTokenizer,
 };
 use rust_tokenizers::vocab::{
-    Gpt2Vocab, MarianVocab, OpenAiGptVocab, RobertaVocab, T5Vocab, Vocab, XLNetVocab,
+    Gpt2Vocab, MarianVocab, OpenAiGptVocab, ReformerVocab, RobertaVocab, T5Vocab, Vocab, XLNetVocab,
 };
 use tch::kind::Kind::Int64;
 use tch::{nn, no_grad, Device, Kind, Tensor};
@@ -1617,12 +1621,197 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
 
 impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {}
 
+pub struct ReformerGenerator {
+    model: ReformerModelWithLMHead,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl ReformerGenerator {
+    pub fn new(generate_config: GenerateConfig) -> Result<ReformerGenerator, RustBertError> {
+        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
+        let model_resource = if generate_config.model_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                ReformerModelResources::CRIME_AND_PUNISHMENT,
+            ))
+        } else {
+            generate_config.model_resource.clone()
+        };
+
+        let config_resource = if generate_config.config_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                ReformerConfigResources::CRIME_AND_PUNISHMENT,
+            ))
+        } else {
+            generate_config.config_resource.clone()
+        };
+
+        let vocab_resource = if generate_config.vocab_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                ReformerVocabResources::CRIME_AND_PUNISHMENT,
+            ))
+        } else {
+            generate_config.vocab_resource.clone()
+        };
+
+        let config_path = config_resource.get_local_path()?;
+        let vocab_path = vocab_resource.get_local_path()?;
+        let weights_path = model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::Reformer,
+            vocab_path.to_str().unwrap(),
+            None,
+            false,
+            None,
+            false,
+        )?;
+        let config = ReformerConfig::from_file(config_path);
+        let model = ReformerModelWithLMHead::new(&var_store.root(), &config)?;
+        var_store.load(weights_path)?;
+
+        let bos_token_id = None;
+        let eos_token_ids = Some(vec![config.eos_token_id]);
+        let pad_token_id = Some(config.pad_token_id);
+        let vocab_size = config.vocab_size;
+        let is_encoder_decoder = false;
+        let decoder_start_id = None;
+
+        Ok(ReformerGenerator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTokenizer>
+    for ReformerGenerator
+{
+    fn get_model(&self) -> &ReformerModelWithLMHead {
+        &self.model
+    }
+    fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        attention_mask: Tensor,
+    ) -> (
+        Option<Tensor>,
+        Option<Tensor>,
+        Option<&'a Tensor>,
+        Option<Tensor>,
+        Cache,
+    ) {
+        match past {
+            Cache::ReformerCache(past) => (
+                None,
+                Some(attention_mask),
+                encoder_outputs,
+                Some(input_ids),
+                Cache::ReformerCache(past),
+            ),
+            Cache::None => (
+                None,
+                Some(attention_mask),
+                encoder_outputs,
+                Some(input_ids),
+                Cache::ReformerCache(None),
+            ),
+            _ => panic!("Cache type incompatible with Reformer"),
+        }
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::ReformerCache(old_cache_option) => match old_cache_option {
+                Some(old_cache) => {
+                    for layer_state in old_cache.iter_mut() {
+                        if layer_state.is_some() {
+                            layer_state.as_mut().unwrap().reorder_cache(beam_indices)
+                        };
+                    }
+                }
+                None => {}
+            },
+            Cache::None => {}
+            _ => {
+                panic!("Invalid cache for Reformer model");
+            }
+        };
+        encoder_outputs
+    }
+}
+
+impl LanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTokenizer>
+    for ReformerGenerator
+{
+}
+
 #[derive(Debug)]
 pub enum Cache {
     GPT2Cache(Option<Vec<Tensor>>),
     BARTCache(Option<Vec<(Option<BartLayerState>, Option<BartLayerState>)>>),
     T5Cache(Option<Vec<(Option<T5LayerState>, Option<T5LayerState>)>>),
     XLNetCache(Option<Vec<Option<LayerState>>>),
+    ReformerCache(Option<Vec<Option<ReformerLayerState>>>),
     None,
 }
 

@@ -539,6 +539,9 @@ impl TranslationOption {
             ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
                 "Translation not implemented for GPT!".to_string(),
             )),
+            ModelType::Reformer => Err(RustBertError::InvalidConfigurationError(
+                "Translation not implemented for Reformer!".to_string(),
+            )),
         }
     }
 

@@ -333,6 +333,9 @@ impl ZeroShotClassificationOption {
             ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
                 "ZeroShotClassification not implemented for GPT!".to_string(),
             )),
+            ModelType::Reformer => Err(RustBertError::InvalidConfigurationError(
+                "ZeroShotClassification not implemented for Reformer!".to_string(),
+            )),
         }
     }
 
