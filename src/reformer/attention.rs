@@ -1270,7 +1270,7 @@ impl ReformerAttention {
     ) -> Result<ReformerAttentionOutput, RustBertError> {
         let hidden_states = hidden_states.apply(&self.layer_norm);
 
-        let (hidden_states, attention_probs, buckets) = self.self_attention.forward_t(
+        let (attention_hidden_state, attention_probs, buckets) = self.self_attention.forward_t(
             &hidden_states,
             attention_mask,
             num_hashes,
@@ -1278,7 +1278,6 @@ impl ReformerAttention {
             layer_state.as_ref(),
             train,
         )?;
-
         let new_layer_state = if self.use_past {
             let prev_buckets = if let Some(buckets_value) = &buckets {
                 if layer_state.is_none() | {
@@ -1319,7 +1318,7 @@ impl ReformerAttention {
             None
         };
 
-        let attention_output = self.self_output.forward_t(&hidden_states, train);
+        let attention_output = self.self_output.forward_t(&attention_hidden_state, train);
 
         Ok(ReformerAttentionOutput {
             attention_output,

@@ -1680,7 +1680,7 @@ impl ReformerGenerator {
             None,
             false,
             None,
-            false,
+            None,
         )?;
         let config = ReformerConfig::from_file(config_path);
         let model = ReformerModelWithLMHead::new(&var_store.root(), &config)?;
@@ -1745,7 +1745,7 @@ impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTo
     fn prepare_inputs_for_generation<'a>(
         &self,
         input_ids: Tensor,
-        encoder_outputs: Option<&'a Tensor>,
+        _encoder_outputs: Option<&'a Tensor>,
         past: Cache,
         attention_mask: Tensor,
     ) -> (
@@ -1757,17 +1757,17 @@ impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTo
     ) {
         match past {
             Cache::ReformerCache(past) => (
-                None,
+                Some(input_ids.select(1, -1).unsqueeze(-1)),
                 Some(attention_mask),
-                encoder_outputs,
-                Some(input_ids),
+                None,
+                None,
                 Cache::ReformerCache(past),
             ),
             Cache::None => (
-                None,
-                Some(attention_mask),
-                encoder_outputs,
                 Some(input_ids),
+                Some(attention_mask),
+                None,
+                None,
                 Cache::ReformerCache(None),
             ),
             _ => panic!("Cache type incompatible with Reformer"),
