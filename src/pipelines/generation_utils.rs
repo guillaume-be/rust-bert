@@ -164,7 +164,7 @@ impl Default for GenerateConfig {
             min_length: 0,
             max_length: 20,
             do_sample: true,
-            early_stopping: false,
+            early_stopping: true,
             num_beams: 5,
             temperature: 1.0,
             top_k: 0,
@@ -1758,7 +1758,7 @@ impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTo
         match past {
             Cache::ReformerCache(past) => (
                 Some(input_ids.select(1, -1).unsqueeze(-1)),
-                Some(attention_mask),
+                None,
                 None,
                 None,
                 Cache::ReformerCache(past),

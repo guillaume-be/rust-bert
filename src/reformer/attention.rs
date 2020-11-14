@@ -514,9 +514,14 @@ impl LSHSelfAttention {
         let concat_buckets = Tensor::cat(&[past_buckets, &query_buckets.unsqueeze(-1)], -1);
         let bucket_indices = stable_argsort(&concat_buckets, concat_buckets.dim() as i64 - 1);
 
-        let relevant_bucket_indices = bucket_indices.eq(bucket_indices.size().last().unwrap() - 1);
-        let relevant_bucket_indices_chunk =
-            self.expand_to_indices_in_relevant_chunk(&relevant_bucket_indices, sequence_length);
+        let relevant_bucket_indices = bucket_indices
+            .eq(bucket_indices.size().last().unwrap() - 1)
+            .nonzero();
+
+        let relevant_bucket_indices_chunk = self
+            .expand_to_indices_in_relevant_chunk(&relevant_bucket_indices, sequence_length)
+            .transpose(0, 1);
+
         let relevant_bucket_indices_chunk = bucket_indices.index(&[
             relevant_bucket_indices_chunk.get(0),
             relevant_bucket_indices_chunk.get(1),
@@ -530,14 +535,17 @@ impl LSHSelfAttention {
                     *relevant_bucket_indices_chunk.size().last().unwrap(),
                     (Kind::Int64, hidden_states.device()),
                 )
-                / *relevant_bucket_indices_chunk.size().last().unwrap());
+                .floor_divide1(*relevant_bucket_indices_chunk.size().last().unwrap()));
 
         let relevant_bucket_indices_chunk_all_batch =
             &relevant_bucket_indices_chunk + bucket_indices_batch_offset;
 
         let relevant_hidden_states = hidden_states
             .reshape(&[-1, self.hidden_size])
-            .index_select(0, &relevant_bucket_indices_chunk_all_batch)
+            .index_select(
+                0,
+                &relevant_bucket_indices_chunk_all_batch.to_kind(Kind::Int64),
+            )
             .reshape(&[batch_size, self.num_attention_heads, -1, self.hidden_size]);
 
         let relevant_bucket_indices_chunk = relevant_bucket_indices_chunk.reshape(&[
@@ -559,7 +567,7 @@ impl LSHSelfAttention {
         indices: &Tensor,
         sequence_length: i64,
     ) -> Tensor {
-        let start_indices_chunk = ((indices.select(1, -1) / self.chunk_length)
+        let start_indices_chunk = (indices.select(1, -1).floor_divide1(self.chunk_length)
             - self.num_chunks_before)
             * self.chunk_length;
         let total_chunk_size =
@@ -573,7 +581,9 @@ impl LSHSelfAttention {
                 .unsqueeze(0)
                 .expand(&[indices.size()[0], total_chunk_size], true);
 
-        let chunk_sequence_indices = chunk_sequence_indices.flatten(0, 1) / sequence_length;
+        let chunk_sequence_indices = chunk_sequence_indices
+            .flatten(0, 1)
+            .remainder(sequence_length);
         let indices = indices
             .unsqueeze(1)
             .expand(&[indices.size()[0], total_chunk_size, -1], true)
@@ -731,8 +741,8 @@ impl LSHSelfAttention {
         }
 
         if do_cached_attention & layer_state.is_some() {
-            if layer_state.as_ref().unwrap().prev_buckets.is_some()
-                & (key_value_hidden_states.unwrap().size()[1] > self.chunk_length)
+            if layer_state.as_ref().unwrap().prev_buckets.is_none()
+                & (key_value_hidden_states.unwrap().size()[1] >= self.chunk_length)
             {
                 buckets =
                     Some(self.hash_vectors(&query_key_vectors, num_hashes, attention_mask, false));
@@ -752,7 +762,6 @@ impl LSHSelfAttention {
             } else {
                 Some(self.hash_vectors(&query_key_vectors, num_hashes, attention_mask, false))
             };
-
             let (sorted_bucket_idx_local, undo_sorted_bucket_idx) = self
                 .get_sorted_bucket_indices_undo_sorted_bucket_indices(buckets.as_ref().unwrap());
             sorted_bucket_idx = Some(sorted_bucket_idx_local);
@@ -1290,7 +1299,7 @@ impl ReformerAttention {
                     if original_sequence_length > 1 {
                         Some(buckets_value.slice(3, 0, original_sequence_length, 1))
                     } else {
-                        None
+                        Some(buckets_value.copy())
                     }
                 } else {
                     Some(Tensor::cat(
