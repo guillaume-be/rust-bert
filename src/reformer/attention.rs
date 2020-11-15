@@ -962,7 +962,7 @@ impl LocalSelfAttention {
         do_standard_attention: bool,
     ) -> Option<Tensor> {
         let mut attention_mask = attention_mask.map(|mask| {
-            let mut mask = mask.to_kind(Kind::Int8);
+            let mut mask = mask.to_kind(Kind::Int8).unsqueeze(1);
             if !do_standard_attention {
                 mask = split_seq_length_dim_to(&mask, -1, self.chunk_length, 1, None).unwrap();
                 mask = look_adjacent(mask, self.num_chunks_before, self.num_chunks_after);
