@@ -217,39 +217,10 @@ impl SummarizationOption {
                 config.into(),
             )?)),
             ModelType::T5 => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
-            ModelType::Bert => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for Electra!".to_string(),
-            )),
-            ModelType::DistilBert => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for DistilBert!".to_string(),
-            )),
-            ModelType::Roberta => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for Roberta!".to_string(),
-            )),
-            ModelType::XLMRoberta => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for XLMRoberta!".to_string(),
-            )),
-            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for Electra!".to_string(),
-            )),
-            ModelType::Albert => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for Albert!".to_string(),
-            )),
-            ModelType::XLNet => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for XLNet!".to_string(),
-            )),
-            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for Marian!".to_string(),
-            )),
-            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for GPT2!".to_string(),
-            )),
-            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for GPT!".to_string(),
-            )),
-            ModelType::Reformer => Err(RustBertError::InvalidConfigurationError(
-                "Summarization not implemented for Reformer!".to_string(),
-            )),
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "QuestionAnswering not implemented for {:?}!",
+                config.model_type
+            ))),
         }
     }
 

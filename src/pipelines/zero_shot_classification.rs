@@ -318,24 +318,10 @@ impl ZeroShotClassificationOption {
                     ))
                 }
             }
-            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
-                "ZeroShotClassification not implemented for Electra!".to_string(),
-            )),
-            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
-                "ZeroShotClassification not implemented for Marian!".to_string(),
-            )),
-            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
-                "ZeroShotClassification not implemented for T5!".to_string(),
-            )),
-            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
-                "ZeroShotClassification not implemented for GPT2!".to_string(),
-            )),
-            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
-                "ZeroShotClassification not implemented for GPT!".to_string(),
-            )),
-            ModelType::Reformer => Err(RustBertError::InvalidConfigurationError(
-                "ZeroShotClassification not implemented for Reformer!".to_string(),
-            )),
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Zero shot classification not implemented for {:?}!",
+                model_type
+            ))),
         }
     }
 

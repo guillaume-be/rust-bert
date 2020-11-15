@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::common::activations::Activation;
+use crate::common::dropout::Dropout;
 use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::reformer::attention::{AttentionType, LayerState};
 use crate::reformer::attention_utils::{get_least_common_mult_chunk_len, get_min_chunk_len};
@@ -434,18 +435,6 @@ impl ReformerModelWithLMHead {
     }
 }
 
-///Container holding a Reformer model with LM head output
-pub struct ReformerLMModelOutput {
-    /// logits
-    pub logits: Tensor,
-    /// Hidden states for all intermediate layers
-    pub all_hidden_states: Option<Vec<Tensor>>,
-    /// Attention weights for all intermediate layers
-    pub all_attentions: Option<Vec<Tensor>>,
-    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
-    pub next_cache: Option<Vec<Option<LayerState>>>,
-}
-
 impl LMHeadModel for ReformerModelWithLMHead {
     fn forward_t(
         &self,
@@ -493,4 +482,214 @@ impl LMHeadModel for ReformerModelWithLMHead {
             all_attentions: None,
         })
     }
+}
+
+pub struct ReformerClassificationHead {
+    dense: nn::Linear,
+    dropout: Dropout,
+    out_proj: nn::Linear,
+}
+
+impl ReformerClassificationHead {
+    pub fn new<'p, P>(
+        p: P,
+        config: &ReformerConfig,
+    ) -> Result<ReformerClassificationHead, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dense = nn::linear(
+            p / "dense",
+            2 * config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let num_labels = match &config.id2label {
+            Some(value) => value.len() as i64,
+            None => {
+                return Err(RustBertError::InvalidConfigurationError(
+                    "an id to label mapping must be provided for classification tasks".to_string(),
+                ));
+            }
+        };
+        let out_proj = nn::linear(
+            p / "out_proj",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+
+        Ok(ReformerClassificationHead {
+            dense,
+            dropout,
+            out_proj,
+        })
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        hidden_states
+            .select(1, 0)
+            .apply_t(&self.dropout, train)
+            .apply(&self.dense)
+            .tanh()
+            .apply_t(&self.dropout, train)
+            .apply(&self.out_proj)
+    }
+}
+
+pub struct ReformerForSequenceClassification {
+    reformer: ReformerModel,
+    classifier: ReformerClassificationHead,
+}
+
+impl ReformerForSequenceClassification {
+    pub fn new<'p, P>(
+        p: P,
+        config: &ReformerConfig,
+    ) -> Result<ReformerForSequenceClassification, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let reformer = ReformerModel::new(p / "reformer", config)?;
+        let classifier = ReformerClassificationHead::new(p / "classifier", config)?;
+
+        Ok(ReformerForSequenceClassification {
+            reformer,
+            classifier,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        num_hashes: Option<i64>,
+        train: bool,
+    ) -> Result<ReformerClassificationOutput, RustBertError> {
+        let reformer_output = self.reformer.forward_t(
+            input_ids,
+            position_ids,
+            input_embeds,
+            attention_mask,
+            num_hashes,
+            None,
+            train,
+        )?;
+
+        let logits = self
+            .classifier
+            .forward_t(&reformer_output.hidden_states, train);
+
+        Ok(ReformerClassificationOutput {
+            logits,
+            all_hidden_states: reformer_output.all_hidden_states,
+            all_attentions: reformer_output.all_attentions,
+        })
+    }
+}
+
+pub struct ReformerForQuestionAnswering {
+    reformer: ReformerModel,
+    qa_outputs: nn::Linear,
+}
+
+impl ReformerForQuestionAnswering {
+    pub fn new<'p, P>(
+        p: P,
+        config: &ReformerConfig,
+    ) -> Result<ReformerForQuestionAnswering, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let reformer = ReformerModel::new(p / "reformer", config)?;
+        let qa_outputs = nn::linear(
+            p / "qa_outputs",
+            2 * config.hidden_size,
+            2,
+            Default::default(),
+        );
+
+        Ok(ReformerForQuestionAnswering {
+            reformer,
+            qa_outputs,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        num_hashes: Option<i64>,
+        train: bool,
+    ) -> Result<ReformerQuestionAnsweringModelOutput, RustBertError> {
+        let reformer_output = self.reformer.forward_t(
+            input_ids,
+            position_ids,
+            input_embeds,
+            attention_mask,
+            num_hashes,
+            None,
+            train,
+        )?;
+
+        let logits = reformer_output
+            .hidden_states
+            .apply(&self.qa_outputs)
+            .split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze1(-1);
+        let end_logits = end_logits.squeeze1(-1);
+
+        Ok(ReformerQuestionAnsweringModelOutput {
+            start_logits,
+            end_logits,
+            all_hidden_states: reformer_output.all_hidden_states,
+            all_attentions: reformer_output.all_attentions,
+        })
+    }
+}
+
+///Container holding a Reformer model with LM head output
+pub struct ReformerLMModelOutput {
+    /// logits
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
+    pub next_cache: Option<Vec<Option<LayerState>>>,
+}
+
+///Container holding a Reformer model with classification head
+pub struct ReformerClassificationOutput {
+    /// logits
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+///Container holding a Reformer model with question answering head
+pub struct ReformerQuestionAnsweringModelOutput {
+    /// start logits
+    pub start_logits: Tensor,
+    /// end logits
+    pub end_logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
 }

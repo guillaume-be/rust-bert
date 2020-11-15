@@ -67,6 +67,7 @@ use crate::distilbert::{
     DistilBertVocabResources,
 };
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::reformer::ReformerForSequenceClassification;
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use rust_tokenizers::tokenizer::TruncationStrategy;
@@ -188,6 +189,8 @@ pub enum SequenceClassificationOption {
     XLNet(XLNetForSequenceClassification),
     /// Bart for Sequence Classification
     Bart(BartForSequenceClassification),
+    /// Reformer for Sequence Classification
+    Reformer(ReformerForSequenceClassification),
 }
 
 impl SequenceClassificationOption {
@@ -285,24 +288,21 @@ impl SequenceClassificationOption {
                     ))
                 }
             }
-            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
-                "SequenceClassification not implemented for Electra!".to_string(),
-            )),
-            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
-                "SequenceClassification not implemented for Marian!".to_string(),
-            )),
-            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
-                "SequenceClassification not implemented for T5!".to_string(),
-            )),
-            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
-                "SequenceClassification not implemented for GPT2!".to_string(),
-            )),
-            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
-                "QuestionAnswering not implemented for GPT!".to_string(),
-            )),
-            ModelType::Reformer => Err(RustBertError::InvalidConfigurationError(
-                "QuestionAnswering not implemented for Reformer!".to_string(),
-            )),
+            ModelType::Reformer => {
+                if let ConfigOption::Reformer(config) = config {
+                    Ok(SequenceClassificationOption::Reformer(
+                        ReformerForSequenceClassification::new(p, config)?,
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a ReformerConfig for Reformer!".to_string(),
+                    ))
+                }
+            }
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "QuestionAnswering not implemented for {:?}!",
+                model_type
+            ))),
         }
     }
 
@@ -316,6 +316,7 @@ impl SequenceClassificationOption {
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Bart(_) => ModelType::Bart,
+            Self::Reformer(_) => ModelType::Reformer,
         }
     }
 
@@ -396,6 +397,12 @@ impl SequenceClassificationOption {
                         input_embeds,
                         train,
                     )
+                    .logits
+            }
+            Self::Reformer(ref model) => {
+                model
+                    .forward_t(input_ids.as_ref(), None, None, mask.as_ref(), None, train)
+                    .expect("Error in Reformer forward pass.")
                     .logits
             }
         }
