@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         merges_resource,
         min_length: 100,
         max_length: 100,
-        do_sample: false,
+        do_sample: true,
         early_stopping: false,
         num_beams: 3,
         num_return_sequences: 1,
