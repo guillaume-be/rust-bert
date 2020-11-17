@@ -153,6 +153,15 @@ pub struct PaddedReformerInput {
     pub new_input_shape: Vec<i64>,
 }
 
+/// # Reformer Base model
+/// Base architecture for the Reformer model. Usually complemented with a task-specific head, such as a language model head.
+/// It is made of the following blocks:
+/// - `embeddings`: `ReformerEmbeddings` Reformer embeddings, combining word and position embeddings
+/// - `encoder`: `ReformerEncoder` (transformer) made of a vector of Reformer layer with local or LSH attention.
+/// caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
+/// - `least_common_mult_chunk_length`: least common chunk length for all attention layers
+/// - `min_chunk_length`: minimum chunk length for all attention layers
+/// - `pad_token_id`: padding token id used to pad to chunk length multiple if input is long enough to be chunked.
 pub struct ReformerModel {
     embeddings: ReformerEmbeddings,
     encoder: ReformerEncoder,
@@ -162,6 +171,27 @@ pub struct ReformerModel {
 }
 
 impl ReformerModel {
+    /// Build a new `ReformerModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BART model
+    /// * `config` - `ReformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::reformer::{ReformerConfig, ReformerModel};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = ReformerConfig::from_file(config_path);
+    /// let reformer_model: ReformerModel = ReformerModel::new(&p.root() / "reformer", &config).unwrap();
+    /// ```
     pub fn new<'p, P>(p: P, config: &ReformerConfig) -> Result<ReformerModel, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
@@ -193,6 +223,57 @@ impl ReformerModel {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). Must be provided when no pre-computed embeddings are given.
+    /// * `position_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If not provided will be calculated on the fly starting from position 0.
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings_dim*). Must be provided when no input ids are given.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `num_hashes` - Optional specification of the number of hashes to use. If not provided will use the value provided in the model configuration.
+    /// * `old_layer_states` - Optional cached input (`Option<Vec<Option<LayerState>>>`) containing previous values for the cached states and buckets.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `ReformerModelOutput` containing:
+    ///   - `hidden_states` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*) representing the activations of the last hidden state
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer*  containing values for the states and buckets for future use.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::reformer::{ReformerConfig, ReformerModel};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/spiece.model");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ReformerConfig::from_file(config_path);
+    /// # let reformer_model: ReformerModel = ReformerModel::new(&vs.root(), &config).unwrap();
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let input_positions = Tensor::arange(sequence_length, (Kind::Int64, device)).unsqueeze(0).expand(&[batch_size, sequence_length], true);
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     reformer_model.forward_t(
+    ///         Some(&input_tensor),    
+    ///         Some(&input_positions),
+    ///         None,
+    ///         Some(&attention_mask),
+    ///         Some(4),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -363,12 +444,38 @@ impl ReformerModel {
     }
 }
 
+/// # Reformer Model for text generation
+/// Reformer model with a vocabulary decoding head
+/// It is made of the following blocks:
+/// - `reformer`: `ReformerModel` Base Reformer model
+/// - `lm_head`: `ReformerLMHead` projecting hidden states to the vocabulary dimension
 pub struct ReformerModelWithLMHead {
     reformer: ReformerModel,
     lm_head: ReformerLMHead,
 }
 
 impl ReformerModelWithLMHead {
+    /// Build a new `ReformerModelWithLMHead`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BART model
+    /// * `config` - `ReformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::reformer::{ReformerConfig, ReformerModelWithLMHead};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = ReformerConfig::from_file(config_path);
+    /// let reformer_model: ReformerModelWithLMHead = ReformerModelWithLMHead::new(&p.root(), &config).unwrap();
+    /// ```
     pub fn new<'p, P>(
         p: P,
         config: &ReformerConfig,
@@ -404,6 +511,57 @@ impl ReformerModelWithLMHead {
         Ok(ReformerModelWithLMHead { reformer, lm_head })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). Must be provided when no pre-computed embeddings are given.
+    /// * `position_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If not provided will be calculated on the fly starting from position 0.
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings_dim*). Must be provided when no input ids are given.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `num_hashes` - Optional specification of the number of hashes to use. If not provided will use the value provided in the model configuration.
+    /// * `old_layer_states` - Optional cached input (`Option<Vec<Option<LayerState>>>`) containing previous values for the cached states and buckets.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `ReformerLMModelOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocabulary item
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer*  containing values for the states and buckets for future use.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::reformer::{ReformerConfig, ReformerModelWithLMHead};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/spiece.model");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ReformerConfig::from_file(config_path);
+    /// # let reformer_model: ReformerModelWithLMHead = ReformerModelWithLMHead::new(&vs.root(), &config).unwrap();
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let input_positions = Tensor::arange(sequence_length, (Kind::Int64, device)).unsqueeze(0).expand(&[batch_size, sequence_length], true);
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     reformer_model.forward_t(
+    ///         Some(&input_tensor),    
+    ///         Some(&input_positions),
+    ///         None,
+    ///         Some(&attention_mask),
+    ///         Some(4),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -540,12 +698,38 @@ impl ReformerClassificationHead {
     }
 }
 
+/// # Reformer Model for sequence classification
+/// Reformer model with a classification head
+/// It is made of the following blocks:
+/// - `reformer`: `ReformerModel` Base Reformer model
+/// - `classifier`: `ReformerClassificationHead` projecting hidden states to the target labels
 pub struct ReformerForSequenceClassification {
     reformer: ReformerModel,
     classifier: ReformerClassificationHead,
 }
 
 impl ReformerForSequenceClassification {
+    /// Build a new `ReformerForSequenceClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BART model
+    /// * `config` - `ReformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::reformer::{ReformerConfig, ReformerForSequenceClassification};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = ReformerConfig::from_file(config_path);
+    /// let reformer_model: ReformerForSequenceClassification = ReformerForSequenceClassification::new(&p.root(), &config).unwrap();
+    /// ```
     pub fn new<'p, P>(
         p: P,
         config: &ReformerConfig,
@@ -564,6 +748,54 @@ impl ReformerForSequenceClassification {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). Must be provided when no pre-computed embeddings are given.
+    /// * `position_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If not provided will be calculated on the fly starting from position 0.
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings_dim*). Must be provided when no input ids are given.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `num_hashes` - Optional specification of the number of hashes to use. If not provided will use the value provided in the model configuration.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `ReformerClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *num_classes*) representing the logits for each target class
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::reformer::{ReformerConfig, ReformerForSequenceClassification};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/spiece.model");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ReformerConfig::from_file(config_path);
+    /// # let reformer_model: ReformerForSequenceClassification = ReformerForSequenceClassification::new(&vs.root(), &config).unwrap();
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let input_positions = Tensor::arange(sequence_length, (Kind::Int64, device)).unsqueeze(0).expand(&[batch_size, sequence_length], true);
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     reformer_model.forward_t(
+    ///         Some(&input_tensor),    
+    ///         Some(&input_positions),
+    ///         None,
+    ///         Some(&attention_mask),
+    ///         Some(4),
+    ///         false,
+    ///     )
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -595,12 +827,40 @@ impl ReformerForSequenceClassification {
     }
 }
 
+/// # Reformer Model for question answering
+/// Extractive question-answering model based on a Reformer language model. Identifies the segment of a context that answers a provided question.
+/// Please note that a significant amount of pre- and post-processing is required to perform end-to-end question answering.
+/// See the question answering pipeline (also provided in this crate) for more details.
+/// It is made of the following blocks:
+/// - `reformer`: `ReformerModel` Base Reformer model
+/// - `qa_outputs`: Linear layer for question answering, mapping to start and end logits for the answer.
 pub struct ReformerForQuestionAnswering {
     reformer: ReformerModel,
     qa_outputs: nn::Linear,
 }
 
 impl ReformerForQuestionAnswering {
+    /// Build a new `ReformerForQuestionAnswering`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BART model
+    /// * `config` - `ReformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::reformer::{ReformerConfig, ReformerForQuestionAnswering};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = ReformerConfig::from_file(config_path);
+    /// let reformer_model: ReformerForQuestionAnswering = ReformerForQuestionAnswering::new(&p.root(), &config).unwrap();
+    /// ```
     pub fn new<'p, P>(
         p: P,
         config: &ReformerConfig,
@@ -624,6 +884,55 @@ impl ReformerForQuestionAnswering {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). Must be provided when no pre-computed embeddings are given.
+    /// * `position_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If not provided will be calculated on the fly starting from position 0.
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings_dim*). Must be provided when no input ids are given.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `num_hashes` - Optional specification of the number of hashes to use. If not provided will use the value provided in the model configuration.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `ReformerClassificationOutput` containing:
+    ///   - `start_logits` -  `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    ///   - `end_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::reformer::{ReformerConfig, ReformerForQuestionAnswering};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/spiece.model");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = ReformerConfig::from_file(config_path);
+    /// # let reformer_model: ReformerForQuestionAnswering = ReformerForQuestionAnswering::new(&vs.root(), &config).unwrap();
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let input_positions = Tensor::arange(sequence_length, (Kind::Int64, device)).unsqueeze(0).expand(&[batch_size, sequence_length], true);
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     reformer_model.forward_t(
+    ///         Some(&input_tensor),    
+    ///         Some(&input_positions),
+    ///         None,
+    ///         Some(&attention_mask),
+    ///         Some(4),
+    ///         false,
+    ///     )
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
