@@ -740,13 +740,12 @@ impl LSHSelfAttention {
             );
         }
 
-        if do_cached_attention & layer_state.is_some() {
-            if layer_state.as_ref().unwrap().prev_buckets.is_none()
+        if do_cached_attention & layer_state.is_some()
+            && layer_state.as_ref().unwrap().prev_buckets.is_none()
                 & (key_value_hidden_states.unwrap().size()[1] >= self.chunk_length)
-            {
-                buckets =
-                    Some(self.hash_vectors(&query_key_vectors, num_hashes, attention_mask, false));
-            }
+        {
+            buckets =
+                Some(self.hash_vectors(&query_key_vectors, num_hashes, attention_mask, false));
         }
 
         let do_standard_attention =
