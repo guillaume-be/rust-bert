@@ -58,6 +58,7 @@ fn test_generation_reformer() -> anyhow::Result<()> {
         early_stopping: false,
         num_beams: 3,
         num_return_sequences: 1,
+        device: Device::Cpu,
         ..Default::default()
     };
 
@@ -68,8 +69,8 @@ fn test_generation_reformer() -> anyhow::Result<()> {
     let output = model.generate(&[input_context_1, input_context_2], None);
 
     assert_eq!(output.len(), 2);
-    assert_eq!(output[0], " The really great men must, I think, anyway waiting for some unknown reason, but Nikodim Fomitch and Ilya Petrovitch looked at him anguish invitable incidently at him. He could not remarkable and sat different matter; he");
-    assert_eq!(output[1], " It was a gloom winter night, and he went out into the street he remembered that he had turned to walked towards the Hay Market. Nastasya was going into a tavern. “She is always through her as though she is altoget");
+    assert_eq!(output[0], " The really great men must, I think, anyway waiting for some unknown reason, but Nikodim Fomitch and Ilya Petrovitch looked at him anguish invitable incidently at him. He could not resist an impression which might be setting");
+    assert_eq!(output[1], " It was a gloom winter night, and he went out into the street he remembered that he had turned to walked towards the Hay Market. Nastasya was going into a tavern-keeper. He was in the corner; he had come out of the win");
 
     Ok(())
 }
