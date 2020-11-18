@@ -31,17 +31,20 @@
 //! ```
 //! - Transformer models base architectures with customized heads. These allow to load pre-trained models for customized inference in Rust
 //!
-//!  | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|**ALBERT**|**T5**|**XLNet**
-//! :-----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:
-//! Masked LM|✅ |✅ |✅ | | | |✅| |✅ | |✅|
-//! Sequence classification|✅ |✅ |✅| | |✅| | |✅ | |✅|
-//! Token classification|✅ |✅ | ✅| | | |✅| |✅ | |✅|
-//! Question answering|✅ |✅ |✅| | | | | |✅ | |✅|
-//! Multiple choices| |✅ |✅| | | | | |✅ | |✅|
-//! Next token prediction| | | |✅|✅| | | | | |✅|
-//! Natural Language Generation| | | |✅|✅| | | | | |✅|
-//! Summarization| | | | | |✅| | | | | |
-//! Translation| | | | | | | |✅| |✅| |
+//! | |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|
+//! :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
+//! DistilBERT|✅|✅|✅| | | |✅|
+//! BERT|✅|✅|✅| | | |✅|
+//! RoBERTa|✅|✅|✅| | | |✅|
+//! GPT| | | |✅ | | | |
+//! GPT2| | | |✅ | | | |
+//! BART|✅| | |✅ |✅| | |
+//! Marian| | | |  | |✅| |
+//! Electra | |✅| | | | |✅|
+//! ALBERT |✅|✅|✅| | | |✅|
+//! T5 | | | |✅ |✅|✅| |
+//! XLNet|✅|✅|✅|✅ | | |✅|
+//! Reformer|✅| |✅|✅ | | |✅|
 //!
 //! # Loading pre-trained models
 //!
@@ -68,6 +71,7 @@ pub mod gpt2;
 pub mod marian;
 pub mod openai_gpt;
 pub mod pipelines;
+pub mod reformer;
 pub mod roberta;
 pub mod t5;
 pub mod xlnet;

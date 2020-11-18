@@ -399,21 +399,10 @@ impl TokenClassificationOption {
                     ))
                 }
             }
-            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
-                "TokenClassification not implemented for Marian!".to_string(),
-            )),
-            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
-                "TokenClassification not implemented for T5!".to_string(),
-            )),
-            ModelType::Bart => Err(RustBertError::InvalidConfigurationError(
-                "TokenClassification not implemented for BART!".to_string(),
-            )),
-            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
-                "TokenClassification not implemented for GPT2!".to_string(),
-            )),
-            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
-                "TokenClassification not implemented for GPT!".to_string(),
-            )),
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Token classification not implemented for {:?}!",
+                model_type
+            ))),
         }
     }
 
@@ -725,18 +714,10 @@ impl TokenClassificationModel {
                 TokenizerOption::XLNet(ref tokenizer) => {
                     Tokenizer::decode(tokenizer, vec![token_id], false, false)
                 }
-                TokenizerOption::Marian(_) => {
-                    panic!("TokenClassification not implemented for Marian!");
-                }
-                TokenizerOption::T5(_) => {
-                    panic!("TokenClassification not implemented for T5!");
-                }
-                TokenizerOption::GPT2(_) => {
-                    panic!("TokenClassification not implemented for GPT2!");
-                }
-                TokenizerOption::OpenAiGpt(_) => {
-                    panic!("TokenClassification not implemented for GPT!");
-                }
+                _ => panic!(format!(
+                    "Token classification not implemented for {:?}!",
+                    self.tokenizer.model_type()
+                )),
             },
             Some(offsets) => {
                 let (start_char, end_char) = (offsets.begin as usize, offsets.end as usize);

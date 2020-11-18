@@ -52,6 +52,7 @@ use crate::distilbert::{
     DistilBertVocabResources,
 };
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::reformer::ReformerForQuestionAnswering;
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
 use rust_tokenizers::tokenizer::{truncate_sequences, TruncationStrategy};
@@ -268,6 +269,8 @@ pub enum QuestionAnsweringOption {
     Albert(AlbertForQuestionAnswering),
     /// XLNet for Question Answering
     XLNet(XLNetForQuestionAnswering),
+    /// Reformer for Question Answering
+    Reformer(ReformerForQuestionAnswering),
 }
 
 impl QuestionAnsweringOption {
@@ -354,24 +357,21 @@ impl QuestionAnsweringOption {
                     ))
                 }
             }
-            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
-                "QuestionAnswering not implemented for Electra!".to_string(),
-            )),
-            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
-                "QuestionAnswering not implemented for Marian!".to_string(),
-            )),
-            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
-                "QuestionAnswering not implemented for T5!".to_string(),
-            )),
-            ModelType::Bart => Err(RustBertError::InvalidConfigurationError(
-                "QuestionAnswering not implemented for BART!".to_string(),
-            )),
-            ModelType::GPT2 => Err(RustBertError::InvalidConfigurationError(
-                "QuestionAnswering not implemented for GPT2!".to_string(),
-            )),
-            ModelType::OpenAiGpt => Err(RustBertError::InvalidConfigurationError(
-                "QuestionAnswering not implemented for GPT!".to_string(),
-            )),
+            ModelType::Reformer => {
+                if let ConfigOption::Reformer(config) = config {
+                    Ok(QuestionAnsweringOption::Reformer(
+                        ReformerForQuestionAnswering::new(p, config)?,
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a ReformerConfig for Reformer!".to_string(),
+                    ))
+                }
+            }
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "QuestionAnswering not implemented for {:?}!",
+                model_type
+            ))),
         }
     }
 
@@ -384,6 +384,7 @@ impl QuestionAnsweringOption {
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
+            Self::Reformer(_) => ModelType::Reformer,
         }
     }
 
@@ -425,6 +426,12 @@ impl QuestionAnsweringOption {
                     input_embeds,
                     train,
                 );
+                (outputs.start_logits, outputs.end_logits)
+            }
+            Self::Reformer(ref model) => {
+                let outputs = model
+                    .forward_t(input_ids.as_ref(), None, None, mask.as_ref(), None, train)
+                    .expect("Error in reformer forward pass");
                 (outputs.start_logits, outputs.end_logits)
             }
         }

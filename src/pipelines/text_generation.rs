@@ -25,7 +25,8 @@ use crate::gpt2::{
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{
-    GPT2Generator, GenerateConfig, LanguageGenerator, OpenAIGenerator, XLNetGenerator,
+    GPT2Generator, GenerateConfig, LanguageGenerator, OpenAIGenerator, ReformerGenerator,
+    XLNetGenerator,
 };
 use crate::resources::Resource;
 use itertools::Itertools;
@@ -167,6 +168,8 @@ pub enum TextGenerationOption {
     GPT(OpenAIGenerator),
     /// Text Generator based on XLNet model
     XLNet(XLNetGenerator),
+    /// Text Generator based on Reformer model
+    Reformer(ReformerGenerator),
 }
 
 impl TextGenerationOption {
@@ -181,33 +184,13 @@ impl TextGenerationOption {
             ModelType::XLNet => Ok(TextGenerationOption::XLNet(XLNetGenerator::new(
                 config.into(),
             )?)),
-            ModelType::Bert => Err(RustBertError::InvalidConfigurationError(
-                "Text generation not implemented for Electra!".to_string(),
-            )),
-            ModelType::Bart => Err(RustBertError::InvalidConfigurationError(
-                "Text generation not implemented for BART!".to_string(),
-            )),
-            ModelType::T5 => Err(RustBertError::InvalidConfigurationError(
-                "Text generation not implemented for T5!".to_string(),
-            )),
-            ModelType::DistilBert => Err(RustBertError::InvalidConfigurationError(
-                "Text generation not implemented for DistilBert!".to_string(),
-            )),
-            ModelType::Roberta => Err(RustBertError::InvalidConfigurationError(
-                "Text generation not implemented for Roberta!".to_string(),
-            )),
-            ModelType::XLMRoberta => Err(RustBertError::InvalidConfigurationError(
-                "Text generation not implemented for XLMRoberta!".to_string(),
-            )),
-            ModelType::Electra => Err(RustBertError::InvalidConfigurationError(
-                "Text generation not implemented for Electra!".to_string(),
-            )),
-            ModelType::Albert => Err(RustBertError::InvalidConfigurationError(
-                "Text generation not implemented for Albert!".to_string(),
-            )),
-            ModelType::Marian => Err(RustBertError::InvalidConfigurationError(
-                "Text generation not implemented for Marian!".to_string(),
-            )),
+            ModelType::Reformer => Ok(TextGenerationOption::Reformer(ReformerGenerator::new(
+                config.into(),
+            )?)),
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Text generation not implemented for {:?}!",
+                config.model_type
+            ))),
         }
     }
 
@@ -217,6 +200,7 @@ impl TextGenerationOption {
             Self::GPT2(_) => ModelType::GPT2,
             Self::GPT(_) => ModelType::OpenAiGpt,
             Self::XLNet(_) => ModelType::XLNet,
+            Self::Reformer(_) => ModelType::Reformer,
         }
     }
 
@@ -226,6 +210,7 @@ impl TextGenerationOption {
             Self::GPT2(model_ref) => model_ref.get_tokenizer(),
             Self::GPT(model_ref) => model_ref.get_tokenizer(),
             Self::XLNet(model_ref) => model_ref.get_tokenizer(),
+            Self::Reformer(model_ref) => model_ref.get_tokenizer(),
         }
     }
 
@@ -248,6 +233,9 @@ impl TextGenerationOption {
                 model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
             }
             Self::XLNet(ref model) => {
+                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
+            }
+            Self::Reformer(ref model) => {
                 model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
             }
         }

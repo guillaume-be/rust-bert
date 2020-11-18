@@ -675,7 +675,8 @@ impl ConversationOption {
         match config.model_type {
             ModelType::GPT2 => Ok(ConversationOption::GPT2(GPT2Generator::new(config.into())?)),
             _ => Err(RustBertError::InvalidConfigurationError(
-                "GPT2 currently only supported model for conversation generation".to_string(),
+                "GPT2 is currently the only supported model for conversation generation"
+                    .to_string(),
             )),
         }
     }

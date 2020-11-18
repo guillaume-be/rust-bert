@@ -10,17 +10,20 @@ This repository exposes the model base architecture, task-specific heads (see be
 
 The following models are currently implemented:
 
- | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|**ALBERT**|**T5**|**XLNet**|
-:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:|:----:|:----:|:----:
-Masked LM|✅ |✅ |✅ | | | |✅| |✅ | |✅ |
-Sequence classification|✅ |✅ |✅| | |✅ | | |✅ | |✅ |
-Token classification|✅ |✅ | ✅| | | |✅| |✅ | |✅ |
-Question answering|✅ |✅ |✅| | | | | |✅ | |✅ |
-Multiple choices| |✅ |✅| | | | | |✅ | |✅ |✅ |
-Next token prediction| | | |✅|✅|✅| | | | |✅ |
-Natural Language Generation| | | |✅|✅|✅| | | | |✅ |
-Summarization | | | | | |✅| | | | | |
-Translation | | | | | |✅| |✅ | |✅| |
+| |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|
+:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
+DistilBERT|✅|✅|✅| | | |✅| 
+BERT|✅|✅|✅| | | |✅| 
+RoBERTa|✅|✅|✅| | | |✅| 
+GPT| | | |✅ | | | | 
+GPT2| | | |✅ | | | | 
+BART|✅| | |✅ |✅| | | 
+Marian| | | |  | |✅| | 
+Electra | |✅| | | | |✅| 
+ALBERT |✅|✅|✅| | | |✅| 
+T5 | | | |✅ |✅|✅| | 
+XLNet|✅|✅|✅|✅ | | |✅| 
+Reformer|✅| |✅|✅ | | |✅| 
 
 ## Ready-to-use pipelines
 	
