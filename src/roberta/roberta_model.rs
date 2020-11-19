@@ -74,27 +74,27 @@ impl RobertaConfigResources {
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/deepset/roberta-base-squad2/config.json",
+        "https://huggingface.co/deepset/roberta-base-squad2/config.json",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll03-english-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english-config.json",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll03-german-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german-config.json",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll02-dutch-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch-config.json",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll02-spanish-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish-config.json",
     );
 }
 
