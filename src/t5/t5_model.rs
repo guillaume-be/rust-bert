@@ -34,12 +34,12 @@ impl T5ModelResources {
     /// Shared under Apache 2.0 license by the T5 Authors at https://github.com/google-research/text-to-text-transfer-transformer. Modified with conversion to C-array format.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/model",
-        "https://cdn.huggingface.co/t5-small/rust_model.ot",
+        "https://huggingface.co/t5-small/resolve/main/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the T5 Authors at https://github.com/google-research/text-to-text-transfer-transformer. Modified with conversion to C-array format.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/model",
-        "https://cdn.huggingface.co/t5-base/rust_model.ot",
+        "https://huggingface.co/t5-base/resolve/main/rust_model.ot",
     );
 }
 

@@ -132,7 +132,7 @@ impl RemoteResource {
     /// use rust_bert::resources::{RemoteResource, Resource};
     /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
     ///     "distilbert-sst2",
-    ///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
+    ///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
     /// )));
     /// ```
     pub fn from_pretrained(name_url_tuple: (&str, &str)) -> RemoteResource {
@@ -188,7 +188,7 @@ fn _get_cache_directory() -> PathBuf {
 /// use rust_bert::resources::{RemoteResource, Resource};
 /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
 ///     "distilbert-sst2/model.ot",
-///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
+///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
 /// )));
 /// let local_path = model_resource.get_local_path();
 /// ```
