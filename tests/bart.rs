@@ -12,17 +12,20 @@ use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy
 use tch::{nn, Device, Tensor};
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_lm_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
-    let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
-    let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
-    let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
@@ -71,10 +74,25 @@ fn bart_lm_model() -> anyhow::Result<()> {
 }
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_greedy() -> anyhow::Result<()> {
     //    Set-up masked LM model
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
     let summarization_config = SummarizationConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         num_beams: 1,
         device: Device::Cpu,
         ..Default::default()
@@ -115,10 +133,25 @@ about exoplanets like K2-18b."];
 }
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_beam_search() -> anyhow::Result<()> {
     //    Set-up masked LM model
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
     let summarization_config = SummarizationConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         num_beams: 3,
         device: Device::Cpu,
         ..Default::default()
