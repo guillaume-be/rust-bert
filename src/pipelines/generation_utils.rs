@@ -2399,15 +2399,17 @@ pub(crate) mod private_generation_utils {
                 beam_tokens = token_id_tensor.masked_select(&eos_mask2);
                 beam_indices = effective_beam_ids_tensor.masked_select(&eos_mask2);
                 let eos_pos = (eos_mask.ones_like() - eos_mask).nonzero();
-                for (pos, batch_index) in eos_pos
-                    .transpose(0, 1)
-                    .get(0)
-                    .iter::<i64>()
-                    .unwrap()
-                    .enumerate()
-                {
+
+                for eos_idx in 0..eos_pos.size()[0] {
+                    let eos_data = eos_pos.get(eos_idx);
+                    let batch_index = eos_data.int64_value(&[0]);
                     if !done[batch_index as usize] {
-                        let beam_index_pos = eos_pos.int64_value(&[pos as i64, 1]);
+                        let beam_index_pos = eos_data.int64_value(&[1]);
+                        let is_beam_token_worse_than_top_num_beams =
+                            beam_index_pos >= gen_opt.num_beams;
+                        if is_beam_token_worse_than_top_num_beams {
+                            continue;
+                        }
                         let effective_beam_id =
                             effective_beam_ids_tensor.int64_value(&[batch_index, beam_index_pos]);
                         let beam_token_score =
