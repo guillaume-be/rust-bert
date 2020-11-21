@@ -63,7 +63,7 @@ jobs:
           override: true
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.7'
       - run: |
           pip install -r requirements.txt --progress-bar off
           python ./utils/download-dependencies_distilbert.py
