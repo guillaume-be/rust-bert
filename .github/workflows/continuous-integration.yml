@@ -65,8 +65,8 @@ jobs:
         with:
           python-version: '3.x'
       - run: |
-          pip3 install -r requirements.txt --progress-bar off
-          python3 ./utils/download-dependencies_distilbert.py
+          pip install -r requirements.txt --progress-bar off
+          python ./utils/download-dependencies_distilbert.py
 
   fmt:
     name: Rustfmt
