@@ -10,7 +10,7 @@ name: Continuous integration
 
 jobs:
   check:
-    name: Build linux
+    name: Build Linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -23,8 +23,22 @@ jobs:
         with:
           command: check
 
+  check-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+
   test:
-    name: Test Suite
+    name: Integration tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -36,6 +50,23 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
+
+  convert-model:
+    name: Model conversion test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - run: |
+          pip3 install -r requirements.txt --progress-bar off
+          python3 ./utils/download-dependencies_distilbert.py
 
   fmt:
     name: Rustfmt
@@ -67,4 +98,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warnings
+          args: --all-targets --all-features -- -D warnings -A clippy::assign_op_pattern
