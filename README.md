@@ -1,6 +1,6 @@
 # rust-bert
 
-[![Build Status](https://travis-ci.com/guillaume-be/rust-bert.svg?branch=master)](https://travis-ci.com/guillaume-be/rust-bert)
+[![Build Status](https://github.com/guillaume-be/rust-bert/workflows/Build/badge.svg?event=push)](https://github.com/guillaume-be/rust-bert/actions)
 [![Latest version](https://img.shields.io/crates/v/rust_bert.svg)](https://crates.io/crates/rust_bert)
 [![Documentation](https://docs.rs/rust-bert/badge.svg)](https://docs.rs/rust-bert)
 ![License](https://img.shields.io/crates/l/rust_bert.svg)
@@ -258,7 +258,21 @@ Several Python scripts to load Pytorch weights and convert them to the appropria
    - Set-up a virtual environment and install dependencies
    - run the conversion script `python /utils/download-dependencies_{MODEL_TO_DOWNLOAD}.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert/{}`.
    Alternatively you may load local weight files and run the conversion directly.
+   
+## Citation
 
+If you use `rust-bert` for your work, please cite [End-to-end NLP Pipelines in Rust](https://www.aclweb.org/anthology/2020.nlposs-1.4/):
+```bibtex
+@inproceedings{becquin-2020-end,
+    title = "End-to-end {NLP} Pipelines in Rust",
+    author = "Becquin, Guillaume",
+    booktitle = "Proceedings of Second Workshop for NLP Open Source Software (NLP-OSS)",
+    year = "2020",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/2020.nlposs-1.4",
+    pages = "20--25",
+}
+```
 
 ## Acknowledgements
 
