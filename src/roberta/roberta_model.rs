@@ -38,6 +38,11 @@ impl RobertaModelResources {
         "roberta/model",
         "https://cdn.huggingface.co/roberta-base-rust_model.ot",
     );
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at https://huggingface.co/distilroberta-base. Modified with conversion to C-array format.
+    pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
+        "distilroberta-base/model",
+        "https://cdn.huggingface.co/distilroberta-base-rust_model.ot",
+    );
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/model",
@@ -70,6 +75,11 @@ impl RobertaConfigResources {
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/config",
         "https://cdn.huggingface.co/roberta-base-config.json",
+    );
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at https://huggingface.co/distilroberta-base. Modified with conversion to C-array format.
+    pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
+        "distilroberta-base/config",
+        "https://cdn.huggingface.co/distilroberta-base-config.json",
     );
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
@@ -104,6 +114,11 @@ impl RobertaVocabResources {
         "roberta/vocab",
         "https://cdn.huggingface.co/roberta-base-vocab.json",
     );
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at https://huggingface.co/distilroberta-base. Modified with conversion to C-array format.
+    pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
+        "distilroberta-base/vocab",
+        "https://cdn.huggingface.co/distilroberta-base-vocab.json",
+    );
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/vocab",
@@ -136,6 +151,11 @@ impl RobertaMergesResources {
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/merges",
         "https://cdn.huggingface.co/roberta-base-merges.txt",
+    );
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at https://huggingface.co/distilroberta-base. Modified with conversion to C-array format.
+    pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
+        "distilroberta-base/merges",
+        "https://cdn.huggingface.co/distilroberta-base-merges.txt",
     );
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (

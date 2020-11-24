@@ -61,12 +61,12 @@ impl BartModelResources {
     /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-6-6. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
         "distilbart-cnn-6-6/model",
-        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/rust_model.ot",
+        "https://huggingface.co/sshleifer/distilbart-cnn-6-6/resolve/main/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-12-6. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
         "distilbart-cnn-12-6/model",
-        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/rust_model.ot",
+        "https://huggingface.co/sshleifer/distilbart-cnn-12-6/resolve/main/rust_model.ot",
     );
 }
 
