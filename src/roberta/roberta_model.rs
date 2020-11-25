@@ -36,32 +36,32 @@ impl RobertaModelResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/model",
-        "https://cdn.huggingface.co/roberta-base-rust_model.ot",
+        "https://huggingface.co/roberta-base/resolve/main/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/model",
-        "https://cdn.huggingface.co/deepset/roberta-base-squad2/rust_model.ot",
+        "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/model",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-english-rust_model.ot",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english/resolve/main/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/model",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-german-rust_model.ot",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german/resolve/main/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/model",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-dutch-rust_model.ot",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch/resolve/main/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/model",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-spanish-rust_model.ot",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/rust_model.ot",
     );
 }
 
@@ -69,32 +69,32 @@ impl RobertaConfigResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/config",
-        "https://cdn.huggingface.co/roberta-base-config.json",
+        "https://huggingface.co/roberta-base/resolve/main/config.json",
     );
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/deepset/roberta-base-squad2/config.json",
+        "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/config.json",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll03-english-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english/resolve/main/config.json",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll03-german-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german/resolve/main/config.json",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll02-dutch-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch/resolve/main/config.json",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll02-spanish-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/config.json",
     );
 }
 
@@ -102,32 +102,32 @@ impl RobertaVocabResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/vocab",
-        "https://cdn.huggingface.co/roberta-base-vocab.json",
+        "https://huggingface.co/roberta-base/resolve/main/vocab.json",
     );
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/vocab",
-        "https://cdn.huggingface.co/deepset/roberta-base-squad2/vocab.json",
+        "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/vocab.json",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/spiece",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-english-sentencepiece.bpe.model",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english/resolve/main/sentencepiece.bpe.model",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/spiece",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-german-sentencepiece.bpe.model",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german/resolve/main/sentencepiece.bpe.model",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/spiece",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-dutch-sentencepiece.bpe.model",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch/resolve/main/sentencepiece.bpe.model",
     );
     /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/spiece",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-spanish-sentencepiece.bpe.model",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/sentencepiece.bpe.model",
     );
 }
 
@@ -135,12 +135,12 @@ impl RobertaMergesResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/merges",
-        "https://cdn.huggingface.co/roberta-base-merges.txt",
+        "https://huggingface.co/roberta-base/resolve/main/merges.txt",
     );
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/merges",
-        "https://cdn.huggingface.co/deepset/roberta-base-squad2/merges.txt",
+        "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/merges.txt",
     );
 }
 

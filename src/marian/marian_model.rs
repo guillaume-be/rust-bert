@@ -37,42 +37,42 @@ impl MarianModelResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const ENGLISH2ROMANCE: (&'static str, &'static str) = (
         "marian-mt-en-ROMANCE/model",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/rust_model.ot",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/resolve/main/rust_model.ot",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const ROMANCE2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-ROMANCE-en/model",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/rust_model.ot",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/resolve/main/rust_model.ot",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const ENGLISH2GERMAN: (&'static str, &'static str) = (
         "marian-mt-en-de/model",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/rust_model.ot",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-de/resolve/main/rust_model.ot",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const GERMAN2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-de-en/model",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/rust_model.ot",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-de-en/resolve/main/rust_model.ot",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = (
         "marian-mt-en-ru/model",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/rust_model.ot",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-ru/resolve/main/rust_model.ot",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-ru-en/model",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/rust_model.ot",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-ru-en/resolve/main/rust_model.ot",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const FRENCH2GERMAN: (&'static str, &'static str) = (
         "marian-mt-fr-de/model",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/rust_model.ot",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-fr-de/resolve/main/rust_model.ot",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
     pub const GERMAN2FRENCH: (&'static str, &'static str) = (
         "marian-mt-de-fr/model",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/rust_model.ot",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-de-fr/resolve/main/rust_model.ot",
     );
 }
 
@@ -80,42 +80,42 @@ impl MarianConfigResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2ROMANCE: (&'static str, &'static str) = (
         "marian-mt-en-ROMANCE/config",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/config.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/resolve/main/config.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ROMANCE2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-ROMANCE-en/config",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/config.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/resolve/main/config.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2GERMAN: (&'static str, &'static str) = (
         "marian-mt-en-de/config",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/config.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-de/resolve/main/config.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const GERMAN2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-de-en/config",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/config.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-de-en/resolve/main/config.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = (
         "marian-mt-en-ru/config",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/config.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-ru/resolve/main/config.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-ru-en/config",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/config.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-ru-en/resolve/main/config.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const FRENCH2GERMAN: (&'static str, &'static str) = (
         "marian-mt-fr-de/config",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/config.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-fr-de/resolve/main/config.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const GERMAN2FRENCH: (&'static str, &'static str) = (
         "marian-mt-de-fr/config",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/config.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-de-fr/resolve/main/config.json",
     );
 }
 
@@ -123,42 +123,42 @@ impl MarianVocabResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2ROMANCE: (&'static str, &'static str) = (
         "marian-mt-en-ROMANCE/vocab",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/vocab.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/resolve/main/vocab.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ROMANCE2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-ROMANCE-en/vocab",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/vocab.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/resolve/main/vocab.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2GERMAN: (&'static str, &'static str) = (
         "marian-mt-en-de/vocab",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/vocab.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-de/resolve/main/vocab.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const GERMAN2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-de-en/vocab",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/vocab.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-de-en/resolve/main/vocab.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = (
         "marian-mt-en-ru/vocab",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/vocab.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-ru/resolve/main/vocab.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-ru-en/vocab",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/vocab.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-ru-en/resolve/main/vocab.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const FRENCH2GERMAN: (&'static str, &'static str) = (
         "marian-mt-fr-de/vocab",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/vocab.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-fr-de/resolve/main/vocab.json",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const GERMAN2FRENCH: (&'static str, &'static str) = (
         "marian-mt-de-fr/vocab",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/vocab.json",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-de-fr/resolve/main/vocab.json",
     );
 }
 
@@ -166,42 +166,42 @@ impl MarianSpmResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2ROMANCE: (&'static str, &'static str) = (
         "marian-mt-en-ROMANCE/spiece",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/source.spm",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-ROMANCE/resolve/main/source.spm",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ROMANCE2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-ROMANCE-en/spiece",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/source.spm",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-ROMANCE-en/resolve/main/source.spm",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2GERMAN: (&'static str, &'static str) = (
         "marian-mt-en-de/spiece",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-de/source.spm",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-de/resolve/main/source.spm",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const GERMAN2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-de-en/spiece",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-en/source.spm",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-de-en/resolve/main/source.spm",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const ENGLISH2RUSSIAN: (&'static str, &'static str) = (
         "marian-mt-en-ru/spiece",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-en-ru/source.spm",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-ru/resolve/main/source.spm",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const RUSSIAN2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-ru-en/spiece",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-ru-en/source.spm",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-ru-en/resolve/main/source.spm",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const FRENCH2GERMAN: (&'static str, &'static str) = (
         "marian-mt-fr-de/spiece",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-fr-de/source.spm",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-fr-de/resolve/main/source.spm",
     );
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
     pub const GERMAN2FRENCH: (&'static str, &'static str) = (
         "marian-mt-de-fr/spiece",
-        "https://cdn.huggingface.co/Helsinki-NLP/opus-mt-de-fr/source.spm",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-de-fr/resolve/main/source.spm",
     );
 }
 

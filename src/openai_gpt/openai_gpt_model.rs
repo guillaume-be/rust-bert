@@ -39,7 +39,7 @@ impl OpenAiGptModelResources {
     /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/model",
-        "https://cdn.huggingface.co/openai-gpt-rust_model.ot",
+        "https://huggingface.co/openai-gpt/resolve/main/rust_model.ot",
     );
 }
 
@@ -47,7 +47,7 @@ impl OpenAiGptConfigResources {
     /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/config",
-        "https://cdn.huggingface.co/openai-gpt-config.json",
+        "https://huggingface.co/openai-gpt/resolve/main/config.json",
     );
 }
 
@@ -55,7 +55,7 @@ impl OpenAiGptVocabResources {
     /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/vocab",
-        "https://cdn.huggingface.co/openai-gpt-vocab.json",
+        "https://huggingface.co/openai-gpt/resolve/main/vocab.json",
     );
 }
 
@@ -63,7 +63,7 @@ impl OpenAiGptMergesResources {
     /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/merges",
-        "https://cdn.huggingface.co/openai-gpt-merges.txt",
+        "https://huggingface.co/openai-gpt/resolve/main/merges.txt",
     );
 }
 

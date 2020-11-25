@@ -34,12 +34,12 @@ impl T5ModelResources {
     /// Shared under Apache 2.0 license by the T5 Authors at https://github.com/google-research/text-to-text-transfer-transformer. Modified with conversion to C-array format.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/model",
-        "https://cdn.huggingface.co/t5-small/rust_model.ot",
+        "https://huggingface.co/t5-small/resolve/main/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by the T5 Authors at https://github.com/google-research/text-to-text-transfer-transformer. Modified with conversion to C-array format.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/model",
-        "https://cdn.huggingface.co/t5-base/rust_model.ot",
+        "https://huggingface.co/t5-base/resolve/main/rust_model.ot",
     );
 }
 
@@ -47,12 +47,12 @@ impl T5ConfigResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/t5-small-config.json",
+        "https://huggingface.co/t5-small/resolve/main/config.json",
     );
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/t5-base-config.json",
+        "https://huggingface.co/t5-base/resolve/main/config.json",
     );
 }
 
@@ -60,12 +60,12 @@ impl T5VocabResources {
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/spiece",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/t5-spiece.model",
+        "https://huggingface.co/t5-small/resolve/main/spiece.model",
     );
     /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/spiece",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/t5-spiece.model",
+        "https://huggingface.co/t5-base/resolve/main/spiece.model",
     );
 }
 
