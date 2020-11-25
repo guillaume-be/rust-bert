@@ -71,8 +71,10 @@ impl Gpt2ModelResources {
 
 impl Gpt2ConfigResources {
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) =
-        ("gpt2/config", "https://huggingface.co/gpt2/resolve/main/config.json");
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/config",
+        "https://huggingface.co/gpt2/resolve/main/config.json",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/config",
@@ -102,8 +104,10 @@ impl Gpt2ConfigResources {
 
 impl Gpt2VocabResources {
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) =
-        ("gpt2/vocab", "https://huggingface.co/gpt2/resolve/main/vocab.json");
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/vocab",
+        "https://huggingface.co/gpt2/resolve/main/vocab.json",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/vocab",
@@ -133,8 +137,10 @@ impl Gpt2VocabResources {
 
 impl Gpt2MergesResources {
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) =
-        ("gpt2/merges", "https://huggingface.co/gpt2/resolve/main/merges.txt");
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/merges",
+        "https://huggingface.co/gpt2/resolve/main/merges.txt",
+    );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/merges",
