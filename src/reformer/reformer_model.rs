@@ -38,7 +38,7 @@ impl ReformerModelResources {
     /// Shared under Apache 2.0 license by the Trax Authors at https://github.com/google/trax/tree/master/trax/models/reformer. Modified with conversion to C-array format.
     pub const CRIME_AND_PUNISHMENT: (&'static str, &'static str) = (
         "reformer-crime-punishment/model",
-        "https://cdn.huggingface.co/google/reformer-crime-and-punishment/rust_model.ot",
+        "https://huggingface.co/google/reformer-crime-and-punishment/resolve/main/rust_model.ot",
     );
 }
 
@@ -46,7 +46,7 @@ impl ReformerConfigResources {
     /// Shared under Apache 2.0 license by the Trax Authors at https://github.com/google/trax/tree/master/trax/models/reformer. Modified with conversion to C-array format.
     pub const CRIME_AND_PUNISHMENT: (&'static str, &'static str) = (
         "reformer-crime-punishment/config",
-        "https://cdn.huggingface.co/google/reformer-crime-and-punishment/config.json",
+        "https://huggingface.co/google/reformer-crime-and-punishment/resolve/main/config.json",
     );
 }
 
@@ -54,7 +54,7 @@ impl ReformerVocabResources {
     /// Shared under Apache 2.0 license by the Trax Authors at https://github.com/google/trax/tree/master/trax/models/reformer. Modified with conversion to C-array format.
     pub const CRIME_AND_PUNISHMENT: (&'static str, &'static str) = (
         "reformer-crime-punishment/spiece",
-        "https://cdn.huggingface.co/google/reformer-crime-and-punishment/spiece.model",
+        "https://huggingface.co/google/reformer-crime-and-punishment/resolve/main/spiece.model",
     );
 }
 
