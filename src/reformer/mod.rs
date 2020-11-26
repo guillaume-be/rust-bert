@@ -18,10 +18,10 @@
 //! #
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
+//! use rust_bert::reformer::{ReformerConfig, ReformerModel};
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::ReformerTokenizer;
-//! use rust_bert::reformer::{ReformerConfig, ReformerModel};
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
@@ -38,10 +38,8 @@
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: ReformerTokenizer = ReformerTokenizer::from_file(
-//!     vocab_path.to_str().unwrap(),
-//!     true,
-//! )?;
+//! let tokenizer: ReformerTokenizer =
+//!     ReformerTokenizer::from_file(vocab_path.to_str().unwrap(), true)?;
 //! let config = ReformerConfig::from_file(config_path);
 //! let bart_model = ReformerModel::new(&vs.root(), &config);
 //! vs.load(weights_path)?;

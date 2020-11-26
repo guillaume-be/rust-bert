@@ -21,10 +21,8 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::common::ModelType;
-//! use rust_bert::pipelines::generation_utils::{
-//!     LanguageGenerator, XLNetGenerator,
-//! };
-//! use rust_bert::pipelines::text_generation::{TextGenerationModel, TextGenerationConfig};
+//! use rust_bert::pipelines::generation_utils::{LanguageGenerator, XLNetGenerator};
+//! use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 //! use rust_bert::resources::{RemoteResource, Resource};
 //! use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
 //! let config_resource = Resource::Remote(RemoteResource::from_pretrained(
