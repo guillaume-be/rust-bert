@@ -192,7 +192,8 @@ impl<T: BertEmbedding> BertModel<T> {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert: BertModel<BertEmbeddings> = BertModel::new_with_optional_pooler(&p.root() / "bert", &config, false);
+    /// let bert: BertModel<BertEmbeddings> =
+    ///     BertModel::new_with_optional_pooler(&p.root() / "bert", &config, false);
     /// ```
     pub fn new_with_optional_pooler<'p, P>(
         p: P,
