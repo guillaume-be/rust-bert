@@ -21,16 +21,16 @@ use tch::{nn, no_grad, Device, Tensor};
 fn roberta_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaConfigResources::ROBERTA,
+        RobertaConfigResources::DISTILROBERTA_BASE,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaVocabResources::ROBERTA,
+        RobertaVocabResources::DISTILROBERTA_BASE,
     ));
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaMergesResources::ROBERTA,
+        RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaModelResources::ROBERTA,
+        RobertaModelResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
@@ -108,7 +108,7 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 
     assert_eq!("Ġsome", word_1); // Outputs "person" : "Looks like [some] thing is missing"
-    assert_eq!("Ġapples", word_2); // Outputs "pear" : "It\'s like comparing [apples] to apples"
+    assert_eq!("Ġsome", word_2); // Outputs "pear" : "It\'s like comparing [apples] to apples"
 
     Ok(())
 }
@@ -117,13 +117,13 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
 fn roberta_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaConfigResources::ROBERTA,
+        RobertaConfigResources::DISTILROBERTA_BASE,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaVocabResources::ROBERTA,
+        RobertaVocabResources::DISTILROBERTA_BASE,
     ));
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaMergesResources::ROBERTA,
+        RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
@@ -191,13 +191,13 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
 fn roberta_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaConfigResources::ROBERTA,
+        RobertaConfigResources::DISTILROBERTA_BASE,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaVocabResources::ROBERTA,
+        RobertaVocabResources::DISTILROBERTA_BASE,
     ));
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaMergesResources::ROBERTA,
+        RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
@@ -261,13 +261,13 @@ fn roberta_for_multiple_choice() -> anyhow::Result<()> {
 fn roberta_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaConfigResources::ROBERTA,
+        RobertaConfigResources::DISTILROBERTA_BASE,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaVocabResources::ROBERTA,
+        RobertaVocabResources::DISTILROBERTA_BASE,
     ));
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaMergesResources::ROBERTA,
+        RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;

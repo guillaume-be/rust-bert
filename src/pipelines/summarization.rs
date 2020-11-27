@@ -164,7 +164,7 @@ impl Default for SummarizationConfig {
             min_length: 56,
             max_length: 142,
             do_sample: false,
-            early_stopping: false,
+            early_stopping: true,
             num_beams: 3,
             temperature: 1.0,
             top_k: 50,

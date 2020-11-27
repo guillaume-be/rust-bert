@@ -58,6 +58,16 @@ impl BartModelResources {
         "bart-large-mnli/model",
         "https://huggingface.co/facebook/bart-large-mnli/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-6-6. Modified with conversion to C-array format.
+    pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
+        "distilbart-cnn-6-6/model",
+        "https://huggingface.co/sshleifer/distilbart-cnn-6-6/resolve/main/rust_model.ot",
+    );
+    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-12-6. Modified with conversion to C-array format.
+    pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
+        "distilbart-cnn-12-6/model",
+        "https://huggingface.co/sshleifer/distilbart-cnn-12-6/resolve/main/rust_model.ot",
+    );
 }
 
 impl BartConfigResources {
@@ -80,6 +90,16 @@ impl BartConfigResources {
     pub const BART_MNLI: (&'static str, &'static str) = (
         "bart-large-mnli/config",
         "https://huggingface.co/facebook/bart-large-mnli/resolve/main/config.json",
+    );
+    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-6-6. Modified with conversion to C-array format.
+    pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
+        "distilbart-cnn-6-6/config",
+        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/config.json",
+    );
+    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-12-6. Modified with conversion to C-array format.
+    pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
+        "distilbart-cnn-12-6/config",
+        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/config.json",
     );
 }
 
@@ -104,6 +124,16 @@ impl BartVocabResources {
         "bart-large-mnli/vocab",
         "https://huggingface.co/roberta-large/resolve/main/vocab.json",
     );
+    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-6-6. Modified with conversion to C-array format.
+    pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
+        "distilbart-cnn-6-6/vocab",
+        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/vocab.json",
+    );
+    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-12-6. Modified with conversion to C-array format.
+    pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
+        "distilbart-cnn-12-6/vocab",
+        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/vocab.json",
+    );
 }
 
 impl BartMergesResources {
@@ -126,6 +156,16 @@ impl BartMergesResources {
     pub const BART_MNLI: (&'static str, &'static str) = (
         "bart-large-mnli/merges",
         "https://huggingface.co/roberta-large/resolve/main/merges.txt",
+    );
+    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-6-6. Modified with conversion to C-array format.
+    pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
+        "distilbart-cnn-6-6/merges",
+        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/merges.txt",
+    );
+    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-12-6. Modified with conversion to C-array format.
+    pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
+        "distilbart-cnn-12-6/merges",
+        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/merges.txt",
     );
 }
 

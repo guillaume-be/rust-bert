@@ -12,17 +12,20 @@ use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy
 use tch::{nn, Device, Tensor};
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_lm_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
-    let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
-    let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
-    let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
@@ -38,7 +41,7 @@ fn bart_lm_model() -> anyhow::Result<()> {
         false,
     )?;
     let config = BartConfig::from_file(config_path);
-    let bart_model = BartModel::new(&vs.root(), &config, false);
+    let bart_model = BartModel::new(&vs.root() / "model", &config, false);
     vs.load(weights_path)?;
 
     //    Define input
@@ -63,19 +66,34 @@ fn bart_lm_model() -> anyhow::Result<()> {
     //    Forward pass
     let model_output =
         bart_model.forward_t(Some(&input_tensor), None, None, None, None, None, false);
-
     assert_eq!(model_output.decoder_output.size(), vec!(1, 6, 1024));
     assert_eq!(model_output.encoder_hidden_state.size(), vec!(1, 6, 1024));
-    assert!((model_output.decoder_output.double_value(&[0, 0, 0]) - 0.7877).abs() < 1e-4);
+    assert!((model_output.decoder_output.double_value(&[0, 0, 0]) - 0.2610).abs() < 1e-4);
     Ok(())
 }
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_greedy() -> anyhow::Result<()> {
     //    Set-up masked LM model
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
     let summarization_config = SummarizationConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         num_beams: 1,
+        length_penalty: 2.0,
         device: Device::Cpu,
         ..Default::default()
     };
@@ -107,19 +125,35 @@ about exoplanets like K2-18b."];
     let output = model.summarize(&input);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], "K2-18b is the first discovery of water on a planet in its star's habitable zone. \
-    Scientists found water vapour in the atmosphere of the planet. The planet is 110 light-years from Earth \
-    and is not too hot or cold for liquid water to exist.");
+    assert_eq!(output[0], " K2-18b is a planet circling a star in the constellation Leo. It is not too \
+hot and not too cold for liquid water to exist. This is the first such discovery in a planet in its \
+star's habitable zone. \"It's the best candidate for habit");
 
     Ok(())
 }
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_beam_search() -> anyhow::Result<()> {
     //    Set-up masked LM model
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
     let summarization_config = SummarizationConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         num_beams: 3,
+        length_penalty: 2.0,
         device: Device::Cpu,
         ..Default::default()
     };
@@ -151,10 +185,9 @@ about exoplanets like K2-18b."];
     let output = model.summarize(&input);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], "K2-18b, a planet in its star's habitable zone, has water vapour in its atmosphere. \
-    This is the first such discovery in a planet not too hot and not too cold for liquid water to exist. The \
-    Montreal team used data from the NASA's Hubble telescope to assess changes in the light coming from the \
-    star as the planet passed between it and Earth.");
+    assert_eq!(output[0], " K2-18b, a planet circling a star in the constellation Leo, is not too hot \
+and not too cold for liquid water to exist. This is the first such discovery in a planet in its star's \
+habitable zone. The presence of water vapour was confirmed in the atmosphere of the planet.");
 
     Ok(())
 }

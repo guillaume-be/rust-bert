@@ -190,7 +190,8 @@ impl ReformerModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = ReformerConfig::from_file(config_path);
-    /// let reformer_model: ReformerModel = ReformerModel::new(&p.root() / "reformer", &config).unwrap();
+    /// let reformer_model: ReformerModel =
+    ///     ReformerModel::new(&p.root() / "reformer", &config).unwrap();
     /// ```
     pub fn new<'p, P>(p: P, config: &ReformerConfig) -> Result<ReformerModel, RustBertError>
     where
@@ -259,12 +260,14 @@ impl ReformerModel {
     /// # let reformer_model: ReformerModel = ReformerModel::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    /// let input_positions = Tensor::arange(sequence_length, (Kind::Int64, device)).unsqueeze(0).expand(&[batch_size, sequence_length], true);
+    /// let input_positions = Tensor::arange(sequence_length, (Kind::Int64, device))
+    ///     .unsqueeze(0)
+    ///     .expand(&[batch_size, sequence_length], true);
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
     ///     reformer_model.forward_t(
-    ///         Some(&input_tensor),    
+    ///         Some(&input_tensor),
     ///         Some(&input_positions),
     ///         None,
     ///         Some(&attention_mask),
@@ -474,7 +477,8 @@ impl ReformerModelWithLMHead {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = ReformerConfig::from_file(config_path);
-    /// let reformer_model: ReformerModelWithLMHead = ReformerModelWithLMHead::new(&p.root(), &config).unwrap();
+    /// let reformer_model: ReformerModelWithLMHead =
+    ///     ReformerModelWithLMHead::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -728,7 +732,8 @@ impl ReformerForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = ReformerConfig::from_file(config_path);
-    /// let reformer_model: ReformerForSequenceClassification = ReformerForSequenceClassification::new(&p.root(), &config).unwrap();
+    /// let reformer_model: ReformerForSequenceClassification =
+    ///     ReformerForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -859,7 +864,8 @@ impl ReformerForQuestionAnswering {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = ReformerConfig::from_file(config_path);
-    /// let reformer_model: ReformerForQuestionAnswering = ReformerForQuestionAnswering::new(&p.root(), &config).unwrap();
+    /// let reformer_model: ReformerForQuestionAnswering =
+    ///     ReformerForQuestionAnswering::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
