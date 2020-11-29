@@ -67,11 +67,11 @@ ordered-float = "2.0.0"
 cached-path = "0.4.5"
 lazy_static = "1.4.0"
 uuid = { version = "0.8.1", features = ["v4"] }
-thiserror = "1.0.21"
+thiserror = "1.0.22"
 
 [dev-dependencies]
-anyhow = "1.0.33"
-csv = "1.1.3"
+anyhow = "1.0.34"
+csv = "1.1.5"
 criterion = "0.3.3"
 torch-sys = "0.3.0"
 tempfile = "3.1.0"
