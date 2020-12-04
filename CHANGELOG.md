@@ -1,15 +1,12 @@
 # Changelog
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
 ## [0.6.0] - 2020-04-05
 ### Added
 - BART language model
-- `LanguageModel` and `PrivateLanguageModel` implementation for BART 
+- Implementation of `LanguageModel` and `PrivateLanguageModel` for BART 
 - Summarization capabilities
 - Tanh activation
 
@@ -89,12 +86,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `BertModel`'s embeddings to be of type `impl BertEmbedding` rather than specific embeddings, allowing to re-use the BERT structure for other models, only replacing the embeddings layer. 
 
 ### Fixed
-- Fixed the variable path for BERT models with task-specific heads to allow loading snapshot from models trained on Transformers.
+- Fixed the variable path for BERT models with task-specific heads to allow loading a snapshot from models trained on Transformers.
 
 ## [0.4.0] - 2020-02-18
 ### Added
 - BERT Model and examples
-- `DistilBertForTokenClassification` and `DistilBertForQuestionAnswering` model heads
+- Addition of `DistilBertForTokenClassification` and `DistilBertForQuestionAnswering` model heads
 - Collection of activation functions (gelu, relu, mish)
 - Dropout module
 - Custom Linear layer, allowing a creation without bias
@@ -123,4 +120,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tensor conversion tools from Pytorch to Libtorch format
 - DistilBERT model architecture
-- Ready-to-use `SentimentClassifier` using a DistilBERT model finetuned on SST2
+- Ready-to-use `SentimentClassifier` using a DistilBERT model fine-tuned on SST2
