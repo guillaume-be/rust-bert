@@ -69,6 +69,7 @@ pub mod distilbert;
 pub mod electra;
 pub mod gpt2;
 pub mod marian;
+pub mod mobilebert;
 pub mod openai_gpt;
 pub mod pipelines;
 pub mod reformer;
