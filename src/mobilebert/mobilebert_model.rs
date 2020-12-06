@@ -9,18 +9,22 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 use crate::common::activations::Activation;
 use crate::Config;
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use tch::nn::{Init, LayerNormConfig, Module};
+use tch::{nn, Tensor};
 
-/// # BERT Pretrained model weight files
+/// # MobileBERT Pretrained model weight files
 pub struct MobileBertModelResources;
 
-/// # BERT Pretrained model config files
+/// # MobileBERT Pretrained model config files
 pub struct MobileBertConfigResources;
 
-/// # BERT Pretrained model vocab files
+/// # MobileBERT Pretrained model vocab files
 pub struct MobileBertVocabResources;
 
 impl MobileBertModelResources {
@@ -54,6 +58,70 @@ pub enum NormalizationType {
     no_norm,
 }
 
+#[derive(Debug)]
+pub struct NoNorm {
+    weight: Tensor,
+    bias: Tensor,
+}
+
+impl NoNorm {
+    pub fn new<'p, P>(p: P, hidden_size: i64) -> NoNorm
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let weight = p.var("weight", &[hidden_size], Init::Const(1.0));
+        let bias = p.var("bias", &[hidden_size], Init::Const(0.0));
+        NoNorm { weight, bias }
+    }
+}
+
+impl Module for NoNorm {
+    fn forward(&self, xs: &Tensor) -> Tensor {
+        xs * &self.weight + &self.bias
+    }
+}
+
+pub enum NormalizationLayer {
+    LayerNorm(nn::LayerNorm),
+    NoNorm(NoNorm),
+}
+
+impl NormalizationLayer {
+    pub fn new<'p, P>(
+        p: P,
+        normalization_type: NormalizationType,
+        hidden_size: i64,
+        eps: Option<f64>,
+    ) -> NormalizationLayer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        match normalization_type {
+            NormalizationType::layer_norm => {
+                let layer_norm_config = LayerNormConfig {
+                    eps: eps.unwrap_or(1e-12),
+                    ..Default::default()
+                };
+                let layer_norm = nn::layer_norm(p, vec![hidden_size], layer_norm_config);
+                NormalizationLayer::LayerNorm(layer_norm)
+            }
+            NormalizationType::no_norm => {
+                let layer_norm = NoNorm::new(p, hidden_size);
+                NormalizationLayer::NoNorm(layer_norm)
+            }
+        }
+    }
+
+    pub fn forward(&self, input: &Tensor) -> Tensor {
+        match self {
+            NormalizationLayer::LayerNorm(ref layer_norm) => input.apply(layer_norm),
+            NormalizationLayer::NoNorm(ref layer_norm) => input.apply(layer_norm),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 /// # MobileBERT model configuration
 /// Defines the MobileBERT model architecture (e.g. number of layers, hidden layer size, label mapping...)
@@ -70,6 +138,8 @@ pub struct MobileBertConfig {
     pub type_vocab_size: i64,
     pub vocab_size: i64,
     pub embedding_size: i64,
+    pub layer_norm_eps: Option<f64>,
+    pub pad_token_idx: Option<i64>,
     pub trigram_input: Option<bool>,
     pub use_bottleneck: Option<bool>,
     pub use_bottleneck_attention: Option<bool>,
