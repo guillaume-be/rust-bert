@@ -1,3 +1,4 @@
+mod attention;
 mod embeddings;
 mod mobilebert_model;
 
