@@ -146,7 +146,7 @@ impl MobileBertSelfOutput {
             Default::default(),
         );
         let layer_norm = NormalizationLayer::new(
-            p / "layer_norm",
+            p / "LayerNorm",
             config
                 .normalization_type
                 .unwrap_or(NormalizationType::no_norm),
@@ -178,5 +178,42 @@ impl MobileBertSelfOutput {
             layer_output = layer_output.apply_t(dropout, train);
         };
         self.layer_norm.forward(&(layer_output + residual_tensor))
+    }
+}
+
+pub struct MobileBertAttention {
+    pub self_attention: MobileBertSelfAttention,
+    pub output: MobileBertSelfOutput,
+}
+
+impl MobileBertAttention {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let self_attention = MobileBertSelfAttention::new(p / "self", config);
+        let output = MobileBertSelfOutput::new(p / "output", config);
+
+        MobileBertAttention {
+            self_attention,
+            output,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        query: &Tensor,
+        key: &Tensor,
+        value: &Tensor,
+        layer_input: &Tensor,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>) {
+        let (self_outputs, attention_scores) =
+            self.self_attention
+                .forward_t(query, key, value, attention_mask, train);
+        let attention_output = self.output.forward_t(&self_outputs, layer_input, train);
+        (attention_output, attention_scores)
     }
 }
