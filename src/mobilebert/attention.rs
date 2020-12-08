@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::mobilebert::mobilebert_model::{NormalizationLayer, NormalizationType};
 use crate::mobilebert::MobileBertConfig;
 use std::borrow::Borrow;
 use tch::{nn, Kind, Tensor};
@@ -116,5 +117,66 @@ impl MobileBertSelfAttention {
             None
         };
         (context, attention_probs)
+    }
+}
+
+pub struct MobileBertSelfOutput {
+    pub use_bottleneck: bool,
+    pub dense: nn::Linear,
+    pub layer_norm: NormalizationLayer,
+    pub dropout: Option<Dropout>,
+}
+
+impl MobileBertSelfOutput {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertSelfOutput
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let use_bottleneck = config.use_bottleneck.unwrap_or(true);
+        let true_hidden_size = if config.use_bottleneck.unwrap_or(true) {
+            config.intra_bottleneck_size.unwrap_or(128)
+        } else {
+            config.hidden_size
+        };
+        let dense = nn::linear(
+            p / "dense",
+            true_hidden_size,
+            true_hidden_size,
+            Default::default(),
+        );
+        let layer_norm = NormalizationLayer::new(
+            p / "layer_norm",
+            config
+                .normalization_type
+                .unwrap_or(NormalizationType::no_norm),
+            true_hidden_size,
+            None,
+        );
+
+        let dropout = if !use_bottleneck {
+            Dropout::new(config.hidden_dropout_prob).into()
+        } else {
+            None
+        };
+        MobileBertSelfOutput {
+            use_bottleneck,
+            dense,
+            layer_norm,
+            dropout,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        residual_tensor: &Tensor,
+        train: bool,
+    ) -> Tensor {
+        let mut layer_output = hidden_states.apply(&self.dense);
+        if let Some(dropout) = &self.dropout {
+            layer_output = layer_output.apply_t(dropout, train);
+        };
+        self.layer_norm.forward(&(layer_output + residual_tensor))
     }
 }
