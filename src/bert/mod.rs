@@ -65,3 +65,4 @@ pub use bert_model::{
     BertVocabResources,
 };
 pub use embeddings::{BertEmbedding, BertEmbeddings};
+pub use encoder::{BertEncoder, BertEncoderOutput};
