@@ -16,6 +16,14 @@ use crate::bert::bert_model::BertConfig;
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
+/// # BERT Layer
+/// Layer used in BERT encoders.
+/// It is made of the following blocks:
+/// - `attention`: self-attention `BertAttention` layer
+/// - `cross_attention`: (optional) cross-attention `BertAttention` layer (if the model is used as a decoder)
+/// - `is_decoder`: flag indicating if the model is used as a decoder
+/// - `intermediate`: `BertIntermediate` intermediate layer
+/// - `output`: `BertOutput` output layer
 pub struct BertLayer {
     attention: BertAttention,
     is_decoder: bool,
@@ -25,6 +33,27 @@ pub struct BertLayer {
 }
 
 impl BertLayer {
+    /// Build a new `BertLayer`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BERT model
+    /// * `config` - `BertConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::bert::{BertConfig, BertLayer};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let encoder: BertLayer = BertLayer::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> BertLayer
     where
         P: Borrow<nn::Path<'p>>,
@@ -58,6 +87,51 @@ impl BertLayer {
         }
     }
 
+    /// Forward pass through the layer
+    ///
+    /// # Arguments
+    ///
+    /// * `hidden_states` - input tensor of shape (*batch size*, *sequence_length*, *hidden_size*).
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `encoder_hidden_states` - Optional encoder hidden state of shape (*batch size*, *encoder_sequence_length*, *hidden_size*). If the model is defined as a decoder and the `encoder_hidden_states` is not None, used in the cross-attention layer as keys and values (query from the decoder).
+    /// * `encoder_mask` - Optional encoder attention mask of shape (*batch size*, *encoder_sequence_length*). If the model is defined as a decoder and the `encoder_hidden_states` is not None, used to mask encoder values. Positions with value 0 will be masked.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `BertLayerOutput` containing:
+    ///   - `hidden_state` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `attention_scores` - `Option<Tensor>` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `cross_attention_scores` - `Option<Tensor>` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use rust_bert::bert::{BertConfig, BertEncoder};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Float};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// let encoder: BertEncoder = BertEncoder::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length, hidden_size) = (64, 128, 512);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Float, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let encoder = no_grad(|| {
+    ///     encoder
+    ///         .forward_t(
+    ///             &input_tensor,
+    ///             &Some(mask),
+    ///             &None,
+    ///             &None,
+    ///             false,
+    ///         )
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
@@ -65,13 +139,13 @@ impl BertLayer {
         encoder_hidden_states: &Option<Tensor>,
         encoder_mask: &Option<Tensor>,
         train: bool,
-    ) -> (Tensor, Option<Tensor>, Option<Tensor>) {
-        let (attention_output, attention_weights, cross_attention_weights) =
+    ) -> BertLayerOutput {
+        let (attention_output, attention_scores, cross_attention_scores) =
             if self.is_decoder & encoder_hidden_states.is_some() {
-                let (attention_output, attention_weights) =
+                let (attention_output, attention_scores) =
                     self.attention
                         .forward_t(hidden_states, mask, &None, &None, train);
-                let (attention_output, cross_attention_weights) =
+                let (attention_output, cross_attention_scores) =
                     self.cross_attention.as_ref().unwrap().forward_t(
                         &attention_output,
                         mask,
@@ -79,18 +153,22 @@ impl BertLayer {
                         encoder_mask,
                         train,
                     );
-                (attention_output, attention_weights, cross_attention_weights)
+                (attention_output, attention_scores, cross_attention_scores)
             } else {
-                let (attention_output, attention_weights) =
+                let (attention_output, attention_scores) =
                     self.attention
                         .forward_t(hidden_states, mask, &None, &None, train);
-                (attention_output, attention_weights, None)
+                (attention_output, attention_scores, None)
             };
 
         let output = self.intermediate.forward(&attention_output);
         let output = self.output.forward_t(&output, &attention_output, train);
 
-        (output, attention_weights, cross_attention_weights)
+        BertLayerOutput {
+            hidden_state: output,
+            attention_scores,
+            cross_attention_scores,
+        }
     }
 }
 
@@ -109,8 +187,8 @@ impl BertEncoder {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the DistilBERT model
-    /// * `config` - `DistilBertConfig` object defining the model architecture
+    /// * `p` - Variable store path for the root of the BERT model
+    /// * `config` - `BertConfig` object defining the model architecture
     ///
     /// # Example
     ///
@@ -218,15 +296,15 @@ impl BertEncoder {
                 hidden_states.push(hidden_state.as_ref().copy());
             };
 
-            let temp = layer.forward_t(
+            let layer_output = layer.forward_t(
                 &hidden_state,
                 &mask,
                 encoder_hidden_states,
                 encoder_mask,
                 train,
             );
-            hidden_state = temp.0;
-            attention_weights = temp.1;
+            hidden_state = layer_output.hidden_state;
+            attention_weights = layer_output.attention_scores;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
             };
@@ -263,6 +341,16 @@ impl BertPooler {
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
         hidden_states.select(1, 0).apply(&self.lin).tanh()
     }
+}
+
+/// Container for the BERT layer output.
+pub struct BertLayerOutput {
+    /// Hidden states
+    pub hidden_state: Tensor,
+    /// Self attention scores
+    pub attention_scores: Option<Tensor>,
+    /// Cross attention scores
+    pub cross_attention_scores: Option<Tensor>,
 }
 
 /// Container for the BERT encoder output.
