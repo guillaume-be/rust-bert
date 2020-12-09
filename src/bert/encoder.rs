@@ -43,16 +43,16 @@ impl BertLayer {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertLayer};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::bert::{BertConfig, BertLayer};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let encoder: BertLayer = BertLayer::new(&p.root(), &config);
+    /// let layer: BertLayer = BertLayer::new(&p.root(), &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> BertLayer
     where
@@ -107,7 +107,7 @@ impl BertLayer {
     /// # Example
     ///
     /// ```no_run
-    /// # use rust_bert::bert::{BertConfig, BertEncoder};
+    /// # use rust_bert::bert::{BertConfig, BertLayer};
     /// # use tch::{nn, Device, Tensor, no_grad};
     /// # use rust_bert::Config;
     /// # use std::path::Path;
@@ -116,21 +116,12 @@ impl BertLayer {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
-    /// let encoder: BertEncoder = BertEncoder::new(&vs.root(), &config);
+    /// let layer: BertLayer = BertLayer::new(&vs.root(), &config);
     /// let (batch_size, sequence_length, hidden_size) = (64, 128, 512);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Float, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let encoder = no_grad(|| {
-    ///     encoder
-    ///         .forward_t(
-    ///             &input_tensor,
-    ///             &Some(mask),
-    ///             &None,
-    ///             &None,
-    ///             false,
-    ///         )
-    /// });
+    /// let layer_output = no_grad(|| layer.forward_t(&input_tensor, &Some(mask), &None, &None, false));
     /// ```
     pub fn forward_t(
         &self,
@@ -142,10 +133,10 @@ impl BertLayer {
     ) -> BertLayerOutput {
         let (attention_output, attention_scores, cross_attention_scores) =
             if self.is_decoder & encoder_hidden_states.is_some() {
-                let (attention_output, attention_scores) =
+                let (attention_output, attention_weights) =
                     self.attention
                         .forward_t(hidden_states, mask, &None, &None, train);
-                let (attention_output, cross_attention_scores) =
+                let (attention_output, cross_attention_weights) =
                     self.cross_attention.as_ref().unwrap().forward_t(
                         &attention_output,
                         mask,
@@ -153,12 +144,12 @@ impl BertLayer {
                         encoder_mask,
                         train,
                     );
-                (attention_output, attention_scores, cross_attention_scores)
+                (attention_output, attention_weights, cross_attention_weights)
             } else {
-                let (attention_output, attention_scores) =
+                let (attention_output, attention_weights) =
                     self.attention
                         .forward_t(hidden_states, mask, &None, &None, train);
-                (attention_output, attention_scores, None)
+                (attention_output, attention_weights, None)
             };
 
         let output = self.intermediate.forward(&attention_output);
@@ -166,8 +157,8 @@ impl BertLayer {
 
         BertLayerOutput {
             hidden_state: output,
-            attention_scores,
-            cross_attention_scores,
+            attention_weights: attention_scores,
+            cross_attention_weights: cross_attention_scores,
         }
     }
 }
@@ -193,10 +184,10 @@ impl BertEncoder {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertEncoder};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::bert::{BertConfig, BertEncoder};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -258,16 +249,8 @@ impl BertEncoder {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Float, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let encoder = no_grad(|| {
-    ///     encoder
-    ///         .forward_t(
-    ///             &input_tensor,
-    ///             &Some(mask),
-    ///             &None,
-    ///             &None,
-    ///             false,
-    ///         )
-    /// });
+    /// let encoder_output =
+    ///     no_grad(|| encoder.forward_t(&input_tensor, &Some(mask), &None, &None, false));
     /// ```
     pub fn forward_t(
         &self,
@@ -304,7 +287,7 @@ impl BertEncoder {
                 train,
             );
             hidden_state = layer_output.hidden_state;
-            attention_weights = layer_output.attention_scores;
+            attention_weights = layer_output.attention_weights;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
             };
@@ -318,11 +301,35 @@ impl BertEncoder {
     }
 }
 
+/// # BERT Pooler
+/// Pooler used in BERT models.
+/// It is made of a fully connected layer which is applied to the first sequence element.
 pub struct BertPooler {
     lin: nn::Linear,
 }
 
 impl BertPooler {
+    /// Build a new `BertPooler`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BERT model
+    /// * `config` - `BertConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::bert::{BertConfig, BertPooler};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let pooler: BertPooler = BertPooler::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> BertPooler
     where
         P: Borrow<nn::Path<'p>>,
@@ -338,6 +345,34 @@ impl BertPooler {
         BertPooler { lin }
     }
 
+    /// Forward pass through the pooler
+    ///
+    /// # Arguments
+    ///
+    /// * `hidden_states` - input tensor of shape (*batch size*, *sequence_length*, *hidden_size*).
+    ///
+    /// # Returns
+    ///
+    /// * `Tensor` of shape (*batch size*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use rust_bert::bert::{BertConfig, BertPooler};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Float;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// let pooler: BertPooler = BertPooler::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length, hidden_size) = (64, 128, 512);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Float, device));
+    ///
+    /// let pooler_output = no_grad(|| pooler.forward(&input_tensor));
+    /// ```
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
         hidden_states.select(1, 0).apply(&self.lin).tanh()
     }
@@ -348,9 +383,9 @@ pub struct BertLayerOutput {
     /// Hidden states
     pub hidden_state: Tensor,
     /// Self attention scores
-    pub attention_scores: Option<Tensor>,
+    pub attention_weights: Option<Tensor>,
     /// Cross attention scores
-    pub cross_attention_scores: Option<Tensor>,
+    pub cross_attention_weights: Option<Tensor>,
 }
 
 /// Container for the BERT encoder output.
