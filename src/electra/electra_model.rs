@@ -70,7 +70,7 @@ impl ElectraVocabResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # Electra model configuration
 /// Defines the Electra model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct ElectraConfig {

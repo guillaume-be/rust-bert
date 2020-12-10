@@ -169,7 +169,7 @@ impl BartMergesResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # BART model configuration
 /// Defines the BART model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct BartConfig {

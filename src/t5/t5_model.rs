@@ -74,7 +74,7 @@ impl T5Prefix {
     pub const ENGLISH2GERMAN: Option<&'static str> = Some("translate English to German:");
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # T5 model configuration
 /// Defines the T5 model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct T5Config {
