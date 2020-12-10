@@ -74,7 +74,7 @@ impl T5Prefix {
     pub const ENGLISH2GERMAN: Option<&'static str> = Some("translate English to German:");
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # T5 model configuration
 /// Defines the T5 model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct T5Config {
@@ -99,7 +99,7 @@ pub struct T5Config {
 
 /// # T5 task-specific configurations
 /// Defines the T5 configuration for summarization and translation tasks
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TaskSpecificParams {
     summarization: Summarization,
     translation_en_to_de: TranslationEnToDe,
@@ -108,7 +108,7 @@ pub struct TaskSpecificParams {
 }
 
 /// # T5 summarization configuration
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Summarization {
     early_stopping: bool,
     length_penalty: f64,
@@ -120,7 +120,7 @@ pub struct Summarization {
 }
 
 /// # T5 English to German configuration
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranslationEnToDe {
     early_stopping: bool,
     max_length: i64,
@@ -129,7 +129,7 @@ pub struct TranslationEnToDe {
 }
 
 /// # T5 English to French configuration
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranslationEnToFr {
     early_stopping: bool,
     max_length: i64,
@@ -138,7 +138,7 @@ pub struct TranslationEnToFr {
 }
 
 /// # T5 English to Romanian configuration
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranslationEnToRo {
     early_stopping: bool,
     max_length: i64,
