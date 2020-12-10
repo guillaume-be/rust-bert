@@ -78,4 +78,4 @@ pub mod xlnet;
 
 pub use common::error::RustBertError;
 pub use common::resources;
-pub use common::Config;
+pub use common::{Activation, Config};
