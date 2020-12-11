@@ -102,3 +102,68 @@ impl OutputBottleneck {
         self.layer_norm.forward(&(layer_outputs + residual_tensor))
     }
 }
+
+pub struct MobileBertOutput {
+    pub dense: nn::Linear,
+    pub layer_norm: NormalizationLayer,
+    pub dropout: Option<Dropout>,
+    pub bottleneck: Option<OutputBottleneck>,
+}
+
+impl MobileBertOutput {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertOutput
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let true_hidden_size = if config.use_bottleneck.unwrap_or(true) {
+            config.intra_bottleneck_size.unwrap_or(128)
+        } else {
+            config.hidden_size
+        };
+        let dense = nn::linear(
+            p / "dense",
+            config.intermediate_size,
+            true_hidden_size,
+            Default::default(),
+        );
+        let layer_norm = NormalizationLayer::new(
+            p / "LayerNorm",
+            config
+                .normalization_type
+                .unwrap_or(NormalizationType::no_norm),
+            true_hidden_size,
+            None,
+        );
+        let (bottleneck, dropout) = if config.use_bottleneck.unwrap_or(true) {
+            (Some(OutputBottleneck::new(p / "bottleneck", config)), None)
+        } else {
+            (None, Some(Dropout::new(config.hidden_dropout_prob)))
+        };
+
+        MobileBertOutput {
+            dense,
+            layer_norm,
+            dropout,
+            bottleneck,
+        }
+    }
+
+    pub fn forward(
+        &self,
+        intermediate_states: &Tensor,
+        residual_tensor_1: &Tensor,
+        residual_tensor_2: &Tensor,
+        train: bool,
+    ) -> Tensor {
+        let layer_output = intermediate_states.apply(&self.dense);
+        if let Some(bottleneck) = &self.bottleneck {
+            let layer_output = self.layer_norm.forward(&(layer_output + residual_tensor_1));
+            bottleneck.forward_t(&layer_output, residual_tensor_2, train)
+        } else {
+            self.layer_norm.forward(
+                &(layer_output.apply_t(self.dropout.as_ref().unwrap(), train) + residual_tensor_1),
+            )
+        }
+    }
+}
