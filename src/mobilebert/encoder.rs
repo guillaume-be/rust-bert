@@ -167,3 +167,78 @@ impl MobileBertOutput {
         }
     }
 }
+
+pub struct BottleneckLayer {
+    pub dense: nn::Linear,
+    pub layer_norm: NormalizationLayer,
+}
+
+impl BottleneckLayer {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> BottleneckLayer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let intra_bottleneck_size = config.intra_bottleneck_size.unwrap_or(128);
+
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            intra_bottleneck_size,
+            Default::default(),
+        );
+        let layer_norm = NormalizationLayer::new(
+            p / "LayerNorm",
+            config
+                .normalization_type
+                .unwrap_or(NormalizationType::no_norm),
+            intra_bottleneck_size,
+            config.layer_norm_eps,
+        );
+
+        BottleneckLayer { dense, layer_norm }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        self.layer_norm.forward(&hidden_states.apply(&self.dense))
+    }
+}
+
+pub enum BottleneckOutput {
+    Bottleneck(Tensor),
+    BottleNeckSharedAttn(Tensor, Tensor),
+}
+
+pub struct Bottleneck {
+    pub input: BottleneckLayer,
+    pub attention: Option<BottleneckLayer>,
+}
+
+impl Bottleneck {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> Bottleneck
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let key_query_shared_bottleneck = config.key_query_shared_bottleneck.unwrap_or(true);
+
+        let input = BottleneckLayer::new(p / "input", config);
+        let attention = if key_query_shared_bottleneck {
+            Some(BottleneckLayer::new(p / "attention", config))
+        } else {
+            None
+        };
+
+        Bottleneck { input, attention }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> BottleneckOutput {
+        let bottleneck_hidden_states = self.input.forward(hidden_states);
+        if let Some(attention) = &self.attention {
+            let shared_attention_input = attention.forward(hidden_states);
+            BottleneckOutput::BottleNeckSharedAttn(bottleneck_hidden_states, shared_attention_input)
+        } else {
+            BottleneckOutput::Bottleneck(bottleneck_hidden_states)
+        }
+    }
+}
