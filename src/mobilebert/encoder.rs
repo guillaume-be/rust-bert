@@ -12,6 +12,8 @@
 
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
+use crate::mobilebert::attention::MobileBertAttention;
+use crate::mobilebert::encoder::BottleneckOutput::BottleNeckSharedAttn;
 use crate::mobilebert::mobilebert_model::{NormalizationLayer, NormalizationType};
 use crate::mobilebert::MobileBertConfig;
 use std::borrow::Borrow;
@@ -308,5 +310,118 @@ impl FFNLayer {
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
         let intermediate_output = self.intermediate.forward(hidden_states);
         self.output.forward(&intermediate_output, hidden_states)
+    }
+}
+
+pub struct MobileBertLayer {
+    pub attention: MobileBertAttention,
+    pub intermediate: MobileBertIntermediate,
+    pub output: MobileBertOutput,
+    pub bottleneck: Option<Bottleneck>,
+    pub ffn: Option<Vec<FFNLayer>>,
+    pub use_bottleneck_attention: bool,
+}
+
+impl MobileBertLayer {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertLayer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let attention = MobileBertAttention::new(p / "attention", config);
+        let intermediate = MobileBertIntermediate::new(p / "intermediate", config);
+        let output = MobileBertOutput::new(p / "output", config);
+        let bottleneck = if config.use_bottleneck.unwrap_or(true) {
+            Some(Bottleneck::new(p / "bottleneck", config))
+        } else {
+            None
+        };
+        let num_feedforward_networks = config.num_feedforward_networks.unwrap_or(4);
+        let ffn = if num_feedforward_networks > 1 {
+            let mut layers = Vec::with_capacity(num_feedforward_networks as usize);
+            let p_layers = p / "ffn";
+            for layer_index in 0..num_feedforward_networks {
+                layers.push(FFNLayer::new(&p_layers / layer_index, config));
+            }
+            Some(layers)
+        } else {
+            None
+        };
+
+        let use_bottleneck_attention = config.use_bottleneck_attention.unwrap_or(false);
+
+        MobileBertLayer {
+            attention,
+            intermediate,
+            output,
+            bottleneck,
+            ffn,
+            use_bottleneck_attention,
+        }
+    }
+
+    pub fn forward(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>) {
+        let (mut attention_output, attention_weights) = if let Some(bottleneck) = &self.bottleneck {
+            let bottleneck_output = bottleneck.forward(hidden_states);
+            let (query, key, value, layer_input) = match &bottleneck_output {
+                BottleneckOutput::Bottleneck(bottleneck_hidden_states) => {
+                    if self.use_bottleneck_attention {
+                        (
+                            bottleneck_hidden_states,
+                            bottleneck_hidden_states,
+                            bottleneck_hidden_states,
+                            bottleneck_hidden_states,
+                        )
+                    } else {
+                        (
+                            hidden_states,
+                            hidden_states,
+                            hidden_states,
+                            bottleneck_hidden_states,
+                        )
+                    }
+                }
+                BottleneckOutput::BottleNeckSharedAttn(
+                    bottleneck_hidden_states,
+                    shared_attention_input,
+                ) => (
+                    shared_attention_input,
+                    shared_attention_input,
+                    hidden_states,
+                    bottleneck_hidden_states,
+                ),
+            };
+            self.attention
+                .forward_t(query, key, value, layer_input, attention_mask, train)
+        } else {
+            self.attention.forward_t(
+                hidden_states,
+                hidden_states,
+                hidden_states,
+                hidden_states,
+                attention_mask,
+                train,
+            )
+        };
+
+        if let Some(additional_feedforward_networks) = &self.ffn {
+            for layer in additional_feedforward_networks {
+                attention_output = layer.forward(&attention_output);
+            }
+        };
+
+        let layer_output = self.output.forward(
+            &self.intermediate.forward(&attention_output),
+            &attention_output,
+            hidden_states,
+            train,
+        );
+        (layer_output, attention_weights)
     }
 }

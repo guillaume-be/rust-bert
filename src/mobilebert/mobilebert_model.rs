@@ -145,7 +145,7 @@ pub struct MobileBertConfig {
     pub use_bottleneck_attention: Option<bool>,
     pub intra_bottleneck_size: Option<i64>,
     pub key_query_shared_bottleneck: Option<bool>,
-    pub num_feedforward_networks: Option<i64>,
+    pub num_feedforward_networks: Option<u64>,
     pub normalization_type: Option<NormalizationType>,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
