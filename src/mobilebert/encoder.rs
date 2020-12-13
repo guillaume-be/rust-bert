@@ -242,3 +242,71 @@ impl Bottleneck {
         }
     }
 }
+
+pub struct FFNOutput {
+    pub dense: nn::Linear,
+    pub layer_norm: NormalizationLayer,
+}
+
+impl FFNOutput {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> FFNOutput
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let true_hidden_size = if config.use_bottleneck.unwrap_or(true) {
+            config.intra_bottleneck_size.unwrap_or(128)
+        } else {
+            config.hidden_size
+        };
+
+        let dense = nn::linear(
+            p / "dense",
+            config.intermediate_size,
+            true_hidden_size,
+            Default::default(),
+        );
+
+        let layer_norm = NormalizationLayer::new(
+            p / "LayerNorm",
+            config
+                .normalization_type
+                .unwrap_or(NormalizationType::no_norm),
+            true_hidden_size,
+            config.layer_norm_eps,
+        );
+
+        FFNOutput { dense, layer_norm }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor, residual_tensor: &Tensor) -> Tensor {
+        self.layer_norm
+            .forward(&(hidden_states.apply(&self.dense) + residual_tensor))
+    }
+}
+
+pub struct FFNLayer {
+    pub intermediate: MobileBertIntermediate,
+    pub output: FFNOutput,
+}
+
+impl FFNLayer {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> FFNLayer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let intermediate = MobileBertIntermediate::new(p / "intermediate", config);
+        let output = FFNOutput::new(p / "output", config);
+
+        FFNLayer {
+            intermediate,
+            output,
+        }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        let intermediate_output = self.intermediate.forward(hidden_states);
+        self.output.forward(&intermediate_output, hidden_states)
+    }
+}
