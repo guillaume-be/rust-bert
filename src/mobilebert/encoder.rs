@@ -16,12 +16,12 @@ use crate::mobilebert::attention::MobileBertAttention;
 use crate::mobilebert::encoder::BottleneckOutput::BottleNeckSharedAttn;
 use crate::mobilebert::mobilebert_model::{NormalizationLayer, NormalizationType};
 use crate::mobilebert::MobileBertConfig;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
 pub struct MobileBertIntermediate {
-    pub dense: nn::Linear,
-    pub activation: TensorFunction,
+    dense: nn::Linear,
+    activation: TensorFunction,
 }
 
 impl MobileBertIntermediate {
@@ -52,9 +52,9 @@ impl MobileBertIntermediate {
 }
 
 pub struct OutputBottleneck {
-    pub dense: nn::Linear,
-    pub layer_norm: NormalizationLayer,
-    pub dropout: Dropout,
+    dense: nn::Linear,
+    layer_norm: NormalizationLayer,
+    dropout: Dropout,
 }
 
 impl OutputBottleneck {
@@ -106,10 +106,10 @@ impl OutputBottleneck {
 }
 
 pub struct MobileBertOutput {
-    pub dense: nn::Linear,
-    pub layer_norm: NormalizationLayer,
-    pub dropout: Option<Dropout>,
-    pub bottleneck: Option<OutputBottleneck>,
+    dense: nn::Linear,
+    layer_norm: NormalizationLayer,
+    dropout: Option<Dropout>,
+    bottleneck: Option<OutputBottleneck>,
 }
 
 impl MobileBertOutput {
@@ -171,8 +171,8 @@ impl MobileBertOutput {
 }
 
 pub struct BottleneckLayer {
-    pub dense: nn::Linear,
-    pub layer_norm: NormalizationLayer,
+    dense: nn::Linear,
+    layer_norm: NormalizationLayer,
 }
 
 impl BottleneckLayer {
@@ -212,8 +212,8 @@ pub enum BottleneckOutput {
 }
 
 pub struct Bottleneck {
-    pub input: BottleneckLayer,
-    pub attention: Option<BottleneckLayer>,
+    input: BottleneckLayer,
+    attention: Option<BottleneckLayer>,
 }
 
 impl Bottleneck {
@@ -288,8 +288,8 @@ impl FFNOutput {
 }
 
 pub struct FFNLayer {
-    pub intermediate: MobileBertIntermediate,
-    pub output: FFNOutput,
+    intermediate: MobileBertIntermediate,
+    output: FFNOutput,
 }
 
 impl FFNLayer {
@@ -314,12 +314,12 @@ impl FFNLayer {
 }
 
 pub struct MobileBertLayer {
-    pub attention: MobileBertAttention,
-    pub intermediate: MobileBertIntermediate,
-    pub output: MobileBertOutput,
-    pub bottleneck: Option<Bottleneck>,
-    pub ffn: Option<Vec<FFNLayer>>,
-    pub use_bottleneck_attention: bool,
+    attention: MobileBertAttention,
+    intermediate: MobileBertIntermediate,
+    output: MobileBertOutput,
+    bottleneck: Option<Bottleneck>,
+    ffn: Option<Vec<FFNLayer>>,
+    use_bottleneck_attention: bool,
 }
 
 impl MobileBertLayer {
@@ -361,7 +361,7 @@ impl MobileBertLayer {
         }
     }
 
-    pub fn forward(
+    pub fn forward_t(
         &self,
         hidden_states: &Tensor,
         attention_mask: Option<&Tensor>,
@@ -423,5 +423,91 @@ impl MobileBertLayer {
             train,
         );
         (layer_output, attention_weights)
+    }
+}
+
+/// Container for the MobileBert encoder output.
+pub struct MobileBertEncoderOutput {
+    /// Last hidden states from the model
+    pub hidden_state: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct MobileBertEncoder {
+    layers: Vec<MobileBertLayer>,
+    output_hidden_states: bool,
+    output_attentions: bool,
+}
+
+impl MobileBertEncoder {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertEncoder
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let mut layers = Vec::with_capacity(config.num_hidden_layers as usize);
+        let p_layers = p / "layer";
+        for layer_index in 0..config.num_hidden_layers {
+            layers.push(MobileBertLayer::new(&p_layers / layer_index, config));
+        }
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
+        let output_attentions = config.output_attentions.unwrap_or(false);
+
+        MobileBertEncoder {
+            layers,
+            output_hidden_states,
+            output_attentions,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_state: &Tensor,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> MobileBertEncoderOutput {
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut x: Option<Tensor> = None;
+        let mut attention_weights: Option<Tensor>;
+
+        for layer in &self.layers {
+            let temp = if let Some(x_value) = &x {
+                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                    hidden_states.push(x_value.copy());
+                }
+                layer.forward_t(x_value, attention_mask, train)
+            } else {
+                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                    hidden_states.push(hidden_state.copy());
+                }
+                layer.forward_t(&hidden_state, attention_mask, train)
+            };
+            x = Some(temp.0);
+            attention_weights = temp.1;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.as_ref().unwrap().copy());
+            };
+        }
+        if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+            hidden_states.push(x.as_ref().unwrap().copy());
+        };
+        MobileBertEncoderOutput {
+            hidden_state: x.unwrap(),
+            all_hidden_states,
+            all_attentions,
+        }
     }
 }

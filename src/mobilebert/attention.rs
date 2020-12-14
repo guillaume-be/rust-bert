@@ -17,14 +17,14 @@ use std::borrow::Borrow;
 use tch::{nn, Kind, Tensor};
 
 pub struct MobileBertSelfAttention {
-    pub attention_head_size: i64,
-    pub all_head_size: i64,
-    pub num_attention_heads: i64,
-    pub query: nn::Linear,
-    pub key: nn::Linear,
-    pub value: nn::Linear,
-    pub dropout: Dropout,
-    pub output_attentions: bool,
+    attention_head_size: i64,
+    all_head_size: i64,
+    num_attention_heads: i64,
+    query: nn::Linear,
+    key: nn::Linear,
+    value: nn::Linear,
+    dropout: Dropout,
+    output_attentions: bool,
 }
 
 impl MobileBertSelfAttention {
@@ -121,10 +121,10 @@ impl MobileBertSelfAttention {
 }
 
 pub struct MobileBertSelfOutput {
-    pub use_bottleneck: bool,
-    pub dense: nn::Linear,
-    pub layer_norm: NormalizationLayer,
-    pub dropout: Option<Dropout>,
+    use_bottleneck: bool,
+    dense: nn::Linear,
+    layer_norm: NormalizationLayer,
+    dropout: Option<Dropout>,
 }
 
 impl MobileBertSelfOutput {
@@ -182,8 +182,8 @@ impl MobileBertSelfOutput {
 }
 
 pub struct MobileBertAttention {
-    pub self_attention: MobileBertSelfAttention,
-    pub output: MobileBertSelfOutput,
+    self_attention: MobileBertSelfAttention,
+    output: MobileBertSelfOutput,
 }
 
 impl MobileBertAttention {
