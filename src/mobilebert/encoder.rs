@@ -511,3 +511,39 @@ impl MobileBertEncoder {
         }
     }
 }
+
+pub struct MobileBertPooler {
+    dense: Option<nn::Linear>,
+}
+
+impl MobileBertPooler {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertPooler
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let do_activate = config.classifier_activation.unwrap_or(true);
+        let dense = if do_activate {
+            nn::linear(
+                p / "dense",
+                config.hidden_size,
+                config.hidden_size,
+                Default::default(),
+            )
+            .into()
+        } else {
+            None
+        };
+        MobileBertPooler { dense }
+    }
+
+    fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        let first_token_tensor = hidden_states.select(1, 0);
+        if let Some(dense) = &self.dense {
+            first_token_tensor.apply(dense).tanh()
+        } else {
+            first_token_tensor
+        }
+    }
+}

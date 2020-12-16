@@ -149,6 +149,7 @@ pub struct MobileBertConfig {
     pub normalization_type: Option<NormalizationType>,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
+    pub classifier_activation: Option<bool>,
     pub is_decoder: Option<bool>,
     pub id2label: Option<HashMap<i64, String>>,
     pub label2id: Option<HashMap<String, i64>>,
