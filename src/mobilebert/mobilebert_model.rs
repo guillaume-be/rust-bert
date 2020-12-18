@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::activations::Activation;
+use crate::common::activations::{Activation, TensorFunction};
 use crate::Config;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -156,3 +156,91 @@ pub struct MobileBertConfig {
 }
 
 impl Config<MobileBertConfig> for MobileBertConfig {}
+
+pub struct MobileBertPredictionHeadTransform {
+    dense: nn::Linear,
+    activation_function: TensorFunction,
+    layer_norm: NormalizationLayer,
+}
+
+impl MobileBertPredictionHeadTransform {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertPredictionHeadTransform
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let activation_function = config.hidden_act.get_function();
+        let layer_norm = NormalizationLayer::new(
+            p / "LayerNorm",
+            config
+                .normalization_type
+                .unwrap_or(NormalizationType::no_norm),
+            config.hidden_size,
+            config.layer_norm_eps,
+        );
+        MobileBertPredictionHeadTransform {
+            dense,
+            activation_function,
+            layer_norm,
+        }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        let hidden_states = hidden_states.apply(&self.dense);
+        let hidden_states = self.activation_function.get_fn()(&hidden_states);
+        self.layer_norm.forward(&hidden_states)
+    }
+}
+
+pub struct MobileBertLMPredictionHead {
+    transform: MobileBertPredictionHeadTransform,
+    dense: nn::Linear,
+    decoder_weight: Tensor,
+    decoder_bias: Tensor,
+}
+
+impl MobileBertLMPredictionHead {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertLMPredictionHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let transform = MobileBertPredictionHeadTransform::new(p / "transform", config);
+        let dense = nn::linear(
+            p / "dense",
+            config.vocab_size,
+            config.hidden_size - config.embedding_size,
+            Default::default(),
+        );
+        let decoder_p = p / "decoder";
+        let decoder_weight = decoder_p.var(
+            "weight",
+            &[config.embedding_size, config.vocab_size],
+            Init::KaimingUniform,
+        );
+        let decoder_bias = decoder_p.var("bias", &[config.vocab_size], Init::Const(0.0));
+
+        MobileBertLMPredictionHead {
+            transform,
+            dense,
+            decoder_weight,
+            decoder_bias,
+        }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        let hidden_states = self.transform.forward(hidden_states);
+        let hidden_states = hidden_states.matmul(&Tensor::cat(
+            &[&self.decoder_weight.transpose(0, 1), &self.dense.ws],
+            0,
+        ));
+        hidden_states + &self.decoder_bias
+    }
+}
