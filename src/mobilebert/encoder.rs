@@ -13,7 +13,6 @@
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::mobilebert::attention::MobileBertAttention;
-use crate::mobilebert::encoder::BottleneckOutput::BottleNeckSharedAttn;
 use crate::mobilebert::mobilebert_model::{NormalizationLayer, NormalizationType};
 use crate::mobilebert::MobileBertConfig;
 use std::borrow::{Borrow, BorrowMut};
@@ -538,7 +537,7 @@ impl MobileBertPooler {
         MobileBertPooler { dense }
     }
 
-    fn forward(&self, hidden_states: &Tensor) -> Tensor {
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
         let first_token_tensor = hidden_states.select(1, 0);
         if let Some(dense) = &self.dense {
             first_token_tensor.apply(dense).tanh()

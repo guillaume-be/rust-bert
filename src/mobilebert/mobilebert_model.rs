@@ -11,12 +11,14 @@
 // limitations under the License.
 
 use crate::common::activations::{Activation, TensorFunction};
-use crate::Config;
+use crate::mobilebert::embeddings::MobileBertEmbeddings;
+use crate::mobilebert::encoder::{MobileBertEncoder, MobileBertPooler};
+use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use tch::nn::{Init, LayerNormConfig, Module};
-use tch::{nn, Tensor};
+use tch::{nn, Kind, Tensor};
 
 /// # MobileBERT Pretrained model weight files
 pub struct MobileBertModelResources;
@@ -243,4 +245,134 @@ impl MobileBertLMPredictionHead {
         ));
         hidden_states + &self.decoder_bias
     }
+}
+
+pub struct MobileBertOnlyMLMHead {
+    predictions: MobileBertLMPredictionHead,
+}
+
+impl MobileBertOnlyMLMHead {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertOnlyMLMHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let predictions = MobileBertLMPredictionHead::new(p / "predictions", config);
+        MobileBertOnlyMLMHead { predictions }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        self.predictions.forward(hidden_states)
+    }
+}
+
+pub struct MobileBertModel {
+    embeddings: MobileBertEmbeddings,
+    encoder: MobileBertEncoder,
+    pooler: MobileBertPooler,
+}
+
+impl MobileBertModel {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let embeddings = MobileBertEmbeddings::new(p / "embeddings", config);
+        let encoder = MobileBertEncoder::new(p / "encoder", config);
+        let pooler = MobileBertPooler::new(p / "pooler", config);
+        MobileBertModel {
+            embeddings,
+            encoder,
+            pooler,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<MobileBertOutput, RustBertError> {
+        let (input_shape, device) = match input_ids {
+            Some(input_value) => match &input_embeds {
+                Some(_) => {
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
+                }
+                None => (input_value.size(), input_value.device()),
+            },
+            None => match &input_embeds {
+                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
+                None => {
+                    return Err(RustBertError::ValueError(
+                        "At least one of input ids or input embeddings must be set".into(),
+                    ));
+                }
+            },
+        };
+
+        let calc_attention_mask = if attention_mask.is_none() {
+            Some(Tensor::ones(input_shape.as_slice(), (Kind::Int64, device)))
+        } else {
+            None
+        };
+
+        let calc_token_type_ids = if token_type_ids.is_none() {
+            Some(Tensor::zeros(input_shape.as_slice(), (Kind::Int64, device)))
+        } else {
+            None
+        };
+
+        let attention_mask = attention_mask.unwrap_or(calc_attention_mask.as_ref().unwrap());
+        let attention_mask = match attention_mask.dim() {
+            3 => attention_mask.unsqueeze(1),
+            2 => attention_mask.unsqueeze(1).unsqueeze(1),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Invalid attention mask dimension, must be 2 or 3".into(),
+                ));
+            }
+        };
+
+        let token_type_ids = token_type_ids.unwrap_or(calc_token_type_ids.as_ref().unwrap());
+
+        let embedding_output = self.embeddings.forward_t(
+            input_ids,
+            position_ids,
+            token_type_ids.into(),
+            input_embeds,
+            train,
+        )?;
+
+        let encoder_output =
+            self.encoder
+                .forward_t(&embedding_output, Some(&attention_mask), train);
+
+        let pooled_output = self.pooler.forward(&encoder_output.hidden_state);
+        Ok(MobileBertOutput {
+            hidden_state: encoder_output.hidden_state,
+            pooled_output,
+            all_hidden_states: encoder_output.all_hidden_states,
+            all_attentions: encoder_output.all_attentions,
+        })
+    }
+}
+
+/// Container for the MobileBert output.
+pub struct MobileBertOutput {
+    /// Last hidden states from the model
+    pub hidden_state: Tensor,
+    /// Pooled output
+    pub pooled_output: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
 }
