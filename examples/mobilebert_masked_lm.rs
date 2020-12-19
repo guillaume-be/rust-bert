@@ -19,6 +19,7 @@ use rust_bert::mobilebert::{
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::Vocab;
 use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {
@@ -68,25 +69,17 @@ fn main() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    // let model_output =
-    //     no_grad(|| mobilebert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
-    //
-    // //    Print masked tokens
-    // let index_1 = model_output
-    //     .prediction_scores
-    //     .get(0)
-    //     .get(4)
-    //     .argmax(0, false);
-    // let index_2 = model_output
-    //     .prediction_scores
-    //     .get(1)
-    //     .get(7)
-    //     .argmax(0, false);
-    // let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
-    // let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
-    //
-    // println!("{}", word_1); // Outputs "person" : "Looks like one [person] is missing"
-    // println!("{}", word_2); // Outputs "pear" : "It was a very nice and [pleasant] day"
+    let model_output =
+        no_grad(|| mobilebert_model.forward_t(Some(&input_tensor), None, None, None, None, false))?;
+
+    //    Print masked tokens
+    let index_1 = model_output.logits.get(0).get(4).argmax(0, false);
+    let index_2 = model_output.logits.get(1).get(7).argmax(0, false);
+    let word_1 = tokenizer.vocab().id_to_token(&index_1.int64_value(&[]));
+    let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
+
+    println!("{}", word_1); // Outputs "person" : "Looks like one [person] is missing"
+    println!("{}", word_2); // Outputs "pear" : "It was a very nice and [pleasant] day"
 
     Ok(())
 }

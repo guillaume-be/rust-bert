@@ -22,7 +22,7 @@ pub struct MobileBertEmbeddings {
     trigram_input: bool,
     embedding_size: i64,
     hidden_size: i64,
-    word_embeddings: nn::Embedding,
+    pub(crate) word_embeddings: nn::Embedding,
     position_embeddings: nn::Embedding,
     token_type_embeddings: nn::Embedding,
     embedding_transformation: nn::Linear,
@@ -98,7 +98,7 @@ impl MobileBertEmbeddings {
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
-        token_type_ids: Option<&Tensor>,
+        token_type_ids: &Tensor,
         position_ids: &Tensor,
         input_embeds: Option<Tensor>,
         train: bool,
@@ -130,15 +130,6 @@ impl MobileBertEmbeddings {
 
         let seq_length = input_shape[1];
 
-        let calc_token_type_ids = if token_type_ids.is_none() {
-            Some(Tensor::zeros(
-                &input_shape,
-                (Kind::Int64, input_embeddings.device()),
-            ))
-        } else {
-            None
-        };
-        let token_type_ids = token_type_ids.unwrap_or(calc_token_type_ids.as_ref().unwrap());
         if self.trigram_input {
             let padding_tensor = Tensor::zeros(
                 &[input_shape[0], 1, self.embedding_size],

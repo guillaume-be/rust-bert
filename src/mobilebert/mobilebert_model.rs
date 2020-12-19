@@ -202,7 +202,6 @@ impl MobileBertPredictionHeadTransform {
 
 pub struct MobileBertLMPredictionHead {
     transform: MobileBertPredictionHeadTransform,
-    dense: Tensor,
     dense_weight: Tensor,
     bias: Tensor,
 }
@@ -215,34 +214,29 @@ impl MobileBertLMPredictionHead {
         let p = p.borrow();
 
         let transform = MobileBertPredictionHeadTransform::new(p / "transform", config);
-        let dense = p.var(
-            "dense",
-            &[
-                config.vocab_size,
-                config.hidden_size - config.embedding_size,
-            ],
-            Init::KaimingUniform,
-        );
+
         let dense_p = p / "dense";
         let dense_weight = dense_p.var(
             "weight",
-            &[config.embedding_size, config.vocab_size],
+            &[
+                config.hidden_size - config.embedding_size,
+                config.vocab_size,
+            ],
             Init::KaimingUniform,
         );
         let bias = p.var("bias", &[config.vocab_size], Init::Const(0.0));
 
         MobileBertLMPredictionHead {
             transform,
-            dense,
             dense_weight,
             bias,
         }
     }
 
-    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+    pub fn forward(&self, hidden_states: &Tensor, embeddings: &Tensor) -> Tensor {
         let hidden_states = self.transform.forward(hidden_states);
         let hidden_states = hidden_states.matmul(&Tensor::cat(
-            &[&self.dense_weight.transpose(0, 1), &self.dense],
+            &[&embeddings.transpose(0, 1), &self.dense_weight],
             0,
         ));
         hidden_states + &self.bias
@@ -264,8 +258,8 @@ impl MobileBertOnlyMLMHead {
         MobileBertOnlyMLMHead { predictions }
     }
 
-    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        self.predictions.forward(hidden_states)
+    pub fn forward(&self, hidden_states: &Tensor, embeddings: &Tensor) -> Tensor {
+        self.predictions.forward(hidden_states, embeddings)
     }
 }
 
@@ -273,6 +267,7 @@ pub struct MobileBertModel {
     embeddings: MobileBertEmbeddings,
     encoder: MobileBertEncoder,
     pooler: MobileBertPooler,
+    position_ids: Tensor,
 }
 
 impl MobileBertModel {
@@ -285,10 +280,14 @@ impl MobileBertModel {
         let embeddings = MobileBertEmbeddings::new(p / "embeddings", config);
         let encoder = MobileBertEncoder::new(p / "encoder", config);
         let pooler = MobileBertPooler::new(p / "pooler", config);
+        let position_ids =
+            Tensor::arange(config.max_position_embeddings, (Kind::Int64, p.device()))
+                .expand(&[1, -1], true);
         MobileBertModel {
             embeddings,
             encoder,
             pooler,
+            position_ids,
         }
     }
 
@@ -332,6 +331,14 @@ impl MobileBertModel {
             None
         };
 
+        let calc_position_ids = if position_ids.is_none() {
+            Some(self.position_ids.slice(1, 0, input_shape[1], 1))
+        } else {
+            None
+        };
+
+        let position_ids = position_ids.unwrap_or(calc_position_ids.as_ref().unwrap());
+
         let attention_mask = attention_mask.unwrap_or(calc_attention_mask.as_ref().unwrap());
         let attention_mask = match attention_mask.dim() {
             3 => attention_mask.unsqueeze(1),
@@ -342,13 +349,14 @@ impl MobileBertModel {
                 ));
             }
         };
+        let attention_mask: Tensor = (attention_mask.ones_like() - attention_mask) * -10000.0;
 
         let token_type_ids = token_type_ids.unwrap_or(calc_token_type_ids.as_ref().unwrap());
 
         let embedding_output = self.embeddings.forward_t(
             input_ids,
-            position_ids,
             token_type_ids.into(),
+            position_ids,
             input_embeds,
             train,
         )?;
@@ -364,6 +372,10 @@ impl MobileBertModel {
             all_hidden_states: encoder_output.all_hidden_states,
             all_attentions: encoder_output.all_attentions,
         })
+    }
+
+    fn get_embeddings(&self) -> &Tensor {
+        &self.embeddings.word_embeddings.ws
     }
 }
 
@@ -405,7 +417,10 @@ impl MobileBertForMaskedLM {
             train,
         )?;
 
-        let logits = self.classifier.forward(&mobilebert_output.hidden_state);
+        let logits = self.classifier.forward(
+            &mobilebert_output.hidden_state,
+            self.mobilebert.get_embeddings(),
+        );
 
         Ok(MobileBertMaskedLMOutput {
             logits,
