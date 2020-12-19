@@ -4,6 +4,6 @@ mod encoder;
 mod mobilebert_model;
 
 pub use mobilebert_model::{
-    MobileBertConfig, MobileBertConfigResources, MobileBertModel, MobileBertModelResources,
-    MobileBertVocabResources,
+    MobileBertConfig, MobileBertConfigResources, MobileBertForMaskedLM, MobileBertModel,
+    MobileBertModelResources, MobileBertVocabResources,
 };

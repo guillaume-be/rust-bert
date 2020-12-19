@@ -15,7 +15,7 @@ use crate::mobilebert::mobilebert_model::{NormalizationLayer, NormalizationType}
 use crate::mobilebert::MobileBertConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
-use tch::nn::{EmbeddingConfig, Init};
+use tch::nn::EmbeddingConfig;
 use tch::{nn, Kind, Tensor};
 
 pub struct MobileBertEmbeddings {
@@ -28,7 +28,6 @@ pub struct MobileBertEmbeddings {
     embedding_transformation: nn::Linear,
     layer_norm: NormalizationLayer,
     dropout: Dropout,
-    position_ids: Tensor,
 }
 
 impl MobileBertEmbeddings {
@@ -74,21 +73,13 @@ impl MobileBertEmbeddings {
         );
 
         let layer_norm = NormalizationLayer::new(
-            p / "layer_norm",
+            p / "LayerNorm",
             config
                 .normalization_type
                 .unwrap_or(NormalizationType::no_norm),
             hidden_size,
             None,
         );
-
-        let position_ids = p
-            .var(
-                "position_ids",
-                &[1, config.max_position_embeddings],
-                Init::Const(0.0),
-            )
-            .to_kind(Kind::Int64);
 
         let dropout = Dropout::new(config.hidden_dropout_prob);
         MobileBertEmbeddings {
@@ -101,7 +92,6 @@ impl MobileBertEmbeddings {
             embedding_transformation,
             layer_norm,
             dropout,
-            position_ids,
         }
     }
 
@@ -109,7 +99,7 @@ impl MobileBertEmbeddings {
         &self,
         input_ids: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
-        position_ids: Option<&Tensor>,
+        position_ids: &Tensor,
         input_embeds: Option<Tensor>,
         train: bool,
     ) -> Result<Tensor, RustBertError> {
@@ -139,13 +129,6 @@ impl MobileBertEmbeddings {
         };
 
         let seq_length = input_shape[1];
-
-        let calc_position_ids = if position_ids.is_none() {
-            Some(self.position_ids.as_ref().slice(1, 0, seq_length, 1))
-        } else {
-            None
-        };
-        let position_ids = position_ids.unwrap_or(calc_position_ids.as_ref().unwrap());
 
         let calc_token_type_ids = if token_type_ids.is_none() {
             Some(Tensor::zeros(

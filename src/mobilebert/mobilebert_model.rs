@@ -202,9 +202,9 @@ impl MobileBertPredictionHeadTransform {
 
 pub struct MobileBertLMPredictionHead {
     transform: MobileBertPredictionHeadTransform,
-    dense: nn::Linear,
-    decoder_weight: Tensor,
-    decoder_bias: Tensor,
+    dense: Tensor,
+    dense_weight: Tensor,
+    bias: Tensor,
 }
 
 impl MobileBertLMPredictionHead {
@@ -215,35 +215,37 @@ impl MobileBertLMPredictionHead {
         let p = p.borrow();
 
         let transform = MobileBertPredictionHeadTransform::new(p / "transform", config);
-        let dense = nn::linear(
-            p / "dense",
-            config.vocab_size,
-            config.hidden_size - config.embedding_size,
-            Default::default(),
+        let dense = p.var(
+            "dense",
+            &[
+                config.vocab_size,
+                config.hidden_size - config.embedding_size,
+            ],
+            Init::KaimingUniform,
         );
-        let decoder_p = p / "decoder";
-        let decoder_weight = decoder_p.var(
+        let dense_p = p / "dense";
+        let dense_weight = dense_p.var(
             "weight",
             &[config.embedding_size, config.vocab_size],
             Init::KaimingUniform,
         );
-        let decoder_bias = decoder_p.var("bias", &[config.vocab_size], Init::Const(0.0));
+        let bias = p.var("bias", &[config.vocab_size], Init::Const(0.0));
 
         MobileBertLMPredictionHead {
             transform,
             dense,
-            decoder_weight,
-            decoder_bias,
+            dense_weight,
+            bias,
         }
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
         let hidden_states = self.transform.forward(hidden_states);
         let hidden_states = hidden_states.matmul(&Tensor::cat(
-            &[&self.decoder_weight.transpose(0, 1), &self.dense.ws],
+            &[&self.dense_weight.transpose(0, 1), &self.dense],
             0,
         ));
-        hidden_states + &self.decoder_bias
+        hidden_states + &self.bias
     }
 }
 
@@ -365,12 +367,70 @@ impl MobileBertModel {
     }
 }
 
+pub struct MobileBertForMaskedLM {
+    mobilebert: MobileBertModel,
+    classifier: MobileBertOnlyMLMHead,
+}
+
+impl MobileBertForMaskedLM {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForMaskedLM
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let mobilebert = MobileBertModel::new(p / "mobilebert", config);
+        let classifier = MobileBertOnlyMLMHead::new(p / "cls", config);
+        MobileBertForMaskedLM {
+            mobilebert,
+            classifier,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<MobileBertMaskedLMOutput, RustBertError> {
+        let mobilebert_output = self.mobilebert.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            attention_mask,
+            train,
+        )?;
+
+        let logits = self.classifier.forward(&mobilebert_output.hidden_state);
+
+        Ok(MobileBertMaskedLMOutput {
+            logits,
+            all_hidden_states: mobilebert_output.all_hidden_states,
+            all_attentions: mobilebert_output.all_attentions,
+        })
+    }
+}
+
 /// Container for the MobileBert output.
 pub struct MobileBertOutput {
     /// Last hidden states from the model
     pub hidden_state: Tensor,
     /// Pooled output
     pub pooled_output: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the MobileBert masked LM model output.
+pub struct MobileBertMaskedLMOutput {
+    /// Logits for the vocabulary items at each sequence position
+    pub logits: Tensor,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers

@@ -340,7 +340,7 @@ impl MobileBertLayer {
         let ffn = if num_feedforward_networks > 1 {
             let mut layers = Vec::with_capacity(num_feedforward_networks as usize);
             let p_layers = p / "ffn";
-            for layer_index in 0..num_feedforward_networks {
+            for layer_index in 0..num_feedforward_networks - 1 {
                 layers.push(FFNLayer::new(&p_layers / layer_index, config));
             }
             Some(layers)

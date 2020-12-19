@@ -18,7 +18,6 @@ use tch::{nn, Kind, Tensor};
 
 pub struct MobileBertSelfAttention {
     attention_head_size: i64,
-    all_head_size: i64,
     num_attention_heads: i64,
     query: nn::Linear,
     key: nn::Linear,
@@ -62,7 +61,6 @@ impl MobileBertSelfAttention {
 
         MobileBertSelfAttention {
             attention_head_size,
-            all_head_size,
             num_attention_heads: config.num_attention_heads,
             query,
             key,
@@ -121,7 +119,6 @@ impl MobileBertSelfAttention {
 }
 
 pub struct MobileBertSelfOutput {
-    use_bottleneck: bool,
     dense: nn::Linear,
     layer_norm: NormalizationLayer,
     dropout: Option<Dropout>,
@@ -160,7 +157,6 @@ impl MobileBertSelfOutput {
             None
         };
         MobileBertSelfOutput {
-            use_bottleneck,
             dense,
             layer_norm,
             dropout,
