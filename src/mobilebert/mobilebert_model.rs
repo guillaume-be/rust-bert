@@ -266,12 +266,12 @@ impl MobileBertOnlyMLMHead {
 pub struct MobileBertModel {
     embeddings: MobileBertEmbeddings,
     encoder: MobileBertEncoder,
-    pooler: MobileBertPooler,
+    pooler: Option<MobileBertPooler>,
     position_ids: Tensor,
 }
 
 impl MobileBertModel {
-    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertModel
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig, add_pooling_layer: bool) -> MobileBertModel
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -279,7 +279,11 @@ impl MobileBertModel {
 
         let embeddings = MobileBertEmbeddings::new(p / "embeddings", config);
         let encoder = MobileBertEncoder::new(p / "encoder", config);
-        let pooler = MobileBertPooler::new(p / "pooler", config);
+        let pooler = if add_pooling_layer {
+            Some(MobileBertPooler::new(p / "pooler", config))
+        } else {
+            None
+        };
         let position_ids =
             Tensor::arange(config.max_position_embeddings, (Kind::Int64, p.device()))
                 .expand(&[1, -1], true);
@@ -365,7 +369,12 @@ impl MobileBertModel {
             self.encoder
                 .forward_t(&embedding_output, Some(&attention_mask), train);
 
-        let pooled_output = self.pooler.forward(&encoder_output.hidden_state);
+        let pooled_output = if let Some(pooler) = &self.pooler {
+            Some(pooler.forward(&encoder_output.hidden_state))
+        } else {
+            None
+        };
+
         Ok(MobileBertOutput {
             hidden_state: encoder_output.hidden_state,
             pooled_output,
@@ -391,7 +400,7 @@ impl MobileBertForMaskedLM {
     {
         let p = p.borrow();
 
-        let mobilebert = MobileBertModel::new(p / "mobilebert", config);
+        let mobilebert = MobileBertModel::new(p / "mobilebert", config, false);
         let classifier = MobileBertOnlyMLMHead::new(p / "cls", config);
         MobileBertForMaskedLM {
             mobilebert,
@@ -435,7 +444,7 @@ pub struct MobileBertOutput {
     /// Last hidden states from the model
     pub hidden_state: Tensor,
     /// Pooled output
-    pub pooled_output: Tensor,
+    pub pooled_output: Option<Tensor>,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
