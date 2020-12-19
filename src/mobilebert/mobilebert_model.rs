@@ -180,9 +180,7 @@ impl MobileBertPredictionHeadTransform {
         let activation_function = config.hidden_act.get_function();
         let layer_norm = NormalizationLayer::new(
             p / "LayerNorm",
-            config
-                .normalization_type
-                .unwrap_or(NormalizationType::no_norm),
+            NormalizationType::layer_norm,
             config.hidden_size,
             config.layer_norm_eps,
         );
