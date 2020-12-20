@@ -1330,18 +1330,12 @@ impl XLNetForMultipleChoice {
             ),
         };
 
-        let attention_mask = match attention_mask {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let token_type_ids = match token_type_ids {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let input_embeds = match input_embeds {
-            Some(value) => Some(value.view((-1, value.size()[1], value.size()[2]))),
-            None => None,
-        };
+        let attention_mask =
+            attention_mask.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let token_type_ids =
+            token_type_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let input_embeds =
+            input_embeds.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
         let base_model_output = self
             .base_model
             .forward_t(

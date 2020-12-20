@@ -854,18 +854,11 @@ impl BertForMultipleChoice {
         let num_choices = input_ids.size()[1];
 
         let input_ids = input_ids.view((-1, *input_ids.size().last().unwrap()));
-        let mask = match mask {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let token_type_ids = match token_type_ids {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let position_ids = match position_ids {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
-        };
+        let mask = mask.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let token_type_ids =
+            token_type_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let position_ids =
+            position_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
 
         let base_model_output = self
             .bert
