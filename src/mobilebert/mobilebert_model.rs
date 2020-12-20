@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::activations::{Activation, TensorFunction};
+use crate::common::dropout::Dropout;
 use crate::mobilebert::embeddings::MobileBertEmbeddings;
 use crate::mobilebert::encoder::{MobileBertEncoder, MobileBertPooler};
 use crate::{Config, RustBertError};
@@ -437,6 +438,270 @@ impl MobileBertForMaskedLM {
     }
 }
 
+pub struct MobileBertForSequenceClassification {
+    mobilebert: MobileBertModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl MobileBertForSequenceClassification {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForSequenceClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let mobilebert = MobileBertModel::new(p / "mobilebert", config, true);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let classifier = nn::linear(
+            p / "classifier",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
+        MobileBertForSequenceClassification {
+            mobilebert,
+            dropout,
+            classifier,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<MobileBertSequenceClassificationOutput, RustBertError> {
+        let mobilebert_output = self.mobilebert.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            attention_mask,
+            train,
+        )?;
+
+        let logits = mobilebert_output
+            .pooled_output
+            .unwrap()
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
+
+        Ok(MobileBertSequenceClassificationOutput {
+            logits,
+            all_hidden_states: mobilebert_output.all_hidden_states,
+            all_attentions: mobilebert_output.all_attentions,
+        })
+    }
+}
+
+pub struct MobileBertForQuestionAnswering {
+    mobilebert: MobileBertModel,
+    qa_outputs: nn::Linear,
+}
+
+impl MobileBertForQuestionAnswering {
+    pub fn new<'p, P>(
+        p: P,
+        config: &MobileBertConfig,
+    ) -> Result<MobileBertForQuestionAnswering, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let mobilebert = MobileBertModel::new(p / "mobilebert", config, false);
+        let qa_outputs = nn::linear(p / "qa_outputs", config.hidden_size, 2, Default::default());
+
+        Ok(MobileBertForQuestionAnswering {
+            mobilebert,
+            qa_outputs,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<MobileBertQuestionAnsweringOutput, RustBertError> {
+        let mobilebert_output = self.mobilebert.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            attention_mask,
+            train,
+        )?;
+
+        let sequence_output = mobilebert_output.hidden_state.apply(&self.qa_outputs);
+        let logits = sequence_output.split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze1(-1);
+        let end_logits = end_logits.squeeze1(-1);
+
+        Ok(MobileBertQuestionAnsweringOutput {
+            start_logits,
+            end_logits,
+            all_hidden_states: mobilebert_output.all_hidden_states,
+            all_attentions: mobilebert_output.all_attentions,
+        })
+    }
+}
+
+pub struct MobileBertForMultipleChoice {
+    mobilebert: MobileBertModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl MobileBertForMultipleChoice {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForMultipleChoice
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let mobilebert = MobileBertModel::new(p / "mobilebert", config, true);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let classifier = nn::linear(p / "classifier", config.hidden_size, 1, Default::default());
+        MobileBertForMultipleChoice {
+            mobilebert,
+            dropout,
+            classifier,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<MobileBertSequenceClassificationOutput, RustBertError> {
+        let (input_ids, num_choices) = match input_ids {
+            Some(value) => (
+                Some(value.view((-1, *value.size().last().unwrap()))),
+                value.size()[1],
+            ),
+            None => (
+                None,
+                input_embeds
+                    .as_ref()
+                    .expect("At least one of input ids or input_embeds must be provided")
+                    .size()[1],
+            ),
+        };
+        let attention_mask =
+            attention_mask.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let token_type_ids =
+            token_type_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let input_embeds =
+            input_embeds.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let position_ids =
+            position_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+
+        let mobilebert_output = self.mobilebert.forward_t(
+            input_ids.as_ref(),
+            token_type_ids.as_ref(),
+            position_ids.as_ref(),
+            input_embeds,
+            attention_mask.as_ref(),
+            train,
+        )?;
+
+        let logits = mobilebert_output
+            .pooled_output
+            .unwrap()
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier)
+            .view([-1, num_choices]);
+
+        Ok(MobileBertSequenceClassificationOutput {
+            logits,
+            all_hidden_states: mobilebert_output.all_hidden_states,
+            all_attentions: mobilebert_output.all_attentions,
+        })
+    }
+}
+
+pub struct MobileBertForTokenClassification {
+    mobilebert: MobileBertModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl MobileBertForTokenClassification {
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForTokenClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let mobilebert = MobileBertModel::new(p / "mobilebert", config, false);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let classifier = nn::linear(
+            p / "classifier",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
+        MobileBertForTokenClassification {
+            mobilebert,
+            dropout,
+            classifier,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<MobileBertTokenClassificationOutput, RustBertError> {
+        let mobilebert_output = self.mobilebert.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            attention_mask,
+            train,
+        )?;
+
+        let logits = mobilebert_output
+            .hidden_state
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
+
+        Ok(MobileBertTokenClassificationOutput {
+            logits,
+            all_hidden_states: mobilebert_output.all_hidden_states,
+            all_attentions: mobilebert_output.all_attentions,
+        })
+    }
+}
+
 /// Container for the MobileBert output.
 pub struct MobileBertOutput {
     /// Last hidden states from the model
@@ -453,6 +718,38 @@ pub struct MobileBertOutput {
 pub struct MobileBertMaskedLMOutput {
     /// Logits for the vocabulary items at each sequence position
     pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the MobileBert sequence classification model output.
+pub struct MobileBertSequenceClassificationOutput {
+    /// Logits for each input (sequence) for each target class
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the MobileBert token classification model output.
+pub struct MobileBertTokenClassificationOutput {
+    /// Logits for each sequence item (token) for each target class
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the MobileBert question answering model output.
+pub struct MobileBertQuestionAnsweringOutput {
+    /// Logits for the start position for token of each input sequence
+    pub start_logits: Tensor,
+    /// Logits for the end position for token of each input sequence
+    pub end_logits: Tensor,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers

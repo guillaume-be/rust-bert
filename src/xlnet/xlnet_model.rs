@@ -1537,7 +1537,7 @@ pub struct XLNetModelOutput {
 
 /// Container for the XLNet sequence classification model output.
 pub struct XLNetSequenceClassificationOutput {
-    /// Last hidden states from the model
+    /// Logits for each input (sequence) for each target class
     pub logits: Tensor,
     /// Cached hiden layer states for generation tasks
     pub next_cache: Option<Vec<Option<LayerState>>>,
@@ -1549,7 +1549,7 @@ pub struct XLNetSequenceClassificationOutput {
 
 /// Container for the XLNet token classification model output.
 pub struct XLNetTokenClassificationOutput {
-    /// Last hidden states from the model
+    /// Logits for each sequence item (token) for each target class
     pub logits: Tensor,
     /// Cached hiden layer states for generation tasks
     pub next_cache: Option<Vec<Option<LayerState>>>,
