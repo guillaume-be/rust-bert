@@ -34,6 +34,7 @@
 //! | |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|
 //! :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
 //! DistilBERT|✅|✅|✅| | | |✅|
+//! MobileBERT|✅|✅|✅| | | |✅|
 //! BERT|✅|✅|✅| | | |✅|
 //! RoBERTa|✅|✅|✅| | | |✅|
 //! GPT| | | |✅ | | | |
