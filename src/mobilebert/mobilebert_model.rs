@@ -56,18 +56,41 @@ impl MobileBertVocabResources {
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
+/// # Normalization type to use for the MobileBERT model.
+/// `no_norm` uses a matrix multiplication with a set of learned weights, while `layer_norm` uses a
+/// build-in layer normalization module.
 pub enum NormalizationType {
     layer_norm,
     no_norm,
 }
 
 #[derive(Debug)]
+/// # No-normalization option for MobileBERT
+/// Basic module performing a linear multiplication using trained coefficients and bias
 pub struct NoNorm {
     weight: Tensor,
     bias: Tensor,
 }
 
 impl NoNorm {
+    /// Creates a new `NoNorm` layer of given hidden size.
+    ///
+    /// # Arguments:
+    ///
+    /// * hidden_size - input tensor's hidden size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    ///
+    /// use rust_bert::mobilebert::NoNorm;
+    /// use tch::{nn, Device};
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let hidden_size = 512;
+    /// let no_norm = NoNorm::new(&p.root(), hidden_size);
+    ///
+    /// ```
     pub fn new<'p, P>(p: P, hidden_size: i64) -> NoNorm
     where
         P: Borrow<nn::Path<'p>>,
@@ -262,6 +285,13 @@ impl MobileBertOnlyMLMHead {
     }
 }
 
+/// # MobileBertModel Base model
+/// Base architecture for MobileBERT models. Task-specific models will be built from this common base model
+/// It is made of the following blocks:
+/// - `embeddings`: Word, token type and position embeddings
+/// - `encoder`: `MobileBertEncoder` made of a stack of `MobileBertLayer`
+/// - `pooler`: Optional `MobileBertPooler` taking the first sequence element hidden state for sequence-level tasks
+/// - `position_ids` preset position ids tensor used in case they are not provided by the user
 pub struct MobileBertModel {
     embeddings: MobileBertEmbeddings,
     encoder: MobileBertEncoder,
@@ -270,6 +300,29 @@ pub struct MobileBertModel {
 }
 
 impl MobileBertModel {
+    /// Build a new `MobileBertModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the MobileBERT model
+    /// * `config` - `MobileBertConfig` object defining the model architecture and decoder status
+    /// * `add_poling_layer` - boolean flag indicating if a pooling layer shuld be added after the encoder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertModel};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = MobileBertConfig::from_file(config_path);
+    /// let add_pooling_layer = true;
+    /// let mobilebert = MobileBertModel::new(&p.root() / "mobilebert", &config, add_pooling_layer);
+    /// ```
     pub fn new<'p, P>(p: P, config: &MobileBertConfig, add_pooling_layer: bool) -> MobileBertModel
     where
         P: Borrow<nn::Path<'p>>,
@@ -294,6 +347,59 @@ impl MobileBertModel {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `MobileBertOutput` containing:
+    ///   - `hidden_state` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `pooled_output` - Optional `Tensor` of shape (*batch size*, *hidden_size*) if the model was created with an optional pooling layer
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertModel};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = MobileBertConfig::from_file(config_path);
+    /// let add_pooling_layer = true;
+    /// let model = MobileBertModel::new(&vs.root(), &config, add_pooling_layer);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             Some(&attention_mask),
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -387,12 +493,38 @@ impl MobileBertModel {
     }
 }
 
+/// # MobileBERT for masked language model
+/// Base MobileBERT model with a masked language model head to predict missing tokens, for example `"Looks like one [MASK] is missing" -> "person"`
+/// It is made of the following blocks:
+/// - `mobilebert`: Base MobileBertModel
+/// - `classifier`: MobileBERT LM prediction head
 pub struct MobileBertForMaskedLM {
     mobilebert: MobileBertModel,
     classifier: MobileBertOnlyMLMHead,
 }
 
 impl MobileBertForMaskedLM {
+    /// Build a new `MobileBertForMaskedLM`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the MobileBERT model
+    /// * `config` - `MobileBertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForMaskedLM};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = MobileBertConfig::from_file(config_path);
+    /// let mobilebert = MobileBertForMaskedLM::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForMaskedLM
     where
         P: Borrow<nn::Path<'p>>,
@@ -407,6 +539,57 @@ impl MobileBertForMaskedLM {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `MobileBertMaskedLMOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForMaskedLM};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = MobileBertConfig::from_file(config_path);
+    /// let model = MobileBertForMaskedLM::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             Some(&attention_mask),
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -438,6 +621,12 @@ impl MobileBertForMaskedLM {
     }
 }
 
+/// # MobileBERT for sequence classification
+/// Base MobileBERT model with a classifier head to perform sentence or document-level classification
+/// It is made of the following blocks:
+/// - `mobilebert`: Base MobileBertModel
+/// - `dropout`: Dropout layer before the last linear layer
+/// - `classifier`: linear layer mapping from hidden to the number of classes to predict
 pub struct MobileBertForSequenceClassification {
     mobilebert: MobileBertModel,
     dropout: Dropout,
@@ -445,6 +634,27 @@ pub struct MobileBertForSequenceClassification {
 }
 
 impl MobileBertForSequenceClassification {
+    /// Build a new `MobileBertForSequenceClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the MobileBERT model
+    /// * `config` - `MobileBertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForSequenceClassification};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = MobileBertConfig::from_file(config_path);
+    /// let mobilebert = MobileBertForSequenceClassification::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForSequenceClassification
     where
         P: Borrow<nn::Path<'p>>,
@@ -471,6 +681,57 @@ impl MobileBertForSequenceClassification {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `MobileBertSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *num_classes*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForSequenceClassification};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = MobileBertConfig::from_file(config_path);
+    /// let model = MobileBertForSequenceClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             Some(&attention_mask),
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -503,16 +764,44 @@ impl MobileBertForSequenceClassification {
     }
 }
 
+/// # MobileBERT for question answering
+/// Extractive question-answering model based on a MobileBERT language model. Identifies the segment of a context that answers a provided question.
+/// Please note that a significant amount of pre- and post-processing is required to perform end-to-end question answering.
+/// See the question answering pipeline (also provided in this crate) for more details.
+/// It is made of the following blocks:
+/// - `mobilebert`: Base MobileBertModel
+/// - `qa_outputs`: Linear layer for question answering
 pub struct MobileBertForQuestionAnswering {
     mobilebert: MobileBertModel,
     qa_outputs: nn::Linear,
 }
 
 impl MobileBertForQuestionAnswering {
+    /// Build a new `MobileBertForQuestionAnswering`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the MobileBERT model
+    /// * `config` - `MobileBertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForQuestionAnswering};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = MobileBertConfig::from_file(config_path);
+    /// let mobilebert = MobileBertForQuestionAnswering::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(
         p: P,
         config: &MobileBertConfig,
-    ) -> Result<MobileBertForQuestionAnswering, RustBertError>
+    ) -> MobileBertForQuestionAnswering
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -521,12 +810,64 @@ impl MobileBertForQuestionAnswering {
         let mobilebert = MobileBertModel::new(p / "mobilebert", config, false);
         let qa_outputs = nn::linear(p / "qa_outputs", config.hidden_size, 2, Default::default());
 
-        Ok(MobileBertForQuestionAnswering {
+        MobileBertForQuestionAnswering {
             mobilebert,
             qa_outputs,
-        })
+        }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `MobileBertQuestionAnsweringOutput` containing:
+    ///   - `start_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    ///   - `end_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForQuestionAnswering};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = MobileBertConfig::from_file(config_path);
+    /// let model = MobileBertForQuestionAnswering::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             Some(&attention_mask),
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -560,6 +901,14 @@ impl MobileBertForQuestionAnswering {
     }
 }
 
+/// # MobileBERT for multiple choices
+/// Multiple choices model using a MobileBERT base model and a linear classifier.
+/// Input should be in the form `[CLS] Context [SEP] Possible choice [SEP]`. The choice is made along the batch axis,
+/// assuming all elements of the batch are alternatives to be chosen from for a given context.
+/// It is made of the following blocks:
+/// - `mobilebert`: Base MobileBertModel
+/// - `dropout`: Dropout layer before the last start/end logits prediction
+/// - `classifier`: Linear layer for multiple choices
 pub struct MobileBertForMultipleChoice {
     mobilebert: MobileBertModel,
     dropout: Dropout,
@@ -567,6 +916,27 @@ pub struct MobileBertForMultipleChoice {
 }
 
 impl MobileBertForMultipleChoice {
+    /// Build a new `MobileBertForMultipleChoice`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the MobileBERT model
+    /// * `config` - `MobileBertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForMultipleChoice};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = MobileBertConfig::from_file(config_path);
+    /// let mobilebert = MobileBertForMultipleChoice::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForMultipleChoice
     where
         P: Borrow<nn::Path<'p>>,
@@ -583,6 +953,58 @@ impl MobileBertForMultipleChoice {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `MobileBertSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*1*, *batch_size*) containing the logits for each of the alternatives given
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForMultipleChoice};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = MobileBertConfig::from_file(config_path);
+    /// let model = MobileBertForMultipleChoice::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let (num_choices, sequence_length) = (3, 128);
+    /// let input_tensor = Tensor::rand(&[num_choices, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[num_choices, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             Some(&attention_mask),
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -638,6 +1060,13 @@ impl MobileBertForMultipleChoice {
     }
 }
 
+/// # MobileBERT for token classification (e.g. NER, POS)
+/// Token-level classifier predicting a label for each token provided. Note that because of wordpiece tokenization, the labels predicted are
+/// not necessarily aligned with words in the sentence.
+/// It is made of the following blocks:
+/// - `mobilebert`: Base MobileBertModel
+/// - `dropout`: Dropout layer before the last token-level predictions layer
+/// - `classifier`: Linear layer for token classification
 pub struct MobileBertForTokenClassification {
     mobilebert: MobileBertModel,
     dropout: Dropout,
@@ -645,6 +1074,27 @@ pub struct MobileBertForTokenClassification {
 }
 
 impl MobileBertForTokenClassification {
+    /// Build a new `MobileBertForMultipleChoice`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the MobileBERT model
+    /// * `config` - `MobileBertConfig` object defining the model architecture and decoder status
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForTokenClassification};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = MobileBertConfig::from_file(config_path);
+    /// let mobilebert = MobileBertForTokenClassification::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForTokenClassification
     where
         P: Borrow<nn::Path<'p>>,
@@ -671,6 +1121,57 @@ impl MobileBertForTokenClassification {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `MobileBertTokenClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) containing the logits for each of the input tokens and classes
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForTokenClassification};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = MobileBertConfig::from_file(config_path);
+    /// let model = MobileBertForTokenClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             Some(&attention_mask),
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
