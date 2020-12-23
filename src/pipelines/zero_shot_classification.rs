@@ -105,6 +105,7 @@ use crate::bart::{
 };
 use crate::bert::BertForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
+use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::pipelines::sequence_classification::Label;
 use crate::resources::{RemoteResource, Resource};
@@ -213,6 +214,8 @@ pub enum ZeroShotClassificationOption {
     Bert(BertForSequenceClassification),
     /// DistilBert for Sequence Classification
     DistilBert(DistilBertModelClassifier),
+    /// MobileBert for Sequence Classification
+    MobileBert(MobileBertForSequenceClassification),
     /// Roberta for Sequence Classification
     Roberta(RobertaForSequenceClassification),
     /// XLMRoberta for Sequence Classification
@@ -271,6 +274,17 @@ impl ZeroShotClassificationOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+                    ))
+                }
+            }
+            ModelType::MobileBert => {
+                if let ConfigOption::MobileBert(config) = config {
+                    Ok(ZeroShotClassificationOption::MobileBert(
+                        MobileBertForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a MobileBertConfig for MobileBert!".to_string(),
                     ))
                 }
             }
@@ -333,6 +347,7 @@ impl ZeroShotClassificationOption {
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
+            Self::MobileBert(_) => ModelType::MobileBert,
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
         }
@@ -377,6 +392,19 @@ impl ZeroShotClassificationOption {
                 model
                     .forward_t(input_ids, mask, input_embeds, train)
                     .expect("Error in distilbert forward_t")
+                    .logits
+            }
+            Self::MobileBert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids.as_ref(),
+                        None,
+                        None,
+                        input_embeds,
+                        mask.as_ref(),
+                        train,
+                    )
+                    .expect("Error in mobilebert forward_t")
                     .logits
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {

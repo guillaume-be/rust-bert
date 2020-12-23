@@ -51,6 +51,7 @@ use crate::distilbert::{
     DistilBertConfigResources, DistilBertForQuestionAnswering, DistilBertModelResources,
     DistilBertVocabResources,
 };
+use crate::mobilebert::MobileBertForQuestionAnswering;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForQuestionAnswering;
 use crate::roberta::RobertaForQuestionAnswering;
@@ -261,6 +262,8 @@ pub enum QuestionAnsweringOption {
     Bert(BertForQuestionAnswering),
     /// DistilBert for Question Answering
     DistilBert(DistilBertForQuestionAnswering),
+    /// MobileBert for Question Answering
+    MobileBert(MobileBertForQuestionAnswering),
     /// Roberta for Question Answering
     Roberta(RobertaForQuestionAnswering),
     /// XLMRoberta for Question Answering
@@ -310,6 +313,17 @@ impl QuestionAnsweringOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+                    ))
+                }
+            }
+            ModelType::MobileBert => {
+                if let ConfigOption::MobileBert(config) = config {
+                    Ok(QuestionAnsweringOption::MobileBert(
+                        MobileBertForQuestionAnswering::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a MobileBertConfig for MobileBert!".to_string(),
                     ))
                 }
             }
@@ -382,6 +396,7 @@ impl QuestionAnsweringOption {
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::DistilBert(_) => ModelType::DistilBert,
+            Self::MobileBert(_) => ModelType::MobileBert,
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
@@ -405,6 +420,19 @@ impl QuestionAnsweringOption {
                 let outputs = model
                     .forward_t(input_ids, mask, input_embeds, train)
                     .expect("Error in distilbert forward_t");
+                (outputs.start_logits, outputs.end_logits)
+            }
+            Self::MobileBert(ref model) => {
+                let outputs = model
+                    .forward_t(
+                        input_ids.as_ref(),
+                        None,
+                        None,
+                        input_embeds,
+                        mask.as_ref(),
+                        train,
+                    )
+                    .expect("Error in mobilebert forward_t");
                 (outputs.start_logits, outputs.end_logits)
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
