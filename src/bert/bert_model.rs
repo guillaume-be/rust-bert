@@ -90,7 +90,7 @@ impl BertVocabResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # BERT model configuration
 /// Defines the BERT model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct BertConfig {
@@ -374,7 +374,7 @@ impl<T: BertEmbedding> BertModel<T> {
             train,
         )?;
 
-        let (hidden_state, all_hidden_states, all_attentions) = self.encoder.forward_t(
+        let encoder_output = self.encoder.forward_t(
             &embedding_output,
             &Some(extended_attention_mask),
             encoder_hidden_states,
@@ -385,13 +385,13 @@ impl<T: BertEmbedding> BertModel<T> {
         let pooled_output = self
             .pooler
             .as_ref()
-            .map(|pooler| pooler.forward(&hidden_state));
+            .map(|pooler| pooler.forward(&encoder_output.hidden_state));
 
         Ok(BertModelOutput {
-            hidden_state,
+            hidden_state: encoder_output.hidden_state,
             pooled_output,
-            all_hidden_states,
-            all_attentions,
+            all_hidden_states: encoder_output.all_hidden_states,
+            all_attentions: encoder_output.all_attentions,
         })
     }
 }

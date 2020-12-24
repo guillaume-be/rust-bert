@@ -58,7 +58,7 @@ impl ReformerVocabResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # Reformer model configuration
 /// Defines the Reformer model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct ReformerConfig {

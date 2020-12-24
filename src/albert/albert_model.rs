@@ -54,7 +54,7 @@ impl AlbertVocabResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # ALBERT model configuration
 /// Defines the ALBERT model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct AlbertConfig {

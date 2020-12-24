@@ -68,7 +68,7 @@ pub enum AttentionType {
     uni,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # XLNet model configuration
 /// Defines the XLNet model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct XLNetConfig {
