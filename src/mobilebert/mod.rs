@@ -21,8 +21,11 @@
 //! #
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
-//! use rust_bert::mobilebert::{MobileBertConfig, MobileBertForMaskedLM, MobileBertConfigResources, MobileBertVocabResources, MobileBertModelResources};
-//! use rust_bert::resources::{Resource, RemoteResource};
+//! use rust_bert::mobilebert::{
+//!     MobileBertConfig, MobileBertConfigResources, MobileBertForMaskedLM,
+//!     MobileBertModelResources, MobileBertVocabResources,
+//! };
+//! use rust_bert::resources::{RemoteResource, Resource};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::BertTokenizer;
 //!
@@ -59,5 +62,5 @@ pub use mobilebert_model::{
     MobileBertConfig, MobileBertConfigResources, MobileBertForMaskedLM,
     MobileBertForMultipleChoice, MobileBertForQuestionAnswering,
     MobileBertForSequenceClassification, MobileBertForTokenClassification, MobileBertModel,
-    MobileBertModelResources, MobileBertVocabResources, NormalizationType, NoNorm
+    MobileBertModelResources, MobileBertVocabResources, NoNorm, NormalizationType,
 };

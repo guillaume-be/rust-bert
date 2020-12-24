@@ -82,14 +82,12 @@ impl NoNorm {
     /// # Example
     ///
     /// ```no_run
-    ///
     /// use rust_bert::mobilebert::NoNorm;
     /// use tch::{nn, Device};
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let hidden_size = 512;
     /// let no_norm = NoNorm::new(&p.root(), hidden_size);
-    ///
     /// ```
     pub fn new<'p, P>(p: P, hidden_size: i64) -> NoNorm
     where
@@ -311,10 +309,10 @@ impl MobileBertModel {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertModel};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -446,9 +444,10 @@ impl MobileBertModel {
             None
         };
 
-        let position_ids = position_ids.unwrap_or(calc_position_ids.as_ref().unwrap());
+        let position_ids = position_ids.unwrap_or_else(|| calc_position_ids.as_ref().unwrap());
 
-        let attention_mask = attention_mask.unwrap_or(calc_attention_mask.as_ref().unwrap());
+        let attention_mask =
+            attention_mask.unwrap_or_else(|| calc_attention_mask.as_ref().unwrap());
         let attention_mask = match attention_mask.dim() {
             3 => attention_mask.unsqueeze(1),
             2 => attention_mask.unsqueeze(1).unsqueeze(1),
@@ -460,11 +459,12 @@ impl MobileBertModel {
         };
         let attention_mask: Tensor = (attention_mask.ones_like() - attention_mask) * -10000.0;
 
-        let token_type_ids = token_type_ids.unwrap_or(calc_token_type_ids.as_ref().unwrap());
+        let token_type_ids =
+            token_type_ids.unwrap_or_else(|| calc_token_type_ids.as_ref().unwrap());
 
         let embedding_output = self.embeddings.forward_t(
             input_ids,
-            token_type_ids.into(),
+            token_type_ids,
             position_ids,
             input_embeds,
             train,
@@ -514,10 +514,10 @@ impl MobileBertForMaskedLM {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForMaskedLM};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForMaskedLM};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -644,10 +644,10 @@ impl MobileBertForSequenceClassification {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForSequenceClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForSequenceClassification};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -787,10 +787,10 @@ impl MobileBertForQuestionAnswering {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForQuestionAnswering};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForQuestionAnswering};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -798,10 +798,7 @@ impl MobileBertForQuestionAnswering {
     /// let config = MobileBertConfig::from_file(config_path);
     /// let mobilebert = MobileBertForQuestionAnswering::new(&p.root(), &config);
     /// ```
-    pub fn new<'p, P>(
-        p: P,
-        config: &MobileBertConfig,
-    ) -> MobileBertForQuestionAnswering
+    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForQuestionAnswering
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -926,10 +923,10 @@ impl MobileBertForMultipleChoice {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForMultipleChoice};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForMultipleChoice};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -1084,10 +1081,10 @@ impl MobileBertForTokenClassification {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForTokenClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::mobilebert::{MobileBertConfig, MobileBertForTokenClassification};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
