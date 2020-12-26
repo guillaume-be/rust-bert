@@ -1002,22 +1002,11 @@ impl AlbertForMultipleChoice {
             },
         };
 
-        let mask = if let Some(mask) = mask {
-            Some(mask.view((-1, *mask.size().last().unwrap())))
-        } else {
-            None
-        };
-        let token_type_ids = if let Some(token_type_ids) = token_type_ids {
-            Some(token_type_ids.view((-1, *token_type_ids.size().last().unwrap())))
-        } else {
-            None
-        };
-
-        let position_ids = if let Some(position_ids) = position_ids {
-            Some(position_ids.view((-1, *position_ids.size().last().unwrap())))
-        } else {
-            None
-        };
+        let mask = mask.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let token_type_ids =
+            token_type_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let position_ids =
+            position_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
 
         let base_model_output = self
             .albert

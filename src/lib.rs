@@ -34,6 +34,7 @@
 //! | |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|
 //! :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
 //! DistilBERT|✅|✅|✅| | | |✅|
+//! MobileBERT|✅|✅|✅| | | |✅|
 //! BERT|✅|✅|✅| | | |✅|
 //! RoBERTa|✅|✅|✅| | | |✅|
 //! GPT| | | |✅ | | | |
@@ -69,6 +70,7 @@ pub mod distilbert;
 pub mod electra;
 pub mod gpt2;
 pub mod marian;
+pub mod mobilebert;
 pub mod openai_gpt;
 pub mod pipelines;
 pub mod reformer;
