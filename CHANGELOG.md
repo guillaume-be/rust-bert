@@ -3,6 +3,30 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.7.0] - [#ToDo]
+### Added
+- Addition of Resources for handling file dependencies (e.g. vocabularies, model weights, configurations). Resources may be `LocalResources` (pointing to a filesystem location) or `RemoteResources` (pointing to a remote endpoint). These resources can be passed to a `download_resource` method that returns the location in the local filesystem for both types of resources, downloading them if necessary.
+- Resources specifications for all existing architectures, pointing to model files hosted on Huggingface's model hub.
+
+### Changed
+- (BREAKING) moved the resources' specification to the `GenerateConfig` for `GPT2Generator`.
+- (BREAKING) creation of pipeline configurations to contain the resources required to build the pipeline, used as an input rather than paths to local files.
+- Updated the configuration for the number of target labels to use the `id2label` field instead of `num_labels` (aligning with changes in standard configuration in the Transformers library). Removed `num_labels` from configurations.
+- Made the `output_attentions`, `output_hidden_states` and `torchscript` fields for DistilBERT configuration optional
+- Fixed the device placement for sinusoidal embeddings for DistilBERT model.
+
+
+## [0.6.2] - [#ToDo]
+### Changed
+- Optimization of the BART model avoiding unnecessary tensor copies for cache manipulation and residual connections.
+- Optimization of DistilBERT model when embeddings are provided as an input
+
+## [0.6.1] - [#ToDo]
+### Changed
+- Minor optimizations to question answering and sentiment analysis pipelines
+- Addition of a cache reset for text generation routines
+- Implementation of cache reset for BART language model
+
 ## [0.6.0] - 2020-04-05
 ### Added
 - BART language model
