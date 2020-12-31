@@ -2,6 +2,51 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+## [0.7.8] - [#ToDo]
+### Fixed
+- Code formatting using `rustfmt`
+
+## [0.7.7] - [#ToDo]
+### Changed
+- Removed the requirement for generation models to be mutable. Models are now all stateless, and no longer store an internal cache (now provided as an input).
+- Updated BART model to take past layer states as an input instead of storing in internally.
+
+### Fixed
+- Fixed sequence classification model logits squeeze causing it to crash for batched inputs.
+
+## [0.7.6] - [#ToDo]
+### Added
+- Addition of translation between Russian and English
+
+### Fixed
+- Fixed a bug causing downloads to be incomplete, and removes the creation of a tokio runtime for the download of resources.
+
+## [0.7.5] - [#ToDo]
+### Added
+- Addition of the Marian model, leveraging a shared language model implementation with the BART model.
+- Addition of translation capabilities. Supports translation between English and French, Spanish, Portuguese, Italian, Catalan and German, and between German and French.
+
+## [0.7.4] - [#ToDo]
+### Added
+- Addition of multi-label classification capabilities for sequence classification via the `predict_mutilabel` function.
+
+## [0.7.3] - [#ToDo]
+### Added
+- Generalization of pipelines to allow leveraging multiple model architectures. Leveraging `Enum` unpacking,  introduces `ConfigOption`, `TokenizerOption` and pipeline-specific Options.
+- Addition of generic `SentenceClassificationModel` pipeline. The `SentimentModel` now leverages shared implementation for sentence classification.
+- Addition of `TokenClassificationModel` pipeline. The `NERModel`now leverages shared implementation for token classification.
+
+### Changed
+- Major rework of tokenization crate, alignment with updated API
+
+## [0.7.2] - [#ToDo]
+### Fixed
+- Minor bug fixes for tokenization
+
+## [0.7.1] - [#ToDo]
+### Added
+- Implementation of the Electra model (generator, discriminator, task-specific heads)
+- GPT2-medium and GPT2-large models
 
 ## [0.7.0] - [#ToDo]
 ### Added
@@ -78,7 +123,6 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 - Fixed concatenation dimension for GPT2 past
-
 
 ## [0.4.5] - 2020-03-07
 ### Changed
