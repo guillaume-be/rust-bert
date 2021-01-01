@@ -2,6 +2,33 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.7.12] - [#ToDo]
+### Added
+- Addition of the reformer language model and its integration for language generation
+
+### Changed
+- Changed model resources endpoints to leverage updated Huggingface's model hub
+- Updated the beam search processing to use vectorized operations
+
+## [0.7.11] - [#ToDo]
+### Changed
+- All models, tokenizers and pipelines are now `Send`
+- Generalization of the accepted input for several pipelines to accept both `Vec` and slices, and to accept both `String` and `&str`
+
+## [0.7.10] - [#ToDo]
+### Added
+- Addition of the ALBERT language model and task-specific heads
+- Addition of German - English translation models
+- Addition of the T5 language model and integration in supported pipelines (translation and summarization)
+
+### Changed
+- Updated the modules throughout the crate to accept both owned and references to varstore paths.
+
+## [0.7.9] - [#ToDo]
+### Added
+- Addition of a multi-turn conversational pipeline based on DialoGPT.
+
 ## [0.7.8] - [#ToDo]
 ### Fixed
 - Code formatting using `rustfmt`
