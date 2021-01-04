@@ -3,7 +3,22 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-## [0.7.12] - [#ToDo]
+## [0.9.0] - 2020-09-06
+### Added
+- Zero-shot classification pipeline using a natural language inference model
+
+### Changed
+- (BREAKING) Updated version of tokenizers crate with added options for lower casing, accent stripping and prefix addition
+- Updated BART classification model to allow running their `forward` method without being mutable.
+
+## [0.8.0] - 2020-08-25
+### Added
+- (BREAKING) Improved error handling via the addition of `RustBertError` and error propagation throughout the crate.
+
+### Changed
+- Updated version of tokenizers crate with improved error handling
+
+## [0.7.12] - 2020-08-12
 ### Added
 - Addition of the reformer language model and its integration for language generation
 
@@ -11,12 +26,12 @@ All notable changes to this project will be documented in this file. The format 
 - Changed model resources endpoints to leverage updated Huggingface's model hub
 - Updated the beam search processing to use vectorized operations
 
-## [0.7.11] - [#ToDo]
+## [0.7.11] - 2020-07-26
 ### Changed
 - All models, tokenizers and pipelines are now `Send`
 - Generalization of the accepted input for several pipelines to accept both `Vec` and slices, and to accept both `String` and `&str`
 
-## [0.7.10] - [#ToDo]
+## [0.7.10] - 2020-07-08
 ### Added
 - Addition of the ALBERT language model and task-specific heads
 - Addition of German - English translation models
@@ -25,15 +40,15 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 - Updated the modules throughout the crate to accept both owned and references to varstore paths.
 
-## [0.7.9] - [#ToDo]
+## [0.7.9] - 2020-06-28
 ### Added
 - Addition of a multi-turn conversational pipeline based on DialoGPT.
 
-## [0.7.8] - [#ToDo]
+## [0.7.8] - 2020-06-23
 ### Fixed
 - Code formatting using `rustfmt`
 
-## [0.7.7] - [#ToDo]
+## [0.7.7] - 2020-06-06
 ### Changed
 - Removed the requirement for generation models to be mutable. Models are now all stateless, and no longer store an internal cache (now provided as an input).
 - Updated BART model to take past layer states as an input instead of storing in internally.
@@ -41,23 +56,23 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 - Fixed sequence classification model logits squeeze causing it to crash for batched inputs.
 
-## [0.7.6] - [#ToDo]
+## [0.7.6] - 2020-05-27
 ### Added
 - Addition of translation between Russian and English
 
 ### Fixed
 - Fixed a bug causing downloads to be incomplete, and removes the creation of a tokio runtime for the download of resources.
 
-## [0.7.5] - [#ToDo]
+## [0.7.5] - 2020-05-25
 ### Added
 - Addition of the Marian model, leveraging a shared language model implementation with the BART model.
 - Addition of translation capabilities. Supports translation between English and French, Spanish, Portuguese, Italian, Catalan and German, and between German and French.
 
-## [0.7.4] - [#ToDo]
+## [0.7.4] - 2020-05-25
 ### Added
 - Addition of multi-label classification capabilities for sequence classification via the `predict_mutilabel` function.
 
-## [0.7.3] - [#ToDo]
+## [0.7.3] - 2020-05-19
 ### Added
 - Generalization of pipelines to allow leveraging multiple model architectures. Leveraging `Enum` unpacking,  introduces `ConfigOption`, `TokenizerOption` and pipeline-specific Options.
 - Addition of generic `SentenceClassificationModel` pipeline. The `SentimentModel` now leverages shared implementation for sentence classification.
@@ -66,16 +81,16 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 - Major rework of tokenization crate, alignment with updated API
 
-## [0.7.2] - [#ToDo]
+## [0.7.2] - 2020-05-03
 ### Fixed
 - Minor bug fixes for tokenization
 
-## [0.7.1] - [#ToDo]
+## [0.7.1] - 2020-05-03
 ### Added
 - Implementation of the Electra model (generator, discriminator, task-specific heads)
 - GPT2-medium and GPT2-large models
 
-## [0.7.0] - [#ToDo]
+## [0.7.0] - 2020-04-26
 ### Added
 - Addition of Resources for handling file dependencies (e.g. vocabularies, model weights, configurations). Resources may be `LocalResources` (pointing to a filesystem location) or `RemoteResources` (pointing to a remote endpoint). These resources can be passed to a `download_resource` method that returns the location in the local filesystem for both types of resources, downloading them if necessary.
 - Resources specifications for all existing architectures, pointing to model files hosted on Huggingface's model hub.
@@ -87,13 +102,12 @@ All notable changes to this project will be documented in this file. The format 
 - Made the `output_attentions`, `output_hidden_states` and `torchscript` fields for DistilBERT configuration optional
 - Fixed the device placement for sinusoidal embeddings for DistilBERT model.
 
-
-## [0.6.2] - [#ToDo]
+## [0.6.2] - 2020-04-07
 ### Changed
 - Optimization of the BART model avoiding unnecessary tensor copies for cache manipulation and residual connections.
 - Optimization of DistilBERT model when embeddings are provided as an input
 
-## [0.6.1] - [#ToDo]
+## [0.6.1] - 2020-04-06
 ### Changed
 - Minor optimizations to question answering and sentiment analysis pipelines
 - Addition of a cache reset for text generation routines
