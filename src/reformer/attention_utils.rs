@@ -15,7 +15,6 @@ use crate::reformer::attention::AttentionType;
 use crate::RustBertError;
 use std::cmp::min;
 use std::collections::HashSet;
-use std::iter::FromIterator;
 use tch::{Kind, Tensor};
 
 pub fn stable_argsort(input_tensor: &Tensor, dim: i64) -> Tensor {
@@ -44,8 +43,10 @@ pub fn get_least_common_mult_chunk_len(
     lsh_attn_chunk_length: Option<i64>,
     local_attn_chunk_length: Option<i64>,
 ) -> i64 {
-    let num_unique_attention_type =
-        HashSet::<&AttentionType>::from_iter(attention_types.iter()).len();
+    let num_unique_attention_type = attention_types
+        .iter()
+        .collect::<HashSet<&AttentionType>>()
+        .len();
     match num_unique_attention_type {
         1 => {
             if attention_types[0] == AttentionType::lsh {
@@ -67,8 +68,10 @@ pub fn get_min_chunk_len(
     lsh_attn_chunk_length: Option<i64>,
     local_attn_chunk_length: Option<i64>,
 ) -> i64 {
-    let num_unique_attention_type =
-        HashSet::<&AttentionType>::from_iter(attention_types.iter()).len();
+    let num_unique_attention_type = attention_types
+        .iter()
+        .collect::<HashSet<&AttentionType>>()
+        .len();
     match num_unique_attention_type {
         1 => {
             if attention_types[0] == AttentionType::lsh {
