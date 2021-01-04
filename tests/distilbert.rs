@@ -28,7 +28,7 @@ fn distilbert_sentiment_classifier() -> anyhow::Result<()> {
 
     let output = sentiment_classifier.predict(&input);
 
-    assert_eq!(output.len(), 3 as usize);
+    assert_eq!(output.len(), 3usize);
     assert_eq!(output[0].polarity, SentimentPolarity::Positive);
     assert!((output[0].score - 0.9981).abs() < 1e-4);
     assert_eq!(output[1].polarity, SentimentPolarity::Negative);
@@ -267,8 +267,8 @@ fn distilbert_question_answering() -> anyhow::Result<()> {
 
     let answers = qa_model.predict(&[qa_input], 1, 32);
 
-    assert_eq!(answers.len(), 1 as usize);
-    assert_eq!(answers[0].len(), 1 as usize);
+    assert_eq!(answers.len(), 1usize);
+    assert_eq!(answers[0].len(), 1usize);
     assert_eq!(answers[0][0].start, 13);
     assert_eq!(answers[0][0].end, 21);
     assert!((answers[0][0].score - 0.9977).abs() < 1e-4);
