@@ -3,6 +3,44 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.12.1] - 2021-01-04
+### Added
+- Addition of the MobileBERT language model, task-specific heads and registration in relevant pipelines
+
+### Changed
+- Made all model configurations `Clone`
+- Made several base modules of the BERT language model public, and added model output `Struct` for the new publicly exposed, complex types
+
+## [0.12.0] - 2020-11-29
+### Added
+- Addition of the Reformer language model, task-specific heads and registration in relevant pipelines
+- Pre-trained models for DistilRoBERTa, used as a default for integration tests
+
+### Changed
+- Updated endpoint of the model resources reflecting changs to the Huggingface's model hub
+- Early stopping turned by default on for translation and summarization
+
+## [0.11.0] - 2020-11-02
+### Added
+- Support for additional models for the conversational pipeline
+
+### Changed
+- Updated the version of Tokenizer crate with consistent visibility
+- (BREAKING) move of teh text generation pipeline to its owned pipeline. Shared generation utilities are moved to `generation_utils`
+- All models, tokenizers and pipelines are now `Send`
+
+## [0.10.0] - 2020-10-04
+### Added
+- Benchmark scripts for all pipelines
+- Addition of the XLNet model and task-specific heads
+
+### Changed
+- (BREAKING) Changed the download method for resources now a method of the resource itself, and leveraging the cached-path crate. 
+- (BREAKING) Changed the return type of models to be output `Struct` instead of long tuples.
+- (BREAKING) Changed the naming of the model main modules from `modelname` to `model_modelname` to avoid confusion with the top level module name  
+- Extended the range of allowed types for pipelines input, allowing both owned `Vec` and slices, and both `String` and sting slice.
+- Handling of all activations functions is mow made from a common module and `Struct`
+
 ## [0.9.0] - 2020-09-06
 ### Added
 - Zero-shot classification pipeline using a natural language inference model
@@ -28,7 +66,6 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [0.7.11] - 2020-07-26
 ### Changed
-- All models, tokenizers and pipelines are now `Send`
 - Generalization of the accepted input for several pipelines to accept both `Vec` and slices, and to accept both `String` and `&str`
 
 ## [0.7.10] - 2020-07-08
