@@ -206,8 +206,7 @@ impl NERModel {
     }
 
     /// Extract full entities from a text performing entity chunking. Follows the algorithm for entities
-    /// chunking proposed by the [CoNLL-2000 shared task](https://www.clips.uantwerpen.be/conll2002/ner/bin/conlleval.txt)
-    /// and described in [Erik F. Tjong Kim Sang, Jorn Veenstra, Representing Text Chunks](https://www.aclweb.org/anthology/E99-1023/)
+    /// chunking described in [Erik F. Tjong Kim Sang, Jorn Veenstra, Representing Text Chunks](https://www.aclweb.org/anthology/E99-1023/)
     /// The proposed implementation is inspired by the [Python seqeval library](https://github.com/chakki-works/seqeval) (shared under MIT license).
     ///
     /// # Arguments
@@ -279,7 +278,6 @@ impl NERModel {
         });
 
         for token in tokens.iter() {
-            println!("{:?}", token);
             current_tag = token.get_tag();
             current_label = token.get_label();
 
