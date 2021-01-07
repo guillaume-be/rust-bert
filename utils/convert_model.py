@@ -7,7 +7,7 @@ import subprocess
 source_file = Path("path/to/pytorch_model.bin")
 target_folder = source_file.parent
 
-weights = torch.load(source_file, map_location='cpu')
+weights = torch.load(str(source_file), map_location='cpu')
 
 nps = {}
 for k, v in weights.items():
