@@ -22,8 +22,6 @@ fn ngram_attention_bias(sequence_length: i64, ngram: i64, device: Device) -> Ten
         let _ = right_block.get(stream_idx).fill_diagonal_(0, false);
         let _ = left_block.get(stream_idx).triu_(-stream_idx + 1);
     }
-    let _ = left_block
-        .slice(2, 0, *left_block.size().last().unwrap(), 1)
-        .fill_(0);
+    let _ = left_block.slice(2, 0, sequence_length, 1).fill_(0);
     Tensor::cat(&[left_block, right_block], 2)
 }
