@@ -412,8 +412,8 @@ fn bert_question_answering() -> anyhow::Result<()> {
 
     let answers = qa_model.predict(&[qa_input], 1, 32);
 
-    assert_eq!(answers.len(), 1 as usize);
-    assert_eq!(answers[0].len(), 1 as usize);
+    assert_eq!(answers.len(), 1usize);
+    assert_eq!(answers[0].len(), 1usize);
     assert_eq!(answers[0][0].start, 13);
     assert_eq!(answers[0][0].end, 21);
     assert!((answers[0][0].score - 0.8111).abs() < 1e-4);

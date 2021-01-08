@@ -70,7 +70,7 @@ impl ElectraVocabResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # Electra model configuration
 /// Defines the Electra model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct ElectraConfig {
@@ -279,7 +279,7 @@ impl ElectraModel {
             None => hidden_states,
         };
 
-        let (hidden_state, all_hidden_states, all_attentions) = self.encoder.forward_t(
+        let encoder_output = self.encoder.forward_t(
             &hidden_states,
             &Some(extended_attention_mask),
             &None,
@@ -288,9 +288,9 @@ impl ElectraModel {
         );
 
         Ok(ElectraModelOutput {
-            hidden_state,
-            all_hidden_states,
-            all_attentions,
+            hidden_state: encoder_output.hidden_state,
+            all_hidden_states: encoder_output.all_hidden_states,
+            all_attentions: encoder_output.all_attentions,
         })
     }
 }

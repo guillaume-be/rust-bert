@@ -133,14 +133,8 @@ impl OpenAiGptModel {
         for layer_index in 0..config.n_layer {
             h.push(Block::new(&h_path / layer_index, config, true));
         }
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
         OpenAiGptModel {
             tokens_embed,
             positions_embed,

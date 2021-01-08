@@ -643,27 +643,20 @@ impl RobertaForMultipleChoice {
     ) -> RobertaSequenceClassificationOutput {
         let num_choices = input_ids.size()[1];
 
-        let flat_input_ids = Some(input_ids.view((-1i64, *input_ids.size().last().unwrap())));
-        let flat_position_ids = match position_ids {
-            Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let flat_token_type_ids = match token_type_ids {
-            Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let flat_mask = match mask {
-            Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
-            None => None,
-        };
+        let input_ids = Some(input_ids.view((-1, *input_ids.size().last().unwrap())));
+        let mask = mask.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let token_type_ids =
+            token_type_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let position_ids =
+            position_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
 
         let base_model_output = self
             .roberta
             .forward_t(
-                flat_input_ids,
-                flat_mask,
-                flat_token_type_ids,
-                flat_position_ids,
+                input_ids,
+                mask,
+                token_type_ids,
+                position_ids,
                 None,
                 &None,
                 &None,

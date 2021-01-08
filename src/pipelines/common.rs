@@ -23,6 +23,7 @@ use crate::common::error::RustBertError;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::gpt2::Gpt2Config;
+use crate::mobilebert::MobileBertConfig;
 use crate::reformer::ReformerConfig;
 use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
@@ -51,6 +52,7 @@ pub enum ModelType {
     XLMRoberta,
     Electra,
     Marian,
+    MobileBert,
     T5,
     Albert,
     XLNet,
@@ -71,6 +73,8 @@ pub enum ConfigOption {
     Electra(ElectraConfig),
     /// Marian configuration
     Marian(BartConfig),
+    /// MobileBert configuration
+    MobileBert(MobileBertConfig),
     /// T5 configuration
     T5(T5Config),
     /// Albert configuration
@@ -118,6 +122,7 @@ impl ConfigOption {
             ModelType::DistilBert => ConfigOption::DistilBert(DistilBertConfig::from_file(path)),
             ModelType::Electra => ConfigOption::Electra(ElectraConfig::from_file(path)),
             ModelType::Marian => ConfigOption::Marian(BartConfig::from_file(path)),
+            ModelType::MobileBert => ConfigOption::MobileBert(MobileBertConfig::from_file(path)),
             ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
             ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
             ModelType::XLNet => ConfigOption::XLNet(XLNetConfig::from_file(path)),
@@ -142,6 +147,9 @@ impl ConfigOption {
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Marian(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::MobileBert(config) => config
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Albert(config) => config
@@ -173,7 +181,10 @@ impl TokenizerOption {
         let add_prefix_space = add_prefix_space.into();
 
         let tokenizer = match model_type {
-            ModelType::Bert | ModelType::DistilBert | ModelType::Electra => {
+            ModelType::Bert
+            | ModelType::DistilBert
+            | ModelType::Electra
+            | ModelType::MobileBert => {
                 if add_prefix_space.is_some() {
                     return Err(RustBertError::InvalidConfigurationError(
                         format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",

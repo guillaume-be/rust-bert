@@ -84,7 +84,7 @@ impl DistilBertVocabResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # DistilBERT model configuration
 /// Defines the DistilBERT model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct DistilBertConfig {

@@ -118,6 +118,7 @@ use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::distilbert::DistilBertForTokenClassification;
 use crate::electra::ElectraForTokenClassification;
+use crate::mobilebert::MobileBertForTokenClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
@@ -139,28 +140,20 @@ use tch::{nn, no_grad, Device, Tensor};
 pub struct Token {
     /// String representation of the Token
     pub text: String,
-
     /// Confidence score
     pub score: f64,
-
     /// Token label (e.g. ORG, LOC in case of NER)
     pub label: String,
-
     /// Label index
     pub label_index: i64,
-
     /// Sentence index
     pub sentence: usize,
-
     /// Token position index
     pub index: u16,
-
     /// Token word position index
     pub word_index: u16,
-
     /// Token offsets
     pub offset: Option<Offset>,
-
     /// Token mask
     pub mask: Mask,
 }
@@ -292,6 +285,8 @@ pub enum TokenClassificationOption {
     Bert(BertForTokenClassification),
     /// DistilBert for Token Classification
     DistilBert(DistilBertForTokenClassification),
+    /// MobileBert for Token Classification
+    MobileBert(MobileBertForTokenClassification),
     /// Roberta for Token Classification
     Roberta(RobertaForTokenClassification),
     /// XLM Roberta for Token Classification
@@ -341,6 +336,17 @@ impl TokenClassificationOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+                    ))
+                }
+            }
+            ModelType::MobileBert => {
+                if let ConfigOption::MobileBert(config) = config {
+                    Ok(TokenClassificationOption::MobileBert(
+                        MobileBertForTokenClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a MobileBertConfig for MobileBert!".to_string(),
                     ))
                 }
             }
@@ -413,6 +419,7 @@ impl TokenClassificationOption {
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::DistilBert(_) => ModelType::DistilBert,
+            Self::MobileBert(_) => ModelType::MobileBert,
             Self::Electra(_) => ModelType::Electra,
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
@@ -445,6 +452,19 @@ impl TokenClassificationOption {
                 model
                     .forward_t(input_ids, mask, input_embeds, train)
                     .expect("Error in distilbert forward_t")
+                    .logits
+            }
+            Self::MobileBert(ref model) => {
+                model
+                    .forward_t(
+                        input_ids.as_ref(),
+                        None,
+                        None,
+                        input_embeds,
+                        mask.as_ref(),
+                        train,
+                    )
+                    .expect("Error in mobilebert forward_t")
                     .logits
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {

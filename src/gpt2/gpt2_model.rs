@@ -168,7 +168,7 @@ impl Gpt2MergesResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # GPT2 model configuration
 /// Defines the GPT2 model architecture (e.g. number of layers, hidden layer size, vocab size...).
 /// Shared between GPT and GPT2 models

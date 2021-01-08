@@ -62,10 +62,7 @@ impl BertSelfAttention {
 
         let dropout = Dropout::new(config.attention_probs_dropout_prob);
         let attention_head_size = config.hidden_size / config.num_attention_heads;
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
 
         BertSelfAttention {
             num_attention_heads: config.num_attention_heads,
