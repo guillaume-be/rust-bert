@@ -12,6 +12,16 @@
 
 use tch::{Kind, Tensor};
 
+#[derive(Debug)]
+/// # Cache for ProphetNet attention layers
+/// Stores the cached value of key and value
+pub struct LayerState {
+    /// Cached keys
+    pub prev_key: Tensor,
+    /// Cached values
+    pub prev_value: Tensor,
+}
+
 fn compute_relative_buckets(
     num_buckets: i64,
     max_distance: i64,
