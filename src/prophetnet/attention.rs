@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::prophetnet::ProphetNetConfig;
 use crate::RustBertError;
@@ -219,6 +220,55 @@ impl ProphetNetAttention {
             None
         };
         (attention_output, attention_weights, layer_state)
+    }
+}
+
+pub struct ProphetNetFeedForward {
+    activation_function: TensorFunction,
+    intermediate: nn::Linear,
+    output: nn::Linear,
+    activation_dropout: Dropout,
+    dropout: Dropout,
+}
+
+impl ProphetNetFeedForward {
+    pub fn new<'p, P>(p: P, config: ProphetNetConfig, ffn_dim: i64) -> ProphetNetFeedForward
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let activation_function = config.activation_function.get_function();
+        let intermediate = nn::linear(
+            p / "intermediate",
+            config.hidden_size,
+            ffn_dim,
+            Default::default(),
+        );
+        let output = nn::linear(
+            p / "output",
+            ffn_dim,
+            config.hidden_size,
+            Default::default(),
+        );
+        let activation_dropout = Dropout::new(config.activation_dropout);
+        let dropout = Dropout::new(config.dropout);
+        ProphetNetFeedForward {
+            activation_function,
+            intermediate,
+            output,
+            activation_dropout,
+            dropout,
+        }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        let hidden_states =
+            (self.activation_function.get_fn())(&hidden_states.apply(&self.intermediate));
+        hidden_states
+            .apply_t(&self.activation_dropout, train)
+            .apply(&self.output)
+            .apply_t(&self.dropout, train)
     }
 }
 
