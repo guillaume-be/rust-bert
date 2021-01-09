@@ -177,10 +177,27 @@ impl ProphetNetAttention {
         };
 
         if is_cross_attention {
-            layer_state.as_mut().unwrap().prev_key =
-                key_states.view([batch_size, self.num_attention_heads, -1, self.head_dim]);
-            layer_state.as_mut().unwrap().prev_value =
-                value_states.view([batch_size, self.num_attention_heads, -1, self.head_dim]);
+            if layer_state.is_some() {
+                layer_state.as_mut().unwrap().prev_key =
+                    key_states.view([batch_size, self.num_attention_heads, -1, self.head_dim]);
+                layer_state.as_mut().unwrap().prev_value =
+                    value_states.view([batch_size, self.num_attention_heads, -1, self.head_dim]);
+            } else {
+                layer_state = Some(LayerState {
+                    prev_key: key_states.view([
+                        batch_size,
+                        self.num_attention_heads,
+                        -1,
+                        self.head_dim,
+                    ]),
+                    prev_value: value_states.view([
+                        batch_size,
+                        self.num_attention_heads,
+                        -1,
+                        self.head_dim,
+                    ]),
+                })
+            }
         };
 
         let key_sequence_key = key_states.size()[1];
@@ -269,6 +286,265 @@ impl ProphetNetFeedForward {
             .apply_t(&self.activation_dropout, train)
             .apply(&self.output)
             .apply_t(&self.dropout, train)
+    }
+}
+
+pub struct ProphetNetNgramAttention {
+    num_buckets: i64,
+    ngram: i64,
+    relative_max_distance: i64,
+    num_attention_heads: i64,
+    dropout: Dropout,
+    attention_dropout: Dropout,
+    head_dim: i64,
+    key_proj: nn::Linear,
+    value_proj: nn::Linear,
+    query_proj: nn::Linear,
+    out_proj: nn::Linear,
+    relative_pos_embeddings: nn::Linear,
+}
+
+impl ProphetNetNgramAttention {
+    pub fn new<'p, P>(p: P, config: ProphetNetConfig) -> ProphetNetNgramAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let num_buckets = config.num_buckets;
+        let ngram = config.ngram;
+        let relative_max_distance = config.relative_max_distance;
+        let num_attention_heads = config.num_decoder_attention_heads;
+        let dropout = Dropout::new(config.dropout);
+        let attention_dropout = Dropout::new(config.attention_dropout);
+        let head_dim = config.hidden_size / num_attention_heads;
+
+        let key_proj = nn::linear(
+            p / "key_proj",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let value_proj = nn::linear(
+            p / "value_proj",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let query_proj = nn::linear(
+            p / "query_proj",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let out_proj = nn::linear(
+            p / "out_proj",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let relative_pos_embeddings = nn::linear(
+            p / "relative_pos_embeddings",
+            config.hidden_size,
+            num_buckets * num_attention_heads,
+            Default::default(),
+        );
+
+        ProphetNetNgramAttention {
+            num_buckets,
+            ngram,
+            relative_max_distance,
+            num_attention_heads,
+            dropout,
+            attention_dropout,
+            head_dim,
+            key_proj,
+            value_proj,
+            query_proj,
+            out_proj,
+            relative_pos_embeddings,
+        }
+    }
+
+    fn flatten<T>(&self, x: T, dim_0: i64, bs: i64) -> Tensor
+    where
+        T: Borrow<Tensor>,
+    {
+        x.borrow()
+            .contiguous()
+            .view((dim_0, bs * self.num_attention_heads, self.head_dim))
+            .transpose(0, 1)
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        mut layer_state: Option<LayerState>,
+        attention_mask: Option<&Tensor>,
+        extended_predict_attention_mask: Option<&Tensor>,
+        main_relative_position_buckets: Option<&Tensor>,
+        predict_relative_position_buckets: Option<&Tensor>,
+        position_ids: &Tensor,
+        train: bool,
+    ) {
+        let hidden_states_size = hidden_states.size();
+        let (sequence_length, batch_size, hidden_size) = (
+            hidden_states_size[0],
+            hidden_states_size[1],
+            hidden_states_size[2],
+        );
+
+        let query_states = hidden_states.apply(&self.query_proj) / (self.head_dim as f64).sqrt();
+        let key_states = hidden_states.apply(&self.key_proj);
+        let value_states = hidden_states.apply(&self.value_proj);
+
+        let mut main_hidden_states = self
+            .flatten(hidden_states, sequence_length, batch_size)
+            .chunk(1 + self.ngram, 1);
+        let mut main_query_states = self
+            .flatten(query_states, sequence_length, batch_size)
+            .chunk(1 + self.ngram, 1);
+        let mut main_key_states = self
+            .flatten(key_states, -1, batch_size)
+            .chunk(1 + self.ngram, 1);
+        let mut main_value_states = self
+            .flatten(value_states, -1, batch_size)
+            .chunk(1 + self.ngram, 1);
+
+        let hidden_states_predict_list = main_hidden_states.split_off(1);
+        let predict_query_states_list = main_query_states.split_off(1);
+        let predict_key_states_list = main_key_states.split_off(1);
+        let predict_value_states_list = main_value_states.split_off(1);
+
+        let main_hidden_states = main_hidden_states.pop().unwrap();
+        let main_query_states = main_query_states.pop().unwrap();
+        let mut main_key_states = main_key_states.pop().unwrap();
+        let mut main_value_states = main_value_states.pop().unwrap();
+
+        if let Some(layer_state_value) = &layer_state {
+            let prev_main_key_states = layer_state_value.prev_key.view([
+                batch_size * self.num_attention_heads,
+                -1,
+                self.head_dim,
+            ]);
+            let prev_main_value_states = layer_state_value.prev_value.view([
+                batch_size * self.num_attention_heads,
+                -1,
+                self.head_dim,
+            ]);
+            main_key_states = Tensor::cat(&[prev_main_key_states, main_key_states], 1);
+            main_value_states = Tensor::cat(&[prev_main_value_states, main_value_states], 1);
+        };
+
+        if layer_state.is_some() {
+            layer_state.as_mut().unwrap().prev_key =
+                main_key_states.view([batch_size, self.num_attention_heads, -1, self.head_dim]);
+            layer_state.as_mut().unwrap().prev_value =
+                main_value_states.view([batch_size, self.num_attention_heads, -1, self.head_dim]);
+        } else {
+            layer_state = Some(LayerState {
+                prev_key: main_key_states.view([
+                    batch_size,
+                    self.num_attention_heads,
+                    -1,
+                    self.head_dim,
+                ]),
+                prev_value: main_value_states.view([
+                    batch_size,
+                    self.num_attention_heads,
+                    -1,
+                    self.head_dim,
+                ]),
+            })
+        };
+        let main_sequence_length = sequence_length / (1 + self.ngram);
+
+        let main_attention_weights = main_query_states.bmm(&main_key_states.transpose(1, 2));
+
+        let main_relative_pos_embeddings = self.get_main_relative_position_embeddings(
+            &main_hidden_states,
+            &main_attention_weights,
+            position_ids,
+            main_relative_position_buckets,
+        );
+        let mut main_attention_weights = main_attention_weights + main_relative_pos_embeddings;
+        if let Some(attention_mask_value) = attention_mask {
+            main_attention_weights = main_attention_weights + attention_mask_value;
+        };
+
+        let main_attention_probas = main_attention_weights
+            .softmax(-1, main_attention_weights.kind())
+            .apply_t(&self.attention_dropout, train);
+
+        let main_attention_output = main_attention_probas
+            .bmm(&main_value_states)
+            .transpose(0, 1)
+            .contiguous()
+            .view([-1, main_sequence_length, batch_size, hidden_size])
+            .apply(&self.out_proj);
+    }
+
+    fn get_main_relative_position_embeddings(
+        &self,
+        hidden_states: &Tensor,
+        attention_weights: &Tensor,
+        position_ids: &Tensor,
+        main_relative_position_buckets: Option<&Tensor>,
+    ) -> Tensor {
+        let (sequence_length, batch_size) = (hidden_states_size[0], hidden_states_size[1]);
+        let calc_main_relative_position_buckets = if main_relative_position_buckets.is_none() {
+            let hidden_states_size = hidden_states.size();
+            let relative_positions = Tensor::arange1(
+                1,
+                attention_weights.size().last().unwrap() + 1,
+                (Kind::Int64, hidden_states.device()),
+            )
+            .unsqueeze(0)
+            .unsqueeze(0)
+            .repeat(&[batch_size, sequence_length, 1]);
+            let relative_positions = relative_positions
+                - position_ids
+                    .unsqueeze(0)
+                    .repeat(&[batch_size, sequence_length, 1]);
+            Some(compute_relative_buckets(
+                self.num_buckets,
+                self.relative_max_distance,
+                &relative_positions,
+                false,
+            ))
+        } else {
+            None
+        };
+        let main_relative_position_buckets = main_relative_position_buckets
+            .unwrap_or_else(|| calc_main_relative_position_buckets.as_ref().unwrap());
+
+        let rel_pos_embeddings = hidden_states
+            .transpose(0, 1)
+            .apply(&self.relative_pos_embeddings)
+            .view([
+                batch_size,
+                sequence_length,
+                self.num_buckets,
+                self.num_attention_heads,
+            ])
+            .permute(&[0, 3, 1, 2])
+            .reshape(&[-1, self.num_buckets]);
+
+        let main_relative_position_buckets = main_relative_position_buckets
+            .repeat(&[1, self.num_attention_heads, 1])
+            .view([-1, main_relative_position_buckets.size().last().unwrap()]);
+
+        rel_pos_embeddings
+            .gather(1, &main_relative_position_buckets, true)
+            .view([
+                sequence_length * self.num_attention_heads,
+                sequence_length,
+                -1,
+            ])
     }
 }
 
