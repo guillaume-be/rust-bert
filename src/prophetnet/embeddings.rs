@@ -51,7 +51,7 @@ impl ProphetNetPositionalEmbeddings {
         prev_self_layer_state: Option<&LayerState>,
         position_ids: Option<&Tensor>,
     ) -> (Tensor, Tensor) {
-        let position_ids = if let Some(position_ids_value) = position_ids {
+        let calc_position_ids = if position_ids.is_none() {
             if let Some(past_key_values) = prev_self_layer_state {
                 let prev_num_input_ids = past_key_values.prev_key.size()[2];
                 let num_input_ids = input_shape[1] + prev_num_input_ids;
@@ -71,6 +71,6 @@ impl ProphetNetPositionalEmbeddings {
             position_ids.unwrap().copy()
         };
 
-        (position_ids.apply(&self.embeddings), position_ids)
+        (calc_position_ids.apply(&self.embeddings), calc_position_ids)
     }
 }

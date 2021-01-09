@@ -302,6 +302,7 @@ pub struct ProphetNetNgramAttention {
     query_proj: nn::Linear,
     out_proj: nn::Linear,
     relative_pos_embeddings: nn::Linear,
+    output_attentions: bool,
 }
 
 impl ProphetNetNgramAttention {
@@ -354,6 +355,8 @@ impl ProphetNetNgramAttention {
             Default::default(),
         );
 
+        let output_attentions = config.output_attentions.unwrap_or(false);
+
         ProphetNetNgramAttention {
             num_buckets,
             ngram,
@@ -367,6 +370,7 @@ impl ProphetNetNgramAttention {
             query_proj,
             out_proj,
             relative_pos_embeddings,
+            output_attentions,
         }
     }
 
@@ -390,7 +394,7 @@ impl ProphetNetNgramAttention {
         predict_relative_position_buckets: Option<&Tensor>,
         position_ids: &Tensor,
         train: bool,
-    ) {
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
         let hidden_states_size = hidden_states.size();
         let (sequence_length, batch_size, hidden_size) = (
             hidden_states_size[0],
@@ -486,6 +490,105 @@ impl ProphetNetNgramAttention {
             .contiguous()
             .view([-1, main_sequence_length, batch_size, hidden_size])
             .apply(&self.out_proj);
+
+        let predict_hidden_states = Tensor::cat(hidden_states_predict_list.as_slice(), 0).view([
+            self.ngram,
+            main_sequence_length,
+            batch_size,
+            hidden_size,
+        ]);
+
+        let predict_query_states = Tensor::cat(predict_query_states_list.as_slice(), 0).view([
+            self.ngram,
+            -1,
+            main_sequence_length,
+            self.head_dim,
+        ]);
+
+        let predict_key_states = Tensor::cat(
+            predict_key_states_list
+                .iter()
+                .map(|predict_key_state| {
+                    Tensor::cat(&[&main_key_states, predict_key_state], 1).unsqueeze(0)
+                })
+                .collect::<Vec<Tensor>>()
+                .as_slice(),
+            0,
+        );
+
+        let predict_value_states = Tensor::cat(
+            predict_value_states_list
+                .iter()
+                .map(|predict_value_state| {
+                    Tensor::cat(&[&main_value_states, predict_value_state], 1).unsqueeze(0)
+                })
+                .collect::<Vec<Tensor>>()
+                .as_slice(),
+            0,
+        );
+
+        let predict_attention_weights = Tensor::einsum(
+            "nbtc,nbsc->nbts",
+            &[predict_query_states, predict_key_states],
+        );
+
+        let predict_relative_pos_embeddings = self.get_predict_relative_pos_embeddings(
+            &predict_hidden_states,
+            &predict_attention_weights,
+            position_ids,
+            predict_relative_position_buckets,
+        );
+
+        let mut predict_attention_weights =
+            predict_attention_weights + predict_relative_pos_embeddings;
+        if let Some(extended_predict_attention_mask_value) = extended_predict_attention_mask {
+            predict_attention_weights =
+                predict_attention_weights + extended_predict_attention_mask_value;
+        };
+
+        let predict_attention_probas = predict_attention_weights
+            .softmax(-1, predict_attention_weights.kind())
+            .apply_t(&self.attention_dropout, train);
+
+        let predict_attention_output = Tensor::einsum(
+            "nbts,nbsc->nbtc",
+            &[&predict_attention_probas, &predict_value_states],
+        )
+        .transpose(1, 2)
+        .contiguous()
+        .view([self.ngram, main_sequence_length, batch_size, hidden_size])
+        .apply(&self.out_proj);
+
+        let attention_output = Tensor::cat(&[main_attention_output, predict_attention_output], 0)
+            .view([-1, batch_size, hidden_size])
+            .apply_t(&self.dropout, train);
+
+        let (main_attention_probas, predict_attention_probas) = if self.output_attentions {
+            let main_attention_probas = main_attention_probas.view([
+                batch_size,
+                self.num_attention_heads,
+                main_sequence_length,
+                -1,
+            ]);
+            let predict_attention_probas = predict_attention_probas
+                .view([
+                    self.ngram,
+                    batch_size,
+                    self.num_attention_heads,
+                    main_sequence_length,
+                    -1,
+                ])
+                .transpose(0, 1);
+            (Some(main_attention_probas), Some(predict_attention_probas))
+        } else {
+            (None, None)
+        };
+        (
+            attention_output,
+            main_attention_probas,
+            predict_attention_probas,
+            layer_state,
+        )
     }
 
     fn get_main_relative_position_embeddings(
@@ -495,9 +598,9 @@ impl ProphetNetNgramAttention {
         position_ids: &Tensor,
         main_relative_position_buckets: Option<&Tensor>,
     ) -> Tensor {
+        let hidden_states_size = hidden_states.size();
         let (sequence_length, batch_size) = (hidden_states_size[0], hidden_states_size[1]);
         let calc_main_relative_position_buckets = if main_relative_position_buckets.is_none() {
-            let hidden_states_size = hidden_states.size();
             let relative_positions = Tensor::arange1(
                 1,
                 attention_weights.size().last().unwrap() + 1,
@@ -536,12 +639,78 @@ impl ProphetNetNgramAttention {
 
         let main_relative_position_buckets = main_relative_position_buckets
             .repeat(&[1, self.num_attention_heads, 1])
-            .view([-1, main_relative_position_buckets.size().last().unwrap()]);
+            .view([-1, *main_relative_position_buckets.size().last().unwrap()]);
 
         rel_pos_embeddings
             .gather(1, &main_relative_position_buckets, true)
             .view([
                 sequence_length * self.num_attention_heads,
+                sequence_length,
+                -1,
+            ])
+    }
+
+    fn get_predict_relative_pos_embeddings(
+        &self,
+        hidden_states: &Tensor,
+        attention_weights: &Tensor,
+        position_ids: &Tensor,
+        predict_relative_position_buckets: Option<&Tensor>,
+    ) -> Tensor {
+        let hidden_states_size = hidden_states.size();
+        let (sequence_length, batch_size) = (hidden_states_size[1], hidden_states_size[2]);
+
+        let calc_predict_relative_position_buckets = if predict_relative_position_buckets.is_none()
+        {
+            let key_sequence_length = *attention_weights.size().last().unwrap();
+            let relative_positions =
+                Tensor::arange(key_sequence_length, (Kind::Int64, hidden_states.device()))
+                    .unsqueeze(0)
+                    .unsqueeze(0)
+                    .repeat(&[batch_size, sequence_length, 1]);
+            let relative_positions = relative_positions
+                - position_ids
+                    .unsqueeze(0)
+                    .repeat(&[batch_size, sequence_length, 1]);
+            Some(compute_relative_buckets(
+                self.num_buckets,
+                self.relative_max_distance,
+                &relative_positions,
+                false,
+            ))
+        } else {
+            None
+        };
+
+        let predict_relative_position_buckets = predict_relative_position_buckets
+            .unwrap_or_else(|| calc_predict_relative_position_buckets.as_ref().unwrap());
+
+        let rel_pos_embeddings = hidden_states
+            .transpose(0, 1)
+            .apply(&self.relative_pos_embeddings)
+            .view([
+                self.ngram,
+                batch_size,
+                sequence_length,
+                self.num_buckets,
+                self.num_attention_heads,
+            ])
+            .permute(&[0, 1, 4, 2, 3])
+            .reshape(&[-1, self.num_buckets]);
+
+        let predict_relative_position_buckets = predict_relative_position_buckets
+            .unsqueeze(0)
+            .repeat(&[self.ngram, 1, self.num_attention_heads, 1])
+            .view([
+                -1,
+                *predict_relative_position_buckets.size().last().unwrap(),
+            ]);
+
+        rel_pos_embeddings
+            .gather(1, &predict_relative_position_buckets, true)
+            .view([
+                self.ngram,
+                batch_size * self.num_attention_heads,
                 sequence_length,
                 -1,
             ])
