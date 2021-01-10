@@ -15,6 +15,7 @@ use crate::common::dropout::Dropout;
 use crate::prophetnet::ProphetNetConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
+use tch::nn::ModuleT;
 use tch::{nn, Kind, Tensor};
 
 #[derive(Debug)]
@@ -58,7 +59,7 @@ pub struct ProphetNetAttention {
 impl ProphetNetAttention {
     pub fn new<'p, P>(
         p: P,
-        config: ProphetNetConfig,
+        config: &ProphetNetConfig,
         num_attention_heads: i64,
     ) -> Result<ProphetNetAttention, RustBertError>
     where
@@ -240,6 +241,7 @@ impl ProphetNetAttention {
     }
 }
 
+#[derive(Debug)]
 pub struct ProphetNetFeedForward {
     activation_function: TensorFunction,
     intermediate: nn::Linear,
@@ -249,7 +251,7 @@ pub struct ProphetNetFeedForward {
 }
 
 impl ProphetNetFeedForward {
-    pub fn new<'p, P>(p: P, config: ProphetNetConfig, ffn_dim: i64) -> ProphetNetFeedForward
+    pub fn new<'p, P>(p: P, config: &ProphetNetConfig, ffn_dim: i64) -> ProphetNetFeedForward
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -278,10 +280,11 @@ impl ProphetNetFeedForward {
             dropout,
         }
     }
+}
 
-    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
-        let hidden_states =
-            (self.activation_function.get_fn())(&hidden_states.apply(&self.intermediate));
+impl ModuleT for ProphetNetFeedForward {
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Tensor {
+        let hidden_states = (self.activation_function.get_fn())(&xs.apply(&self.intermediate));
         hidden_states
             .apply_t(&self.activation_dropout, train)
             .apply(&self.output)
@@ -306,7 +309,7 @@ pub struct ProphetNetNgramAttention {
 }
 
 impl ProphetNetNgramAttention {
-    pub fn new<'p, P>(p: P, config: ProphetNetConfig) -> ProphetNetNgramAttention
+    pub fn new<'p, P>(p: P, config: &ProphetNetConfig) -> ProphetNetNgramAttention
     where
         P: Borrow<nn::Path<'p>>,
     {
