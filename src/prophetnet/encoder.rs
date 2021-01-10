@@ -63,7 +63,7 @@ impl ProphetNetEncoderLayer {
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
-        let (attention_output, attention_weights) =
+        let (attention_output, attention_weights, _) =
             self.self_attention
                 .forward_t(hidden_states, None, attention_mask, None, train);
         let hidden_states = (attention_output + hidden_states)

@@ -83,6 +83,7 @@ pub struct ProphetNetConfig {
     pub vocab_size: i64,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
+    pub add_cross_attention: Option<bool>,
 }
 
 impl Config<ProphetNetConfig> for ProphetNetConfig {}
