@@ -102,7 +102,8 @@ impl ProphetNetEncoder {
             Default::default(),
         );
 
-        let mut layers: Vec<ProphetNetEncoderLayer> = vec![];
+        let mut layers: Vec<ProphetNetEncoderLayer> =
+            Vec::with_capacity(config.num_encoder_layers as usize);
         let p_layers = p / "layers";
         for layer_index in 0..config.num_encoder_layers {
             layers.push(ProphetNetEncoderLayer::new(
@@ -134,12 +135,19 @@ impl ProphetNetEncoder {
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         input_embeds: Option<&Tensor>,
-        word_embeddings: &nn::Embedding,
+        word_embeddings: Option<&nn::Embedding>,
         train: bool,
     ) -> Result<ProphetNetEncoderOutput, RustBertError> {
         let calc_input_embeddings = if let Some(input_ids) = input_ids {
             if input_embeds.is_none() {
-                Some(input_ids.apply(word_embeddings))
+                Some(input_ids.apply(match word_embeddings {
+                    Some(value) => value,
+                    None => {
+                        return Err(RustBertError::ValueError(
+                            "Embeddings must be provided if input_embeds is not given".into(),
+                        ));
+                    }
+                }))
             } else {
                 return Err(RustBertError::ValueError(
                     "Only one of input ids or input embeddings may be set".into(),

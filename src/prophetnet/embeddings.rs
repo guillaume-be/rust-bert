@@ -48,13 +48,12 @@ impl ProphetNetPositionalEmbeddings {
         input_shape: &[i64],
         device: Device,
         attention_mask: Option<&Tensor>,
-        prev_self_layer_state: Option<&LayerState>,
+        prev_num_input_ids: Option<i64>,
         position_ids: Option<&Tensor>,
     ) -> (Tensor, Tensor) {
         let calc_position_ids = if position_ids.is_none() {
-            if let Some(past_key_values) = prev_self_layer_state {
-                let prev_num_input_ids = past_key_values.prev_key.size()[2];
-                let num_input_ids = input_shape[1] + prev_num_input_ids;
+            if let Some(prev_num_input_ids_value) = prev_num_input_ids {
+                let num_input_ids = input_shape[1] + prev_num_input_ids_value;
 
                 Tensor::ones(&[1, 1], (Kind::Int64, device)) * (self.padding_idx + num_input_ids)
             } else {

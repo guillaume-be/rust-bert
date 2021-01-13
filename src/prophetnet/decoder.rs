@@ -10,12 +10,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::dropout::Dropout;
 use crate::prophetnet::attention::{
-    LayerState, ProphetNetAttention, ProphetNetFeedForward, ProphetNetNgramAttention,
+    compute_all_stream_relative_buckets, LayerState, ProphetNetAttention, ProphetNetFeedForward,
+    ProphetNetNgramAttention,
 };
+use crate::prophetnet::embeddings::ProphetNetPositionalEmbeddings;
 use crate::prophetnet::ProphetNetConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
+use tch::nn::seq;
 use tch::{nn, Device, Kind, Tensor};
 
 fn ngram_attention_bias(sequence_length: i64, ngram: i64, device: Device) -> Tensor {
@@ -157,4 +161,262 @@ pub struct ProphetNetDecoderLayerOutput {
     pub self_attention_weights_ngram: Option<Tensor>,
     pub cross_attention_weights: Option<Tensor>,
     pub layer_states: (Option<LayerState>, Option<LayerState>),
+}
+
+pub struct ProphetNetDecoder {
+    ngram: i64,
+    num_buckets: i64,
+    relative_max_distance: i64,
+    max_target_positions: i64,
+    position_embeddings: ProphetNetPositionalEmbeddings,
+    embeddings_layer_norm: nn::LayerNorm,
+    layers: Vec<ProphetNetDecoderLayer>,
+    dropout: Dropout,
+    output_attentions: bool,
+    output_hidden_states: bool,
+    num_attention_heads: i64,
+}
+
+impl ProphetNetDecoder {
+    pub fn new<'p, P>(p: P, config: &ProphetNetConfig) -> Result<ProphetNetDecoder, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let position_embeddings =
+            ProphetNetPositionalEmbeddings::new(p / "position_embeddings", config);
+        let embeddings_layer_norm = nn::layer_norm(
+            p / "embeddings_layer_norm",
+            vec![config.hidden_size],
+            Default::default(),
+        );
+
+        let mut layers: Vec<ProphetNetDecoderLayer> =
+            Vec::with_capacity(config.num_decoder_layers as usize);
+        let p_layers = p / "layers";
+        for layer_index in 0..config.num_decoder_layers {
+            layers.push(ProphetNetDecoderLayer::new(
+                &p_layers / layer_index,
+                config,
+            )?);
+        }
+
+        let dropout = Dropout::new(config.dropout);
+
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
+
+        let num_attention_heads = config.num_decoder_attention_heads;
+        let ngram = config.ngram;
+        let num_buckets = config.num_buckets;
+        let relative_max_distance = config.relative_max_distance;
+        let max_target_positions = config.max_position_embeddings;
+
+        Ok(ProphetNetDecoder {
+            ngram,
+            num_buckets,
+            relative_max_distance,
+            max_target_positions,
+            position_embeddings,
+            embeddings_layer_norm,
+            layers,
+            dropout,
+            output_attentions,
+            output_hidden_states,
+            num_attention_heads,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        input_embeds: Option<&Tensor>,
+        word_embeddings: Option<&nn::Embedding>,
+        train: bool,
+    ) -> Result<(), RustBertError> {
+        let calc_input_embeddings = if let Some(input_ids) = input_ids {
+            if input_embeds.is_none() {
+                Some(input_ids.apply(match word_embeddings {
+                    Some(value) => value,
+                    None => {
+                        return Err(RustBertError::ValueError(
+                            "Embeddings must be provided if input_embeds is not given".into(),
+                        ));
+                    }
+                }))
+            } else {
+                return Err(RustBertError::ValueError(
+                    "Only one of input ids or input embeddings may be set".into(),
+                ));
+            }
+        } else if input_embeds.is_some() {
+            None
+        } else {
+            return Err(RustBertError::ValueError(
+                "At least one of input ids or input embeddings must be set".into(),
+            ));
+        };
+        let input_embeds = input_embeds.unwrap_or(calc_input_embeddings.as_ref().unwrap());
+
+        let input_size = input_embeds.size();
+        let (batch_size, sequence_length) = (input_size[0], input_size[1]);
+
+        let prev_num_input_ids = if let Some(old_layer_states_vec) = &old_layer_states {
+            if let Some(layer_states) = &old_layer_states_vec[0].0 {
+                Some(layer_states.prev_key.size()[2])
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let (main_stream_pos_embed, position_ids) = self.position_embeddings.forward(
+            &input_size[..2],
+            input_embeds.device(),
+            None,
+            prev_num_input_ids,
+            None,
+        );
+
+        Ok(())
+    }
+
+    fn compute_buffered_relative_buckets(&self, position_ids: &Tensor) -> (Tensor, Tensor) {
+        let input_size = position_ids.size();
+        let (batch_size, sequence_length) = (input_size[0], input_size[1]);
+
+        let position_ids = Tensor::arange1(
+            1,
+            self.max_target_positions,
+            (Kind::Int, position_ids.device()),
+        )
+        .repeat(&[1, 1]);
+
+        let (main_relative_buckets, predict_relative_buckets) = compute_all_stream_relative_buckets(
+            self.num_buckets,
+            self.relative_max_distance,
+            &position_ids,
+        );
+
+        let main_relative_buckets = main_relative_buckets
+            .slice(1, 0, sequence_length, 1)
+            .slice(2, 0, sequence_length, 1)
+            .repeat(&[batch_size, 1, 1]);
+
+        let predict_relative_buckets = Tensor::cat(
+            &[
+                predict_relative_buckets
+                    .slice(1, 0, sequence_length, 1)
+                    .slice(2, 0, sequence_length, 1),
+                predict_relative_buckets
+                    .slice(1, 0, sequence_length, 1)
+                    .slice(
+                        2,
+                        self.max_target_positions,
+                        self.max_target_positions + sequence_length,
+                        1,
+                    ),
+            ],
+            2,
+        )
+        .repeat(&[batch_size, 1, 1]);
+
+        (main_relative_buckets, predict_relative_buckets)
+    }
+
+    fn prepare_attention_mask(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+    ) -> Tensor {
+        let input_size = hidden_states.size();
+        let (sequence_length, batch_size) = (input_size[0], input_size[1]);
+
+        let causal_mask = Tensor::full(
+            &[sequence_length, sequence_length],
+            -f64::NEG_INFINITY,
+            (Kind::Float, hidden_states.device()),
+        )
+        .triu_(1);
+
+        let extended_causal_mask = causal_mask
+            .unsqueeze(0)
+            .expand(&[batch_size, sequence_length, sequence_length], true);
+
+        let extended_attention_mask = if let Some(attention_mask_value) = attention_mask {
+            let extended_attention_mask =
+                (attention_mask_value.ones_like() - attention_mask_value.unsqueeze(1)) * -10000.0;
+            extended_causal_mask + extended_attention_mask
+        } else {
+            extended_causal_mask
+        };
+
+        extended_attention_mask.repeat(&[self.num_attention_heads, 1, 1])
+    }
+
+    fn prepare_predict_attention_mask(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+    ) -> Tensor {
+        let input_size = hidden_states.size();
+        let (sequence_length, batch_size) = (input_size[0], input_size[1]);
+
+        let predict_causal_mask = ngram_attention_bias(
+            self.max_target_positions,
+            self.ngram,
+            hidden_states.device(),
+        );
+
+        let predict_causal_mask = Tensor::cat(
+            &[
+                predict_causal_mask
+                    .slice(1, 0, sequence_length, 1)
+                    .slice(2, 0, sequence_length, 1),
+                predict_causal_mask.slice(1, 0, sequence_length, 1).slice(
+                    2,
+                    self.max_target_positions,
+                    self.max_target_positions + sequence_length,
+                    1,
+                ),
+            ],
+            -1,
+        );
+
+        let predict_causal_mask_shape = predict_causal_mask.size();
+        let mut extended_shape = vec![predict_causal_mask_shape[0]];
+        extended_shape.push(batch_size);
+        extended_shape.extend_from_slice(&predict_causal_mask_shape[1..]);
+        let extended_predict_causal_mask = predict_causal_mask
+            .unsqueeze(1)
+            .expand(extended_shape.as_slice(), true);
+
+        let extended_attention_mask = if let Some(attention_mask_value) = attention_mask {
+            let extended_attention_mask = (attention_mask_value.ones_like()
+                - attention_mask_value.unsqueeze(0).unsqueeze(2))
+                * -10000.0;
+            let extended_attention_mask = extended_attention_mask.expand(
+                &[self.ngram, batch_size, sequence_length, sequence_length],
+                true,
+            );
+            let extended_attention_mask = Tensor::cat(
+                &[
+                    &extended_attention_mask,
+                    &extended_attention_mask.zeros_like(),
+                ],
+                -1,
+            );
+            extended_predict_causal_mask + extended_attention_mask
+        } else {
+            extended_predict_causal_mask
+        };
+
+        extended_attention_mask.repeat(&[1, self.num_attention_heads, 1, 1])
+    }
 }

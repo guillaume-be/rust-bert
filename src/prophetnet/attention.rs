@@ -720,7 +720,7 @@ impl ProphetNetNgramAttention {
     }
 }
 
-fn compute_relative_buckets(
+pub(crate) fn compute_relative_buckets(
     num_buckets: i64,
     max_distance: i64,
     relative_positions: &Tensor,
@@ -763,7 +763,7 @@ fn compute_relative_buckets(
     relative_positions_bucket
 }
 
-fn compute_all_stream_relative_bucket(
+pub(crate) fn compute_all_stream_relative_buckets(
     num_buckets: i64,
     max_distance: i64,
     position_ids: &Tensor,
