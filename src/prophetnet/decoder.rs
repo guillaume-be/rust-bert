@@ -18,8 +18,8 @@ use crate::prophetnet::attention::{
 use crate::prophetnet::embeddings::ProphetNetPositionalEmbeddings;
 use crate::prophetnet::ProphetNetConfig;
 use crate::RustBertError;
-use std::borrow::Borrow;
-use tch::nn::seq;
+use std::borrow::{Borrow, BorrowMut};
+use tch::nn::Init;
 use tch::{nn, Device, Kind, Tensor};
 
 fn ngram_attention_bias(sequence_length: i64, ngram: i64, device: Device) -> Tensor {
@@ -170,11 +170,13 @@ pub struct ProphetNetDecoder {
     max_target_positions: i64,
     position_embeddings: ProphetNetPositionalEmbeddings,
     embeddings_layer_norm: nn::LayerNorm,
+    ngram_embeddings: Tensor,
     layers: Vec<ProphetNetDecoderLayer>,
     dropout: Dropout,
     output_attentions: bool,
     output_hidden_states: bool,
     num_attention_heads: i64,
+    add_cross_attention: bool,
 }
 
 impl ProphetNetDecoder {
@@ -204,6 +206,13 @@ impl ProphetNetDecoder {
 
         let dropout = Dropout::new(config.dropout);
 
+        let p_ngram_embedding = p / "ngram_embeddings";
+        let ngram_embeddings = p_ngram_embedding.var(
+            "weight",
+            &[config.ngram, config.hidden_size],
+            Init::KaimingUniform,
+        );
+
         let output_attentions = config.output_attentions.unwrap_or(false);
         let output_hidden_states = config.output_hidden_states.unwrap_or(false);
 
@@ -212,6 +221,7 @@ impl ProphetNetDecoder {
         let num_buckets = config.num_buckets;
         let relative_max_distance = config.relative_max_distance;
         let max_target_positions = config.max_position_embeddings;
+        let add_cross_attention = config.add_cross_attention.unwrap_or(true);
 
         Ok(ProphetNetDecoder {
             ngram,
@@ -220,11 +230,13 @@ impl ProphetNetDecoder {
             max_target_positions,
             position_embeddings,
             embeddings_layer_norm,
+            ngram_embeddings,
             layers,
             dropout,
             output_attentions,
             output_hidden_states,
             num_attention_heads,
+            add_cross_attention,
         })
     }
 
@@ -238,7 +250,7 @@ impl ProphetNetDecoder {
         input_embeds: Option<&Tensor>,
         word_embeddings: Option<&nn::Embedding>,
         train: bool,
-    ) -> Result<(), RustBertError> {
+    ) -> Result<ProphetNetDecoderOutput, RustBertError> {
         let calc_input_embeddings = if let Some(input_ids) = input_ids {
             if input_embeds.is_none() {
                 Some(input_ids.apply(match word_embeddings {
@@ -284,7 +296,220 @@ impl ProphetNetDecoder {
             None,
         );
 
-        Ok(())
+        let (main_relative_position_buckets, predict_relative_position_buckets) =
+            if old_layer_states.is_some() {
+                (None, None)
+            } else {
+                let (main_relative_buckets, predict_relative_buckets) =
+                    self.compute_buffered_relative_buckets(&position_ids);
+                (Some(main_relative_buckets), Some(predict_relative_buckets))
+            };
+
+        let predicting_stream_pos_embed = self.position_embeddings._forward(&(&position_ids + 1));
+
+        let hidden_states = (input_embeds + main_stream_pos_embed).transpose(0, 1);
+
+        let (mut ngram_hidden_states, extended_attention_mask, extended_predict_attention_mask) =
+            if old_layer_states.is_some() {
+                let mut ngram_hidden_states = Vec::with_capacity(self.ngram as usize);
+                for ngram in 0..self.ngram {
+                    ngram_hidden_states.push(
+                        (&self.ngram_embeddings.get(ngram - 1) + &predicting_stream_pos_embed)
+                            .transpose(0, 1)
+                            .repeat(&[1, batch_size, 1]),
+                    );
+                }
+                (ngram_hidden_states, None, None)
+            } else {
+                let mut ngram_hidden_states = Vec::with_capacity(self.ngram as usize);
+                for ngram in 0..self.ngram {
+                    ngram_hidden_states.push(
+                        (&self.ngram_embeddings.get(ngram - 1) + &predicting_stream_pos_embed)
+                            .transpose(0, 1),
+                    );
+                }
+                let extended_attention_mask =
+                    self.prepare_attention_mask(&hidden_states, attention_mask);
+                let extended_predict_attention_mask =
+                    self.prepare_predict_attention_mask(&hidden_states, attention_mask);
+                (
+                    ngram_hidden_states,
+                    Some(extended_attention_mask),
+                    Some(extended_predict_attention_mask),
+                )
+            };
+
+        let extended_encoder_attention_mask =
+            if let Some(encoder_attention_mask_value) = encoder_attention_mask {
+                Some(
+                    (encoder_attention_mask_value.ones_like()
+                        - encoder_attention_mask_value.unsqueeze(1).repeat(&[
+                            self.num_attention_heads,
+                            1,
+                            1,
+                        ]))
+                        * -10000.0,
+                )
+            } else {
+                None
+            };
+
+        ngram_hidden_states.insert(0, hidden_states);
+        let hidden_states = Tensor::cat(ngram_hidden_states.as_slice(), 0)
+            .apply(&self.embeddings_layer_norm)
+            .apply_t(&self.dropout, train);
+
+        let encoder_hidden_states = encoder_hidden_states.map(|tensor| tensor.transpose(0, 1));
+
+        let mut all_main_stream_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_ngram_stream_hidden_states: Option<Vec<Tensor>> =
+            if self.output_hidden_states & (self.ngram > 0) {
+                Some(vec![])
+            } else {
+                None
+            };
+        let mut all_main_stream_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_ngram_stream_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_cross_attentions: Option<Vec<Tensor>> =
+            if self.output_attentions & self.add_cross_attention {
+                Some(vec![])
+            } else {
+                None
+            };
+
+        let mut next_decoder_cache: Vec<(Option<LayerState>, Option<LayerState>)> =
+            Vec::with_capacity(self.layers.len());
+        let mut old_layer_states = old_layer_states.map(|mut layer_states_vec| {
+            layer_states_vec.reverse();
+            layer_states_vec
+        });
+
+        let mut x: Option<Tensor> = None;
+
+        for layer in &self.layers {
+            let layer_state = if let Some(layer_states_vec) = old_layer_states.borrow_mut() {
+                layer_states_vec.pop().unwrap()
+            } else {
+                (None, None)
+            };
+            let temp = if let Some(x_value) = &x {
+                if let Some(main_stream_hidden_states) = all_main_stream_hidden_states.borrow_mut()
+                {
+                    main_stream_hidden_states
+                        .push(x_value.slice(0, 0, sequence_length, 1).transpose(0, 1));
+                }
+                if let Some(ngram_stream_hidden_states) =
+                    all_ngram_stream_hidden_states.borrow_mut()
+                {
+                    ngram_stream_hidden_states.push(
+                        x_value
+                            .slice(0, sequence_length, x_value.size()[0], 1)
+                            .transpose(0, 1),
+                    );
+                }
+                layer.forward_t(
+                    x_value,
+                    encoder_hidden_states.as_ref(),
+                    extended_encoder_attention_mask.as_ref(),
+                    layer_state,
+                    extended_attention_mask.as_ref(),
+                    extended_predict_attention_mask.as_ref(),
+                    main_relative_position_buckets.as_ref(),
+                    predict_relative_position_buckets.as_ref(),
+                    &position_ids,
+                    train,
+                )
+            } else {
+                if let Some(main_stream_hidden_states) = all_main_stream_hidden_states.borrow_mut()
+                {
+                    main_stream_hidden_states.push(
+                        hidden_states
+                            .slice(0, 0, sequence_length, 1)
+                            .transpose(0, 1),
+                    );
+                }
+                if let Some(ngram_stream_hidden_states) =
+                    all_ngram_stream_hidden_states.borrow_mut()
+                {
+                    ngram_stream_hidden_states.push(
+                        hidden_states
+                            .slice(0, sequence_length, hidden_states.size()[0], 1)
+                            .transpose(0, 1),
+                    );
+                }
+                layer.forward_t(
+                    &hidden_states,
+                    encoder_hidden_states.as_ref(),
+                    extended_encoder_attention_mask.as_ref(),
+                    layer_state,
+                    extended_attention_mask.as_ref(),
+                    extended_predict_attention_mask.as_ref(),
+                    main_relative_position_buckets.as_ref(),
+                    predict_relative_position_buckets.as_ref(),
+                    &position_ids,
+                    train,
+                )
+            };
+            x = Some(temp.hidden_states);
+
+            if let Some(all_main_stream_attentions) = all_main_stream_attentions.borrow_mut() {
+                all_main_stream_attentions.push(temp.self_attention_weights.unwrap());
+            };
+            if let Some(all_ngram_stream_attentions) = all_ngram_stream_attentions.borrow_mut() {
+                all_ngram_stream_attentions.push(temp.self_attention_weights_ngram.unwrap());
+            };
+            if let Some(all_cross_attentions) = all_cross_attentions.borrow_mut() {
+                all_cross_attentions.push(temp.cross_attention_weights.unwrap());
+            };
+            next_decoder_cache.push(temp.layer_states);
+        }
+        if let Some(main_stream_hidden_states) = all_main_stream_hidden_states.borrow_mut() {
+            main_stream_hidden_states.push(
+                x.as_ref()
+                    .unwrap()
+                    .slice(0, 0, sequence_length, 1)
+                    .transpose(0, 1),
+            );
+        }
+        if let Some(ngram_stream_hidden_states) = all_ngram_stream_hidden_states.borrow_mut() {
+            ngram_stream_hidden_states.push(
+                x.as_ref()
+                    .unwrap()
+                    .slice(0, sequence_length, x.as_ref().unwrap().size()[0], 1)
+                    .transpose(0, 1),
+            );
+        }
+        let x = x.unwrap();
+
+        let last_hidden_state = x.slice(0, 0, sequence_length, 1).transpose(0, 1);
+        let last_hidden_state_ngram = if self.ngram > 0 {
+            Some(x.slice(0, sequence_length, x.size()[0], 1).transpose(0, 1))
+        } else {
+            None
+        };
+
+        Ok(ProphetNetDecoderOutput {
+            hidden_states: last_hidden_state,
+            ngram_hidden_states: last_hidden_state_ngram,
+            all_hidden_states: all_main_stream_hidden_states,
+            all_ngram_hidden_states: all_ngram_stream_hidden_states,
+            all_attentions: all_main_stream_attentions,
+            all_ngram_attentions: all_ngram_stream_attentions,
+            all_cross_attentions,
+            next_decoder_cache: Some(next_decoder_cache),
+        })
     }
 
     fn compute_buffered_relative_buckets(&self, position_ids: &Tensor) -> (Tensor, Tensor) {
@@ -419,4 +644,24 @@ impl ProphetNetDecoder {
 
         extended_attention_mask.repeat(&[1, self.num_attention_heads, 1, 1])
     }
+}
+
+///Container holding a ProphetNet decoder  output
+pub struct ProphetNetDecoderOutput {
+    /// last decoder layer hidden state
+    pub hidden_states: Tensor,
+    /// last decoder layer ngram hidden state
+    pub ngram_hidden_states: Option<Tensor>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Hidden states (ngram) for all intermediate layers
+    pub all_ngram_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Ngram attention weights for all intermediate layers
+    pub all_ngram_attentions: Option<Vec<Tensor>>,
+    /// Cross attention weights for all intermediate layers
+    pub all_cross_attentions: Option<Vec<Tensor>>,
+    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
+    pub next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
 }

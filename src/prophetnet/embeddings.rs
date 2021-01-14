@@ -72,4 +72,8 @@ impl ProphetNetPositionalEmbeddings {
 
         (calc_position_ids.apply(&self.embeddings), calc_position_ids)
     }
+
+    pub fn _forward(&self, position_ids: &Tensor) -> Tensor {
+        position_ids.apply(&self.embeddings)
+    }
 }
