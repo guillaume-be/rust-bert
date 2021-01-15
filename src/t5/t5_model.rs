@@ -644,7 +644,6 @@ impl LMHeadModel for T5ForConditionalGeneration {
 
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: Some(base_model_output.encoder_hidden_state),
             cache: Cache::T5Cache(base_model_output.next_cache),
             all_hidden_states: None,
             all_attentions: None,

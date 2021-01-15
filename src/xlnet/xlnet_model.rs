@@ -767,7 +767,6 @@ impl XLNetLMHeadModel {
 
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: None,
             cache: Cache::XLNetCache(base_model_output.next_cache),
             all_hidden_states,
             all_attentions,

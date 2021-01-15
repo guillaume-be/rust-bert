@@ -642,7 +642,6 @@ impl LMHeadModel for GPT2LMHeadModel {
         let lm_logits = base_model_output.output.apply(&self.lm_head);
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: None,
             cache: Cache::GPT2Cache(base_model_output.cache),
             all_hidden_states: base_model_output.all_hidden_states,
             all_attentions: base_model_output.all_attentions,

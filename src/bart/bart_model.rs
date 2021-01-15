@@ -13,7 +13,7 @@
 
 use crate::bart::attention::LayerState;
 use crate::bart::decoder::BartDecoder;
-use crate::bart::encoder::{BartEncoder, BartEncoderOutput};
+use crate::bart::encoder::BartEncoder;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
@@ -386,7 +386,7 @@ impl BartModel {
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         decoder_input_ids: Option<&Tensor>,
-        encoder_output: Option<BartEncoderOutput>,
+        encoder_output: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
@@ -405,21 +405,23 @@ impl BartModel {
                 decoder_attention_mask,
             )
         };
-        let encoder_output = match encoder_output {
-            Some(value) => value,
-            None => {
-                assert!(
-                    input_ids.is_some(),
-                    "input_ids must be provided when encoder output is not pre-computed"
-                );
+
+        let calc_encoder_output = if encoder_output.is_none() {
+            Some(
                 self.encoder
                     .forward_t(input_ids.unwrap(), attention_mask, &self.embeddings, train)
-            }
+                    .hidden_state,
+            )
+        } else {
+            None
         };
+
+        let encoder_output =
+            encoder_output.unwrap_or_else(|| calc_encoder_output.as_ref().unwrap());
 
         let decoder_output = self.decoder.forward_t(
             &decoder_input_ids,
-            &encoder_output.hidden_state,
+            &encoder_output,
             attention_mask,
             decoder_padding_mask.as_ref(),
             causal_mask.as_ref(),
@@ -429,12 +431,9 @@ impl BartModel {
         );
         BartModelOutput {
             decoder_output: decoder_output.hidden_state,
-            encoder_hidden_state: encoder_output.hidden_state,
             cache: decoder_output.next_decoder_cache,
             all_decoder_hidden_states: decoder_output.all_hidden_states,
             all_decoder_attentions: decoder_output.all_attentions,
-            all_encoder_hidden_states: encoder_output.all_hidden_states,
-            all_encoder_attentions: encoder_output.all_attentions,
         }
     }
 }
@@ -543,7 +542,7 @@ impl BartForConditionalGeneration {
         &self,
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        encoder_output: Option<BartEncoderOutput>,
+        encoder_output: Option<&Tensor>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
@@ -738,7 +737,7 @@ impl BartForSequenceClassification {
         &self,
         input_ids: &Tensor,
         attention_mask: Option<&Tensor>,
-        encoder_output: Option<BartEncoderOutput>,
+        encoder_output: Option<&Tensor>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         train: bool,
@@ -772,12 +771,9 @@ impl BartForSequenceClassification {
             .forward_t(&sentence_representation, train);
         BartModelOutput {
             decoder_output: logits,
-            encoder_hidden_state: base_model_output.encoder_hidden_state,
             cache: None,
             all_decoder_hidden_states: base_model_output.all_decoder_hidden_states,
             all_decoder_attentions: base_model_output.all_decoder_attentions,
-            all_encoder_hidden_states: base_model_output.all_encoder_hidden_states,
-            all_encoder_attentions: base_model_output.all_encoder_attentions,
         }
     }
 }
@@ -857,11 +853,7 @@ impl LMHeadModel for BartForConditionalGeneration {
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref(),
-                Some(BartEncoderOutput {
-                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
-                    all_hidden_states: None,
-                    all_attentions: None,
-                }),
+                encoder_outputs,
                 None,
                 cached_layer_states,
                 train,
@@ -871,11 +863,7 @@ impl LMHeadModel for BartForConditionalGeneration {
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref(),
-                Some(BartEncoderOutput {
-                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
-                    all_hidden_states: None,
-                    all_attentions: None,
-                }),
+                encoder_outputs,
                 None,
                 None,
                 train,
@@ -892,7 +880,6 @@ impl LMHeadModel for BartForConditionalGeneration {
             .linear::<Tensor>(&self.base_model.embeddings.ws, None);
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: Some(base_model_output.encoder_hidden_state),
             cache: Cache::BARTCache(base_model_output.cache),
             all_hidden_states: None,
             all_attentions: None,
@@ -907,18 +894,12 @@ pub struct BartModelOutput {
     /// Hidden state of the last layer of the decoder, or logits for a custom head
     /// module after the decoder (e.g. for classification or language modeling tasks)
     pub decoder_output: Tensor,
-    /// Hidden state for the last layer of the encoder
-    pub encoder_hidden_state: Tensor,
     /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
     pub cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
     /// Hidden states for all layers of the decoder
     pub all_decoder_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all layers of the decoder
     pub all_decoder_attentions: Option<Vec<Tensor>>,
-    /// Hidden states for all layers of the encoder
-    pub all_encoder_hidden_states: Option<Vec<Tensor>>,
-    /// Attention weights for all layers of the encoder
-    pub all_encoder_attentions: Option<Vec<Tensor>>,
 }
 
 #[cfg(test)]

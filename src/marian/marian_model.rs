@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartConfig, BartEncoderOutput, BartModel, BartModelOutput, LayerState};
+use crate::bart::{BartConfig, BartModel, BartModelOutput, LayerState};
 use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -344,7 +344,7 @@ impl MarianForConditionalGeneration {
         &self,
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        encoder_outputs: Option<BartEncoderOutput>,
+        encoder_outputs: Option<&Tensor>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
@@ -461,11 +461,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref(),
-                Some(BartEncoderOutput {
-                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
-                    all_hidden_states: None,
-                    all_attentions: None,
-                }),
+                encoder_outputs,
                 None,
                 cached_layer_states,
                 train,
@@ -474,11 +470,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref(),
-                Some(BartEncoderOutput {
-                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
-                    all_hidden_states: None,
-                    all_attentions: None,
-                }),
+                encoder_outputs,
                 None,
                 None,
                 train,
@@ -496,7 +488,6 @@ impl LMHeadModel for MarianForConditionalGeneration {
             + &self.final_logits_bias;
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: Some(base_model_output.encoder_hidden_state),
             cache: Cache::BARTCache(base_model_output.cache),
             all_hidden_states: None,
             all_attentions: None,

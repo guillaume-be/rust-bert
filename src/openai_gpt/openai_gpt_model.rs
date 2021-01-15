@@ -421,7 +421,6 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
         let lm_logits = base_model_output.hidden_state.apply(&self.lm_head);
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: None,
             cache: Cache::None,
             all_hidden_states: base_model_output.all_hidden_states,
             all_attentions: base_model_output.all_attentions,
