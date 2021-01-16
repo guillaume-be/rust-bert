@@ -422,8 +422,6 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
         Ok(LMModelOutput {
             lm_logits,
             cache: Cache::None,
-            all_hidden_states: base_model_output.all_hidden_states,
-            all_attentions: base_model_output.all_attentions,
         })
     }
 }

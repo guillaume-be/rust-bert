@@ -639,8 +639,6 @@ impl LMHeadModel for ReformerModelWithLMHead {
         Ok(LMModelOutput {
             lm_logits: output.logits,
             cache: Cache::ReformerCache(output.next_cache),
-            all_hidden_states: None,
-            all_attentions: None,
         })
     }
 }

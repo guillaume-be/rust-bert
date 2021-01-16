@@ -800,9 +800,6 @@ impl LMHeadModel for BartForConditionalGeneration {
     ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
     ///   - `cache` - `BartCache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
     ///     both the self attention and the encoder cross attention of each layer of the decoder.
-    ///   - `encoder_hidden_states` - `Option<Tensor>` Hidden states for the encoder
-    ///   - `all_hidden_states` - None
-    ///   - `all_attentions` - None
     ///
     /// # Example
     ///
@@ -881,8 +878,6 @@ impl LMHeadModel for BartForConditionalGeneration {
         Ok(LMModelOutput {
             lm_logits,
             cache: Cache::BARTCache(base_model_output.cache),
-            all_hidden_states: None,
-            all_attentions: None,
         })
     }
 }

@@ -3114,8 +3114,4 @@ pub struct LMModelOutput {
     pub lm_logits: Tensor,
     /// cached state for improved efficiency during decoding
     pub cache: Cache,
-    /// Hidden states for all intermediate model layers
-    pub all_hidden_states: Option<Vec<Tensor>>,
-    /// Attention weights for all intermediate model layers
-    pub all_attentions: Option<Vec<Tensor>>,
 }
