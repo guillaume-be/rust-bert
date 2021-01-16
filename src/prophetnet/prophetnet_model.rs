@@ -134,34 +134,34 @@ impl ProphetNetModel {
         input_embeds: Option<&Tensor>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
-        encoder_hidden_states: Option<Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
         encoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         decoder_input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<ProphetNetOutput, RustBertError> {
-        let (encoder_hidden_states, all_encoder_hidden_states, all_encoder_attentions) =
-            if let Some(encoder_hidden_states) = encoder_hidden_states {
-                (encoder_hidden_states, None, None)
-            } else {
-                let encoder_hidden_states = self.encoder.forward_t(
-                    input_ids,
-                    attention_mask,
-                    input_embeds,
-                    Some(&self.word_embeddings),
-                    train,
-                )?;
-                (
-                    encoder_hidden_states.hidden_states,
-                    encoder_hidden_states.all_hidden_states,
-                    encoder_hidden_states.all_attentions,
-                )
-            };
+        let calc_encoder_hidden_states = if encoder_hidden_states.is_none() {
+            Some(
+                self.encoder
+                    .forward_t(
+                        input_ids,
+                        attention_mask,
+                        input_embeds,
+                        Some(&self.word_embeddings),
+                        train,
+                    )?
+                    .hidden_states,
+            )
+        } else {
+            None
+        };
+        let encoder_hidden_states =
+            encoder_hidden_states.unwrap_or_else(|| calc_encoder_hidden_states.as_ref().unwrap());
 
         let decoder_output = self.decoder.forward_t(
             decoder_input_ids,
             decoder_attention_mask,
-            encoder_hidden_states.as_ref().into(),
+            encoder_hidden_states.into(),
             encoder_attention_mask,
             old_layer_states,
             decoder_input_embeds,
@@ -178,9 +178,6 @@ impl ProphetNetModel {
             all_ngram_attentions: decoder_output.all_ngram_attentions,
             all_cross_attentions: decoder_output.all_cross_attentions,
             next_decoder_cache: decoder_output.next_decoder_cache,
-            last_encoder_hidden_states: encoder_hidden_states,
-            all_encoder_hidden_states,
-            all_encoder_attentions,
         })
     }
 }
@@ -203,10 +200,4 @@ pub struct ProphetNetOutput {
     pub all_cross_attentions: Option<Vec<Tensor>>,
     /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
     pub next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-    /// last encoder layer hidden state
-    pub last_encoder_hidden_states: Tensor,
-    /// Hidden states for all encoder intermediate layers
-    pub all_encoder_hidden_states: Option<Vec<Tensor>>,
-    /// Attention weights for all encoder intermediate layers
-    pub all_encoder_attentions: Option<Vec<Tensor>>,
 }

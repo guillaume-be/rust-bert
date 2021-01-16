@@ -409,9 +409,7 @@ impl ProphetNetNgramAttention {
         let key_states = hidden_states.apply(&self.key_proj);
         let value_states = hidden_states.apply(&self.value_proj);
 
-        let mut main_hidden_states = self
-            .flatten(hidden_states, sequence_length, batch_size)
-            .chunk(1 + self.ngram, 1);
+        let mut main_hidden_states = hidden_states.chunk(1 + self.ngram, 0);
         let mut main_query_states = self
             .flatten(query_states, sequence_length, batch_size)
             .chunk(1 + self.ngram, 1);
@@ -645,12 +643,8 @@ impl ProphetNetNgramAttention {
             .view([-1, *main_relative_position_buckets.size().last().unwrap()]);
 
         rel_pos_embeddings
-            .gather(1, &main_relative_position_buckets, true)
-            .view([
-                sequence_length * self.num_attention_heads,
-                sequence_length,
-                -1,
-            ])
+            .gather(1, &main_relative_position_buckets, false)
+            .view([self.num_attention_heads, sequence_length, -1])
     }
 
     fn get_predict_relative_pos_embeddings(
@@ -755,10 +749,10 @@ pub(crate) fn compute_relative_buckets(
 
     let val_if_large = val_if_large
         .min1(&(val_if_large.ones_like() * (num_buckets as f64 - 1.0)))
-        .totype(Kind::Int);
+        .totype(Kind::Int64);
 
-    let relative_positions_bucket = relative_positions_bucket
-        + is_small.where1(&inverse_relative_positions.totype(Kind::Int), &val_if_large);
+    let relative_positions_bucket =
+        relative_positions_bucket + inverse_relative_positions.where1(&is_small, &val_if_large);
 
     relative_positions_bucket
 }

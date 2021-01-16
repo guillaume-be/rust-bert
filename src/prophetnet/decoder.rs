@@ -519,7 +519,7 @@ impl ProphetNetDecoder {
         let position_ids = Tensor::arange1(
             1,
             self.max_target_positions,
-            (Kind::Int, position_ids.device()),
+            (Kind::Int64, position_ids.device()),
         )
         .repeat(&[1, 1]);
 

@@ -68,10 +68,12 @@ impl ProphetNetEncoderLayer {
         let (attention_output, attention_weights, _) =
             self.self_attention
                 .forward_t(hidden_states, None, attention_mask, None, train);
-        let hidden_states = (attention_output + hidden_states)
-            .apply(&self.self_attention_layer_norm)
-            .apply_t(&self.feed_forward, train)
-            .apply(&self.feed_forward_layer_norm);
+
+        let hidden_states =
+            (attention_output + hidden_states).apply(&self.self_attention_layer_norm);
+        let feed_forward_output = hidden_states.apply_t(&self.feed_forward, train);
+        let hidden_states =
+            (hidden_states + feed_forward_output).apply(&self.feed_forward_layer_norm);
 
         (hidden_states, attention_weights)
     }

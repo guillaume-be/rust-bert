@@ -12,18 +12,13 @@
 
 extern crate anyhow;
 
-use rust_bert::bart::{
-    BartConfig, BartConfigResources, BartMergesResources, BartModel, BartModelResources,
-    BartVocabResources,
-};
 use rust_bert::prophetnet::{
-    ProphetNetConfig, ProphetNetConfigResources, ProphetNetModelResources, ProphetNetVocabResources,
+    ProphetNetConfig, ProphetNetConfigResources, ProphetNetModel, ProphetNetModelResources,
+    ProphetNetVocabResources,
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::tokenizer::{
-    ProphetNetTokenizer, RobertaTokenizer, Tokenizer, TruncationStrategy,
-};
+use rust_tokenizers::tokenizer::{ProphetNetTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {
@@ -39,13 +34,56 @@ fn main() -> anyhow::Result<()> {
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
-    let _weights_path = weights_resource.get_local_path()?;
+    let weights_path = weights_resource.get_local_path()?;
 
     //    Set-up masked LM model
-    // let device = Device::cuda_if_available();
-    // let mut vs = nn::VarStore::new(device);
-    let _tokenizer = ProphetNetTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
-    let _config = ProphetNetConfig::from_file(config_path);
+    let device = Device::cuda_if_available();
+    let mut vs = nn::VarStore::new(device);
+    let tokenizer = ProphetNetTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
+    let config = ProphetNetConfig::from_file(config_path);
 
+    let model = ProphetNetModel::new(&(&vs.root() / "prophetnet"), &config)?;
+    vs.load(weights_path)?;
+
+    //    Define input
+    let input = ["One two three four"];
+
+    let tokenized_input = tokenizer.encode_list(input, 1024, &TruncationStrategy::LongestFirst, 0);
+    let max_len = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.len())
+        .max()
+        .unwrap();
+    let tokenized_input = tokenized_input
+        .iter()
+        .map(|input| input.token_ids.clone())
+        .map(|mut input| {
+            input.extend(vec![0; max_len - input.len()]);
+            input
+        })
+        .map(|input| Tensor::of_slice(&(input)))
+        .collect::<Vec<_>>();
+    let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
+
+    //    Forward pass
+    let model_output = no_grad(|| {
+        model
+            .forward_t(
+                Some(&input_tensor),
+                None,
+                None,
+                Some(&input_tensor),
+                None,
+                None,
+                None,
+                None,
+                None,
+                false,
+            )
+            .unwrap()
+    });
+
+    println!("{:?}", model_output.last_hidden_states);
+    // model_output.last_hidden_states.print();
     Ok(())
 }
