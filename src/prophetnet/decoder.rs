@@ -128,7 +128,6 @@ impl ProphetNetDecoderLayer {
 
         let mut hidden_states =
             (hidden_states + ngram_attention_output).apply(&self.self_attention_layer_norm);
-
         let (cross_attention_weights, new_cross_layer_state) = if let Some(encoder_hidden_states) =
             encoder_hidden_states
         {
@@ -140,9 +139,10 @@ impl ProphetNetDecoderLayer {
             (None, None)
         };
 
-        let hidden_states = hidden_states
-            .apply_t(&self.feed_forward, train)
-            .apply(&self.feed_forward_layer_norm);
+        let feed_forward_output = hidden_states.apply_t(&self.feed_forward, train);
+
+        let hidden_states =
+            (feed_forward_output + hidden_states).apply(&self.feed_forward_layer_norm);
 
         ProphetNetDecoderLayerOutput {
             hidden_states,
@@ -565,7 +565,7 @@ impl ProphetNetDecoder {
 
         let causal_mask = Tensor::full(
             &[sequence_length, sequence_length],
-            -f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
             (Kind::Float, hidden_states.device()),
         )
         .triu_(1);

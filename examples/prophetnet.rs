@@ -84,6 +84,6 @@ fn main() -> anyhow::Result<()> {
     });
 
     println!("{:?}", model_output.last_hidden_states);
-    // model_output.last_hidden_states.print();
+    model_output.last_hidden_states.print();
     Ok(())
 }
