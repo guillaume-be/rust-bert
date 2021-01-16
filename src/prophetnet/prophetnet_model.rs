@@ -94,8 +94,8 @@ pub struct ProphetNetConfig {
 impl Config<ProphetNetConfig> for ProphetNetConfig {}
 
 pub struct ProphetNetModel {
-    word_embeddings: nn::Embedding,
-    encoder: ProphetNetEncoder,
+    pub(crate) word_embeddings: nn::Embedding,
+    pub(crate) encoder: ProphetNetEncoder,
     decoder: ProphetNetDecoder,
 }
 
@@ -331,6 +331,25 @@ impl ProphetNetForConditionalGeneration {
             all_cross_attentions: base_model_output.all_cross_attentions,
             next_decoder_cache: base_model_output.next_decoder_cache,
         })
+    }
+
+    pub fn encode(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+    ) -> Result<Tensor, RustBertError> {
+        Ok(self
+            .base_model
+            .encoder
+            .forward_t(
+                input_ids,
+                attention_mask,
+                input_embeds,
+                Some(&self.base_model.word_embeddings),
+                false,
+            )?
+            .hidden_states)
     }
 }
 
