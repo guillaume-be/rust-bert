@@ -85,6 +85,10 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     GenerateOptions, PrivateLanguageGenerator,
 };
+use crate::prophetnet::{
+    LayerState as ProphetNetLayerState, ProphetNetConfig, ProphetNetConfigResources,
+    ProphetNetForConditionalGeneration, ProphetNetModelResources, ProphetNetVocabResources,
+};
 use crate::reformer::{
     LayerState as ReformerLayerState, ReformerConfig, ReformerConfigResources,
     ReformerModelResources, ReformerModelWithLMHead, ReformerVocabResources,
@@ -93,7 +97,7 @@ use crate::t5::{
     LayerState as T5LayerState, T5Config, T5ConfigResources, T5ForConditionalGeneration,
     T5ModelResources, T5VocabResources,
 };
-use crate::xlnet::{LayerState, XLNetConfig, XLNetLMHeadModel};
+use crate::xlnet::{LayerState as XLNetLayerState, XLNetConfig, XLNetLMHeadModel};
 use crate::Config;
 use itertools::Itertools;
 use rust_tokenizers::tokenizer::{
@@ -1553,7 +1557,7 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
                         let past_len = first_past.prev_content.size()[0];
                         past.iter()
                             .map(|old_layer_state| {
-                                Some(LayerState {
+                                Some(XLNetLayerState {
                                     prev_content: old_layer_state
                                         .as_ref()
                                         .unwrap()
@@ -1805,13 +1809,103 @@ impl LanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTokenizer
 {
 }
 
+pub struct ProphetNetConditionalGenerator {
+    model: ProphetNetForConditionalGeneration,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl ProphetNetConditionalGenerator {
+    pub fn new(
+        generate_config: GenerateConfig,
+    ) -> Result<ProphetNetConditionalGenerator, RustBertError> {
+        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
+        let model_resource = if generate_config.model_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                ProphetNetModelResources::PROPHETNET_LARGE_CNN_DM,
+            ))
+        } else {
+            generate_config.model_resource.clone()
+        };
+
+        let config_resource = if generate_config.config_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                ProphetNetConfigResources::PROPHETNET_LARGE_CNN_DM,
+            ))
+        } else {
+            generate_config.config_resource.clone()
+        };
+
+        let vocab_resource = if generate_config.vocab_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                ProphetNetVocabResources::PROPHETNET_LARGE_CNN_DM,
+            ))
+        } else {
+            generate_config.vocab_resource.clone()
+        };
+
+        let config_path = config_resource.get_local_path()?;
+        let vocab_path = vocab_resource.get_local_path()?;
+        let weights_path = model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::ProphetNet,
+            vocab_path.to_str().unwrap(),
+            None,
+            true,
+            true,
+            None,
+        )?;
+        let config = ProphetNetConfig::from_file(config_path);
+        let model = ProphetNetForConditionalGeneration::new(&var_store.root(), &config)?;
+        var_store.load(weights_path)?;
+
+        let bos_token_id = Some(config.decoder_start_token_id);
+        let eos_token_ids = Some(vec![config.eos_token_id]);
+        let pad_token_id = Some(config.pad_token_id);
+        let vocab_size = config.vocab_size;
+        let is_encoder_decoder = true;
+        let decoder_start_id = None;
+
+        Ok(ProphetNetConditionalGenerator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+        })
+    }
+}
+
 #[derive(Debug)]
 pub enum Cache {
     GPT2Cache(Option<Vec<Tensor>>),
     BARTCache(Option<Vec<(Option<BartLayerState>, Option<BartLayerState>)>>),
     T5Cache(Option<Vec<(Option<T5LayerState>, Option<T5LayerState>)>>),
-    XLNetCache(Option<Vec<Option<LayerState>>>),
+    XLNetCache(Option<Vec<Option<XLNetLayerState>>>),
     ReformerCache(Option<Vec<Option<ReformerLayerState>>>),
+    ProphetNetCache(Option<Vec<(Option<ProphetNetLayerState>, Option<ProphetNetLayerState>)>>),
     None,
 }
 

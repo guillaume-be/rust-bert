@@ -9,6 +9,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::prophetnet::attention::LayerState;
 use crate::prophetnet::decoder::ProphetNetDecoder;
 use crate::prophetnet::encoder::ProphetNetEncoder;
@@ -33,6 +34,11 @@ impl ProphetNetModelResources {
         "prophetnet-large-uncased/model",
         "https://huggingface.co/microsoft/prophetnet-large-uncased/resolve/main/rust_model.ot",
     );
+    /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
+    pub const PROPHETNET_LARGE_CNN_DM: (&'static str, &'static str) = (
+        "prophetnet-large-uncased-cnndm/model",
+        "https://huggingface.co/microsoft/prophetnet-large-uncased-cnndm/resolve/main/rust_model.ot",
+    );
 }
 
 impl ProphetNetConfigResources {
@@ -41,6 +47,11 @@ impl ProphetNetConfigResources {
         "prophetnet-large-uncased/config",
         "https://huggingface.co/microsoft/prophetnet-large-uncased/resolve/main/config.json",
     );
+    /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
+    pub const PROPHETNET_LARGE_CNN_DM: (&'static str, &'static str) = (
+        "prophetnet-large-uncased/config",
+        "https://huggingface.co/microsoft/prophetnet-large-uncased-cnndm/resolve/main/config.json",
+    );
 }
 
 impl ProphetNetVocabResources {
@@ -48,6 +59,11 @@ impl ProphetNetVocabResources {
     pub const PROPHETNET_LARGE_UNCASED: (&'static str, &'static str) = (
         "prophetnet-large-uncased/vocab",
         "https://huggingface.co/microsoft/prophetnet-large-uncased/resolve/main/prophetnet.tokenizer",
+    );
+    /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
+    pub const PROPHETNET_LARGE_CNN_DM: (&'static str, &'static str) = (
+        "prophetnet-large-uncased/vocab",
+        "https://huggingface.co/microsoft/prophetnet-large-uncased-cnndm/resolve/main/prophetnet.tokenizer",
     );
 }
 
@@ -135,7 +151,6 @@ impl ProphetNetModel {
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         encoder_hidden_states: Option<&Tensor>,
-        encoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         decoder_input_embeds: Option<&Tensor>,
         train: bool,
@@ -162,7 +177,7 @@ impl ProphetNetModel {
             decoder_input_ids,
             decoder_attention_mask,
             encoder_hidden_states.into(),
-            encoder_attention_mask,
+            decoder_attention_mask,
             old_layer_states,
             decoder_input_embeds,
             Some(&self.word_embeddings),
@@ -252,7 +267,6 @@ impl ProphetNetForConditionalGeneration {
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         encoder_hidden_states: Option<&Tensor>,
-        encoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         decoder_input_embeds: Option<&Tensor>,
         train: bool,
@@ -281,7 +295,6 @@ impl ProphetNetForConditionalGeneration {
             decoder_input_ids,
             decoder_attention_mask,
             encoder_hidden_states,
-            encoder_attention_mask,
             old_layer_states,
             decoder_input_embeds,
             train,
@@ -350,6 +363,56 @@ impl ProphetNetForConditionalGeneration {
                 false,
             )?
             .hidden_states)
+    }
+}
+
+impl LMHeadModel for ProphetNetForConditionalGeneration {
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        cache: Cache,
+        attention_mask: &Option<Tensor>,
+        _token_type_ids: &Option<Tensor>,
+        _position_ids: &Option<Tensor>,
+        input_embeds: &Option<Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match cache {
+            Cache::ProphetNetCache(cached_layer_states) => self.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                input_embeds.as_ref(),
+                decoder_input_ids.as_ref(),
+                None,
+                encoder_outputs,
+                cached_layer_states,
+                None,
+                train,
+            )?,
+            Cache::None => self.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                input_embeds.as_ref(),
+                decoder_input_ids.as_ref(),
+                None,
+                encoder_outputs,
+                None,
+                None,
+                train,
+            )?,
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with ProphetNet Model".into(),
+                ));
+            }
+        };
+
+        Ok(LMModelOutput {
+            lm_logits: base_model_output.logits,
+            cache: Cache::ProphetNetCache(base_model_output.next_decoder_cache),
+        })
     }
 }
 
