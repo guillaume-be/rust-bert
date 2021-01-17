@@ -67,7 +67,10 @@ fn bart_lm_model() -> anyhow::Result<()> {
     let model_output =
         bart_model.forward_t(Some(&input_tensor), None, None, None, None, None, false);
     assert_eq!(model_output.decoder_output.size(), vec!(1, 6, 1024));
-    assert_eq!(model_output.encoder_hidden_state.size(), vec!(1, 6, 1024));
+    assert_eq!(
+        model_output.encoder_hidden_state.unwrap().size(),
+        vec!(1, 6, 1024)
+    );
     assert!((model_output.decoder_output.double_value(&[0, 0, 0]) - 0.2610).abs() < 1e-4);
     Ok(())
 }

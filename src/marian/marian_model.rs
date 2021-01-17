@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartConfig, BartEncoderOutput, BartModel, BartModelOutput, LayerState};
+use crate::bart::{BartConfig, BartModel, BartModelOutput, LayerState};
 use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -298,10 +298,7 @@ impl MarianForConditionalGeneration {
     ///
     /// * `BartModelOutput` containing:
     ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *vocab_size*) representing the logits for each vocabulary item and position
-    ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
     ///   - `cache` - `(Option<Tensor>, Option<Vec<&LayerState, &LayerState>>)` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
-    ///   - `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
-    ///   - `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
     ///   - `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
     ///   - `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
     ///
@@ -344,7 +341,7 @@ impl MarianForConditionalGeneration {
         &self,
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        encoder_outputs: Option<BartEncoderOutput>,
+        encoder_outputs: Option<&Tensor>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
@@ -405,9 +402,6 @@ impl LMHeadModel for MarianForConditionalGeneration {
     ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
     ///   - `cache` - `BartCache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
     ///     both the self attention and the encoder cross attention of each layer of the decoder.
-    ///   - `encoder_hidden_states` - `Option<Tensor>` Hidden states for the encoder
-    ///   - `all_hidden_states` - None
-    ///   - `all_attentions` - None
     ///
     /// # Example
     ///
@@ -461,11 +455,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref(),
-                Some(BartEncoderOutput {
-                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
-                    all_hidden_states: None,
-                    all_attentions: None,
-                }),
+                encoder_outputs,
                 None,
                 cached_layer_states,
                 train,
@@ -474,11 +464,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref(),
-                Some(BartEncoderOutput {
-                    hidden_state: encoder_outputs.as_ref().unwrap().copy(),
-                    all_hidden_states: None,
-                    all_attentions: None,
-                }),
+                encoder_outputs,
                 None,
                 None,
                 train,
@@ -496,10 +482,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
             + &self.final_logits_bias;
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: Some(base_model_output.encoder_hidden_state),
             cache: Cache::BARTCache(base_model_output.cache),
-            all_hidden_states: None,
-            all_attentions: None,
         })
     }
 }

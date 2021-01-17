@@ -3112,12 +3112,6 @@ pub trait LMHeadModel {
 pub struct LMModelOutput {
     /// Logits for each vocab item and position
     pub lm_logits: Tensor,
-    /// Encoder hidden state (re-used for encoder/decoder architectures)
-    pub encoder_hidden_state: Option<Tensor>,
     /// cached state for improved efficiency during decoding
     pub cache: Cache,
-    /// Hidden states for all intermediate model layers
-    pub all_hidden_states: Option<Vec<Tensor>>,
-    /// Attention weights for all intermediate model layers
-    pub all_attentions: Option<Vec<Tensor>>,
 }

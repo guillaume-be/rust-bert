@@ -546,9 +546,6 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// * `LMModelOutput` containing:
     ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
     ///   - `cache` - `Gpt2Cache` made of `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
-    ///   - `encoder_hidden_states` - None
-    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -642,10 +639,7 @@ impl LMHeadModel for GPT2LMHeadModel {
         let lm_logits = base_model_output.output.apply(&self.lm_head);
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: None,
             cache: Cache::GPT2Cache(base_model_output.cache),
-            all_hidden_states: base_model_output.all_hidden_states,
-            all_attentions: base_model_output.all_attentions,
         })
     }
 }
