@@ -255,6 +255,8 @@ impl T5Model {
     ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *hidden_size*) representing the activations of the last decoder hidden state
     ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
     ///   - `cache` - `Option<Vec<(Option<Vec<LayerState, LayerState>>)>>` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
+    ///   - `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
     ///   - `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
     ///   - `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
     ///
@@ -319,14 +321,25 @@ impl T5Model {
                         None,
                         train,
                     )
-                    .unwrap()
-                    .hidden_state,
+                    .unwrap(),
             )
         } else {
             None
         };
+
+        let (calc_hidden_states, all_encoder_hidden_states, all_encoder_attentions) =
+            if let Some(calc_encoder_outputs) = calc_encoder_outputs {
+                (
+                    Some(calc_encoder_outputs.hidden_state),
+                    calc_encoder_outputs.all_hidden_states,
+                    calc_encoder_outputs.all_attentions,
+                )
+            } else {
+                (None, None, None)
+            };
+
         let encoder_output =
-            encoder_outputs.unwrap_or_else(|| calc_encoder_outputs.as_ref().unwrap());
+            encoder_outputs.unwrap_or_else(|| calc_hidden_states.as_ref().unwrap());
 
         let decoder_output = self
             .decoder
@@ -343,9 +356,12 @@ impl T5Model {
             .unwrap();
         T5ModelOutput {
             decoder_output: decoder_output.hidden_state,
+            encoder_hidden_state: calc_hidden_states,
             next_cache: decoder_output.next_cache,
             all_decoder_hidden_states: decoder_output.all_hidden_states,
             all_decoder_attentions: decoder_output.all_attentions,
+            all_encoder_hidden_states,
+            all_encoder_attentions,
         }
     }
 }
@@ -431,6 +447,8 @@ impl T5ForConditionalGeneration {
     ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *vocab_size*) representing the logits for each sequence position and vocabulary item
     ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
     ///   - `cache` - `Option<Vec<(Option<Vec<LayerState, LayerState>>)>>` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
+    ///   - `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
     ///   - `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
     ///   - `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
     ///
@@ -641,10 +659,16 @@ pub struct T5ModelOutput {
     /// Hidden state of the last layer of the decoder, or logits for a custom head
     /// module after the decoder (e.g. for language modeling tasks)
     pub decoder_output: Tensor,
+    /// Hidden state for the last layer of the encoder if they are calculated, otherwise None
+    pub encoder_hidden_state: Option<Tensor>,
     /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
     pub next_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
     /// Hidden states for all layers of the decoder
     pub all_decoder_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all layers of the decoder
     pub all_decoder_attentions: Option<Vec<Tensor>>,
+    /// Hidden states for all layers of the encoder
+    pub all_encoder_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all layers of the encoder
+    pub all_encoder_attentions: Option<Vec<Tensor>>,
 }

@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Changed
+- (BREAKING) Simplified the input and output of encoder/decoder models to avoid needing to take ownership of the possibly cached encoder hidden state, offering a minor performance improvement for text generation tasks. The model output field for encoder hidden states are now optional, and only returned if the encoder hidden states were not provided for the given forward path. This may be a breaking change for low-level dependencies that manipulate directly the encoder/decoder model outputs.
 
 ## [0.12.1] - 2021-01-04
 ### Added

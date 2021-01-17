@@ -276,7 +276,7 @@ impl ReformerEmbeddings {
             None
         };
 
-        let position_ids = position_ids.unwrap_or(calc_position_ids.as_ref().unwrap());
+        let position_ids = position_ids.unwrap_or_else(|| calc_position_ids.as_ref().unwrap());
 
         Ok(self.position_embeddings.forward_t(position_ids, train)
             + input_embeddings.apply_t(&self.dropout, train))
