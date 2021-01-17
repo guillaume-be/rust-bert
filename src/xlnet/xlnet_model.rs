@@ -743,34 +743,10 @@ impl XLNetLMHeadModel {
         )?;
 
         let lm_logits = base_model_output.hidden_state.apply(&self.lm_head);
-        let all_attentions = if let Some(all_attentions) = base_model_output.all_attentions {
-            Some(
-                all_attentions
-                    .into_iter()
-                    .map(|(u, _)| u)
-                    .collect::<Vec<Tensor>>(),
-            )
-        } else {
-            None
-        };
-        let all_hidden_states = if let Some(all_hidden_states) = base_model_output.all_hidden_states
-        {
-            Some(
-                all_hidden_states
-                    .into_iter()
-                    .map(|(u, _)| u)
-                    .collect::<Vec<Tensor>>(),
-            )
-        } else {
-            None
-        };
 
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: None,
             cache: Cache::XLNetCache(base_model_output.next_cache),
-            all_hidden_states,
-            all_attentions,
         })
     }
 }
@@ -794,9 +770,6 @@ impl LMHeadModel for XLNetLMHeadModel {
     /// * `LMModelOutput` containing:
     ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
     ///   - `cache` - `XLNetCache` made of `Option<Vec<Option<LayerState>>>` of length *n_layers*  and shape (*past_sequence_length*, *batch size*, *hidden_size*) containing the previous content
-    ///   - `encoder_hidden_states` - None
-    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///

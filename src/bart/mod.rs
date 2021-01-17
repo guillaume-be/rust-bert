@@ -68,5 +68,3 @@ pub use bart_model::{
     BartConfig, BartConfigResources, BartForConditionalGeneration, BartForSequenceClassification,
     BartMergesResources, BartModel, BartModelOutput, BartModelResources, BartVocabResources,
 };
-
-pub(crate) use encoder::BartEncoderOutput;
