@@ -49,7 +49,7 @@ impl ProphetNetConfigResources {
     );
     /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
     pub const PROPHETNET_LARGE_CNN_DM: (&'static str, &'static str) = (
-        "prophetnet-large-uncased/config",
+        "prophetnet-large-uncased-cnndm/config",
         "https://huggingface.co/microsoft/prophetnet-large-uncased-cnndm/resolve/main/config.json",
     );
 }
@@ -62,7 +62,7 @@ impl ProphetNetVocabResources {
     );
     /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
     pub const PROPHETNET_LARGE_CNN_DM: (&'static str, &'static str) = (
-        "prophetnet-large-uncased/vocab",
+        "prophetnet-large-uncased-cnndm/vocab",
         "https://huggingface.co/microsoft/prophetnet-large-uncased-cnndm/resolve/main/prophetnet.tokenizer",
     );
 }

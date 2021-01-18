@@ -69,7 +69,7 @@ use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::pipelines::common::ModelType;
 use crate::pipelines::generation_utils::{
-    BartGenerator, GenerateConfig, LanguageGenerator, T5Generator,
+    BartGenerator, GenerateConfig, LanguageGenerator, ProphetNetConditionalGenerator, T5Generator,
 };
 use itertools::Itertools;
 use tch::{Device, Tensor};
@@ -208,6 +208,8 @@ pub enum SummarizationOption {
     Bart(BartGenerator),
     /// Summarizer based on T5 model
     T5(T5Generator),
+    /// Summarizer based on ProphetNet model
+    ProphetNet(ProphetNetConditionalGenerator),
 }
 
 impl SummarizationOption {
@@ -217,8 +219,11 @@ impl SummarizationOption {
                 config.into(),
             )?)),
             ModelType::T5 => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
+            ModelType::ProphetNet => Ok(SummarizationOption::ProphetNet(
+                ProphetNetConditionalGenerator::new(config.into())?,
+            )),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "QuestionAnswering not implemented for {:?}!",
+                "Summarization not implemented for {:?}!",
                 config.model_type
             ))),
         }
@@ -229,6 +234,7 @@ impl SummarizationOption {
         match *self {
             Self::Bart(_) => ModelType::Bart,
             Self::T5(_) => ModelType::T5,
+            Self::ProphetNet(_) => ModelType::ProphetNet,
         }
     }
 
@@ -244,6 +250,9 @@ impl SummarizationOption {
         match *self {
             Self::Bart(ref model) => model.generate(prompt_texts, attention_mask, None, None, None),
             Self::T5(ref model) => model.generate(prompt_texts, attention_mask, None, None, None),
+            Self::ProphetNet(ref model) => {
+                model.generate(prompt_texts, attention_mask, None, None, None)
+            }
         }
     }
 }

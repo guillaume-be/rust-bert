@@ -642,9 +642,15 @@ impl ProphetNetNgramAttention {
             .repeat(&[1, self.num_attention_heads, 1])
             .view([-1, *main_relative_position_buckets.size().last().unwrap()]);
 
+        let mut new_shape = attention_weights
+            .size()
+            .into_iter()
+            .take(2)
+            .collect::<Vec<i64>>();
+        new_shape.push(-1);
         rel_pos_embeddings
             .gather(1, &main_relative_position_buckets, false)
-            .view([self.num_attention_heads, sequence_length, -1])
+            .view(new_shape.as_slice())
     }
 
     fn get_predict_relative_pos_embeddings(
@@ -742,7 +748,7 @@ pub(crate) fn compute_relative_buckets(
     let max_exact = num_buckets / 2;
     let is_small = inverse_relative_positions.lt(max_exact);
     let max_exact_f64 = max_exact as f64;
-    let val_if_large = (inverse_relative_positions.totype(Kind::Float) / max_exact_f64).log()
+    let val_if_large = (inverse_relative_positions.totype(Kind::Float) / max_exact_f64).log2()
         / (max_distance as f64 / max_exact_f64).log2()
         * (num_buckets as f64 - max_exact_f64)
         + max_exact_f64;

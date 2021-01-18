@@ -101,11 +101,12 @@ use crate::xlnet::{LayerState as XLNetLayerState, XLNetConfig, XLNetLMHeadModel}
 use crate::Config;
 use itertools::Itertools;
 use rust_tokenizers::tokenizer::{
-    Gpt2Tokenizer, MarianTokenizer, OpenAiGptTokenizer, ReformerTokenizer, RobertaTokenizer,
-    T5Tokenizer, Tokenizer, TruncationStrategy, XLNetTokenizer,
+    Gpt2Tokenizer, MarianTokenizer, OpenAiGptTokenizer, ProphetNetTokenizer, ReformerTokenizer,
+    RobertaTokenizer, T5Tokenizer, Tokenizer, TruncationStrategy, XLNetTokenizer,
 };
 use rust_tokenizers::vocab::{
-    Gpt2Vocab, MarianVocab, OpenAiGptVocab, ReformerVocab, RobertaVocab, T5Vocab, Vocab, XLNetVocab,
+    Gpt2Vocab, MarianVocab, OpenAiGptVocab, ProphetNetVocab, ReformerVocab, RobertaVocab, T5Vocab,
+    Vocab, XLNetVocab,
 };
 use tch::kind::Kind::Int64;
 use tch::{nn, no_grad, Device, Kind, Tensor};
@@ -1876,12 +1877,12 @@ impl ProphetNetConditionalGenerator {
         let model = ProphetNetForConditionalGeneration::new(&var_store.root(), &config)?;
         var_store.load(weights_path)?;
 
-        let bos_token_id = Some(config.decoder_start_token_id);
+        let bos_token_id = Some(config.bos_token_id);
         let eos_token_ids = Some(vec![config.eos_token_id]);
         let pad_token_id = Some(config.pad_token_id);
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = None;
+        let decoder_start_id = Some(config.decoder_start_token_id);
 
         Ok(ProphetNetConditionalGenerator {
             model,
@@ -1896,6 +1897,170 @@ impl ProphetNetConditionalGenerator {
             decoder_start_id,
         })
     }
+}
+
+impl
+    PrivateLanguageGenerator<
+        ProphetNetForConditionalGeneration,
+        ProphetNetVocab,
+        ProphetNetTokenizer,
+    > for ProphetNetConditionalGenerator
+{
+    fn get_model(&self) -> &ProphetNetForConditionalGeneration {
+        &self.model
+    }
+    fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+
+    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+        Some(
+            self.get_model()
+                .encode(Some(input_ids), attention_mask, None)
+                .unwrap(),
+        )
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        attention_mask: Tensor,
+    ) -> (
+        Option<Tensor>,
+        Option<Tensor>,
+        Option<&'a Tensor>,
+        Option<Tensor>,
+        Cache,
+    ) {
+        match past {
+            Cache::ProphetNetCache(past) => (
+                None,
+                Some(attention_mask),
+                encoder_outputs,
+                Some(input_ids.narrow(1, -1, 1)),
+                Cache::ProphetNetCache(past),
+            ),
+            Cache::None => (
+                None,
+                Some(attention_mask),
+                encoder_outputs,
+                Some(input_ids),
+                Cache::ProphetNetCache(None),
+            ),
+            _ => panic!("Cache type incompatible with ProphetNet"),
+        }
+    }
+
+    fn encode_prompt_text<'a, S>(
+        &self,
+        prompt_text: S,
+        max_len: i64,
+        pad_token_id: Option<i64>,
+    ) -> Tensor
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let tokens = self.get_tokenizer().encode_list(
+            prompt_text.as_ref(),
+            max_len as usize,
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
+        let token_ids = tokens
+            .into_iter()
+            .map(|tokenized_input| tokenized_input.token_ids)
+            .collect::<Vec<Vec<i64>>>();
+
+        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+
+        let pad_token = match pad_token_id {
+            Some(value) => value,
+            None => self
+                .get_tokenizer()
+                .convert_tokens_to_ids(&[RobertaVocab::unknown_value()])[0],
+        };
+
+        let token_ids = token_ids
+            .into_iter()
+            .map(|mut input| {
+                let temp = vec![pad_token; max_len - input.len()];
+                input.extend(temp);
+                input
+            })
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .collect::<Vec<Tensor>>();
+
+        Tensor::stack(&token_ids, 0)
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        let encoder_outputs = match encoder_outputs {
+            Some(value) => Some(value.index_select(0, beam_indices)),
+            None => None,
+        };
+        match past {
+            Cache::ProphetNetCache(old_cache_option) => match old_cache_option {
+                Some(old_cache) => {
+                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
+                        if self_layer_state.is_some() {
+                            self_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
+                        };
+                        if encoder_layer_state.is_some() {
+                            encoder_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
+                        };
+                    }
+                }
+                None => {}
+            },
+            Cache::None => {}
+            _ => {
+                panic!("Invalid cache for ProphetNet model");
+            }
+        };
+        encoder_outputs
+    }
+}
+
+impl LanguageGenerator<ProphetNetForConditionalGeneration, ProphetNetVocab, ProphetNetTokenizer>
+    for ProphetNetConditionalGenerator
+{
 }
 
 #[derive(Debug)]
