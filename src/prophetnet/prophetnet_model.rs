@@ -420,8 +420,6 @@ pub struct ProphetNetForCausalGeneration {
     decoder: ProphetNetDecoder,
     word_embeddings: nn::Embedding,
     lm_head: nn::Linear,
-    decoder_start_token_id: i64,
-    pad_token_id: i64,
     ngram: i64,
 }
 
@@ -437,7 +435,8 @@ impl ProphetNetForCausalGeneration {
         let mut updated_config = config.clone();
         updated_config.is_encoder_decoder = false;
 
-        let decoder = ProphetNetDecoder::new(p / "prophetnet" / "decoder", config)?;
+        let p_prophetnet = p / "prophetnet";
+        let decoder = ProphetNetDecoder::new(&p_prophetnet / "decoder", config)?;
         let linear_config = nn::LinearConfig {
             bias: false,
             ..Default::default()
@@ -447,8 +446,9 @@ impl ProphetNetForCausalGeneration {
             padding_idx: config.pad_token_id,
             ..Default::default()
         };
+        let p_decoder = &p_prophetnet / "decoder";
         let word_embeddings = nn::embedding(
-            p / "prophetnet" / "decoder" / "word_embeddings",
+            &p_decoder / "word_embeddings",
             config.vocab_size,
             config.hidden_size,
             word_embeddings_config,
@@ -461,16 +461,12 @@ impl ProphetNetForCausalGeneration {
             linear_config,
         );
 
-        let decoder_start_token_id = config.decoder_start_token_id;
-        let pad_token_id = config.pad_token_id;
         let ngram = config.ngram;
 
         Ok(ProphetNetForCausalGeneration {
             decoder,
             word_embeddings,
             lm_head,
-            decoder_start_token_id,
-            pad_token_id,
             ngram,
         })
     }
@@ -483,7 +479,6 @@ impl ProphetNetForCausalGeneration {
         encoder_hidden_states: Option<&Tensor>,
         encoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-        decoder_input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<ProphetNetGenerationOutput, RustBertError> {
         let base_model_output = self.decoder.forward_t(
@@ -497,15 +492,15 @@ impl ProphetNetForCausalGeneration {
             train,
         )?;
 
-        let (batch_size, sequence_length) = if let Some(decoder_input_ids) = decoder_input_ids {
-            let shape = decoder_input_ids.size();
+        let (batch_size, sequence_length) = if let Some(input_ids) = input_ids {
+            let shape = input_ids.size();
             (shape[0], shape[1])
-        } else if let Some(decoder_input_embeds) = decoder_input_embeds {
-            let shape = decoder_input_embeds.size();
+        } else if let Some(input_embeds) = input_embeds {
+            let shape = input_embeds.size();
             (shape[0], shape[1])
         } else {
             return Err(RustBertError::ValueError(
-                "At least one of decoder_input_ids or decoder_input_embeds must be set".into(),
+                "At least one of input_ids or input_embeds must be set".into(),
             ));
         };
 
@@ -534,7 +529,7 @@ impl ProphetNetForCausalGeneration {
             logits,
             ngram_logits,
             ngram_hidden_states: base_model_output.ngram_hidden_states,
-            all_decoder_hidden_states: base_model_output.all_decoder_hidden_states,
+            all_decoder_hidden_states: base_model_output.all_hidden_states,
             all_ngram_hidden_states: base_model_output.all_ngram_hidden_states,
             all_attentions: base_model_output.all_attentions,
             all_ngram_attentions: base_model_output.all_ngram_attentions,
