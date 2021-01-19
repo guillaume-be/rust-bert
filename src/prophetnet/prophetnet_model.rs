@@ -67,7 +67,7 @@ impl ProphetNetVocabResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # ProphetNet model configuration
 /// Defines the ProphetNet model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct ProphetNetConfig {
@@ -270,7 +270,7 @@ impl ProphetNetForConditionalGeneration {
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         decoder_input_embeds: Option<&Tensor>,
         train: bool,
-    ) -> Result<ProphetNetForConditionalGenerationOutput, RustBertError> {
+    ) -> Result<ProphetNetGenerationOutput, RustBertError> {
         let calc_decoder_input_ids = if decoder_input_ids.is_none() & decoder_input_embeds.is_none()
         {
             if let Some(input_ids) = input_ids {
@@ -333,7 +333,7 @@ impl ProphetNetForConditionalGeneration {
             None
         };
 
-        Ok(ProphetNetForConditionalGenerationOutput {
+        Ok(ProphetNetGenerationOutput {
             logits,
             ngram_logits,
             ngram_hidden_states: base_model_output.ngram_hidden_states,
@@ -416,6 +416,134 @@ impl LMHeadModel for ProphetNetForConditionalGeneration {
     }
 }
 
+pub struct ProphetNetForCausalGeneration {
+    decoder: ProphetNetDecoder,
+    word_embeddings: nn::Embedding,
+    lm_head: nn::Linear,
+    decoder_start_token_id: i64,
+    pad_token_id: i64,
+    ngram: i64,
+}
+
+impl ProphetNetForCausalGeneration {
+    pub fn new<'p, P>(
+        p: P,
+        config: &ProphetNetConfig,
+    ) -> Result<ProphetNetForCausalGeneration, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let mut updated_config = config.clone();
+        updated_config.is_encoder_decoder = false;
+
+        let decoder = ProphetNetDecoder::new(p / "prophetnet" / "decoder", config)?;
+        let linear_config = nn::LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+
+        let word_embeddings_config = nn::EmbeddingConfig {
+            padding_idx: config.pad_token_id,
+            ..Default::default()
+        };
+        let word_embeddings = nn::embedding(
+            p / "prophetnet" / "decoder" / "word_embeddings",
+            config.vocab_size,
+            config.hidden_size,
+            word_embeddings_config,
+        );
+
+        let lm_head = nn::linear(
+            p / "lm_head",
+            config.hidden_size,
+            config.vocab_size,
+            linear_config,
+        );
+
+        let decoder_start_token_id = config.decoder_start_token_id;
+        let pad_token_id = config.pad_token_id;
+        let ngram = config.ngram;
+
+        Ok(ProphetNetForCausalGeneration {
+            decoder,
+            word_embeddings,
+            lm_head,
+            decoder_start_token_id,
+            pad_token_id,
+            ngram,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        decoder_input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<ProphetNetGenerationOutput, RustBertError> {
+        let base_model_output = self.decoder.forward_t(
+            input_ids,
+            attention_mask,
+            encoder_hidden_states,
+            encoder_attention_mask,
+            old_layer_states,
+            input_embeds,
+            Some(&self.word_embeddings),
+            train,
+        )?;
+
+        let (batch_size, sequence_length) = if let Some(decoder_input_ids) = decoder_input_ids {
+            let shape = decoder_input_ids.size();
+            (shape[0], shape[1])
+        } else if let Some(decoder_input_embeds) = decoder_input_embeds {
+            let shape = decoder_input_embeds.size();
+            (shape[0], shape[1])
+        } else {
+            return Err(RustBertError::ValueError(
+                "At least one of decoder_input_ids or decoder_input_embeds must be set".into(),
+            ));
+        };
+
+        if base_model_output.ngram_hidden_states.is_none() {
+            return Err(RustBertError::InvalidConfigurationError(
+                "ngram must be set > 0 in the configuration for conditional generation".into(),
+            ));
+        }
+
+        let predict_logits = base_model_output
+            .ngram_hidden_states
+            .as_ref()
+            .unwrap()
+            .view([batch_size, self.ngram, sequence_length, -1])
+            .apply(&self.lm_head);
+
+        let logits = predict_logits.select(1, 0).contiguous();
+
+        let ngram_logits = if self.ngram > 1 {
+            Some(predict_logits.slice(1, 1, predict_logits.size()[1], 1))
+        } else {
+            None
+        };
+
+        Ok(ProphetNetGenerationOutput {
+            logits,
+            ngram_logits,
+            ngram_hidden_states: base_model_output.ngram_hidden_states,
+            all_decoder_hidden_states: base_model_output.all_decoder_hidden_states,
+            all_ngram_hidden_states: base_model_output.all_ngram_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+            all_ngram_attentions: base_model_output.all_ngram_attentions,
+            all_cross_attentions: base_model_output.all_cross_attentions,
+            next_decoder_cache: base_model_output.next_decoder_cache,
+        })
+    }
+}
+
 ///Container holding a ProphetNet model output
 pub struct ProphetNetOutput {
     /// last decoder layer hidden state
@@ -436,8 +564,8 @@ pub struct ProphetNetOutput {
     pub next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
 }
 
-///Container holding a ProphetNet model output
-pub struct ProphetNetForConditionalGenerationOutput {
+///Container holding a ProphetNet model generation output
+pub struct ProphetNetGenerationOutput {
     /// Prediction logits
     pub logits: Tensor,
     /// Ngram prediction logits
