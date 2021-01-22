@@ -291,15 +291,15 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
     assert_eq!(output.len(), 6);
     assert_eq!(
         output[0],
-        "The dog was found dead on the side of the road in the middle of the night.\n"
+        "The dog was found in the backyard of a home in the 6200 block of South Main Street"
     );
     assert_eq!(
         output[1],
-        "The dog was found dead on the side of the road in the middle of the night on Sunday"
+        "The dog was found in the backyard of a home in the 6500 block of South Main Street"
     );
     assert_eq!(
         output[2],
-        "The dog was found dead on the side of the road in the middle of the night on Saturday"
+        "The dog was found in the backyard of a home in the 6200 block of North Main Street"
     );
     assert_eq!(
         output[3],
@@ -413,19 +413,29 @@ fn dialogpt_multiple_multi_turn_conversation_with_truncation() -> anyhow::Result
     let mut conversation_manager = ConversationManager::new();
     let conversation_1_id =
         conversation_manager.create("Going to the movies tonight - any suggestions?");
+    let conversation_2_id = conversation_manager.create("Hello how are you?");
 
     // Turn 1
     let output = conversation_model.generate_responses(&mut conversation_manager);
-    assert_eq!(output.len(), 1);
+    assert_eq!(output.len(), 2);
     assert_eq!(output.get(&conversation_1_id).unwrap(), &"The Big Lebowski");
+    assert_eq!(
+        output.get(&conversation_2_id).unwrap(),
+        &"I'm good, how are you?"
+    );
 
     // Turn 2
     let _ = conversation_manager
         .get(&conversation_1_id)
         .unwrap()
         .add_user_input("Is it an action movie?");
+    let _ = conversation_manager
+        .get(&conversation_2_id)
+        .unwrap()
+        .add_user_input("Fine.");
+
     let output = conversation_model.generate_responses(&mut conversation_manager);
-    assert_eq!(output.len(), 1);
+    assert_eq!(output.len(), 2);
     assert_eq!(output.get(&conversation_1_id).unwrap(), &"It\'s a comedy.");
 
     // Turn 3 (no new user input)
