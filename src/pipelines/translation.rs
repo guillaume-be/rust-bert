@@ -303,6 +303,10 @@ pub struct TranslationConfig {
     pub device: Device,
     /// Prefix to append translation inputs with
     pub prefix: Option<String>,
+    /// Number of beam groups for diverse beam generation. If provided and higher than 1, will split the beams into beam subgroups leading to more diverse generation.
+    pub num_beam_groups: Option<i64>,
+    /// Diversity penalty for diverse beam search. High values will enforce more difference between beam groups (default: 5.5)
+    pub diversity_penalty: Option<f64>,
     /// Model type used for translation
     pub model_type: ModelType,
 }
@@ -388,6 +392,8 @@ impl TranslationConfig {
             num_return_sequences: 1,
             device,
             prefix,
+            num_beam_groups: None,
+            diversity_penalty: None,
             model_type: translation_resource.model_type,
         }
     }
@@ -465,6 +471,8 @@ impl TranslationConfig {
             num_return_sequences: 1,
             device,
             prefix,
+            num_beam_groups: None,
+            diversity_penalty: None,
             model_type,
         }
     }
@@ -489,6 +497,8 @@ impl From<TranslationConfig> for GenerateConfig {
             length_penalty: config.length_penalty,
             no_repeat_ngram_size: config.no_repeat_ngram_size,
             num_return_sequences: config.num_return_sequences,
+            num_beam_groups: config.num_beam_groups,
+            diversity_penalty: config.diversity_penalty,
             device: config.device,
         }
     }
