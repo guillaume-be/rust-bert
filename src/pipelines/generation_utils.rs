@@ -20,10 +20,8 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! use rust_bert::pipelines::generation_utils::{
-//!     GenerateConfig, LanguageGenerator,
-//! };
 //! use rust_bert::gpt2::GPT2Generator;
+//! use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 //!
 //! let generate_config = GenerateConfig {
 //!     max_length: 30,
@@ -254,6 +252,8 @@ pub(crate) mod private_generation_utils {
         pub early_stopping: bool,
         pub num_beams: i64,
         pub length_penalty: f64,
+        pub num_beam_groups: Option<i64>,
+        pub diversity_penalty: Option<f64>,
     }
 
     pub struct PreparedInput<'a> {
@@ -504,6 +504,40 @@ pub(crate) mod private_generation_utils {
                     .scatter(1, &sorted_indices, &sorted_indices_to_remove)
                     .to_kind(Bool);
                 let _ = logits.masked_fill_(&indices_to_remove, std::f64::NEG_INFINITY);
+            }
+        }
+
+        fn run_hamming_diversity_penalty(
+            &self,
+            scores: &mut Tensor,
+            current_tokens: &Tensor,
+            diversity_penalty: f64,
+            num_beams: i64,
+            batch_size: i64,
+            group_size: i64,
+            group_start_index: i64,
+        ) {
+            if group_start_index > 0 {
+                let vocab_size = *scores.size().last().unwrap();
+                for batch_index in 0..batch_size {
+                    let previous_group_tokens = current_tokens.slice(
+                        0,
+                        batch_index * num_beams,
+                        batch_index * num_beams + group_start_index,
+                        1,
+                    );
+                    let diversity_penalty = previous_group_tokens
+                        .bincount::<Tensor>(None, vocab_size)
+                        * diversity_penalty;
+                    let _ = scores
+                        .slice(
+                            0,
+                            batch_index * group_size,
+                            (batch_index + 1) * group_size,
+                            1,
+                        )
+                        .subtract_(&diversity_penalty);
+                }
             }
         }
 
@@ -962,6 +996,358 @@ pub(crate) mod private_generation_utils {
             decoded
         }
 
+        fn generate_diverse_beam_search(
+            &self,
+            mut input_ids: Tensor,
+            encoder_outputs: Option<Tensor>,
+            cur_len: i64,
+            batch_size: i64,
+            mut attention_mask: Tensor,
+            gen_opt: GenerateOptions,
+        ) -> Tensor {
+            let num_beam_groups = gen_opt.num_beam_groups.unwrap();
+            let num_sub_beams = gen_opt.num_beams / num_beam_groups;
+            let diversity_penalty = gen_opt.diversity_penalty.unwrap_or(5.5);
+
+            let mut hypotheses = (0..batch_size)
+                .map(|_| {
+                    BeamHypotheses::new(
+                        gen_opt.num_beams,
+                        gen_opt.max_length,
+                        gen_opt.length_penalty,
+                        gen_opt.early_stopping,
+                    )
+                })
+                .collect::<Vec<BeamHypotheses>>();
+
+            let vocab_size = self.get_vocab_size();
+            let beam_scores = Tensor::ones(
+                &[batch_size, gen_opt.num_beams],
+                (Float, self.get_var_store().device()),
+            ) * -1e9;
+            let _ = beam_scores
+                .slice(1, 0, *beam_scores.size().last().unwrap(), num_sub_beams)
+                .fill_(0);
+
+            let mut beam_scores = beam_scores.view_(&[-1]);
+
+            let mut beam_tokens: Tensor;
+            let mut beam_indices: Tensor;
+            let mut current_tokens: Tensor;
+            let mut reordering_indices: Tensor;
+            let mut group_input_ids: Tensor;
+            let mut past: Cache = Cache::None;
+            let mut done = vec![false; batch_size as usize];
+
+            let mut outputs: Tensor;
+            let mut encoder_outputs = encoder_outputs;
+            let mut current_length = cur_len;
+            while current_length < gen_opt.max_length {
+                current_tokens = Tensor::zeros(
+                    &[batch_size * gen_opt.num_beams],
+                    (input_ids.kind(), input_ids.device()),
+                );
+                reordering_indices = Tensor::zeros(
+                    &[batch_size * gen_opt.num_beams],
+                    (Int64, input_ids.device()),
+                );
+                let prepared_input = self.prepare_inputs_for_generation(
+                    input_ids.copy(),
+                    encoder_outputs.as_ref(),
+                    past,
+                    attention_mask.copy(),
+                );
+                let temp = self
+                    .get_model()
+                    .forward_t(
+                        &prepared_input.prepared_input,
+                        prepared_input.prepared_past,
+                        &prepared_input.prepared_attention_mask,
+                        &None,
+                        &prepared_input.prepared_position_ids,
+                        &None,
+                        prepared_input.prepared_encoder_output,
+                        &prepared_input.prepared_decoder_input,
+                        false,
+                    )
+                    .unwrap();
+                outputs = temp.lm_logits.select(1, -1);
+                past = temp.cache;
+
+                for beam_group_index in 0..num_beam_groups {
+                    let group_start_index = beam_group_index * num_sub_beams;
+                    let group_end_index = min(group_start_index + num_sub_beams, gen_opt.num_beams);
+                    let group_size = group_end_index - group_start_index;
+                    let mut batch_group_indices: Vec<i64> =
+                        Vec::with_capacity((batch_size * group_size) as usize);
+                    for batch_index in 0..batch_size {
+                        batch_group_indices.extend(
+                            (group_start_index..group_end_index)
+                                .map(|value| value + batch_index * gen_opt.num_beams),
+                        )
+                    }
+                    let batch_group_indices = Tensor::of_slice(batch_group_indices.as_slice());
+                    group_input_ids = input_ids.index_select(0, &batch_group_indices);
+                    let mut next_token_logits = outputs.index_select(0, &batch_group_indices);
+                    //            Reduce probability for repeated inputs
+                    if gen_opt.repetition_penalty > 1f64 {
+                        self.enforce_repetition_penalty(
+                            &mut next_token_logits,
+                            batch_size,
+                            1,
+                            &input_ids,
+                            gen_opt.repetition_penalty,
+                        )
+                    }
+
+                    if gen_opt.temperature > 1f64 {
+                        next_token_logits /= gen_opt.temperature;
+                    }
+                    if self.is_encoder_decoder() & !gen_opt.do_sample {
+                        self.prepare_scores_for_generation(
+                            &mut next_token_logits,
+                            current_length,
+                            gen_opt.max_length,
+                        );
+                    }
+                    let mut scores = next_token_logits.log_softmax(-1, Float);
+                    //            Do not allow eos token if min length is not reached
+                    if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
+                        let _ = scores.index_fill_(
+                            1,
+                            &Tensor::of_slice(gen_opt.eos_token_ids.as_ref().unwrap())
+                                .to(scores.device()),
+                            std::f64::NEG_INFINITY,
+                        );
+                    }
+                    //            Get banned tokens and set their probability to 0
+                    if gen_opt.no_repeat_ngram_size > 0 {
+                        let banned_tokens = self.get_banned_tokens(
+                            &input_ids,
+                            gen_opt.no_repeat_ngram_size,
+                            current_length,
+                        );
+                        for (batch_index, index_banned_token) in
+                            (0..banned_tokens.len() as i64).zip(banned_tokens)
+                        {
+                            let _ = scores.get(batch_index).index_fill_(
+                                0,
+                                &Tensor::of_slice(&index_banned_token)
+                                    .to_device(next_token_logits.device()),
+                                std::f64::NEG_INFINITY,
+                            );
+                        }
+                    }
+                    //            Update scores with diversity penalty
+                    self.run_hamming_diversity_penalty(
+                        &mut scores,
+                        &current_tokens,
+                        diversity_penalty,
+                        gen_opt.num_beams,
+                        batch_size,
+                        group_size,
+                        group_start_index,
+                    );
+
+                    let (next_scores, next_tokens) = if gen_opt.do_sample {
+                        let mut _scores: Tensor =
+                            &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
+                        self.top_k_top_p_filtering(&mut _scores, gen_opt.top_k, gen_opt.top_p, 2);
+                        let _scores = _scores
+                            .contiguous()
+                            .view((batch_size, gen_opt.num_beams * vocab_size));
+
+                        let probabilities = _scores.softmax(-1, Float);
+                        let next_tokens = probabilities.multinomial(2 * gen_opt.num_beams, false);
+                        let next_scores = _scores.gather(-1, &next_tokens, false);
+                        let (next_scores, next_scores_indices) = next_scores.sort(1, true);
+                        let next_tokens = next_tokens.gather(-1, &next_scores_indices, false);
+                        (next_scores, next_tokens)
+                    } else {
+                        let next_scores: Tensor =
+                            &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
+                        let next_scores = next_scores
+                            .contiguous()
+                            .view((batch_size, gen_opt.num_beams * vocab_size));
+                        next_scores.topk(2 * gen_opt.num_beams, 1, true, true)
+                    };
+
+                    let eos_token_ids = gen_opt.eos_token_ids.as_ref();
+                    let beam_ids_tensor = &next_tokens.floor_divide1(vocab_size);
+                    let effective_beam_ids_tensor = (&next_tokens.ones_like().cumsum(0, Int64) - 1)
+                        * gen_opt.num_beams
+                        + beam_ids_tensor;
+                    let token_id_tensor = &next_tokens - beam_ids_tensor * vocab_size;
+                    let (max_scores, _) = next_scores.max2(1, false);
+                    let mut eos_mask = token_id_tensor.ones_like();
+                    if let Some(eos_token_id) = eos_token_ids {
+                        eos_mask -= token_id_tensor.eq(eos_token_id[0]).to_kind(Int64);
+                    }
+                    let eos_mask2 = eos_mask
+                        .cumsum(1, Int64)
+                        .le(gen_opt.num_beams)
+                        .to_kind(Bool)
+                        .logical_and(&eos_mask);
+
+                    beam_scores = next_scores.masked_select(&eos_mask2);
+                    beam_tokens = token_id_tensor.masked_select(&eos_mask2);
+                    beam_indices = effective_beam_ids_tensor.masked_select(&eos_mask2);
+                    let eos_pos = (eos_mask.ones_like() - eos_mask).nonzero();
+
+                    for eos_idx in 0..eos_pos.size()[0] {
+                        let eos_data = eos_pos.get(eos_idx);
+                        let batch_index = eos_data.int64_value(&[0]);
+                        if !done[batch_index as usize] {
+                            let beam_index_pos = eos_data.int64_value(&[1]);
+                            let is_beam_token_worse_than_top_num_beams =
+                                beam_index_pos >= gen_opt.num_beams;
+                            if is_beam_token_worse_than_top_num_beams {
+                                continue;
+                            }
+                            let effective_beam_id = effective_beam_ids_tensor
+                                .int64_value(&[batch_index, beam_index_pos]);
+                            let beam_token_score =
+                                next_scores.double_value(&[batch_index, beam_index_pos]);
+                            hypotheses[batch_index as usize]
+                                .add(input_ids.get(effective_beam_id).copy(), beam_token_score);
+                        }
+                    }
+
+                    for batch_index in 0..batch_size {
+                        if done[batch_index as usize] {
+                            let _ = beam_scores
+                                .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
+                                .fill_(0f64);
+                            let _ = beam_tokens
+                                .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
+                                .fill_(gen_opt.pad_token_id.unwrap());
+                            let _ = beam_indices
+                                .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
+                                .fill_(0);
+                            continue;
+                        } else {
+                            done[batch_index as usize] |= hypotheses[batch_index as usize]
+                                .is_done(max_scores.double_value(&[batch_index]), current_length);
+                        }
+                    }
+                    beam_scores = beam_scores.view(-1);
+                    beam_tokens = beam_tokens.view(-1);
+                    beam_indices = beam_indices.view(-1);
+                }
+
+                if done.iter().all(|&x| x) {
+                    break;
+                }
+
+                input_ids = Tensor::cat(
+                    &[
+                        input_ids.index_select(0, &beam_indices),
+                        beam_tokens.unsqueeze(1),
+                    ],
+                    -1,
+                );
+                encoder_outputs = self.reorder_cache(&mut past, encoder_outputs, &beam_indices);
+
+                if !self.is_encoder_decoder() {
+                    attention_mask = Tensor::cat(
+                        &[
+                            attention_mask.as_ref(),
+                            Tensor::ones(
+                                &[*attention_mask.size().first().unwrap(), 1],
+                                (Int64, attention_mask.device()),
+                            )
+                            .as_ref(),
+                        ],
+                        -1,
+                    );
+                }
+
+                current_length += 1;
+            }
+
+            let mut batch_index = 0i64;
+
+            loop {
+                if batch_index == batch_size {
+                    break;
+                }
+                if done[batch_index as usize] {
+                    batch_index += 1;
+                    continue;
+                }
+                for beam_index in 0..gen_opt.num_beams {
+                    let effective_beam_id = batch_index * gen_opt.num_beams + beam_index;
+                    let final_score = f64::from(beam_scores.get(effective_beam_id));
+                    let final_tokens = input_ids.get(effective_beam_id);
+                    hypotheses[batch_index as usize].add(final_tokens, final_score);
+                }
+                batch_index += 1;
+            }
+            let (output_batch_size, output_num_return_sequences_per_batch) = if gen_opt.do_sample {
+                (batch_size, 1)
+            } else {
+                (
+                    batch_size * gen_opt.num_return_sequences,
+                    gen_opt.num_return_sequences,
+                )
+            };
+
+            let mut sentence_lengths =
+                Tensor::zeros(&[output_batch_size], (Int64, input_ids.device()));
+            let mut best_ids = vec![];
+
+            for (hypothesis_index, hypothesis) in hypotheses.iter().enumerate() {
+                let mut sorted_hypotheses = hypothesis.clone();
+                sorted_hypotheses
+                    .beams
+                    .sort_by_key(|(score, _)| OrderedFloat(*score));
+                for j in 0..output_num_return_sequences_per_batch {
+                    let effective_batch_index =
+                        output_num_return_sequences_per_batch * hypothesis_index as i64 + j;
+                    let (_, best_hyp) = sorted_hypotheses.beams.pop().unwrap();
+                    let _ = sentence_lengths.index_fill_(
+                        0,
+                        &Tensor::of_slice(&[effective_batch_index]).to(sentence_lengths.device()),
+                        *best_hyp.size().first().unwrap(),
+                    );
+                    best_ids.push(best_hyp);
+                }
+            }
+            let sentence_max_length =
+                min(i64::from(sentence_lengths.max()) + 1, gen_opt.max_length);
+            let mut decoded = input_ids.new_empty(
+                &[output_batch_size, sentence_max_length],
+                (Int64, input_ids.device()),
+            );
+            if i64::from(sentence_lengths.max()) != i64::from(sentence_lengths.min()) {
+                let _ = decoded.fill_(
+                    gen_opt
+                        .pad_token_id
+                        .unwrap_or(gen_opt.eos_token_ids.as_ref().unwrap()[0]),
+                );
+            }
+            for (hypothesis_index, best_id) in best_ids.iter().enumerate() {
+                let _ = decoded.get(hypothesis_index as i64).index_copy_(
+                    0,
+                    &Tensor::arange1(
+                        0,
+                        i64::from(sentence_lengths.get(hypothesis_index as i64)),
+                        (Int64, input_ids.device()),
+                    ),
+                    &best_id,
+                );
+                let sentence_length = i64::from(sentence_lengths.get(hypothesis_index as i64));
+                if sentence_length < gen_opt.max_length {
+                    let _ = decoded.get(hypothesis_index as i64).index_fill_(
+                        0,
+                        &Tensor::of_slice(&[sentence_length]).to_device(input_ids.device()),
+                        gen_opt.eos_token_ids.as_ref().unwrap()[0],
+                    );
+                }
+            }
+            decoded
+        }
+
         fn reorder_cache(
             &self,
             past: &mut Cache,
@@ -999,10 +1385,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{
-    ///     GenerateConfig, LanguageGenerator,
-    /// };
     /// use rust_bert::gpt2::GPT2Generator;
+    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("gpt2");
@@ -1092,10 +1476,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{
-    ///     GenerateConfig, LanguageGenerator,
-    /// };
     /// use rust_bert::gpt2::GPT2Generator;
+    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("gpt2");
@@ -1201,6 +1583,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let repetition_penalty = config.repetition_penalty;
         let length_penalty = config.length_penalty;
         let no_repeat_ngram_size = config.no_repeat_ngram_size;
+        let num_beam_groups = config.num_beam_groups;
+        let diversity_penalty = config.diversity_penalty;
 
         let pad_token_id = match self.get_pad_id() {
             Some(value) => Some(*value),
@@ -1312,18 +1696,30 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             early_stopping,
             num_beams,
             length_penalty,
+            num_beam_groups,
+            diversity_penalty,
         };
 
         let decoded = no_grad(|| {
             if num_beams > 1 {
-                self.generate_beam_search(
-                    input_ids,
-                    encoder_outputs,
-                    cur_len,
-                    effective_batch_size,
-                    attention_mask,
-                    gen_opt,
-                )
+                match num_beam_groups {
+                    Some(value) if value > 1 => self.generate_diverse_beam_search(
+                        input_ids,
+                        encoder_outputs,
+                        cur_len,
+                        effective_batch_size,
+                        attention_mask,
+                        gen_opt,
+                    ),
+                    _ => self.generate_beam_search(
+                        input_ids,
+                        encoder_outputs,
+                        cur_len,
+                        effective_batch_size,
+                        attention_mask,
+                        gen_opt,
+                    ),
+                }
             } else {
                 self.generate_no_beam_search(
                     input_ids,

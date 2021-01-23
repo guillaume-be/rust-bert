@@ -471,8 +471,8 @@ impl OpenAIGenerator {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::openai_gpt::OpenAIGenerator;
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// let generate_config = GenerateConfig {
     ///     max_length: 30,
     ///     do_sample: true,

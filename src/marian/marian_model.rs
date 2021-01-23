@@ -526,8 +526,8 @@ impl MarianGenerator {
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::marian::MarianGenerator;
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("marian-mt-en-fr");
