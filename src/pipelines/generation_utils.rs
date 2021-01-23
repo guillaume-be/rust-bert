@@ -1031,10 +1031,15 @@ pub(crate) mod private_generation_utils {
 
             let mut beam_scores = beam_scores.view_(&[-1]);
 
-            let mut beam_tokens: Tensor;
-            let mut beam_indices: Tensor;
+            let mut beam_tokens = Tensor::zeros(
+                &[batch_size * gen_opt.num_beams],
+                (Int64, self.get_var_store().device()),
+            );
+            let mut beam_indices = Tensor::zeros(
+                &[batch_size * gen_opt.num_beams],
+                (Int64, self.get_var_store().device()),
+            );
             let mut current_tokens: Tensor;
-            let mut reordering_indices: Tensor;
             let mut group_input_ids: Tensor;
             let mut past: Cache = Cache::None;
             let mut done = vec![false; batch_size as usize];
@@ -1046,10 +1051,6 @@ pub(crate) mod private_generation_utils {
                 current_tokens = Tensor::zeros(
                     &[batch_size * gen_opt.num_beams],
                     (input_ids.kind(), input_ids.device()),
-                );
-                reordering_indices = Tensor::zeros(
-                    &[batch_size * gen_opt.num_beams],
-                    (Int64, input_ids.device()),
                 );
                 let prepared_input = self.prepare_inputs_for_generation(
                     input_ids.copy(),
@@ -1086,7 +1087,8 @@ pub(crate) mod private_generation_utils {
                                 .map(|value| value + batch_index * gen_opt.num_beams),
                         )
                     }
-                    let batch_group_indices = Tensor::of_slice(batch_group_indices.as_slice());
+                    let batch_group_indices =
+                        Tensor::of_slice(batch_group_indices.as_slice()).to(input_ids.device());
                     group_input_ids = input_ids.index_select(0, &batch_group_indices);
                     let mut next_token_logits = outputs.index_select(0, &batch_group_indices);
                     //            Reduce probability for repeated inputs
@@ -1095,7 +1097,7 @@ pub(crate) mod private_generation_utils {
                             &mut next_token_logits,
                             batch_size,
                             1,
-                            &input_ids,
+                            &group_input_ids,
                             gen_opt.repetition_penalty,
                         )
                     }
@@ -1123,10 +1125,11 @@ pub(crate) mod private_generation_utils {
                     //            Get banned tokens and set their probability to 0
                     if gen_opt.no_repeat_ngram_size > 0 {
                         let banned_tokens = self.get_banned_tokens(
-                            &input_ids,
+                            &group_input_ids,
                             gen_opt.no_repeat_ngram_size,
                             current_length,
                         );
+
                         for (batch_index, index_banned_token) in
                             (0..banned_tokens.len() as i64).zip(banned_tokens)
                         {
@@ -1150,32 +1153,39 @@ pub(crate) mod private_generation_utils {
                     );
 
                     let (next_scores, next_tokens) = if gen_opt.do_sample {
-                        let mut _scores: Tensor =
-                            &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
+                        let mut _scores: Tensor = &scores
+                            + &beam_scores
+                                .index_select(0, &batch_group_indices)
+                                .unsqueeze(-1)
+                                .expand_as(&scores);
                         self.top_k_top_p_filtering(&mut _scores, gen_opt.top_k, gen_opt.top_p, 2);
                         let _scores = _scores
                             .contiguous()
-                            .view((batch_size, gen_opt.num_beams * vocab_size));
+                            .view((batch_size, group_size * vocab_size));
 
                         let probabilities = _scores.softmax(-1, Float);
-                        let next_tokens = probabilities.multinomial(2 * gen_opt.num_beams, false);
+                        let next_tokens = probabilities.multinomial(2 * group_size, false);
                         let next_scores = _scores.gather(-1, &next_tokens, false);
                         let (next_scores, next_scores_indices) = next_scores.sort(1, true);
                         let next_tokens = next_tokens.gather(-1, &next_scores_indices, false);
                         (next_scores, next_tokens)
                     } else {
-                        let next_scores: Tensor =
-                            &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
+                        let next_scores: Tensor = &scores
+                            + &beam_scores
+                                .index_select(0, &batch_group_indices)
+                                .unsqueeze(-1)
+                                .expand_as(&scores);
                         let next_scores = next_scores
                             .contiguous()
-                            .view((batch_size, gen_opt.num_beams * vocab_size));
-                        next_scores.topk(2 * gen_opt.num_beams, 1, true, true)
+                            .view((batch_size, group_size * vocab_size));
+                        next_scores.topk(2 * group_size, 1, true, true)
                     };
 
+                    // Start of beam scoring
                     let eos_token_ids = gen_opt.eos_token_ids.as_ref();
                     let beam_ids_tensor = &next_tokens.floor_divide1(vocab_size);
                     let effective_beam_ids_tensor = (&next_tokens.ones_like().cumsum(0, Int64) - 1)
-                        * gen_opt.num_beams
+                        * group_size
                         + beam_ids_tensor;
                     let token_id_tensor = &next_tokens - beam_ids_tensor * vocab_size;
                     let (max_scores, _) = next_scores.max2(1, false);
@@ -1185,13 +1195,13 @@ pub(crate) mod private_generation_utils {
                     }
                     let eos_mask2 = eos_mask
                         .cumsum(1, Int64)
-                        .le(gen_opt.num_beams)
+                        .le(group_size)
                         .to_kind(Bool)
                         .logical_and(&eos_mask);
 
-                    beam_scores = next_scores.masked_select(&eos_mask2);
-                    beam_tokens = token_id_tensor.masked_select(&eos_mask2);
-                    beam_indices = effective_beam_ids_tensor.masked_select(&eos_mask2);
+                    let group_beam_scores = next_scores.masked_select(&eos_mask2);
+                    let group_beam_tokens = token_id_tensor.masked_select(&eos_mask2);
+                    let group_beam_indices = effective_beam_ids_tensor.masked_select(&eos_mask2);
                     let eos_pos = (eos_mask.ones_like() - eos_mask).nonzero();
 
                     for eos_idx in 0..eos_pos.size()[0] {
@@ -1215,13 +1225,13 @@ pub(crate) mod private_generation_utils {
 
                     for batch_index in 0..batch_size {
                         if done[batch_index as usize] {
-                            let _ = beam_scores
+                            let _ = group_beam_scores
                                 .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
                                 .fill_(0f64);
-                            let _ = beam_tokens
+                            let _ = group_beam_tokens
                                 .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
                                 .fill_(gen_opt.pad_token_id.unwrap());
-                            let _ = beam_indices
+                            let _ = group_beam_indices
                                 .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
                                 .fill_(0);
                             continue;
@@ -1230,9 +1240,15 @@ pub(crate) mod private_generation_utils {
                                 .is_done(max_scores.double_value(&[batch_index]), current_length);
                         }
                     }
-                    beam_scores = beam_scores.view(-1);
-                    beam_tokens = beam_tokens.view(-1);
-                    beam_indices = beam_indices.view(-1);
+
+                    let _ = beam_scores.index_copy_(0, &batch_group_indices, &group_beam_scores);
+                    let _ = beam_tokens.index_copy_(0, &batch_group_indices, &group_beam_tokens);
+                    let new_indices = gen_opt.num_beams
+                        * group_beam_indices.floor_divide1(group_size)
+                        + group_start_index
+                        + group_beam_indices.remainder(group_size);
+                    let _ = beam_indices.index_copy_(0, &batch_group_indices, &new_indices);
+                    let _ = current_tokens.index_copy_(0, &batch_group_indices, &group_beam_tokens);
                 }
 
                 if done.iter().all(|&x| x) {
