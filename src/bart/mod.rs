@@ -66,5 +66,6 @@ mod encoder;
 pub use attention::LayerState;
 pub use bart_model::{
     BartConfig, BartConfigResources, BartForConditionalGeneration, BartForSequenceClassification,
-    BartMergesResources, BartModel, BartModelOutput, BartModelResources, BartVocabResources,
+    BartGenerator, BartMergesResources, BartModel, BartModelOutput, BartModelResources,
+    BartVocabResources,
 };

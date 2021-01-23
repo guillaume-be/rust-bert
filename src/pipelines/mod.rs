@@ -152,7 +152,6 @@
 //! This may impact the results and it is recommended to submit prompts of similar length for best results. Additional information on the input parameters for generation is provided in this module's documentation.
 //!
 //! ```no_run
-//! use rust_bert::pipelines::generation_utils::GPT2Generator;
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::text_generation::TextGenerationModel;
 //! use rust_bert::pipelines::common::ModelType;

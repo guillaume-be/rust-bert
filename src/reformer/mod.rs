@@ -57,7 +57,7 @@ mod reformer_model;
 pub use attention::LayerState;
 pub use reformer_model::{
     ReformerClassificationOutput, ReformerConfig, ReformerConfigResources,
-    ReformerForQuestionAnswering, ReformerForSequenceClassification, ReformerModel,
-    ReformerModelResources, ReformerModelWithLMHead, ReformerQuestionAnsweringModelOutput,
-    ReformerVocabResources,
+    ReformerForQuestionAnswering, ReformerForSequenceClassification, ReformerGenerator,
+    ReformerModel, ReformerModelResources, ReformerModelWithLMHead,
+    ReformerQuestionAnsweringModelOutput, ReformerVocabResources,
 };

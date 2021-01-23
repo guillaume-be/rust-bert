@@ -16,13 +16,21 @@ use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::transformer::Block;
-use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::{
+    PreparedInput, PrivateLanguageGenerator,
+};
+use crate::pipelines::generation_utils::{
+    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
+};
 use crate::{Config, RustBertError};
+use rust_tokenizers::tokenizer::Gpt2Tokenizer;
+use rust_tokenizers::vocab::Gpt2Vocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
-use tch::{nn, Tensor};
+use tch::{nn, Kind, Tensor};
 
 /// # GPT2 Pretrained model weight files
 pub struct Gpt2ModelResources;
@@ -656,3 +664,188 @@ pub struct Gpt2ModelOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }
+
+/// # Language generation model based on the GPT2 architecture
+pub struct GPT2Generator {
+    model: GPT2LMHeadModel,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl GPT2Generator {
+    /// Build a new `GPT2Generator`
+    ///
+    /// # Arguments
+    ///
+    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    /// use rust_bert::gpt2::GPT2Generator;
+    ///
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let gpt2_generator = GPT2Generator::new(generate_config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(generate_config: GenerateConfig) -> Result<GPT2Generator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::GPT2,
+            vocab_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
+            false,
+            None,
+            None,
+        )?;
+        let config = Gpt2Config::from_file(config_path);
+        let model = GPT2LMHeadModel::new(&var_store.root(), &config);
+        var_store.load(weights_path)?;
+
+        let bos_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::bos_value()])[0]);
+        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()]));
+        let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()])[0]);
+        let is_encoder_decoder = false;
+        let vocab_size = config.vocab_size;
+        let decoder_start_id = None;
+
+        Ok(GPT2Generator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {
+    fn get_model(&self) -> &GPT2LMHeadModel {
+        &self.model
+    }
+    fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        _encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        attention_mask: Tensor,
+    ) -> PreparedInput<'a> {
+        let position_ids = (attention_mask.totype(Kind::Int64).cumsum(-1, Kind::Int64) - 1)
+            .masked_fill(&attention_mask.eq(0), 1);
+
+        match past {
+            Cache::GPT2Cache(past) => {
+                if past.is_some() {
+                    PreparedInput {
+                        prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
+                        prepared_attention_mask: Some(attention_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: None,
+                        prepared_position_ids: Some(position_ids.select(1, -1).unsqueeze(-1)),
+                        prepared_past: Cache::GPT2Cache(past),
+                    }
+                } else {
+                    PreparedInput {
+                        prepared_input: Some(input_ids),
+                        prepared_attention_mask: Some(attention_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: None,
+                        prepared_position_ids: Some(position_ids),
+                        prepared_past: Cache::GPT2Cache(None),
+                    }
+                }
+            }
+            Cache::None => PreparedInput {
+                prepared_input: Some(input_ids),
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: None,
+                prepared_decoder_input: None,
+                prepared_position_ids: Some(position_ids),
+                prepared_past: Cache::GPT2Cache(None),
+            },
+            _ => panic!("Cache type incompatible with GPT2"),
+        }
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        _encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::GPT2Cache(cached_decoder_state) => match cached_decoder_state {
+                Some(value) => {
+                    for layer_past in value.iter_mut() {
+                        *layer_past = layer_past.index_select(1, beam_indices);
+                    }
+                    None
+                }
+                None => None,
+            },
+            Cache::None => None,
+            _ => {
+                panic!("Invalid cache for GPT2 model");
+            }
+        }
+    }
+}
+
+impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {}

@@ -47,11 +47,11 @@
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
+    GPT2Generator, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{GPT2Generator, GenerateConfig, LanguageGenerator};
+use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use itertools::Itertools;
 use std::collections::HashMap;
 use tch::{Device, Kind, Tensor};

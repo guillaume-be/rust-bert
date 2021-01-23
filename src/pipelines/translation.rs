@@ -54,18 +54,17 @@
 //! # ;
 //! ```
 
+use tch::{Device, Tensor};
+
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::marian::{
-    MarianConfigResources, MarianModelResources, MarianPrefix, MarianSpmResources,
+    MarianConfigResources, MarianGenerator, MarianModelResources, MarianPrefix, MarianSpmResources,
     MarianVocabResources,
 };
 use crate::pipelines::common::ModelType;
-use crate::pipelines::generation_utils::{
-    GenerateConfig, LanguageGenerator, MarianGenerator, T5Generator,
-};
-use crate::t5::{T5ConfigResources, T5ModelResources, T5Prefix, T5VocabResources};
-use tch::{Device, Tensor};
+use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::t5::{T5ConfigResources, T5Generator, T5ModelResources, T5Prefix, T5VocabResources};
 
 /// Pretrained languages available for direct use
 pub enum Language {

@@ -17,20 +17,21 @@
 //! By default, the dependencies for this model will be downloaded for a GPT2-medium model.
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
 //! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/gpt2
+use itertools::Itertools;
+use tch::{Device, Tensor};
+
 use crate::common::error::RustBertError;
 use crate::common::resources::RemoteResource;
 use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
+    GPT2Generator, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
+use crate::openai_gpt::OpenAIGenerator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{
-    GPT2Generator, GenerateConfig, LanguageGenerator, OpenAIGenerator, ReformerGenerator,
-    XLNetGenerator,
-};
+use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::reformer::ReformerGenerator;
 use crate::resources::Resource;
-use itertools::Itertools;
-use tch::{Device, Tensor};
+use crate::xlnet::XLNetGenerator;
 
 /// # Configuration for text generation
 /// Contains information regarding the model to load, mirrors the GenerateConfig, with a

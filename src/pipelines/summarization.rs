@@ -62,17 +62,17 @@
 //! # ;
 //! ```
 
+use itertools::Itertools;
+use tch::{Device, Tensor};
+
 use crate::bart::{
-    BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
+    BartConfigResources, BartGenerator, BartMergesResources, BartModelResources, BartVocabResources,
 };
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::pipelines::common::ModelType;
-use crate::pipelines::generation_utils::{
-    BartGenerator, GenerateConfig, LanguageGenerator, T5Generator,
-};
-use itertools::Itertools;
-use tch::{Device, Tensor};
+use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::t5::T5Generator;
 
 /// # Configuration for text summarization
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a

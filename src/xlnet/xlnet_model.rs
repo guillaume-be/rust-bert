@@ -15,10 +15,18 @@
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::summary::{SequenceSummary, SummaryConfig, SummaryType};
-use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::{
+    PreparedInput, PrivateLanguageGenerator,
+};
+use crate::pipelines::generation_utils::{
+    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
+};
 use crate::xlnet::attention::LayerState;
 use crate::xlnet::encoder::XLNetLayer;
 use crate::{Config, RustBertError};
+use rust_tokenizers::tokenizer::XLNetTokenizer;
+use rust_tokenizers::vocab::XLNetVocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
@@ -1539,3 +1547,240 @@ pub struct XLNetQuestionAnsweringOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<(Tensor, Option<Tensor>)>>,
 }
+
+/// # Language generation model based on the XLNet architecture
+pub struct XLNetGenerator {
+    model: XLNetLMHeadModel,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl XLNetGenerator {
+    /// Build a new `XLNetGenerator`
+    ///
+    /// # Arguments
+    ///
+    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    /// use rust_bert::xlnet::XLNetGenerator;
+    ///
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let xlnet_generator = XLNetGenerator::new(generate_config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(generate_config: GenerateConfig) -> Result<XLNetGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::XLNet,
+            vocab_path.to_str().unwrap(),
+            None,
+            false,
+            true,
+            None,
+        )?;
+
+        let config = XLNetConfig::from_file(config_path);
+        let model = XLNetLMHeadModel::new(&var_store.root(), &config);
+        var_store.load(weights_path)?;
+
+        let bos_token_id = Some(config.bos_token_id);
+        let eos_token_ids = Some(vec![config.eos_token_id]);
+        let pad_token_id = Some(config.pad_token_id);
+        let is_encoder_decoder = false;
+        let vocab_size = config.vocab_size;
+        let decoder_start_id = None;
+
+        Ok(XLNetGenerator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {
+    fn get_model(&self) -> &XLNetLMHeadModel {
+        &self.model
+    }
+    fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        _encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        _attention_mask: Tensor,
+    ) -> PreparedInput<'a> {
+        let effective_batch_size = input_ids.size()[0];
+        let sequence_length = input_ids.size()[1];
+        let dummy_token = Tensor::zeros(
+            &[effective_batch_size, 1],
+            (Kind::Int64, input_ids.device()),
+        );
+        let offset = 2i64;
+        let input_ids = match &past {
+            Cache::XLNetCache(past) => {
+                if past.is_some() {
+                    Tensor::cat(
+                        &[
+                            input_ids.slice(1, sequence_length - offset, sequence_length, 1),
+                            dummy_token,
+                        ],
+                        1,
+                    )
+                } else {
+                    Tensor::cat(&[input_ids, dummy_token], 1)
+                }
+            }
+            _ => Tensor::cat(&[input_ids, dummy_token], 1),
+        };
+        let sequence_length = input_ids.size()[1];
+        let perm_mask = Tensor::zeros(
+            &[effective_batch_size, sequence_length, sequence_length],
+            (Kind::Float, input_ids.device()),
+        );
+        let _ = perm_mask.narrow(2, sequence_length - 1, 1).fill_(1.0);
+
+        let target_mapping = Tensor::zeros(
+            &[effective_batch_size, 1, sequence_length],
+            (Kind::Float, input_ids.device()),
+        );
+        let _ = target_mapping.narrow(2, sequence_length - 1, 1).fill_(1.0);
+
+        match past {
+            Cache::XLNetCache(past) => {
+                if let Some(past) = past {
+                    // let new_past = Vec::with_capacity(past.len());
+                    let past = if let Some(first_past) = &past[0] {
+                        let past_len = first_past.prev_content.size()[0];
+                        past.iter()
+                            .map(|old_layer_state| {
+                                Some(LayerState {
+                                    prev_content: old_layer_state
+                                        .as_ref()
+                                        .unwrap()
+                                        .prev_content
+                                        .slice(0, 0, past_len - offset, 1),
+                                })
+                            })
+                            .collect()
+                    } else {
+                        past
+                    };
+                    PreparedInput {
+                        prepared_input: Some(input_ids),
+                        prepared_attention_mask: Some(perm_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: Some(target_mapping),
+                        prepared_position_ids: None,
+                        prepared_past: Cache::XLNetCache(Some(past)),
+                    }
+                } else {
+                    PreparedInput {
+                        prepared_input: Some(input_ids),
+                        prepared_attention_mask: Some(perm_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: Some(target_mapping),
+                        prepared_position_ids: None,
+                        prepared_past: Cache::XLNetCache(None),
+                    }
+                }
+            }
+            Cache::None => PreparedInput {
+                prepared_input: Some(input_ids),
+                prepared_attention_mask: Some(perm_mask),
+                prepared_encoder_output: None,
+                prepared_decoder_input: Some(target_mapping),
+                prepared_position_ids: None,
+                prepared_past: Cache::XLNetCache(None),
+            },
+            _ => panic!("Cache type incompatible with XLNet"),
+        }
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        _encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::XLNetCache(old_cache_option) => match old_cache_option {
+                Some(old_cache) => {
+                    for layer_state in old_cache.iter_mut() {
+                        if layer_state.is_some() {
+                            layer_state.as_mut().unwrap().reorder_cache(beam_indices)
+                        };
+                    }
+                    None
+                }
+                None => None,
+            },
+            Cache::None => None,
+            _ => {
+                panic!("Invalid cache for XLNet model");
+            }
+        }
+    }
+}
+
+impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {}
