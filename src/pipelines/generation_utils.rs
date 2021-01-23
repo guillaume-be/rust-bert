@@ -83,7 +83,7 @@ use crate::openai_gpt::{
 };
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    GenerateOptions, PrivateLanguageGenerator,
+    GenerateOptions, PreparedInput, PrivateLanguageGenerator,
 };
 use crate::reformer::{
     LayerState as ReformerLayerState, ReformerConfig, ReformerConfigResources,
@@ -443,7 +443,7 @@ impl GPT2Generator {
 
         let bos_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::bos_value()])[0]);
         let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()]));
-        let pad_token_id = None;
+        let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()])[0]);
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
         let decoder_start_id = None;
@@ -501,40 +501,40 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
         _encoder_outputs: Option<&'a Tensor>,
         past: Cache,
         attention_mask: Tensor,
-    ) -> (
-        Option<Tensor>,
-        Option<Tensor>,
-        Option<&'a Tensor>,
-        Option<Tensor>,
-        Cache,
-    ) {
+    ) -> PreparedInput<'a> {
+        let position_ids = (attention_mask.totype(Kind::Int64).cumsum(-1, Kind::Int64) - 1)
+            .masked_fill(&attention_mask.eq(0), 1);
+
         match past {
             Cache::GPT2Cache(past) => {
                 if past.is_some() {
-                    (
-                        Some(input_ids.select(1, -1).unsqueeze(-1)),
-                        Some(attention_mask),
-                        None,
-                        None,
-                        Cache::GPT2Cache(past),
-                    )
+                    PreparedInput {
+                        prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
+                        prepared_attention_mask: Some(attention_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: None,
+                        prepared_position_ids: Some(position_ids.select(1, -1).unsqueeze(-1)),
+                        prepared_past: Cache::GPT2Cache(past),
+                    }
                 } else {
-                    (
-                        Some(input_ids),
-                        Some(attention_mask),
-                        None,
-                        None,
-                        Cache::GPT2Cache(None),
-                    )
+                    PreparedInput {
+                        prepared_input: Some(input_ids),
+                        prepared_attention_mask: Some(attention_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: None,
+                        prepared_position_ids: Some(position_ids),
+                        prepared_past: Cache::GPT2Cache(None),
+                    }
                 }
             }
-            Cache::None => (
-                Some(input_ids),
-                Some(attention_mask),
-                None,
-                None,
-                Cache::GPT2Cache(None),
-            ),
+            Cache::None => PreparedInput {
+                prepared_input: Some(input_ids),
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: None,
+                prepared_decoder_input: None,
+                prepared_position_ids: Some(position_ids),
+                prepared_past: Cache::GPT2Cache(None),
+            },
             _ => panic!("Cache type incompatible with GPT2"),
         }
     }
@@ -761,28 +761,24 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         encoder_outputs: Option<&'a Tensor>,
         past: Cache,
         attention_mask: Tensor,
-    ) -> (
-        Option<Tensor>,
-        Option<Tensor>,
-        Option<&'a Tensor>,
-        Option<Tensor>,
-        Cache,
-    ) {
+    ) -> PreparedInput<'a> {
         match past {
-            Cache::BARTCache(past) => (
-                None,
-                Some(attention_mask),
-                encoder_outputs,
-                Some(input_ids),
-                Cache::BARTCache(past),
-            ),
-            Cache::None => (
-                None,
-                Some(attention_mask),
-                encoder_outputs,
-                Some(input_ids),
-                Cache::BARTCache(None),
-            ),
+            Cache::BARTCache(past) => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids),
+                prepared_position_ids: None,
+                prepared_past: Cache::BARTCache(past),
+            },
+            Cache::None => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids),
+                prepared_position_ids: None,
+                prepared_past: Cache::BARTCache(None),
+            },
             _ => panic!("Cache type incompatible with BART"),
         }
     }
@@ -1041,28 +1037,24 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         encoder_outputs: Option<&'a Tensor>,
         past: Cache,
         attention_mask: Tensor,
-    ) -> (
-        Option<Tensor>,
-        Option<Tensor>,
-        Option<&'a Tensor>,
-        Option<Tensor>,
-        Cache,
-    ) {
+    ) -> PreparedInput<'a> {
         match past {
-            Cache::BARTCache(past) => (
-                None,
-                Some(attention_mask),
-                encoder_outputs,
-                Some(input_ids),
-                Cache::BARTCache(past),
-            ),
-            Cache::None => (
-                None,
-                Some(attention_mask),
-                encoder_outputs,
-                Some(input_ids),
-                Cache::BARTCache(None),
-            ),
+            Cache::BARTCache(past) => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids),
+                prepared_position_ids: None,
+                prepared_past: Cache::BARTCache(past),
+            },
+            Cache::None => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids),
+                prepared_position_ids: None,
+                prepared_past: Cache::BARTCache(None),
+            },
             _ => panic!("Cache type incompatible with Marian"),
         }
     }
@@ -1278,28 +1270,24 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
         encoder_outputs: Option<&'a Tensor>,
         past: Cache,
         attention_mask: Tensor,
-    ) -> (
-        Option<Tensor>,
-        Option<Tensor>,
-        Option<&'a Tensor>,
-        Option<Tensor>,
-        Cache,
-    ) {
+    ) -> PreparedInput<'a> {
         match past {
-            Cache::T5Cache(past) => (
-                None,
-                Some(attention_mask),
-                encoder_outputs,
-                Some(input_ids.narrow(1, -1, 1)),
-                Cache::T5Cache(past),
-            ),
-            Cache::None => (
-                None,
-                Some(attention_mask),
-                encoder_outputs,
-                Some(input_ids),
-                Cache::T5Cache(None),
-            ),
+            Cache::T5Cache(past) => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids.narrow(1, -1, 1)),
+                prepared_position_ids: None,
+                prepared_past: Cache::T5Cache(past),
+            },
+            Cache::None => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids),
+                prepared_position_ids: None,
+                prepared_past: Cache::T5Cache(None),
+            },
             _ => panic!("Cache type incompatible with T5"),
         }
     }
@@ -1502,13 +1490,7 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
         _encoder_outputs: Option<&'a Tensor>,
         past: Cache,
         _attention_mask: Tensor,
-    ) -> (
-        Option<Tensor>,
-        Option<Tensor>,
-        Option<&'a Tensor>,
-        Option<Tensor>,
-        Cache,
-    ) {
+    ) -> PreparedInput<'a> {
         let effective_batch_size = input_ids.size()[0];
         let sequence_length = input_ids.size()[1];
         let dummy_token = Tensor::zeros(
@@ -1565,30 +1547,33 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
                     } else {
                         past
                     };
-                    (
-                        Some(input_ids),
-                        Some(perm_mask),
-                        None,
-                        Some(target_mapping),
-                        Cache::XLNetCache(Some(past)),
-                    )
+                    PreparedInput {
+                        prepared_input: Some(input_ids),
+                        prepared_attention_mask: Some(perm_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: Some(target_mapping),
+                        prepared_position_ids: None,
+                        prepared_past: Cache::XLNetCache(Some(past)),
+                    }
                 } else {
-                    (
-                        Some(input_ids),
-                        Some(perm_mask),
-                        None,
-                        Some(target_mapping),
-                        Cache::XLNetCache(None),
-                    )
+                    PreparedInput {
+                        prepared_input: Some(input_ids),
+                        prepared_attention_mask: Some(perm_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: Some(target_mapping),
+                        prepared_position_ids: None,
+                        prepared_past: Cache::XLNetCache(None),
+                    }
                 }
             }
-            Cache::None => (
-                Some(input_ids),
-                Some(perm_mask),
-                None,
-                Some(target_mapping),
-                Cache::XLNetCache(None),
-            ),
+            Cache::None => PreparedInput {
+                prepared_input: Some(input_ids),
+                prepared_attention_mask: Some(perm_mask),
+                prepared_encoder_output: None,
+                prepared_decoder_input: Some(target_mapping),
+                prepared_position_ids: None,
+                prepared_past: Cache::XLNetCache(None),
+            },
             _ => panic!("Cache type incompatible with XLNet"),
         }
     }
@@ -1748,28 +1733,24 @@ impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTo
         _encoder_outputs: Option<&'a Tensor>,
         past: Cache,
         attention_mask: Tensor,
-    ) -> (
-        Option<Tensor>,
-        Option<Tensor>,
-        Option<&'a Tensor>,
-        Option<Tensor>,
-        Cache,
-    ) {
+    ) -> PreparedInput<'a> {
         match past {
-            Cache::ReformerCache(past) => (
-                Some(input_ids.select(1, -1).unsqueeze(-1)),
-                None,
-                None,
-                None,
-                Cache::ReformerCache(past),
-            ),
-            Cache::None => (
-                Some(input_ids),
-                Some(attention_mask),
-                None,
-                None,
-                Cache::ReformerCache(None),
-            ),
+            Cache::ReformerCache(past) => PreparedInput {
+                prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
+                prepared_attention_mask: None,
+                prepared_encoder_output: None,
+                prepared_decoder_input: None,
+                prepared_position_ids: None,
+                prepared_past: Cache::ReformerCache(past),
+            },
+            Cache::None => PreparedInput {
+                prepared_input: Some(input_ids),
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: None,
+                prepared_decoder_input: None,
+                prepared_position_ids: None,
+                prepared_past: Cache::ReformerCache(None),
+            },
             _ => panic!("Cache type incompatible with Reformer"),
         }
     }
@@ -1844,6 +1825,15 @@ pub(crate) mod private_generation_utils {
         pub length_penalty: f64,
     }
 
+    pub struct PreparedInput<'a> {
+        pub prepared_input: Option<Tensor>,
+        pub prepared_attention_mask: Option<Tensor>,
+        pub prepared_encoder_output: Option<&'a Tensor>,
+        pub prepared_decoder_input: Option<Tensor>,
+        pub prepared_position_ids: Option<Tensor>,
+        pub prepared_past: Cache,
+    }
+
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         fn get_model(&self) -> &T;
         fn get_tokenizer(&self) -> &TokenizerOption;
@@ -1874,14 +1864,15 @@ pub(crate) mod private_generation_utils {
             _encoder_outputs: Option<&'a Tensor>,
             past: Cache,
             attention_mask: Tensor,
-        ) -> (
-            Option<Tensor>,
-            Option<Tensor>,
-            Option<&'a Tensor>,
-            Option<Tensor>,
-            Cache,
-        ) {
-            (Some(input_ids), Some(attention_mask), None, None, past)
+        ) -> PreparedInput<'a> {
+            PreparedInput {
+                prepared_input: Some(input_ids),
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: None,
+                prepared_decoder_input: None,
+                prepared_position_ids: None,
+                prepared_past: past,
+            }
         }
 
         fn encode_prompt_text<'a, S>(
@@ -2106,13 +2097,7 @@ pub(crate) mod private_generation_utils {
             let mut current_length = cur_len;
 
             while current_length < gen_opt.max_length {
-                let (
-                    prepared_input,
-                    prepared_attention_mask,
-                    prepared_encoder_output,
-                    prepared_decoder_input,
-                    prepared_past,
-                ) = self.prepare_inputs_for_generation(
+                let prepared_input = self.prepare_inputs_for_generation(
                     input_ids.copy(),
                     encoder_outputs.as_ref(),
                     past,
@@ -2121,14 +2106,14 @@ pub(crate) mod private_generation_utils {
                 let temp = self
                     .get_model()
                     .forward_t(
-                        &prepared_input,
-                        prepared_past,
-                        &prepared_attention_mask,
+                        &prepared_input.prepared_input,
+                        prepared_input.prepared_past,
+                        &prepared_input.prepared_attention_mask,
                         &None,
+                        &prepared_input.prepared_position_ids,
                         &None,
-                        &None,
-                        prepared_encoder_output,
-                        &prepared_decoder_input,
+                        prepared_input.prepared_encoder_output,
+                        &prepared_input.prepared_decoder_input,
                         false,
                     )
                     .unwrap();
@@ -2277,13 +2262,7 @@ pub(crate) mod private_generation_utils {
             let mut encoder_outputs = encoder_outputs;
             let mut current_length = cur_len;
             while current_length < gen_opt.max_length {
-                let (
-                    prepared_input,
-                    prepared_attention_mask,
-                    prepared_encoder_output,
-                    prepared_decoder_input,
-                    prepared_past,
-                ) = self.prepare_inputs_for_generation(
+                let prepared_input = self.prepare_inputs_for_generation(
                     input_ids.copy(),
                     encoder_outputs.as_ref(),
                     past,
@@ -2292,14 +2271,14 @@ pub(crate) mod private_generation_utils {
                 let temp = self
                     .get_model()
                     .forward_t(
-                        &prepared_input,
-                        prepared_past,
-                        &prepared_attention_mask,
+                        &prepared_input.prepared_input,
+                        prepared_input.prepared_past,
+                        &prepared_input.prepared_attention_mask,
                         &None,
+                        &prepared_input.prepared_position_ids,
                         &None,
-                        &None,
-                        prepared_encoder_output,
-                        &prepared_decoder_input,
+                        prepared_input.prepared_encoder_output,
+                        &prepared_input.prepared_decoder_input,
                         false,
                     )
                     .unwrap();

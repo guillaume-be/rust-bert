@@ -122,7 +122,7 @@ impl Default for TextGenerationConfig {
             min_length: 0,
             max_length: 20,
             do_sample: true,
-            early_stopping: false,
+            early_stopping: true,
             num_beams: 5,
             temperature: 1.0,
             top_k: 0,
