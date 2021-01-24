@@ -33,6 +33,8 @@ fn create_text_generation_model() -> TextGenerationModel {
         repetition_penalty: 1.0,
         length_penalty: 1.0,
         no_repeat_ngram_size: 3,
+        num_beam_groups: None,
+        diversity_penalty: None,
         num_return_sequences: 5,
         device: Device::cuda_if_available(),
     };
