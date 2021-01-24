@@ -20,9 +20,8 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! use rust_bert::pipelines::generation_utils::{
-//!     GPT2Generator, GenerateConfig, LanguageGenerator,
-//! };
+//! use rust_bert::gpt2::GPT2Generator;
+//! use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 //!
 //! let generate_config = GenerateConfig {
 //!     max_length: 30,
@@ -65,46 +64,26 @@
 //! # ;
 //! ```
 
-use self::ordered_float::OrderedFloat;
-use crate::bart::{
-    BartConfig, BartConfigResources, BartForConditionalGeneration, BartMergesResources,
-    BartModelResources, BartVocabResources, LayerState as BartLayerState,
-};
+use itertools::Itertools;
+use rust_tokenizers::tokenizer::Tokenizer;
+use rust_tokenizers::vocab::Vocab;
+use tch::kind::Kind::Int64;
+use tch::{no_grad, Device, Tensor};
+
+use crate::bart::LayerState as BartLayerState;
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
-    GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources,
-    Gpt2VocabResources,
+    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
-use crate::marian::MarianForConditionalGeneration;
-use crate::openai_gpt::{
-    OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptMergesResources,
-    OpenAiGptModelResources, OpenAiGptVocabResources,
-};
-use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    GenerateOptions, PreparedInput, PrivateLanguageGenerator,
+    GenerateOptions, PrivateLanguageGenerator,
 };
-use crate::reformer::{
-    LayerState as ReformerLayerState, ReformerConfig, ReformerConfigResources,
-    ReformerModelResources, ReformerModelWithLMHead, ReformerVocabResources,
-};
-use crate::t5::{
-    LayerState as T5LayerState, T5Config, T5ConfigResources, T5ForConditionalGeneration,
-    T5ModelResources, T5VocabResources,
-};
-use crate::xlnet::{LayerState, XLNetConfig, XLNetLMHeadModel};
-use crate::Config;
-use itertools::Itertools;
-use rust_tokenizers::tokenizer::{
-    Gpt2Tokenizer, MarianTokenizer, OpenAiGptTokenizer, ReformerTokenizer, RobertaTokenizer,
-    T5Tokenizer, Tokenizer, TruncationStrategy, XLNetTokenizer,
-};
-use rust_tokenizers::vocab::{
-    Gpt2Vocab, MarianVocab, OpenAiGptVocab, ReformerVocab, RobertaVocab, T5Vocab, Vocab, XLNetVocab,
-};
-use tch::kind::Kind::Int64;
-use tch::{nn, no_grad, Device, Kind, Tensor};
+use crate::reformer::LayerState as ReformerLayerState;
+use crate::t5::LayerState as T5LayerState;
+use crate::xlnet::LayerState;
+
+use self::ordered_float::OrderedFloat;
 
 extern crate ordered_float;
 
@@ -142,6 +121,10 @@ pub struct GenerateConfig {
     pub no_repeat_ngram_size: i64,
     /// Number of sequences to return for each prompt text (default: 1)
     pub num_return_sequences: i64,
+    /// Number of beam groups for diverse beam generation. If provided and higher than 1, will split the beams into beam subgroups leading to more diverse generation.
+    pub num_beam_groups: Option<i64>,
+    /// Diversity penalty for diverse beam search. High values will enforce more difference between beam groups (default: 5.5)
+    pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
 }
@@ -173,13 +156,15 @@ impl Default for GenerateConfig {
             length_penalty: 1.0,
             no_repeat_ngram_size: 3,
             num_return_sequences: 1,
+            num_beam_groups: None,
+            diversity_penalty: None,
             device: Device::cuda_if_available(),
         }
     }
 }
 
 impl GenerateConfig {
-    fn validate(&self) {
+    pub(crate) fn validate(&self) {
         assert!(self.temperature > 0f64, "temperature must positive");
         assert!(
             (self.top_p >= 0f64) & (self.top_p <= 1f64),
@@ -215,1575 +200,16 @@ impl GenerateConfig {
                 )
             }
         }
-    }
-}
-
-/// # Language generation model based on the GPT architecture
-pub struct OpenAIGenerator {
-    model: OpenAIGPTLMHeadModel,
-    tokenizer: TokenizerOption,
-    var_store: nn::VarStore,
-    generate_config: GenerateConfig,
-    bos_token_id: Option<i64>,
-    eos_token_ids: Option<Vec<i64>>,
-    pad_token_id: Option<i64>,
-    is_encoder_decoder: bool,
-    vocab_size: i64,
-    decoder_start_id: Option<i64>,
-}
-
-impl OpenAIGenerator {
-    /// Build a new `OpenAIGenerator`
-    ///
-    /// # Arguments
-    ///
-    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, OpenAIGenerator};
-    /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
-    /// };
-    /// let gpt_generator = OpenAIGenerator::new(generate_config)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn new(generate_config: GenerateConfig) -> Result<OpenAIGenerator, RustBertError> {
-        generate_config.validate();
-
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                OpenAiGptModelResources::GPT,
-            ))
-        } else {
-            generate_config.model_resource.clone()
-        };
-
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                OpenAiGptConfigResources::GPT,
-            ))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                OpenAiGptVocabResources::GPT,
-            ))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let merges_resource = if generate_config.merges_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                OpenAiGptMergesResources::GPT,
-            ))
-        } else {
-            generate_config.merges_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let merges_path = merges_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        let mut var_store = nn::VarStore::new(device);
-        let tokenizer = TokenizerOption::from_file(
-            ModelType::OpenAiGpt,
-            vocab_path.to_str().unwrap(),
-            Some(merges_path.to_str().unwrap()),
-            true,
-            None,
-            None,
-        )?;
-        let config = Gpt2Config::from_file(config_path);
-        let model = OpenAIGPTLMHeadModel::new(&var_store.root(), &config);
-        var_store.load(weights_path)?;
-
-        let bos_token_id = None;
-        let eos_token_ids = None;
-        let pad_token_id = None;
-        let is_encoder_decoder = false;
-        let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
-
-        Ok(OpenAIGenerator {
-            model,
-            tokenizer,
-            var_store,
-            generate_config,
-            bos_token_id,
-            eos_token_ids,
-            pad_token_id,
-            is_encoder_decoder,
-            vocab_size,
-            decoder_start_id,
-        })
-    }
-}
-
-impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
-    for OpenAIGenerator
-{
-    fn get_model(&self) -> &OpenAIGPTLMHeadModel {
-        &self.model
-    }
-    fn get_tokenizer(&self) -> &TokenizerOption {
-        &self.tokenizer
-    }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
-    }
-    fn get_config(&self) -> &GenerateConfig {
-        &self.generate_config
-    }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
-    }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
-    }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
-    }
-    fn is_encoder_decoder(&self) -> bool {
-        self.is_encoder_decoder
-    }
-    fn get_vocab_size(&self) -> i64 {
-        self.vocab_size
-    }
-    fn get_decoder_start_id(&self) -> Option<i64> {
-        self.decoder_start_id
-    }
-}
-
-impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
-    for OpenAIGenerator
-{
-}
-
-/// # Language generation model based on the GPT2 architecture
-pub struct GPT2Generator {
-    model: GPT2LMHeadModel,
-    tokenizer: TokenizerOption,
-    var_store: nn::VarStore,
-    generate_config: GenerateConfig,
-    bos_token_id: Option<i64>,
-    eos_token_ids: Option<Vec<i64>>,
-    pad_token_id: Option<i64>,
-    is_encoder_decoder: bool,
-    vocab_size: i64,
-    decoder_start_id: Option<i64>,
-}
-
-impl GPT2Generator {
-    /// Build a new `GPT2Generator`
-    ///
-    /// # Arguments
-    ///
-    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{GPT2Generator, GenerateConfig};
-    ///
-    /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
-    /// };
-    /// let gpt2_generator = GPT2Generator::new(generate_config)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn new(generate_config: GenerateConfig) -> Result<GPT2Generator, RustBertError> {
-        let config_path = generate_config.config_resource.get_local_path()?;
-        let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let merges_path = generate_config.merges_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
-        let tokenizer = TokenizerOption::from_file(
-            ModelType::GPT2,
-            vocab_path.to_str().unwrap(),
-            Some(merges_path.to_str().unwrap()),
-            false,
-            None,
-            None,
-        )?;
-        let config = Gpt2Config::from_file(config_path);
-        let model = GPT2LMHeadModel::new(&var_store.root(), &config);
-        var_store.load(weights_path)?;
-
-        let bos_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::bos_value()])[0]);
-        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()]));
-        let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()])[0]);
-        let is_encoder_decoder = false;
-        let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
-
-        Ok(GPT2Generator {
-            model,
-            tokenizer,
-            var_store,
-            generate_config,
-            bos_token_id,
-            eos_token_ids,
-            pad_token_id,
-            is_encoder_decoder,
-            vocab_size,
-            decoder_start_id,
-        })
-    }
-}
-
-impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {
-    fn get_model(&self) -> &GPT2LMHeadModel {
-        &self.model
-    }
-    fn get_tokenizer(&self) -> &TokenizerOption {
-        &self.tokenizer
-    }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
-    }
-    fn get_config(&self) -> &GenerateConfig {
-        &self.generate_config
-    }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
-    }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
-    }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
-    }
-    fn is_encoder_decoder(&self) -> bool {
-        self.is_encoder_decoder
-    }
-    fn get_vocab_size(&self) -> i64 {
-        self.vocab_size
-    }
-    fn get_decoder_start_id(&self) -> Option<i64> {
-        self.decoder_start_id
-    }
-
-    fn prepare_inputs_for_generation<'a>(
-        &self,
-        input_ids: Tensor,
-        _encoder_outputs: Option<&'a Tensor>,
-        past: Cache,
-        attention_mask: Tensor,
-    ) -> PreparedInput<'a> {
-        let position_ids = (attention_mask.totype(Kind::Int64).cumsum(-1, Kind::Int64) - 1)
-            .masked_fill(&attention_mask.eq(0), 1);
-
-        match past {
-            Cache::GPT2Cache(past) => {
-                if past.is_some() {
-                    PreparedInput {
-                        prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
-                        prepared_attention_mask: Some(attention_mask),
-                        prepared_encoder_output: None,
-                        prepared_decoder_input: None,
-                        prepared_position_ids: Some(position_ids.select(1, -1).unsqueeze(-1)),
-                        prepared_past: Cache::GPT2Cache(past),
-                    }
-                } else {
-                    PreparedInput {
-                        prepared_input: Some(input_ids),
-                        prepared_attention_mask: Some(attention_mask),
-                        prepared_encoder_output: None,
-                        prepared_decoder_input: None,
-                        prepared_position_ids: Some(position_ids),
-                        prepared_past: Cache::GPT2Cache(None),
-                    }
-                }
-            }
-            Cache::None => PreparedInput {
-                prepared_input: Some(input_ids),
-                prepared_attention_mask: Some(attention_mask),
-                prepared_encoder_output: None,
-                prepared_decoder_input: None,
-                prepared_position_ids: Some(position_ids),
-                prepared_past: Cache::GPT2Cache(None),
-            },
-            _ => panic!("Cache type incompatible with GPT2"),
-        }
-    }
-
-    fn reorder_cache(
-        &self,
-        past: &mut Cache,
-        _encoder_outputs: Option<Tensor>,
-        beam_indices: &Tensor,
-    ) -> Option<Tensor> {
-        match past {
-            Cache::GPT2Cache(cached_decoder_state) => match cached_decoder_state {
-                Some(value) => {
-                    for layer_past in value.iter_mut() {
-                        *layer_past = layer_past.index_select(1, beam_indices);
-                    }
-                    None
-                }
-                None => None,
-            },
-            Cache::None => None,
-            _ => {
-                panic!("Invalid cache for GPT2 model");
+        if let Some(num_beam_groups_value) = self.num_beam_groups {
+            if num_beam_groups_value > 1 {
+                assert_eq!(
+                    self.num_beams % num_beam_groups_value,
+                    0,
+                    "num_beam_groups must be a multiple of num_beam_groups"
+                )
             }
         }
     }
-}
-
-impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {}
-
-/// # Language generation model based on the Bart architecture
-pub struct BartGenerator {
-    model: BartForConditionalGeneration,
-    tokenizer: TokenizerOption,
-    var_store: nn::VarStore,
-    generate_config: GenerateConfig,
-    bos_token_id: Option<i64>,
-    eos_token_ids: Option<Vec<i64>>,
-    pad_token_id: Option<i64>,
-    is_encoder_decoder: bool,
-    vocab_size: i64,
-    decoder_start_id: Option<i64>,
-}
-
-impl BartGenerator {
-    /// Build a new `BartGenerator`
-    ///
-    /// # Arguments
-    ///
-    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `merges_path` - Path to the bpe merges, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
-    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use std::path::PathBuf;
-    /// # use tch::Device;
-    /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{BartGenerator, GenerateConfig};
-    /// # let mut home: PathBuf = dirs::home_dir().unwrap();
-    /// # home.push("rustbert");
-    /// # home.push("openai-gpt");
-    /// # let config_path = &home.as_path().join("config.json");
-    /// # let vocab_path = &home.as_path().join("vocab.txt");
-    /// # let merges_path = &home.as_path().join("merges.txt");
-    /// # let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::cuda_if_available();
-    /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
-    /// };
-    /// let bart_generator = BartGenerator::new(generate_config)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn new(generate_config: GenerateConfig) -> Result<BartGenerator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART))
-        } else {
-            generate_config.model_resource.clone()
-        };
-
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let merges_resource = if generate_config.merges_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART))
-        } else {
-            generate_config.merges_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let merges_path = merges_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
-        let tokenizer = TokenizerOption::from_file(
-            ModelType::Bart,
-            vocab_path.to_str().unwrap(),
-            Some(merges_path.to_str().unwrap()),
-            false,
-            None,
-            false,
-        )?;
-        let config = BartConfig::from_file(config_path);
-        let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
-        var_store.load(weights_path)?;
-
-        let bos_token_id = Some(0);
-        let eos_token_ids = Some(match config.eos_token_id {
-            Some(value) => vec![value],
-            None => vec![2],
-        });
-        let pad_token_id = Some(config.pad_token_id.unwrap_or(1));
-        let vocab_size = config.vocab_size;
-        let is_encoder_decoder = true;
-        let decoder_start_id = Some(2);
-
-        Ok(BartGenerator {
-            model,
-            tokenizer,
-            var_store,
-            generate_config,
-            bos_token_id,
-            eos_token_ids,
-            pad_token_id,
-            is_encoder_decoder,
-            vocab_size,
-            decoder_start_id,
-        })
-    }
-
-    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
-            .filter(|pos| !token_ids.contains(pos))
-            .collect();
-        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(1, &impossible_tokens, std::f64::NEG_INFINITY);
-    }
-}
-
-impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer>
-    for BartGenerator
-{
-    fn get_model(&self) -> &BartForConditionalGeneration {
-        &self.model
-    }
-    fn get_tokenizer(&self) -> &TokenizerOption {
-        &self.tokenizer
-    }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
-    }
-    fn get_config(&self) -> &GenerateConfig {
-        &self.generate_config
-    }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
-    }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
-    }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
-    }
-    fn is_encoder_decoder(&self) -> bool {
-        self.is_encoder_decoder
-    }
-    fn get_vocab_size(&self) -> i64 {
-        self.vocab_size
-    }
-    fn get_decoder_start_id(&self) -> Option<i64> {
-        self.decoder_start_id
-    }
-
-    fn prepare_scores_for_generation(
-        &self,
-        scores: &mut Tensor,
-        current_length: i64,
-        max_length: i64,
-    ) {
-        if current_length == 1 {
-            self.force_token_id_generation(scores, &[self.get_bos_id().unwrap()]);
-        } else if current_length == max_length - 1 {
-            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
-        }
-    }
-
-    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
-        Some(self.get_model().encode(input_ids, attention_mask))
-    }
-
-    fn prepare_inputs_for_generation<'a>(
-        &self,
-        input_ids: Tensor,
-        encoder_outputs: Option<&'a Tensor>,
-        past: Cache,
-        attention_mask: Tensor,
-    ) -> PreparedInput<'a> {
-        match past {
-            Cache::BARTCache(past) => PreparedInput {
-                prepared_input: None,
-                prepared_attention_mask: Some(attention_mask),
-                prepared_encoder_output: encoder_outputs,
-                prepared_decoder_input: Some(input_ids),
-                prepared_position_ids: None,
-                prepared_past: Cache::BARTCache(past),
-            },
-            Cache::None => PreparedInput {
-                prepared_input: None,
-                prepared_attention_mask: Some(attention_mask),
-                prepared_encoder_output: encoder_outputs,
-                prepared_decoder_input: Some(input_ids),
-                prepared_position_ids: None,
-                prepared_past: Cache::BARTCache(None),
-            },
-            _ => panic!("Cache type incompatible with BART"),
-        }
-    }
-
-    fn encode_prompt_text<'a, S>(
-        &self,
-        prompt_text: S,
-        max_len: i64,
-        pad_token_id: Option<i64>,
-    ) -> Tensor
-    where
-        S: AsRef<[&'a str]>,
-    {
-        let tokens = self.get_tokenizer().encode_list(
-            prompt_text.as_ref(),
-            max_len as usize,
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let token_ids = tokens
-            .into_iter()
-            .map(|tokenized_input| tokenized_input.token_ids)
-            .collect::<Vec<Vec<i64>>>();
-
-        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
-
-        let pad_token = match pad_token_id {
-            Some(value) => value,
-            None => self
-                .get_tokenizer()
-                .convert_tokens_to_ids(&[RobertaVocab::unknown_value()])[0],
-        };
-
-        let token_ids = token_ids
-            .into_iter()
-            .map(|mut input| {
-                let temp = vec![pad_token; max_len - input.len()];
-                input.extend(temp);
-                input
-            })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
-            .collect::<Vec<Tensor>>();
-
-        Tensor::stack(&token_ids, 0)
-    }
-
-    fn reorder_cache(
-        &self,
-        past: &mut Cache,
-        encoder_outputs: Option<Tensor>,
-        beam_indices: &Tensor,
-    ) -> Option<Tensor> {
-        let encoder_outputs = match encoder_outputs {
-            Some(value) => Some(value.index_select(0, beam_indices)),
-            None => None,
-        };
-        match past {
-            Cache::BARTCache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
-                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
-                        if self_layer_state.is_some() {
-                            self_layer_state
-                                .as_mut()
-                                .unwrap()
-                                .reorder_cache(beam_indices)
-                        };
-                        if encoder_layer_state.is_some() {
-                            encoder_layer_state
-                                .as_mut()
-                                .unwrap()
-                                .reorder_cache(beam_indices)
-                        };
-                    }
-                }
-                None => {}
-            },
-            Cache::None => {}
-            _ => {
-                panic!("Invalid cache for BART model");
-            }
-        };
-        encoder_outputs
-    }
-}
-
-impl LanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer>
-    for BartGenerator
-{
-}
-
-/// # Language generation model based on the Marian architecture for machine translation
-pub struct MarianGenerator {
-    model: MarianForConditionalGeneration,
-    tokenizer: TokenizerOption,
-    var_store: nn::VarStore,
-    generate_config: GenerateConfig,
-    bos_token_id: Option<i64>,
-    eos_token_ids: Option<Vec<i64>>,
-    pad_token_id: Option<i64>,
-    is_encoder_decoder: bool,
-    vocab_size: i64,
-    decoder_start_id: Option<i64>,
-}
-
-impl MarianGenerator {
-    /// Build a new `marianGenerator`
-    ///
-    /// # Arguments
-    ///
-    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `sentencepiece_model_path` - Path to the sentencepiece model (native protobuf expected)
-    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
-    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
-    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use std::path::PathBuf;
-    /// # use tch::Device;
-    /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, MarianGenerator};
-    /// # let mut home: PathBuf = dirs::home_dir().unwrap();
-    /// # home.push("rustbert");
-    /// # home.push("marian-mt-en-fr");
-    /// # let config_path = &home.as_path().join("config.json");
-    /// # let vocab_path = &home.as_path().join("vocab.json");
-    /// # let merges_path = &home.as_path().join("spiece.model");
-    /// # let weights_path = &home.as_path().join("model.ot");
-    /// let device = Device::cuda_if_available();
-    /// let generate_config = GenerateConfig {
-    ///     max_length: 512,
-    ///     do_sample: true,
-    ///     num_beams: 6,
-    ///     temperature: 1.0,
-    ///     num_return_sequences: 1,
-    ///     ..Default::default()
-    /// };
-    /// let marian_generator = MarianGenerator::new(generate_config)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn new(generate_config: GenerateConfig) -> Result<MarianGenerator, RustBertError> {
-        let config_path = generate_config.config_resource.get_local_path()?;
-        let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let sentence_piece_path = generate_config.merges_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
-        let tokenizer = TokenizerOption::from_file(
-            ModelType::Marian,
-            vocab_path.to_str().unwrap(),
-            Some(sentence_piece_path.to_str().unwrap()),
-            false,
-            None,
-            None,
-        )?;
-
-        let config = BartConfig::from_file(config_path);
-        let model = MarianForConditionalGeneration::new(&var_store.root(), &config, true);
-        var_store.load(weights_path)?;
-
-        let bos_token_id = Some(0);
-        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::eos_value()]));
-        let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::pad_value()])[0]);
-
-        let vocab_size = config.vocab_size;
-        let is_encoder_decoder = true;
-        let decoder_start_id =
-            Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::pad_value()])[0]);
-
-        Ok(MarianGenerator {
-            model,
-            tokenizer,
-            var_store,
-            generate_config,
-            bos_token_id,
-            eos_token_ids,
-            pad_token_id,
-            is_encoder_decoder,
-            vocab_size,
-            decoder_start_id,
-        })
-    }
-
-    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
-            .filter(|pos| !token_ids.contains(pos))
-            .collect();
-        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
-    }
-}
-
-impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokenizer>
-    for MarianGenerator
-{
-    fn get_model(&self) -> &MarianForConditionalGeneration {
-        &self.model
-    }
-    fn get_tokenizer(&self) -> &TokenizerOption {
-        &self.tokenizer
-    }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
-    }
-    fn get_config(&self) -> &GenerateConfig {
-        &self.generate_config
-    }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
-    }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
-    }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
-    }
-    fn is_encoder_decoder(&self) -> bool {
-        self.is_encoder_decoder
-    }
-    fn get_vocab_size(&self) -> i64 {
-        self.vocab_size
-    }
-    fn get_decoder_start_id(&self) -> Option<i64> {
-        self.decoder_start_id
-    }
-
-    fn prepare_scores_for_generation(
-        &self,
-        scores: &mut Tensor,
-        current_length: i64,
-        max_length: i64,
-    ) {
-        let _ = scores.index_fill_(
-            1,
-            &Tensor::of_slice(&[self.get_pad_id().unwrap()])
-                .to_kind(Int64)
-                .to_device(scores.device()),
-            std::f64::NEG_INFINITY,
-        );
-        if current_length == max_length - 1 {
-            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
-        }
-    }
-
-    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
-        Some(self.get_model().encode(input_ids, attention_mask))
-    }
-
-    fn prepare_inputs_for_generation<'a>(
-        &self,
-        input_ids: Tensor,
-        encoder_outputs: Option<&'a Tensor>,
-        past: Cache,
-        attention_mask: Tensor,
-    ) -> PreparedInput<'a> {
-        match past {
-            Cache::BARTCache(past) => PreparedInput {
-                prepared_input: None,
-                prepared_attention_mask: Some(attention_mask),
-                prepared_encoder_output: encoder_outputs,
-                prepared_decoder_input: Some(input_ids),
-                prepared_position_ids: None,
-                prepared_past: Cache::BARTCache(past),
-            },
-            Cache::None => PreparedInput {
-                prepared_input: None,
-                prepared_attention_mask: Some(attention_mask),
-                prepared_encoder_output: encoder_outputs,
-                prepared_decoder_input: Some(input_ids),
-                prepared_position_ids: None,
-                prepared_past: Cache::BARTCache(None),
-            },
-            _ => panic!("Cache type incompatible with Marian"),
-        }
-    }
-
-    fn encode_prompt_text<'a, T>(
-        &self,
-        prompt_text: T,
-        max_len: i64,
-        pad_token_id: Option<i64>,
-    ) -> Tensor
-    where
-        T: AsRef<[&'a str]>,
-    {
-        let tokens = self.get_tokenizer().encode_list(
-            prompt_text.as_ref(),
-            max_len as usize,
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let token_ids = tokens
-            .into_iter()
-            .map(|tokenized_input| tokenized_input.token_ids)
-            .collect::<Vec<Vec<i64>>>();
-
-        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
-
-        let pad_token = match pad_token_id {
-            Some(value) => value,
-            None => self.get_tokenizer().get_unk_id(),
-        };
-
-        let token_ids = token_ids
-            .into_iter()
-            .map(|mut input| {
-                let temp = vec![pad_token; max_len - input.len()];
-                input.extend(temp);
-                input
-            })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
-            .collect::<Vec<Tensor>>();
-
-        Tensor::stack(&token_ids, 0)
-    }
-
-    fn reorder_cache(
-        &self,
-        past: &mut Cache,
-        encoder_outputs: Option<Tensor>,
-        beam_indices: &Tensor,
-    ) -> Option<Tensor> {
-        let encoder_outputs = match encoder_outputs {
-            Some(value) => Some(value.index_select(0, beam_indices)),
-            None => None,
-        };
-        match past {
-            Cache::BARTCache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
-                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
-                        if self_layer_state.is_some() {
-                            self_layer_state
-                                .as_mut()
-                                .unwrap()
-                                .reorder_cache(beam_indices)
-                        };
-                        if encoder_layer_state.is_some() {
-                            encoder_layer_state
-                                .as_mut()
-                                .unwrap()
-                                .reorder_cache(beam_indices)
-                        };
-                    }
-                }
-                None => {}
-            },
-            Cache::None => {}
-            _ => {
-                panic!("Invalid cache for BART model");
-            }
-        };
-        encoder_outputs
-    }
-}
-
-impl LanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokenizer>
-    for MarianGenerator
-{
-}
-
-pub struct T5Generator {
-    model: T5ForConditionalGeneration,
-    tokenizer: TokenizerOption,
-    var_store: nn::VarStore,
-    generate_config: GenerateConfig,
-    bos_token_id: Option<i64>,
-    eos_token_ids: Option<Vec<i64>>,
-    pad_token_id: Option<i64>,
-    is_encoder_decoder: bool,
-    vocab_size: i64,
-    decoder_start_id: Option<i64>,
-}
-
-impl T5Generator {
-    pub fn new(generate_config: GenerateConfig) -> Result<T5Generator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL))
-        } else {
-            generate_config.model_resource.clone()
-        };
-
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
-        let tokenizer = TokenizerOption::from_file(
-            ModelType::T5,
-            vocab_path.to_str().unwrap(),
-            None,
-            false,
-            None,
-            None,
-        )?;
-
-        let config = T5Config::from_file(config_path);
-        let model = T5ForConditionalGeneration::new(&var_store.root(), &config, false, false);
-        var_store.load(weights_path)?;
-
-        let bos_token_id = Some(-1);
-        let eos_token_ids = Some(match config.eos_token_id {
-            Some(value) => vec![value],
-            None => vec![1],
-        });
-        let pad_token_id = Some(config.pad_token_id.unwrap_or(0));
-        let vocab_size = config.vocab_size;
-        let is_encoder_decoder = true;
-        let decoder_start_id = Some(0);
-
-        Ok(T5Generator {
-            model,
-            tokenizer,
-            var_store,
-            generate_config,
-            bos_token_id,
-            eos_token_ids,
-            pad_token_id,
-            is_encoder_decoder,
-            vocab_size,
-            decoder_start_id,
-        })
-    }
-}
-
-impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> for T5Generator {
-    fn get_model(&self) -> &T5ForConditionalGeneration {
-        &self.model
-    }
-    fn get_tokenizer(&self) -> &TokenizerOption {
-        &self.tokenizer
-    }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
-    }
-    fn get_config(&self) -> &GenerateConfig {
-        &self.generate_config
-    }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
-    }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
-    }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
-    }
-    fn is_encoder_decoder(&self) -> bool {
-        self.is_encoder_decoder
-    }
-    fn get_vocab_size(&self) -> i64 {
-        self.vocab_size
-    }
-    fn get_decoder_start_id(&self) -> Option<i64> {
-        self.decoder_start_id
-    }
-
-    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
-        Some(self.get_model().encode(input_ids, attention_mask))
-    }
-
-    fn prepare_inputs_for_generation<'a>(
-        &self,
-        input_ids: Tensor,
-        encoder_outputs: Option<&'a Tensor>,
-        past: Cache,
-        attention_mask: Tensor,
-    ) -> PreparedInput<'a> {
-        match past {
-            Cache::T5Cache(past) => PreparedInput {
-                prepared_input: None,
-                prepared_attention_mask: Some(attention_mask),
-                prepared_encoder_output: encoder_outputs,
-                prepared_decoder_input: Some(input_ids.narrow(1, -1, 1)),
-                prepared_position_ids: None,
-                prepared_past: Cache::T5Cache(past),
-            },
-            Cache::None => PreparedInput {
-                prepared_input: None,
-                prepared_attention_mask: Some(attention_mask),
-                prepared_encoder_output: encoder_outputs,
-                prepared_decoder_input: Some(input_ids),
-                prepared_position_ids: None,
-                prepared_past: Cache::T5Cache(None),
-            },
-            _ => panic!("Cache type incompatible with T5"),
-        }
-    }
-
-    fn encode_prompt_text<'a, S>(
-        &self,
-        prompt_text: S,
-        max_len: i64,
-        pad_token_id: Option<i64>,
-    ) -> Tensor
-    where
-        S: AsRef<[&'a str]>,
-    {
-        let tokens = self.get_tokenizer().encode_list(
-            prompt_text.as_ref(),
-            max_len as usize,
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let token_ids = tokens
-            .into_iter()
-            .map(|tokenized_input| tokenized_input.token_ids)
-            .collect::<Vec<Vec<i64>>>();
-
-        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
-
-        let pad_token = match pad_token_id {
-            Some(value) => value,
-            None => self.get_tokenizer().get_unk_id(),
-        };
-
-        let token_ids = token_ids
-            .into_iter()
-            .map(|mut input| {
-                let temp = vec![pad_token; max_len - input.len()];
-                input.push(self.eos_token_ids.as_ref().unwrap()[0]);
-                input.extend(temp);
-                input
-            })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
-            .collect::<Vec<Tensor>>();
-
-        Tensor::stack(&token_ids, 0)
-    }
-
-    fn reorder_cache(
-        &self,
-        past: &mut Cache,
-        encoder_outputs: Option<Tensor>,
-        beam_indices: &Tensor,
-    ) -> Option<Tensor> {
-        match past {
-            Cache::T5Cache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
-                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
-                        if self_layer_state.is_some() {
-                            self_layer_state
-                                .as_mut()
-                                .unwrap()
-                                .reorder_cache(beam_indices)
-                        };
-                        if encoder_layer_state.is_some() {
-                            encoder_layer_state
-                                .as_mut()
-                                .unwrap()
-                                .reorder_cache(beam_indices)
-                        };
-                    }
-                }
-                None => {}
-            },
-            Cache::None => {}
-            _ => {
-                panic!("Invalid cache for T5 model");
-            }
-        };
-        encoder_outputs
-    }
-}
-
-impl LanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> for T5Generator {}
-
-/// # Language generation model based on the XLNet architecture
-pub struct XLNetGenerator {
-    model: XLNetLMHeadModel,
-    tokenizer: TokenizerOption,
-    var_store: nn::VarStore,
-    generate_config: GenerateConfig,
-    bos_token_id: Option<i64>,
-    eos_token_ids: Option<Vec<i64>>,
-    pad_token_id: Option<i64>,
-    is_encoder_decoder: bool,
-    vocab_size: i64,
-    decoder_start_id: Option<i64>,
-}
-
-impl XLNetGenerator {
-    /// Build a new `XLNetGenerator`
-    ///
-    /// # Arguments
-    ///
-    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, XLNetGenerator};
-    ///
-    /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
-    /// };
-    /// let xlnet_generator = XLNetGenerator::new(generate_config)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn new(generate_config: GenerateConfig) -> Result<XLNetGenerator, RustBertError> {
-        let config_path = generate_config.config_resource.get_local_path()?;
-        let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
-        let tokenizer = TokenizerOption::from_file(
-            ModelType::XLNet,
-            vocab_path.to_str().unwrap(),
-            None,
-            false,
-            true,
-            None,
-        )?;
-
-        let config = XLNetConfig::from_file(config_path);
-        let model = XLNetLMHeadModel::new(&var_store.root(), &config);
-        var_store.load(weights_path)?;
-
-        let bos_token_id = Some(config.bos_token_id);
-        let eos_token_ids = Some(vec![config.eos_token_id]);
-        let pad_token_id = Some(config.pad_token_id);
-        let is_encoder_decoder = false;
-        let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
-
-        Ok(XLNetGenerator {
-            model,
-            tokenizer,
-            var_store,
-            generate_config,
-            bos_token_id,
-            eos_token_ids,
-            pad_token_id,
-            is_encoder_decoder,
-            vocab_size,
-            decoder_start_id,
-        })
-    }
-}
-
-impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {
-    fn get_model(&self) -> &XLNetLMHeadModel {
-        &self.model
-    }
-    fn get_tokenizer(&self) -> &TokenizerOption {
-        &self.tokenizer
-    }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
-    }
-    fn get_config(&self) -> &GenerateConfig {
-        &self.generate_config
-    }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
-    }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
-    }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
-    }
-    fn is_encoder_decoder(&self) -> bool {
-        self.is_encoder_decoder
-    }
-    fn get_vocab_size(&self) -> i64 {
-        self.vocab_size
-    }
-    fn get_decoder_start_id(&self) -> Option<i64> {
-        self.decoder_start_id
-    }
-
-    fn prepare_inputs_for_generation<'a>(
-        &self,
-        input_ids: Tensor,
-        _encoder_outputs: Option<&'a Tensor>,
-        past: Cache,
-        _attention_mask: Tensor,
-    ) -> PreparedInput<'a> {
-        let effective_batch_size = input_ids.size()[0];
-        let sequence_length = input_ids.size()[1];
-        let dummy_token = Tensor::zeros(
-            &[effective_batch_size, 1],
-            (Kind::Int64, input_ids.device()),
-        );
-        let offset = 2i64;
-        let input_ids = match &past {
-            Cache::XLNetCache(past) => {
-                if past.is_some() {
-                    Tensor::cat(
-                        &[
-                            input_ids.slice(1, sequence_length - offset, sequence_length, 1),
-                            dummy_token,
-                        ],
-                        1,
-                    )
-                } else {
-                    Tensor::cat(&[input_ids, dummy_token], 1)
-                }
-            }
-            _ => Tensor::cat(&[input_ids, dummy_token], 1),
-        };
-        let sequence_length = input_ids.size()[1];
-        let perm_mask = Tensor::zeros(
-            &[effective_batch_size, sequence_length, sequence_length],
-            (Kind::Float, input_ids.device()),
-        );
-        let _ = perm_mask.narrow(2, sequence_length - 1, 1).fill_(1.0);
-
-        let target_mapping = Tensor::zeros(
-            &[effective_batch_size, 1, sequence_length],
-            (Kind::Float, input_ids.device()),
-        );
-        let _ = target_mapping.narrow(2, sequence_length - 1, 1).fill_(1.0);
-
-        match past {
-            Cache::XLNetCache(past) => {
-                if let Some(past) = past {
-                    // let new_past = Vec::with_capacity(past.len());
-                    let past = if let Some(first_past) = &past[0] {
-                        let past_len = first_past.prev_content.size()[0];
-                        past.iter()
-                            .map(|old_layer_state| {
-                                Some(LayerState {
-                                    prev_content: old_layer_state
-                                        .as_ref()
-                                        .unwrap()
-                                        .prev_content
-                                        .slice(0, 0, past_len - offset, 1),
-                                })
-                            })
-                            .collect()
-                    } else {
-                        past
-                    };
-                    PreparedInput {
-                        prepared_input: Some(input_ids),
-                        prepared_attention_mask: Some(perm_mask),
-                        prepared_encoder_output: None,
-                        prepared_decoder_input: Some(target_mapping),
-                        prepared_position_ids: None,
-                        prepared_past: Cache::XLNetCache(Some(past)),
-                    }
-                } else {
-                    PreparedInput {
-                        prepared_input: Some(input_ids),
-                        prepared_attention_mask: Some(perm_mask),
-                        prepared_encoder_output: None,
-                        prepared_decoder_input: Some(target_mapping),
-                        prepared_position_ids: None,
-                        prepared_past: Cache::XLNetCache(None),
-                    }
-                }
-            }
-            Cache::None => PreparedInput {
-                prepared_input: Some(input_ids),
-                prepared_attention_mask: Some(perm_mask),
-                prepared_encoder_output: None,
-                prepared_decoder_input: Some(target_mapping),
-                prepared_position_ids: None,
-                prepared_past: Cache::XLNetCache(None),
-            },
-            _ => panic!("Cache type incompatible with XLNet"),
-        }
-    }
-
-    fn reorder_cache(
-        &self,
-        past: &mut Cache,
-        _encoder_outputs: Option<Tensor>,
-        beam_indices: &Tensor,
-    ) -> Option<Tensor> {
-        match past {
-            Cache::XLNetCache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
-                    for layer_state in old_cache.iter_mut() {
-                        if layer_state.is_some() {
-                            layer_state.as_mut().unwrap().reorder_cache(beam_indices)
-                        };
-                    }
-                    None
-                }
-                None => None,
-            },
-            Cache::None => None,
-            _ => {
-                panic!("Invalid cache for XLNet model");
-            }
-        }
-    }
-}
-
-impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {}
-
-pub struct ReformerGenerator {
-    model: ReformerModelWithLMHead,
-    tokenizer: TokenizerOption,
-    var_store: nn::VarStore,
-    generate_config: GenerateConfig,
-    bos_token_id: Option<i64>,
-    eos_token_ids: Option<Vec<i64>>,
-    pad_token_id: Option<i64>,
-    is_encoder_decoder: bool,
-    vocab_size: i64,
-    decoder_start_id: Option<i64>,
-}
-
-impl ReformerGenerator {
-    pub fn new(generate_config: GenerateConfig) -> Result<ReformerGenerator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                ReformerModelResources::CRIME_AND_PUNISHMENT,
-            ))
-        } else {
-            generate_config.model_resource.clone()
-        };
-
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                ReformerConfigResources::CRIME_AND_PUNISHMENT,
-            ))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                ReformerVocabResources::CRIME_AND_PUNISHMENT,
-            ))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
-        let tokenizer = TokenizerOption::from_file(
-            ModelType::Reformer,
-            vocab_path.to_str().unwrap(),
-            None,
-            false,
-            None,
-            None,
-        )?;
-        let config = ReformerConfig::from_file(config_path);
-        let model = ReformerModelWithLMHead::new(&var_store.root(), &config)?;
-        var_store.load(weights_path)?;
-
-        let bos_token_id = None;
-        let eos_token_ids = Some(vec![config.eos_token_id]);
-        let pad_token_id = Some(config.pad_token_id);
-        let vocab_size = config.vocab_size;
-        let is_encoder_decoder = false;
-        let decoder_start_id = None;
-
-        Ok(ReformerGenerator {
-            model,
-            tokenizer,
-            var_store,
-            generate_config,
-            bos_token_id,
-            eos_token_ids,
-            pad_token_id,
-            is_encoder_decoder,
-            vocab_size,
-            decoder_start_id,
-        })
-    }
-}
-
-impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTokenizer>
-    for ReformerGenerator
-{
-    fn get_model(&self) -> &ReformerModelWithLMHead {
-        &self.model
-    }
-    fn get_tokenizer(&self) -> &TokenizerOption {
-        &self.tokenizer
-    }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
-    }
-    fn get_config(&self) -> &GenerateConfig {
-        &self.generate_config
-    }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
-    }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
-    }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
-    }
-    fn is_encoder_decoder(&self) -> bool {
-        self.is_encoder_decoder
-    }
-    fn get_vocab_size(&self) -> i64 {
-        self.vocab_size
-    }
-    fn get_decoder_start_id(&self) -> Option<i64> {
-        self.decoder_start_id
-    }
-
-    fn prepare_inputs_for_generation<'a>(
-        &self,
-        input_ids: Tensor,
-        _encoder_outputs: Option<&'a Tensor>,
-        past: Cache,
-        attention_mask: Tensor,
-    ) -> PreparedInput<'a> {
-        match past {
-            Cache::ReformerCache(past) => PreparedInput {
-                prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
-                prepared_attention_mask: None,
-                prepared_encoder_output: None,
-                prepared_decoder_input: None,
-                prepared_position_ids: None,
-                prepared_past: Cache::ReformerCache(past),
-            },
-            Cache::None => PreparedInput {
-                prepared_input: Some(input_ids),
-                prepared_attention_mask: Some(attention_mask),
-                prepared_encoder_output: None,
-                prepared_decoder_input: None,
-                prepared_position_ids: None,
-                prepared_past: Cache::ReformerCache(None),
-            },
-            _ => panic!("Cache type incompatible with Reformer"),
-        }
-    }
-
-    fn reorder_cache(
-        &self,
-        past: &mut Cache,
-        encoder_outputs: Option<Tensor>,
-        beam_indices: &Tensor,
-    ) -> Option<Tensor> {
-        match past {
-            Cache::ReformerCache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
-                    for layer_state in old_cache.iter_mut() {
-                        if layer_state.is_some() {
-                            layer_state.as_mut().unwrap().reorder_cache(beam_indices)
-                        };
-                    }
-                }
-                None => {}
-            },
-            Cache::None => {}
-            _ => {
-                panic!("Invalid cache for Reformer model");
-            }
-        };
-        encoder_outputs
-    }
-}
-
-impl LanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTokenizer>
-    for ReformerGenerator
-{
 }
 
 #[derive(Debug)]
@@ -1797,16 +223,19 @@ pub enum Cache {
 }
 
 pub(crate) mod private_generation_utils {
-    use super::ordered_float::OrderedFloat;
-    use crate::pipelines::common::TokenizerOption;
-    use crate::pipelines::generation_utils::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
+    use std::cmp::{max, min};
+    use std::collections::HashMap;
+
     use rust_tokenizers::tokenizer::{truncate_sequences, Tokenizer, TruncationStrategy};
     use rust_tokenizers::vocab::Vocab;
     use rust_tokenizers::TokenIdsWithOffsets;
-    use std::cmp::{max, min};
-    use std::collections::HashMap;
     use tch::kind::Kind::{Bool, Float, Int64};
     use tch::{nn, Device, Tensor};
+
+    use crate::pipelines::common::TokenizerOption;
+    use crate::pipelines::generation_utils::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
+
+    use super::ordered_float::OrderedFloat;
 
     pub struct GenerateOptions {
         pub min_length: i64,
@@ -1823,6 +252,8 @@ pub(crate) mod private_generation_utils {
         pub early_stopping: bool,
         pub num_beams: i64,
         pub length_penalty: f64,
+        pub num_beam_groups: Option<i64>,
+        pub diversity_penalty: Option<f64>,
     }
 
     pub struct PreparedInput<'a> {
@@ -2076,6 +507,40 @@ pub(crate) mod private_generation_utils {
             }
         }
 
+        fn run_hamming_diversity_penalty(
+            &self,
+            scores: &mut Tensor,
+            current_tokens: &Tensor,
+            diversity_penalty: f64,
+            num_beams: i64,
+            batch_size: i64,
+            group_size: i64,
+            group_start_index: i64,
+        ) {
+            if group_start_index > 0 {
+                let vocab_size = *scores.size().last().unwrap();
+                for batch_index in 0..batch_size {
+                    let previous_group_tokens = current_tokens.slice(
+                        0,
+                        batch_index * num_beams,
+                        batch_index * num_beams + group_start_index,
+                        1,
+                    );
+                    let diversity_penalty = previous_group_tokens
+                        .bincount::<Tensor>(None, vocab_size)
+                        * diversity_penalty;
+                    let _ = scores
+                        .slice(
+                            0,
+                            batch_index * group_size,
+                            (batch_index + 1) * group_size,
+                            1,
+                        )
+                        .subtract_(&diversity_penalty);
+                }
+            }
+        }
+
         fn generate_no_beam_search(
             &self,
             input_ids: Tensor,
@@ -2230,6 +695,10 @@ pub(crate) mod private_generation_utils {
             mut attention_mask: Tensor,
             gen_opt: GenerateOptions,
         ) -> Tensor {
+            let num_beam_groups = gen_opt.num_beam_groups.unwrap_or(1);
+            let num_sub_beams = gen_opt.num_beams / num_beam_groups;
+            let diversity_penalty = gen_opt.diversity_penalty.unwrap_or(5.5);
+
             let mut hypotheses = (0..batch_size)
                 .map(|_| {
                     BeamHypotheses::new(
@@ -2242,26 +711,39 @@ pub(crate) mod private_generation_utils {
                 .collect::<Vec<BeamHypotheses>>();
 
             let vocab_size = self.get_vocab_size();
-            let beam_scores = Tensor::zeros(
+            let beam_scores = Tensor::ones(
                 &[batch_size, gen_opt.num_beams],
                 (Float, self.get_var_store().device()),
-            );
-            if !gen_opt.do_sample {
-                let _ = beam_scores
-                    .slice(1, 1, *beam_scores.size().last().unwrap(), 1)
-                    .fill_(-1e9);
-            }
+            ) * -1e9;
+            let _ = beam_scores
+                .slice(1, 0, *beam_scores.size().last().unwrap(), num_sub_beams)
+                .fill_(0);
 
             let mut beam_scores = beam_scores.view_(&[-1]);
-            let mut beam_tokens: Tensor;
-            let mut beam_indices: Tensor;
+            let mut beam_tokens = Tensor::zeros(
+                &[batch_size * gen_opt.num_beams],
+                (Int64, self.get_var_store().device()),
+            );
+            let mut beam_indices = Tensor::zeros(
+                &[batch_size * gen_opt.num_beams],
+                (Int64, self.get_var_store().device()),
+            );
+            let mut current_tokens = Tensor::new();
+
             let mut past: Cache = Cache::None;
             let mut done = vec![false; batch_size as usize];
 
             let mut outputs: Tensor;
             let mut encoder_outputs = encoder_outputs;
             let mut current_length = cur_len;
+
             while current_length < gen_opt.max_length {
+                if num_beam_groups > 1 {
+                    current_tokens = Tensor::zeros(
+                        &[batch_size * gen_opt.num_beams],
+                        (input_ids.kind(), input_ids.device()),
+                    );
+                }
                 let prepared_input = self.prepare_inputs_for_generation(
                     input_ids.copy(),
                     encoder_outputs.as_ref(),
@@ -2284,140 +766,225 @@ pub(crate) mod private_generation_utils {
                     .unwrap();
                 outputs = temp.lm_logits;
                 past = temp.cache;
-                let mut next_token_logits = outputs.select(1, -1);
-                //            Reduce probability for repeated inputs
-                if gen_opt.repetition_penalty > 1f64 {
-                    self.enforce_repetition_penalty(
-                        &mut next_token_logits,
-                        batch_size,
-                        1,
-                        &input_ids,
-                        gen_opt.repetition_penalty,
-                    )
-                }
 
-                if gen_opt.temperature > 1f64 {
-                    next_token_logits /= gen_opt.temperature;
-                }
-                if self.is_encoder_decoder() & !gen_opt.do_sample {
-                    self.prepare_scores_for_generation(
-                        &mut next_token_logits,
-                        current_length,
-                        gen_opt.max_length,
-                    );
-                }
-                let mut scores = next_token_logits.log_softmax(-1, Float);
-                //            Do not allow eos token if min length is not reached
-                if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
-                    let _ = scores.index_fill_(
-                        1,
-                        &Tensor::of_slice(gen_opt.eos_token_ids.as_ref().unwrap())
-                            .to(scores.device()),
-                        std::f64::NEG_INFINITY,
-                    );
-                }
-                //            Get banned tokens and set their probability to 0
-                if gen_opt.no_repeat_ngram_size > 0 {
-                    let banned_tokens = self.get_banned_tokens(
-                        &input_ids,
-                        gen_opt.no_repeat_ngram_size,
-                        current_length,
-                    );
-                    for (batch_index, index_banned_token) in
-                        (0..banned_tokens.len() as i64).zip(banned_tokens)
-                    {
-                        let _ = scores.get(batch_index).index_fill_(
-                            0,
-                            &Tensor::of_slice(&index_banned_token)
-                                .to_device(next_token_logits.device()),
+                for beam_group_index in 0..num_beam_groups {
+                    let group_start_index = beam_group_index * num_sub_beams;
+                    let group_end_index = min(group_start_index + num_sub_beams, gen_opt.num_beams);
+                    let group_size = group_end_index - group_start_index;
+
+                    let (group_input_ids, batch_group_indices) = if num_beam_groups > 1 {
+                        let mut batch_group_indices: Vec<i64> =
+                            Vec::with_capacity((batch_size * group_size) as usize);
+                        for batch_index in 0..batch_size {
+                            batch_group_indices.extend(
+                                (group_start_index..group_end_index)
+                                    .map(|value| value + batch_index * gen_opt.num_beams),
+                            )
+                        }
+                        let batch_group_indices =
+                            Tensor::of_slice(batch_group_indices.as_slice()).to(input_ids.device());
+                        (
+                            Some(input_ids.index_select(0, &batch_group_indices)),
+                            Some(batch_group_indices),
+                        )
+                    } else {
+                        (None, None)
+                    };
+
+                    let mut next_token_logits = if num_beam_groups <= 1 {
+                        outputs.select(1, -1)
+                    } else {
+                        outputs
+                            .select(1, -1)
+                            .index_select(0, batch_group_indices.as_ref().unwrap())
+                    };
+                    //            Reduce probability for repeated inputs
+                    if gen_opt.repetition_penalty > 1f64 {
+                        self.enforce_repetition_penalty(
+                            &mut next_token_logits,
+                            batch_size,
+                            1,
+                            group_input_ids.as_ref().unwrap_or(&input_ids),
+                            gen_opt.repetition_penalty,
+                        )
+                    }
+
+                    if gen_opt.temperature > 1f64 {
+                        next_token_logits /= gen_opt.temperature;
+                    }
+                    if self.is_encoder_decoder() & !gen_opt.do_sample {
+                        self.prepare_scores_for_generation(
+                            &mut next_token_logits,
+                            current_length,
+                            gen_opt.max_length,
+                        );
+                    }
+                    let mut scores = next_token_logits.log_softmax(-1, Float);
+                    //            Do not allow eos token if min length is not reached
+                    if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
+                        let _ = scores.index_fill_(
+                            1,
+                            &Tensor::of_slice(gen_opt.eos_token_ids.as_ref().unwrap())
+                                .to(scores.device()),
                             std::f64::NEG_INFINITY,
                         );
                     }
-                }
-                let (next_scores, next_tokens) = if gen_opt.do_sample {
-                    let mut _scores: Tensor =
-                        &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
-                    self.top_k_top_p_filtering(&mut _scores, gen_opt.top_k, gen_opt.top_p, 2);
-                    let _scores = _scores
-                        .contiguous()
-                        .view((batch_size, gen_opt.num_beams * vocab_size));
-
-                    let probabilities = _scores.softmax(-1, Float);
-                    let next_tokens = probabilities.multinomial(2 * gen_opt.num_beams, false);
-                    let next_scores = _scores.gather(-1, &next_tokens, false);
-                    let (next_scores, next_scores_indices) = next_scores.sort(1, true);
-                    let next_tokens = next_tokens.gather(-1, &next_scores_indices, false);
-                    (next_scores, next_tokens)
-                } else {
-                    let next_scores: Tensor =
-                        &scores + &beam_scores.unsqueeze(-1).expand_as(&scores);
-                    let next_scores = next_scores
-                        .contiguous()
-                        .view((batch_size, gen_opt.num_beams * vocab_size));
-                    next_scores.topk(2 * gen_opt.num_beams, 1, true, true)
-                };
-
-                let eos_token_ids = gen_opt.eos_token_ids.as_ref();
-                let beam_ids_tensor = &next_tokens.floor_divide1(vocab_size);
-                let effective_beam_ids_tensor = (&next_tokens.ones_like().cumsum(0, Int64) - 1)
-                    * gen_opt.num_beams
-                    + beam_ids_tensor;
-                let token_id_tensor = &next_tokens - beam_ids_tensor * vocab_size;
-                let (max_scores, _) = next_scores.max2(1, false);
-                let mut eos_mask = token_id_tensor.ones_like();
-                if let Some(eos_token_id) = eos_token_ids {
-                    eos_mask -= token_id_tensor.eq(eos_token_id[0]).to_kind(Int64);
-                }
-                let eos_mask2 = eos_mask
-                    .cumsum(1, Int64)
-                    .le(gen_opt.num_beams)
-                    .to_kind(Bool)
-                    .logical_and(&eos_mask);
-
-                beam_scores = next_scores.masked_select(&eos_mask2);
-                beam_tokens = token_id_tensor.masked_select(&eos_mask2);
-                beam_indices = effective_beam_ids_tensor.masked_select(&eos_mask2);
-                let eos_pos = (eos_mask.ones_like() - eos_mask).nonzero();
-
-                for eos_idx in 0..eos_pos.size()[0] {
-                    let eos_data = eos_pos.get(eos_idx);
-                    let batch_index = eos_data.int64_value(&[0]);
-                    if !done[batch_index as usize] {
-                        let beam_index_pos = eos_data.int64_value(&[1]);
-                        let is_beam_token_worse_than_top_num_beams =
-                            beam_index_pos >= gen_opt.num_beams;
-                        if is_beam_token_worse_than_top_num_beams {
-                            continue;
+                    //            Get banned tokens and set their probability to 0
+                    if gen_opt.no_repeat_ngram_size > 0 {
+                        let banned_tokens = self.get_banned_tokens(
+                            group_input_ids.as_ref().unwrap_or(&input_ids),
+                            gen_opt.no_repeat_ngram_size,
+                            current_length,
+                        );
+                        for (batch_index, index_banned_token) in
+                            (0..banned_tokens.len() as i64).zip(banned_tokens)
+                        {
+                            let _ = scores.get(batch_index).index_fill_(
+                                0,
+                                &Tensor::of_slice(&index_banned_token)
+                                    .to_device(next_token_logits.device()),
+                                std::f64::NEG_INFINITY,
+                            );
                         }
-                        let effective_beam_id =
-                            effective_beam_ids_tensor.int64_value(&[batch_index, beam_index_pos]);
-                        let beam_token_score =
-                            next_scores.double_value(&[batch_index, beam_index_pos]);
-                        hypotheses[batch_index as usize]
-                            .add(input_ids.get(effective_beam_id).copy(), beam_token_score);
                     }
-                }
 
-                for batch_index in 0..batch_size {
-                    if done[batch_index as usize] {
-                        let _ = beam_scores
-                            .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
-                            .fill_(0f64);
-                        let _ = beam_tokens
-                            .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
-                            .fill_(gen_opt.pad_token_id.unwrap());
-                        let _ = beam_indices
-                            .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
-                            .fill_(0);
-                        continue;
+                    //            Update scores with diversity penalty
+                    if num_beam_groups > 1 {
+                        self.run_hamming_diversity_penalty(
+                            &mut scores,
+                            &current_tokens,
+                            diversity_penalty,
+                            gen_opt.num_beams,
+                            batch_size,
+                            group_size,
+                            group_start_index,
+                        );
+                    }
+
+                    let mut next_scores: Tensor = &scores
+                        + (if num_beam_groups > 1 {
+                            beam_scores
+                                .index_select(0, batch_group_indices.as_ref().unwrap())
+                                .unsqueeze(-1)
+                                .expand_as(&scores)
+                        } else {
+                            beam_scores.unsqueeze(-1).expand_as(&scores)
+                        });
+
+                    let (next_scores, next_tokens) = if gen_opt.do_sample {
+                        self.top_k_top_p_filtering(
+                            &mut next_scores,
+                            gen_opt.top_k,
+                            gen_opt.top_p,
+                            2,
+                        );
+                        let _scores = next_scores
+                            .contiguous()
+                            .view((batch_size, group_size * vocab_size));
+
+                        let probabilities = _scores.softmax(-1, Float);
+                        let next_tokens = probabilities.multinomial(2 * group_size, false);
+                        let _scores = _scores.gather(-1, &next_tokens, false);
+                        let (_scores, next_scores_indices) = _scores.sort(1, true);
+                        let next_tokens = next_tokens.gather(-1, &next_scores_indices, false);
+                        (_scores, next_tokens)
                     } else {
-                        done[batch_index as usize] |= hypotheses[batch_index as usize]
-                            .is_done(max_scores.double_value(&[batch_index]), current_length);
+                        let _scores = next_scores
+                            .contiguous()
+                            .view((batch_size, group_size * vocab_size));
+                        _scores.topk(2 * group_size, 1, true, true)
+                    };
+
+                    let eos_token_ids = gen_opt.eos_token_ids.as_ref();
+                    let beam_ids_tensor = &next_tokens.floor_divide1(vocab_size);
+                    let effective_beam_ids_tensor = (&next_tokens.ones_like().cumsum(0, Int64) - 1)
+                        * group_size
+                        + beam_ids_tensor;
+                    let token_id_tensor = &next_tokens - beam_ids_tensor * vocab_size;
+                    let (max_scores, _) = next_scores.max2(1, false);
+                    let mut eos_mask = token_id_tensor.ones_like();
+                    if let Some(eos_token_id) = eos_token_ids {
+                        eos_mask -= token_id_tensor.eq(eos_token_id[0]).to_kind(Int64);
+                    }
+                    let eos_mask2 = eos_mask
+                        .cumsum(1, Int64)
+                        .le(group_size)
+                        .to_kind(Bool)
+                        .logical_and(&eos_mask);
+
+                    let group_beam_scores = next_scores.masked_select(&eos_mask2);
+                    let group_beam_tokens = token_id_tensor.masked_select(&eos_mask2);
+                    let group_beam_indices = effective_beam_ids_tensor.masked_select(&eos_mask2);
+                    let eos_pos = (eos_mask.ones_like() - eos_mask).nonzero();
+
+                    for eos_idx in 0..eos_pos.size()[0] {
+                        let eos_data = eos_pos.get(eos_idx);
+                        let batch_index = eos_data.int64_value(&[0]);
+                        if !done[batch_index as usize] {
+                            let beam_index_pos = eos_data.int64_value(&[1]);
+                            let is_beam_token_worse_than_top_num_beams =
+                                beam_index_pos >= gen_opt.num_beams;
+                            if is_beam_token_worse_than_top_num_beams {
+                                continue;
+                            }
+                            let effective_beam_id = effective_beam_ids_tensor
+                                .int64_value(&[batch_index, beam_index_pos]);
+                            let beam_token_score =
+                                next_scores.double_value(&[batch_index, beam_index_pos]);
+                            hypotheses[batch_index as usize]
+                                .add(input_ids.get(effective_beam_id).copy(), beam_token_score);
+                        }
+                    }
+
+                    for batch_index in 0..batch_size {
+                        if done[batch_index as usize] {
+                            let _ = group_beam_scores
+                                .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
+                                .fill_(0f64);
+                            let _ = group_beam_tokens
+                                .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
+                                .fill_(gen_opt.pad_token_id.unwrap());
+                            let _ = group_beam_indices
+                                .narrow(0, batch_index * gen_opt.num_beams, gen_opt.num_beams)
+                                .fill_(0);
+                            continue;
+                        } else {
+                            done[batch_index as usize] |= hypotheses[batch_index as usize]
+                                .is_done(max_scores.double_value(&[batch_index]), current_length);
+                        }
+                    }
+
+                    if num_beam_groups <= 1 {
+                        beam_scores = group_beam_scores.view(-1);
+                        beam_tokens = group_beam_tokens.view(-1);
+                        beam_indices = group_beam_indices.view(-1);
+                    } else {
+                        let _ = beam_scores.index_copy_(
+                            0,
+                            batch_group_indices.as_ref().unwrap(),
+                            &group_beam_scores,
+                        );
+                        let _ = beam_tokens.index_copy_(
+                            0,
+                            batch_group_indices.as_ref().unwrap(),
+                            &group_beam_tokens,
+                        );
+                        let new_indices = gen_opt.num_beams
+                            * group_beam_indices.floor_divide1(group_size)
+                            + group_start_index
+                            + group_beam_indices.remainder(group_size);
+                        let _ = beam_indices.index_copy_(
+                            0,
+                            batch_group_indices.as_ref().unwrap(),
+                            &new_indices,
+                        );
+                        let _ = current_tokens.index_copy_(
+                            0,
+                            batch_group_indices.as_ref().unwrap(),
+                            &group_beam_tokens,
+                        );
                     }
                 }
-                beam_scores = beam_scores.view(-1);
-                beam_tokens = beam_tokens.view(-1);
-                beam_indices = beam_indices.view(-1);
                 if done.iter().all(|&x| x) {
                     break;
                 }
@@ -2568,9 +1135,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{
-    ///     GPT2Generator, GenerateConfig, LanguageGenerator,
-    /// };
+    /// use rust_bert::gpt2::GPT2Generator;
+    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("gpt2");
@@ -2660,9 +1226,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation_utils::{
-    ///     GPT2Generator, GenerateConfig, LanguageGenerator,
-    /// };
+    /// use rust_bert::gpt2::GPT2Generator;
+    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("gpt2");
@@ -2768,6 +1333,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let repetition_penalty = config.repetition_penalty;
         let length_penalty = config.length_penalty;
         let no_repeat_ngram_size = config.no_repeat_ngram_size;
+        let num_beam_groups = config.num_beam_groups;
+        let diversity_penalty = config.diversity_penalty;
 
         let pad_token_id = match self.get_pad_id() {
             Some(value) => Some(*value),
@@ -2879,6 +1446,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             early_stopping,
             num_beams,
             length_penalty,
+            num_beam_groups,
+            diversity_penalty,
         };
 
         let decoded = no_grad(|| {

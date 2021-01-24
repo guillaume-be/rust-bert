@@ -60,6 +60,6 @@ mod gpt2_model;
 pub(crate) mod transformer;
 
 pub use gpt2_model::{
-    GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2Model,
-    Gpt2ModelOutput, Gpt2ModelResources, Gpt2VocabResources,
+    GPT2Generator, GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources,
+    Gpt2Model, Gpt2ModelOutput, Gpt2ModelResources, Gpt2VocabResources,
 };
