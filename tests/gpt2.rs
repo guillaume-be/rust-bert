@@ -170,6 +170,7 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
         do_sample: false,
         num_beams: 5,
         temperature: 1.2,
+        device: Device::Cpu,
         num_return_sequences: 3,
         ..Default::default()
     };
@@ -219,6 +220,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
         num_beams: 5,
         temperature: 1.2,
         num_return_sequences: 3,
+        device: Device::Cpu,
         ..Default::default()
     };
     let model = TextGenerationModel::new(generate_config)?;
