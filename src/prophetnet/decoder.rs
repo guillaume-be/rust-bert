@@ -273,7 +273,7 @@ impl ProphetNetDecoder {
                 "At least one of input ids or input embeddings must be set".into(),
             ));
         };
-        let input_embeds = input_embeds.unwrap_or(calc_input_embeddings.as_ref().unwrap());
+        let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let input_size = input_embeds.size();
         let (batch_size, sequence_length) = (input_size[0], input_size[1]);

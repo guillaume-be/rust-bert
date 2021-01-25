@@ -757,10 +757,7 @@ pub(crate) fn compute_relative_buckets(
         .min1(&(val_if_large.ones_like() * (num_buckets as f64 - 1.0)))
         .totype(Kind::Int64);
 
-    let relative_positions_bucket =
-        relative_positions_bucket + inverse_relative_positions.where1(&is_small, &val_if_large);
-
-    relative_positions_bucket
+    relative_positions_bucket + inverse_relative_positions.where1(&is_small, &val_if_large)
 }
 
 pub(crate) fn compute_all_stream_relative_buckets(

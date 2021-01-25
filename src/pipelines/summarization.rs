@@ -71,13 +71,9 @@ use crate::bart::{
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::pipelines::common::ModelType;
-use crate::pipelines::generation_utils::{
-    BartGenerator, GenerateConfig, LanguageGenerator, ProphetNetConditionalGenerator, T5Generator,
-};
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::prophetnet::ProphetNetConditionalGenerator;
 use crate::t5::T5Generator;
-use itertools::Itertools;
-use tch::{Device, Tensor};
 
 /// # Configuration for text summarization
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a

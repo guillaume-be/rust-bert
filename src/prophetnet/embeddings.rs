@@ -50,23 +50,25 @@ impl ProphetNetPositionalEmbeddings {
         prev_num_input_ids: Option<i64>,
         position_ids: Option<&Tensor>,
     ) -> (Tensor, Tensor) {
-        let calc_position_ids = if position_ids.is_none() {
-            if let Some(prev_num_input_ids_value) = prev_num_input_ids {
-                let num_input_ids = input_shape[1] + prev_num_input_ids_value;
+        let calc_position_ids = match position_ids {
+            None => {
+                if let Some(prev_num_input_ids_value) = prev_num_input_ids {
+                    let num_input_ids = input_shape[1] + prev_num_input_ids_value;
 
-                Tensor::ones(&[1, 1], (Kind::Int64, device)) * (self.padding_idx + num_input_ids)
-            } else {
-                let calc_attention_mask = if attention_mask.is_none() {
-                    Some(Tensor::ones(input_shape, (Kind::Int64, device)))
+                    Tensor::ones(&[1, 1], (Kind::Int64, device))
+                        * (self.padding_idx + num_input_ids)
                 } else {
-                    None
-                };
-                let attention_mask =
-                    attention_mask.unwrap_or_else(|| calc_attention_mask.as_ref().unwrap());
-                attention_mask.cumsum(1, Kind::Int64) * attention_mask + self.padding_idx
+                    let calc_attention_mask = if attention_mask.is_none() {
+                        Some(Tensor::ones(input_shape, (Kind::Int64, device)))
+                    } else {
+                        None
+                    };
+                    let attention_mask =
+                        attention_mask.unwrap_or_else(|| calc_attention_mask.as_ref().unwrap());
+                    attention_mask.cumsum(1, Kind::Int64) * attention_mask + self.padding_idx
+                }
             }
-        } else {
-            position_ids.unwrap().copy()
+            Some(value) => value.copy(),
         };
 
         (calc_position_ids.apply(&self.embeddings), calc_position_ids)

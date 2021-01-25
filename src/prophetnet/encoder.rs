@@ -163,7 +163,7 @@ impl ProphetNetEncoder {
             ));
         };
 
-        let input_embeds = input_embeds.unwrap_or(calc_input_embeddings.as_ref().unwrap());
+        let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let extended_attention_mask = attention_mask.map(|mask| {
             (mask.ones_like() - mask.unsqueeze(1).repeat(&[self.num_attention_heads, 1, 1]))

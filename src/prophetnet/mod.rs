@@ -6,7 +6,7 @@ mod prophetnet_model;
 
 pub use attention::LayerState;
 pub use prophetnet_model::{
-    ProphetNetConfig, ProphetNetConfigResources, ProphetNetForCausalGeneration,
-    ProphetNetForConditionalGeneration, ProphetNetGenerationOutput, ProphetNetModel,
-    ProphetNetModelResources, ProphetNetOutput, ProphetNetVocabResources,
+    ProphetNetConditionalGenerator, ProphetNetConfig, ProphetNetConfigResources,
+    ProphetNetForCausalGeneration, ProphetNetForConditionalGeneration, ProphetNetGenerationOutput,
+    ProphetNetModel, ProphetNetModelResources, ProphetNetOutput, ProphetNetVocabResources,
 };
