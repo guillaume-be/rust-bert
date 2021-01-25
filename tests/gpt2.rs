@@ -170,6 +170,7 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
         do_sample: false,
         num_beams: 5,
         temperature: 1.2,
+        device: Device::Cpu,
         num_return_sequences: 3,
         ..Default::default()
     };
@@ -219,6 +220,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
         num_beams: 5,
         temperature: 1.2,
         num_return_sequences: 3,
+        device: Device::Cpu,
         ..Default::default()
     };
     let model = TextGenerationModel::new(generate_config)?;
@@ -291,15 +293,15 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
     assert_eq!(output.len(), 6);
     assert_eq!(
         output[0],
-        "The dog was found dead on the side of the road in the middle of the night.\n"
+        "The dog was found in the backyard of a home in the 6200 block of South Main Street"
     );
     assert_eq!(
         output[1],
-        "The dog was found dead on the side of the road in the middle of the night on Sunday"
+        "The dog was found in the backyard of a home in the 6500 block of South Main Street"
     );
     assert_eq!(
         output[2],
-        "The dog was found dead on the side of the road in the middle of the night on Saturday"
+        "The dog was found in the backyard of a home in the 6200 block of North Main Street"
     );
     assert_eq!(
         output[3],
@@ -312,6 +314,69 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
     assert_eq!(
         output[5],
         "The cat was taken to a local hospital, where it was treated and released.\n\n\"We"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn gpt2_diverse_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()> {
+    //    Resources definition
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+
+    //    Set-up masked LM model
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::GPT2,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        min_length: 10,
+        max_length: 20,
+        do_sample: false,
+        num_beams: 6,
+        num_beam_groups: Some(3),
+        diversity_penalty: Some(5.5),
+        num_return_sequences: 3,
+        ..Default::default()
+    };
+    let model = TextGenerationModel::new(generate_config)?;
+
+    let input_context_1 = "It was a nice and";
+    let input_context_2 = "Language models can generate";
+    let output = model.generate(&[input_context_1, input_context_2], None);
+
+    assert_eq!(output.len(), 6);
+    assert_eq!(
+        output[0],
+        "It was a nice and peaceful evening for me,\" he said.\n\n\"It was nice to"
+    );
+    assert_eq!(
+        output[1],
+        "It was a nice and warm day, and I'm glad I did.\n\n\"I'm"
+    );
+    assert_eq!(
+        output[2],
+        "It was a nice and warm day, and I'm glad I did.\n\n\"I was"
+    );
+    assert_eq!(
+        output[3],
+        "Language models can generate more complex models, but they are not the only way to do so."
+    );
+    assert_eq!(
+        output[4],
+        "Language models can generate more complex models, but they are not the only way to do this."
+    );
+    assert_eq!(
+        output[5],
+        "Language models can generate a lot of data, but they're not the only way to do it"
     );
 
     Ok(())
@@ -413,19 +478,29 @@ fn dialogpt_multiple_multi_turn_conversation_with_truncation() -> anyhow::Result
     let mut conversation_manager = ConversationManager::new();
     let conversation_1_id =
         conversation_manager.create("Going to the movies tonight - any suggestions?");
+    let conversation_2_id = conversation_manager.create("Hello how are you?");
 
     // Turn 1
     let output = conversation_model.generate_responses(&mut conversation_manager);
-    assert_eq!(output.len(), 1);
+    assert_eq!(output.len(), 2);
     assert_eq!(output.get(&conversation_1_id).unwrap(), &"The Big Lebowski");
+    assert_eq!(
+        output.get(&conversation_2_id).unwrap(),
+        &"I'm good, how are you?"
+    );
 
     // Turn 2
     let _ = conversation_manager
         .get(&conversation_1_id)
         .unwrap()
         .add_user_input("Is it an action movie?");
+    let _ = conversation_manager
+        .get(&conversation_2_id)
+        .unwrap()
+        .add_user_input("Fine.");
+
     let output = conversation_model.generate_responses(&mut conversation_manager);
-    assert_eq!(output.len(), 1);
+    assert_eq!(output.len(), 2);
     assert_eq!(output.get(&conversation_1_id).unwrap(), &"It\'s a comedy.");
 
     // Turn 3 (no new user input)

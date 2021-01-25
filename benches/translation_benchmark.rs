@@ -41,7 +41,7 @@ fn translation_forward_pass(iters: u64, model: &TranslationModel, data: &[&str])
     duration
 }
 
-fn summarization_load_model(iters: u64) -> Duration {
+fn translation_load_model(iters: u64) -> Duration {
     let mut duration = Duration::new(0, 0);
     for _i in 0..iters {
         let start = Instant::now();
@@ -96,7 +96,7 @@ fn bench_squad(c: &mut Criterion) {
     });
 
     c.bench_function("Load model", |b| {
-        b.iter_custom(|iters| black_box(summarization_load_model(iters)))
+        b.iter_custom(|iters| black_box(translation_load_model(iters)))
     });
 }
 

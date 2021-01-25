@@ -2,8 +2,17 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+- (BREAKING) Implementation of [Diverse Beam Search](https://arxiv.org/abs/1610.02424). This allows the generation of more diverse sequences within the number of beams. Addition of 2 new fields to the `GenerateConfig` that are propagated through all text generation configs (e.g. `TranslationConfig`): 
+    - `num_beam_groups` (`Option<i64>`), indicating the number of sub-beam groups. This must be a divisor of the number of beams.
+    - `diversity_penalty` (`Option<f64>`), indicating by which amount to penalize common words between beam groups. This will default to 5.5 if not provided. The impact of this diverse beam search is illustrated in the GPT2 integration tests.
+
 ### Changed
 - (BREAKING) Simplified the input and output of encoder/decoder models to avoid needing to take ownership of the possibly cached encoder hidden state, offering a minor performance improvement for text generation tasks. The model output field for encoder hidden states are now optional, and only returned if the encoder hidden states were not provided for the given forward path. This may be a breaking change for low-level dependencies that manipulate directly the encoder/decoder model outputs.
+- (BREAKING) Moved the language models implementation of the `PrivateLanguageGenerator` and `LanguageGenerator` traits (needed to generate text) to the model modules, cleaning up the generation_utils module.
+
+### Fixed
+- Updated padding information and addition of position ids for batched GPT2 generation. Prior to this change, inputs that required padding had a lower quality for the text generated.
 
 ## [0.12.1] - 2021-01-04
 ### Added

@@ -17,20 +17,21 @@
 //! By default, the dependencies for this model will be downloaded for a GPT2-medium model.
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
 //! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/gpt2
+use itertools::Itertools;
+use tch::{Device, Tensor};
+
 use crate::common::error::RustBertError;
 use crate::common::resources::RemoteResource;
 use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
+    GPT2Generator, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
+use crate::openai_gpt::OpenAIGenerator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{
-    GPT2Generator, GenerateConfig, LanguageGenerator, OpenAIGenerator, ReformerGenerator,
-    XLNetGenerator,
-};
+use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::reformer::ReformerGenerator;
 use crate::resources::Resource;
-use itertools::Itertools;
-use tch::{Device, Tensor};
+use crate::xlnet::XLNetGenerator;
 
 /// # Configuration for text generation
 /// Contains information regarding the model to load, mirrors the GenerateConfig, with a
@@ -70,6 +71,10 @@ pub struct TextGenerationConfig {
     pub no_repeat_ngram_size: i64,
     /// Number of sequences to return for each prompt text (default: 1)
     pub num_return_sequences: i64,
+    /// Number of beam groups for diverse beam generation. If provided and higher than 1, will split the beams into beam subgroups leading to more diverse generation.
+    pub num_beam_groups: Option<i64>,
+    /// Diversity penalty for diverse beam search. High values will enforce more difference between beam groups (default: 5.5)
+    pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
 }
@@ -122,7 +127,7 @@ impl Default for TextGenerationConfig {
             min_length: 0,
             max_length: 20,
             do_sample: true,
-            early_stopping: false,
+            early_stopping: true,
             num_beams: 5,
             temperature: 1.0,
             top_k: 0,
@@ -131,6 +136,8 @@ impl Default for TextGenerationConfig {
             length_penalty: 1.0,
             no_repeat_ngram_size: 3,
             num_return_sequences: 1,
+            num_beam_groups: None,
+            diversity_penalty: None,
             device: Device::cuda_if_available(),
         }
     }
@@ -155,6 +162,8 @@ impl From<TextGenerationConfig> for GenerateConfig {
             length_penalty: config.length_penalty,
             no_repeat_ngram_size: config.no_repeat_ngram_size,
             num_return_sequences: config.num_return_sequences,
+            num_beam_groups: config.num_beam_groups,
+            diversity_penalty: config.diversity_penalty,
             device: config.device,
         }
     }

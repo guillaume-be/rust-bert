@@ -47,14 +47,14 @@
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
+    GPT2Generator, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{GPT2Generator, GenerateConfig, LanguageGenerator};
+use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use itertools::Itertools;
 use std::collections::HashMap;
-use tch::{Device, Tensor};
+use tch::{Device, Kind, Tensor};
 use uuid::Uuid;
 
 /// # Configuration for multi-turn classification
@@ -97,6 +97,10 @@ pub struct ConversationConfig {
     pub no_repeat_ngram_size: i64,
     /// Number of sequences to return for each prompt text (default: 1)
     pub num_return_sequences: i64,
+    /// Number of beam groups for diverse beam generation. If provided and higher than 1, will split the beams into beam subgroups leading to more diverse generation.
+    pub num_beam_groups: Option<i64>,
+    /// Diversity penalty for diverse beam search. High values will enforce more difference between beam groups (default: 5.5)
+    pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
 }
@@ -130,6 +134,8 @@ impl Default for ConversationConfig {
             length_penalty: 1.0,
             no_repeat_ngram_size: 0,
             num_return_sequences: 1,
+            num_beam_groups: None,
+            diversity_penalty: None,
             device: Device::cuda_if_available(),
         }
     }
@@ -154,6 +160,8 @@ impl From<ConversationConfig> for GenerateConfig {
             length_penalty: config.length_penalty,
             no_repeat_ngram_size: config.no_repeat_ngram_size,
             num_return_sequences: config.num_return_sequences,
+            num_beam_groups: config.num_beam_groups,
+            diversity_penalty: config.diversity_penalty,
             device: config.device,
         }
     }
@@ -799,9 +807,12 @@ impl ConversationModel {
                 .collect_vec();
 
             let prompt_ids = self.encode_prompts(texts.as_ref());
-            let input_tensor = self.concat_input_history(prompt_ids.as_ref(), history);
+            let (input_tensor, attention_mask) =
+                self.concat_input_history(prompt_ids.as_ref(), history);
             let input_length = *input_tensor.size().last().unwrap() as usize;
-            let mut generated = self.model.generate_from_ids_and_past(input_tensor, None);
+            let mut generated = self
+                .model
+                .generate_from_ids_and_past(input_tensor, Some(attention_mask));
             let removed_padding_quantities = self.clean_padding_indices(&mut generated);
 
             let mut output = HashMap::with_capacity(active_uuid.len());
@@ -861,7 +872,11 @@ impl ConversationModel {
         removed_tokens
     }
 
-    fn concat_input_history(&self, inputs: &[Vec<i64>], history: Vec<Vec<i64>>) -> Tensor {
+    fn concat_input_history(
+        &self,
+        inputs: &[Vec<i64>],
+        history: Vec<Vec<i64>>,
+    ) -> (Tensor, Tensor) {
         // Concatenates the history token indices with new user input
         let pad_token = self
             .model
@@ -890,23 +905,45 @@ impl ConversationModel {
             .unwrap()
             .min(self.max_allowed_context_length as usize);
 
-        let concatenated_inputs = concatenated_inputs
-            .into_iter()
+        let truncated_concatenated_inputs = concatenated_inputs
+            .iter()
             .map(|input| {
-                let (start, mut temp) = if input.len() > max_len {
-                    (
-                        self.get_truncated_input_index(&input, max_len, pad_token),
-                        vec![],
-                    )
+                if input.len() > max_len {
+                    let start = self.get_truncated_input_index(&input, max_len, pad_token);
+                    &input[start..]
                 } else {
-                    (0, vec![pad_token; max_len - input.len()])
-                };
-                temp.extend_from_slice(&input[start..]);
-                temp
+                    input.as_slice()
+                }
+            })
+            .collect::<Vec<&[i64]>>();
+
+        let max_len = truncated_concatenated_inputs
+            .iter()
+            .map(|input| input.len())
+            .max()
+            .unwrap();
+
+        let attention_mask = Tensor::ones(
+            &[inputs.len() as i64, max_len as i64],
+            (Kind::Int8, self.device),
+        );
+
+        let concatenated_inputs = truncated_concatenated_inputs
+            .into_iter()
+            .enumerate()
+            .map(|(input_idx, input)| {
+                let _ = attention_mask
+                    .get(input_idx as i64)
+                    .slice(0, 0, (max_len - input.len()) as i64, 1)
+                    .fill_(0);
+                let mut padded_input = vec![pad_token; max_len - input.len()];
+                padded_input.extend(input);
+                padded_input
             })
             .map(|tokens| Tensor::of_slice(&tokens).to(self.device))
             .collect::<Vec<Tensor>>();
-        Tensor::stack(&concatenated_inputs, 0)
+
+        (Tensor::stack(&concatenated_inputs, 0), attention_mask)
     }
 
     fn get_truncated_input_index(

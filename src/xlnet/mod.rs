@@ -21,7 +21,7 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::common::ModelType;
-//! use rust_bert::pipelines::generation_utils::{LanguageGenerator, XLNetGenerator};
+//! use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 //! use rust_bert::resources::{RemoteResource, Resource};
 //! use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
@@ -65,6 +65,6 @@ mod xlnet_model;
 pub use attention::LayerState;
 pub use xlnet_model::{
     XLNetConfig, XLNetConfigResources, XLNetForMultipleChoice, XLNetForQuestionAnswering,
-    XLNetForSequenceClassification, XLNetForTokenClassification, XLNetLMHeadModel, XLNetModel,
-    XLNetModelResources, XLNetVocabResources,
+    XLNetForSequenceClassification, XLNetForTokenClassification, XLNetGenerator, XLNetLMHeadModel,
+    XLNetModel, XLNetModelResources, XLNetVocabResources,
 };

@@ -11,19 +11,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Borrow;
+use std::collections::HashMap;
+
+use rust_tokenizers::tokenizer::ReformerTokenizer;
+use rust_tokenizers::vocab::ReformerVocab;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tch::{nn, Device, Kind, Tensor};
+
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
-use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
+use crate::common::resources::{RemoteResource, Resource};
+use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::{
+    PreparedInput, PrivateLanguageGenerator,
+};
+use crate::pipelines::generation_utils::{
+    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
+};
 use crate::reformer::attention::{AttentionType, LayerState};
 use crate::reformer::attention_utils::{get_least_common_mult_chunk_len, get_min_chunk_len};
 use crate::reformer::embeddings::ReformerEmbeddings;
 use crate::reformer::encoder::{ReformerEncoder, ReformerModelOutput};
 use crate::{Config, RustBertError};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::borrow::Borrow;
-use std::collections::HashMap;
-use tch::{nn, Device, Kind, Tensor};
 
 /// # Reformer Pretrained model weight files
 pub struct ReformerModelResources;
@@ -1004,4 +1016,184 @@ pub struct ReformerQuestionAnsweringModelOutput {
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct ReformerGenerator {
+    model: ReformerModelWithLMHead,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl ReformerGenerator {
+    pub fn new(generate_config: GenerateConfig) -> Result<ReformerGenerator, RustBertError> {
+        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
+        let model_resource = if generate_config.model_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                ReformerModelResources::CRIME_AND_PUNISHMENT,
+            ))
+        } else {
+            generate_config.model_resource.clone()
+        };
+
+        let config_resource = if generate_config.config_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                ReformerConfigResources::CRIME_AND_PUNISHMENT,
+            ))
+        } else {
+            generate_config.config_resource.clone()
+        };
+
+        let vocab_resource = if generate_config.vocab_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                ReformerVocabResources::CRIME_AND_PUNISHMENT,
+            ))
+        } else {
+            generate_config.vocab_resource.clone()
+        };
+
+        let config_path = config_resource.get_local_path()?;
+        let vocab_path = vocab_resource.get_local_path()?;
+        let weights_path = model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::Reformer,
+            vocab_path.to_str().unwrap(),
+            None,
+            false,
+            None,
+            None,
+        )?;
+        let config = ReformerConfig::from_file(config_path);
+        let model = ReformerModelWithLMHead::new(&var_store.root(), &config)?;
+        var_store.load(weights_path)?;
+
+        let bos_token_id = None;
+        let eos_token_ids = Some(vec![config.eos_token_id]);
+        let pad_token_id = Some(config.pad_token_id);
+        let vocab_size = config.vocab_size;
+        let is_encoder_decoder = false;
+        let decoder_start_id = None;
+
+        Ok(ReformerGenerator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTokenizer>
+    for ReformerGenerator
+{
+    fn get_model(&self) -> &ReformerModelWithLMHead {
+        &self.model
+    }
+    fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        _encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        attention_mask: Tensor,
+    ) -> PreparedInput<'a> {
+        match past {
+            Cache::ReformerCache(past) => PreparedInput {
+                prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
+                prepared_attention_mask: None,
+                prepared_encoder_output: None,
+                prepared_decoder_input: None,
+                prepared_position_ids: None,
+                prepared_past: Cache::ReformerCache(past),
+            },
+            Cache::None => PreparedInput {
+                prepared_input: Some(input_ids),
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: None,
+                prepared_decoder_input: None,
+                prepared_position_ids: None,
+                prepared_past: Cache::ReformerCache(None),
+            },
+            _ => panic!("Cache type incompatible with Reformer"),
+        }
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::ReformerCache(old_cache_option) => match old_cache_option {
+                Some(old_cache) => {
+                    for layer_state in old_cache.iter_mut() {
+                        if layer_state.is_some() {
+                            layer_state.as_mut().unwrap().reorder_cache(beam_indices)
+                        };
+                    }
+                }
+                None => {}
+            },
+            Cache::None => {}
+            _ => {
+                panic!("Invalid cache for Reformer model");
+            }
+        };
+        encoder_outputs
+    }
+}
+
+impl LanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTokenizer>
+    for ReformerGenerator
+{
 }
