@@ -851,6 +851,7 @@ pub struct ProphetNetGenerationOutput {
     pub next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
 }
 
+/// # Language generation model based on the ProphetNet architecture
 pub struct ProphetNetConditionalGenerator {
     model: ProphetNetForConditionalGeneration,
     tokenizer: TokenizerOption,
@@ -865,6 +866,44 @@ pub struct ProphetNetConditionalGenerator {
 }
 
 impl ProphetNetConditionalGenerator {
+    /// Build a new `ProphetNetConditionalGenerator`
+    ///
+    /// # Arguments
+    ///
+    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `merges_path` - Path to the bpe merges, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
+    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// # use tch::Device;
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    /// use rust_bert::prophetnet::ProphetNetConditionalGenerator;
+    /// # let mut home: PathBuf = dirs::home_dir().unwrap();
+    /// # home.push("rustbert");
+    /// # home.push("prophetnet");
+    /// # let config_path = &home.as_path().join("config.json");
+    /// # let vocab_path = &home.as_path().join("vocab.txt");
+    /// # let merges_path = &home.as_path().join("merges.txt");
+    /// # let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::cuda_if_available();
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let prophetnet_generator = ProphetNetConditionalGenerator::new(generate_config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn new(
         generate_config: GenerateConfig,
     ) -> Result<ProphetNetConditionalGenerator, RustBertError> {

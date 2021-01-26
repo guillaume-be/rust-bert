@@ -2,7 +2,7 @@
 //!
 //! Implementation of the Reformer language model ([Reformer: The Efficient Transformer](https://arxiv.org/abs/2001.04451) Kitaev, kaiser, Levskaya, 2020).
 //! The base model is implemented in the `reformer_model::ReformerModel` struct. The model also includes a language model head: `reformer_model::ReformerModelWithLMHead`
-//! implementing the common `generation::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!

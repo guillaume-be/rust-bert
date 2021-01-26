@@ -1,16 +1,16 @@
 //! # Electra: Pre-training Text Encoders as Discriminators Rather Than Generators (Clark et al.)
 //!
 //! Implementation of the Electra language model ([https://openreview.net/pdf?id=r1xMH1BtvB](https://openreview.net/pdf?id=r1xMH1BtvB) Clark, Luong, Le, Manning, 2020).
-//! The base model is implemented in the `electra::ElectraModel` struct. Both generator and discriminator are available via specialized heads:
-//! - Generator head: `electra::ElectraGeneratorHead`
-//! - Discriminator head: `electra::ElectraDiscriminatorHead`
+//! The base model is implemented in the `electra_model::ElectraModel` struct. Both generator and discriminator are available via specialized heads:
+//! - Generator head: `electra_model::ElectraGeneratorHead`
+//! - Discriminator head: `electra_model::ElectraDiscriminatorHead`
 //!
 //! The generator and discriminator models are built from these:
-//! - Generator (masked language model): `electra::ElectraForMaskedLM`
-//! - Discriminator: `electra::ElectraDiscriminator`
+//! - Generator (masked language model): `electra_model::ElectraForMaskedLM`
+//! - Discriminator: `electra_model::ElectraDiscriminator`
 //!
 //! An additional sequence token classification model is available for reference
-//! - Token classification (e.g. NER, POS tagging): `electra::ElectraForTokenClassification`
+//! - Token classification (e.g. NER, POS tagging): `electra_model::ElectraForTokenClassification`
 //!
 //! # Model set-up and pre-trained weights loading
 //!

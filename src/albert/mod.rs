@@ -2,12 +2,12 @@
 //!
 //! Implementation of the ALBERT language model ([https://arxiv.org/abs/1909.11942](https://arxiv.org/abs/1909.11942) Lan, Chen, Goodman, Gimpel, Sharma, Soricut, 2019).
 //! This model offers a greatly reduced memory footprint for similar effective size (number and size of layers). The computational cost remains however similar to the original BERT model.
-//! The base model is implemented in the `albert::AlbertModel` struct. Several language model heads have also been implemented, including:
-//! - Masked language model: `albert::AlbertForMaskedLM`
-//! - Multiple choices: `albert:AlbertForMultipleChoice`
-//! - Question answering: `albert::AlbertForQuestionAnswering`
-//! - Sequence classification: `albert::AlbertForSequenceClassification`
-//! - Token classification (e.g. NER, POS tagging): `albert::AlbertForTokenClassification`
+//! The base model is implemented in the `albert_model::AlbertModel` struct. Several language model heads have also been implemented, including:
+//! - Masked language model: `albert_model::AlbertForMaskedLM`
+//! - Multiple choices: `albert_model:AlbertForMultipleChoice`
+//! - Question answering: `albert_model::AlbertForQuestionAnswering`
+//! - Sequence classification: `albert_model::AlbertForSequenceClassification`
+//! - Token classification (e.g. NER, POS tagging): `albert_model::AlbertForTokenClassification`
 //!
 //! # Model set-up and pre-trained weights loading
 //!

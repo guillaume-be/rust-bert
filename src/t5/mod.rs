@@ -1,8 +1,8 @@
 //! # T5 (Text-To-Text Transfer Transformer)
 //!
 //! Implementation of the T5 language model ([Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer](https://arxiv.org/abs/1910.10683) Raffel, Shazeer, Roberts, Lee, Narang, Matena, Zhou, Li, Liu, 2019).
-//! The base model is implemented in the `t5::T5Model` struct. This model includes a language model head: `t5::T5ForConditionalGeneration`
-//! implementing the common `generation::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! The base model is implemented in the `t5_model::T5Model` struct. This model includes a language model head: `t5_model::T5ForConditionalGeneration`
+//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!
