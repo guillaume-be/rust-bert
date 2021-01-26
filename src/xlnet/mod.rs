@@ -1,11 +1,11 @@
 //! # XLNet (Generalized Autoregressive Pretraining for Language Understanding)
 //!
 //! Implementation of the XLNet language model ([Generalized Autoregressive Pretraining for Language Understanding](https://arxiv.org/abs/1906.08237) Yang, Dai, Yang, Carbonell, Salakhutdinov, Le, 2019).
-//! The base model is implemented in the `xlnet::XLNetModel` struct. Several language model heads have also been implemented, including:
-//! - Language generation: `xlnet::XLNetLMHeadModel` implementing the common `generation::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information)
-//! - Multiple choices: `xlnet:XLNetForMultipleChoice`
-//! - Question answering: `xlnet::XLNetForQuestionAnswering`
-//! - Sequence classification: `xlnet::XLNetForSequenceClassification`
+//! The base model is implemented in the `xlnet_model::XLNetModel` struct. Several language model heads have also been implemented, including:
+//! - Language generation: `xlnet_model::XLNetLMHeadModel` implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information)
+//! - Multiple choices: `xlnet_model:XLNetForMultipleChoice`
+//! - Question answering: `xlnet_model::XLNetForQuestionAnswering`
+//! - Sequence classification: `xlnet_model::XLNetForSequenceClassification`
 //! - Token classification (e.g. NER, POS tagging): `xlnet::XLNetForTokenClassification`.
 //!
 //! # Model set-up and pre-trained weights loading
@@ -16,7 +16,6 @@
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
 //! - `XLNetTokenizer` using a `spiece.model` sentence piece model
 //!
-//! Pretrained models for a number of language pairs are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
