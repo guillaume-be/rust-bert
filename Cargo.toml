@@ -1,6 +1,6 @@
 [package]
 name = "rust-bert"
-version = "0.12.1"
+version = "0.13.0"
 authors = ["Guillaume Becquin <guillaume.becquin@gmail.com>"]
 edition = "2018"
 description = "Ready-to-use NLP pipelines and transformer-based models (BERT, DistilBERT, GPT2,...)"
@@ -57,8 +57,8 @@ all-tests = []
 features = ["doc-only"]
 
 [dependencies]
-rust_tokenizers = {version = "~6.1.1", path="E:/Coding/backup-rust/rust-tokenizers/main"}
-tch = "~0.3.0"
+rust_tokenizers = "~6.2.0"
+tch = "~0.3.1"
 serde_json = "1.0.59"
 serde = { version = "1.0.117", features = ["derive"] }
 dirs = "3.0.1"
