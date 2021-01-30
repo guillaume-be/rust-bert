@@ -13,6 +13,7 @@
 use crate::{Activation, Config};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tch::{Kind, Tensor};
 
 /// # Longformer Pretrained model weight files
 pub struct LongformerModelResources;
@@ -58,6 +59,13 @@ impl LongformerMergesResources {
     );
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub enum PositionEmbeddingType {
+    Absolute,
+    RelativeKey,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 /// # Longformer model configuration
 /// Defines the Longformer model architecture (e.g. number of layers, hidden layer size, label mapping...)
@@ -74,11 +82,44 @@ pub struct LongformerConfig {
     pub num_hidden_layers: i64,
     pub type_vocab_size: i64,
     pub vocab_size: i64,
+    pub sep_token_id: i64,
+    pub pad_token_id: Option<i64>,
+    pub layer_norm_eps: Option<f64>,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
+    pub position_embedding_type: Option<PositionEmbeddingType>,
     pub is_decoder: Option<bool>,
     pub id2label: Option<HashMap<i64, String>>,
     pub label2id: Option<HashMap<String, i64>>,
 }
 
 impl Config<LongformerConfig> for LongformerConfig {}
+
+fn get_question_end_index(input_ids: &Tensor, sep_token_id: i64) -> Tensor {
+    input_ids
+        .eq(sep_token_id)
+        .nonzero()
+        .view([input_ids.size()[0], 3, 2])
+        .select(2, 1)
+        .select(1, 0)
+}
+
+fn compute_global_attention_mask(
+    input_ids: &Tensor,
+    sep_token_id: i64,
+    before_sep_token: bool,
+) -> Tensor {
+    let question_end_index = get_question_end_index(input_ids, sep_token_id).unsqueeze(1);
+    let attention_mask = Tensor::arange(input_ids.size()[1], (Kind::Int8, input_ids.device()));
+
+    if before_sep_token {
+        attention_mask.expand_as(input_ids).lt1(&question_end_index)
+    } else {
+        attention_mask
+            .expand_as(input_ids)
+            .gt1(&(question_end_index + 1))
+            * attention_mask
+                .expand_as(input_ids)
+                .lt(*input_ids.size().last().unwrap())
+    }
+}

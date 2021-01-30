@@ -1,3 +1,4 @@
+mod embeddings;
 mod longformer_model;
 
 pub use longformer_model::{
