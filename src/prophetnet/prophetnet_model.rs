@@ -1,15 +1,3 @@
-use std::borrow::Borrow;
-use std::collections::HashMap;
-
-use rust_tokenizers::tokenizer::{ProphetNetTokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::{ProphetNetVocab, Vocab};
-use serde::{Deserialize, Serialize};
-use tch::{nn, Kind, Tensor};
-
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
-use crate::pipelines::common::{ModelType, TokenizerOption};
-use crate::{Activation, Config, RustBertError};
 // Copyright 2020 The Microsoft Authors and The HuggingFace Inc. team.
 // Copyright 2020 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +9,18 @@ use crate::{Activation, Config, RustBertError};
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use std::borrow::Borrow;
+use std::collections::HashMap;
+
+use rust_tokenizers::tokenizer::{ProphetNetTokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::{ProphetNetVocab, Vocab};
+use serde::{Deserialize, Serialize};
+use tch::{nn, Kind, Tensor};
+
+use crate::common::resources::{RemoteResource, Resource};
+use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
+use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
@@ -30,6 +30,7 @@ use crate::pipelines::generation_utils::{
 use crate::prophetnet::attention::LayerState;
 use crate::prophetnet::decoder::ProphetNetDecoder;
 use crate::prophetnet::encoder::ProphetNetEncoder;
+use crate::{Activation, Config, RustBertError};
 
 /// # ProphetNet Pretrained model weight files
 pub struct ProphetNetModelResources;
