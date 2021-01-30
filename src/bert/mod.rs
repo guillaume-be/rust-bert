@@ -1,12 +1,12 @@
 //! # BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding (Devlin et al.)
 //!
 //! Implementation of the BERT language model ([https://arxiv.org/abs/1810.04805](https://arxiv.org/abs/1810.04805) Devlin, Chang, Lee, Toutanova, 2018).
-//! The base model is implemented in the `bert::BertModel` struct. Several language model heads have also been implemented, including:
-//! - Masked language model: `bert::BertForMaskedLM`
-//! - Multiple choices: `bert:BertForMultipleChoice`
-//! - Question answering: `bert::BertForQuestionAnswering`
-//! - Sequence classification: `bert::BertForSequenceClassification`
-//! - Token classification (e.g. NER, POS tagging): `bert::BertForTokenClassification`
+//! The base model is implemented in the `bert_model::BertModel` struct. Several language model heads have also been implemented, including:
+//! - Masked language model: `bert_model::BertForMaskedLM`
+//! - Multiple choices: `bert_model:BertForMultipleChoice`
+//! - Question answering: `bert_model::BertForQuestionAnswering`
+//! - Sequence classification: `bert_model::BertForSequenceClassification`
+//! - Token classification (e.g. NER, POS tagging): `bert_model::BertForTokenClassification`
 //!
 //! # Model set-up and pre-trained weights loading
 //!

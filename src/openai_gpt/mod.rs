@@ -1,8 +1,8 @@
 //! # GPT (Radford et al.)
 //!
 //! Implementation of the GPT2 language model ([Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) Radford, Narasimhan, Salimans, Sutskever 2018).
-//! The base model is implemented in the `openai_gpt::OpenAiGptModel` struct. The model also includes a language model head: `openai_gpt::OpenAIGPTLMHeadModel`
-//! implementing the common `generation::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! The base model is implemented in the `openai_gpt_model::OpenAiGptModel` struct. The model also includes a language model head: `openai_gpt_model::OpenAIGPTLMHeadModel`
+//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!

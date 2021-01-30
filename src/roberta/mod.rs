@@ -1,12 +1,12 @@
 //! # RoBERTa: A Robustly Optimized BERT Pretraining Approach (Liu et al.)
 //!
 //! Implementation of the RoBERTa language model ([https://arxiv.org/abs/1907.11692](https://arxiv.org/abs/1907.11692) Liu, Ott, Goyal, Du, Joshi, Chen, Levy, Lewis, Zettlemoyer, Stoyanov, 2019).
-//! The base model is implemented in the `bert::BertModel` struct. Several language model heads have also been implemented, including:
-//! - Masked language model: `roberta::RobertaForMaskedLM`
-//! - Multiple choices: `roberta:RobertaForMultipleChoice`
-//! - Question answering: `roberta::RobertaForQuestionAnswering`
-//! - Sequence classification: `roberta::RobertaForSequenceClassification`
-//! - Token classification (e.g. NER, POS tagging): `roberta::RobertaForTokenClassification`
+//! The base model is implemented in the `bert_model::BertModel` struct. Several language model heads have also been implemented, including:
+//! - Masked language model: `roberta_model::RobertaForMaskedLM`
+//! - Multiple choices: `roberta_model:RobertaForMultipleChoice`
+//! - Question answering: `roberta_model::RobertaForQuestionAnswering`
+//! - Sequence classification: `roberta_model::RobertaForSequenceClassification`
+//! - Token classification (e.g. NER, POS tagging): `roberta_model::RobertaForTokenClassification`
 //!
 //! # Model set-up and pre-trained weights loading
 //!

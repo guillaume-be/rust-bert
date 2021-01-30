@@ -24,18 +24,19 @@ use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::gpt2::Gpt2Config;
 use crate::mobilebert::MobileBertConfig;
+use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
 use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
 use crate::Config;
 use rust_tokenizers::tokenizer::{
     AlbertTokenizer, BertTokenizer, Gpt2Tokenizer, MarianTokenizer, MultiThreadedTokenizer,
-    OpenAiGptTokenizer, ReformerTokenizer, RobertaTokenizer, T5Tokenizer, Tokenizer,
-    TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
+    OpenAiGptTokenizer, ProphetNetTokenizer, ReformerTokenizer, RobertaTokenizer, T5Tokenizer,
+    Tokenizer, TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
 };
 use rust_tokenizers::vocab::{
-    AlbertVocab, BertVocab, Gpt2Vocab, MarianVocab, OpenAiGptVocab, ReformerVocab, RobertaVocab,
-    T5Vocab, Vocab, XLMRobertaVocab, XLNetVocab,
+    AlbertVocab, BertVocab, Gpt2Vocab, MarianVocab, OpenAiGptVocab, ProphetNetVocab, ReformerVocab,
+    RobertaVocab, T5Vocab, Vocab, XLMRobertaVocab, XLNetVocab,
 };
 use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput};
 use serde::{Deserialize, Serialize};
@@ -59,6 +60,7 @@ pub enum ModelType {
     GPT2,
     OpenAiGpt,
     Reformer,
+    ProphetNet,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -85,6 +87,8 @@ pub enum ConfigOption {
     GPT2(Gpt2Config),
     /// Reformer configuration
     Reformer(ReformerConfig),
+    /// ProphetNet configuration
+    ProphetNet(ProphetNetConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -109,6 +113,8 @@ pub enum TokenizerOption {
     OpenAiGpt(OpenAiGptTokenizer),
     /// Reformer Tokenizer
     Reformer(ReformerTokenizer),
+    /// ProphetNet Tokenizer
+    ProphetNet(ProphetNetTokenizer),
 }
 
 impl ConfigOption {
@@ -129,6 +135,7 @@ impl ConfigOption {
             ModelType::GPT2 => ConfigOption::GPT2(Gpt2Config::from_file(path)),
             ModelType::OpenAiGpt => ConfigOption::GPT2(Gpt2Config::from_file(path)),
             ModelType::Reformer => ConfigOption::Reformer(ReformerConfig::from_file(path)),
+            ModelType::ProphetNet => ConfigOption::ProphetNet(ProphetNetConfig::from_file(path)),
         }
     }
 
@@ -159,6 +166,9 @@ impl ConfigOption {
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Reformer(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::ProphetNet(config) => config
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
@@ -316,6 +326,19 @@ impl TokenizerOption {
                 merges_path.expect("No merges specified!"),
                 lower_case,
             )?),
+            ModelType::ProphetNet => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::ProphetNet(ProphetNetTokenizer::from_file(
+                    vocab_path,
+                    lower_case,
+                    strip_accents.unwrap_or(lower_case),
+                )?)
+            }
         };
         Ok(tokenizer)
     }
@@ -333,6 +356,7 @@ impl TokenizerOption {
             Self::GPT2(_) => ModelType::GPT2,
             Self::OpenAiGpt(_) => ModelType::OpenAiGpt,
             Self::Reformer(_) => ModelType::Reformer,
+            Self::ProphetNet(_) => ModelType::ProphetNet,
         }
     }
 
@@ -409,6 +433,13 @@ impl TokenizerOption {
                 stride,
             ),
             Self::Reformer(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::ProphetNet(ref tokenizer) => MultiThreadedTokenizer::encode_list(
                 tokenizer,
                 text_list,
                 max_len,
@@ -497,6 +528,13 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::ProphetNet(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
         }
     }
 
@@ -513,6 +551,7 @@ impl TokenizerOption {
             Self::GPT2(ref tokenizer) => tokenizer.tokenize(text),
             Self::OpenAiGpt(ref tokenizer) => tokenizer.tokenize(text),
             Self::Reformer(ref tokenizer) => tokenizer.tokenize(text),
+            Self::ProphetNet(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
 
@@ -533,6 +572,9 @@ impl TokenizerOption {
                 MultiThreadedTokenizer::tokenize_list(tokenizer, text)
             }
             Self::Reformer(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::ProphetNet(ref tokenizer) => {
+                MultiThreadedTokenizer::tokenize_list(tokenizer, text)
+            }
         }
     }
 
@@ -572,6 +614,9 @@ impl TokenizerOption {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
             Self::Reformer(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::ProphetNet(ref tokenizer) => {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
         }
@@ -624,6 +669,10 @@ impl TokenizerOption {
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
             ),
+            Self::ProphetNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
         };
         TokenizedInput {
             token_ids: token_ids_with_special_tokens.token_ids,
@@ -654,6 +703,7 @@ impl TokenizerOption {
             Self::GPT2(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::OpenAiGpt(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::Reformer(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::ProphetNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
 
@@ -699,6 +749,10 @@ impl TokenizerOption {
             Self::Reformer(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
                 .special_values
                 .get(ReformerVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::ProphetNet(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(ProphetNetVocab::unknown_value())
                 .expect("UNK token not found in vocabulary"),
         }
     }
@@ -748,6 +802,12 @@ impl TokenizerOption {
                     .get(XLNetVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
+            Self::ProphetNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(ProphetNetVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
             Self::Reformer(_) => None,
             Self::GPT2(_) => None,
             Self::OpenAiGpt(_) => None,
@@ -785,6 +845,12 @@ impl TokenizerOption {
                 *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(XLNetVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::ProphetNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(ProphetNetVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Marian(_) => None,

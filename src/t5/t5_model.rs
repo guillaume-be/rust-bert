@@ -865,7 +865,6 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
             .into_iter()
             .map(|mut input| {
                 let temp = vec![pad_token; max_len - input.len()];
-                input.push(self.eos_token_ids.as_ref().unwrap()[0]);
                 input.extend(temp);
                 input
             })

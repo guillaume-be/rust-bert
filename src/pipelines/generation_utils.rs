@@ -79,9 +79,10 @@ use crate::gpt2::{
 use crate::pipelines::generation_utils::private_generation_utils::{
     GenerateOptions, PrivateLanguageGenerator,
 };
+use crate::prophetnet::LayerState as ProphetNetLayerState;
 use crate::reformer::LayerState as ReformerLayerState;
 use crate::t5::LayerState as T5LayerState;
-use crate::xlnet::LayerState;
+use crate::xlnet::LayerState as XLNetLayerState;
 
 use self::ordered_float::OrderedFloat;
 
@@ -217,8 +218,9 @@ pub enum Cache {
     GPT2Cache(Option<Vec<Tensor>>),
     BARTCache(Option<Vec<(Option<BartLayerState>, Option<BartLayerState>)>>),
     T5Cache(Option<Vec<(Option<T5LayerState>, Option<T5LayerState>)>>),
-    XLNetCache(Option<Vec<Option<LayerState>>>),
+    XLNetCache(Option<Vec<Option<XLNetLayerState>>>),
     ReformerCache(Option<Vec<Option<ReformerLayerState>>>),
+    ProphetNetCache(Option<Vec<(Option<ProphetNetLayerState>, Option<ProphetNetLayerState>)>>),
     None,
 }
 

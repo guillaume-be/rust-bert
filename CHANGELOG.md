@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 ### Added
+- Addition of the ProphetNet language model, task-specific heads and registration in relevant pipelines
 - (BREAKING) Implementation of [Diverse Beam Search](https://arxiv.org/abs/1610.02424). This allows the generation of more diverse sequences within the number of beams. Addition of 2 new fields to the `GenerateConfig` that are propagated through all text generation configs (e.g. `TranslationConfig`): 
     - `num_beam_groups` (`Option<i64>`), indicating the number of sub-beam groups. This must be a divisor of the number of beams.
     - `diversity_penalty` (`Option<f64>`), indicating by which amount to penalize common words between beam groups. This will default to 5.5 if not provided. The impact of this diverse beam search is illustrated in the GPT2 integration tests.

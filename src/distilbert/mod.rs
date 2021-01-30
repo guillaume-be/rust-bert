@@ -1,11 +1,11 @@
 //! # DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter (Sanh et al.)
 //!
 //! Implementation of the DistilBERT language model ([https://arxiv.org/abs/1910.01108](https://arxiv.org/abs/1910.01108) Sanh, Debut, Chaumond, Wolf, 2019).
-//! The base model is implemented in the `distilbert::DistilBertModel` struct. Several language model heads have also been implemented, including:
-//! - Masked language model: `distilbert::DistilBertForMaskedLM`
-//! - Question answering: `distilbert::DistilBertForQuestionAnswering`
-//! - Sequence classification: `distilbert::DistilBertForSequenceClassification`
-//! - Token classification (e.g. NER, POS tagging): `distilbert::DistilBertForTokenClassification`
+//! The base model is implemented in the `distilbert_model::DistilBertModel` struct. Several language model heads have also been implemented, including:
+//! - Masked language model: `distilbert_model::DistilBertForMaskedLM`
+//! - Question answering: `distilbert_model::DistilBertForQuestionAnswering`
+//! - Sequence classification: `distilbert_model::DistilBertForSequenceClassification`
+//! - Token classification (e.g. NER, POS tagging): `distilbert_model::DistilBertForTokenClassification`
 //!
 //! # Model set-up and pre-trained weights loading
 //!

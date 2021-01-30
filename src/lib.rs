@@ -73,6 +73,7 @@ pub mod marian;
 pub mod mobilebert;
 pub mod openai_gpt;
 pub mod pipelines;
+pub mod prophetnet;
 pub mod reformer;
 pub mod roberta;
 pub mod t5;

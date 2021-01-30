@@ -1,8 +1,8 @@
 //! # Marian
 //!
 //! Implementation of the Marian language model ([Marian: Fast Neural Machine Translation in {C++}](http://www.aclweb.org/anthology/P18-4020) Junczys-Dowmunt, Grundkiewicz, Dwojak, Hoang, Heafield, Neckermann, Seide, Germann, Fikri Aji, Bogoychev, Martins, Birch, 2018).
-//! The base model is implemented in the `bart::BartModel` struct. This model includes a language model head: `marian::MarianForConditionalGeneration`
-//! implementing the common `generation::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! The base model is implemented in the `bart_model::BartModel` struct. This model includes a language model head: `marian_model::MarianForConditionalGeneration`
+//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!
