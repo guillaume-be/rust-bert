@@ -131,8 +131,6 @@ impl LongformerEmbeddings {
         };
         let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
-        let sequence_length = input_shape[1];
-
         let calc_position_ids = if position_ids.is_none() {
             if let Some(input_ids) = input_ids {
                 Some(self.create_position_ids_from_input_ids(input_ids))
