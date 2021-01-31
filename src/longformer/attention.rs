@@ -189,4 +189,223 @@ impl LongformerSelfAttention {
             )
             .masked_fill_(&ending_mask, std::f64::NEG_INFINITY);
     }
+
+    fn sliding_chunks_query_key_matmul(
+        &self,
+        query: &Tensor,
+        key: &Tensor,
+        window_overlap: i64,
+    ) -> Tensor {
+        let (batch_size, sequence_length, num_heads, head_dim) = query.size4().unwrap();
+        let chunks_count = sequence_length / window_overlap - 1;
+
+        let query =
+            query
+                .transpose(1, 2)
+                .reshape(&[batch_size * num_heads, sequence_length, head_dim]);
+        let key = key
+            .transpose(1, 2)
+            .reshape(&[batch_size * num_heads, sequence_length, head_dim]);
+
+        let query = self.chunk(&query, window_overlap);
+        let key = self.chunk(&key, window_overlap);
+
+        let diagonal_chunked_attention_scores = self.pad_and_transpose_last_two_dims(
+            &Tensor::einsum("bcxd,bcyd->bcxy", &[query, key]),
+            &[0, 0, 0, 1],
+        );
+
+        let mut diagonal_attention_scores = Tensor::empty(
+            &[
+                batch_size * num_heads,
+                chunks_count + 1,
+                window_overlap,
+                window_overlap * 2 + 1,
+            ],
+            (Kind::Float, diagonal_chunked_attention_scores.device()),
+        );
+
+        let diagonal_attention_scores_size = diagonal_attention_scores.size();
+        let diagonal_chunked_attention_scores_size = diagonal_chunked_attention_scores.size();
+
+        diagonal_attention_scores
+            .slice(1, 0, -1, 1)
+            .slice(3, window_overlap, diagonal_attention_scores_size[3], 1)
+            .copy_(
+                &diagonal_chunked_attention_scores
+                    .slice(2, 0, window_overlap, 1)
+                    .slice(3, 0, window_overlap + 1, 1),
+            );
+
+        diagonal_attention_scores
+            .select(1, -1)
+            .slice(3, window_overlap, diagonal_attention_scores_size[3], 1)
+            .copy_(
+                &diagonal_chunked_attention_scores
+                    .select(1, -1)
+                    .slice(
+                        2,
+                        window_overlap,
+                        diagonal_chunked_attention_scores_size[2],
+                        1,
+                    )
+                    .slice(3, 0, window_overlap + 1, 1),
+            );
+
+        diagonal_attention_scores
+            .slice(1, 1, diagonal_attention_scores_size[1], 1)
+            .slice(3, 0, window_overlap, 1)
+            .copy_(
+                &diagonal_chunked_attention_scores
+                    .slice(2, -(window_overlap + 1), -1, 1)
+                    .slice(
+                        3,
+                        window_overlap + 1,
+                        diagonal_chunked_attention_scores_size[3],
+                        1,
+                    ),
+            );
+
+        diagonal_attention_scores
+            .select(1, 0)
+            .slice(2, 1, window_overlap, 1)
+            .slice(3, 1, window_overlap, 1)
+            .copy_(
+                &diagonal_chunked_attention_scores
+                    .select(1, 0)
+                    .slice(2, 0, window_overlap - 1, 1)
+                    .slice(
+                        3,
+                        1 - window_overlap,
+                        diagonal_chunked_attention_scores_size[3],
+                        1,
+                    ),
+            );
+
+        let _ = diagonal_attention_scores
+            .view_(&[
+                batch_size,
+                num_heads,
+                sequence_length,
+                2 * window_overlap + 1,
+            ])
+            .transpose_(2, 1);
+
+        self.mask_invalid_locations(&mut diagonal_attention_scores, window_overlap);
+
+        diagonal_attention_scores
+    }
+
+    fn sliding_chunks_matmul_attention_probas_value(
+        &self,
+        attention_probas: &Tensor,
+        value: &Tensor,
+        window_overlap: i64,
+    ) -> Tensor {
+        let (batch_size, sequence_length, num_heads, head_dim) = value.size4().unwrap();
+        let chunk_counts = sequence_length / window_overlap - 1;
+
+        let chunked_attention_probas = attention_probas.transpose(1, 2).reshape(&[
+            batch_size * num_heads,
+            sequence_length / window_overlap,
+            window_overlap,
+            2 * window_overlap + 1,
+        ]);
+
+        let value =
+            value
+                .transpose(1, 2)
+                .reshape(&[batch_size * num_heads, sequence_length, head_dim]);
+
+        let padded_value = (value + 1).constant_pad_nd(&[0, 0, window_overlap, window_overlap]) - 1;
+        let chunked_value_size = &[
+            batch_size * num_heads,
+            chunk_counts + 1,
+            3 * window_overlap,
+            head_dim,
+        ];
+        let chunked_value_stride = padded_value.stride();
+        let chunked_value_stride = &[
+            chunked_value_stride[0],
+            window_overlap * chunked_value_stride[1],
+            chunked_value_stride[1],
+            chunked_value_stride[2],
+        ];
+
+        let chunked_value = padded_value.as_strided(chunked_value_size, chunked_value_stride, None);
+        let chunked_attention_probas = self.pad_and_diagonalize(&chunked_attention_probas);
+
+        Tensor::einsum(
+            "bcwd,bcdh->bcwh",
+            &[chunked_attention_probas, chunked_value],
+        )
+        .view([batch_size, num_heads, sequence_length, head_dim])
+        .transpose(1, 2)
+    }
+
+    fn get_global_attention_indices(
+        &self,
+        is_index_global_attn: &Tensor,
+    ) -> (i64, Vec<Tensor>, Vec<Tensor>, Vec<Tensor>) {
+        let num_global_attention_indices = is_index_global_attn.sum1(&[1], false, Kind::Int64);
+        let max_num_global_attention_indices = i64::from(num_global_attention_indices.max());
+        let is_index_global_attn_nonzero = is_index_global_attn.nonzero_numpy();
+
+        let is_local_index_global_attention = Tensor::arange(
+            max_num_global_attention_indices,
+            (Kind::Int64, is_index_global_attn.device()),
+        )
+        .lt1(&num_global_attention_indices.unsqueeze(-1));
+
+        let is_local_index_global_attention_nonzero =
+            is_local_index_global_attention.nonzero_numpy();
+
+        let is_local_index_no_global_attention_nonzero =
+            is_local_index_global_attention.eq(0).nonzero_numpy();
+
+        (
+            max_num_global_attention_indices,
+            is_index_global_attn_nonzero,
+            is_local_index_global_attention_nonzero,
+            is_local_index_no_global_attention_nonzero,
+        )
+    }
+
+    fn concat_with_global_jey_attention_probas(
+        &self,
+        key_vectors: &Tensor,
+        query_vectors: &Tensor,
+        max_num_global_attention_indices: i64,
+        is_index_global_attn_nonzero: Vec<Tensor>,
+        is_local_index_global_attention_nonzero: Vec<Tensor>,
+        is_local_index_no_global_attention_nonzero: Vec<Tensor>,
+    ) -> Tensor {
+        let batch_size = key_vectors.size()[0];
+
+        let key_vectors_only_global = Tensor::zeros(
+            &[
+                batch_size,
+                max_num_global_attention_indices,
+                self.num_heads,
+                self.head_dim,
+            ],
+            (Kind::Float, key_vectors.device()),
+        );
+
+        key_vectors_only_global
+            .index(is_local_index_global_attention_nonzero.as_slice())
+            .copy_(&key_vectors.index(is_index_global_attn_nonzero.as_slice()));
+
+        let attention_probas_from_global_key = Tensor::einsum(
+            "blhd,bshd->blhs",
+            &[query_vectors, &key_vectors_only_global],
+        );
+
+        let _ = attention_probas_from_global_key
+            .index_select(0, &is_local_index_no_global_attention_nonzero[0])
+            .index_select(3, &is_local_index_no_global_attention_nonzero[1])
+            .fill_(-10000f64);
+
+        attention_probas_from_global_key
+    }
 }
