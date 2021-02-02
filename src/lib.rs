@@ -46,6 +46,7 @@
 //! T5 | | | |✅ |✅|✅| |
 //! XLNet|✅|✅|✅|✅ | | |✅|
 //! Reformer|✅| |✅|✅ | | |✅|
+//! ProphetNet| | | |✅ |✅ | | |
 //!
 //! # Loading pre-trained models
 //!

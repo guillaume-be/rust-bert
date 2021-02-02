@@ -25,6 +25,7 @@ ALBERT |✅|✅|✅| | | |✅|
 T5 | | | |✅ |✅|✅| | 
 XLNet|✅|✅|✅|✅ | | |✅| 
 Reformer|✅| |✅|✅ | | |✅| 
+ProphetNet| | | |✅ |✅ | | | 
 
 ## Ready-to-use pipelines
 	
