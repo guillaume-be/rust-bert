@@ -569,7 +569,7 @@ impl LongformerSelfAttention {
         is_index_global_attention: &Tensor,
         is_global_attention: bool,
         train: bool,
-    ) -> (Tensor, Option<Tensor>) {
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>) {
         let hidden_states = hidden_states.transpose(0, 1);
         let query_vectors = hidden_states.apply(&self.query) / (self.head_dim as f64).sqrt();
         let key_vectors = hidden_states.apply(&self.key);
@@ -715,12 +715,22 @@ impl LongformerSelfAttention {
             None
         };
 
+        let attention_probas = if self.output_attentions {
+            Some(attention_probas)
+        } else {
+            None
+        };
+
         let global_attention_probas = if self.output_attentions {
             global_attention_probas
         } else {
             None
         };
 
-        (attention_output.transpose(0, 1), global_attention_probas)
+        (
+            attention_output.transpose(0, 1),
+            attention_probas,
+            global_attention_probas,
+        )
     }
 }

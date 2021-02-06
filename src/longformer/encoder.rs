@@ -14,7 +14,7 @@ use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::longformer::attention::LongformerSelfAttention;
 use crate::longformer::LongformerConfig;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
 pub struct LongformerSelfOutput {
@@ -90,21 +90,22 @@ impl LongformerAttention {
         is_index_global_attention: &Tensor,
         is_global_attention: bool,
         train: bool,
-    ) -> (Tensor, Option<Tensor>) {
-        let (attention_outputs, attention_scores) = self.self_attention.forward_t(
-            hidden_states,
-            attention_mask,
-            is_index_masked,
-            is_index_global_attention,
-            is_global_attention,
-            train,
-        );
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>) {
+        let (attention_outputs, attention_scores, global_attention_scores) =
+            self.self_attention.forward_t(
+                hidden_states,
+                attention_mask,
+                is_index_masked,
+                is_index_global_attention,
+                is_global_attention,
+                train,
+            );
 
         let attention_outputs = self
             .output
             .forward_t(&attention_outputs, hidden_states, train);
 
-        (attention_outputs, attention_scores)
+        (attention_outputs, attention_scores, global_attention_scores)
     }
 }
 
@@ -215,20 +216,147 @@ impl LongformerLayer {
         is_index_global_attention: &Tensor,
         is_global_attention: bool,
         train: bool,
-    ) -> (Tensor, Option<Tensor>) {
-        let (attention_outputs, attention_scores) = self.attention.forward_t(
-            hidden_states,
-            attention_mask,
-            is_index_masked,
-            is_index_global_attention,
-            is_global_attention,
-            train,
-        );
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>) {
+        let (attention_outputs, attention_scores, global_attention_scores) =
+            self.attention.forward_t(
+                hidden_states,
+                attention_mask,
+                is_index_masked,
+                is_index_global_attention,
+                is_global_attention,
+                train,
+            );
 
         let intermediate_output = self.intermediate.forward(&attention_outputs);
         let attention_outputs =
             self.output
                 .forward_t(&intermediate_output, &attention_outputs, train);
-        (attention_outputs, attention_scores)
+        (attention_outputs, attention_scores, global_attention_scores)
+    }
+}
+
+/// Container for the Longformer encoder output.
+pub struct LongformerEncoderOutput {
+    /// Last hidden states from the model
+    pub hidden_states: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Global attention weights for all intermediate layers
+    pub all_global_attentions: Option<Vec<Tensor>>,
+}
+
+pub struct LongformerEncoder {
+    layers: Vec<LongformerLayer>,
+    output_attentions: bool,
+    output_hidden_states: bool,
+}
+
+impl LongformerEncoder {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig, layer_id: i64) -> LongformerEncoder
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let p_layers = p / "layer";
+
+        let mut layers: Vec<LongformerLayer> =
+            Vec::with_capacity(config.num_hidden_layers as usize);
+        for layer_index in 0..config.num_hidden_layers {
+            layers.push(LongformerLayer::new(
+                &p_layers / layer_index,
+                config,
+                layer_index,
+            ));
+        }
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
+
+        LongformerEncoder {
+            layers,
+            output_attentions,
+            output_hidden_states,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: &Tensor,
+        train: bool,
+    ) -> LongformerEncoderOutput {
+        let is_index_masked = attention_mask.lt(0);
+        let is_index_global_attention = attention_mask.gt(0);
+        let is_global_attention = bool::from(is_index_global_attention.any());
+
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_global_attentions: Option<Vec<Tensor>> =
+            if self.output_attentions & is_global_attention {
+                Some(vec![])
+            } else {
+                None
+            };
+
+        let mut x: Option<Tensor> = None;
+        let mut attention_weights: Option<Tensor>;
+        let mut global_attention_weights: Option<Tensor>;
+
+        for layer in &self.layers {
+            let temp = if let Some(x_value) = &x {
+                if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
+                    all_hidden_states.push(x_value.transpose(0, 1));
+                }
+                layer.forward_t(
+                    x_value,
+                    attention_mask,
+                    &is_index_masked,
+                    &is_index_global_attention,
+                    is_global_attention,
+                    train,
+                )
+            } else {
+                if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
+                    all_hidden_states.push(hidden_states.transpose(0, 1));
+                }
+                layer.forward_t(
+                    hidden_states,
+                    attention_mask,
+                    &is_index_masked,
+                    &is_index_global_attention,
+                    is_global_attention,
+                    train,
+                )
+            };
+            x = Some(temp.0);
+            attention_weights = temp.1;
+            global_attention_weights = temp.2;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.as_ref().unwrap().transpose(1, 2));
+            };
+            if let Some(global_attentions) = all_global_attentions.borrow_mut() {
+                global_attentions.push(global_attention_weights.as_ref().unwrap().transpose(2, 3));
+            };
+        }
+        if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
+            all_hidden_states.push(x.as_ref().unwrap().copy());
+        };
+
+        LongformerEncoderOutput {
+            hidden_states: x.unwrap(),
+            all_hidden_states,
+            all_attentions,
+            all_global_attentions,
+        }
     }
 }
