@@ -102,7 +102,7 @@ impl LongformerEmbeddings {
         .expand(&[batch_size, sequence_length], true)
     }
 
-    fn forward_t(
+    pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,

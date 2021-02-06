@@ -11,7 +11,9 @@
 // limitations under the License.
 
 use crate::common::activations::{TensorFunction, _tanh};
-use crate::{Activation, Config};
+use crate::longformer::embeddings::LongformerEmbeddings;
+use crate::longformer::encoder::LongformerEncoder;
+use crate::{Activation, Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -213,5 +215,132 @@ impl Module for LongformerLMHead {
             .gelu()
             .apply(&self.layer_norm)
             .apply(&self.decoder)
+    }
+}
+
+pub struct LongformerModel {
+    embeddings: LongformerEmbeddings,
+    encoder: LongformerEncoder,
+    pooler: Option<LongformerPooler>,
+    attention_window: Vec<i64>,
+    max_attention_window: i64,
+}
+
+impl LongformerModel {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig, add_pooling_layer: bool) -> LongformerModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let embeddings = LongformerEmbeddings::new(p / "embeddings", config);
+        let encoder = LongformerEncoder::new(p / "encoder", config);
+        let pooler = if add_pooling_layer {
+            Some(LongformerPooler::new(p / "pooler", config))
+        } else {
+            None
+        };
+
+        let attention_window = config.attention_window.clone();
+        let max_attention_window = *attention_window.iter().max().unwrap();
+
+        LongformerModel {
+            embeddings,
+            encoder,
+            pooler,
+            attention_window,
+            max_attention_window,
+        }
+    }
+
+    fn pad_with_nonzero_value(
+        &self,
+        tensor: &Tensor,
+        padding: &[i64],
+        padding_value: i64,
+    ) -> Tensor {
+        (tensor - padding_value).constant_pad_nd(padding) + padding_value
+    }
+
+    fn pad_with_boolean(&self, tensor: &Tensor, padding: &[i64], padding_value: bool) -> Tensor {
+        if !padding_value {
+            tensor.constant_pad_nd(padding)
+        } else {
+            ((tensor.logical_not()).constant_pad_nd(padding)).logical_not()
+        }
+    }
+
+    fn pad_to_window_size(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        pad_token_id: i64,
+        padding_length: i64,
+        train: bool,
+    ) -> Result<
+        (
+            Option<Tensor>,
+            Option<Tensor>,
+            Option<Tensor>,
+            Option<Tensor>,
+            Option<Tensor>,
+        ),
+        RustBertError,
+    > {
+        let input_shape = if let Some(input_ids) = input_ids {
+            if input_embeds.is_none() {
+                input_ids.size()
+            } else {
+                return Err(RustBertError::ValueError(
+                    "Only one of input ids or input embeddings may be set".into(),
+                ));
+            }
+        } else if let Some(input_embeds) = input_embeds {
+            input_embeds.size()[..2].to_vec()
+        } else {
+            return Err(RustBertError::ValueError(
+                "At least one of input ids or input embeddings must be set".into(),
+            ));
+        };
+
+        let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
+        // ToDo: move check to the method calling pad_to_window_size
+        // let padding_length = (self.max_attention_window
+        //     - sequence_length % self.max_attention_window)
+        //     % self.max_attention_window;
+        //
+        // let (input_ids, position_ids,inputs_embeds,attention_mask,token_type_ids) = if padding_length > 0 {
+        let input_ids = input_ids
+            .map(|value| self.pad_with_nonzero_value(value, &[0, padding_length], pad_token_id));
+        let position_ids = position_ids
+            .map(|value| self.pad_with_nonzero_value(value, &[0, padding_length], pad_token_id));
+        let inputs_embeds = input_embeds.map(|value| {
+            let input_ids_padding = Tensor::full(
+                &[batch_size, padding_length],
+                pad_token_id,
+                (Kind::Int64, value.device()),
+            );
+            let input_embeds_padding = self
+                .embeddings
+                .forward_t(Some(&input_ids_padding), None, None, None, train)
+                .unwrap();
+
+            Tensor::cat(&[value, &input_embeds_padding], -2)
+        });
+
+        let attention_mask =
+            attention_mask.map(|value| self.pad_with_boolean(&value, &[0, padding_length], false));
+        let token_type_ids =
+            token_type_ids.map(|value| value.constant_pad_nd(&[0, padding_length]));
+        Ok((
+            input_ids,
+            position_ids,
+            inputs_embeds,
+            attention_mask,
+            token_type_ids,
+        ))
     }
 }
