@@ -10,10 +10,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::{TensorFunction, _tanh};
 use crate::{Activation, Config};
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
 use std::collections::HashMap;
-use tch::{Kind, Tensor};
+use tch::nn::Module;
+use tch::{nn, Kind, Tensor};
 
 /// # Longformer Pretrained model weight files
 pub struct LongformerModelResources;
@@ -121,5 +124,94 @@ fn compute_global_attention_mask(
             * attention_mask
                 .expand_as(input_ids)
                 .lt(*input_ids.size().last().unwrap())
+    }
+}
+
+#[derive(Debug)]
+pub struct LongformerPooler {
+    dense: nn::Linear,
+    activation: TensorFunction,
+}
+
+impl LongformerPooler {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerPooler
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let activation = TensorFunction::new(Box::new(_tanh));
+
+        LongformerPooler { dense, activation }
+    }
+}
+
+impl Module for LongformerPooler {
+    fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        self.activation.get_fn()(&hidden_states.select(1, 0).apply(&self.dense))
+    }
+}
+
+#[derive(Debug)]
+pub struct LongformerLMHead {
+    dense: nn::Linear,
+    layer_norm: nn::LayerNorm,
+    decoder: nn::Linear,
+}
+
+impl LongformerLMHead {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerLMHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_eps.unwrap_or(1e-12),
+            ..Default::default()
+        };
+
+        let layer_norm = nn::layer_norm(
+            p / "layer_norm",
+            vec![config.hidden_size],
+            layer_norm_config,
+        );
+
+        let decoder = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.vocab_size,
+            Default::default(),
+        );
+
+        LongformerLMHead {
+            dense,
+            layer_norm,
+            decoder,
+        }
+    }
+}
+
+impl Module for LongformerLMHead {
+    fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        hidden_states
+            .apply(&self.dense)
+            .gelu()
+            .apply(&self.layer_norm)
+            .apply(&self.decoder)
     }
 }

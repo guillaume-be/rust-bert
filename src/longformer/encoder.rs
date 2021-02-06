@@ -15,6 +15,7 @@ use crate::common::dropout::Dropout;
 use crate::longformer::attention::LongformerSelfAttention;
 use crate::longformer::LongformerConfig;
 use std::borrow::{Borrow, BorrowMut};
+use tch::nn::Module;
 use tch::{nn, Tensor};
 
 pub struct LongformerSelfOutput {
@@ -109,6 +110,7 @@ impl LongformerAttention {
     }
 }
 
+#[derive(Debug)]
 pub struct LongformerIntermediate {
     dense: nn::Linear,
     activation_function: TensorFunction,
@@ -134,8 +136,10 @@ impl LongformerIntermediate {
             activation_function,
         }
     }
+}
 
-    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+impl Module for LongformerIntermediate {
+    fn forward(&self, hidden_states: &Tensor) -> Tensor {
         self.activation_function.get_fn()(&hidden_states.apply(&self.dense))
     }
 }
@@ -227,7 +231,7 @@ impl LongformerLayer {
                 train,
             );
 
-        let intermediate_output = self.intermediate.forward(&attention_outputs);
+        let intermediate_output = attention_outputs.apply(&self.intermediate);
         let attention_outputs =
             self.output
                 .forward_t(&intermediate_output, &attention_outputs, train);
@@ -254,7 +258,7 @@ pub struct LongformerEncoder {
 }
 
 impl LongformerEncoder {
-    pub fn new<'p, P>(p: P, config: &LongformerConfig, layer_id: i64) -> LongformerEncoder
+    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerEncoder
     where
         P: Borrow<nn::Path<'p>>,
     {
