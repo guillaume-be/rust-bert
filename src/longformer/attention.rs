@@ -163,17 +163,16 @@ impl LongformerSelfAttention {
         )
         .tril(0)
         .flip(&[0])
-        .unsqueeze(2)
-        .unsqueeze(0);
+        .unsqueeze(0)
+        .unsqueeze(2);
 
-        let ending_mask = beginning_mask
-            .flip(&[1, 3])
-            .expand(ending_input_size.as_slice(), true)
-            .eq(1);
+        let ending_mask = beginning_mask.flip(&[1, 3]);
 
         let beginning_mask = beginning_mask
             .expand(beginning_input_size.as_slice(), true)
             .eq(1);
+
+        let ending_mask = ending_mask.expand(ending_input_size.as_slice(), true).eq(1);
 
         let _ = input_tensor
             .slice(1, 0, affected_sequence_length, 1)
@@ -215,7 +214,7 @@ impl LongformerSelfAttention {
             &[0, 0, 0, 1],
         );
 
-        let mut diagonal_attention_scores = Tensor::empty(
+        let diagonal_attention_scores = Tensor::empty(
             &[
                 batch_size * num_heads,
                 chunks_count + 1,
@@ -239,17 +238,17 @@ impl LongformerSelfAttention {
 
         diagonal_attention_scores
             .select(1, -1)
-            .slice(3, window_overlap, diagonal_attention_scores_size[3], 1)
+            .slice(2, window_overlap, diagonal_attention_scores_size[3], 1)
             .copy_(
                 &diagonal_chunked_attention_scores
                     .select(1, -1)
                     .slice(
-                        2,
+                        1,
                         window_overlap,
                         diagonal_chunked_attention_scores_size[2],
                         1,
                     )
-                    .slice(3, 0, window_overlap + 1, 1),
+                    .slice(2, 0, window_overlap + 1, 1),
             );
 
         diagonal_attention_scores
@@ -268,28 +267,28 @@ impl LongformerSelfAttention {
 
         diagonal_attention_scores
             .select(1, 0)
+            .slice(1, 1, window_overlap, 1)
             .slice(2, 1, window_overlap, 1)
-            .slice(3, 1, window_overlap, 1)
             .copy_(
                 &diagonal_chunked_attention_scores
                     .select(1, 0)
-                    .slice(2, 0, window_overlap - 1, 1)
+                    .slice(1, 0, window_overlap - 1, 1)
                     .slice(
-                        3,
+                        2,
                         1 - window_overlap,
                         diagonal_chunked_attention_scores_size[3],
                         1,
                     ),
             );
 
-        let _ = diagonal_attention_scores
-            .view_(&[
+        let mut diagonal_attention_scores = diagonal_attention_scores
+            .view([
                 batch_size,
                 num_heads,
                 sequence_length,
                 2 * window_overlap + 1,
             ])
-            .transpose_(2, 1);
+            .transpose(2, 1);
 
         self.mask_invalid_locations(&mut diagonal_attention_scores, window_overlap);
 
@@ -513,7 +512,7 @@ impl LongformerSelfAttention {
             .view([-1, batch_size * self.num_heads, self.head_dim])
             .transpose(0, 1);
 
-        let mut global_attention_scores = global_query_vectors_only_global
+        let global_attention_scores = global_query_vectors_only_global
             .bmm(&global_key_vectors.transpose(1, 2))
             .view([
                 batch_size,
@@ -527,14 +526,13 @@ impl LongformerSelfAttention {
             .index_select(2, &is_local_index_no_global_attention_nonzero[1])
             .fill_(-10000f64);
 
-        let _ = global_attention_scores
-            .masked_fill_(&is_index_masked.unsqueeze(1).unsqueeze(1), -10000f64);
-
-        let _ = global_attention_scores.view_(&[
-            batch_size * self.num_heads,
-            max_num_global_attention_indices,
-            sequence_length,
-        ]);
+        let global_attention_scores = global_attention_scores
+            .masked_fill(&is_index_masked.unsqueeze(1).unsqueeze(1), -10000f64)
+            .view([
+                batch_size * self.num_heads,
+                max_num_global_attention_indices,
+                sequence_length,
+            ]);
 
         let global_attention_probas = global_attention_scores
             .softmax(-1, Kind::Float)
@@ -542,13 +540,13 @@ impl LongformerSelfAttention {
 
         let global_attention_output = global_attention_probas.bmm(&global_value_vectors);
 
-        let _ = global_attention_probas.view_(&[
+        let global_attention_probas = global_attention_probas.view([
             batch_size,
             self.num_heads,
             max_num_global_attention_indices,
             sequence_length,
         ]);
-        let _ = global_attention_output.view_(&[
+        let global_attention_output = global_attention_output.view([
             batch_size,
             self.num_heads,
             max_num_global_attention_indices,
@@ -574,12 +572,12 @@ impl LongformerSelfAttention {
 
         let (sequence_length, batch_size, embed_dim) = hidden_states.size3().unwrap();
 
-        let _ = query_vectors
-            .view_(&[sequence_length, batch_size, self.num_heads, self.head_dim])
-            .transpose_(0, 1);
-        let _ = key_vectors
-            .view_(&[sequence_length, batch_size, self.num_heads, self.head_dim])
-            .transpose_(0, 1);
+        let query_vectors = query_vectors
+            .view([sequence_length, batch_size, self.num_heads, self.head_dim])
+            .transpose(0, 1);
+        let key_vectors = key_vectors
+            .view([sequence_length, batch_size, self.num_heads, self.head_dim])
+            .transpose(0, 1);
 
         let mut attention_scores = self.sliding_chunks_query_key_matmul(
             &query_vectors,
@@ -641,9 +639,9 @@ impl LongformerSelfAttention {
             .masked_fill(&is_index_masked.unsqueeze(-1).unsqueeze(-1), 0.0)
             .apply_t(&self.dropout, train);
 
-        let _ = value_vectors
-            .view_(&[sequence_length, batch_size, self.num_heads, self.head_dim])
-            .transpose_(0, 1);
+        let value_vectors = value_vectors
+            .view([sequence_length, batch_size, self.num_heads, self.head_dim])
+            .transpose(0, 1);
 
         let attention_output = if is_global_attention {
             self.compute_attention_output_with_global_indices(

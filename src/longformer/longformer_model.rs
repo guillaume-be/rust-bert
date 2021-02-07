@@ -17,7 +17,7 @@ use crate::{Activation, Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use tch::nn::Module;
+use tch::nn::{Init, Module, ModuleT};
 use tch::{nn, Kind, Tensor};
 
 /// # Longformer Pretrained model weight files
@@ -100,7 +100,7 @@ pub struct LongformerConfig {
 
 impl Config<LongformerConfig> for LongformerConfig {}
 
-fn get_question_end_index(input_ids: &Tensor, sep_token_id: i64) -> Tensor {
+fn _get_question_end_index(input_ids: &Tensor, sep_token_id: i64) -> Tensor {
     input_ids
         .eq(sep_token_id)
         .nonzero()
@@ -109,12 +109,12 @@ fn get_question_end_index(input_ids: &Tensor, sep_token_id: i64) -> Tensor {
         .select(1, 0)
 }
 
-fn compute_global_attention_mask(
+fn _compute_global_attention_mask(
     input_ids: &Tensor,
     sep_token_id: i64,
     before_sep_token: bool,
 ) -> Tensor {
-    let question_end_index = get_question_end_index(input_ids, sep_token_id).unsqueeze(1);
+    let question_end_index = _get_question_end_index(input_ids, sep_token_id).unsqueeze(1);
     let attention_mask = Tensor::arange(input_ids.size()[1], (Kind::Int8, input_ids.device()));
 
     if before_sep_token {
@@ -166,6 +166,7 @@ pub struct LongformerLMHead {
     dense: nn::Linear,
     layer_norm: nn::LayerNorm,
     decoder: nn::Linear,
+    bias: Tensor,
 }
 
 impl LongformerLMHead {
@@ -193,17 +194,25 @@ impl LongformerLMHead {
             layer_norm_config,
         );
 
+        let linear_config = nn::LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+
         let decoder = nn::linear(
-            p / "dense",
+            p / "decoder",
             config.hidden_size,
             config.vocab_size,
-            Default::default(),
+            linear_config,
         );
+
+        let bias = p.var("bias", &[config.vocab_size], Init::Const(0f64));
 
         LongformerLMHead {
             dense,
             layer_norm,
             decoder,
+            bias,
         }
     }
 }
@@ -215,6 +224,7 @@ impl Module for LongformerLMHead {
             .gelu()
             .apply(&self.layer_norm)
             .apply(&self.decoder)
+            + &self.bias
     }
 }
 
@@ -370,12 +380,12 @@ impl LongformerModel {
         let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
 
         let calc_attention_mask = if attention_mask.is_none() {
-            Some(Tensor::ones(input_shape.as_slice(), (Kind::Bool, device)))
+            Some(Tensor::ones(input_shape.as_slice(), (Kind::Int, device)))
         } else {
             None
         };
         let calc_token_type_ids = if token_type_ids.is_none() {
-            Some(Tensor::zeros(input_shape.as_slice(), (Kind::Bool, device)))
+            Some(Tensor::zeros(input_shape.as_slice(), (Kind::Int64, device)))
         } else {
             None
         };
@@ -442,7 +452,6 @@ impl LongformerModel {
         let padded_attention_mask = calc_padded_attention_mask
             .as_ref()
             .unwrap_or(attention_mask.as_ref().unwrap());
-
         let padded_token_type_ids = if calc_padded_token_type_ids.is_some() {
             calc_padded_token_type_ids.as_ref()
         } else {
@@ -485,8 +494,10 @@ impl LongformerModel {
                 ));
             }
         }
-        .select(1, 0)
-        .select(2, 0);
+        .select(2, 0)
+        .select(1, 0);
+        let extended_attention_mask =
+            (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
 
         let embedding_output = self.embeddings.forward_t(
             padded_input_ids,
@@ -523,12 +534,78 @@ impl LongformerModel {
     }
 }
 
+pub struct LongformerForMaskedLM {
+    longformer: LongformerModel,
+    lm_head: LongformerLMHead,
+}
+
+impl LongformerForMaskedLM {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForMaskedLM
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let longformer = LongformerModel::new(p / "longformer", config, false);
+        let lm_head = LongformerLMHead::new(p / "lm_head", config);
+
+        LongformerForMaskedLM {
+            longformer,
+            lm_head,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        global_attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LongformerMaskedLMOutput, RustBertError> {
+        let longformer_outputs = self.longformer.forward_t(
+            input_ids,
+            attention_mask,
+            global_attention_mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let prediction_scores = self
+            .lm_head
+            .forward_t(&longformer_outputs.hidden_state, train);
+
+        Ok(LongformerMaskedLMOutput {
+            prediction_scores,
+            all_hidden_states: longformer_outputs.all_hidden_states,
+            all_attentions: longformer_outputs.all_attentions,
+            all_global_attentions: longformer_outputs.all_global_attentions,
+        })
+    }
+}
+
 /// Container for the Longformer model output.
 pub struct LongformerModelOutput {
     /// Last hidden states from the model
     pub hidden_state: Tensor,
     /// Pooled output (hidden state for the first token)
     pub pooled_output: Option<Tensor>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Global attention weights for all intermediate layers
+    pub all_global_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the Longformer masked LM model output.
+pub struct LongformerMaskedLMOutput {
+    /// Logits for the vocabulary items at each sequence position
+    pub prediction_scores: Tensor,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
