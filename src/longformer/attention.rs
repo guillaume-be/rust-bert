@@ -99,7 +99,13 @@ impl LongformerSelfAttention {
     }
 
     fn pad_and_transpose_last_two_dims(&self, hidden_states: &Tensor, padding: &[i64]) -> Tensor {
-        hidden_states.constant_pad_nd(padding).transpose(-1, -2)
+        let output = hidden_states.constant_pad_nd(padding);
+        let mut output_shape = output.size();
+        let last_dim = output_shape.pop().unwrap();
+        let second_last_dim = output_shape.pop().unwrap();
+        output_shape.push(last_dim);
+        output_shape.push(second_last_dim);
+        output.view(output_shape.as_slice())
     }
 
     fn pad_and_diagonalize(&self, chunked_hidden_states: &Tensor) -> Tensor {
