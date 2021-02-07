@@ -222,8 +222,9 @@ pub struct LongformerModel {
     embeddings: LongformerEmbeddings,
     encoder: LongformerEncoder,
     pooler: Option<LongformerPooler>,
-    attention_window: Vec<i64>,
     max_attention_window: i64,
+    pad_token_id: i64,
+    is_decoder: bool,
 }
 
 impl LongformerModel {
@@ -241,15 +242,17 @@ impl LongformerModel {
             None
         };
 
-        let attention_window = config.attention_window.clone();
-        let max_attention_window = *attention_window.iter().max().unwrap();
+        let max_attention_window = *config.attention_window.iter().max().unwrap();
+        let pad_token_id = config.pad_token_id.unwrap_or(1);
+        let is_decoder = config.is_decoder.unwrap_or(false);
 
         LongformerModel {
             embeddings,
             encoder,
             pooler,
-            attention_window,
             max_attention_window,
+            pad_token_id,
+            is_decoder,
         }
     }
 
@@ -305,14 +308,8 @@ impl LongformerModel {
                 "At least one of input ids or input embeddings must be set".into(),
             ));
         };
+        let batch_size = input_shape[0];
 
-        let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
-        // ToDo: move check to the method calling pad_to_window_size
-        // let padding_length = (self.max_attention_window
-        //     - sequence_length % self.max_attention_window)
-        //     % self.max_attention_window;
-        //
-        // let (input_ids, position_ids,inputs_embeds,attention_mask,token_type_ids) = if padding_length > 0 {
         let input_ids = input_ids
             .map(|value| self.pad_with_nonzero_value(value, &[0, padding_length], pad_token_id));
         let position_ids = position_ids
@@ -343,4 +340,199 @@ impl LongformerModel {
             token_type_ids,
         ))
     }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        global_attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LongformerModelOutput, RustBertError> {
+        let (input_shape, device) = if let Some(input_ids) = input_ids {
+            if input_embeds.is_none() {
+                (input_ids.size(), input_ids.device())
+            } else {
+                return Err(RustBertError::ValueError(
+                    "Only one of input ids or input embeddings may be set".into(),
+                ));
+            }
+        } else if let Some(input_embeds) = input_embeds {
+            (input_embeds.size()[..2].to_vec(), input_embeds.device())
+        } else {
+            return Err(RustBertError::ValueError(
+                "At least one of input ids or input embeddings must be set".into(),
+            ));
+        };
+
+        let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
+
+        let calc_attention_mask = if attention_mask.is_none() {
+            Some(Tensor::ones(input_shape.as_slice(), (Kind::Bool, device)))
+        } else {
+            None
+        };
+        let calc_token_type_ids = if token_type_ids.is_none() {
+            Some(Tensor::zeros(input_shape.as_slice(), (Kind::Bool, device)))
+        } else {
+            None
+        };
+        let attention_mask = if attention_mask.is_some() {
+            attention_mask
+        } else {
+            calc_attention_mask.as_ref()
+        };
+        let token_type_ids = if token_type_ids.is_some() {
+            token_type_ids
+        } else {
+            calc_token_type_ids.as_ref()
+        };
+
+        let merged_attention_mask = if let Some(global_attention_mask) = global_attention_mask {
+            attention_mask.map(|tensor| tensor.multiply(&(global_attention_mask + 1)))
+        } else {
+            None
+        };
+        let attention_mask = if merged_attention_mask.is_some() {
+            merged_attention_mask.as_ref()
+        } else {
+            attention_mask
+        };
+
+        let padding_length = (self.max_attention_window
+            - sequence_length % self.max_attention_window)
+            % self.max_attention_window;
+        let (
+            calc_padded_input_ids,
+            calc_padded_position_ids,
+            calc_padded_inputs_embeds,
+            calc_padded_attention_mask,
+            calc_padded_token_type_ids,
+        ) = if padding_length > 0 {
+            self.pad_to_window_size(
+                input_ids,
+                attention_mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                self.pad_token_id,
+                padding_length,
+                train,
+            )?
+        } else {
+            (None, None, None, None, None)
+        };
+        let padded_input_ids = if calc_padded_input_ids.is_some() {
+            calc_padded_input_ids.as_ref()
+        } else {
+            input_ids
+        };
+        let padded_position_ids = if calc_padded_position_ids.is_some() {
+            calc_padded_position_ids.as_ref()
+        } else {
+            position_ids
+        };
+        let padded_inputs_embeds = if calc_padded_inputs_embeds.is_some() {
+            calc_padded_inputs_embeds.as_ref()
+        } else {
+            input_embeds
+        };
+        let padded_attention_mask = calc_padded_attention_mask
+            .as_ref()
+            .unwrap_or(attention_mask.as_ref().unwrap());
+
+        let padded_token_type_ids = if calc_padded_token_type_ids.is_some() {
+            calc_padded_token_type_ids.as_ref()
+        } else {
+            token_type_ids
+        };
+
+        let extended_attention_mask = match padded_attention_mask.dim() {
+            3 => padded_attention_mask.unsqueeze(1),
+            2 => {
+                if !self.is_decoder {
+                    padded_attention_mask.unsqueeze(1).unsqueeze(1)
+                } else {
+                    let sequence_ids = Tensor::arange(sequence_length, (Kind::Int64, device));
+                    let mut causal_mask = sequence_ids
+                        .unsqueeze(0)
+                        .unsqueeze(0)
+                        .repeat(&[batch_size, sequence_length, 1])
+                        .le1(&sequence_ids.unsqueeze(-1).unsqueeze(0))
+                        .totype(Kind::Int);
+                    if causal_mask.size()[1] < padded_attention_mask.size()[1] {
+                        let prefix_sequence_length =
+                            padded_attention_mask.size()[1] - causal_mask.size()[1];
+                        causal_mask = Tensor::cat(
+                            &[
+                                Tensor::ones(
+                                    &[batch_size, sequence_length, prefix_sequence_length],
+                                    (Kind::Int, device),
+                                ),
+                                causal_mask,
+                            ],
+                            -1,
+                        );
+                    }
+                    causal_mask.unsqueeze(1) * padded_attention_mask.unsqueeze(1).unsqueeze(1)
+                }
+            }
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Invalid attention mask dimension, must be 2 or 3".into(),
+                ));
+            }
+        }
+        .select(1, 0)
+        .select(2, 0);
+
+        let embedding_output = self.embeddings.forward_t(
+            padded_input_ids,
+            padded_token_type_ids,
+            padded_position_ids,
+            padded_inputs_embeds,
+            train,
+        )?;
+
+        let encoder_outputs =
+            self.encoder
+                .forward_t(&embedding_output, &extended_attention_mask, train);
+
+        let pooled_output = self
+            .pooler
+            .as_ref()
+            .map(|pooler| pooler.forward(&encoder_outputs.hidden_states));
+
+        let sequence_output = if padding_length > 0 {
+            encoder_outputs
+                .hidden_states
+                .slice(1, 0, -padding_length, 1)
+        } else {
+            encoder_outputs.hidden_states
+        };
+
+        Ok(LongformerModelOutput {
+            hidden_state: sequence_output,
+            pooled_output,
+            all_hidden_states: encoder_outputs.all_hidden_states,
+            all_attentions: encoder_outputs.all_attentions,
+            all_global_attentions: encoder_outputs.all_global_attentions,
+        })
+    }
+}
+
+/// Container for the Longformer model output.
+pub struct LongformerModelOutput {
+    /// Last hidden states from the model
+    pub hidden_state: Tensor,
+    /// Pooled output (hidden state for the first token)
+    pub pooled_output: Option<Tensor>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Global attention weights for all intermediate layers
+    pub all_global_attentions: Option<Vec<Tensor>>,
 }

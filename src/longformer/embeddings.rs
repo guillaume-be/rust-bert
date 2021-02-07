@@ -11,7 +11,6 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
-use crate::longformer::longformer_model::PositionEmbeddingType;
 use crate::longformer::LongformerConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -24,7 +23,6 @@ pub struct LongformerEmbeddings {
     token_type_embeddings: nn::Embedding,
     layer_norm: nn::LayerNorm,
     dropout: Dropout,
-    position_embeddings_type: PositionEmbeddingType,
     pad_token_id: i64,
 }
 
@@ -69,17 +67,12 @@ impl LongformerEmbeddings {
             nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
-        let position_embeddings_type = config
-            .position_embedding_type
-            .unwrap_or(PositionEmbeddingType::Absolute);
-
         LongformerEmbeddings {
             word_embeddings,
             position_embeddings,
             token_type_embeddings,
             layer_norm,
             dropout,
-            position_embeddings_type,
             pad_token_id,
         }
     }

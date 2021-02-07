@@ -23,7 +23,6 @@ pub struct LongformerSelfAttention {
     key_global: nn::Linear,
     value_global: nn::Linear,
     dropout: Dropout,
-    attention_window: i64,
     one_sided_attention_window_size: i64,
     num_heads: i64,
     head_dim: i64,
@@ -80,8 +79,7 @@ impl LongformerSelfAttention {
         );
 
         let dropout = Dropout::new(config.attention_probs_dropout_prob);
-        let attention_window = config.attention_window[layer_id as usize];
-        let one_sided_attention_window_size = attention_window / 2;
+        let one_sided_attention_window_size = config.attention_window[layer_id as usize] / 2;
         let output_attentions = config.output_attentions.unwrap_or(false);
 
         LongformerSelfAttention {
@@ -92,7 +90,6 @@ impl LongformerSelfAttention {
             key_global,
             value_global,
             dropout,
-            attention_window,
             one_sided_attention_window_size,
             num_heads,
             head_dim,
@@ -639,7 +636,7 @@ impl LongformerSelfAttention {
             (None, None, None, None)
         };
 
-        let mut attention_probas = attention_scores
+        let attention_probas = attention_scores
             .softmax(-1, Kind::Float)
             .masked_fill(&is_index_masked.unsqueeze(-1).unsqueeze(-1), 0.0)
             .apply_t(&self.dropout, train);
@@ -664,7 +661,7 @@ impl LongformerSelfAttention {
             )
         };
 
-        let mut attention_output =
+        let attention_output =
             attention_output
                 .transpose(0, 1)
                 .reshape(&[sequence_length, batch_size, embed_dim]);
