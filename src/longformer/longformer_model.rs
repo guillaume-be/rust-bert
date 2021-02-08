@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::activations::{TensorFunction, _tanh};
+use crate::common::dropout::Dropout;
 use crate::longformer::embeddings::LongformerEmbeddings;
 use crate::longformer::encoder::LongformerEncoder;
 use crate::{Activation, Config, RustBertError};
@@ -588,6 +589,142 @@ impl LongformerForMaskedLM {
     }
 }
 
+pub struct LongformerClassificationHead {
+    dense: nn::Linear,
+    dropout: Dropout,
+    out_proj: nn::Linear,
+}
+
+impl LongformerClassificationHead {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerClassificationHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let out_proj = nn::linear(
+            p / "out_proj",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
+
+        LongformerClassificationHead {
+            dense,
+            dropout,
+            out_proj,
+        }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        hidden_states
+            .select(1, 0)
+            .apply_t(&self.dropout, train)
+            .apply(&self.dense)
+            .tanh()
+            .apply_t(&self.dropout, train)
+            .apply(&self.out_proj)
+    }
+}
+
+pub struct LongformerForSequenceClassification {
+    longformer: LongformerModel,
+    classifier: LongformerClassificationHead,
+}
+
+impl LongformerForSequenceClassification {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForSequenceClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let longformer = LongformerModel::new(p / "longformer", config, false);
+        let classifier = LongformerClassificationHead::new(p / "classifier", config);
+
+        LongformerForSequenceClassification {
+            longformer,
+            classifier,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        global_attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LongformerTokenClassificationOutput, RustBertError> {
+        let calc_global_attention_mask = if global_attention_mask.is_none() {
+            let (input_shape, device) = if let Some(input_ids) = input_ids {
+                if input_embeds.is_none() {
+                    (input_ids.size(), input_ids.device())
+                } else {
+                    return Err(RustBertError::ValueError(
+                        "Only one of input ids or input embeddings may be set".into(),
+                    ));
+                }
+            } else if let Some(input_embeds) = input_embeds {
+                (input_embeds.size()[..2].to_vec(), input_embeds.device())
+            } else {
+                return Err(RustBertError::ValueError(
+                    "At least one of input ids or input embeddings must be set".into(),
+                ));
+            };
+
+            let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
+            let global_attention_mask =
+                Tensor::zeros(&[batch_size, sequence_length], (Kind::Int, device));
+            let _ = global_attention_mask.select(1, 0).fill_(1);
+            Some(global_attention_mask)
+        } else {
+            None
+        };
+
+        let global_attention_mask = if global_attention_mask.is_some() {
+            global_attention_mask
+        } else {
+            calc_global_attention_mask.as_ref()
+        };
+
+        let base_model_output = self.longformer.forward_t(
+            input_ids,
+            attention_mask,
+            global_attention_mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let logits = self
+            .classifier
+            .forward_t(&base_model_output.hidden_state, train);
+        Ok(LongformerTokenClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+            all_global_attentions: base_model_output.all_global_attentions,
+        })
+    }
+}
+
 /// Container for the Longformer model output.
 pub struct LongformerModelOutput {
     /// Last hidden states from the model
@@ -606,6 +743,18 @@ pub struct LongformerModelOutput {
 pub struct LongformerMaskedLMOutput {
     /// Logits for the vocabulary items at each sequence position
     pub prediction_scores: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Global attention weights for all intermediate layers
+    pub all_global_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the Longformer token classification model output.
+pub struct LongformerTokenClassificationOutput {
+    /// Logits for each sequence item (token) for each target class
+    pub logits: Tensor,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
