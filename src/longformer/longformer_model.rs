@@ -725,6 +725,88 @@ impl LongformerForSequenceClassification {
     }
 }
 
+pub struct LongformerForQuestionAnswering {
+    longformer: LongformerModel,
+    qa_outputs: nn::Linear,
+    sep_token_id: i64,
+}
+
+impl LongformerForQuestionAnswering {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForQuestionAnswering
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let longformer = LongformerModel::new(p / "longformer", config, false);
+        let qa_outputs = nn::linear(p / "qa_outputs", config.hidden_size, 2, Default::default());
+        let sep_token_id = config.sep_token_id;
+
+        LongformerForQuestionAnswering {
+            longformer,
+            qa_outputs,
+            sep_token_id,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        global_attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LongformerQuestionAnsweringOutput, RustBertError> {
+        let calc_global_attention_mask = if global_attention_mask.is_none() {
+            if let Some(input_ids) = input_ids {
+                Some(_compute_global_attention_mask(
+                    input_ids,
+                    self.sep_token_id,
+                    true,
+                ))
+            } else {
+                return Err(RustBertError::ValueError(
+                        "Inputs ids must be provided to LongformerQuestionAnsweringOutput if the global_attention_mask is not given".into(),
+                    ));
+            }
+        } else {
+            None
+        };
+
+        let global_attention_mask = if global_attention_mask.is_some() {
+            global_attention_mask
+        } else {
+            calc_global_attention_mask.as_ref()
+        };
+
+        let base_model_output = self.longformer.forward_t(
+            input_ids,
+            attention_mask,
+            global_attention_mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
+        let logits = sequence_output.split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze1(-1);
+        let end_logits = end_logits.squeeze1(-1);
+
+        Ok(LongformerQuestionAnsweringOutput {
+            start_logits,
+            end_logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+            all_global_attentions: base_model_output.all_global_attentions,
+        })
+    }
+}
+
 /// Container for the Longformer model output.
 pub struct LongformerModelOutput {
     /// Last hidden states from the model
@@ -755,6 +837,20 @@ pub struct LongformerMaskedLMOutput {
 pub struct LongformerTokenClassificationOutput {
     /// Logits for each sequence item (token) for each target class
     pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Global attention weights for all intermediate layers
+    pub all_global_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the Longformer question answering model output.
+pub struct LongformerQuestionAnsweringOutput {
+    /// Logits for the start position for token of each input sequence
+    pub start_logits: Tensor,
+    /// Logits for the end position for token of each input sequence
+    pub end_logits: Tensor,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers

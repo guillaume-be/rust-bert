@@ -1226,6 +1226,7 @@ pub struct BertQuestionAnsweringOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }
+
 #[cfg(test)]
 mod test {
     use tch::Device;

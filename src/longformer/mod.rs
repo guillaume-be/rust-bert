@@ -5,6 +5,6 @@ mod longformer_model;
 
 pub use longformer_model::{
     LongformerConfig, LongformerConfigResources, LongformerForMaskedLM,
-    LongformerForSequenceClassification, LongformerMergesResources, LongformerModel,
-    LongformerModelResources, LongformerVocabResources,
+    LongformerForQuestionAnswering, LongformerForSequenceClassification, LongformerMergesResources,
+    LongformerModel, LongformerModelResources, LongformerVocabResources,
 };
