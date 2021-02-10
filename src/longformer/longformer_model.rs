@@ -39,6 +39,11 @@ impl LongformerModelResources {
         "longformer-base-4096/model",
         "https://huggingface.co/allenai/longformer-base-4096/resolve/main/rust_model.ot",
     );
+    /// Shared under MIT license at https://huggingface.co/valhalla/longformer-base-4096-finetuned-squadv1. Modified with conversion to C-array format.
+    pub const LONGFORMER_BASE_SQUAD1: (&'static str, &'static str) = (
+        "longformer-base-4096/model",
+        "https://huggingface.co/valhalla/longformer-base-4096-finetuned-squadv1/resolve/main/rust_model.ot",
+    );
 }
 
 impl LongformerConfigResources {
@@ -46,6 +51,11 @@ impl LongformerConfigResources {
     pub const LONGFORMER_BASE_4096: (&'static str, &'static str) = (
         "longformer-base-4096/config",
         "https://huggingface.co/allenai/longformer-base-4096/resolve/main/config.json",
+    );
+    /// Shared under MIT license at https://huggingface.co/valhalla/longformer-base-4096-finetuned-squadv1. Modified with conversion to C-array format.
+    pub const LONGFORMER_BASE_SQUAD1: (&'static str, &'static str) = (
+        "longformer-base-4096/config",
+        "https://huggingface.co/valhalla/longformer-base-4096-finetuned-squadv1/resolve/main/config.json",
     );
 }
 
@@ -55,6 +65,11 @@ impl LongformerVocabResources {
         "longformer-base-4096/vocab",
         "https://huggingface.co/allenai/longformer-base-4096/resolve/main/vocab.json",
     );
+    /// Shared under MIT license at https://huggingface.co/valhalla/longformer-base-4096-finetuned-squadv1. Modified with conversion to C-array format.
+    pub const LONGFORMER_BASE_SQUAD1: (&'static str, &'static str) = (
+        "longformer-base-4096/vocab",
+        "https://huggingface.co/valhalla/longformer-base-4096-finetuned-squadv1/resolve/main/vocab.json",
+    );
 }
 
 impl LongformerMergesResources {
@@ -62,6 +77,11 @@ impl LongformerMergesResources {
     pub const LONGFORMER_BASE_4096: (&'static str, &'static str) = (
         "longformer-base-4096/merges",
         "https://huggingface.co/allenai/longformer-base-4096/resolve/main/merges.txt",
+    );
+    /// Shared under MIT license at https://huggingface.co/valhalla/longformer-base-4096-finetuned-squadv1. Modified with conversion to C-array format.
+    pub const LONGFORMER_BASE_SQUAD1: (&'static str, &'static str) = (
+        "longformer-base-4096/merges",
+        "https://huggingface.co/valhalla/longformer-base-4096-finetuned-squadv1/resolve/main/merges.txt",
     );
 }
 
