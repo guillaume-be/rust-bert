@@ -58,7 +58,7 @@ use crate::reformer::ReformerForQuestionAnswering;
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
 use rust_tokenizers::tokenizer::{truncate_sequences, TruncationStrategy};
-use rust_tokenizers::{Mask, TokenIdsWithOffsets, TokenizedInput};
+use rust_tokenizers::{Mask, Offset, TokenIdsWithOffsets, TokenizedInput};
 use std::borrow::Borrow;
 use std::cmp::min;
 use std::collections::HashMap;
@@ -81,15 +81,16 @@ pub struct QaInput {
 struct QaExample {
     pub question: String,
     pub context: String,
-    pub doc_tokens: Vec<String>,
-    pub char_to_word_offset: Vec<i64>,
+    // pub doc_tokens: Vec<String>,
+    // pub char_to_word_offset: Vec<i64>,
 }
 
 #[derive(Debug)]
 struct QaFeature {
     pub input_ids: Vec<i64>,
     pub attention_mask: Vec<i64>,
-    pub token_to_orig_map: HashMap<i64, i64>,
+    // pub token_to_orig_map: HashMap<i64, i64>,
+    pub offsets: Vec<Option<Offset>>,
     pub p_mask: Vec<i8>,
     pub example_index: i64,
 }
@@ -128,45 +129,45 @@ fn remove_duplicates<T: PartialEq + Clone>(vector: &mut Vec<T>) -> &mut Vec<T> {
 
 impl QaExample {
     pub fn new(question: &str, context: &str) -> QaExample {
-        let question = question.to_owned();
-        let (doc_tokens, char_to_word_offset) = QaExample::split_context(context);
+        // let question = question.to_owned();
+        // let (doc_tokens, char_to_word_offset) = QaExample::split_context(context);
         QaExample {
-            question,
+            question: question.to_owned(),
             context: context.to_owned(),
-            doc_tokens,
-            char_to_word_offset,
+            // doc_tokens,
+            // char_to_word_offset,
         }
     }
 
-    fn split_context(context: &str) -> (Vec<String>, Vec<i64>) {
-        let mut doc_tokens: Vec<String> = vec![];
-        let mut char_to_word_offset: Vec<i64> = vec![];
-        let max_length = context.len();
-        let mut current_word = String::with_capacity(max_length);
-        let mut previous_whitespace = false;
-
-        for character in context.chars() {
-            char_to_word_offset.push(doc_tokens.len() as i64);
-            if QaExample::is_whitespace(&character) {
-                previous_whitespace = true;
-                if !current_word.is_empty() {
-                    doc_tokens.push(current_word.clone());
-                    current_word = String::with_capacity(max_length);
-                }
-            } else {
-                if previous_whitespace {
-                    current_word = String::with_capacity(max_length);
-                }
-                current_word.push(character);
-                previous_whitespace = false;
-            }
-        }
-
-        if !current_word.is_empty() {
-            doc_tokens.push(current_word);
-        }
-        (doc_tokens, char_to_word_offset)
-    }
+    // fn split_context(context: &str) -> (Vec<String>, Vec<i64>) {
+    //     let mut doc_tokens: Vec<String> = vec![];
+    //     let mut char_to_word_offset: Vec<i64> = vec![];
+    //     let max_length = context.len();
+    //     let mut current_word = String::with_capacity(max_length);
+    //     let mut previous_whitespace = false;
+    //
+    //     for character in context.chars() {
+    //         char_to_word_offset.push(doc_tokens.len() as i64);
+    //         if QaExample::is_whitespace(&character) {
+    //             previous_whitespace = true;
+    //             if !current_word.is_empty() {
+    //                 doc_tokens.push(current_word.clone());
+    //                 current_word = String::with_capacity(max_length);
+    //             }
+    //         } else {
+    //             if previous_whitespace {
+    //                 current_word = String::with_capacity(max_length);
+    //             }
+    //             current_word.push(character);
+    //             previous_whitespace = false;
+    //         }
+    //     }
+    //
+    //     if !current_word.is_empty() {
+    //         doc_tokens.push(current_word);
+    //     }
+    //     (doc_tokens, char_to_word_offset)
+    // }
 
     fn is_whitespace(character: &char) -> bool {
         (character == &' ')
@@ -571,7 +572,8 @@ impl QuestionAnsweringModel {
             tokenizer,
             pad_idx,
             sep_idx,
-            max_seq_len: 384,
+            // ToDo: remove hardcoded value
+            max_seq_len: 164,
             doc_stride: 128,
             max_query_length: 64,
             max_answer_len: 15,
@@ -694,26 +696,18 @@ impl QuestionAnsweringModel {
                         let (starts, ends, scores) = self.decode(&start, &end, top_k);
 
                         for idx in 0..starts.len() {
-                            let start_pos = feature.token_to_orig_map[&starts[idx]] as usize;
-                            let end_pos = feature.token_to_orig_map[&ends[idx]] as usize;
-                            let answer = example.doc_tokens[start_pos..end_pos + 1].join(" ");
-
-                            let start = example
-                                .char_to_word_offset
-                                .iter()
-                                .position(|&v| v as usize == start_pos)
-                                .unwrap();
-
-                            let end = example
-                                .char_to_word_offset
-                                .iter()
-                                .rposition(|&v| v as usize == end_pos)
-                                .unwrap();
+                            let start_pos = feature.offsets[starts[idx] as usize]
+                                .unwrap_or(Offset { begin: 0, end: 0 })
+                                .begin as usize;
+                            let end_pos = feature.offsets[ends[idx] as usize]
+                                .unwrap_or(Offset { begin: 0, end: 0 })
+                                .end as usize;
+                            let answer = example.context[start_pos..end_pos].to_string();
 
                             answers.push(Answer {
                                 score: scores[idx],
-                                start,
-                                end,
+                                start: start_pos,
+                                end: end_pos,
                                 answer,
                             });
                         }
@@ -774,18 +768,24 @@ impl QuestionAnsweringModel {
         max_query_length: usize,
         example_index: i64,
     ) -> Vec<QaFeature> {
-        let mut tok_to_orig_index: Vec<i64> = vec![];
-        let mut all_doc_tokens: Vec<String> = vec![];
+        // let mut tok_to_orig_index: Vec<i64> = vec![];
+        // let mut all_doc_tokens: Vec<String> = vec![];
+        //
+        // for (idx, token) in qa_example.doc_tokens.iter().enumerate() {
+        //     let sub_tokens = self.tokenizer.tokenize(token);
+        //     for sub_token in sub_tokens.into_iter() {
+        //         all_doc_tokens.push(sub_token);
+        //         tok_to_orig_index.push(idx as i64);
+        //     }
+        // }
 
-        for (idx, token) in qa_example.doc_tokens.iter().enumerate() {
-            let sub_tokens = self.tokenizer.tokenize(token);
-            for sub_token in sub_tokens.into_iter() {
-                all_doc_tokens.push(sub_token);
-                tok_to_orig_index.push(idx as i64);
-            }
-        }
-
-        let truncated_query = self.prepare_query(&qa_example.question, max_query_length);
+        let truncated_query = self.tokenizer.encode_pair(
+            qa_example.question.as_str(),
+            None,
+            max_query_length,
+            &TruncationStrategy::OnlyFirst,
+            0,
+        );
 
         let sequence_added_tokens = match self.tokenizer {
             TokenizerOption::Roberta(_) => {
@@ -839,73 +839,126 @@ impl QuestionAnsweringModel {
 
         let mut spans: Vec<QaFeature> = vec![];
 
-        let mut remaining_tokens = self.tokenizer.convert_tokens_to_ids(&all_doc_tokens);
-        while (spans.len() * doc_stride as usize) < all_doc_tokens.len() {
-            let (encoded_span, attention_mask) = self.encode_qa_pair(
-                &truncated_query,
-                &remaining_tokens,
-                max_seq_length,
-                doc_stride,
-                sequence_pair_added_tokens,
-            );
+        let tokenized_context = self.tokenizer.tokenize_with_offsets(&qa_example.context);
+        let encoded_context = TokenIdsWithOffsets {
+            ids: self
+                .tokenizer
+                .convert_tokens_to_ids(&tokenized_context.tokens),
+            offsets: tokenized_context.offsets,
+            reference_offsets: tokenized_context.reference_offsets,
+            masks: tokenized_context.masks,
+        };
+        let max_context_length =
+            max_seq_length - sequence_pair_added_tokens - truncated_query.token_ids.len();
 
-            let paragraph_len = min(
-                all_doc_tokens.len() - spans.len() * doc_stride,
-                max_seq_length - truncated_query.len() - sequence_pair_added_tokens,
-            );
+        let mut start_token = 0_usize;
+        while (spans.len() * doc_stride as usize) < encoded_context.ids.len() {
+            let end_token = min(start_token + max_context_length, encoded_context.ids.len());
+            let sub_encoded_context = TokenIdsWithOffsets {
+                ids: encoded_context.ids[start_token..end_token].to_vec(),
+                offsets: encoded_context.offsets[start_token..end_token].to_vec(),
+                reference_offsets: encoded_context.reference_offsets[start_token..end_token]
+                    .to_vec(),
+                masks: encoded_context.masks[start_token..end_token].to_vec(),
+            };
 
-            let mut token_to_orig_map = HashMap::new();
-            for i in 0..paragraph_len {
-                let index = truncated_query.len() + sequence_added_tokens + i;
-                token_to_orig_map.insert(
-                    index as i64,
-                    tok_to_orig_index[spans.len() * doc_stride + i] as i64,
-                );
+            let mut encoded_span = self.tokenizer.build_input_with_special_tokens(
+                TokenIdsWithOffsets {
+                    ids: truncated_query.token_ids.clone(),
+                    offsets: truncated_query.token_offsets.clone(),
+                    reference_offsets: truncated_query.reference_offsets.clone(),
+                    masks: truncated_query.mask.clone(),
+                },
+                Some(sub_encoded_context),
+            );
+            let mut attention_mask = vec![1; encoded_span.token_ids.len()];
+            if encoded_span.token_ids.len() < max_seq_length {
+                encoded_span.token_ids.append(&mut vec![
+                    self.pad_idx;
+                    max_seq_length
+                        - encoded_span.token_ids.len()
+                ]);
+                encoded_span.segment_ids.append(&mut vec![
+                    0;
+                    max_seq_length
+                        - encoded_span.segment_ids.len()
+                ]);
+                attention_mask.append(&mut vec![0; max_seq_length - attention_mask.len()]);
+                encoded_span.token_offsets.append(&mut vec![
+                    None;
+                    max_seq_length
+                        - encoded_span.token_offsets.len()
+                ]);
+                encoded_span.reference_offsets.append(&mut vec![
+                    vec!();
+                    max_seq_length
+                        - encoded_span
+                            .token_offsets
+                            .len()
+                ]);
+                encoded_span.mask.append(&mut vec![
+                    Mask::Special;
+                    max_seq_length - encoded_span.mask.len()
+                ]);
             }
-
             let p_mask = self.get_mask(&encoded_span);
-
             let qa_feature = QaFeature {
                 input_ids: encoded_span.token_ids,
                 attention_mask,
-                token_to_orig_map,
+                offsets: encoded_span.token_offsets,
                 p_mask,
                 example_index,
             };
-
             spans.push(qa_feature);
-            if encoded_span.num_truncated_tokens == 0 {
+            if end_token == encoded_context.ids.len() {
                 break;
             }
-            remaining_tokens = encoded_span.overflowing_tokens
+            start_token = start_token + doc_stride;
         }
-        spans
-    }
 
-    fn prepare_query(&self, query: &str, max_query_length: usize) -> Vec<i64> {
-        let truncated_query = self
-            .tokenizer
-            .convert_tokens_to_ids(&self.tokenizer.tokenize(&query));
-        let num_query_tokens_to_remove = if truncated_query.len() > max_query_length as usize {
-            truncated_query.len() - max_query_length
-        } else {
-            0
-        };
-        truncate_sequences(
-            TokenIdsWithOffsets {
-                ids: truncated_query,
-                offsets: vec![],
-                reference_offsets: vec![],
-                masks: vec![],
-            },
-            None,
-            num_query_tokens_to_remove,
-            &TruncationStrategy::OnlyFirst,
-            0,
-        )
-        .unwrap()
-        .0
-        .ids
+        // let mut remaining_tokens = self.tokenizer.convert_tokens_to_ids(&all_doc_tokens);
+        // while (spans.len() * doc_stride as usize) < all_doc_tokens.len() {
+        //     let (encoded_span, attention_mask) = self.encode_qa_pair(
+        //         &truncated_query,
+        //         &remaining_tokens,
+        //         max_seq_length,
+        //         doc_stride,
+        //         sequence_pair_added_tokens,
+        //     );
+        //
+        //     let paragraph_len = min(
+        //         all_doc_tokens.len() - spans.len() * doc_stride,
+        //         max_seq_length - truncated_query.len() - sequence_pair_added_tokens,
+        //     );
+        //
+        //     let mut token_to_orig_map = HashMap::new();
+        //     for i in 0..paragraph_len {
+        //         let index = truncated_query.len() + sequence_added_tokens + i;
+        //         token_to_orig_map.insert(
+        //             index as i64,
+        //             tok_to_orig_index[spans.len() * doc_stride + i] as i64,
+        //         );
+        //     }
+        //
+        //     let p_mask = self.get_mask(&encoded_span);
+        //
+        //     let qa_feature = QaFeature {
+        //         input_ids: encoded_span.token_ids,
+        //         attention_mask,
+        //         token_to_orig_map,
+        //         p_mask,
+        //         example_index,
+        //     };
+        //
+        //     println!("{:?}", &qa_feature.input_ids);
+        //
+        //     spans.push(qa_feature);
+        //     if encoded_span.num_truncated_tokens == 0 {
+        //         break;
+        //     }
+        //     remaining_tokens = encoded_span.overflowing_tokens
+        // }
+        spans
     }
 
     fn encode_qa_pair(

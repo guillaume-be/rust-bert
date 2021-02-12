@@ -39,7 +39,7 @@ use rust_tokenizers::vocab::{
     AlbertVocab, BertVocab, Gpt2Vocab, MarianVocab, OpenAiGptVocab, ProphetNetVocab, ReformerVocab,
     RobertaVocab, T5Vocab, Vocab, XLMRobertaVocab, XLNetVocab,
 };
-use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput};
+use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -546,6 +546,52 @@ impl TokenizerOption {
         }
     }
 
+    /// Interface method for pair encoding (single input)
+    pub fn encode_pair(
+        &self,
+        text_1: &str,
+        text_2: Option<&str>,
+        max_len: usize,
+        truncation_strategy: &TruncationStrategy,
+        stride: usize,
+    ) -> TokenizedInput {
+        match *self {
+            Self::Bert(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Roberta(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Marian(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::T5(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Albert(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::XLNet(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::GPT2(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::OpenAiGpt(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Reformer(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::ProphetNet(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+        }
+    }
+
     /// Interface method to tokenization
     pub fn tokenize(&self, text: &str) -> Vec<String> {
         match *self {
@@ -560,6 +606,23 @@ impl TokenizerOption {
             Self::OpenAiGpt(ref tokenizer) => tokenizer.tokenize(text),
             Self::Reformer(ref tokenizer) => tokenizer.tokenize(text),
             Self::ProphetNet(ref tokenizer) => tokenizer.tokenize(text),
+        }
+    }
+
+    /// Interface method to tokenization
+    pub fn tokenize_with_offsets(&self, text: &str) -> TokensWithOffsets {
+        match *self {
+            Self::Bert(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Roberta(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Marian(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::T5(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Albert(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::XLNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::GPT2(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::OpenAiGpt(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Reformer(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::ProphetNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
         }
     }
 
