@@ -51,6 +51,7 @@ use crate::distilbert::{
     DistilBertConfigResources, DistilBertForQuestionAnswering, DistilBertModelResources,
     DistilBertVocabResources,
 };
+use crate::longformer::LongformerForQuestionAnswering;
 use crate::mobilebert::MobileBertForQuestionAnswering;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForQuestionAnswering;
@@ -274,6 +275,8 @@ pub enum QuestionAnsweringOption {
     XLNet(XLNetForQuestionAnswering),
     /// Reformer for Question Answering
     Reformer(ReformerForQuestionAnswering),
+    /// Longformer for Question Answering
+    Longformer(LongformerForQuestionAnswering),
 }
 
 impl QuestionAnsweringOption {
@@ -382,6 +385,17 @@ impl QuestionAnsweringOption {
                     ))
                 }
             }
+            ModelType::Longformer => {
+                if let ConfigOption::Longformer(config) = config {
+                    Ok(QuestionAnsweringOption::Longformer(
+                        LongformerForQuestionAnswering::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a LongformerConfig for Longformer!".to_string(),
+                    ))
+                }
+            }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "QuestionAnswering not implemented for {:?}!",
                 model_type
@@ -400,6 +414,7 @@ impl QuestionAnsweringOption {
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
+            Self::Longformer(_) => ModelType::Longformer,
         }
     }
 
@@ -459,6 +474,20 @@ impl QuestionAnsweringOption {
             Self::Reformer(ref model) => {
                 let outputs = model
                     .forward_t(input_ids.as_ref(), None, None, mask.as_ref(), None, train)
+                    .expect("Error in reformer forward pass");
+                (outputs.start_logits, outputs.end_logits)
+            }
+            Self::Longformer(ref model) => {
+                let outputs = model
+                    .forward_t(
+                        input_ids.as_ref(),
+                        mask.as_ref(),
+                        None,
+                        None,
+                        None,
+                        None,
+                        train,
+                    )
                     .expect("Error in reformer forward pass");
                 (outputs.start_logits, outputs.end_logits)
             }

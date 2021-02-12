@@ -23,6 +23,7 @@ use crate::common::error::RustBertError;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::gpt2::Gpt2Config;
+use crate::longformer::LongformerConfig;
 use crate::mobilebert::MobileBertConfig;
 use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
@@ -61,6 +62,7 @@ pub enum ModelType {
     OpenAiGpt,
     Reformer,
     ProphetNet,
+    Longformer,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -89,6 +91,8 @@ pub enum ConfigOption {
     Reformer(ReformerConfig),
     /// ProphetNet configuration
     ProphetNet(ProphetNetConfig),
+    /// Longformer configuration
+    Longformer(LongformerConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -136,6 +140,7 @@ impl ConfigOption {
             ModelType::OpenAiGpt => ConfigOption::GPT2(Gpt2Config::from_file(path)),
             ModelType::Reformer => ConfigOption::Reformer(ReformerConfig::from_file(path)),
             ModelType::ProphetNet => ConfigOption::ProphetNet(ProphetNetConfig::from_file(path)),
+            ModelType::Longformer => ConfigOption::Longformer(LongformerConfig::from_file(path)),
         }
     }
 
@@ -169,6 +174,9 @@ impl ConfigOption {
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::ProphetNet(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Longformer(config) => config
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
@@ -207,7 +215,7 @@ impl TokenizerOption {
                     strip_accents.unwrap_or(lower_case),
                 )?)
             }
-            ModelType::Roberta | ModelType::Bart => {
+            ModelType::Roberta | ModelType::Bart | ModelType::Longformer => {
                 if strip_accents.is_some() {
                     return Err(RustBertError::InvalidConfigurationError(format!(
                         "Optional input `strip_accents` set to value {} but cannot be used by {:?}",

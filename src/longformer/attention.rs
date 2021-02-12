@@ -682,19 +682,14 @@ impl LongformerSelfAttention {
                     train,
                 );
 
-            let nonzero_global_attention_output = global_attention_output
-                .index_select(
-                    0,
-                    &is_local_index_global_attention_nonzero.as_ref().unwrap()[0],
-                )
-                .index_select(
-                    2,
-                    &is_local_index_global_attention_nonzero.as_ref().unwrap()[1],
-                );
+            let nonzero_global_attention_output = global_attention_output.transpose(1, 2).index(&[
+                &is_local_index_global_attention_nonzero.as_ref().unwrap()[0],
+                &is_local_index_global_attention_nonzero.as_ref().unwrap()[1],
+            ]);
 
             attention_output
                 .index(
-                    is_local_index_global_attention_nonzero
+                    is_index_global_attn_nonzero
                         .as_ref()
                         .unwrap()
                         .iter()

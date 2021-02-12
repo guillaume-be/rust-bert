@@ -136,7 +136,7 @@ fn _compute_global_attention_mask(
     before_sep_token: bool,
 ) -> Tensor {
     let question_end_index = _get_question_end_index(input_ids, sep_token_id).unsqueeze(1);
-    let attention_mask = Tensor::arange(input_ids.size()[1], (Kind::Int8, input_ids.device()));
+    let attention_mask = Tensor::arange(input_ids.size()[1], (Kind::Int64, input_ids.device()));
 
     if before_sep_token {
         attention_mask.expand_as(input_ids).lt1(&question_end_index)
@@ -422,7 +422,7 @@ impl LongformerModel {
         };
 
         let merged_attention_mask = if let Some(global_attention_mask) = global_attention_mask {
-            attention_mask.map(|tensor| tensor.multiply(&(global_attention_mask + 1)))
+            attention_mask.map(|tensor| tensor * (global_attention_mask + 1))
         } else {
             None
         };
