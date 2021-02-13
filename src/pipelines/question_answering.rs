@@ -57,7 +57,7 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForQuestionAnswering;
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
-use rust_tokenizers::{Mask, Offset, TokenIdsWithOffsets, TokenizedInput};
+use rust_tokenizers::{Offset, TokenIdsWithOffsets, TokenizedInput};
 use std::borrow::Borrow;
 use std::cmp::min;
 use std::collections::HashMap;
@@ -79,7 +79,6 @@ pub struct QaInput {
 #[derive(Debug)]
 struct QaFeature {
     pub input_ids: Vec<i64>,
-    pub attention_mask: Vec<i64>,
     pub offsets: Vec<Option<Offset>>,
     pub p_mask: Vec<i8>,
     pub example_index: i64,
@@ -599,7 +598,7 @@ impl QuestionAnsweringModel {
         top_k: i64,
         batch_size: usize,
     ) -> Vec<Vec<Answer>> {
-        let features: Vec<QaFeature> = qa_inputs
+        let mut features: Vec<QaFeature> = qa_inputs
             .iter()
             .enumerate()
             .map(|(example_index, qa_example)| {
@@ -620,18 +619,9 @@ impl QuestionAnsweringModel {
 
         while start < len_features {
             let end = start + min(len_features - start, batch_size);
-            let batch_features = &features[start..end];
-            let mut input_ids = Vec::with_capacity(batch_features.len());
-            let mut attention_masks = Vec::with_capacity(batch_features.len());
+            let batch_features = &mut features[start..end];
             no_grad(|| {
-                for feature in batch_features {
-                    input_ids.push(Tensor::of_slice(&feature.input_ids));
-                    attention_masks.push(Tensor::of_slice(&feature.attention_mask));
-                }
-
-                let input_ids = Tensor::stack(&input_ids, 0).to(self.var_store.device());
-                let attention_masks =
-                    Tensor::stack(&attention_masks, 0).to(self.var_store.device());
+                let (input_ids, attention_masks) = self.pad_features(batch_features);
 
                 let (start_logits, end_logits) =
                     self.qa_model
@@ -794,43 +784,12 @@ impl QuestionAnsweringModel {
                 masks: encoded_context.masks[start_token..end_token].to_vec(),
             };
 
-            let mut encoded_span = self
+            let encoded_span = self
                 .tokenizer
                 .build_input_with_special_tokens(encoded_query.clone(), Some(sub_encoded_context));
-            let mut attention_mask = vec![1; encoded_span.token_ids.len()];
-            if encoded_span.token_ids.len() < max_seq_length {
-                encoded_span.token_ids.append(&mut vec![
-                    self.pad_idx;
-                    max_seq_length
-                        - encoded_span.token_ids.len()
-                ]);
-                encoded_span.segment_ids.append(&mut vec![
-                    0;
-                    max_seq_length
-                        - encoded_span.segment_ids.len()
-                ]);
-                attention_mask.append(&mut vec![0; max_seq_length - attention_mask.len()]);
-                encoded_span.token_offsets.append(&mut vec![
-                    None;
-                    max_seq_length
-                        - encoded_span.token_offsets.len()
-                ]);
-                encoded_span.reference_offsets.append(&mut vec![
-                    vec!();
-                    max_seq_length
-                        - encoded_span
-                            .token_offsets
-                            .len()
-                ]);
-                encoded_span.mask.append(&mut vec![
-                    Mask::Special;
-                    max_seq_length - encoded_span.mask.len()
-                ]);
-            }
             let p_mask = self.get_mask(&encoded_span);
             let qa_feature = QaFeature {
                 input_ids: encoded_span.token_ids,
-                attention_mask,
                 offsets: encoded_span.token_offsets,
                 p_mask,
                 example_index,
@@ -842,6 +801,46 @@ impl QuestionAnsweringModel {
             start_token = end_token - doc_stride;
         }
         spans
+    }
+
+    fn pad_features(&self, features: &mut [QaFeature]) -> (Tensor, Tensor) {
+        let max_len = features
+            .iter()
+            .map(|feature| feature.input_ids.len())
+            .max()
+            .unwrap();
+
+        let attention_masks = features
+            .iter()
+            .map(|feature| &feature.input_ids)
+            .map(|input| {
+                let mut attention_mask = vec![1; input.len()];
+                attention_mask.append(&mut vec![0; max_len - attention_mask.len()]);
+                attention_mask
+            })
+            .map(|input| Tensor::of_slice(&(input)))
+            .collect::<Vec<_>>();
+
+        for feature in features.iter_mut() {
+            feature
+                .offsets
+                .append(&mut vec![None; max_len - feature.input_ids.len()]);
+            feature
+                .p_mask
+                .append(&mut vec![1; max_len - feature.input_ids.len()]);
+            feature
+                .input_ids
+                .append(&mut vec![self.pad_idx; max_len - feature.input_ids.len()]);
+        }
+
+        let padded_input_ids = features
+            .iter_mut()
+            .map(|input| Tensor::of_slice(input.input_ids.as_slice()))
+            .collect::<Vec<_>>();
+
+        let input_ids = Tensor::stack(&padded_input_ids, 0).to(self.var_store.device());
+        let attention_masks = Tensor::stack(&attention_masks, 0).to(self.var_store.device());
+        (input_ids, attention_masks)
     }
 
     fn get_mask(&self, encoded_span: &TokenizedInput) -> Vec<i8> {
