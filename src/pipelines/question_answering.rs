@@ -57,7 +57,7 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForQuestionAnswering;
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
-use rust_tokenizers::tokenizer::{truncate_sequences, TruncationStrategy};
+use rust_tokenizers::tokenizer::TruncationStrategy;
 use rust_tokenizers::{Mask, Offset, TokenIdsWithOffsets, TokenizedInput};
 use std::borrow::Borrow;
 use std::cmp::min;
@@ -78,18 +78,9 @@ pub struct QaInput {
 }
 
 #[derive(Debug)]
-struct QaExample {
-    pub question: String,
-    pub context: String,
-    // pub doc_tokens: Vec<String>,
-    // pub char_to_word_offset: Vec<i64>,
-}
-
-#[derive(Debug)]
 struct QaFeature {
     pub input_ids: Vec<i64>,
     pub attention_mask: Vec<i64>,
-    // pub token_to_orig_map: HashMap<i64, i64>,
     pub offsets: Vec<Option<Offset>>,
     pub p_mask: Vec<i8>,
     pub example_index: i64,
@@ -127,57 +118,6 @@ fn remove_duplicates<T: PartialEq + Clone>(vector: &mut Vec<T>) -> &mut Vec<T> {
     vector
 }
 
-impl QaExample {
-    pub fn new(question: &str, context: &str) -> QaExample {
-        // let question = question.to_owned();
-        // let (doc_tokens, char_to_word_offset) = QaExample::split_context(context);
-        QaExample {
-            question: question.to_owned(),
-            context: context.to_owned(),
-            // doc_tokens,
-            // char_to_word_offset,
-        }
-    }
-
-    // fn split_context(context: &str) -> (Vec<String>, Vec<i64>) {
-    //     let mut doc_tokens: Vec<String> = vec![];
-    //     let mut char_to_word_offset: Vec<i64> = vec![];
-    //     let max_length = context.len();
-    //     let mut current_word = String::with_capacity(max_length);
-    //     let mut previous_whitespace = false;
-    //
-    //     for character in context.chars() {
-    //         char_to_word_offset.push(doc_tokens.len() as i64);
-    //         if QaExample::is_whitespace(&character) {
-    //             previous_whitespace = true;
-    //             if !current_word.is_empty() {
-    //                 doc_tokens.push(current_word.clone());
-    //                 current_word = String::with_capacity(max_length);
-    //             }
-    //         } else {
-    //             if previous_whitespace {
-    //                 current_word = String::with_capacity(max_length);
-    //             }
-    //             current_word.push(character);
-    //             previous_whitespace = false;
-    //         }
-    //     }
-    //
-    //     if !current_word.is_empty() {
-    //         doc_tokens.push(current_word);
-    //     }
-    //     (doc_tokens, char_to_word_offset)
-    // }
-
-    fn is_whitespace(character: &char) -> bool {
-        (character == &' ')
-            | (character == &'\t')
-            | (character == &'\r')
-            | (character == &'\n')
-            | (*character as u32 == 0x202F)
-    }
-}
-
 /// # Configuration for question answering
 /// Contains information regarding the model to load and device to place the model on.
 pub struct QuestionAnsweringConfig {
@@ -199,6 +139,14 @@ pub struct QuestionAnsweringConfig {
     pub strip_accents: Option<bool>,
     /// Flag indicating if the tokenizer should add a white space before each tokenized input (needed for some Roberta models)
     pub add_prefix_space: Option<bool>,
+    /// Maximum sequence length for the combined query and context
+    pub max_seq_length: usize,
+    /// Stride to apply if the context needs to be broken down due to a large length. Represents the number of overlapping tokens between sliding windows.
+    pub doc_stride: usize,
+    /// Maximum length for the query
+    pub max_query_length: usize,
+    /// Maximum length for the answer
+    pub max_answer_len: usize,
 }
 
 impl QuestionAnsweringConfig {
@@ -221,6 +169,10 @@ impl QuestionAnsweringConfig {
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
+        max_seq_length: impl Into<Option<usize>>,
+        doc_stride: impl Into<Option<usize>>,
+        max_query_length: impl Into<Option<usize>>,
+        max_answer_len: impl Into<Option<usize>>,
     ) -> QuestionAnsweringConfig {
         QuestionAnsweringConfig {
             model_type,
@@ -232,6 +184,10 @@ impl QuestionAnsweringConfig {
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
             device: Device::cuda_if_available(),
+            max_seq_length: max_seq_length.into().unwrap_or(384),
+            doc_stride: doc_stride.into().unwrap_or(128),
+            max_query_length: max_query_length.into().unwrap_or(64),
+            max_answer_len: max_answer_len.into().unwrap_or(15),
         }
     }
 }
@@ -254,6 +210,10 @@ impl Default for QuestionAnsweringConfig {
             lower_case: false,
             add_prefix_space: None,
             strip_accents: None,
+            max_seq_length: 384,
+            doc_stride: 128,
+            max_query_length: 64,
+            max_answer_len: 15,
         }
     }
 }
@@ -567,16 +527,31 @@ impl QuestionAnsweringModel {
             &var_store.root(),
             &model_config,
         )?;
+
+        if question_answering_config.max_seq_length
+            < (question_answering_config.max_query_length
+                + question_answering_config.doc_stride
+                + 24)
+        {
+            return Err(RustBertError::InvalidConfigurationError(format!(
+                "This configuration could cause an excessive number of sliding windows generated.\
+                Please ensure max_seq_length > max_query_length + doc_stride + 24.\
+                Got max_seq_length: {}, max_query_length: {}, doc_stride: {}",
+                question_answering_config.max_seq_length,
+                question_answering_config.max_query_length,
+                question_answering_config.doc_stride
+            )));
+        }
+
         var_store.load(weights_path)?;
         Ok(QuestionAnsweringModel {
             tokenizer,
             pad_idx,
             sep_idx,
-            // ToDo: remove hardcoded value
-            max_seq_len: 164,
-            doc_stride: 128,
-            max_query_length: 64,
-            max_answer_len: 15,
+            max_seq_len: question_answering_config.max_seq_length,
+            doc_stride: question_answering_config.doc_stride,
+            max_query_length: question_answering_config.max_query_length,
+            max_answer_len: question_answering_config.max_answer_len,
             qa_model,
             var_store,
         })
@@ -625,11 +600,7 @@ impl QuestionAnsweringModel {
         top_k: i64,
         batch_size: usize,
     ) -> Vec<Vec<Answer>> {
-        let examples: Vec<QaExample> = qa_inputs
-            .iter()
-            .map(|qa_input| QaExample::new(&qa_input.question, &qa_input.context))
-            .collect();
-        let features: Vec<QaFeature> = examples
+        let features: Vec<QaFeature> = qa_inputs
             .iter()
             .enumerate()
             .map(|(example_index, qa_example)| {
@@ -681,7 +652,7 @@ impl QuestionAnsweringModel {
 
                 for (example_id, max_feature_id) in example_index_to_feature_end_position {
                     let mut answers: Vec<Answer> = vec![];
-                    let example = &examples[example_id];
+                    let example = &qa_inputs[example_id];
                     for feature_idx in feature_id_start..max_feature_id {
                         let feature = &batch_features[feature_idx as usize];
                         let start = start_logits.get(feature_idx);
@@ -722,7 +693,7 @@ impl QuestionAnsweringModel {
             start = end;
         }
         let mut all_answers = vec![];
-        for example_id in 0..examples.len() {
+        for example_id in 0..qa_inputs.len() {
             if let Some(answers) = example_top_k_answers_map.get_mut(&example_id) {
                 remove_duplicates(answers).sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
                 all_answers.push(answers[..min(answers.len(), top_k as usize)].to_vec());
@@ -762,23 +733,12 @@ impl QuestionAnsweringModel {
 
     fn generate_features(
         &self,
-        qa_example: &QaExample,
+        qa_example: &QaInput,
         max_seq_length: usize,
         doc_stride: usize,
         max_query_length: usize,
         example_index: i64,
     ) -> Vec<QaFeature> {
-        // let mut tok_to_orig_index: Vec<i64> = vec![];
-        // let mut all_doc_tokens: Vec<String> = vec![];
-        //
-        // for (idx, token) in qa_example.doc_tokens.iter().enumerate() {
-        //     let sub_tokens = self.tokenizer.tokenize(token);
-        //     for sub_token in sub_tokens.into_iter() {
-        //         all_doc_tokens.push(sub_token);
-        //         tok_to_orig_index.push(idx as i64);
-        //     }
-        // }
-
         let truncated_query = self.tokenizer.encode_pair(
             qa_example.question.as_str(),
             None,
@@ -786,37 +746,6 @@ impl QuestionAnsweringModel {
             &TruncationStrategy::OnlyFirst,
             0,
         );
-
-        let sequence_added_tokens = match self.tokenizer {
-            TokenizerOption::Roberta(_) => {
-                self.tokenizer
-                    .build_input_with_special_tokens(
-                        TokenIdsWithOffsets {
-                            ids: vec![],
-                            offsets: vec![],
-                            reference_offsets: vec![],
-                            masks: vec![],
-                        },
-                        None,
-                    )
-                    .token_ids
-                    .len()
-                    + 1
-            }
-            _ => self
-                .tokenizer
-                .build_input_with_special_tokens(
-                    TokenIdsWithOffsets {
-                        ids: vec![],
-                        offsets: vec![],
-                        reference_offsets: vec![],
-                        masks: vec![],
-                    },
-                    None,
-                )
-                .token_ids
-                .len(),
-        };
 
         let sequence_pair_added_tokens = self
             .tokenizer
@@ -913,133 +842,9 @@ impl QuestionAnsweringModel {
             if end_token == encoded_context.ids.len() {
                 break;
             }
-            start_token = start_token + doc_stride;
+            start_token = end_token - doc_stride;
         }
-
-        // let mut remaining_tokens = self.tokenizer.convert_tokens_to_ids(&all_doc_tokens);
-        // while (spans.len() * doc_stride as usize) < all_doc_tokens.len() {
-        //     let (encoded_span, attention_mask) = self.encode_qa_pair(
-        //         &truncated_query,
-        //         &remaining_tokens,
-        //         max_seq_length,
-        //         doc_stride,
-        //         sequence_pair_added_tokens,
-        //     );
-        //
-        //     let paragraph_len = min(
-        //         all_doc_tokens.len() - spans.len() * doc_stride,
-        //         max_seq_length - truncated_query.len() - sequence_pair_added_tokens,
-        //     );
-        //
-        //     let mut token_to_orig_map = HashMap::new();
-        //     for i in 0..paragraph_len {
-        //         let index = truncated_query.len() + sequence_added_tokens + i;
-        //         token_to_orig_map.insert(
-        //             index as i64,
-        //             tok_to_orig_index[spans.len() * doc_stride + i] as i64,
-        //         );
-        //     }
-        //
-        //     let p_mask = self.get_mask(&encoded_span);
-        //
-        //     let qa_feature = QaFeature {
-        //         input_ids: encoded_span.token_ids,
-        //         attention_mask,
-        //         token_to_orig_map,
-        //         p_mask,
-        //         example_index,
-        //     };
-        //
-        //     println!("{:?}", &qa_feature.input_ids);
-        //
-        //     spans.push(qa_feature);
-        //     if encoded_span.num_truncated_tokens == 0 {
-        //         break;
-        //     }
-        //     remaining_tokens = encoded_span.overflowing_tokens
-        // }
         spans
-    }
-
-    fn encode_qa_pair(
-        &self,
-        truncated_query: &[i64],
-        spans_token_ids: &[i64],
-        max_seq_length: usize,
-        doc_stride: usize,
-        sequence_pair_added_tokens: usize,
-    ) -> (TokenizedInput, Vec<i64>) {
-        let len_1 = truncated_query.len();
-        let len_2 = spans_token_ids.len();
-        let total_len = len_1 + len_2 + sequence_pair_added_tokens;
-        let num_truncated_tokens = if total_len > max_seq_length {
-            total_len - max_seq_length
-        } else {
-            0
-        };
-
-        let (truncated_query, truncated_context, overflowing_tokens, _) = truncate_sequences(
-            TokenIdsWithOffsets {
-                ids: truncated_query.into(),
-                offsets: vec![],
-                reference_offsets: vec![],
-                masks: vec![],
-            },
-            Some(TokenIdsWithOffsets {
-                ids: spans_token_ids.into(),
-                offsets: vec![],
-                reference_offsets: vec![],
-                masks: vec![],
-            }),
-            num_truncated_tokens,
-            &TruncationStrategy::OnlySecond,
-            max_seq_length - doc_stride - len_1 - sequence_pair_added_tokens,
-        )
-        .unwrap();
-
-        let mut tokenized_input = self
-            .tokenizer
-            .build_input_with_special_tokens(truncated_query, truncated_context);
-        let mut attention_mask = vec![1; tokenized_input.token_ids.len()];
-        if tokenized_input.token_ids.len() < max_seq_length {
-            tokenized_input.token_ids.append(&mut vec![
-                self.pad_idx;
-                max_seq_length
-                    - tokenized_input.token_ids.len()
-            ]);
-            tokenized_input.segment_ids.append(&mut vec![
-                0;
-                max_seq_length
-                    - tokenized_input.segment_ids.len()
-            ]);
-            attention_mask.append(&mut vec![0; max_seq_length - attention_mask.len()]);
-            tokenized_input.token_offsets.append(&mut vec![
-                None;
-                max_seq_length
-                    - tokenized_input
-                        .token_offsets
-                        .len()
-            ]);
-            tokenized_input.reference_offsets.append(&mut vec![
-                vec!();
-                max_seq_length
-                    - tokenized_input
-                        .token_offsets
-                        .len()
-            ]);
-            tokenized_input.mask.append(&mut vec![
-                Mask::Special;
-                max_seq_length - tokenized_input.mask.len()
-            ]);
-        }
-        (
-            TokenizedInput {
-                overflowing_tokens,
-                num_truncated_tokens,
-                ..tokenized_input
-            },
-            attention_mask,
-        )
     }
 
     fn get_mask(&self, encoded_span: &TokenizedInput) -> Vec<i8> {
