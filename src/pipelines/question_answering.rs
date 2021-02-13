@@ -57,7 +57,6 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForQuestionAnswering;
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
-use rust_tokenizers::tokenizer::TruncationStrategy;
 use rust_tokenizers::{Mask, Offset, TokenIdsWithOffsets, TokenizedInput};
 use std::borrow::Borrow;
 use std::cmp::min;
@@ -739,13 +738,17 @@ impl QuestionAnsweringModel {
         max_query_length: usize,
         example_index: i64,
     ) -> Vec<QaFeature> {
-        let truncated_query = self.tokenizer.encode_pair(
-            qa_example.question.as_str(),
-            None,
-            max_query_length,
-            &TruncationStrategy::OnlyFirst,
-            0,
-        );
+        let mut encoded_query = self.tokenizer.tokenize_with_offsets(&qa_example.question);
+        encoded_query.tokens.truncate(max_query_length);
+        encoded_query.offsets.truncate(max_query_length);
+        encoded_query.reference_offsets.truncate(max_query_length);
+        encoded_query.masks.truncate(max_query_length);
+        let encoded_query = TokenIdsWithOffsets {
+            ids: self.tokenizer.convert_tokens_to_ids(&encoded_query.tokens),
+            offsets: encoded_query.offsets,
+            reference_offsets: encoded_query.reference_offsets,
+            masks: encoded_query.masks,
+        };
 
         let sequence_pair_added_tokens = self
             .tokenizer
@@ -778,7 +781,7 @@ impl QuestionAnsweringModel {
             masks: tokenized_context.masks,
         };
         let max_context_length =
-            max_seq_length - sequence_pair_added_tokens - truncated_query.token_ids.len();
+            max_seq_length - sequence_pair_added_tokens - encoded_query.ids.len();
 
         let mut start_token = 0_usize;
         while (spans.len() * doc_stride as usize) < encoded_context.ids.len() {
@@ -791,15 +794,9 @@ impl QuestionAnsweringModel {
                 masks: encoded_context.masks[start_token..end_token].to_vec(),
             };
 
-            let mut encoded_span = self.tokenizer.build_input_with_special_tokens(
-                TokenIdsWithOffsets {
-                    ids: truncated_query.token_ids.clone(),
-                    offsets: truncated_query.token_offsets.clone(),
-                    reference_offsets: truncated_query.reference_offsets.clone(),
-                    masks: truncated_query.mask.clone(),
-                },
-                Some(sub_encoded_context),
-            );
+            let mut encoded_span = self
+                .tokenizer
+                .build_input_with_special_tokens(encoded_query.clone(), Some(sub_encoded_context));
             let mut attention_mask = vec![1; encoded_span.token_ids.len()];
             if encoded_span.token_ids.len() < max_seq_length {
                 encoded_span.token_ids.append(&mut vec![
