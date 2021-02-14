@@ -644,14 +644,16 @@ impl QuestionAnsweringModel {
                     let example = &qa_inputs[example_id];
                     for feature_idx in feature_id_start..max_feature_id {
                         let feature = &batch_features[feature_idx as usize];
-                        let start = start_logits.get(feature_idx);
-                        let end = end_logits.get(feature_idx);
                         let p_mask = (Tensor::of_slice(&feature.p_mask) - 1)
                             .abs()
-                            .to_device(start.device());
+                            .to_device(start_logits.device())
+                            .eq(0);
 
-                        let start: Tensor = start.exp() / start.exp().sum(Float) * &p_mask;
-                        let end: Tensor = end.exp() / end.exp().sum(Float) * &p_mask;
+                        let start = start_logits.get(feature_idx).masked_fill(&p_mask, -10000);
+                        let end = end_logits.get(feature_idx).masked_fill(&p_mask, -10000);
+
+                        let start = start.exp() / start.exp().sum(Float);
+                        let end = end.exp() / end.exp().sum(Float);
 
                         let (starts, ends, scores) = self.decode(&start, &end, top_k);
 

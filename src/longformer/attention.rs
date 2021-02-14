@@ -387,7 +387,7 @@ impl LongformerSelfAttention {
     ) -> Tensor {
         let batch_size = key_vectors.size()[0];
 
-        let key_vectors_only_global = Tensor::zeros(
+        let mut key_vectors_only_global = Tensor::zeros(
             &[
                 batch_size,
                 max_num_global_attention_indices,
@@ -397,9 +397,11 @@ impl LongformerSelfAttention {
             (Kind::Float, key_vectors.device()),
         );
 
-        key_vectors_only_global
-            .index(is_local_index_global_attention_nonzero)
-            .copy_(&key_vectors.index(is_index_global_attn_nonzero));
+        let _ = key_vectors_only_global.index_put_(
+            is_local_index_global_attention_nonzero,
+            &key_vectors.index(is_index_global_attn_nonzero),
+            false,
+        );
 
         let attention_probas_from_global_key = Tensor::einsum(
             "blhd,bshd->blhs",
@@ -426,7 +428,7 @@ impl LongformerSelfAttention {
 
         let attention_probas_only_global =
             attention_probas.narrow(-1, 0, max_num_global_attention_indices);
-        let value_vectors_only_global = Tensor::zeros(
+        let mut value_vectors_only_global = Tensor::zeros(
             &[
                 batch_size,
                 max_num_global_attention_indices,
@@ -436,9 +438,11 @@ impl LongformerSelfAttention {
             (Kind::Float, value_vectors.device()),
         );
 
-        value_vectors_only_global
-            .index(is_local_index_global_attention_nonzero)
-            .copy_(&value_vectors.index(is_index_global_attn_nonzero));
+        let _ = value_vectors_only_global.index_put_(
+            is_local_index_global_attention_nonzero,
+            &value_vectors.index(is_index_global_attn_nonzero),
+            false,
+        );
 
         let attention_output_only_global = attention_probas_only_global
             .transpose(1, 2)
@@ -474,28 +478,26 @@ impl LongformerSelfAttention {
         let hidden_states_shape = hidden_states.size();
         let (sequence_length, batch_size) = (hidden_states_shape[0], hidden_states_shape[1]);
 
-        let global_attention_hidden_states = Tensor::zeros(
+        let mut global_attention_hidden_states = Tensor::zeros(
             &[max_num_global_attention_indices, batch_size, self.embed_dim],
             (Kind::Float, hidden_states.device()),
         );
 
-        global_attention_hidden_states
-            .index(
-                is_local_index_global_attention_nonzero
+        let _ = global_attention_hidden_states.index_put_(
+            is_local_index_global_attention_nonzero
+                .iter()
+                .rev()
+                .collect::<Vec<&Tensor>>()
+                .as_slice(),
+            &hidden_states.index(
+                is_index_global_attn_nonzero
                     .iter()
                     .rev()
                     .collect::<Vec<&Tensor>>()
                     .as_slice(),
-            )
-            .copy_(
-                &hidden_states.index(
-                    is_index_global_attn_nonzero
-                        .iter()
-                        .rev()
-                        .collect::<Vec<&Tensor>>()
-                        .as_slice(),
-                ),
-            );
+            ),
+            false,
+        );
 
         let global_query_vectors_only_global = (global_attention_hidden_states
             .apply(&self.query_global)
@@ -621,8 +623,8 @@ impl LongformerSelfAttention {
             ) = self.get_global_attention_indices(is_index_global_attention);
 
             let global_key_attention_scores = self.concat_with_global_key_attention_probas(
-                &query_vectors,
                 &key_vectors,
+                &query_vectors,
                 max_num_global_attention_indices,
                 is_index_global_attn_nonzero.as_slice(),
                 is_local_index_global_attention_nonzero.as_slice(),
@@ -640,7 +642,7 @@ impl LongformerSelfAttention {
             (None, None, None, None)
         };
 
-        let attention_probas = attention_scores
+        let mut attention_probas = attention_scores
             .softmax(-1, Kind::Float)
             .masked_fill(&is_index_masked.unsqueeze(-1).unsqueeze(-1), 0.0)
             .apply_t(&self.dropout, train);
@@ -665,7 +667,7 @@ impl LongformerSelfAttention {
             )
         };
 
-        let attention_output =
+        let mut attention_output =
             attention_output
                 .transpose(0, 1)
                 .reshape(&[sequence_length, batch_size, embed_dim]);
@@ -686,25 +688,32 @@ impl LongformerSelfAttention {
                 &is_local_index_global_attention_nonzero.as_ref().unwrap()[0],
                 &is_local_index_global_attention_nonzero.as_ref().unwrap()[1],
             ]);
-
-            attention_output
-                .index(
-                    is_index_global_attn_nonzero
-                        .as_ref()
-                        .unwrap()
-                        .iter()
-                        .rev()
-                        .collect::<Vec<&Tensor>>()
-                        .as_slice(),
-                )
-                .copy_(&nonzero_global_attention_output.view([
+            let _ = attention_output.index_put_(
+                is_index_global_attn_nonzero
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .rev()
+                    .collect::<Vec<&Tensor>>()
+                    .as_slice(),
+                &nonzero_global_attention_output.view([
                     is_local_index_global_attention_nonzero.as_ref().unwrap()[0].size()[0],
                     -1,
-                ]));
+                ]),
+                false,
+            );
 
-            let _ = attention_probas
-                .index(is_index_global_attn_nonzero.as_ref().unwrap())
-                .fill_(0);
+            let _ = attention_probas.index_put_(
+                is_index_global_attn_nonzero.as_ref().unwrap(),
+                &Tensor::zeros(
+                    attention_probas
+                        .index(is_index_global_attn_nonzero.as_ref().unwrap())
+                        .size()
+                        .as_slice(),
+                    (Kind::Float, attention_output.device()),
+                ),
+                false,
+            );
 
             Some(global_attention_probas)
         } else {
