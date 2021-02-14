@@ -19,9 +19,8 @@ fn main() -> anyhow::Result<()> {
     let qa_model = QuestionAnsweringModel::new(Default::default())?;
 
     //    Define input
-    let question_1 = String::from("What theorem defines the main role of primes in number theory?");
-    let context_1 = String::from("A prime number (or a prime) is a natural number greater than 1 that has no positive divisors other than 1 and itself. A natural number greater than 1 that is not a prime number is called a composite number. For example, 5 is prime because 1 and 5 are its only positive integer factors, whereas 6 is composite because it has the divisors 2 and 3 in addition to 1 and 6. The fundamental theorem of arithmetic establishes the central role of primes in number theory: any integer greater than 1 can be expressed as a product of primes that is unique up to ordering. The uniqueness in this theorem requires excluding 1 as a prime because one can include arbitrarily many instances of 1 in any factorization, e.g., 3, 1 · 3, 1 · 1 · 3, etc. are all valid factorizations of 3.");
-
+    let question_1 = String::from("Where does Amy live ?");
+    let context_1 = String::from("Amy lives in Amsterdam");
     let question_2 = String::from("Where does Eric live");
     let context_2 = String::from("While Amy lives in Amsterdam, Eric is in The Hague.");
     let qa_input_1 = QaInput {
