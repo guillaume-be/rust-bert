@@ -690,7 +690,7 @@ impl LongformerForSequenceClassification {
         position_ids: Option<&Tensor>,
         input_embeds: Option<&Tensor>,
         train: bool,
-    ) -> Result<LongformerTokenClassificationOutput, RustBertError> {
+    ) -> Result<LongformerSequenceClassificationOutput, RustBertError> {
         let calc_global_attention_mask = if global_attention_mask.is_none() {
             let (input_shape, device) = if let Some(input_ids) = input_ids {
                 if input_embeds.is_none() {
@@ -736,7 +736,7 @@ impl LongformerForSequenceClassification {
         let logits = self
             .classifier
             .forward_t(&base_model_output.hidden_state, train);
-        Ok(LongformerTokenClassificationOutput {
+        Ok(LongformerSequenceClassificationOutput {
             logits,
             all_hidden_states: base_model_output.all_hidden_states,
             all_attentions: base_model_output.all_attentions,
@@ -827,6 +827,189 @@ impl LongformerForQuestionAnswering {
     }
 }
 
+pub struct LongformerForTokenClassification {
+    longformer: LongformerModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl LongformerForTokenClassification {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForTokenClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let longformer = LongformerModel::new(p / "longformer", config, false);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+
+        let classifier = nn::linear(
+            p / "classifier",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
+
+        LongformerForTokenClassification {
+            longformer,
+            dropout,
+            classifier,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        global_attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LongformerTokenClassificationOutput, RustBertError> {
+        let base_model_output = self.longformer.forward_t(
+            input_ids,
+            attention_mask,
+            global_attention_mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let logits = base_model_output
+            .hidden_state
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
+
+        Ok(LongformerTokenClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+            all_global_attentions: base_model_output.all_global_attentions,
+        })
+    }
+}
+
+pub struct LongformerForMultipleChoice {
+    longformer: LongformerModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+    sep_token_id: i64,
+}
+
+impl LongformerForMultipleChoice {
+    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForMultipleChoice
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let longformer = LongformerModel::new(p / "longformer", config, true);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let classifier = nn::linear(p / "classifier", config.hidden_size, 1, Default::default());
+        let sep_token_id = config.sep_token_id;
+
+        LongformerForMultipleChoice {
+            longformer,
+            dropout,
+            classifier,
+            sep_token_id,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        global_attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LongformerSequenceClassificationOutput, RustBertError> {
+        let num_choices = match (input_ids, input_embeds) {
+            (Some(input_ids_value), None) => input_ids_value.size()[1],
+            (None, Some(input_embeds_value)) => input_embeds_value.size()[1],
+            (Some(_), Some(_)) => {
+                return Err(RustBertError::ValueError(
+                    "Only one of input ids or input embeddings may be set".into(),
+                ));
+            }
+            (None, None) => {
+                return Err(RustBertError::ValueError(
+                    "At least one of input ids or input embeddings must be set".into(),
+                ));
+            }
+        };
+
+        let calc_global_attention_mask = if global_attention_mask.is_none() {
+            if let Some(input_ids) = input_ids {
+                let mut masks = Vec::with_capacity(num_choices as usize);
+                for i in 0..num_choices {
+                    masks.push(_compute_global_attention_mask(
+                        &input_ids.select(1, i),
+                        self.sep_token_id,
+                        false,
+                    ));
+                }
+                Some(Tensor::cat(masks.as_slice(), 1))
+            } else {
+                return Err(RustBertError::ValueError(
+                        "Inputs ids must be provided to LongformerQuestionAnsweringOutput if the global_attention_mask is not given".into(),
+                    ));
+            }
+        } else {
+            None
+        };
+
+        let flat_input_ids = input_ids.map(|tensor| tensor.view((-1, tensor.size()[1])));
+        let flat_attention_mask = attention_mask.map(|tensor| tensor.view((-1, tensor.size()[1])));
+        let flat_token_type_ids = token_type_ids.map(|tensor| tensor.view((-1, tensor.size()[1])));
+        let flat_position_ids = position_ids.map(|tensor| tensor.view((-1, tensor.size()[1])));
+        let flat_input_embeds =
+            input_embeds.map(|tensor| tensor.view((-1, tensor.size()[1], tensor.size()[2])));
+
+        let global_attention_mask = if global_attention_mask.is_some() {
+            global_attention_mask
+        } else {
+            calc_global_attention_mask.as_ref()
+        };
+        let flat_global_attention_mask = global_attention_mask
+            .map(|tensor| tensor.view((-1, tensor.size()[1], tensor.size()[2])));
+
+        let base_model_output = self.longformer.forward_t(
+            flat_input_ids.as_ref(),
+            flat_attention_mask.as_ref(),
+            flat_global_attention_mask.as_ref(),
+            flat_token_type_ids.as_ref(),
+            flat_position_ids.as_ref(),
+            flat_input_embeds.as_ref(),
+            train,
+        )?;
+
+        let logits = base_model_output
+            .pooled_output
+            .unwrap()
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier)
+            .view((-1, num_choices));
+
+        Ok(LongformerSequenceClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+            all_global_attentions: base_model_output.all_global_attentions,
+        })
+    }
+}
+
 /// Container for the Longformer model output.
 pub struct LongformerModelOutput {
     /// Last hidden states from the model
@@ -845,6 +1028,18 @@ pub struct LongformerModelOutput {
 pub struct LongformerMaskedLMOutput {
     /// Logits for the vocabulary items at each sequence position
     pub prediction_scores: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+    /// Global attention weights for all intermediate layers
+    pub all_global_attentions: Option<Vec<Tensor>>,
+}
+
+/// Container for the Longformer sequence classification model output.
+pub struct LongformerSequenceClassificationOutput {
+    /// Logits for each sequence item (token) for each target class
+    pub logits: Tensor,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
