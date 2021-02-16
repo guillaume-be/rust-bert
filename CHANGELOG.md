@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.13.0] - 2021-02-03
 ### Added
 - Addition of the ProphetNet language model, task-specific heads and registration in relevant pipelines
 - (BREAKING) Implementation of [Diverse Beam Search](https://arxiv.org/abs/1610.02424). This allows the generation of more diverse sequences within the number of beams. Addition of 2 new fields to the `GenerateConfig` that are propagated through all text generation configs (e.g. `TranslationConfig`): 
@@ -11,6 +13,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 - (BREAKING) Simplified the input and output of encoder/decoder models to avoid needing to take ownership of the possibly cached encoder hidden state, offering a minor performance improvement for text generation tasks. The model output field for encoder hidden states are now optional, and only returned if the encoder hidden states were not provided for the given forward path. This may be a breaking change for low-level dependencies that manipulate directly the encoder/decoder model outputs.
 - (BREAKING) Moved the language models implementation of the `PrivateLanguageGenerator` and `LanguageGenerator` traits (needed to generate text) to the model modules, cleaning up the generation_utils module.
+- Updated download utilities crate, now leveraging Tokio 1.0 runtimes.
 
 ### Fixed
 - Updated padding information and addition of position ids for batched GPT2 generation. Prior to this change, inputs that required padding had a lower quality for the text generated.

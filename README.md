@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/crates/l/rust_bert.svg)
 
 Rust native Transformer-based models implementation. Port of Huggingface's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers). Supports multithreaded tokenization and GPU inference.
-This repository exposes the model base architecture, task-specific heads (see below) and ready-to-use pipelines.
+This repository exposes the model base architecture, task-specific heads (see below) and [ready-to-use pipelines](#ready-to-use-pipelines). [Benchmarks](#benchmarks) are available at the end of this document.
 
 The following models are currently implemented:
 
@@ -25,6 +25,7 @@ ALBERT |✅|✅|✅| | | |✅|
 T5 | | | |✅ |✅|✅| | 
 XLNet|✅|✅|✅|✅ | | |✅| 
 Reformer|✅| |✅|✅ | | |✅| 
+ProphetNet| | | |✅ |✅ | | | 
 
 ## Ready-to-use pipelines
 	
@@ -237,6 +238,12 @@ Output:
 ]
 ```
 
+## Benchmarks
+
+For simple pipelines (sequence classification, tokens classification, question answering) the performance between Python and Rust is expected to be comparable. This is because the most expensive part of these pipeline is the language model itself, sharing a common implementation in the Torch backend. The [End-to-end NLP Pipelines in Rust](https://www.aclweb.org/anthology/2020.nlposs-1.4/) provides a benchmarks section covering all pipelines.
+
+For text generation tasks (summarization, translation, conversation, free text generation), significant benefits can be expected (up to 2 to 4 times faster processing depending on the input and application). The article [Accelerating text generation with Rust](https://guillaume-be.github.io/2020-11-21/generation_benchmarks) focuses on these text generation applications and provides more details on the performance comparison to Python.
+
 ## Base models
 
 The base model and task-specific heads are also available for users looking to expose their own transformer based models.
@@ -257,8 +264,8 @@ Several Python scripts to load Pytorch weights and convert them to the appropria
 1. Compile the package: `cargo build`
 2. Download the model files & perform necessary conversions
    - Set-up a virtual environment and install dependencies
-   - run the conversion script `python /utils/download-dependencies_{MODEL_TO_DOWNLOAD}.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert/{}`.
-   Alternatively you may load local weight files and run the conversion directly.
+   - Download the Pytorch model of interest (`pytorch_model.bin` from [Huggingface's model repository](https://huggingface.co/models))
+   - run the conversion script `python /utils/convert_model.py <PATH_TO_PYTORCH_WEIGHTS>`.
    
 ## Citation
 
