@@ -959,7 +959,7 @@ impl LongformerForMultipleChoice {
                         false,
                     ));
                 }
-                Some(Tensor::cat(masks.as_slice(), 1))
+                Some(Tensor::stack(masks.as_slice(), 1))
             } else {
                 return Err(RustBertError::ValueError(
                         "Inputs ids must be provided to LongformerQuestionAnsweringOutput if the global_attention_mask is not given".into(),
@@ -969,10 +969,14 @@ impl LongformerForMultipleChoice {
             None
         };
 
-        let flat_input_ids = input_ids.map(|tensor| tensor.view((-1, tensor.size()[1])));
-        let flat_attention_mask = attention_mask.map(|tensor| tensor.view((-1, tensor.size()[1])));
-        let flat_token_type_ids = token_type_ids.map(|tensor| tensor.view((-1, tensor.size()[1])));
-        let flat_position_ids = position_ids.map(|tensor| tensor.view((-1, tensor.size()[1])));
+        let flat_input_ids =
+            input_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let flat_attention_mask =
+            attention_mask.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let flat_token_type_ids =
+            token_type_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let flat_position_ids =
+            position_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
         let flat_input_embeds =
             input_embeds.map(|tensor| tensor.view((-1, tensor.size()[1], tensor.size()[2])));
 
@@ -981,8 +985,8 @@ impl LongformerForMultipleChoice {
         } else {
             calc_global_attention_mask.as_ref()
         };
-        let flat_global_attention_mask = global_attention_mask
-            .map(|tensor| tensor.view((-1, tensor.size()[1], tensor.size()[2])));
+        let flat_global_attention_mask =
+            global_attention_mask.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
 
         let base_model_output = self.longformer.forward_t(
             flat_input_ids.as_ref(),

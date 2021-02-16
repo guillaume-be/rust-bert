@@ -270,8 +270,8 @@ fn distilbert_question_answering() -> anyhow::Result<()> {
     assert_eq!(answers.len(), 1usize);
     assert_eq!(answers[0].len(), 1usize);
     assert_eq!(answers[0][0].start, 13);
-    assert_eq!(answers[0][0].end, 21);
-    assert!((answers[0][0].score - 0.9977).abs() < 1e-4);
+    assert_eq!(answers[0][0].end, 22);
+    assert!((answers[0][0].score - 0.9978).abs() < 1e-4);
     assert_eq!(answers[0][0].answer, "Amsterdam");
 
     Ok(())

@@ -41,10 +41,6 @@ fn main() -> anyhow::Result<()> {
         false,
         None,
         false,
-        384,
-        128,
-        64,
-        15,
     );
 
     let qa_model = QuestionAnsweringModel::new(config)?;

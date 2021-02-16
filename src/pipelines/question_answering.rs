@@ -144,7 +144,7 @@ pub struct QuestionAnsweringConfig {
     /// Maximum length for the query
     pub max_query_length: usize,
     /// Maximum length for the answer
-    pub max_answer_len: usize,
+    pub max_answer_length: usize,
 }
 
 impl QuestionAnsweringConfig {
@@ -167,10 +167,51 @@ impl QuestionAnsweringConfig {
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
+    ) -> QuestionAnsweringConfig {
+        QuestionAnsweringConfig {
+            model_type,
+            model_resource,
+            config_resource,
+            vocab_resource,
+            merges_resource,
+            lower_case,
+            strip_accents: strip_accents.into(),
+            add_prefix_space: add_prefix_space.into(),
+            device: Device::cuda_if_available(),
+            max_seq_length: 384,
+            doc_stride: 128,
+            max_query_length: 64,
+            max_answer_length: 15,
+        }
+    }
+
+    /// Instantiate a new question answering configuration of the supplied type.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
+    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
+    /// * max_seq_length - Optional maximum sequence token length to limit memory footprint. If the context is too long, it will be processed with sliding windows. Defaults to 384.
+    /// * max_query_length - Optional maximum question token length. Defaults to 64.
+    /// * doc_stride - Optional stride to apply if a sliding window is required to process the input context. Represents the number of overlapping tokens between sliding windows. This should be lower than the max_seq_length minus max_query_length (otherwise there is a risk for the sliding window not to progress). Defaults to 128.
+    /// * max_answer_length - Optional maximum token length for the extracted answer. Defaults to 15.
+    pub fn custom_new(
+        model_type: ModelType,
+        model_resource: Resource,
+        config_resource: Resource,
+        vocab_resource: Resource,
+        merges_resource: Option<Resource>,
+        lower_case: bool,
+        strip_accents: impl Into<Option<bool>>,
+        add_prefix_space: impl Into<Option<bool>>,
         max_seq_length: impl Into<Option<usize>>,
         doc_stride: impl Into<Option<usize>>,
         max_query_length: impl Into<Option<usize>>,
-        max_answer_len: impl Into<Option<usize>>,
+        max_answer_length: impl Into<Option<usize>>,
     ) -> QuestionAnsweringConfig {
         QuestionAnsweringConfig {
             model_type,
@@ -185,7 +226,7 @@ impl QuestionAnsweringConfig {
             max_seq_length: max_seq_length.into().unwrap_or(384),
             doc_stride: doc_stride.into().unwrap_or(128),
             max_query_length: max_query_length.into().unwrap_or(64),
-            max_answer_len: max_answer_len.into().unwrap_or(15),
+            max_answer_length: max_answer_length.into().unwrap_or(15),
         }
     }
 }
@@ -211,7 +252,7 @@ impl Default for QuestionAnsweringConfig {
             max_seq_length: 384,
             doc_stride: 128,
             max_query_length: 64,
-            max_answer_len: 15,
+            max_answer_length: 15,
         }
     }
 }
@@ -549,7 +590,7 @@ impl QuestionAnsweringModel {
             max_seq_len: question_answering_config.max_seq_length,
             doc_stride: question_answering_config.doc_stride,
             max_query_length: question_answering_config.max_query_length,
-            max_answer_len: question_answering_config.max_answer_len,
+            max_answer_len: question_answering_config.max_answer_length,
             qa_model,
             var_store,
         })

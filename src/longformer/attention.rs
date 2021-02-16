@@ -677,8 +677,8 @@ impl LongformerSelfAttention {
                 .compute_global_attention_output_from_hidden(
                     &hidden_states,
                     max_num_global_attention_indices.unwrap(),
-                    is_local_index_global_attention_nonzero.as_ref().unwrap(),
                     is_index_global_attn_nonzero.as_ref().unwrap(),
+                    is_local_index_global_attention_nonzero.as_ref().unwrap(),
                     is_local_index_no_global_attention_nonzero.as_ref().unwrap(),
                     is_index_masked,
                     train,
