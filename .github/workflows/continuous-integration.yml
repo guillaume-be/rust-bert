@@ -79,6 +79,7 @@ jobs:
             --test roberta
             --test t5
             --test xlnet
+            --test longformer
 
   convert-model:
     name: Model conversion test

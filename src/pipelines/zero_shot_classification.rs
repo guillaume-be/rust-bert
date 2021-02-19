@@ -105,6 +105,7 @@ use crate::bart::{
 };
 use crate::bert::BertForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
+use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::pipelines::sequence_classification::Label;
@@ -224,6 +225,8 @@ pub enum ZeroShotClassificationOption {
     Albert(AlbertForSequenceClassification),
     /// XLNet for Sequence Classification
     XLNet(XLNetForSequenceClassification),
+    /// Longformer for Sequence Classification
+    Longformer(LongformerForSequenceClassification),
 }
 
 impl ZeroShotClassificationOption {
@@ -332,6 +335,17 @@ impl ZeroShotClassificationOption {
                     ))
                 }
             }
+            ModelType::Longformer => {
+                if let ConfigOption::Longformer(config) = config {
+                    Ok(ZeroShotClassificationOption::Longformer(
+                        LongformerForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a LongformerConfig for Longformer!".to_string(),
+                    ))
+                }
+            }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Zero shot classification not implemented for {:?}!",
                 model_type
@@ -350,6 +364,7 @@ impl ZeroShotClassificationOption {
             Self::MobileBert(_) => ModelType::MobileBert,
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
+            Self::Longformer(_) => ModelType::Longformer,
         }
     }
 
@@ -443,6 +458,20 @@ impl ZeroShotClassificationOption {
                         input_embeds,
                         train,
                     )
+                    .logits
+            }
+            Self::Longformer(ref model) => {
+                model
+                    .forward_t(
+                        input_ids.as_ref(),
+                        mask.as_ref(),
+                        None,
+                        token_type_ids.as_ref(),
+                        position_ids.as_ref(),
+                        input_embeds.as_ref(),
+                        train,
+                    )
+                    .expect("Error in Longformer forward pass.")
                     .logits
             }
         }

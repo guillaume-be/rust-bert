@@ -118,6 +118,7 @@ use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::distilbert::DistilBertForTokenClassification;
 use crate::electra::ElectraForTokenClassification;
+use crate::longformer::LongformerForTokenClassification;
 use crate::mobilebert::MobileBertForTokenClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForTokenClassification;
@@ -297,6 +298,8 @@ pub enum TokenClassificationOption {
     Albert(AlbertForTokenClassification),
     /// XLNet for Token Classification
     XLNet(XLNetForTokenClassification),
+    /// Longformer for Token Classification
+    Longformer(LongformerForTokenClassification),
 }
 
 impl TokenClassificationOption {
@@ -405,6 +408,17 @@ impl TokenClassificationOption {
                     ))
                 }
             }
+            ModelType::Longformer => {
+                if let ConfigOption::Longformer(config) = config {
+                    Ok(TokenClassificationOption::Longformer(
+                        LongformerForTokenClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a LongformerConfig for Longformer!".to_string(),
+                    ))
+                }
+            }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Token classification not implemented for {:?}!",
                 model_type
@@ -423,6 +437,7 @@ impl TokenClassificationOption {
             Self::Electra(_) => ModelType::Electra,
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
+            Self::Longformer(_) => ModelType::Longformer,
         }
     }
 
@@ -515,6 +530,20 @@ impl TokenClassificationOption {
                         input_embeds,
                         train,
                     )
+                    .logits
+            }
+            Self::Longformer(ref model) => {
+                model
+                    .forward_t(
+                        input_ids.as_ref(),
+                        mask.as_ref(),
+                        None,
+                        token_type_ids.as_ref(),
+                        position_ids.as_ref(),
+                        input_embeds.as_ref(),
+                        train,
+                    )
+                    .expect("Error in longformer forward_t")
                     .logits
             }
         }
