@@ -19,17 +19,17 @@
 //! # Question answering example below:
 //!
 //! ```no_run
-//!use rust_bert::longformer::{
+//! use rust_bert::longformer::{
 //!    LongformerConfigResources, LongformerMergesResources, LongformerModelResources,
 //!    LongformerVocabResources,
-//!};
-//!use rust_bert::pipelines::common::ModelType;
-//!use rust_bert::pipelines::question_answering::{
+//! };
+//! use rust_bert::pipelines::common::ModelType;
+//! use rust_bert::pipelines::question_answering::{
 //!    QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
-//!};
-//!use rust_bert::resources::{RemoteResource, Resource};
+//! };
+//! use rust_bert::resources::{RemoteResource, Resource};
 //!
-//!fn main() -> anyhow::Result<()> {
+//! fn main() -> anyhow::Result<()> {
 //!    //    Set-up Question Answering model
 //!    let config = QuestionAnsweringConfig::new(
 //!        ModelType::Longformer,
@@ -70,7 +70,7 @@
 //!    let answers = qa_model.predict(&[qa_input_1, qa_input_2], 1, 32);
 //!    println!("{:?}", answers);
 //!    Ok(())
-//!}
+//! }
 //!  ```
 
 mod attention;

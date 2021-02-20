@@ -145,10 +145,10 @@ impl ProphetNetModel {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::prophetnet::{ProphetNetConfig, ProphetNetModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::prophetnet::{ProphetNetConfig, ProphetNetModel};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -322,10 +322,10 @@ impl ProphetNetForConditionalGeneration {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::prophetnet::{ProphetNetConfig, ProphetNetForConditionalGeneration};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::prophetnet::{ProphetNetConfig, ProphetNetForConditionalGeneration};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -628,10 +628,10 @@ impl ProphetNetForCausalGeneration {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::prophetnet::{ProphetNetConfig, ProphetNetForCausalGeneration};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::prophetnet::{ProphetNetConfig, ProphetNetForCausalGeneration};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;

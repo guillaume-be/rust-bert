@@ -276,10 +276,10 @@ impl LongformerModel {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::longformer::{LongformerConfig, LongformerModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::longformer::{LongformerConfig, LongformerModel};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -443,15 +443,17 @@ impl LongformerModel {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         Some(&global_attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     ).unwrap()
+    ///     longformer_model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&attention_mask),
+    ///             Some(&global_attention_mask),
+    ///             None,
+    ///             None,
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -658,10 +660,10 @@ impl LongformerForMaskedLM {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForMaskedLM};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::longformer::{LongformerConfig, LongformerForMaskedLM};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -725,15 +727,17 @@ impl LongformerForMaskedLM {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         Some(&global_attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     ).unwrap()
+    ///     longformer_model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&attention_mask),
+    ///             Some(&global_attention_mask),
+    ///             None,
+    ///             None,
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -841,10 +845,10 @@ impl LongformerForSequenceClassification {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForSequenceClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::longformer::{LongformerConfig, LongformerForSequenceClassification};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -908,15 +912,17 @@ impl LongformerForSequenceClassification {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         Some(&global_attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     ).unwrap()
+    ///     longformer_model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&attention_mask),
+    ///             Some(&global_attention_mask),
+    ///             None,
+    ///             None,
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -1007,10 +1013,10 @@ impl LongformerForQuestionAnswering {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForQuestionAnswering};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::longformer::{LongformerConfig, LongformerForQuestionAnswering};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -1077,15 +1083,17 @@ impl LongformerForQuestionAnswering {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         Some(&global_attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     ).unwrap()
+    ///     longformer_model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&attention_mask),
+    ///             Some(&global_attention_mask),
+    ///             None,
+    ///             None,
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -1168,10 +1176,10 @@ impl LongformerForTokenClassification {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForTokenClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::longformer::{LongformerConfig, LongformerForTokenClassification};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -1249,15 +1257,17 @@ impl LongformerForTokenClassification {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         Some(&global_attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     ).unwrap()
+    ///     longformer_model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&attention_mask),
+    ///             Some(&global_attention_mask),
+    ///             None,
+    ///             None,
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -1319,10 +1329,10 @@ impl LongformerForMultipleChoice {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForMultipleChoice};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::longformer::{LongformerConfig, LongformerForMultipleChoice};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -1390,15 +1400,17 @@ impl LongformerForMultipleChoice {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         Some(&global_attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     ).unwrap()
+    ///     longformer_model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&attention_mask),
+    ///             Some(&global_attention_mask),
+    ///             None,
+    ///             None,
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
