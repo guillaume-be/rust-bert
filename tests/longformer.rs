@@ -79,10 +79,27 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
         .map(|input| Tensor::of_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
+    let mut global_attention_mask_vector = vec![0; max_len];
+    global_attention_mask_vector[0] = 1;
+    let global_attention_mask = Tensor::of_slice(global_attention_mask_vector.as_slice());
+    let global_attention_mask = Tensor::stack(
+        vec![&global_attention_mask; tokenized_input.len()].as_slice(),
+        0,
+    )
+    .to(device);
 
     //    Forward pass
-    let model_output =
-        no_grad(|| model.forward_t(Some(&input_tensor), None, None, None, None, None, false))?;
+    let model_output = no_grad(|| {
+        model.forward_t(
+            Some(&input_tensor),
+            None,
+            Some(global_attention_mask.as_ref()),
+            None,
+            None,
+            None,
+            false,
+        )
+    })?;
 
     //    Print masked tokens
     let index_1 = model_output
@@ -132,9 +149,18 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
         model_output.all_attentions.as_ref().unwrap()[0].size(),
         vec!(
             2,
-            config.num_hidden_layers,
+            config.num_attention_heads,
             *config.attention_window.iter().max().unwrap(),
-            *config.attention_window.iter().max().unwrap() + 1
+            1 + *config.attention_window.iter().max().unwrap() + 1
+        )
+    );
+    assert_eq!(
+        model_output.all_global_attentions.as_ref().unwrap()[0].size(),
+        vec!(
+            2,
+            config.num_attention_heads,
+            *config.attention_window.iter().max().unwrap(),
+            1
         )
     );
     assert_eq!(

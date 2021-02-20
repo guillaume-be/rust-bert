@@ -87,6 +87,7 @@ impl LongformerMergesResources {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
+/// # Longformer Position embeddings type
 pub enum PositionEmbeddingType {
     Absolute,
     RelativeKey,
@@ -121,7 +122,7 @@ pub struct LongformerConfig {
 
 impl Config<LongformerConfig> for LongformerConfig {}
 
-fn _get_question_end_index(input_ids: &Tensor, sep_token_id: i64) -> Tensor {
+fn get_question_end_index(input_ids: &Tensor, sep_token_id: i64) -> Tensor {
     input_ids
         .eq(sep_token_id)
         .nonzero()
@@ -130,12 +131,12 @@ fn _get_question_end_index(input_ids: &Tensor, sep_token_id: i64) -> Tensor {
         .select(1, 0)
 }
 
-fn _compute_global_attention_mask(
+fn compute_global_attention_mask(
     input_ids: &Tensor,
     sep_token_id: i64,
     before_sep_token: bool,
 ) -> Tensor {
-    let question_end_index = _get_question_end_index(input_ids, sep_token_id).unsqueeze(1);
+    let question_end_index = get_question_end_index(input_ids, sep_token_id).unsqueeze(1);
     let attention_mask = Tensor::arange(input_ids.size()[1], (Kind::Int64, input_ids.device()));
 
     if before_sep_token {
@@ -249,6 +250,12 @@ impl Module for LongformerLMHead {
     }
 }
 
+/// # LongformerModel Base model
+/// Base architecture for LongformerModel models. Task-specific models will be built from this common base model
+/// It is made of the following blocks:
+/// - `embeddings`: LongformerEmbeddings containing word, position and segment id embeddings
+/// - `encoder`: LongformerEncoder
+/// - `pooler`: Optional pooling layer extracting the representation of the first token for each batch item
 pub struct LongformerModel {
     embeddings: LongformerEmbeddings,
     encoder: LongformerEncoder,
@@ -259,6 +266,28 @@ pub struct LongformerModel {
 }
 
 impl LongformerModel {
+    /// Build a new `LongformerModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the Longformer model
+    /// * `config` - `LongformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerModel};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = LongformerConfig::from_file(config_path);
+    /// let add_pooling_layer = false;
+    /// let longformer_model = LongformerModel::new(&p.root(), &config, add_pooling_layer);
+    /// ```
     pub fn new<'p, P>(p: P, config: &LongformerConfig, add_pooling_layer: bool) -> LongformerModel
     where
         P: Borrow<nn::Path<'p>>,
@@ -372,6 +401,59 @@ impl LongformerModel {
         ))
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `global_attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 1 will attend all other positions in the sequence.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LongformerModelOutput` containing:
+    ///   - `hidden_state` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `pooled_output` - `Tensor` of shape (*batch size*, *hidden_size*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, * attention_window_size*, *x + attention_window_size + 1*) where x is the number of tokens with global attention
+    ///   - `all_global_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, *attention_window_size*, *x*)  where x is the number of tokens with global attention
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerModel};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerModel::new(&vs.root(), &config, false);
+    /// let (batch_size, sequence_length, target_sequence_length) = (64, 128, 32);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let global_attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     longformer_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         Some(&global_attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     ).unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -555,12 +637,38 @@ impl LongformerModel {
     }
 }
 
+/// # Longformer for masked language model
+/// Base Longformer model with a masked language model head to predict missing tokens, for example `"Looks like one <mask> is missing" -> "person"`
+/// It is made of the following blocks:
+/// - `longformer`: Base LongformerModel
+/// - `lm_head`: Longformer LM prediction head
 pub struct LongformerForMaskedLM {
     longformer: LongformerModel,
     lm_head: LongformerLMHead,
 }
 
 impl LongformerForMaskedLM {
+    /// Build a new `LongformerForMaskedLM`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the Longformer model
+    /// * `config` - `LongformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForMaskedLM};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForMaskedLM::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForMaskedLM
     where
         P: Borrow<nn::Path<'p>>,
@@ -576,6 +684,58 @@ impl LongformerForMaskedLM {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `global_attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 1 will attend all other positions in the sequence.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LongformerMaskedLMOutput` containing:
+    ///   - `prediction_scores` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, * attention_window_size*, *x + attention_window_size + 1*) where x is the number of tokens with global attention
+    ///   - `all_global_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, *attention_window_size*, *x*)  where x is the number of tokens with global attention
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForMaskedLM};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForMaskedLM::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length, target_sequence_length) = (64, 128, 32);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let global_attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     longformer_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         Some(&global_attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     ).unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -660,12 +820,38 @@ impl LongformerClassificationHead {
     }
 }
 
+/// # Longformer for sequence classification
+/// Base Longformer model with a classifier head to perform sentence or document-level classification
+/// It is made of the following blocks:
+/// - `longformer`: Base Longformer
+/// - `classifier`: Longformer classification head
 pub struct LongformerForSequenceClassification {
     longformer: LongformerModel,
     classifier: LongformerClassificationHead,
 }
 
 impl LongformerForSequenceClassification {
+    /// Build a new `LongformerForSequenceClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the Longformer model
+    /// * `config` - `LongformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForSequenceClassification};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForSequenceClassification::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForSequenceClassification
     where
         P: Borrow<nn::Path<'p>>,
@@ -681,6 +867,58 @@ impl LongformerForSequenceClassification {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `global_attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 1 will attend all other positions in the sequence.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LongformerSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *num_classes*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, * attention_window_size*, *x + attention_window_size + 1*) where x is the number of tokens with global attention
+    ///   - `all_global_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, *attention_window_size*, *x*)  where x is the number of tokens with global attention
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForSequenceClassification};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForSequenceClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length, target_sequence_length) = (64, 128, 32);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let global_attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     longformer_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         Some(&global_attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     ).unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -745,6 +983,13 @@ impl LongformerForSequenceClassification {
     }
 }
 
+/// # Longformer for question answering
+/// Extractive question-answering model based on a Longformer language model. Identifies the segment of a context that answers a provided question.
+/// Please note that a significant amount of pre- and post-processing is required to perform end-to-end question answering.
+/// See the question answering pipeline (also provided in this crate) for more details.
+/// It is made of the following blocks:
+/// - `longformer`: Base Longformer
+/// - `qa_outputs`: Linear layer for question answering
 pub struct LongformerForQuestionAnswering {
     longformer: LongformerModel,
     qa_outputs: nn::Linear,
@@ -752,6 +997,27 @@ pub struct LongformerForQuestionAnswering {
 }
 
 impl LongformerForQuestionAnswering {
+    /// Build a new `LongformerForQuestionAnswering`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the Longformer model
+    /// * `config` - `LongformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForQuestionAnswering};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForQuestionAnswering::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForQuestionAnswering
     where
         P: Borrow<nn::Path<'p>>,
@@ -769,6 +1035,59 @@ impl LongformerForQuestionAnswering {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `global_attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 1 will attend all other positions in the sequence.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LongformerForQuestionAnsweringOutput` containing:
+    ///   - `start_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    ///   - `end_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, * attention_window_size*, *x + attention_window_size + 1*) where x is the number of tokens with global attention
+    ///   - `all_global_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, *attention_window_size*, *x*)  where x is the number of tokens with global attention
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForQuestionAnswering};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForQuestionAnswering::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length, target_sequence_length) = (64, 128, 32);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let global_attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     longformer_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         Some(&global_attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     ).unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -781,15 +1100,15 @@ impl LongformerForQuestionAnswering {
     ) -> Result<LongformerQuestionAnsweringOutput, RustBertError> {
         let calc_global_attention_mask = if global_attention_mask.is_none() {
             if let Some(input_ids) = input_ids {
-                Some(_compute_global_attention_mask(
+                Some(compute_global_attention_mask(
                     input_ids,
                     self.sep_token_id,
                     true,
                 ))
             } else {
                 return Err(RustBertError::ValueError(
-                        "Inputs ids must be provided to LongformerQuestionAnsweringOutput if the global_attention_mask is not given".into(),
-                    ));
+                    "Inputs ids must be provided to LongformerQuestionAnsweringOutput if the global_attention_mask is not given".into(),
+                ));
             }
         } else {
             None
@@ -827,6 +1146,11 @@ impl LongformerForQuestionAnswering {
     }
 }
 
+/// # Longformer for token classification (e.g. NER, POS)
+/// Token-level classifier predicting a label for each token provided.
+/// It is made of the following blocks:
+/// - `longformer`: Base Longformer model
+/// - `classifier`: Linear layer for token classification
 pub struct LongformerForTokenClassification {
     longformer: LongformerModel,
     dropout: Dropout,
@@ -834,6 +1158,27 @@ pub struct LongformerForTokenClassification {
 }
 
 impl LongformerForTokenClassification {
+    /// Build a new `LongformerForTokenClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the Longformer model
+    /// * `config` - `LongformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForTokenClassification};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForTokenClassification::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForTokenClassification
     where
         P: Borrow<nn::Path<'p>>,
@@ -863,6 +1208,58 @@ impl LongformerForTokenClassification {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `global_attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 1 will attend all other positions in the sequence.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LongformerTokenClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) containing the logits for each of the input tokens and classes
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, * attention_window_size*, *x + attention_window_size + 1*) where x is the number of tokens with global attention
+    ///   - `all_global_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, *attention_window_size*, *x*)  where x is the number of tokens with global attention
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForTokenClassification};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForTokenClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length, target_sequence_length) = (64, 128, 32);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let global_attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     longformer_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         Some(&global_attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     ).unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -897,6 +1294,13 @@ impl LongformerForTokenClassification {
     }
 }
 
+/// # Longformer for multiple choices
+/// Multiple choices model using a Longformer base model and a linear classifier.
+/// Input should be in the form `<cls> Context <sep><sep> Possible choice <sep>`. The choice is made along the batch axis,
+/// assuming all elements of the batch are alternatives to be chosen from for a given context.
+/// It is made of the following blocks:
+/// - `longformer`: Base LongformerModel model
+/// - `classifier`: Linear layer for multiple choices
 pub struct LongformerForMultipleChoice {
     longformer: LongformerModel,
     dropout: Dropout,
@@ -905,6 +1309,27 @@ pub struct LongformerForMultipleChoice {
 }
 
 impl LongformerForMultipleChoice {
+    /// Build a new `LongformerForMultipleChoice`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the Longformer model
+    /// * `config` - `LongformerConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForMultipleChoice};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForMultipleChoice::new(&p.root(), &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForMultipleChoice
     where
         P: Borrow<nn::Path<'p>>,
@@ -924,6 +1349,58 @@ impl LongformerForMultipleChoice {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 0 will be masked.
+    /// * `global_attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*). Positions with a mask with value 1 will attend all other positions in the sequence.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LongformerSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*1*, *batch size*) containing the logits for each of the alternatives given
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, * attention_window_size*, *x + attention_window_size + 1*) where x is the number of tokens with global attention
+    ///   - `all_global_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *num_heads*, *sequence_length*, *attention_window_size*, *x*)  where x is the number of tokens with global attention
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::longformer::{LongformerConfig, LongformerForMultipleChoice};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = LongformerConfig::from_file(config_path);
+    /// let longformer_model = LongformerForMultipleChoice::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length, target_sequence_length) = (64, 128, 32);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let global_attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     longformer_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         Some(&global_attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     ).unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -953,7 +1430,7 @@ impl LongformerForMultipleChoice {
             if let Some(input_ids) = input_ids {
                 let mut masks = Vec::with_capacity(num_choices as usize);
                 for i in 0..num_choices {
-                    masks.push(_compute_global_attention_mask(
+                    masks.push(compute_global_attention_mask(
                         &input_ids.select(1, i),
                         self.sep_token_id,
                         false,
@@ -962,8 +1439,8 @@ impl LongformerForMultipleChoice {
                 Some(Tensor::stack(masks.as_slice(), 1))
             } else {
                 return Err(RustBertError::ValueError(
-                        "Inputs ids must be provided to LongformerQuestionAnsweringOutput if the global_attention_mask is not given".into(),
-                    ));
+                    "Inputs ids must be provided to LongformerQuestionAnsweringOutput if the global_attention_mask is not given".into(),
+                ));
             }
         } else {
             None

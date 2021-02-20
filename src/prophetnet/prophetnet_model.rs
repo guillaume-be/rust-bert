@@ -139,7 +139,7 @@ impl ProphetNetModel {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the XLNet model
+    /// * `p` - Variable store path for the root of the ProphetNet model
     /// * `config` - `ProphetNetConfig` object defining the model architecture
     ///
     /// # Example
@@ -316,7 +316,7 @@ impl ProphetNetForConditionalGeneration {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the XLNet model
+    /// * `p` - Variable store path for the root of the ProphetNet model
     /// * `config` - `ProphetNetConfig` object defining the model architecture
     ///
     /// # Example
@@ -622,7 +622,7 @@ impl ProphetNetForCausalGeneration {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the XLNet model
+    /// * `p` - Variable store path for the root of the ProphetNet model
     /// * `config` - `ProphetNetConfig` object defining the model architecture
     ///
     /// # Example
