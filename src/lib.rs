@@ -47,6 +47,7 @@
 //! XLNet|✅|✅|✅|✅ | | |✅|
 //! Reformer|✅| |✅|✅ | | |✅|
 //! ProphetNet| | | |✅ |✅ | | |
+//! Longformer|✅|✅|✅| | | |✅|
 //!
 //! # Loading pre-trained models
 //!

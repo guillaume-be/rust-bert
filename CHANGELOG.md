@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+- Addition of the Longformer language model, task-specific heads and registration in relevant pipelines
+
+### Changed
+- (BREAKING) Exposed additional settings for the Question Answering pipeline related to the maximum question, context and answer length. This is not backward compatible if the question answering configuration was created without using the `new` creator.
+- Simplified the Question answering pipeline to rely on the offsets calculated by the tokenizers instead of a manual alignment. This results in moderate execution speed improvements for this pipeline.
+- Updated the padding strategy for the Question answering pipeline. While before all sequences were padded to a fixed `max_length` (defaulting to 384), the padding is now done dynamically based on the length of the inputs. This results in a significant speed improvement for this pipeline.
+
+### Fixed
+- Fixed a bug for Question Answering for models that were not based on Wordpiece tokenization (including BPE and unigram based tokenizers). The issue was caused by the pre-tokenization step that was stripping the leading whitespace for all tokens. The performance of these models for QA should improve significantly.
 
 ## [0.13.0] - 2021-02-03
 ### Added
