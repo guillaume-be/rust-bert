@@ -1075,7 +1075,7 @@ pub(crate) mod private_generation_utils {
                 let _ = decoded.fill_(
                     gen_opt
                         .pad_token_id
-                        .unwrap_or(gen_opt.eos_token_ids.as_ref().unwrap()[0]),
+                        .unwrap_or_else(|| gen_opt.eos_token_ids.as_ref().unwrap()[0]),
                 );
             }
             for (hypothesis_index, best_id) in best_ids.iter().enumerate() {

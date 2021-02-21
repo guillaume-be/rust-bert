@@ -42,7 +42,7 @@ impl LongformerEmbeddings {
             p / "word_embeddings",
             config.vocab_size,
             config.hidden_size,
-            embeddings_config.clone(),
+            embeddings_config,
         );
 
         let position_embeddings = nn::embedding(

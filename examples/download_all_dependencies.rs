@@ -383,7 +383,7 @@ fn download_xlnet_base_cased() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() {
     let _ = download_distil_gpt2();
     let _ = download_distilbert_sst2();
     let _ = download_distilbert_qa();
@@ -403,6 +403,4 @@ fn main() -> anyhow::Result<()> {
     let _ = download_bert_qa();
     let _ = download_xlm_roberta_ner_german();
     let _ = download_xlnet_base_cased();
-
-    Ok(())
 }

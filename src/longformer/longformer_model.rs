@@ -250,6 +250,14 @@ impl Module for LongformerLMHead {
     }
 }
 
+struct PaddedInput {
+    input_ids: Option<Tensor>,
+    position_ids: Option<Tensor>,
+    inputs_embeds: Option<Tensor>,
+    attention_mask: Option<Tensor>,
+    token_type_ids: Option<Tensor>,
+}
+
 /// # LongformerModel Base model
 /// Base architecture for LongformerModel models. Task-specific models will be built from this common base model
 /// It is made of the following blocks:
@@ -343,16 +351,7 @@ impl LongformerModel {
         pad_token_id: i64,
         padding_length: i64,
         train: bool,
-    ) -> Result<
-        (
-            Option<Tensor>,
-            Option<Tensor>,
-            Option<Tensor>,
-            Option<Tensor>,
-            Option<Tensor>,
-        ),
-        RustBertError,
-    > {
+    ) -> Result<PaddedInput, RustBertError> {
         let input_shape = if let Some(input_ids) = input_ids {
             if input_embeds.is_none() {
                 input_ids.size()
@@ -392,13 +391,13 @@ impl LongformerModel {
             attention_mask.map(|value| self.pad_with_boolean(&value, &[0, padding_length], false));
         let token_type_ids =
             token_type_ids.map(|value| value.constant_pad_nd(&[0, padding_length]));
-        Ok((
+        Ok(PaddedInput {
             input_ids,
             position_ids,
             inputs_embeds,
             attention_mask,
             token_type_ids,
-        ))
+        })
     }
 
     /// Forward pass through the model
@@ -526,7 +525,7 @@ impl LongformerModel {
             calc_padded_attention_mask,
             calc_padded_token_type_ids,
         ) = if padding_length > 0 {
-            self.pad_to_window_size(
+            let padded_input = self.pad_to_window_size(
                 input_ids,
                 attention_mask,
                 token_type_ids,
@@ -535,7 +534,14 @@ impl LongformerModel {
                 self.pad_token_id,
                 padding_length,
                 train,
-            )?
+            )?;
+            (
+                padded_input.input_ids,
+                padded_input.position_ids,
+                padded_input.inputs_embeds,
+                padded_input.attention_mask,
+                padded_input.token_type_ids,
+            )
         } else {
             (None, None, None, None, None)
         };
@@ -556,7 +562,7 @@ impl LongformerModel {
         };
         let padded_attention_mask = calc_padded_attention_mask
             .as_ref()
-            .unwrap_or(attention_mask.as_ref().unwrap());
+            .unwrap_or_else(|| attention_mask.as_ref().unwrap());
         let padded_token_type_ids = if calc_padded_token_type_ids.is_some() {
             calc_padded_token_type_ids.as_ref()
         } else {
