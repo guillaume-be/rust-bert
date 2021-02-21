@@ -66,6 +66,7 @@ use crate::distilbert::{
     DistilBertConfigResources, DistilBertModelClassifier, DistilBertModelResources,
     DistilBertVocabResources,
 };
+use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForSequenceClassification;
@@ -194,6 +195,8 @@ pub enum SequenceClassificationOption {
     Bart(BartForSequenceClassification),
     /// Reformer for Sequence Classification
     Reformer(ReformerForSequenceClassification),
+    /// Longformer for Sequence Classification
+    Longformer(LongformerForSequenceClassification),
 }
 
 impl SequenceClassificationOption {
@@ -313,8 +316,19 @@ impl SequenceClassificationOption {
                     ))
                 }
             }
+            ModelType::Longformer => {
+                if let ConfigOption::Longformer(config) = config {
+                    Ok(SequenceClassificationOption::Longformer(
+                        LongformerForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a LongformerConfig for Longformer!".to_string(),
+                    ))
+                }
+            }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "QuestionAnswering not implemented for {:?}!",
+                "Sequence Classification not implemented for {:?}!",
                 model_type
             ))),
         }
@@ -332,6 +346,7 @@ impl SequenceClassificationOption {
             Self::XLNet(_) => ModelType::XLNet,
             Self::Bart(_) => ModelType::Bart,
             Self::Reformer(_) => ModelType::Reformer,
+            Self::Longformer(_) => ModelType::Longformer,
         }
     }
 
@@ -431,6 +446,20 @@ impl SequenceClassificationOption {
                 model
                     .forward_t(input_ids.as_ref(), None, None, mask.as_ref(), None, train)
                     .expect("Error in Reformer forward pass.")
+                    .logits
+            }
+            Self::Longformer(ref model) => {
+                model
+                    .forward_t(
+                        input_ids.as_ref(),
+                        mask.as_ref(),
+                        None,
+                        token_type_ids.as_ref(),
+                        position_ids.as_ref(),
+                        input_embeds.as_ref(),
+                        train,
+                    )
+                    .expect("Error in Longformer forward pass.")
                     .logits
             }
         }

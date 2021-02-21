@@ -12,7 +12,10 @@
 
 extern crate anyhow;
 
-use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
+use rust_bert::longformer::{
+    LongformerConfigResources, LongformerMergesResources, LongformerModelResources,
+    LongformerVocabResources,
+};
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
@@ -22,16 +25,22 @@ use rust_bert::resources::{RemoteResource, Resource};
 fn main() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
-        ModelType::Bert,
-        Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
+        ModelType::Longformer,
         Resource::Remote(RemoteResource::from_pretrained(
-            BertConfigResources::BERT_QA,
+            LongformerModelResources::LONGFORMER_BASE_SQUAD1,
         )),
-        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
-        None, //merges resource only relevant with ModelType::Roberta
-        false,
+        Resource::Remote(RemoteResource::from_pretrained(
+            LongformerConfigResources::LONGFORMER_BASE_SQUAD1,
+        )),
+        Resource::Remote(RemoteResource::from_pretrained(
+            LongformerVocabResources::LONGFORMER_BASE_SQUAD1,
+        )),
+        Some(Resource::Remote(RemoteResource::from_pretrained(
+            LongformerMergesResources::LONGFORMER_BASE_SQUAD1,
+        ))),
         false,
         None,
+        false,
     );
 
     let qa_model = QuestionAnsweringModel::new(config)?;

@@ -26,6 +26,7 @@ T5 | | | |✅ |✅|✅| |
 XLNet|✅|✅|✅|✅ | | |✅| 
 Reformer|✅| |✅|✅ | | |✅| 
 ProphetNet| | | |✅ |✅ | | | 
+Longformer|✅|✅|✅| | | |✅| 
 
 ## Ready-to-use pipelines
 	

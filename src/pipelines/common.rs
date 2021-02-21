@@ -23,6 +23,7 @@ use crate::common::error::RustBertError;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::gpt2::Gpt2Config;
+use crate::longformer::LongformerConfig;
 use crate::mobilebert::MobileBertConfig;
 use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
@@ -38,7 +39,7 @@ use rust_tokenizers::vocab::{
     AlbertVocab, BertVocab, Gpt2Vocab, MarianVocab, OpenAiGptVocab, ProphetNetVocab, ReformerVocab,
     RobertaVocab, T5Vocab, Vocab, XLMRobertaVocab, XLNetVocab,
 };
-use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput};
+use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -61,6 +62,7 @@ pub enum ModelType {
     OpenAiGpt,
     Reformer,
     ProphetNet,
+    Longformer,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -89,6 +91,8 @@ pub enum ConfigOption {
     Reformer(ReformerConfig),
     /// ProphetNet configuration
     ProphetNet(ProphetNetConfig),
+    /// Longformer configuration
+    Longformer(LongformerConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -136,6 +140,7 @@ impl ConfigOption {
             ModelType::OpenAiGpt => ConfigOption::GPT2(Gpt2Config::from_file(path)),
             ModelType::Reformer => ConfigOption::Reformer(ReformerConfig::from_file(path)),
             ModelType::ProphetNet => ConfigOption::ProphetNet(ProphetNetConfig::from_file(path)),
+            ModelType::Longformer => ConfigOption::Longformer(LongformerConfig::from_file(path)),
         }
     }
 
@@ -169,6 +174,9 @@ impl ConfigOption {
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::ProphetNet(config) => config
+                .id2label
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Longformer(config) => config
                 .id2label
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
@@ -207,7 +215,7 @@ impl TokenizerOption {
                     strip_accents.unwrap_or(lower_case),
                 )?)
             }
-            ModelType::Roberta | ModelType::Bart => {
+            ModelType::Roberta | ModelType::Bart | ModelType::Longformer => {
                 if strip_accents.is_some() {
                     return Err(RustBertError::InvalidConfigurationError(format!(
                         "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
@@ -538,6 +546,52 @@ impl TokenizerOption {
         }
     }
 
+    /// Interface method for pair encoding (single input)
+    pub fn encode_pair(
+        &self,
+        text_1: &str,
+        text_2: Option<&str>,
+        max_len: usize,
+        truncation_strategy: &TruncationStrategy,
+        stride: usize,
+    ) -> TokenizedInput {
+        match *self {
+            Self::Bert(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Roberta(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Marian(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::T5(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Albert(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::XLNet(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::GPT2(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::OpenAiGpt(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Reformer(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::ProphetNet(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+        }
+    }
+
     /// Interface method to tokenization
     pub fn tokenize(&self, text: &str) -> Vec<String> {
         match *self {
@@ -552,6 +606,23 @@ impl TokenizerOption {
             Self::OpenAiGpt(ref tokenizer) => tokenizer.tokenize(text),
             Self::Reformer(ref tokenizer) => tokenizer.tokenize(text),
             Self::ProphetNet(ref tokenizer) => tokenizer.tokenize(text),
+        }
+    }
+
+    /// Interface method to tokenization
+    pub fn tokenize_with_offsets(&self, text: &str) -> TokensWithOffsets {
+        match *self {
+            Self::Bert(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Roberta(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Marian(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::T5(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Albert(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::XLNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::GPT2(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::OpenAiGpt(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Reformer(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::ProphetNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
         }
     }
 
