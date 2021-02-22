@@ -76,6 +76,7 @@ pub enum Language {
     RomanianToEnglish,
     GermanToEnglish,
     RussianToEnglish,
+    DutchToEnglish,
     EnglishToFrench,
     EnglishToCatalan,
     EnglishToSpanish,
@@ -84,6 +85,7 @@ pub enum Language {
     EnglishToRomanian,
     EnglishToGerman,
     EnglishToRussian,
+    EnglishToDutch,
     EnglishToFrenchV2,
     EnglishToGermanV2,
     FrenchToGerman,
@@ -260,6 +262,22 @@ impl RemoteTranslationResources {
         prefix: MarianPrefix::GERMAN2FRENCH,
         model_type: ModelType::Marian,
     };
+    pub const ENGLISH2DUTCH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2DUTCH,
+        config_resource: MarianConfigResources::ENGLISH2DUTCH,
+        vocab_resource: MarianVocabResources::ENGLISH2DUTCH,
+        merges_resource: MarianSpmResources::ENGLISH2DUTCH,
+        prefix: MarianPrefix::ENGLISH2DUTCH,
+        model_type: ModelType::Marian,
+    };
+    pub const DUTCH2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::DUTCH2ENGLISH,
+        config_resource: MarianConfigResources::DUTCH2ENGLISH,
+        vocab_resource: MarianVocabResources::DUTCH2ENGLISH,
+        merges_resource: MarianSpmResources::DUTCH2ENGLISH,
+        prefix: MarianPrefix::DUTCH2ENGLISH,
+        model_type: ModelType::Marian,
+    };
 }
 
 /// # Configuration for text translation
@@ -340,6 +358,7 @@ impl TranslationConfig {
             Language::EnglishToRomanian => RemoteTranslationResources::ENGLISH2ROMANIAN,
             Language::EnglishToGerman => RemoteTranslationResources::ENGLISH2GERMAN,
             Language::EnglishToRussian => RemoteTranslationResources::ENGLISH2RUSSIAN,
+            Language::EnglishToDutch => RemoteTranslationResources::ENGLISH2DUTCH,
 
             Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
             Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
@@ -349,6 +368,7 @@ impl TranslationConfig {
             Language::RomanianToEnglish => RemoteTranslationResources::ROMANIAN2ENGLISH,
             Language::GermanToEnglish => RemoteTranslationResources::GERMAN2ENGLISH,
             Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
+            Language::DutchToEnglish => RemoteTranslationResources::DUTCH2ENGLISH,
 
             Language::EnglishToFrenchV2 => RemoteTranslationResources::ENGLISH2FRENCH_V2,
             Language::EnglishToGermanV2 => RemoteTranslationResources::ENGLISH2GERMAN_V2,
