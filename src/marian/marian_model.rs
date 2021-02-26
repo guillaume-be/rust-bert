@@ -92,6 +92,16 @@ impl MarianModelResources {
         "marian-mt-nl-en/model",
         "https://huggingface.co/Helsinki-NLP/opus-mt-nl-en/resolve/main/rust_model.ot",
     );
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
+    pub const ENGLISH2CHINESE: (&'static str, &'static str) = (
+        "marian-mt-en-zh/model",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-zh/resolve/main/rust_model.ot",
+    );
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
+    pub const CHINESE2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-zh-en/model",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-zh-en/resolve/main/rust_model.ot",
+    );
 }
 
 impl MarianConfigResources {
@@ -144,6 +154,16 @@ impl MarianConfigResources {
     pub const DUTCH2ENGLISH: (&'static str, &'static str) = (
         "marian-mt-nl-en/config",
         "https://huggingface.co/Helsinki-NLP/opus-mt-nl-en/resolve/main/config.json",
+    );
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    pub const CHINESE2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-zh-en/config",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-zh-en/resolve/main/config.json",
+    );
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    pub const ENGLISH2CHINESE: (&'static str, &'static str) = (
+        "marian-mt-en-zh/config",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-zh/resolve/main/config.json",
     );
 }
 
@@ -198,6 +218,16 @@ impl MarianVocabResources {
         "marian-mt-nl-en/vocab",
         "https://huggingface.co/Helsinki-NLP/opus-mt-nl-en/resolve/main/vocab.json",
     );
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    pub const CHINESE2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-zh-en/vocab",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-zh-en/resolve/main/vocab.json",
+    );
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    pub const ENGLISH2CHINESE: (&'static str, &'static str) = (
+        "marian-mt-en-zh/vocab",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-zh/resolve/main/vocab.json",
+    );
 }
 
 impl MarianSpmResources {
@@ -251,6 +281,16 @@ impl MarianSpmResources {
         "marian-mt-nl-en/spiece",
         "https://huggingface.co/Helsinki-NLP/opus-mt-nl-en/resolve/main/source.spm",
     );
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    pub const CHINESE2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-zh-en/spiece",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-zh-en/resolve/main/source.spm",
+    );
+    /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+    pub const ENGLISH2CHINESE: (&'static str, &'static str) = (
+        "marian-mt-en-zh/spiece",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-zh/resolve/main/source.spm",
+    );
 }
 
 impl MarianPrefix {
@@ -260,6 +300,8 @@ impl MarianPrefix {
     pub const ENGLISH2PORTUGUESE: Option<&'static str> = Some(">>pt<< ");
     pub const ENGLISH2ITALIAN: Option<&'static str> = Some(">>it<< ");
     pub const ENGLISH2ROMANIAN: Option<&'static str> = Some(">>ro<< ");
+    pub const ENGLISH2MANDARIN: Option<&'static str> = Some(">>cmn_Hant<< ");
+    pub const ENGLISH2CANTONESE: Option<&'static str> = Some(">>yue_Hant<< ");
     pub const ENGLISH2GERMAN: Option<&'static str> = None;
     pub const ENGLISH2RUSSIAN: Option<&'static str> = None;
     pub const FRENCH2ENGLISH: Option<&'static str> = None;
@@ -274,6 +316,7 @@ impl MarianPrefix {
     pub const GERMAN2FRENCH: Option<&'static str> = None;
     pub const ENGLISH2DUTCH: Option<&'static str> = None;
     pub const DUTCH2ENGLISH: Option<&'static str> = None;
+    pub const CHINESE2ENGLISH: Option<&'static str> = None;
 }
 
 /// # Marian Model for conditional generation

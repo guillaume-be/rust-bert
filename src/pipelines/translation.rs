@@ -77,6 +77,7 @@ pub enum Language {
     GermanToEnglish,
     RussianToEnglish,
     DutchToEnglish,
+    ChineseToEnglish,
     EnglishToFrench,
     EnglishToCatalan,
     EnglishToSpanish,
@@ -86,6 +87,8 @@ pub enum Language {
     EnglishToGerman,
     EnglishToRussian,
     EnglishToDutch,
+    EnglishToMandarin,
+    EnglishToCantonese,
     EnglishToFrenchV2,
     EnglishToGermanV2,
     FrenchToGerman,
@@ -278,6 +281,30 @@ impl RemoteTranslationResources {
         prefix: MarianPrefix::DUTCH2ENGLISH,
         model_type: ModelType::Marian,
     };
+    pub const CHINESE2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::CHINESE2ENGLISH,
+        config_resource: MarianConfigResources::CHINESE2ENGLISH,
+        vocab_resource: MarianVocabResources::CHINESE2ENGLISH,
+        merges_resource: MarianSpmResources::CHINESE2ENGLISH,
+        prefix: MarianPrefix::CHINESE2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2MANDARIN: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2CHINESE,
+        config_resource: MarianConfigResources::ENGLISH2CHINESE,
+        vocab_resource: MarianVocabResources::ENGLISH2CHINESE,
+        merges_resource: MarianSpmResources::ENGLISH2CHINESE,
+        prefix: MarianPrefix::ENGLISH2MANDARIN,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2CANTONESE: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2CHINESE,
+        config_resource: MarianConfigResources::ENGLISH2CHINESE,
+        vocab_resource: MarianVocabResources::ENGLISH2CHINESE,
+        merges_resource: MarianSpmResources::ENGLISH2CHINESE,
+        prefix: MarianPrefix::ENGLISH2CANTONESE,
+        model_type: ModelType::Marian,
+    };
 }
 
 /// # Configuration for text translation
@@ -359,6 +386,8 @@ impl TranslationConfig {
             Language::EnglishToGerman => RemoteTranslationResources::ENGLISH2GERMAN,
             Language::EnglishToRussian => RemoteTranslationResources::ENGLISH2RUSSIAN,
             Language::EnglishToDutch => RemoteTranslationResources::ENGLISH2DUTCH,
+            Language::EnglishToMandarin => RemoteTranslationResources::ENGLISH2MANDARIN,
+            Language::EnglishToCantonese => RemoteTranslationResources::ENGLISH2CANTONESE,
 
             Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
             Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
@@ -369,6 +398,7 @@ impl TranslationConfig {
             Language::GermanToEnglish => RemoteTranslationResources::GERMAN2ENGLISH,
             Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
             Language::DutchToEnglish => RemoteTranslationResources::DUTCH2ENGLISH,
+            Language::ChineseToEnglish => RemoteTranslationResources::CHINESE2ENGLISH,
 
             Language::EnglishToFrenchV2 => RemoteTranslationResources::ENGLISH2FRENCH_V2,
             Language::EnglishToGermanV2 => RemoteTranslationResources::ENGLISH2GERMAN_V2,
