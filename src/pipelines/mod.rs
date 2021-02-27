@@ -44,7 +44,12 @@
 //! - English <-> Catalan
 //! - English <-> German
 //! - English <-> Russian
+//! - English <-> Mandarin
+//! - English <-> Cantonese
+//! - English <-> Dutch
+//! - English <-> Swedish
 //! - French <-> German
+//!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation_utils::LanguageGenerator;

@@ -78,6 +78,7 @@ pub enum Language {
     RussianToEnglish,
     DutchToEnglish,
     ChineseToEnglish,
+    SwedishToEnglish,
     EnglishToFrench,
     EnglishToCatalan,
     EnglishToSpanish,
@@ -89,6 +90,7 @@ pub enum Language {
     EnglishToDutch,
     EnglishToMandarin,
     EnglishToCantonese,
+    EnglishToSwedish,
     EnglishToFrenchV2,
     EnglishToGermanV2,
     FrenchToGerman,
@@ -305,6 +307,22 @@ impl RemoteTranslationResources {
         prefix: MarianPrefix::ENGLISH2CANTONESE,
         model_type: ModelType::Marian,
     };
+    pub const ENGLISH2SWEDISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2SWEDISH,
+        config_resource: MarianConfigResources::ENGLISH2SWEDISH,
+        vocab_resource: MarianVocabResources::ENGLISH2SWEDISH,
+        merges_resource: MarianSpmResources::ENGLISH2SWEDISH,
+        prefix: MarianPrefix::ENGLISH2SWEDISH,
+        model_type: ModelType::Marian,
+    };
+    pub const SWEDISH2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::SWEDISH2ENGLISH,
+        config_resource: MarianConfigResources::SWEDISH2ENGLISH,
+        vocab_resource: MarianVocabResources::SWEDISH2ENGLISH,
+        merges_resource: MarianSpmResources::SWEDISH2ENGLISH,
+        prefix: MarianPrefix::SWEDISH2ENGLISH,
+        model_type: ModelType::Marian,
+    };
 }
 
 /// # Configuration for text translation
@@ -388,6 +406,7 @@ impl TranslationConfig {
             Language::EnglishToDutch => RemoteTranslationResources::ENGLISH2DUTCH,
             Language::EnglishToMandarin => RemoteTranslationResources::ENGLISH2MANDARIN,
             Language::EnglishToCantonese => RemoteTranslationResources::ENGLISH2CANTONESE,
+            Language::EnglishToSwedish => RemoteTranslationResources::ENGLISH2SWEDISH,
 
             Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
             Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
@@ -399,6 +418,7 @@ impl TranslationConfig {
             Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
             Language::DutchToEnglish => RemoteTranslationResources::DUTCH2ENGLISH,
             Language::ChineseToEnglish => RemoteTranslationResources::CHINESE2ENGLISH,
+            Language::SwedishToEnglish => RemoteTranslationResources::SWEDISH2ENGLISH,
 
             Language::EnglishToFrenchV2 => RemoteTranslationResources::ENGLISH2FRENCH_V2,
             Language::EnglishToGermanV2 => RemoteTranslationResources::ENGLISH2GERMAN_V2,

@@ -63,6 +63,10 @@ Translation using the MarianMT architecture and pre-trained models from the Opus
  - English <-> Catalan
  - English <-> German
  - English <-> Russian
+ - English <-> Mandarin
+ - English <-> Cantonese
+ - English <-> Dutch
+ - English <-> Swedish
  - French <-> German
 
 ```rust
