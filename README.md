@@ -5,7 +5,7 @@
 [![Documentation](https://docs.rs/rust-bert/badge.svg)](https://docs.rs/rust-bert)
 ![License](https://img.shields.io/crates/l/rust_bert.svg)
 
-Rust native Transformer-based models implementation. Port of Huggingface's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers). Supports multithreaded tokenization and GPU inference.
+Rust native Transformer-based models implementation. Port of Hugging Face's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers). Supports multi-threaded tokenization and GPU inference.
 This repository exposes the model base architecture, task-specific heads (see below) and [ready-to-use pipelines](#ready-to-use-pipelines). [Benchmarks](#benchmarks) are available at the end of this document.
 
 The following models are currently implemented:
@@ -30,14 +30,14 @@ Longformer|✅|✅|✅| | | |✅|
 
 ## Ready-to-use pipelines
 	
-Based on Huggingface's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
+Based on Hugging Face's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
 
 **Disclaimer**
 The contributors of this repository are not responsible for any generation from the 3rd party utilization of the pretrained systems proposed herein.
 
 
 #### 1. Question Answering
-Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset)
+Extractive question answering from a given question and context. DistilBERT model fine-tuned on SQuAD (Stanford Question Answering Dataset)
 
 ```rust
     let qa_model = QuestionAnsweringModel::new(Default::default())?;
@@ -55,7 +55,7 @@ Output:
 
 #### 2. Translation
 Translation using the MarianMT architecture and pre-trained models from the Opus-MT team from Language Technology at the University of Helsinki.
- Currently supported languages are :
+Currently supported languages are :
  - English <-> French
  - English <-> Spanish
  - English <-> Portuguese
@@ -67,6 +67,7 @@ Translation using the MarianMT architecture and pre-trained models from the Opus
  - English <-> Cantonese
  - English <-> Dutch
  - English <-> Swedish
+ - English <-> Arabic
  - French <-> German
 
 ```rust
@@ -148,7 +149,7 @@ Example output:
 Generate language based on a prompt. GPT2 and GPT available as base models.
 Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
-This may impact the results and it is recommended to submit prompts of similar length for best results
+This may impact the results, it is recommended to submit prompts of similar length for best results
 
 ```rust
     let model = GPT2Generator::new(Default::default())?;
@@ -197,7 +198,7 @@ Output:
 ```
 
 #### 7. Sentiment analysis
-Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
+Predicts the binary sentiment for a sentence. DistilBERT model fine-tuned on SST-2.
 ```rust
     let sentiment_classifier = SentimentModel::new(Default::default())?;
                                                         
@@ -221,7 +222,7 @@ Output:
 ```
 
 #### 8. Named Entity Recognition
-Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz).
+Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model fine-tuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz).
 Models are currently available for English, German, Spanish and Dutch.
 ```rust
     let ner_model = NERModel::new(default::default())?;
@@ -258,7 +259,7 @@ If this quality check is to be skipped, an alternative method `load_partial` can
 
 ## Setup
 
-A number of pretrained model configuration, weights and vocabulary are downloaded directly from [Huggingface's model repository](https://huggingface.co/models).
+A number of pretrained model configuration, weights and vocabulary are downloaded directly from [Hugging Face's model repository](https://huggingface.co/models).
 The list of models available with Rust-compatible weights is available at [https://huggingface.co/models?filter=rust](https://huggingface.co/models?filter=rust).
 The models will be downloaded to the environment variable `RUSTBERT_CACHE` if it exists, otherwise to `~/.cache/.rustbert`.
 Additional models can be added if of interest, please raise an issue.
@@ -269,7 +270,7 @@ Several Python scripts to load Pytorch weights and convert them to the appropria
 1. Compile the package: `cargo build`
 2. Download the model files & perform necessary conversions
    - Set-up a virtual environment and install dependencies
-   - Download the Pytorch model of interest (`pytorch_model.bin` from [Huggingface's model repository](https://huggingface.co/models))
+   - Download the Pytorch model of interest (`pytorch_model.bin` from [Hugging Face's model repository](https://huggingface.co/models))
    - run the conversion script `python /utils/convert_model.py <PATH_TO_PYTORCH_WEIGHTS>`.
    
 ## Citation

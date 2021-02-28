@@ -48,6 +48,7 @@
 //! - English <-> Cantonese
 //! - English <-> Dutch
 //! - English <-> Swedish
+//! - English <-> Arabic
 //! - French <-> German
 //!
 //! ```no_run
