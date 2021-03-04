@@ -81,6 +81,7 @@ pub enum Language {
     SwedishToEnglish,
     ArabicToEnglish,
     HindiToEnglish,
+    HebrewToEnglish,
     EnglishToFrench,
     EnglishToCatalan,
     EnglishToSpanish,
@@ -95,6 +96,7 @@ pub enum Language {
     EnglishToSwedish,
     EnglishToArabic,
     EnglishToHindi,
+    EnglishToHebrew,
     EnglishToFrenchV2,
     EnglishToGermanV2,
     FrenchToGerman,
@@ -359,6 +361,22 @@ impl RemoteTranslationResources {
         prefix: MarianPrefix::HINDI2ENGLISH,
         model_type: ModelType::Marian,
     };
+    pub const ENGLISH2HEBREW: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2HEBREW,
+        config_resource: MarianConfigResources::ENGLISH2HEBREW,
+        vocab_resource: MarianVocabResources::ENGLISH2HEBREW,
+        merges_resource: MarianSpmResources::ENGLISH2HEBREW,
+        prefix: MarianPrefix::ENGLISH2HEBREW,
+        model_type: ModelType::Marian,
+    };
+    pub const HEBREW2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::HEBREW2ENGLISH,
+        config_resource: MarianConfigResources::HEBREW2ENGLISH,
+        vocab_resource: MarianVocabResources::HEBREW2ENGLISH,
+        merges_resource: MarianSpmResources::HEBREW2ENGLISH,
+        prefix: MarianPrefix::HEBREW2ENGLISH,
+        model_type: ModelType::Marian,
+    };
 }
 
 /// # Configuration for text translation
@@ -445,6 +463,7 @@ impl TranslationConfig {
             Language::EnglishToSwedish => RemoteTranslationResources::ENGLISH2SWEDISH,
             Language::EnglishToArabic => RemoteTranslationResources::ENGLISH2ARABIC,
             Language::EnglishToHindi => RemoteTranslationResources::ENGLISH2HINDI,
+            Language::EnglishToHebrew => RemoteTranslationResources::ENGLISH2HEBREW,
 
             Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
             Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
@@ -459,6 +478,7 @@ impl TranslationConfig {
             Language::SwedishToEnglish => RemoteTranslationResources::SWEDISH2ENGLISH,
             Language::ArabicToEnglish => RemoteTranslationResources::ARABIC2ENGLISH,
             Language::HindiToEnglish => RemoteTranslationResources::HINDI2ENGLISH,
+            Language::HebrewToEnglish => RemoteTranslationResources::HEBREW2ENGLISH,
 
             Language::EnglishToFrenchV2 => RemoteTranslationResources::ENGLISH2FRENCH_V2,
             Language::EnglishToGermanV2 => RemoteTranslationResources::ENGLISH2GERMAN_V2,

@@ -132,6 +132,16 @@ impl MarianModelResources {
         "marian-mt-en-hi/model",
         "https://huggingface.co/Helsinki-NLP/opus-mt-en-hi/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 License license at https://huggingface.co/tiedeman/opus-mt-he-en. Modified with conversion to C-array format.
+    pub const HEBREW2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-he-en/model",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-he-en/resolve/main/rust_model.ot",
+    );
+    /// Shared under Apache 2.0 License license at https://huggingface.co/tiedeman/opus-mt-en-he. Modified with conversion to C-array format.
+    pub const ENGLISH2HEBREW: (&'static str, &'static str) = (
+        "marian-mt-en-he/model",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-he/resolve/main/rust_model.ot",
+    );
 }
 
 impl MarianConfigResources {
@@ -224,6 +234,16 @@ impl MarianConfigResources {
     pub const ENGLISH2HINDI: (&'static str, &'static str) = (
         "marian-mt-en-hi/config",
         "https://huggingface.co/Helsinki-NLP/opus-mt-en-hi/resolve/main/config.json",
+    );
+    /// Shared under Apache 2.0 License license at https://huggingface.co/tiedeman/opus-mt-he-en. Modified with conversion to C-array format.
+    pub const HEBREW2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-he-en/config",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-he-en/resolve/main/config.json",
+    );
+    /// Shared under Apache 2.0 License license at https://huggingface.co/tiedeman/opus-mt-en-he. Modified with conversion to C-array format.
+    pub const ENGLISH2HEBREW: (&'static str, &'static str) = (
+        "marian-mt-en-he/config",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-he/resolve/main/config.json",
     );
 }
 
@@ -318,6 +338,16 @@ impl MarianVocabResources {
         "marian-mt-en-hi/vocab",
         "https://huggingface.co/Helsinki-NLP/opus-mt-en-hi/resolve/main/vocab.json",
     );
+    /// Shared under Apache 2.0 License license at https://huggingface.co/tiedeman/opus-mt-he-en. Modified with conversion to C-array format.
+    pub const HEBREW2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-he-en/vocab",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-he-en/resolve/main/vocab.json",
+    );
+    /// Shared under Apache 2.0 License license at https://huggingface.co/tiedeman/opus-mt-en-he. Modified with conversion to C-array format.
+    pub const ENGLISH2HEBREW: (&'static str, &'static str) = (
+        "marian-mt-en-he/vocab",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-he/resolve/main/vocab.json",
+    );
 }
 
 impl MarianSpmResources {
@@ -411,6 +441,16 @@ impl MarianSpmResources {
         "marian-mt-en-hi/spiece",
         "https://huggingface.co/Helsinki-NLP/opus-mt-en-hi/resolve/main/source.spm",
     );
+    /// Shared under Apache 2.0 License license at https://huggingface.co/tiedeman/opus-mt-he-en. Modified with conversion to C-array format.
+    pub const HEBREW2ENGLISH: (&'static str, &'static str) = (
+        "marian-mt-he-en/spiece",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-he-en/resolve/main/source.spm",
+    );
+    /// Shared under Apache 2.0 License license at https://huggingface.co/tiedeman/opus-mt-en-he. Modified with conversion to C-array format.
+    pub const ENGLISH2HEBREW: (&'static str, &'static str) = (
+        "marian-mt-en-he/spiece",
+        "https://huggingface.co/Helsinki-NLP/opus-mt-en-he/resolve/main/source.spm",
+    );
 }
 
 impl MarianPrefix {
@@ -428,6 +468,7 @@ impl MarianPrefix {
     pub const ENGLISH2SWEDISH: Option<&'static str> = None;
     pub const ENGLISH2ARABIC: Option<&'static str> = Some(">>ara<< ");
     pub const ENGLISH2HINDI: Option<&'static str> = None;
+    pub const ENGLISH2HEBREW: Option<&'static str> = None;
     pub const FRENCH2ENGLISH: Option<&'static str> = None;
     pub const CATALAN2ENGLISH: Option<&'static str> = None;
     pub const SPANISH2ENGLISH: Option<&'static str> = None;
@@ -443,6 +484,7 @@ impl MarianPrefix {
     pub const SWEDISH2ENGLISH: Option<&'static str> = None;
     pub const ARABIC2ENGLISH: Option<&'static str> = None;
     pub const HINDI2ENGLISH: Option<&'static str> = None;
+    pub const HEBREW2ENGLISH: Option<&'static str> = None;
 }
 
 /// # Marian Model for conditional generation

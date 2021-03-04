@@ -189,7 +189,7 @@ pub struct BartConfig {
     pub activation_function: Option<Activation>,
     pub activation_dropout: f64,
     pub attention_dropout: f64,
-    pub classif_dropout: f64,
+    pub classif_dropout: Option<f64>,
     pub d_model: i64,
     pub decoder_attention_heads: i64,
     pub decoder_ffn_dim: i64,
@@ -629,7 +629,7 @@ impl BartClassificationHead {
             config.d_model,
             Default::default(),
         );
-        let dropout = Dropout::new(config.classif_dropout);
+        let dropout = Dropout::new(config.classif_dropout.unwrap_or(0.0));
         let out_proj = nn::linear(
             p / "out_proj",
             config.d_model,
