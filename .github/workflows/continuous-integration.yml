@@ -7,7 +7,7 @@ on:
 name: Build
 
 jobs:
-  check:
+  build:
     name: Build Linux
     runs-on: ubuntu-latest
     steps:
@@ -19,9 +19,9 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          command: check
+          command: build
 
-  check-windows:
+  build-windows:
     name: Build Windows
     runs-on: windows-latest
     steps:
@@ -33,7 +33,21 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          command: check
+          command: build
+
+  build-mac-os:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
 
   test-batch-0:
     name: Integration tests (batch 0)
