@@ -763,10 +763,10 @@ impl TokenClassificationModel {
                 TokenizerOption::XLNet(ref tokenizer) => {
                     Tokenizer::decode(tokenizer, vec![token_id], false, false)
                 }
-                _ => panic!(format!(
+                _ => panic!(
                     "Token classification not implemented for {:?}!",
                     self.tokenizer.model_type()
-                )),
+                ),
             },
             Some(offsets) => {
                 let (start_char, end_char) = (offsets.begin as usize, offsets.end as usize);
