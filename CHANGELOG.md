@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### Added
+- Addition of translation language pairs: 
+  - English <-> Mandarin
+  - English <-> Cantonese
+  - English <-> Dutch
+  - English <-> Swedish
+  - English <-> Arabic
+  - English <-> Hebrew
+  - English <-> Hindi
+  
+### Changed
+- (BREAKING) Changed `classif_dropout` in `BartConfig` to be an optional field. This affects dependencies instantiating `BartConfig` from scratch, or using `classif_config` for custom model heads.
 
 ## [0.14.0] - 2021-02-22
 ### Added
@@ -44,7 +56,7 @@ All notable changes to this project will be documented in this file. The format 
 - Pre-trained models for DistilRoBERTa, used as a default for integration tests
 
 ### Changed
-- Updated endpoint of the model resources reflecting changs to the Huggingface's model hub
+- Updated endpoint of the model resources reflecting changes to the Hugging Face's model hub
 - Early stopping turned by default on for translation and summarization
 
 ## [0.11.0] - 2020-11-02
@@ -88,7 +100,7 @@ All notable changes to this project will be documented in this file. The format 
 - Addition of the reformer language model and its integration for language generation
 
 ### Changed
-- Changed model resources endpoints to leverage updated Huggingface's model hub
+- Changed model resources endpoints to leverage updated Hugging Face's model hub
 - Updated the beam search processing to use vectorized operations
 
 ## [0.7.11] - 2020-07-26
@@ -157,7 +169,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [0.7.0] - 2020-04-26
 ### Added
 - Addition of Resources for handling file dependencies (e.g. vocabularies, model weights, configurations). Resources may be `LocalResources` (pointing to a filesystem location) or `RemoteResources` (pointing to a remote endpoint). These resources can be passed to a `download_resource` method that returns the location in the local filesystem for both types of resources, downloading them if necessary.
-- Resources specifications for all existing architectures, pointing to model files hosted on Huggingface's model hub.
+- Resources specifications for all existing architectures, pointing to model files hosted on Hugging Face's model hub.
 
 ### Changed
 - (BREAKING) moved the resources' specification to the `GenerateConfig` for `GPT2Generator`.

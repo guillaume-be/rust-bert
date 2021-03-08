@@ -45,7 +45,7 @@ Extractive question answering from a given question and context. DistilBERT mode
     let question = String::from("Where does Amy live ?");
     let context = String::from("Amy lives in Amsterdam");
 
-    let answers = qa_model.predict(&vec!(QaInput { question, context }), 1, 32);
+    let answers = qa_model.predict(&[QaInput { question, context }], 1, 32);
 ```
 
 Output:
@@ -68,6 +68,8 @@ Currently supported languages are :
  - English <-> Dutch
  - English <-> Swedish
  - English <-> Arabic
+ - English <-> Hebrew
+ - English <-> Hindi
  - French <-> German
 
 ```rust
@@ -157,7 +159,7 @@ This may impact the results, it is recommended to submit prompts of similar leng
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";
 
-    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 30, true, false, 
+    let output = model.generate(Some(&[input_context_1, input_context_2]), 0, 30, true, false, 
                                 5, 1.2, 0, 0.9, 1.0, 1.0, 3, 3, None);
 ```
 Example output:

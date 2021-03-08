@@ -25,7 +25,7 @@
 //!
 //! let question = String::from("Where does Amy live ?");
 //! let context = String::from("Amy lives in Amsterdam");
-//! let answers = qa_model.predict(&vec![QaInput { question, context }], 1, 32);
+//! let answers = qa_model.predict(&[QaInput { question, context }], 1, 32);
 //! # Ok(())
 //! # }
 //! ```
