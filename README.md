@@ -63,8 +63,8 @@ Currently supported languages are :
  - English <-> Catalan
  - English <-> German
  - English <-> Russian
- - English <-> Mandarin
- - English <-> Cantonese
+ - English <-> Chinese (Simplified)
+ - English <-> Chinese (Traditional)
  - English <-> Dutch
  - English <-> Swedish
  - English <-> Arabic

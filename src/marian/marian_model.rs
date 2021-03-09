@@ -461,8 +461,8 @@ impl MarianPrefix {
     pub const ENGLISH2ITALIAN: Option<&'static str> = Some(">>it<< ");
     pub const ENGLISH2ROMANIAN: Option<&'static str> = Some(">>ro<< ");
     pub const ENGLISH2DUTCH: Option<&'static str> = None;
-    pub const ENGLISH2MANDARIN: Option<&'static str> = Some(">>cmn_Hant<< ");
-    pub const ENGLISH2CANTONESE: Option<&'static str> = Some(">>yue_Hant<< ");
+    pub const ENGLISH2CHINESE_SIMPLIFIED: Option<&'static str> = Some(">>cmn_Hans<< ");
+    pub const ENGLISH2CHINESE_TRADITIONAL: Option<&'static str> = Some(">>cmn_Hant<< ");
     pub const ENGLISH2GERMAN: Option<&'static str> = None;
     pub const ENGLISH2RUSSIAN: Option<&'static str> = None;
     pub const ENGLISH2SWEDISH: Option<&'static str> = None;

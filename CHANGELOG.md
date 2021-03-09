@@ -4,8 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 ### Added
 - Addition of translation language pairs: 
-  - English <-> Mandarin
-  - English <-> Cantonese
+  - English <-> Chinese (Simplified)
+  - English <-> Chinese (Traditional)
   - English <-> Dutch
   - English <-> Swedish
   - English <-> Arabic

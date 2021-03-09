@@ -91,8 +91,8 @@ pub enum Language {
     EnglishToGerman,
     EnglishToRussian,
     EnglishToDutch,
-    EnglishToMandarin,
-    EnglishToCantonese,
+    EnglishToChineseSimplified,
+    EnglishToChineseTraditional,
     EnglishToSwedish,
     EnglishToArabic,
     EnglishToHindi,
@@ -297,20 +297,20 @@ impl RemoteTranslationResources {
         prefix: MarianPrefix::CHINESE2ENGLISH,
         model_type: ModelType::Marian,
     };
-    pub const ENGLISH2MANDARIN: RemoteTranslationResources = Self {
+    pub const ENGLISH2CHINESE_SIMPLIFIED: RemoteTranslationResources = Self {
         model_resource: MarianModelResources::ENGLISH2CHINESE,
         config_resource: MarianConfigResources::ENGLISH2CHINESE,
         vocab_resource: MarianVocabResources::ENGLISH2CHINESE,
         merges_resource: MarianSpmResources::ENGLISH2CHINESE,
-        prefix: MarianPrefix::ENGLISH2MANDARIN,
+        prefix: MarianPrefix::ENGLISH2CHINESE_SIMPLIFIED,
         model_type: ModelType::Marian,
     };
-    pub const ENGLISH2CANTONESE: RemoteTranslationResources = Self {
+    pub const ENGLISH2CHINESE_TRADITIONAL: RemoteTranslationResources = Self {
         model_resource: MarianModelResources::ENGLISH2CHINESE,
         config_resource: MarianConfigResources::ENGLISH2CHINESE,
         vocab_resource: MarianVocabResources::ENGLISH2CHINESE,
         merges_resource: MarianSpmResources::ENGLISH2CHINESE,
-        prefix: MarianPrefix::ENGLISH2CANTONESE,
+        prefix: MarianPrefix::ENGLISH2CHINESE_TRADITIONAL,
         model_type: ModelType::Marian,
     };
     pub const ENGLISH2SWEDISH: RemoteTranslationResources = Self {
@@ -458,8 +458,12 @@ impl TranslationConfig {
             Language::EnglishToGerman => RemoteTranslationResources::ENGLISH2GERMAN,
             Language::EnglishToRussian => RemoteTranslationResources::ENGLISH2RUSSIAN,
             Language::EnglishToDutch => RemoteTranslationResources::ENGLISH2DUTCH,
-            Language::EnglishToMandarin => RemoteTranslationResources::ENGLISH2MANDARIN,
-            Language::EnglishToCantonese => RemoteTranslationResources::ENGLISH2CANTONESE,
+            Language::EnglishToChineseSimplified => {
+                RemoteTranslationResources::ENGLISH2CHINESE_SIMPLIFIED
+            }
+            Language::EnglishToChineseTraditional => {
+                RemoteTranslationResources::ENGLISH2CHINESE_TRADITIONAL
+            }
             Language::EnglishToSwedish => RemoteTranslationResources::ENGLISH2SWEDISH,
             Language::EnglishToArabic => RemoteTranslationResources::ENGLISH2ARABIC,
             Language::EnglishToHindi => RemoteTranslationResources::ENGLISH2HINDI,
@@ -761,6 +765,7 @@ impl TranslationModel {
         }
     }
 }
+
 #[cfg(test)]
 mod test {
     use super::*;
