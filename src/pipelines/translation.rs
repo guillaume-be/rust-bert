@@ -76,6 +76,12 @@ pub enum Language {
     RomanianToEnglish,
     GermanToEnglish,
     RussianToEnglish,
+    DutchToEnglish,
+    ChineseToEnglish,
+    SwedishToEnglish,
+    ArabicToEnglish,
+    HindiToEnglish,
+    HebrewToEnglish,
     EnglishToFrench,
     EnglishToCatalan,
     EnglishToSpanish,
@@ -84,6 +90,13 @@ pub enum Language {
     EnglishToRomanian,
     EnglishToGerman,
     EnglishToRussian,
+    EnglishToDutch,
+    EnglishToChineseSimplified,
+    EnglishToChineseTraditional,
+    EnglishToSwedish,
+    EnglishToArabic,
+    EnglishToHindi,
+    EnglishToHebrew,
     EnglishToFrenchV2,
     EnglishToGermanV2,
     FrenchToGerman,
@@ -260,6 +273,110 @@ impl RemoteTranslationResources {
         prefix: MarianPrefix::GERMAN2FRENCH,
         model_type: ModelType::Marian,
     };
+    pub const ENGLISH2DUTCH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2DUTCH,
+        config_resource: MarianConfigResources::ENGLISH2DUTCH,
+        vocab_resource: MarianVocabResources::ENGLISH2DUTCH,
+        merges_resource: MarianSpmResources::ENGLISH2DUTCH,
+        prefix: MarianPrefix::ENGLISH2DUTCH,
+        model_type: ModelType::Marian,
+    };
+    pub const DUTCH2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::DUTCH2ENGLISH,
+        config_resource: MarianConfigResources::DUTCH2ENGLISH,
+        vocab_resource: MarianVocabResources::DUTCH2ENGLISH,
+        merges_resource: MarianSpmResources::DUTCH2ENGLISH,
+        prefix: MarianPrefix::DUTCH2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const CHINESE2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::CHINESE2ENGLISH,
+        config_resource: MarianConfigResources::CHINESE2ENGLISH,
+        vocab_resource: MarianVocabResources::CHINESE2ENGLISH,
+        merges_resource: MarianSpmResources::CHINESE2ENGLISH,
+        prefix: MarianPrefix::CHINESE2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2CHINESE_SIMPLIFIED: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2CHINESE,
+        config_resource: MarianConfigResources::ENGLISH2CHINESE,
+        vocab_resource: MarianVocabResources::ENGLISH2CHINESE,
+        merges_resource: MarianSpmResources::ENGLISH2CHINESE,
+        prefix: MarianPrefix::ENGLISH2CHINESE_SIMPLIFIED,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2CHINESE_TRADITIONAL: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2CHINESE,
+        config_resource: MarianConfigResources::ENGLISH2CHINESE,
+        vocab_resource: MarianVocabResources::ENGLISH2CHINESE,
+        merges_resource: MarianSpmResources::ENGLISH2CHINESE,
+        prefix: MarianPrefix::ENGLISH2CHINESE_TRADITIONAL,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2SWEDISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2SWEDISH,
+        config_resource: MarianConfigResources::ENGLISH2SWEDISH,
+        vocab_resource: MarianVocabResources::ENGLISH2SWEDISH,
+        merges_resource: MarianSpmResources::ENGLISH2SWEDISH,
+        prefix: MarianPrefix::ENGLISH2SWEDISH,
+        model_type: ModelType::Marian,
+    };
+    pub const SWEDISH2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::SWEDISH2ENGLISH,
+        config_resource: MarianConfigResources::SWEDISH2ENGLISH,
+        vocab_resource: MarianVocabResources::SWEDISH2ENGLISH,
+        merges_resource: MarianSpmResources::SWEDISH2ENGLISH,
+        prefix: MarianPrefix::SWEDISH2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2ARABIC: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2ARABIC,
+        config_resource: MarianConfigResources::ENGLISH2ARABIC,
+        vocab_resource: MarianVocabResources::ENGLISH2ARABIC,
+        merges_resource: MarianSpmResources::ENGLISH2ARABIC,
+        prefix: MarianPrefix::ENGLISH2ARABIC,
+        model_type: ModelType::Marian,
+    };
+    pub const ARABIC2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ARABIC2ENGLISH,
+        config_resource: MarianConfigResources::ARABIC2ENGLISH,
+        vocab_resource: MarianVocabResources::ARABIC2ENGLISH,
+        merges_resource: MarianSpmResources::ARABIC2ENGLISH,
+        prefix: MarianPrefix::ARABIC2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2HINDI: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2HINDI,
+        config_resource: MarianConfigResources::ENGLISH2HINDI,
+        vocab_resource: MarianVocabResources::ENGLISH2HINDI,
+        merges_resource: MarianSpmResources::ENGLISH2HINDI,
+        prefix: MarianPrefix::ENGLISH2HINDI,
+        model_type: ModelType::Marian,
+    };
+    pub const HINDI2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::HINDI2ENGLISH,
+        config_resource: MarianConfigResources::HINDI2ENGLISH,
+        vocab_resource: MarianVocabResources::HINDI2ENGLISH,
+        merges_resource: MarianSpmResources::HINDI2ENGLISH,
+        prefix: MarianPrefix::HINDI2ENGLISH,
+        model_type: ModelType::Marian,
+    };
+    pub const ENGLISH2HEBREW: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::ENGLISH2HEBREW,
+        config_resource: MarianConfigResources::ENGLISH2HEBREW,
+        vocab_resource: MarianVocabResources::ENGLISH2HEBREW,
+        merges_resource: MarianSpmResources::ENGLISH2HEBREW,
+        prefix: MarianPrefix::ENGLISH2HEBREW,
+        model_type: ModelType::Marian,
+    };
+    pub const HEBREW2ENGLISH: RemoteTranslationResources = Self {
+        model_resource: MarianModelResources::HEBREW2ENGLISH,
+        config_resource: MarianConfigResources::HEBREW2ENGLISH,
+        vocab_resource: MarianVocabResources::HEBREW2ENGLISH,
+        merges_resource: MarianSpmResources::HEBREW2ENGLISH,
+        prefix: MarianPrefix::HEBREW2ENGLISH,
+        model_type: ModelType::Marian,
+    };
 }
 
 /// # Configuration for text translation
@@ -340,6 +457,17 @@ impl TranslationConfig {
             Language::EnglishToRomanian => RemoteTranslationResources::ENGLISH2ROMANIAN,
             Language::EnglishToGerman => RemoteTranslationResources::ENGLISH2GERMAN,
             Language::EnglishToRussian => RemoteTranslationResources::ENGLISH2RUSSIAN,
+            Language::EnglishToDutch => RemoteTranslationResources::ENGLISH2DUTCH,
+            Language::EnglishToChineseSimplified => {
+                RemoteTranslationResources::ENGLISH2CHINESE_SIMPLIFIED
+            }
+            Language::EnglishToChineseTraditional => {
+                RemoteTranslationResources::ENGLISH2CHINESE_TRADITIONAL
+            }
+            Language::EnglishToSwedish => RemoteTranslationResources::ENGLISH2SWEDISH,
+            Language::EnglishToArabic => RemoteTranslationResources::ENGLISH2ARABIC,
+            Language::EnglishToHindi => RemoteTranslationResources::ENGLISH2HINDI,
+            Language::EnglishToHebrew => RemoteTranslationResources::ENGLISH2HEBREW,
 
             Language::FrenchToEnglish => RemoteTranslationResources::FRENCH2ENGLISH,
             Language::CatalanToEnglish => RemoteTranslationResources::CATALAN2ENGLISH,
@@ -349,6 +477,12 @@ impl TranslationConfig {
             Language::RomanianToEnglish => RemoteTranslationResources::ROMANIAN2ENGLISH,
             Language::GermanToEnglish => RemoteTranslationResources::GERMAN2ENGLISH,
             Language::RussianToEnglish => RemoteTranslationResources::RUSSIAN2ENGLISH,
+            Language::DutchToEnglish => RemoteTranslationResources::DUTCH2ENGLISH,
+            Language::ChineseToEnglish => RemoteTranslationResources::CHINESE2ENGLISH,
+            Language::SwedishToEnglish => RemoteTranslationResources::SWEDISH2ENGLISH,
+            Language::ArabicToEnglish => RemoteTranslationResources::ARABIC2ENGLISH,
+            Language::HindiToEnglish => RemoteTranslationResources::HINDI2ENGLISH,
+            Language::HebrewToEnglish => RemoteTranslationResources::HEBREW2ENGLISH,
 
             Language::EnglishToFrenchV2 => RemoteTranslationResources::ENGLISH2FRENCH_V2,
             Language::EnglishToGermanV2 => RemoteTranslationResources::ENGLISH2GERMAN_V2,
@@ -631,6 +765,7 @@ impl TranslationModel {
         }
     }
 }
+
 #[cfg(test)]
 mod test {
     use super::*;
