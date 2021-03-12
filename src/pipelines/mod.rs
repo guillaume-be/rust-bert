@@ -354,6 +354,7 @@ pub mod common;
 pub mod conversation;
 pub mod generation_utils;
 pub mod ner;
+pub mod pos_tagging;
 pub mod question_answering;
 pub mod sentiment;
 pub mod sequence_classification;
