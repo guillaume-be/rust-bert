@@ -20,8 +20,8 @@ fn main() -> anyhow::Result<()> {
 
     //    Define input
     let input = [
-        "My name is Amélie. I live in Москва.",
-        "Chongqing is a city in China.",
+        "My name is Amélie. My email is amelie@somemail.com.",
+        "A liter of milk costs 0.95 Euros!",
     ];
 
     //    Run model

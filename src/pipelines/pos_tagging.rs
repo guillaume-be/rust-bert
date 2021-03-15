@@ -133,13 +133,25 @@ impl POSModel {
         self.token_classification_model
             .predict(input, true, false)
             .into_iter()
-            .filter(|token| token.label != "O")
+            .map(|mut token| {
+                if (Self::is_punctuation(token.text.as_str()))
+                    & ((token.score < 0.5) | token.score.is_nan())
+                {
+                    token.label = String::from(".");
+                    token.score = 1f64;
+                };
+                token
+            })
             .map(|token| POSTag {
                 word: token.text,
                 score: token.score,
                 label: token.label,
             })
             .collect()
+    }
+
+    fn is_punctuation(string: &str) -> bool {
+        string.chars().all(|c| c.is_ascii_punctuation())
     }
 }
 
