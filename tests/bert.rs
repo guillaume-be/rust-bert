@@ -366,7 +366,9 @@ fn bert_pre_trained_ner() -> anyhow::Result<()> {
     //    Run model
     let output = ner_model.predict(&input);
 
-    assert_eq!(output.len(), 4);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output[0].len(), 2);
+    assert_eq!(output[1].len(), 2);
 
     assert_eq!(output[0][0].word, "Amy");
     assert!((output[0][0].score - 0.9986).abs() < 1e-4);

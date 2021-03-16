@@ -40,7 +40,6 @@
 //! ```
 //! Output: \
 //! ```no_run
-//! # use rust_bert::pipelines::question_answering::Answer;
 //! # use rust_bert::pipelines::ner::Entity;
 //! # let output =
 //! [

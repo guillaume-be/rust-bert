@@ -11,6 +11,77 @@
 // limitations under the License.
 
 //! # Part Of Speech pipeline
+//! Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
+//! A lightweight pretrained model using MobileBERT is available for English.
+//!
+//! The example below illustrate how to run the model:
+//! ```no_run
+//! # fn main() -> anyhow::Result<()> {
+//! use rust_bert::pipelines::pos_tagging::POSModel;
+//! let pos_model = POSModel::new(Default::default())?;
+//!
+//! let input = ["My name is Amélie. How are you?"];
+//! let output = pos_model.predict(&input);
+//! # Ok(())
+//! # }
+//! ```
+//! Output: \
+//! ```no_run
+//! # use rust_bert::pipelines::pos_tagging::POSTag;
+//! # let output =
+//! [
+//!   [
+//!     POSTag {
+//!         word: String::from("My"),
+//!         score: 0.2465,
+//!         label: String::from("PRP"),
+//!     },
+//!     POSTag {
+//!         word: String::from("name"),
+//!         score: 0.8551,
+//!         label: String::from("NN"),
+//!     },
+//!     POSTag {
+//!         word: String::from("is"),
+//!         score: 0.8072,
+//!         label: String::from("VBZ"),
+//!     },
+//!     POSTag {
+//!         word: String::from("Amélie"),
+//!         score: 0.8102,
+//!         label: String::from("NNP"),
+//!     },
+//!     POSTag {
+//!         word: String::from("."),
+//!         score: 1.0,
+//!         label: String::from("."),
+//!     },
+//!     POSTag {
+//!         word: String::from("How"),
+//!         score: 0.4994,
+//!         label: String::from("WRB"),
+//!     },
+//!     POSTag {
+//!         word: String::from("are"),
+//!         score: 0.928,
+//!         label: String::from("VBP"),
+//!     },
+//!     POSTag {
+//!         word: String::from("you"),
+//!         score: 0.3690,
+//!         label: String::from("NN"),
+//!     },
+//!     POSTag {
+//!         word: String::from("?"),
+//!         score: 1.0,
+//!         label: String::from("."),
+//!     },
+//!   ],
+//! ]
+//! # ;
+//! ```
+//!
+//! To run the pipeline for another language, change the POSModel configuration from its default (see the NER pipeline for an illustration).
 
 use crate::common::error::RustBertError;
 use crate::mobilebert::{

@@ -402,7 +402,9 @@ fn xlm_roberta_german_ner() -> anyhow::Result<()> {
 
     let output = ner_model.predict(&input);
 
-    assert_eq!(output.len(), 4);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output[0].len(), 2);
+    assert_eq!(output[1].len(), 2);
 
     assert_eq!(output[0][0].word, " Amélie");
     assert!((output[0][0].score - 0.9983).abs() < 1e-4);
