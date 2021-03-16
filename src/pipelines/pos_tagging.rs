@@ -11,7 +11,6 @@
 // limitations under the License.
 
 //! # Part Of Speech pipeline
-//! # ToDo: update docs
 
 use crate::common::error::RustBertError;
 use crate::mobilebert::{
@@ -109,7 +108,7 @@ impl POSModel {
     ///
     /// # Returns
     ///
-    /// * `Vec<Entity>` containing extracted entities
+    /// * `Vec<Vec<POSTag>>` containing Part of Speech tags for the inputs provided
     ///
     /// # Example
     ///
@@ -126,28 +125,33 @@ impl POSModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict<'a, S>(&self, input: S) -> Vec<POSTag>
+    pub fn predict<'a, S>(&self, input: S) -> Vec<Vec<POSTag>>
     where
         S: AsRef<[&'a str]>,
     {
         self.token_classification_model
             .predict(input, true, false)
             .into_iter()
-            .map(|mut token| {
-                if (Self::is_punctuation(token.text.as_str()))
-                    & ((token.score < 0.5) | token.score.is_nan())
-                {
-                    token.label = String::from(".");
-                    token.score = 1f64;
-                };
-                token
+            .map(|sequence_tokens| {
+                sequence_tokens
+                    .into_iter()
+                    .map(|mut token| {
+                        if (Self::is_punctuation(token.text.as_str()))
+                            & ((token.score < 0.5) | token.score.is_nan())
+                        {
+                            token.label = String::from(".");
+                            token.score = 1f64;
+                        };
+                        token
+                    })
+                    .map(|token| POSTag {
+                        word: token.text,
+                        score: token.score,
+                        label: token.label,
+                    })
+                    .collect::<Vec<POSTag>>()
             })
-            .map(|token| POSTag {
-                word: token.text,
-                score: token.score,
-                label: token.label,
-            })
-            .collect()
+            .collect::<Vec<Vec<POSTag>>>()
     }
 
     fn is_punctuation(string: &str) -> bool {

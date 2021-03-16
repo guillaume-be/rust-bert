@@ -44,6 +44,7 @@
 //! # use rust_bert::pipelines::ner::Entity;
 //! # let output =
 //! [
+//!   [
 //!     Entity {
 //!         word: String::from("Amy"),
 //!         score: 0.9986,
@@ -53,7 +54,9 @@
 //!         word: String::from("Paris"),
 //!         score: 0.9985,
 //!         label: String::from("I-LOC"),
-//!     },
+//!     }
+//!   ],
+//!   [
 //!     Entity {
 //!         word: String::from("Paris"),
 //!         score: 0.9988,
@@ -64,6 +67,7 @@
 //!         score: 0.9993,
 //!         label: String::from("I-LOC"),
 //!     },
+//!   ]
 //! ]
 //! # ;
 //! ```
@@ -171,7 +175,7 @@ impl NERModel {
     ///
     /// # Returns
     ///
-    /// * `Vec<Entity>` containing extracted entities
+    /// * `Vec<Vec<Entity>>` containing extracted entities
     ///
     /// # Example
     ///
@@ -188,20 +192,25 @@ impl NERModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict<'a, S>(&self, input: S) -> Vec<Entity>
+    pub fn predict<'a, S>(&self, input: S) -> Vec<Vec<Entity>>
     where
         S: AsRef<[&'a str]>,
     {
         self.token_classification_model
             .predict(input, true, false)
             .into_iter()
-            .filter(|token| token.label != "O")
-            .map(|token| Entity {
-                word: token.text,
-                score: token.score,
-                label: token.label,
+            .map(|sequence_tokens| {
+                sequence_tokens
+                    .into_iter()
+                    .filter(|token| token.label != "O")
+                    .map(|token| Entity {
+                        word: token.text,
+                        score: token.score,
+                        label: token.label,
+                    })
+                    .collect::<Vec<Entity>>()
             })
-            .collect()
+            .collect::<Vec<Vec<Entity>>>()
     }
 }
 #[cfg(test)]

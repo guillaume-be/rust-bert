@@ -655,7 +655,7 @@ impl TokenClassificationModel {
     ///
     /// # Returns
     ///
-    /// * `Vec<Token>` containing Tokens with associated labels (for example POS tags)
+    /// * `Vec<Vec<Token>>` containing Tokens with associated labels (for example POS tags) for each input provided
     ///
     /// # Example
     ///
@@ -677,7 +677,7 @@ impl TokenClassificationModel {
         input: S,
         consolidate_sub_tokens: bool,
         return_special: bool,
-    ) -> Vec<Token>
+    ) -> Vec<Vec<Token>>
     where
         S: AsRef<[&'a str]>,
     {
@@ -695,8 +695,9 @@ impl TokenClassificationModel {
         let output = output.detach().to(Device::Cpu);
         let score: Tensor = output.exp() / output.exp().sum1(&[-1], true, Float);
         let labels_idx = &score.argmax(-1, true);
-        let mut tokens: Vec<Token> = vec![];
+        let mut tokens: Vec<Vec<Token>> = vec![];
         for sentence_idx in 0..labels_idx.size()[0] {
+            let mut sequence_tokens = vec![];
             let labels = labels_idx.get(sentence_idx);
             let sentence_tokens = &tokenized_input[sentence_idx as usize];
             let original_chars = input.as_ref()[sentence_idx as usize].chars().collect_vec();
@@ -721,8 +722,9 @@ impl TokenClassificationModel {
                         word_idx - 1,
                     )
                 };
-                tokens.push(token);
+                sequence_tokens.push(token);
             }
+            tokens.push(sequence_tokens);
         }
         if consolidate_sub_tokens {
             self.consolidate_tokens(&mut tokens, &self.label_aggregation_function);
@@ -797,61 +799,64 @@ impl TokenClassificationModel {
 
     fn consolidate_tokens(
         &self,
-        tokens: &mut Vec<Token>,
+        tokens: &mut Vec<Vec<Token>>,
         label_aggregation_function: &LabelAggregationOption,
     ) {
-        let mut tokens_to_replace = vec![];
-        let token_iter = tokens.iter_consolidate_tokens();
-        let mut cursor = 0;
+        for sequence_tokens in tokens {
+            let mut tokens_to_replace = vec![];
+            let token_iter = sequence_tokens.iter_consolidate_tokens();
+            let mut cursor = 0;
 
-        for sub_tokens in token_iter {
-            if sub_tokens.len() > 1 {
-                let (label_index, label) =
-                    self.consolidate_labels(sub_tokens, label_aggregation_function);
-                let sentence = (sub_tokens[0]).sentence;
-                let index = (sub_tokens[0]).index;
-                let word_index = (sub_tokens[0]).word_index;
-                let offset_start = match &sub_tokens.first().unwrap().offset {
-                    Some(offset) => Some(offset.begin),
-                    None => None,
-                };
-                let offset_end = match &sub_tokens.last().unwrap().offset {
-                    Some(offset) => Some(offset.end),
-                    None => None,
-                };
-                let offset =
-                    if let (Some(offset_start), Some(offset_end)) = (offset_start, offset_end) {
+            for sub_tokens in token_iter {
+                if sub_tokens.len() > 1 {
+                    let (label_index, label) =
+                        self.consolidate_labels(sub_tokens, label_aggregation_function);
+                    let sentence = (sub_tokens[0]).sentence;
+                    let index = (sub_tokens[0]).index;
+                    let word_index = (sub_tokens[0]).word_index;
+                    let offset_start = match &sub_tokens.first().unwrap().offset {
+                        Some(offset) => Some(offset.begin),
+                        None => None,
+                    };
+                    let offset_end = match &sub_tokens.last().unwrap().offset {
+                        Some(offset) => Some(offset.end),
+                        None => None,
+                    };
+                    let offset = if let (Some(offset_start), Some(offset_end)) =
+                        (offset_start, offset_end)
+                    {
                         Some(Offset::new(offset_start, offset_end))
                     } else {
                         None
                     };
-                let mut text = String::new();
-                let mut score = 1f64;
-                for current_sub_token in sub_tokens.iter() {
-                    text.push_str(current_sub_token.text.as_str());
-                    score *= if current_sub_token.label_index == label_index {
-                        current_sub_token.score
-                    } else {
-                        1.0 - current_sub_token.score
+                    let mut text = String::new();
+                    let mut score = 1f64;
+                    for current_sub_token in sub_tokens.iter() {
+                        text.push_str(current_sub_token.text.as_str());
+                        score *= if current_sub_token.label_index == label_index {
+                            current_sub_token.score
+                        } else {
+                            1.0 - current_sub_token.score
+                        };
+                    }
+                    let token = Token {
+                        text,
+                        score,
+                        label,
+                        label_index,
+                        sentence,
+                        index,
+                        word_index,
+                        offset,
+                        mask: Default::default(),
                     };
+                    tokens_to_replace.push(((cursor, cursor + sub_tokens.len()), token));
                 }
-                let token = Token {
-                    text,
-                    score,
-                    label,
-                    label_index,
-                    sentence,
-                    index,
-                    word_index,
-                    offset,
-                    mask: Default::default(),
-                };
-                tokens_to_replace.push(((cursor, cursor + sub_tokens.len()), token));
+                cursor += sub_tokens.len();
             }
-            cursor += sub_tokens.len();
-        }
-        for ((start, end), token) in tokens_to_replace.into_iter().rev() {
-            tokens.splice(start..end, [token].iter().cloned());
+            for ((start, end), token) in tokens_to_replace.into_iter().rev() {
+                sequence_tokens.splice(start..end, [token].iter().cloned());
+            }
         }
     }
 

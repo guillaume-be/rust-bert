@@ -404,21 +404,21 @@ fn xlm_roberta_german_ner() -> anyhow::Result<()> {
 
     assert_eq!(output.len(), 4);
 
-    assert_eq!(output[0].word, " Amélie");
-    assert!((output[0].score - 0.9983).abs() < 1e-4);
-    assert_eq!(output[0].label, "I-PER");
+    assert_eq!(output[0][0].word, " Amélie");
+    assert!((output[0][0].score - 0.9983).abs() < 1e-4);
+    assert_eq!(output[0][0].label, "I-PER");
 
-    assert_eq!(output[1].word, " Москва");
-    assert!((output[1].score - 0.9999).abs() < 1e-4);
-    assert_eq!(output[1].label, "I-LOC");
+    assert_eq!(output[0][1].word, " Москва");
+    assert!((output[0][1].score - 0.9999).abs() < 1e-4);
+    assert_eq!(output[0][1].label, "I-LOC");
 
-    assert_eq!(output[2].word, "Chongqing");
-    assert!((output[2].score - 0.9997).abs() < 1e-4);
-    assert_eq!(output[2].label, "I-LOC");
+    assert_eq!(output[1][0].word, "Chongqing");
+    assert!((output[1][0].score - 0.9997).abs() < 1e-4);
+    assert_eq!(output[1][0].label, "I-LOC");
 
-    assert_eq!(output[3].word, " China");
-    assert!((output[3].score - 0.9999).abs() < 1e-4);
-    assert_eq!(output[3].label, "I-LOC");
+    assert_eq!(output[1][1].word, " China");
+    assert!((output[1][1].score - 0.9999).abs() < 1e-4);
+    assert_eq!(output[1][1].label, "I-LOC");
 
     Ok(())
 }

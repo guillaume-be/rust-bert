@@ -368,21 +368,21 @@ fn bert_pre_trained_ner() -> anyhow::Result<()> {
 
     assert_eq!(output.len(), 4);
 
-    assert_eq!(output[0].word, "Amy");
-    assert!((output[0].score - 0.9986).abs() < 1e-4);
-    assert_eq!(output[0].label, "I-PER");
+    assert_eq!(output[0][0].word, "Amy");
+    assert!((output[0][0].score - 0.9986).abs() < 1e-4);
+    assert_eq!(output[0][0].label, "I-PER");
 
-    assert_eq!(output[1].word, "Paris");
-    assert!((output[1].score - 0.9986).abs() < 1e-4);
-    assert_eq!(output[1].label, "I-LOC");
+    assert_eq!(output[0][1].word, "Paris");
+    assert!((output[0][1].score - 0.9986).abs() < 1e-4);
+    assert_eq!(output[0][1].label, "I-LOC");
 
-    assert_eq!(output[2].word, "Paris");
-    assert!((output[2].score - 0.9988).abs() < 1e-4);
-    assert_eq!(output[2].label, "I-LOC");
+    assert_eq!(output[1][0].word, "Paris");
+    assert!((output[1][0].score - 0.9988).abs() < 1e-4);
+    assert_eq!(output[1][0].label, "I-LOC");
 
-    assert_eq!(output[3].word, "France");
-    assert!((output[3].score - 0.9994).abs() < 1e-4);
-    assert_eq!(output[3].label, "I-LOC");
+    assert_eq!(output[1][1].word, "France");
+    assert!((output[1][1].score - 0.9994).abs() < 1e-4);
+    assert_eq!(output[1][1].label, "I-LOC");
 
     Ok(())
 }
