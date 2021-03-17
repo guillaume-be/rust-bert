@@ -4,6 +4,7 @@ use rust_bert::mobilebert::{
     MobileBertForSequenceClassification, MobileBertForTokenClassification,
     MobileBertModelResources, MobileBertVocabResources,
 };
+use rust_bert::pipelines::pos_tagging::POSModel;
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
@@ -318,5 +319,65 @@ fn mobilebert_for_question_answering() -> anyhow::Result<()> {
 
     assert_eq!(model_output.start_logits.size(), &[1, 16]);
     assert_eq!(model_output.end_logits.size(), &[1, 16]);
+    Ok(())
+}
+
+#[test]
+fn mobilebert_part_of_speech_tagging() -> anyhow::Result<()> {
+    //    Set-up question answering model
+    let pos_model = POSModel::new(Default::default())?;
+
+    //    Define input
+    let input = [
+        "My name is Amélie. My email is amelie@somemail.com.",
+        "A liter of milk costs 0.95 Euros!",
+    ];
+
+    let expected_outputs = [
+        vec![
+            ("My", 0.3144, "PRP"),
+            ("name", 0.8918, "NN"),
+            ("is", 0.8792, "VBZ"),
+            ("Amélie", 0.9044, "NNP"),
+            (".", 1.0, "."),
+            ("My", 0.3244, "FW"),
+            ("email", 0.9121, "NN"),
+            ("is", 0.8167, "VBZ"),
+            ("amelie", 0.9350, "NNP"),
+            ("@", 0.7663, "IN"),
+            ("somemail", 0.4503, "NNP"),
+            (".", 0.8368, "NNP"),
+            ("com", 0.9887, "NNP"),
+            (".", 1.0, "."),
+        ],
+        vec![
+            ("A", 0.9882, "DT"),
+            ("liter", 0.9916, "NN"),
+            ("of", 0.9990, "IN"),
+            ("milk", 0.9343, "NN"),
+            ("costs", 0.8228, "VBZ"),
+            ("0", 0.9990, "CD"),
+            (".", 0.9792, "CD"),
+            ("95", 0.9999, "CD"),
+            ("Euros", 0.9327, "NNS"),
+            ("!", 1.0, "."),
+        ],
+    ];
+
+    let answers = pos_model.predict(&input);
+
+    assert_eq!(answers.len(), 2_usize);
+    assert_eq!(answers[0].len(), expected_outputs[0].len());
+    assert_eq!(answers[1].len(), expected_outputs[1].len());
+    for (sequence_answer, expected_sequence_answer) in answers.iter().zip(expected_outputs.iter()) {
+        assert_eq!(sequence_answer.len(), expected_sequence_answer.len());
+        for (answer, expected_answer) in sequence_answer.iter().zip(expected_sequence_answer.iter())
+        {
+            assert_eq!(answer.word, expected_answer.0);
+            assert_eq!(answer.label, expected_answer.2);
+            assert!((answer.score - expected_answer.1).abs() < 1e-4);
+        }
+    }
+
     Ok(())
 }
