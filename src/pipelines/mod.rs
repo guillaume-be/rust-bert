@@ -322,10 +322,10 @@
 //! ```
 //! Output: \
 //! ```no_run
-//! # use rust_bert::pipelines::question_answering::Answer;
 //! # use rust_bert::pipelines::ner::Entity;
 //! # let output =
 //! [
+//!   [
 //!     Entity {
 //!         word: String::from("Amy"),
 //!         score: 0.9986,
@@ -336,6 +336,8 @@
 //!         score: 0.9985,
 //!         label: String::from("I-LOC"),
 //!     },
+//!   ],
+//!   [
 //!     Entity {
 //!         word: String::from("Paris"),
 //!         score: 0.9988,
@@ -345,6 +347,49 @@
 //!         word: String::from("France"),
 //!         score: 0.9993,
 //!         label: String::from("I-LOC"),
+//!     },
+//!   ]
+//! ]
+//! # ;
+//! ```
+//!
+//! #### 9. Part of Speech tagging
+//! Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
+//! ```no_run
+//! use rust_bert::pipelines::pos_tagging::POSModel;
+//! # fn main() -> anyhow::Result<()> {
+//! let pos_model = POSModel::new(Default::default())?;
+//! let input = [
+//!     "My name is Bob",
+//! ];
+//! let output = pos_model.predict(&input);
+//! # Ok(())
+//! # }
+//! ```
+//! Output: \
+//! ```no_run
+//! # use rust_bert::pipelines::pos_tagging::POSTag;
+//! # let output =
+//! [
+//!     POSTag {
+//!         word: String::from("My"),
+//!         score: 0.1560,
+//!         label: String::from("PRP"),
+//!     },
+//!     POSTag {
+//!         word: String::from("name"),
+//!         score: 0.6565,
+//!         label: String::from("NN"),
+//!     },
+//!     POSTag {
+//!         word: String::from("is"),
+//!         score: 0.3697,
+//!         label: String::from("VBZ"),
+//!     },
+//!     POSTag {
+//!         word: String::from("Bob"),
+//!         score: 0.7460,
+//!         label: String::from("NNP"),
 //!     },
 //! ]
 //! # ;

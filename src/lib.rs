@@ -13,6 +13,7 @@
 //!     - Zero-shot classification
 //!     - Sentiment Analysis
 //!     - Named Entity Recognition
+//!     - Part of Speech tagging
 //!     - Question-Answering
 //!     - Language Generation.
 //!

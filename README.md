@@ -239,10 +239,33 @@ Models are currently available for English, German, Spanish and Dutch.
 Output:
 ```
 [
+  [
     Entity { word: "Amy", score: 0.9986, label: "I-PER" }
     Entity { word: "Paris", score: 0.9985, label: "I-LOC" }
+  ],
+  [
     Entity { word: "Paris", score: 0.9988, label: "I-LOC" }
     Entity { word: "France", score: 0.9993, label: "I-LOC" }
+  ]
+]
+```
+
+#### 8. Part of Speech tagging
+Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
+```rust
+    let ner_model = NERModel::new(default::default())?;
+
+    let input = ["My name is Bob];
+    
+    let output = ner_model.predict(&input);
+```
+Output:
+```
+[
+    Entity { word: "My", score: 0.1560, label: "PRP" }
+    Entity { word: "name", score: 0.6565, label: "NN" }
+    Entity { word: "is", score: 0.3697, label: "VBZ" }
+    Entity { word: "Bob", score: 0.7460, label: "NNP" }
 ]
 ```
 

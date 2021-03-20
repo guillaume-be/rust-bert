@@ -19,10 +19,7 @@ fn main() -> anyhow::Result<()> {
     let pos_model = POSModel::new(Default::default())?;
 
     //    Define input
-    let input = [
-        "My name is Amélie. My email is amelie@somemail.com.",
-        "A liter of milk costs 0.95 Euros!",
-    ];
+    let input = ["My name is Bob"];
 
     //    Run model
     let output = pos_model.predict(&input);
