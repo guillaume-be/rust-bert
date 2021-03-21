@@ -11,9 +11,12 @@ All notable changes to this project will be documented in this file. The format 
   - English <-> Arabic
   - English <-> Hebrew
   - English <-> Hindi
+- Addition of a Part of Speech pipeline. This pipeline allows predicting the POS tag (e.g. Noun, Adjective, Verb) of words in input sentences.
+- Addition of a lightweight English Part of Speech tagging pretrained MobileBERT model
   
 ### Changed
 - (BREAKING) Changed `classif_dropout` in `BartConfig` to be an optional field. This affects dependencies instantiating `BartConfig` from scratch, or using `classif_config` for custom model heads.
+- (BREAKING) Changed token classification pipelines to return a Vec<Vec<Token>> instead of a Vec<Token>. The token-level predictions are now returned in separate vectors for each input sequence provided as an input (they were previously returned in a flattened vector)
 
 ## [0.14.0] - 2021-02-22
 ### Added
