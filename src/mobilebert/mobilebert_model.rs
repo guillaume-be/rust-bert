@@ -36,6 +36,11 @@ impl MobileBertModelResources {
         "mobilebert-uncased/model",
         "https://huggingface.co/google/mobilebert-uncased/resolve/main/rust_model.ot",
     );
+    /// Shared under MIT license at https://huggingface.co/mrm8488/mobilebert-finetuned-pos. Modified with conversion to C-array format.
+    pub const MOBILEBERT_ENGLISH_POS: (&'static str, &'static str) = (
+        "mobilebert-finetuned-pos/model",
+        "https://huggingface.co/mrm8488/mobilebert-finetuned-pos/resolve/main/rust_model.ot",
+    );
 }
 
 impl MobileBertConfigResources {
@@ -44,6 +49,11 @@ impl MobileBertConfigResources {
         "mobilebert-uncased/config",
         "https://huggingface.co/google/mobilebert-uncased/resolve/main/config.json",
     );
+    /// Shared under MIT license at https://huggingface.co/mrm8488/mobilebert-finetuned-pos. Modified with conversion to C-array format.
+    pub const MOBILEBERT_ENGLISH_POS: (&'static str, &'static str) = (
+        "mobilebert-finetuned-pos/config",
+        "https://huggingface.co/mrm8488/mobilebert-finetuned-pos/resolve/main/config.json",
+    );
 }
 
 impl MobileBertVocabResources {
@@ -51,6 +61,11 @@ impl MobileBertVocabResources {
     pub const MOBILEBERT_UNCASED: (&'static str, &'static str) = (
         "mobilebert-uncased/vocab",
         "https://huggingface.co/google/mobilebert-uncased/resolve/main/vocab.txt",
+    );
+    /// Shared under MIT license at https://huggingface.co/mrm8488/mobilebert-finetuned-pos. Modified with conversion to C-array format.
+    pub const MOBILEBERT_ENGLISH_POS: (&'static str, &'static str) = (
+        "mobilebert-finetuned-pos/vocab",
+        "https://huggingface.co/mrm8488/mobilebert-finetuned-pos/resolve/main/vocab.txt",
     );
 }
 
