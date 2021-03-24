@@ -113,10 +113,10 @@ use crate::resources::{RemoteResource, Resource};
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use crate::RustBertError;
-use itertools::Itertools;
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use rust_tokenizers::TokenizedInput;
 use std::borrow::Borrow;
+use std::ops::Deref;
 use tch::kind::Kind::{Bool, Float};
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
@@ -561,9 +561,12 @@ impl ZeroShotClassificationModel {
 
         let text_pair_list = inputs
             .as_ref()
-            .iter()
-            .cartesian_product(label_sentences.iter())
-            .map(|(&s, label)| (s, label.as_str()))
+            .into_iter()
+            .flat_map(|input| {
+                label_sentences
+                    .iter()
+                    .map(move |label_sentence| (input.deref(), label_sentence.as_str()))
+            })
             .collect::<Vec<(&str, &str)>>();
 
         let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_pair_list(

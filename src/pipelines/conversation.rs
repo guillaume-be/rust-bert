@@ -52,7 +52,6 @@ use crate::gpt2::{
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
-use itertools::Itertools;
 use std::collections::HashMap;
 use tch::{Device, Kind, Tensor};
 use uuid::Uuid;
@@ -799,12 +798,12 @@ impl ConversationModel {
             let texts = active_conversations
                 .iter()
                 .map(|c| c.new_user_input.as_ref().unwrap().as_str())
-                .collect_vec();
+                .collect::<Vec<&str>>();
 
             let history = active_conversations
                 .iter()
                 .map(|c| c.history.iter().flatten().copied().collect())
-                .collect_vec();
+                .collect::<Vec<Vec<i64>>>();
 
             let prompt_ids = self.encode_prompts(texts.as_ref());
             let (input_tensor, attention_mask) =

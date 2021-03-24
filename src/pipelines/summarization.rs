@@ -62,7 +62,6 @@
 //! # ;
 //! ```
 
-use itertools::Itertools;
 use tch::{Device, Tensor};
 
 use crate::bart::{
@@ -356,7 +355,7 @@ impl SummarizationModel {
                     .as_ref()
                     .iter()
                     .map(|text| format!("{}{}", prefix, text))
-                    .collect_vec();
+                    .collect::<Vec<String>>();
                 self.model.generate(
                     Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
                     None,
