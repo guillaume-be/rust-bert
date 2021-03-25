@@ -561,7 +561,7 @@ impl ZeroShotClassificationModel {
 
         let text_pair_list = inputs
             .as_ref()
-            .into_iter()
+            .iter()
             .flat_map(|input| {
                 label_sentences
                     .iter()
