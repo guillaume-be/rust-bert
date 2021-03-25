@@ -18,6 +18,9 @@ All notable changes to this project will be documented in this file. The format 
 - (BREAKING) Changed `classif_dropout` in `BartConfig` to be an optional field. This affects dependencies instantiating `BartConfig` from scratch, or using `classif_config` for custom model heads.
 - (BREAKING) Changed token classification pipelines to return a Vec<Vec<Token>> instead of a Vec<Token>. The token-level predictions are now returned in separate vectors for each input sequence provided as an input (they were previously returned in a flattened vector)
 
+### Removed
+- Dependency to `itertools` crate
+
 ## [0.14.0] - 2021-02-22
 ### Added
 - Addition of the Longformer language model, task-specific heads and registration in relevant pipelines
