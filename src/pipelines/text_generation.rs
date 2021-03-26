@@ -17,7 +17,6 @@
 //! By default, the dependencies for this model will be downloaded for a GPT2-medium model.
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
 //! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/gpt2
-use itertools::Itertools;
 use tch::{Device, Tensor};
 
 use crate::common::error::RustBertError;
@@ -169,7 +168,7 @@ impl From<TextGenerationConfig> for GenerateConfig {
     }
 }
 
-/// # Abstraction that holds one particular textgeneration model, for any of the supported models
+/// # Abstraction that holds one particular text generation model, for any of the supported models
 pub enum TextGenerationOption {
     /// Text Generator based on GPT2 model
     GPT2(GPT2Generator),
@@ -362,7 +361,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                     .as_ref()
                     .iter()
                     .map(|text| format!("{} {}", prefix, text))
-                    .collect_vec();
+                    .collect::<Vec<String>>();
                 self.model.generate_indices(
                     Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
                     None,
@@ -380,7 +379,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                     generated_sequence
                         .into_iter()
                         .skip(prefix_length.unwrap_or(0) as usize)
-                        .collect_vec()
+                        .collect::<Vec<i64>>()
                 } else {
                     generated_sequence
                 },

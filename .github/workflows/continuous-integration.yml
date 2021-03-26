@@ -142,4 +142,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --all-targets --all-features -- -D warnings -A clippy::assign_op_pattern
+          args: --all-targets --all-features -- -D warnings -A clippy::assign_op_pattern -A clippy::upper-case-acronyms

@@ -123,7 +123,6 @@ use crate::mobilebert::MobileBertForTokenClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
-use itertools::Itertools;
 use rust_tokenizers::tokenizer::{Tokenizer, TruncationStrategy};
 use rust_tokenizers::{
     ConsolidatableTokens, ConsolidatedTokenIterator, Mask, Offset, TokenTrait, TokenizedInput,
@@ -700,7 +699,9 @@ impl TokenClassificationModel {
             let mut sequence_tokens = vec![];
             let labels = labels_idx.get(sentence_idx);
             let sentence_tokens = &tokenized_input[sentence_idx as usize];
-            let original_chars = input.as_ref()[sentence_idx as usize].chars().collect_vec();
+            let original_chars = input.as_ref()[sentence_idx as usize]
+                .chars()
+                .collect::<Vec<char>>();
             let mut word_idx: u16 = 0;
             for position_idx in 0..sentence_tokens.token_ids.len() {
                 let mask = sentence_tokens.mask[position_idx];

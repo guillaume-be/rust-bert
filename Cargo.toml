@@ -62,7 +62,6 @@ tch = "~0.3.1"
 serde_json = "1.0.62"
 serde = { version = "1.0.123", features = ["derive"] }
 dirs = "3.0.1"
-itertools = "0.10.0"
 ordered-float = "2.1.1"
 cached-path = "0.5.0"
 lazy_static = "1.4.0"

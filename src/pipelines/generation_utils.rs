@@ -64,7 +64,6 @@
 //! # ;
 //! ```
 
-use itertools::Itertools;
 use rust_tokenizers::tokenizer::Tokenizer;
 use rust_tokenizers::vocab::Vocab;
 use tch::kind::Kind::Int64;
@@ -1509,7 +1508,7 @@ impl Clone for BeamHypotheses {
                 .beams
                 .iter()
                 .map(|(score, tensor)| (*score, tensor.copy()))
-                .collect_vec(),
+                .collect::<Vec<(f64, Tensor)>>(),
             worst_score: self.worst_score,
         }
     }
