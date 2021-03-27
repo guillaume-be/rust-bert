@@ -32,21 +32,21 @@ fn main() -> anyhow::Result<()> {
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
         BartMergesResources::DISTILBART_CNN_12_6,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
         BartModelResources::DISTILBART_CNN_12_6,
     ));
 
     let summarization_config = SummarizationConfig {
         model_type: ModelType::Bart,
-        model_resource: weights_resource,
+        model_resource,
         config_resource,
         vocab_resource,
         merges_resource,
         length_penalty: 1.0,
-        num_beams: 1,
+        num_beams: 4,
         no_repeat_ngram_size: 3,
+        min_length: 56,
         max_length: 142,
-        // device: Device::Cpu,
         device: Device::cuda_if_available(),
         ..Default::default()
     };
@@ -78,7 +78,7 @@ about exoplanets like K2-18b."];
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
     let _output = summarization_model.summarize(&input);
     for sentence in _output {
-        println!("{:?}", sentence);
+        println!("{}", sentence);
     }
 
     Ok(())

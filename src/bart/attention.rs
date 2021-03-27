@@ -140,7 +140,7 @@ impl SelfAttention {
             }
         } else if let Some(layer_state_value) = layer_state {
             let key_states = self._shape(hidden_states.apply(&self.k_proj), -1, bs);
-            let value_states = self._shape(hidden_states.apply(&self.k_proj), -1, bs);
+            let value_states = self._shape(hidden_states.apply(&self.v_proj), -1, bs);
             (
                 Tensor::cat(&[layer_state_value.prev_key, key_states], 2),
                 Tensor::cat(&[layer_state_value.prev_value, value_states], 2),

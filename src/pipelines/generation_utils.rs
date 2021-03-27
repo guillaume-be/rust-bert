@@ -625,6 +625,13 @@ pub(crate) mod private_generation_utils {
                         std::f64::NEG_INFINITY,
                     );
                 }
+                if self.is_encoder_decoder() & !gen_opt.do_sample {
+                    self.prepare_scores_for_generation(
+                        &mut next_token_logits,
+                        current_length,
+                        gen_opt.max_length,
+                    );
+                }
 
                 //            Top-k and top-p sampling
                 let next_token = if gen_opt.do_sample {
