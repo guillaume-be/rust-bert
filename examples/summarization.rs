@@ -21,37 +21,7 @@ use rust_bert::resources::{RemoteResource, Resource};
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    // let summarization_model = SummarizationModel::new(Default::default())?;
-
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartConfigResources::DISTILBART_CNN_12_6,
-    ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartVocabResources::DISTILBART_CNN_12_6,
-    ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartMergesResources::DISTILBART_CNN_12_6,
-    ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartModelResources::DISTILBART_CNN_12_6,
-    ));
-
-    let summarization_config = SummarizationConfig {
-        model_type: ModelType::Bart,
-        model_resource,
-        config_resource,
-        vocab_resource,
-        merges_resource,
-        length_penalty: 1.0,
-        num_beams: 4,
-        no_repeat_ngram_size: 3,
-        min_length: 56,
-        max_length: 142,
-        device: Device::cuda_if_available(),
-        ..Default::default()
-    };
-
-    let summarization_model = SummarizationModel::new(summarization_config)?;
+    let summarization_model = SummarizationModel::new(Default::default())?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
