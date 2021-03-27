@@ -127,13 +127,9 @@ impl DecoderLayer {
         Option<Tensor>,
         (Option<LayerState>, Option<LayerState>),
     ) {
-        let (output, attention_weights, new_self_layer_states) = self.self_attention.forward_t(
-            x,
-            Some(x),
-            decoder_attention_mask,
-            layer_states.0,
-            train,
-        );
+        let (output, attention_weights, new_self_layer_states) =
+            self.self_attention
+                .forward_t(x, None, decoder_attention_mask, layer_states.0, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
         let output = output.apply(&self.self_attention_layer_norm);
 

@@ -111,8 +111,8 @@ impl SelfAttention {
         }
     }
 
-    fn flatten(&self, x: Tensor, dim_0: i64, bs: i64) -> Tensor {
-        x.view((dim_0, bs * self.num_heads, self.head_dim))
+    fn _shape(&self, x: Tensor, sequence_length: i64, batch_size: i64) -> Tensor {
+        x.view((batch_size, sequence_length, self.num_heads, self.head_dim))
             .transpose(1, 2)
             .contiguous()
     }
@@ -134,21 +134,21 @@ impl SelfAttention {
                 (layer_state_value.prev_key, layer_state_value.prev_value)
             } else {
                 (
-                    self.flatten(key_value_states.unwrap().apply(&self.k_proj), -1, bs),
-                    self.flatten(key_value_states.unwrap().apply(&self.v_proj), -1, bs),
+                    self._shape(key_value_states.unwrap().apply(&self.k_proj), -1, bs),
+                    self._shape(key_value_states.unwrap().apply(&self.v_proj), -1, bs),
                 )
             }
         } else if let Some(layer_state_value) = layer_state {
-            let key_states = self.flatten(hidden_states.apply(&self.k_proj), -1, bs);
-            let value_states = self.flatten(hidden_states.apply(&self.k_proj), -1, bs);
+            let key_states = self._shape(hidden_states.apply(&self.k_proj), -1, bs);
+            let value_states = self._shape(hidden_states.apply(&self.k_proj), -1, bs);
             (
                 Tensor::cat(&[layer_state_value.prev_key, key_states], 2),
                 Tensor::cat(&[layer_state_value.prev_value, value_states], 2),
             )
         } else {
             (
-                self.flatten(hidden_states.apply(&self.k_proj), -1, bs),
-                self.flatten(hidden_states.apply(&self.v_proj), -1, bs),
+                self._shape(hidden_states.apply(&self.k_proj), -1, bs),
+                self._shape(hidden_states.apply(&self.v_proj), -1, bs),
             )
         };
 
@@ -160,11 +160,10 @@ impl SelfAttention {
         } else {
             None
         };
-        println!("new_layer_state {:?}", new_layer_state);
 
         let proj_shape = [bs * self.num_heads, -1, self.head_dim];
         let query_states = self
-            .flatten(query_states, target_length, bs)
+            ._shape(query_states, target_length, bs)
             .view(proj_shape);
         let key_states = key_states.view(proj_shape);
         let value_states = value_states.view(proj_shape);

@@ -46,8 +46,8 @@ fn main() -> anyhow::Result<()> {
         num_beams: 1,
         no_repeat_ngram_size: 3,
         max_length: 142,
-        device: Device::Cpu,
-        // device: Device::cuda_if_available(),
+        // device: Device::Cpu,
+        device: Device::cuda_if_available(),
         ..Default::default()
     };
 
