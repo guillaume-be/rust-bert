@@ -16,6 +16,27 @@ use tch::kind::Kind::Int64;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Tensor};
 
+/// # Abstraction that holds a embeddings configuration
+pub enum EmbeddingOption {
+    /// PositionalEmbedding
+    LearnedPositionalEmbedding(LearnedPositionalEmbedding),
+    SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding),
+}
+
+impl EmbeddingOption {
+    /// Interface method to forward_t() of the particular models.
+    pub fn forward(&self, input: &Tensor, past_key_values_length: i64) -> Tensor {
+        match *self {
+            Self::LearnedPositionalEmbedding(ref embeddings) => {
+                embeddings.forward(input, past_key_values_length)
+            }
+            Self::SinusoidalPositionalEmbedding(ref embeddings) => {
+                embeddings.forward(input, past_key_values_length)
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct LearnedPositionalEmbedding {
     embedding: nn::Embedding,
@@ -57,6 +78,41 @@ impl LearnedPositionalEmbedding {
             past_key_values_length + sequence_length,
             (Int64, input.device()),
         ) + self.offset;
+        positions.apply(&self.embedding)
+    }
+}
+
+#[derive(Debug)]
+pub struct SinusoidalPositionalEmbedding {
+    embedding: nn::Embedding,
+}
+
+impl SinusoidalPositionalEmbedding {
+    pub fn new<'p, P>(
+        p: P,
+        num_embeddings: i64,
+        embedding_dim: i64,
+    ) -> SinusoidalPositionalEmbedding
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let embedding: nn::Embedding = embedding(
+            p.borrow(),
+            num_embeddings,
+            embedding_dim,
+            Default::default(),
+        );
+        SinusoidalPositionalEmbedding { embedding }
+    }
+
+    pub fn forward(&self, input: &Tensor, past_key_values_length: i64) -> Tensor {
+        let input_shape = input.size();
+        let (_, sequence_length) = (input_shape[0], input_shape[1]);
+        let positions = Tensor::arange1(
+            past_key_values_length,
+            past_key_values_length + sequence_length,
+            (Int64, input.device()),
+        );
         positions.apply(&self.embedding)
     }
 }

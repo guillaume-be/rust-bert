@@ -15,13 +15,38 @@ extern crate anyhow;
 use rust_bert::bart::{
     BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    let summarization_model = SummarizationModel::new(Default::default())?;
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
+
+    let summarization_config = SummarizationConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        num_beams: 1,
+        length_penalty: 1.0,
+        min_length: 56,
+        max_length: 142,
+        device: Device::Cpu,
+        ..Default::default()
+    };
+
+    let summarization_model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \

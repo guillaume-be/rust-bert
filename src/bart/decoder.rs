@@ -12,7 +12,9 @@
 // limitations under the License.
 
 use crate::bart::bart_model::{_expand_mask, _prepare_decoder_attention_mask};
-use crate::bart::embeddings::LearnedPositionalEmbedding;
+use crate::bart::embeddings::{
+    EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
+};
 use crate::bart::BartConfig;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
@@ -160,7 +162,7 @@ pub struct BartDecoder {
     dropout: Dropout,
     layer_norm_embedding: Option<nn::LayerNorm>,
     layers: Vec<DecoderLayer>,
-    embed_positions: LearnedPositionalEmbedding,
+    embed_positions: EmbeddingOption,
     output_attentions: bool,
     output_hidden_states: bool,
     output_past: bool,
@@ -177,6 +179,7 @@ impl BartDecoder {
         let output_attentions = config.output_attentions.unwrap_or(false);
         let output_hidden_states = config.output_hidden_states.unwrap_or(false);
         let normalize_embedding = config.normalize_embedding.unwrap_or(true);
+        let static_position_embeddings = config.static_position_embeddings.unwrap_or(false);
         let scale_embedding = match config.scale_embedding {
             Some(value) => {
                 if value {
@@ -206,12 +209,20 @@ impl BartDecoder {
 
         let pad_token_id = config.pad_token_id.unwrap_or(1);
 
-        let embed_positions = LearnedPositionalEmbedding::new(
-            p / "embed_positions",
-            config.max_position_embeddings,
-            config.d_model,
-            pad_token_id,
-        );
+        let embed_positions = if static_position_embeddings {
+            EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(
+                p / "embed_positions",
+                config.max_position_embeddings,
+                config.d_model,
+            ))
+        } else {
+            EmbeddingOption::LearnedPositionalEmbedding(LearnedPositionalEmbedding::new(
+                p / "embed_positions",
+                config.max_position_embeddings,
+                config.d_model,
+                pad_token_id,
+            ))
+        };
 
         let mut layers: Vec<DecoderLayer> = vec![];
         let p_layers = p / "layers";
@@ -295,7 +306,7 @@ impl BartDecoder {
             } else {
                 None
             };
-        let encoder_hidden_states = encoder_hidden_states.transpose(0, 1);
+
         let mut attention_weights: Option<Tensor>;
 
         for (layer_idx, layer) in self.layers.iter().enumerate() {
@@ -314,7 +325,7 @@ impl BartDecoder {
             hidden_state = temp.0;
             attention_weights = temp.1;
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
+                hidden_states.push(hidden_state.as_ref().copy());
             };
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
@@ -325,8 +336,8 @@ impl BartDecoder {
         }
 
         BartDecoderOutput {
-            hidden_state: hidden_state.transpose(0, 1),
-            encoder_padding_mask: encoder_attention_mask,
+            hidden_state,
+            encoder_attention_mask,
             next_decoder_cache,
             all_hidden_states,
             all_attentions,
@@ -339,7 +350,7 @@ pub struct BartDecoderOutput {
     /// last decoder layer hidden state
     pub hidden_state: Tensor,
     /// Padding mask for the encoder positions to attend to
-    pub encoder_padding_mask: Option<Tensor>,
+    pub encoder_attention_mask: Option<Tensor>,
     /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
     pub next_decoder_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
     /// Hidden states for all intermediate layers

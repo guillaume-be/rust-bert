@@ -239,7 +239,10 @@ fn _make_causal_mask(
         (dtype, device),
     );
     let mask_cond = Tensor::arange(target_length, (dtype, device));
-    let _ = mask.masked_fill_(&mask_cond.lt1(&mask_cond).view([target_length, 1]), 0);
+    let _ = mask.masked_fill_(
+        &mask_cond.lt1(&(&mask_cond + 1).view([target_length, 1])),
+        0,
+    );
 
     if past_key_values_length > 0 {
         mask = Tensor::cat(
@@ -1124,7 +1127,7 @@ impl BartGenerator {
             .filter(|pos| !token_ids.contains(pos))
             .collect();
         let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(1, &impossible_tokens, std::f64::NEG_INFINITY);
+        let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
     }
 }
 

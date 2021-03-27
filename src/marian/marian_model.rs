@@ -895,7 +895,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
             &Tensor::of_slice(&[self.get_pad_id().unwrap()])
                 .to_kind(Kind::Int64)
                 .to_device(scores.device()),
-            std::f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
         );
         if current_length == max_length - 1 {
             self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
@@ -918,7 +918,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
                 prepared_input: None,
                 prepared_attention_mask: Some(attention_mask),
                 prepared_encoder_output: encoder_outputs,
-                prepared_decoder_input: Some(input_ids),
+                prepared_decoder_input: Some(input_ids.narrow(1, -1, 1)),
                 prepared_position_ids: None,
                 prepared_past: Cache::BARTCache(past),
             },

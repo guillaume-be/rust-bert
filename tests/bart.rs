@@ -41,7 +41,7 @@ fn bart_lm_model() -> anyhow::Result<()> {
         false,
     )?;
     let config = BartConfig::from_file(config_path);
-    let bart_model = BartModel::new(&vs.root() / "model", &config, false);
+    let bart_model = BartModel::new(&vs.root() / "model", &config);
     vs.load(weights_path)?;
 
     //    Define input
@@ -96,7 +96,9 @@ fn bart_summarization_greedy() -> anyhow::Result<()> {
         vocab_resource,
         merges_resource,
         num_beams: 1,
-        length_penalty: 2.0,
+        length_penalty: 1.0,
+        min_length: 56,
+        max_length: 142,
         device: Device::Cpu,
         ..Default::default()
     };
@@ -117,7 +119,7 @@ but previous discoveries were made on planets with high temperatures or other pr
 said UCL astronomer Angelos Tsiaras. \"It's the best candidate for habitability right now.\" \"It's a good sign\", \
 said Ryan Cloutier of the Harvard–Smithsonian Center for Astrophysics, who was not one of either study's authors. \
 \"Overall,\" he continued, \"the presence of water in its atmosphere certainly improves the prospect of K2-18b being \
-a potentially habitable planet, but further observations will be required to say for sure. \"
+a potentially habitable planet, but further observations will be required to say for sure. \" \
 K2-18b was first identified in 2015 by the Kepler space telescope. It is about 110 light-years from Earth and larger \
 but less dense. Its star, a red dwarf, is cooler than the Sun, but the planet's orbit is much closer, such that a year \
 on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optimistic that NASA's James Webb space \
@@ -128,9 +130,9 @@ about exoplanets like K2-18b."];
     let output = model.summarize(&input);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], " K2-18b is a planet circling a star in the constellation Leo. It is not too \
-hot and not too cold for liquid water to exist. This is the first such discovery in a planet in its \
-star's habitable zone. \"It's the best candidate for habit");
+    assert_eq!(output[0], " K2-18b is not too hot and not too cold for liquid water to exist. \
+    This is the first such discovery in a planet in its star's habitable zone. \
+    The presence of water vapour was confirmed in the atmosphere of K2, a planet circling a star in the constellation Leo.");
 
     Ok(())
 }
@@ -155,8 +157,10 @@ fn bart_summarization_beam_search() -> anyhow::Result<()> {
         config_resource,
         vocab_resource,
         merges_resource,
-        num_beams: 1,
-        length_penalty: 0.0,
+        num_beams: 4,
+        min_length: 56,
+        max_length: 142,
+        length_penalty: 1.0,
         device: Device::Cpu,
         ..Default::default()
     };
@@ -188,9 +192,9 @@ about exoplanets like K2-18b."];
     let output = model.summarize(&input);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], " K2-18b, a planet circling a star in the constellation Leo, is not too hot \
-and not too cold for liquid water to exist. This is the first such discovery in a planet in its star's \
-habitable zone. The presence of water vapour was confirmed in the atmosphere of the planet.");
+    assert_eq!(output[0], " K2-18b, a planet circling a star in the constellation Leo, is not too hot and not too cold for liquid water to exist. \
+    This is the first such discovery in a planet in its star's habitable zone. \
+    It is not the first time scientists have found signs of water on an exoplanet.");
 
     Ok(())
 }
