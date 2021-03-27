@@ -518,20 +518,15 @@ impl MarianForConditionalGeneration {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
-    /// let generation_mode = true;
     /// let bart: BartForConditionalGeneration =
-    ///     BartForConditionalGeneration::new(&p.root() / "bart", &config, generation_mode);
+    ///     BartForConditionalGeneration::new(&p.root() / "bart", &config);
     /// ```
-    pub fn new<'p, P>(
-        p: P,
-        config: &BartConfig,
-        generation_mode: bool,
-    ) -> MarianForConditionalGeneration
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> MarianForConditionalGeneration
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let base_model = BartModel::new(p / "model", config, generation_mode);
+        let base_model = BartModel::new(p / "model", config);
         let final_logits_bias = p.var(
             "final_logits_bias",
             &[1, config.vocab_size],
@@ -577,7 +572,7 @@ impl MarianForConditionalGeneration {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BartConfig::from_file(config_path);
-    /// # let mut marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
+    /// # let mut marian_model = MarianForConditionalGeneration::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -678,7 +673,7 @@ impl LMHeadModel for MarianForConditionalGeneration {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BartConfig::from_file(config_path);
-    /// # let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
+    /// # let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -820,7 +815,7 @@ impl MarianGenerator {
         )?;
 
         let config = BartConfig::from_file(config_path);
-        let model = MarianForConditionalGeneration::new(&var_store.root(), &config, true);
+        let model = MarianForConditionalGeneration::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(0);

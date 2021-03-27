@@ -89,4 +89,4 @@ pub struct PegasusConfig {
 
 impl Config<PegasusConfig> for PegasusConfig {}
 
-type PegasusAttention = crate::bart::SelfAttention;
+// type PegasusAttention = crate::bart::SelfAttention;

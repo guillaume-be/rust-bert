@@ -12,14 +12,12 @@
 // limitations under the License.
 
 use crate::bart::attention::SelfAttention;
-use crate::bart::embeddings::{
-    EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
-};
+use crate::bart::bart_model::_expand_mask;
+use crate::bart::embeddings::LearnedPositionalEmbedding;
 use crate::bart::BartConfig;
 use crate::common::activations::{Activation, TensorFunction};
 use crate::common::dropout::Dropout;
 use std::borrow::{Borrow, BorrowMut};
-use tch::kind::Kind::Bool;
 use tch::{nn, Tensor};
 
 pub struct EncoderLayer {
@@ -105,7 +103,7 @@ impl EncoderLayer {
     ) -> (Tensor, Option<Tensor>) {
         let (output, attention_weights, _) =
             self.self_attention
-                .forward_t(x, None, encoder_padding_mask, None, None, train);
+                .forward_t(x, None, encoder_padding_mask, None, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
         let output = output.apply(&self.self_attention_layer_norm);
 
@@ -124,7 +122,7 @@ pub struct BartEncoder {
     dropout: Dropout,
     layer_norm_embedding: Option<nn::LayerNorm>,
     layers: Vec<EncoderLayer>,
-    embed_positions: EmbeddingOption,
+    embed_positions: LearnedPositionalEmbedding,
     output_attentions: bool,
     output_hidden_states: bool,
     scale_embedding: f64,
@@ -139,7 +137,7 @@ impl BartEncoder {
         let output_attentions = config.output_attentions.unwrap_or(false);
         let output_hidden_states = config.output_hidden_states.unwrap_or(false);
         let normalize_embedding = config.normalize_embedding.unwrap_or(true);
-        let static_position_embeddings = config.static_position_embeddings.unwrap_or(false);
+
         let scale_embedding = match config.scale_embedding {
             Some(value) => {
                 if value {
@@ -169,20 +167,12 @@ impl BartEncoder {
 
         let pad_token_id = config.pad_token_id.unwrap_or(1);
 
-        let embed_positions = if static_position_embeddings {
-            EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(
-                p / "embed_positions",
-                config.max_position_embeddings,
-                config.d_model,
-            ))
-        } else {
-            EmbeddingOption::LearnedPositionalEmbedding(LearnedPositionalEmbedding::new(
-                p / "embed_positions",
-                config.max_position_embeddings,
-                config.d_model,
-                pad_token_id,
-            ))
-        };
+        let embed_positions = LearnedPositionalEmbedding::new(
+            p / "embed_positions",
+            config.max_position_embeddings,
+            config.d_model,
+            pad_token_id,
+        );
 
         let mut layers: Vec<EncoderLayer> = vec![];
         let p_layers = p / "layers";
@@ -209,18 +199,18 @@ impl BartEncoder {
         train: bool,
     ) -> BartEncoderOutput {
         let attention_mask = match attention_mask {
-            Some(mask) => Some(mask.eq(0).to_kind(Bool)),
+            Some(mask) => Some(_expand_mask(mask, Some(*input_ids.size().last().unwrap()))),
             None => None,
         };
 
         let x = input_ids.apply(embeddings) * self.scale_embedding;
-        let x: Tensor = x + &self.embed_positions.forward(input_ids, false);
+        let x: Tensor = x + &self.embed_positions.forward(input_ids, 0);
         let x = if let Some(layer_norm_embedding) = &self.layer_norm_embedding {
             x.apply(layer_norm_embedding)
         } else {
             x
         };
-        let x = x.apply_t(&self.dropout, train).transpose(0, 1);
+        let x = x.apply_t(&self.dropout, train);
 
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
             Some(vec![])
@@ -238,7 +228,7 @@ impl BartEncoder {
 
         for layer in &self.layers {
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
+                hidden_states.push(hidden_state.as_ref().copy());
             };
 
             let temp = layer.forward_t(&hidden_state, attention_mask.as_ref(), train);
@@ -250,11 +240,11 @@ impl BartEncoder {
         }
 
         if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-            hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
+            hidden_states.push(hidden_state.as_ref().copy());
         };
 
         BartEncoderOutput {
-            hidden_state: hidden_state.transpose(0, 1),
+            hidden_state,
             all_hidden_states,
             all_attentions,
         }

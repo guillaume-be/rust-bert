@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::embeddings::{
-    EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
-};
+use crate::bart::bart_model::{_expand_mask, _prepare_decoder_attention_mask};
+use crate::bart::embeddings::LearnedPositionalEmbedding;
 use crate::bart::BartConfig;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
@@ -22,7 +21,6 @@ use crate::{
     common::activations::TensorFunction,
 };
 use std::borrow::{Borrow, BorrowMut};
-use tch::kind::Kind::Bool;
 use tch::{nn, Tensor};
 
 pub struct DecoderLayer {
@@ -120,9 +118,8 @@ impl DecoderLayer {
         &self,
         x: &Tensor,
         encoder_hidden_states: &Tensor,
-        encoder_attn_mask: Option<&Tensor>,
-        causal_mask: Option<&Tensor>,
-        decoder_padding_mask: Option<&Tensor>,
+        encoder_attention_mask: Option<&Tensor>,
+        decoder_attention_mask: Option<&Tensor>,
         layer_states: (Option<LayerState>, Option<LayerState>),
         train: bool,
     ) -> (
@@ -133,18 +130,17 @@ impl DecoderLayer {
         let (output, attention_weights, new_self_layer_states) = self.self_attention.forward_t(
             x,
             Some(x),
-            decoder_padding_mask,
-            causal_mask,
+            decoder_attention_mask,
             layer_states.0,
             train,
         );
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
         let output = output.apply(&self.self_attention_layer_norm);
+
         let (output1, _, new_encoder_layer_states) = self.encoder_attention.forward_t(
             &output,
             Some(encoder_hidden_states),
-            encoder_attn_mask,
-            None,
+            encoder_attention_mask,
             layer_states.1,
             train,
         );
@@ -168,16 +164,15 @@ pub struct BartDecoder {
     dropout: Dropout,
     layer_norm_embedding: Option<nn::LayerNorm>,
     layers: Vec<DecoderLayer>,
-    embed_positions: EmbeddingOption,
+    embed_positions: LearnedPositionalEmbedding,
     output_attentions: bool,
     output_hidden_states: bool,
     output_past: bool,
-    generation_mode: bool,
     scale_embedding: f64,
 }
 
 impl BartDecoder {
-    pub fn new<'p, P>(p: P, config: &BartConfig, generation_mode: bool) -> BartDecoder
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartDecoder
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -186,7 +181,6 @@ impl BartDecoder {
         let output_attentions = config.output_attentions.unwrap_or(false);
         let output_hidden_states = config.output_hidden_states.unwrap_or(false);
         let normalize_embedding = config.normalize_embedding.unwrap_or(true);
-        let static_position_embeddings = config.static_position_embeddings.unwrap_or(false);
         let scale_embedding = match config.scale_embedding {
             Some(value) => {
                 if value {
@@ -216,20 +210,12 @@ impl BartDecoder {
 
         let pad_token_id = config.pad_token_id.unwrap_or(1);
 
-        let embed_positions = if static_position_embeddings {
-            EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(
-                p / "embed_positions",
-                config.max_position_embeddings,
-                config.d_model,
-            ))
-        } else {
-            EmbeddingOption::LearnedPositionalEmbedding(LearnedPositionalEmbedding::new(
-                p / "embed_positions",
-                config.max_position_embeddings,
-                config.d_model,
-                pad_token_id,
-            ))
-        };
+        let embed_positions = LearnedPositionalEmbedding::new(
+            p / "embed_positions",
+            config.max_position_embeddings,
+            config.d_model,
+            pad_token_id,
+        );
 
         let mut layers: Vec<DecoderLayer> = vec![];
         let p_layers = p / "layers";
@@ -245,7 +231,6 @@ impl BartDecoder {
             output_attentions,
             output_hidden_states,
             output_past,
-            generation_mode,
             scale_embedding,
         }
     }
@@ -254,28 +239,38 @@ impl BartDecoder {
         &self,
         input_ids: &Tensor,
         encoder_hidden_states: &Tensor,
-        encoder_padding_mask: Option<&Tensor>,
-        decoder_padding_mask: Option<&Tensor>,
-        decoder_causal_mask: Option<&Tensor>,
+        encoder_attention_mask: Option<&Tensor>,
+        decoder_attention_mask: Option<&Tensor>,
         embeddings: &nn::Embedding,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
     ) -> BartDecoderOutput {
-        let encoder_padding_mask = match encoder_padding_mask {
-            Some(mask) => Some(mask.eq(0).to_kind(Bool)),
-            None => None,
+        let past_key_values_length = if let Some(old_layer_states_values) = &old_layer_states {
+            if let Some(old_value_state) = &old_layer_states_values[0].0 {
+                old_value_state.prev_key.size()[2]
+            } else {
+                0
+            }
+        } else {
+            0
         };
 
         let positions = self
             .embed_positions
-            .forward(input_ids, self.generation_mode);
-        let x: Tensor = if self.generation_mode {
-            let end_inputs = input_ids.size()[1];
-            let end_positions = positions.size()[1];
-            input_ids.narrow(1, end_inputs - 1, 1).apply(embeddings) * self.scale_embedding
-                + positions.narrow(1, end_positions - 1, 1)
-        } else {
-            input_ids.apply(embeddings) * self.scale_embedding + positions
+            .forward(input_ids, past_key_values_length);
+
+        let x: Tensor = input_ids.apply(embeddings) * self.scale_embedding + positions;
+
+        let decoder_attention_mask = _prepare_decoder_attention_mask(
+            decoder_attention_mask,
+            input_ids.size().as_slice(),
+            &x,
+            past_key_values_length,
+        );
+
+        let encoder_attention_mask = match encoder_attention_mask {
+            Some(mask) => Some(_expand_mask(mask, Some(*input_ids.size().last().unwrap()))),
+            None => None,
         };
 
         let x = if let Some(layer_norm_embedding) = &self.layer_norm_embedding {
@@ -283,7 +278,7 @@ impl BartDecoder {
         } else {
             x
         };
-        let mut hidden_state = x.apply_t(&self.dropout, train).transpose(0, 1);
+        let mut hidden_state = x.apply_t(&self.dropout, train);
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
             Some(Vec::with_capacity(self.layers.len()))
         } else {
@@ -315,9 +310,8 @@ impl BartDecoder {
             let temp = layer.forward_t(
                 &hidden_state,
                 &encoder_hidden_states,
-                encoder_padding_mask.as_ref(),
-                decoder_causal_mask,
-                decoder_padding_mask,
+                encoder_attention_mask.as_ref(),
+                decoder_attention_mask.as_ref(),
                 layer_state,
                 train,
             );
@@ -336,7 +330,7 @@ impl BartDecoder {
 
         BartDecoderOutput {
             hidden_state: hidden_state.transpose(0, 1),
-            encoder_padding_mask,
+            encoder_padding_mask: encoder_attention_mask,
             next_decoder_cache,
             all_hidden_states,
             all_attentions,

@@ -155,8 +155,8 @@ fn bart_summarization_beam_search() -> anyhow::Result<()> {
         config_resource,
         vocab_resource,
         merges_resource,
-        num_beams: 3,
-        length_penalty: 2.0,
+        num_beams: 1,
+        length_penalty: 0.0,
         device: Device::Cpu,
         ..Default::default()
     };

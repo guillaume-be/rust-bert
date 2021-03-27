@@ -24,20 +24,20 @@ pub struct LayerState {
     pub prev_key: Tensor,
     /// Cached values
     pub prev_value: Tensor,
-    /// Cached keys padding mask
-    pub prev_key_padding_mask: Option<Tensor>,
+    // /// Cached keys padding mask
+    // pub prev_key_padding_mask: Option<Tensor>,
 }
 
 impl Clone for LayerState {
     fn clone(&self) -> Self {
-        let prev_key_padding_mask = match &self.prev_key_padding_mask {
-            Some(key_padding_mask) => Some(key_padding_mask.copy()),
-            None => None,
-        };
+        // let prev_key_padding_mask = match &self.prev_key_padding_mask {
+        //     Some(key_padding_mask) => Some(key_padding_mask.copy()),
+        //     None => None,
+        // };
         LayerState {
             prev_key: self.prev_key.copy(),
             prev_value: self.prev_value.copy(),
-            prev_key_padding_mask,
+            // prev_key_padding_mask,
         }
     }
 }
@@ -46,14 +46,14 @@ impl LayerState {
     pub(crate) fn reorder_cache(&mut self, new_indices: &Tensor) {
         self.prev_key = self.prev_key.index_select(0, new_indices);
         self.prev_value = self.prev_value.index_select(0, new_indices);
-        if self.prev_key_padding_mask.is_some() {
-            self.prev_key_padding_mask = Some(
-                self.prev_key_padding_mask
-                    .as_ref()
-                    .unwrap()
-                    .index_select(0, new_indices),
-            );
-        }
+        // if self.prev_key_padding_mask.is_some() {
+        //     self.prev_key_padding_mask = Some(
+        //         self.prev_key_padding_mask
+        //             .as_ref()
+        //             .unwrap()
+        //             .index_select(0, new_indices),
+        //     );
+        // }
     }
 }
 
@@ -112,211 +112,336 @@ impl SelfAttention {
     }
 
     fn flatten(&self, x: Tensor, dim_0: i64, bs: i64) -> Tensor {
-        x.contiguous()
-            .view((dim_0, bs * self.num_heads, self.head_dim))
-            .transpose(0, 1)
+        x.view((dim_0, bs * self.num_heads, self.head_dim))
+            .transpose(1, 2)
+            .contiguous()
     }
 
     pub fn forward_t(
         &self,
-        query: &Tensor,
-        key: Option<&Tensor>,
-        key_padding_mask: Option<&Tensor>,
+        hidden_states: &Tensor,
+        key_value_states: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        mut layer_state: Option<LayerState>,
+        layer_state: Option<LayerState>,
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
-        let query_size = query.size();
-        let (target_sequence_length, bs) = (query_size[0], query_size[1]);
-        let q: Tensor = self.flatten(
-            query.as_ref().apply(&self.q_proj) * self.scaling,
-            target_sequence_length,
-            bs,
-        );
-        let key = if layer_state.is_some() {
-            if self.encoder_decoder_attention {
-                None
-            } else {
-                key
-            }
-        } else {
-            key
-        };
+        let (bs, target_length, embed_dim) = hidden_states.size3().unwrap();
 
-        let (k, v) = if self.encoder_decoder_attention {
-            match key {
-                Some(key) => (
-                    Some(self.flatten(key.apply(&self.k_proj), -1, bs)),
-                    Some(self.flatten(key.apply(&self.v_proj), -1, bs)),
-                ),
-                None => (None, None),
+        let query_states = hidden_states.apply(&self.q_proj) * self.scaling;
+
+        let (key_states, value_states) = if self.encoder_decoder_attention {
+            if let Some(layer_state_value) = layer_state {
+                (layer_state_value.prev_key, layer_state_value.prev_value)
+            } else {
+                (
+                    self.flatten(key_value_states.unwrap().apply(&self.k_proj), -1, bs),
+                    self.flatten(key_value_states.unwrap().apply(&self.v_proj), -1, bs),
+                )
             }
+        } else if let Some(layer_state_value) = layer_state {
+            let key_states = self.flatten(hidden_states.apply(&self.k_proj), -1, bs);
+            let value_states = self.flatten(hidden_states.apply(&self.k_proj), -1, bs);
+            (
+                Tensor::cat(&[layer_state_value.prev_key, key_states], 2),
+                Tensor::cat(&[layer_state_value.prev_value, value_states], 2),
+            )
         } else {
             (
-                Some(self.flatten(query.apply(&self.k_proj), -1, bs)),
-                Some(self.flatten(query.apply(&self.v_proj), -1, bs)),
+                self.flatten(hidden_states.apply(&self.k_proj), -1, bs),
+                self.flatten(hidden_states.apply(&self.v_proj), -1, bs),
             )
         };
 
-        let (k, v, key_padding_mask) =
-            self.use_saved_state(&layer_state, k, v, key_padding_mask, bs);
-
-        let source_sequence_length = k.size()[1];
-        let attention_weights = q.bmm(&k.transpose(1, 2));
-        let attention_weights = match attention_mask {
-            Some(mask) => {
-                let attention_weights = attention_weights.view((
-                    bs,
-                    self.num_heads,
-                    target_sequence_length,
-                    source_sequence_length,
-                )) + mask;
-                attention_weights.view((
-                    bs * self.num_heads,
-                    target_sequence_length,
-                    source_sequence_length,
-                ))
-            }
-            None => attention_weights,
+        let new_layer_state = if self.store_cache {
+            Some(LayerState {
+                prev_key: key_states.copy(),
+                prev_value: value_states.copy(),
+            })
+        } else {
+            None
         };
-        let attention_weights = match key_padding_mask.as_ref() {
-            Some(mask) => attention_weights
-                .view((
-                    bs,
-                    self.num_heads,
-                    target_sequence_length,
-                    source_sequence_length,
-                ))
-                .masked_fill(&mask.unsqueeze(1).unsqueeze(2), std::f64::NEG_INFINITY)
-                .view((
-                    bs * self.num_heads,
-                    target_sequence_length,
-                    source_sequence_length,
-                )),
-            None => attention_weights,
+        println!("new_layer_state {:?}", new_layer_state);
+
+        let proj_shape = [bs * self.num_heads, -1, self.head_dim];
+        let query_states = self
+            .flatten(query_states, target_length, bs)
+            .view(proj_shape);
+        let key_states = key_states.view(proj_shape);
+        let value_states = value_states.view(proj_shape);
+
+        let source_length = key_states.size()[1];
+        let mut attention_weights = query_states.bmm(&key_states.transpose(1, 2));
+
+        if let Some(attention_mask_value) = attention_mask {
+            attention_weights =
+                attention_weights.view([bs, self.num_heads, target_length, source_length])
+                    + attention_mask_value;
+            attention_weights =
+                attention_weights.view([bs * self.num_heads, target_length, source_length]);
         };
 
-        let attention_weights = attention_weights.softmax(-1, Float);
-        let attention_probabilities = attention_weights.apply_t(&self.dropout, train);
-        let output = attention_probabilities
-            .bmm(&v)
-            .transpose(0, 1)
-            .contiguous()
-            .view((target_sequence_length, bs, self.num_heads * self.head_dim))
-            .apply(&self.out_proj);
+        attention_weights = attention_weights.softmax(-1, Float);
 
-        let attention_weights = if self.output_attentions {
-            Some(attention_weights.view((
-                bs,
-                self.num_heads,
-                target_sequence_length,
-                source_sequence_length,
-            )))
+        let saved_attention_weights = if self.output_attentions {
+            Some(attention_weights.view((bs, self.num_heads, target_length, source_length)))
         } else {
             None
         };
 
-        if self.store_cache {
-            if layer_state.is_some() {
-                layer_state.as_mut().unwrap().prev_key =
-                    k.view((bs, self.num_heads, -1, self.head_dim));
-                layer_state.as_mut().unwrap().prev_value =
-                    v.view((bs, self.num_heads, -1, self.head_dim));
-                layer_state.as_mut().unwrap().prev_key_padding_mask = match key_padding_mask {
-                    Some(tensor) => Some(tensor),
-                    None => None,
-                };
-            } else {
-                layer_state = Some(LayerState {
-                    prev_key: k.view((bs, self.num_heads, -1, self.head_dim)),
-                    prev_value: v.view((bs, self.num_heads, -1, self.head_dim)),
-                    prev_key_padding_mask: match key_padding_mask {
-                        Some(tensor) => Some(tensor),
-                        None => None,
-                    },
-                })
-            };
-        };
+        let attention_probas = attention_weights.apply_t(&self.dropout, train);
+        let attention_output = attention_probas
+            .bmm(&value_states)
+            .view([bs, self.num_heads, target_length, self.head_dim])
+            .transpose(1, 2)
+            .reshape(&[bs, target_length, embed_dim])
+            .apply(&self.out_proj);
 
-        (output, attention_weights, layer_state)
-    }
-
-    fn use_saved_state(
-        &self,
-        layer_state: &Option<LayerState>,
-        k: Option<Tensor>,
-        v: Option<Tensor>,
-        key_padding_mask: Option<&Tensor>,
-        bs: i64,
-    ) -> (Tensor, Tensor, Option<Tensor>) {
-        match &layer_state {
-            Some(prev_state) => {
-                let prev_key = prev_state
-                    .prev_key
-                    .view((bs * self.num_heads, -1, self.head_dim));
-                let prev_value =
-                    prev_state
-                        .prev_value
-                        .view((bs * self.num_heads, -1, self.head_dim));
-                let k = if self.encoder_decoder_attention {
-                    prev_key
-                } else {
-                    Tensor::cat(&[prev_key, k.unwrap()], 1)
-                };
-                let v = if self.encoder_decoder_attention {
-                    prev_value
-                } else {
-                    Tensor::cat(&[prev_value, v.unwrap()], 1)
-                };
-
-                let key_padding_mask = self.use_saved_key_padding_mask(
-                    key_padding_mask,
-                    &prev_state.prev_key_padding_mask,
-                    bs,
-                    k.size()[1],
-                );
-                (k, v, key_padding_mask)
-            }
-            None => {
-                let key_padding_mask = match key_padding_mask {
-                    Some(value) => Some(value.copy()),
-                    None => None,
-                };
-                (k.unwrap(), v.unwrap(), key_padding_mask)
-            }
-        }
-    }
-
-    fn use_saved_key_padding_mask(
-        &self,
-        key_padding_mask: Option<&Tensor>,
-        prev_key_padding_mask: &Option<Tensor>,
-        bs: i64,
-        sequence_length: i64,
-    ) -> Option<Tensor> {
-        if prev_key_padding_mask.is_some() {
-            if self.encoder_decoder_attention {
-                Some(prev_key_padding_mask.as_ref().unwrap().copy())
-            } else {
-                Some(Tensor::cat(
-                    &[
-                        prev_key_padding_mask.as_ref().unwrap(),
-                        key_padding_mask.as_ref().unwrap(),
-                    ],
-                    1,
-                ))
-            }
-        } else {
-            match key_padding_mask {
-                Some(key_padding_mask) => {
-                    let filler = Tensor::zeros(
-                        &[bs, sequence_length - key_padding_mask.size()[1]],
-                        (key_padding_mask.kind(), key_padding_mask.device()),
-                    );
-                    Some(Tensor::cat(&[filler, key_padding_mask.copy()], 1))
-                }
-                None => None,
-            }
-        }
+        (attention_output, saved_attention_weights, new_layer_state)
     }
 }
+
+// #[derive(Debug)]
+// pub struct SelfAttention {
+//     num_heads: i64,
+//     head_dim: i64,
+//     dropout: Dropout,
+//     scaling: f64,
+//     encoder_decoder_attention: bool,
+//     output_attentions: bool,
+//     k_proj: nn::Linear,
+//     v_proj: nn::Linear,
+//     q_proj: nn::Linear,
+//     out_proj: nn::Linear,
+//     store_cache: bool,
+// }
+//
+// impl SelfAttention {
+//     pub fn new<'p, P>(
+//         p: P,
+//         embed_dim: i64,
+//         num_heads: i64,
+//         dropout: f64,
+//         encoder_decoder_attention: bool,
+//         store_cache: bool,
+//         output_attentions: bool,
+//     ) -> SelfAttention
+//     where
+//         P: Borrow<nn::Path<'p>>,
+//     {
+//         let p = p.borrow();
+//
+//         let k_proj = nn::linear(p / "k_proj", embed_dim, embed_dim, Default::default());
+//         let v_proj = nn::linear(p / "v_proj", embed_dim, embed_dim, Default::default());
+//         let q_proj = nn::linear(p / "q_proj", embed_dim, embed_dim, Default::default());
+//         let out_proj = nn::linear(p / "out_proj", embed_dim, embed_dim, Default::default());
+//
+//         let head_dim = embed_dim / num_heads;
+//         let scaling = (head_dim as f64).powf(-0.5);
+//         let dropout = Dropout::new(dropout);
+//
+//         SelfAttention {
+//             num_heads,
+//             head_dim,
+//             dropout,
+//             scaling,
+//             encoder_decoder_attention,
+//             output_attentions,
+//             k_proj,
+//             v_proj,
+//             q_proj,
+//             out_proj,
+//             store_cache,
+//         }
+//     }
+//
+//     fn flatten(&self, x: Tensor, dim_0: i64, bs: i64) -> Tensor {
+//         x.contiguous()
+//             .view((dim_0, bs * self.num_heads, self.head_dim))
+//             .transpose(0, 1)
+//     }
+//
+//     pub fn forward_t(
+//         &self,
+//         query: &Tensor,
+//         key: Option<&Tensor>,
+//         attention_mask: Option<&Tensor>,
+//         mut layer_state: Option<LayerState>,
+//         train: bool,
+//     ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
+//         let query_size = query.size();
+//         let (target_sequence_length, bs) = (query_size[0], query_size[1]);
+//         let q: Tensor = self.flatten(
+//             query.as_ref().apply(&self.q_proj) * self.scaling,
+//             target_sequence_length,
+//             bs,
+//         );
+//         let key = if layer_state.is_some() {
+//             if self.encoder_decoder_attention {
+//                 None
+//             } else {
+//                 key
+//             }
+//         } else {
+//             key
+//         };
+//
+//         let (k, v) = if self.encoder_decoder_attention {
+//             match key {
+//                 Some(key) => (
+//                     Some(self.flatten(key.apply(&self.k_proj), -1, bs)),
+//                     Some(self.flatten(key.apply(&self.v_proj), -1, bs)),
+//                 ),
+//                 None => (None, None),
+//             }
+//         } else {
+//             (
+//                 Some(self.flatten(query.apply(&self.k_proj), -1, bs)),
+//                 Some(self.flatten(query.apply(&self.v_proj), -1, bs)),
+//             )
+//         };
+//
+//         let (k, v) = self.use_saved_state(&layer_state, k, v, bs);
+//
+//         let source_sequence_length = k.size()[1];
+//         let attention_weights = q.bmm(&k.transpose(1, 2));
+//         let attention_weights = match attention_mask {
+//             Some(mask) => {
+//                 let attention_weights = attention_weights.view((
+//                     bs,
+//                     self.num_heads,
+//                     target_sequence_length,
+//                     source_sequence_length,
+//                 )) + mask;
+//                 attention_weights.view((
+//                     bs * self.num_heads,
+//                     target_sequence_length,
+//                     source_sequence_length,
+//                 ))
+//             }
+//             None => attention_weights,
+//         };
+//
+//         let attention_weights = attention_weights.softmax(-1, Float);
+//         let attention_probabilities = attention_weights.apply_t(&self.dropout, train);
+//         let output = attention_probabilities
+//             .bmm(&v)
+//             .transpose(0, 1)
+//             .contiguous()
+//             .view((target_sequence_length, bs, self.num_heads * self.head_dim))
+//             .apply(&self.out_proj);
+//
+//         let attention_weights = if self.output_attentions {
+//             Some(attention_weights.view((
+//                 bs,
+//                 self.num_heads,
+//                 target_sequence_length,
+//                 source_sequence_length,
+//             )))
+//         } else {
+//             None
+//         };
+//
+//         if self.store_cache {
+//             if layer_state.is_some() {
+//                 layer_state.as_mut().unwrap().prev_key =
+//                     k.view((bs, self.num_heads, -1, self.head_dim));
+//                 layer_state.as_mut().unwrap().prev_value =
+//                     v.view((bs, self.num_heads, -1, self.head_dim));
+//                 // layer_state.as_mut().unwrap().prev_key_padding_mask = match key_padding_mask {
+//                 //     Some(tensor) => Some(tensor),
+//                 //     None => None,
+//                 // };
+//             } else {
+//                 layer_state = Some(LayerState {
+//                     prev_key: k.view((bs, self.num_heads, -1, self.head_dim)),
+//                     prev_value: v.view((bs, self.num_heads, -1, self.head_dim)),
+//                     // prev_key_padding_mask: match key_padding_mask {
+//                     //     Some(tensor) => Some(tensor),
+//                     //     None => None,
+//                     // },
+//                 })
+//             };
+//         };
+//
+//         (output, attention_weights, layer_state)
+//     }
+//
+//     fn use_saved_state(
+//         &self,
+//         layer_state: &Option<LayerState>,
+//         k: Option<Tensor>,
+//         v: Option<Tensor>,
+//         // key_padding_mask: Option<&Tensor>,
+//         bs: i64,
+//     ) -> (Tensor, Tensor) {
+//         match &layer_state {
+//             Some(prev_state) => {
+//                 let prev_key = prev_state
+//                     .prev_key
+//                     .view((bs * self.num_heads, -1, self.head_dim));
+//                 let prev_value =
+//                     prev_state
+//                         .prev_value
+//                         .view((bs * self.num_heads, -1, self.head_dim));
+//                 let k = if self.encoder_decoder_attention {
+//                     prev_key
+//                 } else {
+//                     Tensor::cat(&[prev_key, k.unwrap()], 1)
+//                 };
+//                 let v = if self.encoder_decoder_attention {
+//                     prev_value
+//                 } else {
+//                     Tensor::cat(&[prev_value, v.unwrap()], 1)
+//                 };
+//
+//                 // let key_padding_mask = self.use_saved_key_padding_mask(
+//                 //     key_padding_mask,
+//                 //     &prev_state.prev_key_padding_mask,
+//                 //     bs,
+//                 //     k.size()[1],
+//                 // );
+//                 (k, v)
+//             }
+//             None => {
+//                 // let key_padding_mask = match key_padding_mask {
+//                 //     Some(value) => Some(value.copy()),
+//                 //     None => None,
+//                 // };
+//                 (k.unwrap(), v.unwrap())
+//             }
+//         }
+//     }
+//
+//     // fn use_saved_key_padding_mask(
+//     //     &self,
+//     //     key_padding_mask: Option<&Tensor>,
+//     //     prev_key_padding_mask: &Option<Tensor>,
+//     //     bs: i64,
+//     //     sequence_length: i64,
+//     // ) -> Option<Tensor> {
+//     //     if prev_key_padding_mask.is_some() {
+//     //         if self.encoder_decoder_attention {
+//     //             Some(prev_key_padding_mask.as_ref().unwrap().copy())
+//     //         } else {
+//     //             Some(Tensor::cat(
+//     //                 &[
+//     //                     prev_key_padding_mask.as_ref().unwrap(),
+//     //                     key_padding_mask.as_ref().unwrap(),
+//     //                 ],
+//     //                 1,
+//     //             ))
+//     //         }
+//     //     } else {
+//     //         match key_padding_mask {
+//     //             Some(key_padding_mask) => {
+//     //                 let filler = Tensor::zeros(
+//     //                     &[bs, sequence_length - key_padding_mask.size()[1]],
+//     //                     (key_padding_mask.kind(), key_padding_mask.device()),
+//     //                 );
+//     //                 Some(Tensor::cat(&[filler, key_padding_mask.copy()], 1))
+//     //             }
+//     //             None => None,
+//     //         }
+//     //     }
+//     // }
+// }
