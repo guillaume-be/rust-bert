@@ -35,7 +35,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use tch::kind::Kind::{Float, Int64};
 use tch::nn::{embedding, EmbeddingConfig};
-use tch::{nn, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 /// # BART Pretrained model weight files
 pub struct BartModelResources;
@@ -224,11 +224,50 @@ pub struct BartConfig {
 
 impl Config<BartConfig> for BartConfig {}
 
-fn _prepare_bart_decoder_inputs(
+fn _make_causal_mask(
+    input_ids_shape: &[i64],
+    dtype: Kind,
+    device: Device,
+    past_key_values_length: Option<i64>,
+) -> Tensor {
+    let batch_size = input_ids_shape[0];
+    let target_length = input_ids_shape[1];
+
+    let mut mask = Tensor::full(
+        &[target_length, target_length],
+        f64::NEG_INFINITY,
+        (dtype, device),
+    );
+    let mask_cond = Tensor::arange(target_length, (dtype, device));
+    mask.masked_fill_(&mask_cond.lt(&mask_cond).view([target_length, 1]), 0);
+
+    let past_key_values_length = past_key_values_length.unwrap_or(0);
+    if past_key_values_length > 0 {
+        mask = Tensor::cat(
+            &[
+                Tensor::zeros(&[target_length, past_key_values_length], (dtype, device)),
+                mask,
+            ],
+            -1,
+        );
+    }
+    mask.unsqueeze(0).unsqueeze(0).expand(
+        &[
+            batch_size,
+            1,
+            target_length,
+            target_length + past_key_values_length,
+        ],
+        true,
+    )
+}
+
+pub(crate) fn _prepare_bart_decoder_inputs(
     pad_token_id: i64,
     input_ids: &Tensor,
     decoder_input_ids: Option<&Tensor>,
     decoder_padding_mask: Option<&Tensor>,
+    past_key_values_length: Option<i64>,
 ) -> (Tensor, Option<Tensor>, Option<Tensor>) {
     let decoder_input_ids = match decoder_input_ids {
         Some(value) => value.copy(),
@@ -246,10 +285,13 @@ fn _prepare_bart_decoder_inputs(
             }
         }
     };
-    let length = *input_ids.size().last().unwrap();
-    let causal_mask = Tensor::empty(&[length, length], (Float, input_ids.device()))
-        .fill_(std::f64::NEG_INFINITY)
-        .triu(1);
+
+    let causal_mask = _make_causal_mask(
+        input_ids.size().as_slice(),
+        Float,
+        input_ids.device,
+        past_key_values_length,
+    );
 
     (decoder_input_ids, decoder_padding_mask, Some(causal_mask))
 }
@@ -410,11 +452,21 @@ impl BartModel {
                 input_ids.is_some(),
                 "input_ids must be provided when not in generation mode"
             );
+            let past_key_values_length = if let Some(layer_states_value) = layer_states {
+                if let Some(first_layer_state) = &layer_states_value[0].0 {
+                    Some(first_layer_state.prev_key.size()[2])
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
             _prepare_bart_decoder_inputs(
                 self.pad_token_id,
                 input_ids.unwrap(),
                 decoder_input_ids,
                 decoder_attention_mask,
+                past_key_values_length,
             )
         };
 

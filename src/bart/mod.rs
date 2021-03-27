@@ -69,3 +69,6 @@ pub use bart_model::{
     BartGenerator, BartMergesResources, BartModel, BartModelOutput, BartModelResources,
     BartVocabResources,
 };
+
+pub(crate) use attention::SelfAttention;
+pub(crate) use bart_model::_prepare_bart_decoder_inputs;
