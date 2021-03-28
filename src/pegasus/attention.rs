@@ -11,5 +11,11 @@
 // limitations under the License.
 
 use crate::bart::BartAttention;
+use crate::bart::LayerState as BartLayerState;
+
+/// # Cache for Pegasus attention layers
+/// Stores the cached value of key, value and key padding mask to avoid recalculation (e.g. at each generation step)
+/// Identical to BART cache (type alias).
+pub type LayerState = BartLayerState;
 
 pub type PegasusAttention = BartAttention;
