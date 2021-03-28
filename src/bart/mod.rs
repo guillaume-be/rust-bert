@@ -71,3 +71,6 @@ pub use bart_model::{
 };
 
 pub(crate) use attention::BartAttention;
+pub(crate) use bart_model::_expand_mask;
+pub(crate) use embeddings::SinusoidalPositionalEmbedding;
+pub(crate) use encoder::BartEncoderOutput;

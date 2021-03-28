@@ -264,7 +264,7 @@ fn _make_causal_mask(
     )
 }
 
-pub fn _expand_mask(mask: &Tensor, target_length: Option<i64>) -> Tensor {
+pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>) -> Tensor {
     let (batch_size, source_length) = mask.size2().unwrap();
     let target_length = target_length.unwrap_or(source_length);
     let expanded_mask = mask

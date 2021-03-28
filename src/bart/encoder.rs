@@ -209,7 +209,7 @@ impl BartEncoder {
         train: bool,
     ) -> BartEncoderOutput {
         let attention_mask = match attention_mask {
-            Some(mask) => Some(_expand_mask(mask, Some(*input_ids.size().last().unwrap()))),
+            Some(mask) => Some(_expand_mask(mask, None)),
             None => None,
         };
 
