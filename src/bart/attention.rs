@@ -43,7 +43,7 @@ impl LayerState {
 }
 
 #[derive(Debug)]
-pub struct SelfAttention {
+pub struct BartAttention {
     num_heads: i64,
     head_dim: i64,
     dropout: Dropout,
@@ -57,7 +57,7 @@ pub struct SelfAttention {
     store_cache: bool,
 }
 
-impl SelfAttention {
+impl BartAttention {
     pub fn new<'p, P>(
         p: P,
         embed_dim: i64,
@@ -66,7 +66,7 @@ impl SelfAttention {
         encoder_decoder_attention: bool,
         store_cache: bool,
         output_attentions: bool,
-    ) -> SelfAttention
+    ) -> BartAttention
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -81,7 +81,7 @@ impl SelfAttention {
         let scaling = (head_dim as f64).powf(-0.5);
         let dropout = Dropout::new(dropout);
 
-        SelfAttention {
+        BartAttention {
             num_heads,
             head_dim,
             dropout,

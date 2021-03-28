@@ -19,15 +19,15 @@ use crate::bart::BartConfig;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::{
-    bart::attention::{LayerState, SelfAttention},
+    bart::attention::{BartAttention, LayerState},
     common::activations::TensorFunction,
 };
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
 pub struct DecoderLayer {
-    self_attention: SelfAttention,
-    encoder_attention: SelfAttention,
+    self_attention: BartAttention,
+    encoder_attention: BartAttention,
     self_attention_layer_norm: nn::LayerNorm,
     encoder_attention_layer_norm: nn::LayerNorm,
     dropout: Dropout,
@@ -50,7 +50,7 @@ impl DecoderLayer {
             ..Default::default()
         };
         let output_attention = config.output_attentions.unwrap_or(false);
-        let self_attention = SelfAttention::new(
+        let self_attention = BartAttention::new(
             p / "self_attn",
             config.d_model,
             config.decoder_attention_heads,
@@ -59,7 +59,7 @@ impl DecoderLayer {
             true,
             output_attention,
         );
-        let encoder_attention = SelfAttention::new(
+        let encoder_attention = BartAttention::new(
             p / "encoder_attn",
             config.d_model,
             config.decoder_attention_heads,

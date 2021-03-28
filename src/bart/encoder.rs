@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::attention::SelfAttention;
+use crate::bart::attention::BartAttention;
 use crate::bart::bart_model::_expand_mask;
 use crate::bart::embeddings::{
     EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
@@ -23,7 +23,7 @@ use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
 pub struct EncoderLayer {
-    self_attention: SelfAttention,
+    self_attention: BartAttention,
     self_attention_layer_norm: nn::LayerNorm,
     dropout: Dropout,
     activation_dropout: Dropout,
@@ -45,7 +45,7 @@ impl EncoderLayer {
             ..Default::default()
         };
         let output_attention = config.output_attentions.unwrap_or(false);
-        let self_attention = SelfAttention::new(
+        let self_attention = BartAttention::new(
             p / "self_attn",
             config.d_model,
             config.encoder_attention_heads,
@@ -100,12 +100,12 @@ impl EncoderLayer {
     pub fn forward_t(
         &self,
         x: &Tensor,
-        encoder_padding_mask: Option<&Tensor>,
+        encoder_attention_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let (output, attention_weights, _) =
             self.self_attention
-                .forward_t(x, None, encoder_padding_mask, None, train);
+                .forward_t(x, None, encoder_attention_mask, None, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
         let output = output.apply(&self.self_attention_layer_norm);
 

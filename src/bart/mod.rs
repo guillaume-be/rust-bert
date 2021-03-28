@@ -69,3 +69,5 @@ pub use bart_model::{
     BartGenerator, BartMergesResources, BartModel, BartModelOutput, BartModelResources,
     BartVocabResources,
 };
+
+pub(crate) use attention::BartAttention;

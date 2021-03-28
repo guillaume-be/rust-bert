@@ -1,3 +1,4 @@
+mod attention;
 mod encoder;
 mod pegasus_model;
 
