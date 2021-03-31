@@ -11,9 +11,6 @@
 // limitations under the License.
 
 use crate::bart::BartConfig;
-use crate::{Activation, Config};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// # Pegasus Pretrained model weight files
 pub struct PegasusModelResources;
