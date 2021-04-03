@@ -15,7 +15,7 @@ use crate::pegasus::decoder::PegasusDecoder;
 use crate::pegasus::encoder::PegasusEncoder;
 use crate::pegasus::LayerState;
 use std::borrow::Borrow;
-use tch::nn::{embedding, EmbeddingConfig};
+use tch::nn::{embedding, EmbeddingConfig, Init};
 use tch::{nn, Tensor};
 
 /// # Pegasus Pretrained model weight files
@@ -54,6 +54,26 @@ impl PegasusVocabResources {
 /// # Pegasus model configuration
 /// Defines the Pegasus model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub type PegasusConfig = BartConfig;
+
+fn _shift_tokens_right(
+    input_ids: &Tensor,
+    pad_token_id: i64,
+    decoder_start_token_id: i64,
+) -> Tensor {
+    let input_ids_length = input_ids.size()[1];
+    let mut shifted_input_ids = Tensor::zeros(
+        input_ids.size().as_slice(),
+        (input_ids.kind(), input_ids.device()),
+    );
+    let _ = shifted_input_ids
+        .slice(1, 1, input_ids_length, 1)
+        .copy_(&input_ids.slice(1, 0, input_ids_length - 1, 1));
+
+    let _ = shifted_input_ids.select(1, 0).fill_(decoder_start_token_id);
+    let _ = shifted_input_ids.masked_fill_(&shifted_input_ids.eq(-100), pad_token_id);
+
+    shifted_input_ids
+}
 
 /// # Pegasus Base model
 /// Base architecture for Pegasus model. Usually complemented with a task-specific head, such as a language model head.
@@ -226,6 +246,185 @@ impl PegasusModel {
             all_encoder_hidden_states,
             all_encoder_attentions,
         }
+    }
+}
+
+/// # Pegasus Model for conditional generation
+/// Pegasus model with a vocabulary decoding head
+/// It is made of the following blocks:
+/// - `base_model`: `BartModel` Base BART model
+/// - `lm_head`: Linear layer without bias tied to the weights of the token id embeddings
+pub struct PegasusForConditionalGeneration {
+    base_model: PegasusModel,
+    lm_head: nn::Linear,
+    final_logits_bias: Tensor,
+    pad_token_id: i64,
+    decoder_start_token_id: i64,
+}
+
+impl PegasusForConditionalGeneration {
+    /// Build a new `PegasusForConditionalGeneration`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BART model
+    /// * `config` - `PegasusConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pegasus::{PegasusConfig, PegasusForConditionalGeneration};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = PegasusConfig::from_file(config_path);
+    /// let pegasus: PegasusForConditionalGeneration =
+    ///     PegasusForConditionalGeneration::new(&p.root(), &config);
+    /// ```
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> PegasusForConditionalGeneration
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let base_model = PegasusModel::new(p / "model", config);
+        let lm_head_config = nn::LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+        let lm_head = nn::linear(
+            p / "lm_head",
+            config.d_model,
+            config.vocab_size,
+            lm_head_config,
+        );
+        let final_logits_bias = p.var(
+            "final_logits_bias",
+            &[1, config.vocab_size],
+            Init::Const(0.0),
+        );
+
+        let pad_token_id = config.pad_token_id.unwrap_or(0);
+        let decoder_start_token_id = config.decoder_start_token_id.unwrap_or(0);
+
+        PegasusForConditionalGeneration {
+            base_model,
+            lm_head,
+            final_logits_bias,
+            pad_token_id,
+            decoder_start_token_id,
+        }
+    }
+
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). Must be provided when not running in generation mode
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
+    /// These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialiazed with a BOS token)
+    /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `PegasusModelOutput` containing:
+    ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *vocab_size*) representing the logits for each vocabulary item and position
+    ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
+    ///   - `cache` - `(Option<Tensor>, Option<Vec<&LayerState, &LayerState>>)` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
+    ///   - `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::pegasus::{PegasusConfig, PegasusForConditionalGeneration};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = PegasusConfig::from_file(config_path);
+    /// # let pegasus_model: PegasusForConditionalGeneration = PegasusForConditionalGeneration::new(&vs.root(), &config);
+    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let decoder_input_ids = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///
+    ///  let model_output = no_grad(|| {
+    ///    pegasus_model
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&encoder_attention_mask),
+    ///                    None,
+    ///                    Some(&decoder_input_ids),
+    ///                    Some(&decoder_attention_mask),
+    ///                    None,
+    ///                    false)
+    ///    });
+    /// ```
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        encoder_output: Option<&Tensor>,
+        decoder_input_ids: Option<&Tensor>,
+        decoder_attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        train: bool,
+    ) -> PegasusModelOutput {
+        let calc_decoder_input_ids = if decoder_input_ids.is_none() {
+            Some(_shift_tokens_right(
+                input_ids.unwrap(),
+                self.pad_token_id,
+                self.decoder_start_token_id,
+            ))
+        } else {
+            None
+        };
+
+        let decoder_input_ids =
+            decoder_input_ids.unwrap_or_else(|| calc_decoder_input_ids.as_ref().unwrap());
+
+        let base_model_output = self.base_model.forward_t(
+            input_ids,
+            attention_mask,
+            decoder_input_ids,
+            encoder_output,
+            decoder_attention_mask,
+            old_layer_states,
+            train,
+        );
+
+        let lm_logits =
+            base_model_output.decoder_output.apply(&self.lm_head) + &self.final_logits_bias;
+        PegasusModelOutput {
+            decoder_output: lm_logits,
+            ..base_model_output
+        }
+    }
+
+    pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
+        self.base_model
+            .encoder
+            .forward_t(
+                input_ids,
+                attention_mask,
+                &self.base_model.embeddings,
+                false,
+            )
+            .hidden_state
     }
 }
 

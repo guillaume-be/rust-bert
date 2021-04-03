@@ -5,6 +5,6 @@ mod pegasus_model;
 
 pub use attention::LayerState;
 pub use pegasus_model::{
-    PegasusConfig, PegasusConfigResources, PegasusModel, PegasusModelResources,
-    PegasusVocabResources,
+    PegasusConfig, PegasusConfigResources, PegasusForConditionalGeneration, PegasusModel,
+    PegasusModelResources, PegasusVocabResources,
 };
