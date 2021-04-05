@@ -14,6 +14,8 @@ use crate::bart::{BartConfig, BartModelOutput};
 use crate::pegasus::decoder::PegasusDecoder;
 use crate::pegasus::encoder::PegasusEncoder;
 use crate::pegasus::LayerState;
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig, Init};
 use tch::{nn, Tensor};
@@ -425,6 +427,118 @@ impl PegasusForConditionalGeneration {
                 false,
             )
             .hidden_state
+    }
+}
+
+impl LMHeadModel for PegasusForConditionalGeneration {
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing th elast calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `input_embeds` - Unused for Pegasus
+    /// * `token_type_ids` - Unused for Pegasus
+    /// * `position_ids` - Unused for Pegasus
+    /// * `encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *hidden_size*). When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    ///
+    /// # Returns
+    ///
+    /// * `LMModelOutput` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    ///   - `cache` - `BartCache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
+    ///     both the self attention and the encoder cross attention of each layer of the decoder.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::pipelines::generation_utils::LMHeadModel;
+    /// use rust_bert::pegasus::{PegasusForConditionalGeneration, PegasusConfig};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = PegasusConfig::from_file(config_path);
+    /// # let pegasus_model: PegasusForConditionalGeneration = PegasusForConditionalGeneration::new(&vs.root(), &config);
+    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///
+    ///  let model_output = no_grad(|| {
+    ///    pegasus_model
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&encoder_attention_mask),
+    ///                    None,
+    ///                    Some(&target_tensor),
+    ///                    Some(&decoder_attention_mask),
+    ///                    None,
+    ///                    false)
+    ///    });
+    /// ```
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        cache: Cache,
+        attention_mask: &Option<Tensor>,
+        _token_type_ids: &Option<Tensor>,
+        _position_ids: &Option<Tensor>,
+        _input_embeds: &Option<Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match cache {
+            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                decoder_input_ids.as_ref().ok_or_else(|| {
+                    return RustBertError::ValueError(
+                        "Decoder input ids must be provided for Pegasus language models"
+                            .to_string(),
+                    );
+                })?,
+                encoder_outputs,
+                None,
+                cached_layer_states,
+                train,
+            ),
+            Cache::None => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                decoder_input_ids.as_ref().ok_or_else(|| {
+                    return RustBertError::ValueError(
+                        "Decoder input ids must be provided for Pegasus language models"
+                            .to_string(),
+                    );
+                })?,
+                encoder_outputs,
+                None,
+                None,
+                train,
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with Pegasus Model".into(),
+                ));
+            }
+        };
+
+        let lm_logits =
+            base_model_output.decoder_output.apply(&self.lm_head) + &self.final_logits_bias;
+        Ok(LMModelOutput {
+            lm_logits,
+            cache: Cache::BARTCache(base_model_output.cache),
+        })
     }
 }
 
