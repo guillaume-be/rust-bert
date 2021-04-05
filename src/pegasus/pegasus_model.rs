@@ -11,11 +11,21 @@
 // limitations under the License.
 
 use crate::bart::{BartConfig, BartModelOutput};
+use crate::common::resources::{RemoteResource, Resource};
+use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
 use crate::pegasus::decoder::PegasusDecoder;
 use crate::pegasus::encoder::PegasusEncoder;
 use crate::pegasus::LayerState;
-use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
-use crate::RustBertError;
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::{
+    PreparedInput, PrivateLanguageGenerator,
+};
+use crate::pipelines::generation_utils::{
+    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
+};
+use crate::{Config, RustBertError};
+use rust_tokenizers::tokenizer::{PegasusTokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::PegasusVocab;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig, Init};
 use tch::{nn, Tensor};
@@ -540,6 +550,304 @@ impl LMHeadModel for PegasusForConditionalGeneration {
             cache: Cache::BARTCache(base_model_output.cache),
         })
     }
+}
+
+/// # Language generation model based on the Pegasus architecture
+pub struct PegasusGenerator {
+    model: PegasusForConditionalGeneration,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl PegasusGenerator {
+    /// Build a new `PegasusGenerator`
+    ///
+    /// # Arguments
+    ///
+    /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
+    /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// # use tch::Device;
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pegasus::PegasusGenerator;
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    /// # let mut home: PathBuf = dirs::home_dir().unwrap();
+    /// # home.push("rustbert");
+    /// # home.push("pegasus-cnn_dailymail");
+    /// # let config_path = &home.as_path().join("config.json");
+    /// # let vocab_path = &home.as_path().join("spiece.model");
+    /// # let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::cuda_if_available();
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let pegasus_generator = PegasusGenerator::new(generate_config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(generate_config: GenerateConfig) -> Result<PegasusGenerator, RustBertError> {
+        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
+        let model_resource = if generate_config.model_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                PegasusModelResources::CNN_DAILYMAIL,
+            ))
+        } else {
+            generate_config.model_resource.clone()
+        };
+
+        let config_resource = if generate_config.config_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                PegasusConfigResources::CNN_DAILYMAIL,
+            ))
+        } else {
+            generate_config.config_resource.clone()
+        };
+
+        let vocab_resource = if generate_config.vocab_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                PegasusVocabResources::CNN_DAILYMAIL,
+            ))
+        } else {
+            generate_config.vocab_resource.clone()
+        };
+
+        let config_path = config_resource.get_local_path()?;
+        let vocab_path = vocab_resource.get_local_path()?;
+        let weights_path = model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::Pegasus,
+            vocab_path.to_str().unwrap(),
+            None,
+            false,
+            None,
+            None,
+        )?;
+        let config = PegasusConfig::from_file(config_path);
+        let model = PegasusForConditionalGeneration::new(&var_store.root(), &config);
+        var_store.load(weights_path)?;
+
+        let bos_token_id = Some(0);
+        let eos_token_ids = Some(match config.eos_token_id {
+            Some(value) => vec![value],
+            None => vec![1],
+        });
+        let pad_token_id = Some(config.pad_token_id.unwrap_or(0));
+        let vocab_size = config.vocab_size;
+        let is_encoder_decoder = true;
+        let decoder_start_id = Some(0);
+
+        Ok(PegasusGenerator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+        })
+    }
+
+    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
+        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
+            .filter(|pos| !token_ids.contains(pos))
+            .collect();
+        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
+        let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
+    }
+}
+
+impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, PegasusTokenizer>
+    for PegasusGenerator
+{
+    fn get_model(&self) -> &PegasusForConditionalGeneration {
+        &self.model
+    }
+    fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+
+    fn prepare_scores_for_generation(
+        &self,
+        scores: &mut Tensor,
+        current_length: i64,
+        max_length: i64,
+    ) {
+        if current_length == max_length - 1 {
+            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+        }
+    }
+
+    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+        Some(self.get_model().encode(input_ids, attention_mask))
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        attention_mask: Tensor,
+    ) -> PreparedInput<'a> {
+        match past {
+            Cache::BARTCache(past) => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids.narrow(1, -1, 1)),
+                prepared_position_ids: None,
+                prepared_past: Cache::BARTCache(past),
+            },
+            Cache::None => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids),
+                prepared_position_ids: None,
+                prepared_past: Cache::BARTCache(None),
+            },
+            _ => panic!("Cache type incompatible with Pegasus"),
+        }
+    }
+
+    fn encode_prompt_text<'a, S>(
+        &self,
+        prompt_text: S,
+        max_len: i64,
+        pad_token_id: Option<i64>,
+    ) -> Tensor
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let tokens = self.get_tokenizer().encode_list(
+            prompt_text.as_ref(),
+            max_len as usize,
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
+        let token_ids = tokens
+            .into_iter()
+            .map(|tokenized_input| tokenized_input.token_ids)
+            .collect::<Vec<Vec<i64>>>();
+
+        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+
+        let pad_token = match pad_token_id {
+            Some(value) => value,
+            None => self
+                .get_tokenizer()
+                .convert_tokens_to_ids(&[PegasusVocab::pad_value()])[0],
+        };
+
+        let token_ids = token_ids
+            .into_iter()
+            .map(|mut input| {
+                let temp = vec![pad_token; max_len - input.len()];
+                input.extend(temp);
+                input
+            })
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .collect::<Vec<Tensor>>();
+
+        Tensor::stack(&token_ids, 0)
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        let encoder_outputs = match encoder_outputs {
+            Some(value) => Some(value.index_select(0, beam_indices)),
+            None => None,
+        };
+        match past {
+            Cache::BARTCache(old_cache_option) => match old_cache_option {
+                Some(old_cache) => {
+                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
+                        if self_layer_state.is_some() {
+                            self_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
+                        };
+                        if encoder_layer_state.is_some() {
+                            encoder_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
+                        };
+                    }
+                }
+                None => {}
+            },
+            Cache::None => {}
+            _ => {
+                panic!("Invalid cache for Pegasus model");
+            }
+        };
+        encoder_outputs
+    }
+}
+
+impl LanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, PegasusTokenizer>
+    for PegasusGenerator
+{
 }
 
 /// Container holding a Pegasus model output. The decoder output may hold the hidden state of
