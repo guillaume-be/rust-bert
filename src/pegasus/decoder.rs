@@ -10,12 +10,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{
-    BartDecoderOutput, SinusoidalPositionalEmbedding, _expand_mask, _prepare_decoder_attention_mask,
-};
+use crate::bart::{BartDecoderOutput, _expand_mask, _prepare_decoder_attention_mask};
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::pegasus::attention::{LayerState, PegasusAttention};
+use crate::pegasus::embeddings::SinusoidalPositionalEmbedding;
 use crate::pegasus::PegasusConfig;
 use crate::Activation;
 use std::borrow::{Borrow, BorrowMut};
@@ -199,11 +198,7 @@ impl PegasusDecoder {
             eps: 1e-5,
             ..Default::default()
         };
-        let layer_norm = nn::layer_norm(
-            p / "layernorm_embedding",
-            vec![config.d_model],
-            layer_norm_config,
-        );
+        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], layer_norm_config);
 
         let embed_positions = SinusoidalPositionalEmbedding::new(
             p / "embed_positions",

@@ -553,7 +553,7 @@ impl LMHeadModel for PegasusForConditionalGeneration {
 }
 
 /// # Language generation model based on the Pegasus architecture
-pub struct PegasusGenerator {
+pub struct PegasusConditionalGenerator {
     model: PegasusForConditionalGeneration,
     tokenizer: TokenizerOption,
     var_store: nn::VarStore,
@@ -566,7 +566,7 @@ pub struct PegasusGenerator {
     decoder_start_id: Option<i64>,
 }
 
-impl PegasusGenerator {
+impl PegasusConditionalGenerator {
     /// Build a new `PegasusGenerator`
     ///
     /// # Arguments
@@ -582,7 +582,7 @@ impl PegasusGenerator {
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pegasus::PegasusGenerator;
+    /// use rust_bert::pegasus::PegasusConditionalGenerator;
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
@@ -599,11 +599,13 @@ impl PegasusGenerator {
     ///     num_return_sequences: 3,
     ///     ..Default::default()
     /// };
-    /// let pegasus_generator = PegasusGenerator::new(generate_config)?;
+    /// let pegasus_generator = PegasusConditionalGenerator::new(generate_config)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(generate_config: GenerateConfig) -> Result<PegasusGenerator, RustBertError> {
+    pub fn new(
+        generate_config: GenerateConfig,
+    ) -> Result<PegasusConditionalGenerator, RustBertError> {
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
         let model_resource = if generate_config.model_resource
             == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
@@ -664,7 +666,7 @@ impl PegasusGenerator {
         let is_encoder_decoder = true;
         let decoder_start_id = Some(0);
 
-        Ok(PegasusGenerator {
+        Ok(PegasusConditionalGenerator {
             model,
             tokenizer,
             var_store,
@@ -688,7 +690,7 @@ impl PegasusGenerator {
 }
 
 impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, PegasusTokenizer>
-    for PegasusGenerator
+    for PegasusConditionalGenerator
 {
     fn get_model(&self) -> &PegasusForConditionalGeneration {
         &self.model
@@ -846,7 +848,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
 }
 
 impl LanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, PegasusTokenizer>
-    for PegasusGenerator
+    for PegasusConditionalGenerator
 {
 }
 

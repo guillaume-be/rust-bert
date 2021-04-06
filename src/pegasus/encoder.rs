@@ -10,10 +10,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartEncoderOutput, SinusoidalPositionalEmbedding, _expand_mask};
+use crate::bart::{BartEncoderOutput, _expand_mask};
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::pegasus::attention::PegasusAttention;
+use crate::pegasus::embeddings::SinusoidalPositionalEmbedding;
 use crate::pegasus::PegasusConfig;
 use crate::Activation;
 use std::borrow::{Borrow, BorrowMut};
