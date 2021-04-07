@@ -268,7 +268,6 @@ impl PegasusModel {
 /// - `lm_head`: Linear layer without bias tied to the weights of the token id embeddings
 pub struct PegasusForConditionalGeneration {
     base_model: PegasusModel,
-    lm_head: nn::Linear,
     final_logits_bias: Tensor,
     pad_token_id: i64,
     decoder_start_token_id: i64,
@@ -304,16 +303,7 @@ impl PegasusForConditionalGeneration {
         let p = p.borrow();
 
         let base_model = PegasusModel::new(p / "model", config);
-        let lm_head_config = nn::LinearConfig {
-            bias: false,
-            ..Default::default()
-        };
-        let lm_head = nn::linear(
-            p / "lm_head",
-            config.d_model,
-            config.vocab_size,
-            lm_head_config,
-        );
+
         let final_logits_bias = p.var(
             "final_logits_bias",
             &[1, config.vocab_size],
@@ -325,7 +315,7 @@ impl PegasusForConditionalGeneration {
 
         PegasusForConditionalGeneration {
             base_model,
-            lm_head,
+
             final_logits_bias,
             pad_token_id,
             decoder_start_token_id,
@@ -419,8 +409,10 @@ impl PegasusForConditionalGeneration {
             train,
         );
 
-        let lm_logits =
-            base_model_output.decoder_output.apply(&self.lm_head) + &self.final_logits_bias;
+        let lm_logits = base_model_output
+            .decoder_output
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+            + &self.final_logits_bias;
         PegasusModelOutput {
             decoder_output: lm_logits,
             ..base_model_output
@@ -543,8 +535,10 @@ impl LMHeadModel for PegasusForConditionalGeneration {
             }
         };
 
-        let lm_logits =
-            base_model_output.decoder_output.apply(&self.lm_head) + &self.final_logits_bias;
+        let lm_logits = base_model_output
+            .decoder_output
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+            + &self.final_logits_bias;
         Ok(LMModelOutput {
             lm_logits,
             cache: Cache::BARTCache(base_model_output.cache),
