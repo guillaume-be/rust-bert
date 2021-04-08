@@ -264,8 +264,7 @@ impl PegasusModel {
 /// # Pegasus Model for conditional generation
 /// Pegasus model with a vocabulary decoding head
 /// It is made of the following blocks:
-/// - `base_model`: `BartModel` Base BART model
-/// - `lm_head`: Linear layer without bias tied to the weights of the token id embeddings
+/// - `base_model`: `PegasusModel` Base Pegasus model
 pub struct PegasusForConditionalGeneration {
     base_model: PegasusModel,
     final_logits_bias: Tensor,
@@ -296,7 +295,7 @@ impl PegasusForConditionalGeneration {
     /// let pegasus: PegasusForConditionalGeneration =
     ///     PegasusForConditionalGeneration::new(&p.root(), &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> PegasusForConditionalGeneration
+    pub fn new<'p, P>(p: P, config: &PegasusConfig) -> PegasusForConditionalGeneration
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -315,7 +314,6 @@ impl PegasusForConditionalGeneration {
 
         PegasusForConditionalGeneration {
             base_model,
-
             final_logits_bias,
             pad_token_id,
             decoder_start_token_id,

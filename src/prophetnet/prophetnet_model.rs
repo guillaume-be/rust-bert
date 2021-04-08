@@ -651,7 +651,7 @@ impl ProphetNetForCausalGeneration {
         updated_config.is_encoder_decoder = false;
 
         let p_prophetnet = p / "prophetnet";
-        let decoder = ProphetNetDecoder::new(&p_prophetnet / "decoder", config)?;
+        let decoder = ProphetNetDecoder::new(&p_prophetnet / "decoder", &updated_config)?;
         let linear_config = nn::LinearConfig {
             bias: false,
             ..Default::default()
