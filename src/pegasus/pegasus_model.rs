@@ -502,10 +502,10 @@ impl LMHeadModel for PegasusForConditionalGeneration {
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref().ok_or_else(|| {
-                    return RustBertError::ValueError(
+                    RustBertError::ValueError(
                         "Decoder input ids must be provided for Pegasus language models"
                             .to_string(),
-                    );
+                    )
                 })?,
                 encoder_outputs,
                 None,
@@ -516,10 +516,10 @@ impl LMHeadModel for PegasusForConditionalGeneration {
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
                 decoder_input_ids.as_ref().ok_or_else(|| {
-                    return RustBertError::ValueError(
+                    RustBertError::ValueError(
                         "Decoder input ids must be provided for Pegasus language models"
                             .to_string(),
-                    );
+                    )
                 })?,
                 encoder_outputs,
                 None,

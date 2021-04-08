@@ -49,6 +49,7 @@
 //! Reformer|✅| |✅|✅ | | |✅|
 //! ProphetNet| | | |✅ |✅ | | |
 //! Longformer|✅|✅|✅| | | |✅|
+//! Pegasus| | | | |✅| | |
 //!
 //! # Loading pre-trained models
 //!
