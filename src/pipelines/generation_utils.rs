@@ -471,7 +471,7 @@ pub(crate) mod private_generation_utils {
                     let _ = logits.get(index).index_fill_(
                         0,
                         &indices_to_remove.get(index),
-                        std::f64::NEG_INFINITY,
+                        f64::NEG_INFINITY,
                     );
                 }
             }
@@ -504,7 +504,7 @@ pub(crate) mod private_generation_utils {
                 let indices_to_remove = sorted_indices_to_remove
                     .scatter(1, &sorted_indices, &sorted_indices_to_remove)
                     .to_kind(Bool);
-                let _ = logits.masked_fill_(&indices_to_remove, std::f64::NEG_INFINITY);
+                let _ = logits.masked_fill_(&indices_to_remove, f64::NEG_INFINITY);
             }
         }
 
@@ -611,7 +611,7 @@ pub(crate) mod private_generation_utils {
                             0,
                             &Tensor::of_slice(&index_banned_token)
                                 .to_device(next_token_logits.device()),
-                            std::f64::NEG_INFINITY,
+                            f64::NEG_INFINITY,
                         );
                     }
                 }
@@ -622,7 +622,14 @@ pub(crate) mod private_generation_utils {
                         1,
                         &Tensor::of_slice(gen_opt.eos_token_ids.as_ref().unwrap())
                             .to(next_token_logits.device()),
-                        std::f64::NEG_INFINITY,
+                        f64::NEG_INFINITY,
+                    );
+                }
+                if self.is_encoder_decoder() & !gen_opt.do_sample {
+                    self.prepare_scores_for_generation(
+                        &mut next_token_logits,
+                        current_length,
+                        gen_opt.max_length,
                     );
                 }
 
@@ -827,7 +834,7 @@ pub(crate) mod private_generation_utils {
                             1,
                             &Tensor::of_slice(gen_opt.eos_token_ids.as_ref().unwrap())
                                 .to(scores.device()),
-                            std::f64::NEG_INFINITY,
+                            f64::NEG_INFINITY,
                         );
                     }
                     //            Get banned tokens and set their probability to 0
@@ -844,7 +851,7 @@ pub(crate) mod private_generation_utils {
                                 0,
                                 &Tensor::of_slice(&index_banned_token)
                                     .to_device(next_token_logits.device()),
-                                std::f64::NEG_INFINITY,
+                                f64::NEG_INFINITY,
                             );
                         }
                     }

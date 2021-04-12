@@ -69,6 +69,7 @@ use crate::bart::{
 };
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
+use crate::pegasus::PegasusConditionalGenerator;
 use crate::pipelines::common::ModelType;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::prophetnet::ProphetNetConditionalGenerator;
@@ -218,6 +219,8 @@ pub enum SummarizationOption {
     T5(T5Generator),
     /// Summarizer based on ProphetNet model
     ProphetNet(ProphetNetConditionalGenerator),
+    /// Summarizer based on Pegasus model
+    Pegasus(PegasusConditionalGenerator),
 }
 
 impl SummarizationOption {
@@ -229,6 +232,9 @@ impl SummarizationOption {
             ModelType::T5 => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
             ModelType::ProphetNet => Ok(SummarizationOption::ProphetNet(
                 ProphetNetConditionalGenerator::new(config.into())?,
+            )),
+            ModelType::Pegasus => Ok(SummarizationOption::Pegasus(
+                PegasusConditionalGenerator::new(config.into())?,
             )),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Summarization not implemented for {:?}!",
@@ -243,6 +249,7 @@ impl SummarizationOption {
             Self::Bart(_) => ModelType::Bart,
             Self::T5(_) => ModelType::T5,
             Self::ProphetNet(_) => ModelType::ProphetNet,
+            Self::Pegasus(_) => ModelType::Pegasus,
         }
     }
 
@@ -259,6 +266,9 @@ impl SummarizationOption {
             Self::Bart(ref model) => model.generate(prompt_texts, attention_mask, None, None, None),
             Self::T5(ref model) => model.generate(prompt_texts, attention_mask, None, None, None),
             Self::ProphetNet(ref model) => {
+                model.generate(prompt_texts, attention_mask, None, None, None)
+            }
+            Self::Pegasus(ref model) => {
                 model.generate(prompt_texts, attention_mask, None, None, None)
             }
         }

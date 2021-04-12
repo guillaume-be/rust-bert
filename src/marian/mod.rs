@@ -50,7 +50,7 @@
 //!     true,
 //! );
 //! let config = BartConfig::from_file(config_path);
-//! let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config, false);
+//! let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
 //! # Ok(())

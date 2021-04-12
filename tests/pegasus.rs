@@ -1,51 +1,34 @@
-// Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
-// Copyright 2019 Guillaume Becquin
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-extern crate anyhow;
-
-use rust_bert::bart::{
-    BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
-};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
+
+use rust_bert::pegasus::{PegasusConfigResources, PegasusModelResources, PegasusVocabResources};
+use rust_bert::pipelines::common::ModelType;
 use rust_bert::resources::{RemoteResource, Resource};
 use tch::Device;
 
-fn main() -> anyhow::Result<()> {
+#[test]
+fn pegasus_summarization_greedy() -> anyhow::Result<()> {
+    //    Set-up masked LM model
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartConfigResources::DISTILBART_CNN_6_6,
+        PegasusConfigResources::CNN_DAILYMAIL,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartVocabResources::DISTILBART_CNN_6_6,
-    ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartMergesResources::DISTILBART_CNN_6_6,
+        PegasusVocabResources::CNN_DAILYMAIL,
     ));
     let model_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartModelResources::DISTILBART_CNN_6_6,
+        PegasusModelResources::CNN_DAILYMAIL,
     ));
 
     let summarization_config = SummarizationConfig {
+        model_type: ModelType::Pegasus,
         model_resource,
         config_resource,
-        vocab_resource,
-        merges_resource,
-        num_beams: 1,
-        length_penalty: 1.0,
-        min_length: 56,
-        max_length: 142,
-        device: Device::Cpu,
+        vocab_resource: vocab_resource.clone(),
+        merges_resource: vocab_resource,
+        num_beams: 4,
+        no_repeat_ngram_size: 3,
+        device: Device::cuda_if_available(),
         ..Default::default()
     };
-
     let summarization_model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
@@ -71,10 +54,15 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let _output = summarization_model.summarize(&input);
-    for sentence in _output {
-        println!("{}", sentence);
-    }
+    let output = summarization_model.summarize(&input);
+
+    assert_eq!(output.len(), 1);
+    assert_eq!(
+        output[0],
+        " Scientists have confirmed the presence of water vapour in the atmosphere of K2-18b.\
+<n>This is the first such discovery in a planet in its star's habitable zone, not too hot and not too cold for liquid water to exist.\
+<n>\"It's the best candidate for habitability right now,\" said UCL astronomer Angelos Tsiaras."
+    );
 
     Ok(())
 }

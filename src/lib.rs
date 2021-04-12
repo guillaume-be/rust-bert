@@ -49,6 +49,7 @@
 //! Reformer|✅| |✅|✅ | | |✅|
 //! ProphetNet| | | |✅ |✅ | | |
 //! Longformer|✅|✅|✅| | | |✅|
+//! Pegasus| | | | |✅| | |
 //!
 //! # Loading pre-trained models
 //!
@@ -76,6 +77,7 @@ pub mod longformer;
 pub mod marian;
 pub mod mobilebert;
 pub mod openai_gpt;
+pub mod pegasus;
 pub mod pipelines;
 pub mod prophetnet;
 pub mod reformer;

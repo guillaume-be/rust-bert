@@ -1,6 +1,5 @@
-// Copyright 2020 The Facebook AI Research Team Authors
-// Copyright 2020-present, the HuggingFace Inc. team.
-// Copyright 2020 Guillaume Becquin
+// Copyright 2021, Google and The HuggingFace Inc. team. All rights reserved.
+// Copyright 2021 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,19 +10,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::attention::BartAttention;
-use crate::bart::bart_model::_expand_mask;
-use crate::bart::embeddings::{
-    EmbeddingOption, LearnedPositionalEmbedding, SinusoidalPositionalEmbedding,
-};
-use crate::bart::BartConfig;
-use crate::common::activations::{Activation, TensorFunction};
+use crate::bart::{BartEncoderOutput, _expand_mask};
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
+use crate::pegasus::attention::PegasusAttention;
+use crate::pegasus::embeddings::SinusoidalPositionalEmbedding;
+use crate::pegasus::PegasusConfig;
+use crate::Activation;
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
 pub struct EncoderLayer {
-    self_attention: BartAttention,
+    self_attention: PegasusAttention,
     self_attention_layer_norm: nn::LayerNorm,
     dropout: Dropout,
     activation_dropout: Dropout,
@@ -34,7 +32,7 @@ pub struct EncoderLayer {
 }
 
 impl EncoderLayer {
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> EncoderLayer
+    pub fn new<'p, P>(p: P, config: &PegasusConfig) -> EncoderLayer
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -45,7 +43,7 @@ impl EncoderLayer {
             ..Default::default()
         };
         let output_attention = config.output_attentions.unwrap_or(false);
-        let self_attention = BartAttention::new(
+        let self_attention = PegasusAttention::new(
             p / "self_attn",
             config.d_model,
             config.encoder_attention_heads,
@@ -103,86 +101,59 @@ impl EncoderLayer {
         encoder_attention_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
+        let output = x.apply(&self.self_attention_layer_norm);
         let (output, attention_weights, _) =
             self.self_attention
-                .forward_t(x, None, encoder_attention_mask, None, train);
+                .forward_t(&output, None, encoder_attention_mask, None, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
-        let output = output.apply(&self.self_attention_layer_norm);
 
         let residual = output.copy();
+        let output = output.apply(&self.final_layer_norm);
         let output = (self.activation.get_fn())(&output.apply(&self.fc1));
         let output = output
             .apply_t(&self.activation_dropout, train)
             .apply(&self.fc2)
             .apply_t(&self.dropout, train);
-        let output: Tensor = output + residual;
-        (output.apply(&self.final_layer_norm), attention_weights)
+        let output = output + residual;
+        (output, attention_weights)
     }
 }
 
-pub struct BartEncoder {
+pub struct PegasusEncoder {
     dropout: Dropout,
-    layer_norm_embedding: Option<nn::LayerNorm>,
+    layer_norm: nn::LayerNorm,
     layers: Vec<EncoderLayer>,
-    embed_positions: EmbeddingOption,
+    embed_positions: SinusoidalPositionalEmbedding,
     output_attentions: bool,
     output_hidden_states: bool,
     scale_embedding: f64,
 }
 
-impl BartEncoder {
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartEncoder
+impl PegasusEncoder {
+    pub fn new<'p, P>(p: P, config: &PegasusConfig) -> PegasusEncoder
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
         let output_attentions = config.output_attentions.unwrap_or(false);
         let output_hidden_states = config.output_hidden_states.unwrap_or(false);
-        let normalize_embedding = config.normalize_embedding.unwrap_or(true);
-        let static_position_embeddings = config.static_position_embeddings.unwrap_or(false);
         let scale_embedding = match config.scale_embedding {
-            Some(value) => {
-                if value {
-                    (config.d_model as f64).sqrt()
-                } else {
-                    1.0
-                }
-            }
-            None => 1.0,
+            Some(value) if value => (config.d_model as f64).sqrt(),
+            _ => 1.0,
         };
 
         let dropout = Dropout::new(config.dropout);
-
-        let layer_norm_embedding = if normalize_embedding {
-            let layer_norm_config = nn::LayerNormConfig {
-                eps: 1e-5,
-                ..Default::default()
-            };
-            Some(nn::layer_norm(
-                p / "layernorm_embedding",
-                vec![config.d_model],
-                layer_norm_config,
-            ))
-        } else {
-            None
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: 1e-5,
+            ..Default::default()
         };
+        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], layer_norm_config);
 
-        let pad_token_id = config.pad_token_id.unwrap_or(1);
-
-        let embed_positions = if static_position_embeddings {
-            EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(
-                p / "embed_positions",
-                config.max_position_embeddings,
-                config.d_model,
-            ))
-        } else {
-            EmbeddingOption::LearnedPositionalEmbedding(LearnedPositionalEmbedding::new(
-                p / "embed_positions",
-                config.max_position_embeddings,
-                config.d_model,
-                pad_token_id,
-            ))
-        };
+        let embed_positions = SinusoidalPositionalEmbedding::new(
+            p / "embed_positions",
+            config.max_position_embeddings,
+            config.d_model,
+        );
 
         let mut layers: Vec<EncoderLayer> = vec![];
         let p_layers = p / "layers";
@@ -190,9 +161,9 @@ impl BartEncoder {
             layers.push(EncoderLayer::new(&p_layers / layer_index, config));
         }
 
-        BartEncoder {
+        PegasusEncoder {
             dropout,
-            layer_norm_embedding,
+            layer_norm,
             layers,
             embed_positions,
             output_attentions,
@@ -207,19 +178,14 @@ impl BartEncoder {
         attention_mask: Option<&Tensor>,
         embeddings: &nn::Embedding,
         train: bool,
-    ) -> BartEncoderOutput {
+    ) -> PegasusEncoderOutput {
         let attention_mask = match attention_mask {
             Some(mask) => Some(_expand_mask(mask, None)),
             None => None,
         };
 
         let x = input_ids.apply(embeddings) * self.scale_embedding;
-        let x: Tensor = x + &self.embed_positions.forward(input_ids, 0);
-        let x = if let Some(layer_norm_embedding) = &self.layer_norm_embedding {
-            x.apply(layer_norm_embedding)
-        } else {
-            x
-        };
+        let x = x + &self.embed_positions.forward(input_ids, 0);
         let x = x.apply_t(&self.dropout, train);
 
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
@@ -253,20 +219,13 @@ impl BartEncoder {
             hidden_states.push(hidden_state.as_ref().copy());
         };
 
-        BartEncoderOutput {
-            hidden_state,
+        PegasusEncoderOutput {
+            hidden_state: hidden_state.apply(&self.layer_norm),
             all_hidden_states,
             all_attentions,
         }
     }
 }
 
-/// Container holding a BART encoder output
-pub struct BartEncoderOutput {
-    /// Last encoder layer hidden state
-    pub hidden_state: Tensor,
-    /// Hidden states for all intermediate layers
-    pub all_hidden_states: Option<Vec<Tensor>>,
-    /// Attention weights for all intermediate layers
-    pub all_attentions: Option<Vec<Tensor>>,
-}
+/// Container holding a Pegasus encoder output
+pub type PegasusEncoderOutput = BartEncoderOutput;

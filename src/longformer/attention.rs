@@ -183,7 +183,7 @@ impl LongformerSelfAttention {
         let _ = input_tensor
             .slice(1, 0, affected_sequence_length, 1)
             .slice(3, 0, affected_sequence_length + 1, 1)
-            .masked_fill_(&beginning_mask, std::f64::NEG_INFINITY);
+            .masked_fill_(&beginning_mask, f64::NEG_INFINITY);
 
         let _ = input_tensor
             .narrow(1, -affected_sequence_length, affected_sequence_length)
@@ -192,7 +192,7 @@ impl LongformerSelfAttention {
                 -(affected_sequence_length + 1),
                 affected_sequence_length + 1,
             )
-            .masked_fill_(&ending_mask, std::f64::NEG_INFINITY);
+            .masked_fill_(&ending_mask, f64::NEG_INFINITY);
     }
 
     fn sliding_chunks_query_key_matmul(

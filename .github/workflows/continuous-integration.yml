@@ -94,6 +94,7 @@ jobs:
             --test t5
             --test xlnet
             --test longformer
+            --test pegasus
 
   convert-model:
     name: Model conversion test

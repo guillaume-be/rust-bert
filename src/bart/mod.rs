@@ -50,7 +50,7 @@
 //!     false,
 //! )?;
 //! let config = BartConfig::from_file(config_path);
-//! let bart_model = BartModel::new(&vs.root(), &config, false);
+//! let bart_model = BartModel::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
 //! # Ok(())
@@ -69,3 +69,8 @@ pub use bart_model::{
     BartGenerator, BartMergesResources, BartModel, BartModelOutput, BartModelResources,
     BartVocabResources,
 };
+
+pub(crate) use attention::BartAttention;
+pub(crate) use bart_model::{_expand_mask, _prepare_decoder_attention_mask};
+pub(crate) use decoder::BartDecoderOutput;
+pub(crate) use encoder::BartEncoderOutput;

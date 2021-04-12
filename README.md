@@ -27,6 +27,7 @@ XLNet|✅|✅|✅|✅ | | |✅|
 Reformer|✅| |✅|✅ | | |✅| 
 ProphetNet| | | |✅ |✅ | | | 
 Longformer|✅|✅|✅| | | |✅| 
+Pegasus| | | | |✅| | | 
 
 ## Ready-to-use pipelines
 	

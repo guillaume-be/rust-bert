@@ -33,9 +33,9 @@ use rust_tokenizers::vocab::{RobertaVocab, Vocab};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use tch::kind::Kind::{Float, Int64};
+use tch::kind::Kind::Int64;
 use tch::nn::{embedding, EmbeddingConfig};
-use tch::{nn, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 /// # BART Pretrained model weight files
 pub struct BartModelResources;
@@ -224,34 +224,85 @@ pub struct BartConfig {
 
 impl Config<BartConfig> for BartConfig {}
 
-fn _prepare_bart_decoder_inputs(
-    pad_token_id: i64,
-    input_ids: &Tensor,
-    decoder_input_ids: Option<&Tensor>,
-    decoder_padding_mask: Option<&Tensor>,
-) -> (Tensor, Option<Tensor>, Option<Tensor>) {
-    let decoder_input_ids = match decoder_input_ids {
-        Some(value) => value.copy(),
-        None => _shift_tokens_right(input_ids, pad_token_id),
+fn _make_causal_mask(
+    input_ids_shape: &[i64],
+    dtype: Kind,
+    device: Device,
+    past_key_values_length: i64,
+) -> Tensor {
+    let batch_size = input_ids_shape[0];
+    let target_length = input_ids_shape[1];
+
+    let mut mask = Tensor::full(
+        &[target_length, target_length],
+        f64::NEG_INFINITY,
+        (dtype, device),
+    );
+    let mask_cond = Tensor::arange(target_length, (dtype, device));
+    let _ = mask.masked_fill_(
+        &mask_cond.lt1(&(&mask_cond + 1).view([target_length, 1])),
+        0,
+    );
+
+    if past_key_values_length > 0 {
+        mask = Tensor::cat(
+            &[
+                Tensor::zeros(&[target_length, past_key_values_length], (dtype, device)),
+                mask,
+            ],
+            -1,
+        );
+    }
+    mask.unsqueeze(0).unsqueeze(0).expand(
+        &[
+            batch_size,
+            1,
+            target_length,
+            target_length + past_key_values_length,
+        ],
+        true,
+    )
+}
+
+pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>) -> Tensor {
+    let (batch_size, source_length) = mask.size2().unwrap();
+    let target_length = target_length.unwrap_or(source_length);
+    let expanded_mask = mask
+        .unsqueeze(1)
+        .unsqueeze(1)
+        .expand(&[batch_size, 1, target_length, source_length], true)
+        .totype(Kind::Float);
+    let inverted_mask: Tensor = 1 - expanded_mask;
+    inverted_mask.masked_fill(&inverted_mask.to_kind(Kind::Bool), f64::NEG_INFINITY)
+}
+
+pub(crate) fn _prepare_decoder_attention_mask(
+    attention_mask: Option<&Tensor>,
+    input_shape: &[i64],
+    input_embeds: &Tensor,
+    past_key_values_length: i64,
+) -> Option<Tensor> {
+    let last_input_shape_dim = *input_shape.last().unwrap();
+    let mut combined_attention_mask = if last_input_shape_dim > 1 {
+        Some(_make_causal_mask(
+            input_shape,
+            input_embeds.kind(),
+            input_embeds.device(),
+            past_key_values_length,
+        ))
+    } else {
+        None
     };
 
-    let decoder_padding_mask = match decoder_padding_mask {
-        Some(value) => Some(value.eq(0).to_kind(Int64)),
-        None => {
-            let padding_mask = decoder_input_ids.eq(pad_token_id);
-            if i64::from(padding_mask.any()) == 0 {
-                None
-            } else {
-                Some(padding_mask)
-            }
-        }
-    };
-    let length = *input_ids.size().last().unwrap();
-    let causal_mask = Tensor::empty(&[length, length], (Float, input_ids.device()))
-        .fill_(std::f64::NEG_INFINITY)
-        .triu(1);
+    if let Some(attention_mask) = &attention_mask {
+        let expanded_attention_mask = _expand_mask(attention_mask, Some(last_input_shape_dim));
+        combined_attention_mask = match combined_attention_mask {
+            Some(value) => Some(value + expanded_attention_mask),
+            None => Some(expanded_attention_mask),
+        };
+    }
 
-    (decoder_input_ids, decoder_padding_mask, Some(causal_mask))
+    combined_attention_mask
 }
 
 fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
@@ -272,13 +323,11 @@ fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
 /// - `encoder`: `BartEncoder` (transformer) made of a vector of encoding layers
 /// - `decoder`: `BartDecoder` (transformer)  made of a vector of decoding layers with self attention and encoder cross-attention.
 /// caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
-/// - `generation_mode`: flag indicating if the model should run in generation mode (a decoder start token must then be provided)
 /// - `pad_token_id`: padding token id
 pub struct BartModel {
     pub(crate) encoder: BartEncoder,
     decoder: BartDecoder,
     pub(crate) embeddings: nn::Embedding,
-    generation_mode: bool,
     pad_token_id: i64,
 }
 
@@ -289,7 +338,6 @@ impl BartModel {
     ///
     /// * `p` - Variable store path for the root of the BART model
     /// * `config` - `BartConfig` object defining the model architecture
-    /// * `generation_mode` - flag indicating if the model should run in generation mode (a decoder start token must then be provided)
     ///
     /// # Example
     ///
@@ -303,10 +351,9 @@ impl BartModel {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
-    /// let generation_mode = true;
-    /// let bart: BartModel = BartModel::new(&p.root() / "bart", &config, generation_mode);
+    /// let bart: BartModel = BartModel::new(&p.root() / "bart", &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &BartConfig, generation_mode: bool) -> BartModel
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartModel
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -325,12 +372,11 @@ impl BartModel {
         );
 
         let encoder = BartEncoder::new(p / "encoder", config);
-        let decoder = BartDecoder::new(p / "decoder", config, generation_mode);
+        let decoder = BartDecoder::new(p / "decoder", config);
 
         BartModel {
             encoder,
             decoder,
-            generation_mode,
             pad_token_id,
             embeddings,
         }
@@ -372,7 +418,7 @@ impl BartModel {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BartConfig::from_file(config_path);
-    /// # let bart_model: BartModel = BartModel::new(&vs.root(), &config, false);
+    /// # let bart_model: BartModel = BartModel::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -403,20 +449,14 @@ impl BartModel {
         layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
     ) -> BartModelOutput {
-        let (decoder_input_ids, decoder_padding_mask, causal_mask) = if self.generation_mode {
-            (decoder_input_ids.unwrap().copy(), None, None)
+        let calc_decoder_input_ids = if decoder_input_ids.is_none() {
+            Some(_shift_tokens_right(input_ids.unwrap(), self.pad_token_id))
         } else {
-            assert!(
-                input_ids.is_some(),
-                "input_ids must be provided when not in generation mode"
-            );
-            _prepare_bart_decoder_inputs(
-                self.pad_token_id,
-                input_ids.unwrap(),
-                decoder_input_ids,
-                decoder_attention_mask,
-            )
+            None
         };
+
+        let decoder_input_ids =
+            decoder_input_ids.unwrap_or_else(|| calc_decoder_input_ids.as_ref().unwrap());
 
         let calc_encoder_output = if encoder_output.is_none() {
             Some(self.encoder.forward_t(
@@ -446,8 +486,7 @@ impl BartModel {
             &decoder_input_ids,
             &encoder_output,
             attention_mask,
-            decoder_padding_mask.as_ref(),
-            causal_mask.as_ref(),
+            decoder_attention_mask,
             &self.embeddings,
             layer_states,
             train,
@@ -480,7 +519,6 @@ impl BartForConditionalGeneration {
     ///
     /// * `p` - Variable store path for the root of the BART model
     /// * `config` - `BartConfig` object defining the model architecture
-    /// * `generation_mode` - flag indicating if the model should run in generation mode (a decoder start token must then be provided)
     ///
     /// # Example
     ///
@@ -494,19 +532,14 @@ impl BartForConditionalGeneration {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
-    /// let generation_mode = true;
     /// let bart: BartForConditionalGeneration =
-    ///     BartForConditionalGeneration::new(&p.root() / "bart", &config, generation_mode);
+    ///     BartForConditionalGeneration::new(&p.root() / "bart", &config);
     /// ```
-    pub fn new<'p, P>(
-        p: P,
-        config: &BartConfig,
-        generation_mode: bool,
-    ) -> BartForConditionalGeneration
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartForConditionalGeneration
     where
         P: Borrow<nn::Path<'p>>,
     {
-        let base_model = BartModel::new(p.borrow() / "model", config, generation_mode);
+        let base_model = BartModel::new(p.borrow() / "model", config);
         BartForConditionalGeneration { base_model }
     }
 
@@ -546,7 +579,7 @@ impl BartForConditionalGeneration {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BartConfig::from_file(config_path);
-    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -685,7 +718,6 @@ impl BartForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
-    /// let generation_mode = true;
     /// let bart: BartForSequenceClassification =
     ///     BartForSequenceClassification::new(&p.root() / "bart", &config);
     /// ```
@@ -695,7 +727,7 @@ impl BartForSequenceClassification {
     {
         let p = p.borrow();
 
-        let base_model = BartModel::new(p / "model", config, false);
+        let base_model = BartModel::new(p / "model", config);
         let classification_head = BartClassificationHead::new(p / "classification_head", config);
         let eos_token_id = config.eos_token_id.unwrap_or(3);
         BartForSequenceClassification {
@@ -741,7 +773,7 @@ impl BartForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BartConfig::from_file(config_path);
-    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -844,7 +876,7 @@ impl LMHeadModel for BartForConditionalGeneration {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BartConfig::from_file(config_path);
-    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config, false);
+    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -930,33 +962,6 @@ pub struct BartModelOutput {
     pub all_encoder_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all layers of the encoder
     pub all_encoder_attentions: Option<Vec<Tensor>>,
-}
-
-#[cfg(test)]
-mod test {
-    use tch::Device;
-
-    use crate::{
-        resources::{RemoteResource, Resource},
-        Config,
-    };
-
-    use super::{BartConfig, BartConfigResources, BartModel};
-
-    #[test]
-    #[ignore] // compilation is enough, no need to run
-    fn bart_model_send() {
-        let config_resource =
-            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
-        let config_path = config_resource.get_local_path().expect("");
-
-        //    Set-up masked LM model
-        let device = Device::cuda_if_available();
-        let vs = tch::nn::VarStore::new(device);
-        let config = BartConfig::from_file(config_path);
-
-        let _: Box<dyn Send> = Box::new(BartModel::new(&vs.root(), &config, false));
-    }
 }
 
 /// # Language generation model based on the Bart architecture
@@ -1063,7 +1068,7 @@ impl BartGenerator {
             false,
         )?;
         let config = BartConfig::from_file(config_path);
-        let model = BartForConditionalGeneration::new(&var_store.root(), &config, true);
+        let model = BartForConditionalGeneration::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(0);
@@ -1095,7 +1100,7 @@ impl BartGenerator {
             .filter(|pos| !token_ids.contains(pos))
             .collect();
         let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(1, &impossible_tokens, std::f64::NEG_INFINITY);
+        let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
     }
 }
 
@@ -1162,7 +1167,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
                 prepared_input: None,
                 prepared_attention_mask: Some(attention_mask),
                 prepared_encoder_output: encoder_outputs,
-                prepared_decoder_input: Some(input_ids),
+                prepared_decoder_input: Some(input_ids.narrow(1, -1, 1)),
                 prepared_position_ids: None,
                 prepared_past: Cache::BARTCache(past),
             },
@@ -1262,4 +1267,31 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
 impl LanguageGenerator<BartForConditionalGeneration, RobertaVocab, RobertaTokenizer>
     for BartGenerator
 {
+}
+
+#[cfg(test)]
+mod test {
+    use tch::Device;
+
+    use crate::{
+        resources::{RemoteResource, Resource},
+        Config,
+    };
+
+    use super::{BartConfig, BartConfigResources, BartModel};
+
+    #[test]
+    #[ignore] // compilation is enough, no need to run
+    fn bart_model_send() {
+        let config_resource =
+            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+        let config_path = config_resource.get_local_path().expect("");
+
+        //    Set-up masked LM model
+        let device = Device::cuda_if_available();
+        let vs = tch::nn::VarStore::new(device);
+        let config = BartConfig::from_file(config_path);
+
+        let _: Box<dyn Send> = Box::new(BartModel::new(&vs.root(), &config));
+    }
 }

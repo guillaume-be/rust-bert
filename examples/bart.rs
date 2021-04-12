@@ -46,7 +46,7 @@ fn main() -> anyhow::Result<()> {
         false,
     )?;
     let config = BartConfig::from_file(config_path);
-    let bart_model = BartModel::new(&vs.root(), &config, false);
+    let bart_model = BartModel::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input

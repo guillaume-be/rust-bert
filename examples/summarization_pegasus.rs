@@ -12,40 +12,35 @@
 
 extern crate anyhow;
 
-use rust_bert::bart::{
-    BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
-};
+use rust_bert::pegasus::{PegasusConfigResources, PegasusModelResources, PegasusVocabResources};
+use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartConfigResources::DISTILBART_CNN_6_6,
+        PegasusConfigResources::CNN_DAILYMAIL,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartVocabResources::DISTILBART_CNN_6_6,
+        PegasusVocabResources::CNN_DAILYMAIL,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartMergesResources::DISTILBART_CNN_6_6,
-    ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
-        BartModelResources::DISTILBART_CNN_6_6,
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        PegasusModelResources::CNN_DAILYMAIL,
     ));
 
     let summarization_config = SummarizationConfig {
-        model_resource,
+        model_type: ModelType::Pegasus,
+        model_resource: weights_resource,
         config_resource,
-        vocab_resource,
-        merges_resource,
-        num_beams: 1,
+        vocab_resource: vocab_resource.clone(),
+        merges_resource: vocab_resource,
         length_penalty: 1.0,
-        min_length: 56,
-        max_length: 142,
-        device: Device::Cpu,
+        num_beams: 4,
+        no_repeat_ngram_size: 3,
+        device: Device::cuda_if_available(),
         ..Default::default()
     };
-
     let summarization_model = SummarizationModel::new(summarization_config)?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
