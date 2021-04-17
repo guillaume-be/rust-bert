@@ -1,3 +1,4 @@
+mod attention;
 mod gpt_neo_model;
 
 pub use gpt_neo_model::{
