@@ -10,8 +10,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::dropout::Dropout;
 use crate::RustBertError;
-use tch::Tensor;
+use tch::{Kind, Tensor};
 
 trait GptNeoAttention {
     fn get_block_length_and_num_blocks(sequence_length: i64, window_size: i64) -> (i64, i64) {
@@ -81,5 +82,76 @@ trait GptNeoAttention {
                 )));
             }
         })
+    }
+
+    fn merge_heads(
+        input_tensor: &Tensor,
+        num_heads: i64,
+        attention_head_size: i64,
+    ) -> Result<Tensor, RustBertError> {
+        let output_tensor = match input_tensor.size().len() {
+            5 => input_tensor.permute(&[0, 1, 3, 2, 4]).contiguous(),
+            4 => input_tensor.permute(&[0, 2, 1, 3]).contiguous(),
+            _ => {
+                return Err(RustBertError::ValueError(format!(
+                    "Invalid tensor rank, expected 4 or 5, got {}",
+                    input_tensor.size().len()
+                )));
+            }
+        };
+        let mut new_shape = input_tensor.size();
+        new_shape.truncate(new_shape.len() - 2);
+        new_shape.push(num_heads * attention_head_size);
+        Ok(output_tensor.view(new_shape.as_slice()))
+    }
+
+    fn split_sequence_length_dim_to(
+        input_tensor: &Tensor,
+        dim_factor_1: i64,
+        dim_factor_2: i64,
+        hidden_size: i64,
+    ) -> Result<Tensor, RustBertError> {
+        let batch_size = input_tensor.size()[0];
+        let mut split_dim_shape = Vec::from([batch_size, dim_factor_1, dim_factor_2]);
+
+        Ok(match input_tensor.size().len() {
+            3 => {
+                split_dim_shape.push(hidden_size);
+                input_tensor.reshape(split_dim_shape.as_slice())
+            }
+            2 => input_tensor.reshape(split_dim_shape.as_slice()),
+            _ => {
+                return Err(RustBertError::ValueError(format!(
+                    "Invalid tensor rank, expected 2 or 3, got {}",
+                    input_tensor.size().len()
+                )));
+            }
+        })
+    }
+
+    fn attend(
+        query: &Tensor,
+        key: &Tensor,
+        value: &Tensor,
+        causal_mask: &Tensor,
+        masked_bias: &Tensor,
+        attention_dropout: &Dropout,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> (Tensor, Tensor) {
+        let mut attention_weights = query
+            .matmul(&key.transpose(-1, -2))
+            .where1(causal_mask, masked_bias);
+
+        if let Some(attention_mask_value) = attention_mask {
+            attention_weights = attention_weights + attention_mask_value;
+        };
+
+        attention_weights = attention_weights
+            .softmax(-1, Kind::Float)
+            .apply_t(attention_dropout, train);
+
+        let attention_output = attention_weights.matmul(value);
+        (attention_output, attention_weights)
     }
 }
