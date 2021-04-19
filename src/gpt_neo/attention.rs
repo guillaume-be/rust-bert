@@ -11,8 +11,37 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::gpt_neo::GptNeoConfig;
 use crate::RustBertError;
-use tch::{Kind, Tensor};
+use std::borrow::Borrow;
+use tch::nn::Init;
+use tch::{nn, Kind, Tensor};
+
+#[derive(Debug)]
+/// # Cache for GPTNeo attention layers
+/// Stores the cached value of key and value
+pub struct LayerState {
+    /// Cached keys
+    pub prev_key: Tensor,
+    /// Cached values
+    pub prev_value: Tensor,
+}
+
+impl Clone for LayerState {
+    fn clone(&self) -> Self {
+        LayerState {
+            prev_key: self.prev_key.copy(),
+            prev_value: self.prev_value.copy(),
+        }
+    }
+}
+
+impl LayerState {
+    pub(crate) fn reorder_cache(&mut self, new_indices: &Tensor) {
+        self.prev_key = self.prev_key.index_select(0, new_indices);
+        self.prev_value = self.prev_value.index_select(0, new_indices);
+    }
+}
 
 trait GptNeoAttention {
     fn get_block_length_and_num_blocks(sequence_length: i64, window_size: i64) -> (i64, i64) {
@@ -153,5 +182,157 @@ trait GptNeoAttention {
 
         let attention_output = attention_weights.matmul(value);
         (attention_output, attention_weights)
+    }
+}
+
+pub struct GptNeoSelfAttention {
+    k_proj: nn::Linear,
+    v_proj: nn::Linear,
+    q_proj: nn::Linear,
+    out_proj: nn::Linear,
+    attention_dropout: Dropout,
+    resid_dropout: Dropout,
+    bias: Tensor,
+    masked_bias: Tensor,
+    num_heads: i64,
+    head_dim: i64,
+    output_attentions: bool,
+}
+
+impl GptNeoAttention for GptNeoSelfAttention {}
+
+impl GptNeoSelfAttention {
+    pub fn new<'p, P>(p: P, config: &GptNeoConfig) -> GptNeoSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let max_positions = config.max_position_embeddings;
+
+        let mut bias = p.var(
+            "bias",
+            &[1, 1, max_positions, max_positions],
+            Init::Const(0.),
+        );
+        bias.copy_(
+            &Tensor::ones(&[max_positions, max_positions], (Kind::Int8, p.device()))
+                .tril(0)
+                .view([1, 1, max_positions, max_positions]),
+        );
+        let masked_bias = p.var("masked_bias", &[0], Init::Const(-1e9));
+
+        let attention_dropout = Dropout::new(config.attention_dropout);
+        let resid_dropout = Dropout::new(config.resid_dropout);
+
+        let num_heads = config.num_heads;
+        let head_dim = config.hidden_size / config.num_heads;
+
+        let linear_config = nn::LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+        let k_proj = nn::linear(
+            p / "k_proj",
+            config.hidden_size,
+            config.hidden_size,
+            linear_config,
+        );
+        let v_proj = nn::linear(
+            p / "v_proj",
+            config.hidden_size,
+            config.hidden_size,
+            linear_config,
+        );
+        let q_proj = nn::linear(
+            p / "q_proj",
+            config.hidden_size,
+            config.hidden_size,
+            linear_config,
+        );
+        let out_proj = nn::linear(
+            p / "k_proj",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let output_attentions = config.output_attentions.unwrap_or(false);
+
+        GptNeoSelfAttention {
+            k_proj,
+            v_proj,
+            q_proj,
+            out_proj,
+            attention_dropout,
+            resid_dropout,
+            bias,
+            masked_bias,
+            num_heads,
+            head_dim,
+            output_attentions,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        mut layer_state: Option<LayerState>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>, Option<LayerState>), RustBertError> {
+        let query = hidden_states.apply(&self.q_proj);
+        let key = hidden_states.apply(&self.k_proj);
+        let value = hidden_states.apply(&self.v_proj);
+
+        let query = Self::split_heads(&query, self.num_heads, self.head_dim)?;
+        let mut key = Self::split_heads(&key, self.num_heads, self.head_dim)?;
+        let mut value = Self::split_heads(&value, self.num_heads, self.head_dim)?;
+
+        if let Some(layer_state_value) = &layer_state {
+            key = Tensor::cat(&[&layer_state_value.prev_key, &key], -2);
+            value = Tensor::cat(&[&layer_state_value.prev_value, &key], -2);
+            layer_state.as_mut().unwrap().prev_key = key.copy();
+            layer_state.as_mut().unwrap().prev_value = value.copy();
+        } else {
+            layer_state = Some(LayerState {
+                prev_key: key.copy(),
+                prev_value: value.copy(),
+            });
+        };
+
+        let query_dims = query.size();
+        let key_dims = key.size();
+        let query_length = query_dims[query_dims.len() - 2];
+        let key_length = key_dims[key_dims.len() - 2];
+
+        let causal_mask = self
+            .bias
+            .narrow(0, key_length - query_length, key_length)
+            .slice(1, 0, key_length, 1)
+            .unsqueeze(0)
+            .unsqueeze(0);
+
+        let (attention_output, attention_weights) = Self::attend(
+            &query,
+            &key,
+            &value,
+            &causal_mask,
+            &self.masked_bias,
+            &self.attention_dropout,
+            attention_mask,
+            train,
+        );
+
+        let attention_output = Self::merge_heads(&attention_output, self.num_heads, self.head_dim)?
+            .apply(&self.out_proj)
+            .apply_t(&self.resid_dropout, train);
+
+        let attention_weights = if self.output_attentions {
+            Some(attention_weights)
+        } else {
+            None
+        };
+
+        Ok((attention_output, attention_weights, layer_state))
     }
 }
