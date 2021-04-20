@@ -15,7 +15,7 @@ use crate::gpt_neo::GptNeoConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::Init;
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 #[derive(Debug)]
 /// # Cache for GPTNeo attention layers
@@ -90,6 +90,67 @@ trait GptNeoAttention {
         Ok(padded_tensor)
     }
 
+    fn split_sequence_length_dim_to(
+        input_tensor: &Tensor,
+        dim_factor_1: i64,
+        dim_factor_2: i64,
+    ) -> Result<Tensor, RustBertError> {
+        let batch_size = input_tensor.size()[0];
+        let mut split_dim_shape = Vec::from([batch_size, dim_factor_1, dim_factor_2]);
+
+        Ok(match input_tensor.size().len() {
+            3 => {
+                split_dim_shape.push(-1);
+                input_tensor.reshape(split_dim_shape.as_slice())
+            }
+            2 => input_tensor.reshape(split_dim_shape.as_slice()),
+            _ => {
+                return Err(RustBertError::ValueError(format!(
+                    "Invalid tensor rank, expected 2 or 3, got {}",
+                    input_tensor.size().len()
+                )));
+            }
+        })
+    }
+
+    fn create_local_attention_mask(
+        batch_size: i64,
+        sequence_length: i64,
+        window_size: i64,
+        device: Device,
+        attention_mask: Option<&Tensor>,
+    ) -> Result<Tensor, RustBertError> {
+        let (block_length, num_blocks) =
+            Self::get_block_length_and_num_blocks(sequence_length, window_size);
+        let indices =
+            Tensor::arange(sequence_length, (Kind::Int64, device)).repeat(&[batch_size, 1]);
+
+        let query_indices = Self::split_sequence_length_dim_to(&indices, num_blocks, block_length)?;
+        let key_indices = Self::look_back(&indices, block_length, window_size, None, false)?;
+
+        let causal_mask = query_indices.unsqueeze(-1).ge1(&key_indices.unsqueeze(-2));
+
+        let calc_attention_mask = if attention_mask.is_none() {
+            Some(Tensor::ones(
+                &[batch_size, sequence_length],
+                (Kind::Int64, device),
+            ))
+        } else {
+            None
+        };
+
+        let attention_mask = attention_mask.unwrap_or(calc_attention_mask.as_ref().unwrap());
+        let attention_mask =
+            Self::look_back(&attention_mask, block_length, window_size, None, false)?.unsqueeze(-2);
+        let causal_mask = causal_mask * attention_mask;
+
+        let relative_position = key_indices.unsqueeze(-2) - query_indices.unsqueeze(-1);
+        let visible = relative_position.gt(-window_size);
+        let causal_mask = causal_mask * visible;
+
+        Ok(causal_mask.unsqueeze(-3).to_kind(Kind::Bool))
+    }
+
     fn split_heads(
         input_tensor: &Tensor,
         num_heads: i64,
@@ -132,30 +193,6 @@ trait GptNeoAttention {
         new_shape.truncate(new_shape.len() - 2);
         new_shape.push(num_heads * attention_head_size);
         Ok(output_tensor.view(new_shape.as_slice()))
-    }
-
-    fn split_sequence_length_dim_to(
-        input_tensor: &Tensor,
-        dim_factor_1: i64,
-        dim_factor_2: i64,
-        hidden_size: i64,
-    ) -> Result<Tensor, RustBertError> {
-        let batch_size = input_tensor.size()[0];
-        let mut split_dim_shape = Vec::from([batch_size, dim_factor_1, dim_factor_2]);
-
-        Ok(match input_tensor.size().len() {
-            3 => {
-                split_dim_shape.push(hidden_size);
-                input_tensor.reshape(split_dim_shape.as_slice())
-            }
-            2 => input_tensor.reshape(split_dim_shape.as_slice()),
-            _ => {
-                return Err(RustBertError::ValueError(format!(
-                    "Invalid tensor rank, expected 2 or 3, got {}",
-                    input_tensor.size().len()
-                )));
-            }
-        })
     }
 
     fn attend(
@@ -458,8 +495,8 @@ impl GptNeoLocalSelfAttention {
             Self::split_sequence_length_dim_to(&query, num_blocks, block_length)
         }?;
 
-        let mut key = Self::look_back(&key, block_length, self.window_size)?;
-        let mut value = Self::look_back(&value, block_length, self.window_size)?;
+        let mut key = Self::look_back(&key, block_length, self.window_size, None, true)?;
+        let mut value = Self::look_back(&value, block_length, self.window_size, None, true)?;
 
         if layer_state.is_some() {
             key = key.select(1, -1);
