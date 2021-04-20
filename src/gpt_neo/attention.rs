@@ -336,3 +336,170 @@ impl GptNeoSelfAttention {
         Ok((attention_output, attention_weights, layer_state))
     }
 }
+
+pub struct GptNeoLocalSelfAttention {
+    k_proj: nn::Linear,
+    v_proj: nn::Linear,
+    q_proj: nn::Linear,
+    out_proj: nn::Linear,
+    attention_dropout: Dropout,
+    resid_dropout: Dropout,
+    masked_bias: Tensor,
+    num_heads: i64,
+    head_dim: i64,
+    window_size: i64,
+    embed_dim: i64,
+    output_attentions: bool,
+}
+
+impl GptNeoAttention for GptNeoLocalSelfAttention {}
+
+impl GptNeoLocalSelfAttention {
+    pub fn new<'p, P>(p: P, config: &GptNeoConfig) -> GptNeoLocalSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let masked_bias = p.var("masked_bias", &[0], Init::Const(-1e9));
+
+        let attention_dropout = Dropout::new(config.attention_dropout);
+        let resid_dropout = Dropout::new(config.resid_dropout);
+
+        let num_heads = config.num_heads;
+        let head_dim = config.hidden_size / config.num_heads;
+
+        let linear_config = nn::LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+        let k_proj = nn::linear(
+            p / "k_proj",
+            config.hidden_size,
+            config.hidden_size,
+            linear_config,
+        );
+        let v_proj = nn::linear(
+            p / "v_proj",
+            config.hidden_size,
+            config.hidden_size,
+            linear_config,
+        );
+        let q_proj = nn::linear(
+            p / "q_proj",
+            config.hidden_size,
+            config.hidden_size,
+            linear_config,
+        );
+        let out_proj = nn::linear(
+            p / "k_proj",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let window_size = config.window_size;
+        let embed_dim = config.hidden_size;
+        let output_attentions = config.output_attentions.unwrap_or(false);
+
+        GptNeoLocalSelfAttention {
+            k_proj,
+            v_proj,
+            q_proj,
+            out_proj,
+            attention_dropout,
+            resid_dropout,
+            masked_bias,
+            num_heads,
+            head_dim,
+            window_size,
+            embed_dim,
+            output_attentions,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        layer_state: Option<&LayerState>,
+        attention_mask: &Tensor,
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>), RustBertError> {
+        let query = hidden_states.apply(&self.q_proj);
+
+        let (calc_key_value_hidden_states, past_length) =
+            if let Some(layer_state_value) = layer_state {
+                let key_value_hidden_states =
+                    Tensor::cat(&[&layer_state_value.prev_key, hidden_states], 1);
+                (
+                    Some(key_value_hidden_states),
+                    layer_state_value.prev_key.size()[1],
+                )
+            } else {
+                (None, 0)
+            };
+
+        let key_value_hidden_states = calc_key_value_hidden_states
+            .as_ref()
+            .unwrap_or(hidden_states);
+
+        let key = key_value_hidden_states.apply(&self.k_proj);
+        let value = key_value_hidden_states.apply(&self.v_proj);
+
+        let hidden_states_shape = hidden_states.size();
+        let (batch_size, sequence_length) = (hidden_states_shape[0], hidden_states_shape[1]);
+        let full_sequence_length = sequence_length + past_length;
+        let (block_length, num_blocks) =
+            Self::get_block_length_and_num_blocks(full_sequence_length, self.window_size);
+
+        let query = if layer_state.is_some() {
+            Self::split_sequence_length_dim_to(&query, 1, 1)
+        } else {
+            Self::split_sequence_length_dim_to(&query, num_blocks, block_length)
+        }?;
+
+        let mut key = Self::look_back(&key, block_length, self.window_size)?;
+        let mut value = Self::look_back(&value, block_length, self.window_size)?;
+
+        if layer_state.is_some() {
+            key = key.select(1, -1);
+            value = value.select(1, -1);
+        }
+
+        let query = Self::split_heads(&query, self.num_heads, self.head_dim)?;
+        let key = Self::split_heads(&key, self.num_heads, self.head_dim)?;
+        let value = Self::split_heads(&value, self.num_heads, self.head_dim)?;
+
+        let calc_attention_mask = if layer_state.is_some() {
+            Some(attention_mask.select(3, -1).select(1, -1))
+        } else {
+            None
+        };
+
+        let attention_mask = calc_attention_mask.as_ref().unwrap_or(attention_mask);
+
+        let (attention_output, attention_weights) = Self::attend(
+            &query,
+            &key,
+            &value,
+            &attention_mask,
+            &self.masked_bias,
+            &self.attention_dropout,
+            None,
+            train,
+        );
+
+        let attention_output = Self::merge_heads(&attention_output, self.num_heads, self.head_dim)?
+            .reshape(&[batch_size, sequence_length, self.embed_dim])
+            .apply(&self.out_proj)
+            .apply_t(&self.resid_dropout, train);
+
+        let attention_weights = if self.output_attentions {
+            Some(attention_weights)
+        } else {
+            None
+        };
+
+        Ok((attention_output, attention_weights))
+    }
+}
