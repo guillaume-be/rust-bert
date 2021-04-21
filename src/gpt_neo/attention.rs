@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::gpt_neo::gpt_neo_model::AttentionLayerType;
 use crate::gpt_neo::GptNeoConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -24,14 +25,14 @@ pub struct LayerState {
     /// Cached keys
     pub prev_key: Tensor,
     /// Cached values
-    pub prev_value: Tensor,
+    pub prev_value: Option<Tensor>,
 }
 
 impl Clone for LayerState {
     fn clone(&self) -> Self {
         LayerState {
             prev_key: self.prev_key.copy(),
-            prev_value: self.prev_value.copy(),
+            prev_value: self.prev_value.as_ref().map(|value| value.copy()),
         }
     }
 }
@@ -39,11 +40,14 @@ impl Clone for LayerState {
 impl LayerState {
     pub(crate) fn reorder_cache(&mut self, new_indices: &Tensor) {
         self.prev_key = self.prev_key.index_select(0, new_indices);
-        self.prev_value = self.prev_value.index_select(0, new_indices);
+        self.prev_value = self
+            .prev_value
+            .as_ref()
+            .map(|value| value.index_select(0, new_indices));
     }
 }
 
-trait GptNeoAttention {
+trait GptNeoAttentionUtils {
     fn get_block_length_and_num_blocks(sequence_length: i64, window_size: i64) -> (i64, i64) {
         let mut block_length = window_size;
         while sequence_length % block_length != 0 {
@@ -236,7 +240,7 @@ pub struct GptNeoSelfAttention {
     output_attentions: bool,
 }
 
-impl GptNeoAttention for GptNeoSelfAttention {}
+impl GptNeoAttentionUtils for GptNeoSelfAttention {}
 
 impl GptNeoSelfAttention {
     pub fn new<'p, P>(p: P, config: &GptNeoConfig) -> GptNeoSelfAttention
@@ -313,7 +317,7 @@ impl GptNeoSelfAttention {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mut layer_state: Option<LayerState>,
+        layer_state: Option<&LayerState>,
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<(Tensor, Option<Tensor>, Option<LayerState>), RustBertError> {
@@ -327,15 +331,13 @@ impl GptNeoSelfAttention {
 
         if let Some(layer_state_value) = &layer_state {
             key = Tensor::cat(&[&layer_state_value.prev_key, &key], -2);
-            value = Tensor::cat(&[&layer_state_value.prev_value, &key], -2);
-            layer_state.as_mut().unwrap().prev_key = key.copy();
-            layer_state.as_mut().unwrap().prev_value = value.copy();
-        } else {
-            layer_state = Some(LayerState {
-                prev_key: key.copy(),
-                prev_value: value.copy(),
-            });
+            value = Tensor::cat(&[layer_state_value.prev_value.as_ref().unwrap(), &key], -2);
         };
+
+        let layer_state = Some(LayerState {
+            prev_key: key.copy(),
+            prev_value: Some(value.copy()),
+        });
 
         let query_dims = query.size();
         let key_dims = key.size();
@@ -389,7 +391,7 @@ pub struct GptNeoLocalSelfAttention {
     output_attentions: bool,
 }
 
-impl GptNeoAttention for GptNeoLocalSelfAttention {}
+impl GptNeoAttentionUtils for GptNeoLocalSelfAttention {}
 
 impl GptNeoLocalSelfAttention {
     pub fn new<'p, P>(p: P, config: &GptNeoConfig) -> GptNeoLocalSelfAttention
@@ -538,5 +540,66 @@ impl GptNeoLocalSelfAttention {
         };
 
         Ok((attention_output, attention_weights))
+    }
+}
+
+pub enum GptNeoAttention {
+    SelfAttention(GptNeoSelfAttention),
+    LocalSelfAttention(GptNeoLocalSelfAttention),
+}
+
+impl GptNeoAttention {
+    pub fn new<'p, P>(p: P, config: &GptNeoConfig, layer_id: usize) -> Result<Self, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let attention_type = &config.attention_layers[layer_id];
+
+        Ok(match attention_type {
+            AttentionLayerType::Global => {
+                GptNeoAttention::SelfAttention(GptNeoSelfAttention::new(p, config))
+            }
+            AttentionLayerType::Local => {
+                GptNeoAttention::LocalSelfAttention(GptNeoLocalSelfAttention::new(p, config))
+            }
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        layer_state: Option<&LayerState>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>, Option<LayerState>), RustBertError> {
+        let layer_output = match self {
+            GptNeoAttention::SelfAttention(ref attention) => {
+                attention.forward_t(hidden_states, layer_state, attention_mask, train)?
+            }
+            GptNeoAttention::LocalSelfAttention(ref attention) => {
+                let output = attention.forward_t(
+                    hidden_states,
+                    layer_state,
+                    attention_mask.ok_or(RustBertError::ValueError(
+                        "Attention mask must be provided for Local self attention".to_string(),
+                    ))?,
+                    train,
+                )?;
+                let new_layer_state = if let Some(old_layer_state) = layer_state {
+                    LayerState {
+                        prev_key: Tensor::cat(&[&old_layer_state.prev_key, hidden_states], 1),
+                        prev_value: None,
+                    }
+                } else {
+                    LayerState {
+                        prev_key: hidden_states.copy(),
+                        prev_value: None,
+                    }
+                };
+                (output.0, output.1, Some(new_layer_state))
+            }
+        };
+
+        Ok(layer_output)
     }
 }
