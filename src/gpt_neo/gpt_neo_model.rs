@@ -73,6 +73,7 @@ pub struct GptNeoConfig {
     pub attention_dropout: f64,
     pub attention_layers: Vec<AttentionLayerType>,
     pub attention_types: Vec<(Vec<AttentionLayerType>, i64)>,
+    pub intermediate_size: Option<i64>,
     pub bos_token_id: i64,
     pub eos_token_id: i64,
     pub vocab_size: i64,

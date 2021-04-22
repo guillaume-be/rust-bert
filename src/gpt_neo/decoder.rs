@@ -14,6 +14,7 @@ use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::gpt_neo::attention::GptNeoAttention;
 use crate::gpt_neo::GptNeoConfig;
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::ModuleT;
 use tch::{nn, Tensor};
@@ -73,4 +74,41 @@ pub struct GptNeoBlock {
     ln_2: nn::LayerNorm,
     attention: GptNeoAttention,
     mlp: GptNeoMLP,
+}
+
+impl GptNeoBlock {
+    pub fn new<'p, P>(
+        p: P,
+        layer_id: usize,
+        config: &GptNeoConfig,
+    ) -> Result<GptNeoBlock, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_epsilon,
+            ..Default::default()
+        };
+
+        let ln_1 = nn::layer_norm(
+            p / "ln_1",
+            vec![config.hidden_size],
+            layer_norm_config.clone(),
+        );
+        let ln_2 = nn::layer_norm(p / "ln_1", vec![config.hidden_size], layer_norm_config);
+        let attention = GptNeoAttention::new(p / "attn", config, layer_id)?;
+
+        let inner_dim = config.intermediate_size.unwrap_or(4 * config.hidden_size);
+
+        let mlp = GptNeoMLP::new(p / "mlp", inner_dim, config);
+
+        Ok(GptNeoBlock {
+            ln_1,
+            ln_2,
+            attention,
+            mlp,
+        })
+    }
 }
