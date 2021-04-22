@@ -69,7 +69,7 @@ pub enum AttentionLayerType {
 /// # GPT-Neo model configuration
 /// Defines the GPT-Neo model architecture (e.g. number of layers, hidden layer size, vocab size...).
 pub struct GptNeoConfig {
-    pub activation_function: Option<Activation>,
+    pub activation_function: Activation,
     pub attention_dropout: f64,
     pub attention_layers: Vec<AttentionLayerType>,
     pub attention_types: Vec<(Vec<AttentionLayerType>, i64)>,
