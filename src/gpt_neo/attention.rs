@@ -47,7 +47,7 @@ impl LayerState {
     }
 }
 
-trait GptNeoAttentionUtils {
+pub(crate) trait GptNeoAttentionUtils {
     fn get_block_length_and_num_blocks(sequence_length: i64, window_size: i64) -> (i64, i64) {
         let mut block_length = window_size;
         while sequence_length % block_length != 0 {

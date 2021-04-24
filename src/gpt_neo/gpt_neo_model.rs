@@ -11,11 +11,12 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::gpt_neo::attention::{GptNeoAttention, GptNeoAttentionUtils};
 use crate::gpt_neo::decoder::GptNeoBlock;
 use crate::gpt_neo::LayerState;
 use crate::{Activation, Config, RustBertError};
 use serde::{Deserialize, Serialize};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Kind, Tensor};
 
 /// # GPT-Neo Pretrained model weight files
@@ -104,9 +105,12 @@ pub struct GptNeoModel {
     layers: Vec<GptNeoBlock>,
     dropout: Dropout,
     layer_norm: nn::LayerNorm,
+    window_size: i64,
     output_attentions: bool,
     output_hidden_states: bool,
 }
+
+impl GptNeoAttentionUtils for GptNeoModel {}
 
 impl GptNeoModel {
     pub fn new<'p, P>(p: P, config: &GptNeoConfig) -> Result<GptNeoModel, RustBertError>
@@ -148,6 +152,8 @@ impl GptNeoModel {
             )?);
         }
 
+        let window_size = config.window_size;
+
         let output_attentions = config.output_attentions.unwrap_or(false);
         let output_hidden_states = config.output_hidden_states.unwrap_or(false);
 
@@ -157,6 +163,7 @@ impl GptNeoModel {
             layers,
             dropout,
             layer_norm,
+            window_size,
             output_attentions,
             output_hidden_states,
         })
@@ -208,12 +215,11 @@ impl GptNeoModel {
             0
         };
 
+        let full_sequence_length = current_sequence_length + past_length;
+
         let calc_position_ids = if position_ids.is_none() {
-            let position_ids = Tensor::arange1(
-                past_length,
-                current_sequence_length + past_length,
-                (Kind::Int64, device),
-            );
+            let position_ids =
+                Tensor::arange1(past_length, full_sequence_length, (Kind::Int64, device));
             Some(
                 position_ids
                     .unsqueeze(0)
@@ -224,6 +230,91 @@ impl GptNeoModel {
         };
 
         let position_ids = position_ids.unwrap_or_else(|| calc_position_ids.as_ref().unwrap());
+
+        let global_attention_mask = attention_mask.map(|attention_mask_value| {
+            let global_attention_mask = attention_mask_value
+                .view([batch_size, -1])
+                .unsqueeze(1)
+                .unsqueeze(1);
+            (1 - global_attention_mask) * -1e4
+        });
+
+        let local_attention_mask = GptNeoModel::create_local_attention_mask(
+            batch_size,
+            full_sequence_length,
+            self.window_size,
+            device,
+            attention_mask,
+        )?;
+
+        let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
+        let position_embeds = position_ids.apply(&self.position_embeddings);
+
+        let mut hidden_state = input_embeds + position_embeds;
+        if let Some(token_type_ids) = token_type_ids {
+            hidden_state = hidden_state + token_type_ids.apply(&self.word_embeddings);
+        };
+        hidden_state = hidden_state.apply_t(&self.dropout, train);
+
+        let mut output_shape = input_shape.clone();
+        output_shape.push(*hidden_state.size().last().unwrap());
+
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
+        let old_cache = layer_states.unwrap_or_else(|| vec![None; self.layers.len()]);
+        let mut next_cache = vec![None; self.layers.len()];
+
+        let mut x: Option<Tensor> = None;
+        let mut attention_weights: Option<Tensor>;
+
+        for ((layer_idx, layer), layer_state) in
+            self.layers.iter().enumerate().zip(old_cache.into_iter())
+        {
+            let attention_mask = match layer.get_attention_type() {
+                GptNeoAttention::SelfAttention(_) => global_attention_mask.as_ref(),
+                GptNeoAttention::LocalSelfAttention(_) => Some(&local_attention_mask),
+            };
+
+            let temp = if let Some(x_value) = &x {
+                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                    hidden_states.push(x_value.copy());
+                }
+                layer.forward_t(x_value, layer_state.as_ref(), attention_mask, train)?
+            } else {
+                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                    hidden_states.push(hidden_state.copy());
+                }
+                layer.forward_t(&hidden_state, layer_state.as_ref(), attention_mask, train)?
+            };
+            x = Some(temp.0);
+            attention_weights = temp.1;
+            next_cache[layer_idx] = temp.2;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.as_ref().unwrap().copy());
+            };
+        }
+        if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+            hidden_states.push(x.as_ref().unwrap().copy());
+        };
+
+        let hidden_states = x
+            .unwrap()
+            .apply(&self.layer_norm)
+            .view(output_shape.as_slice());
+
+        Ok(GptNeoOutput {
+            hidden_states,
+            all_hidden_states,
+            all_attentions,
+        })
     }
 }
 

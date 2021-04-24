@@ -130,4 +130,8 @@ impl GptNeoBlock {
 
         Ok((output, attention_weights, layer_state))
     }
+
+    pub(crate) fn get_attention_type(&self) -> &GptNeoAttention {
+        &self.attention
+    }
 }
