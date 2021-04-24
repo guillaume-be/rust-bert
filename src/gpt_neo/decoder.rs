@@ -12,7 +12,7 @@
 
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
-use crate::gpt_neo::attention::GptNeoAttention;
+use crate::gpt_neo::attention::{GptNeoAttention, LayerState};
 use crate::gpt_neo::GptNeoConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -110,5 +110,24 @@ impl GptNeoBlock {
             attention,
             mlp,
         })
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        layer_state: Option<&LayerState>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>, Option<LayerState>), RustBertError> {
+        let intermediate = hidden_states.apply(&self.ln_1);
+        let (intermediate, attention_weights, layer_state) =
+            self.attention
+                .forward_t(&intermediate, layer_state, attention_mask, train)?;
+        let hidden_states = hidden_states + intermediate;
+
+        let intermediate = hidden_states.apply(&self.ln_2).apply_t(&self.mlp, train);
+        let output = hidden_states + intermediate;
+
+        Ok((output, attention_weights, layer_state))
     }
 }
