@@ -10,8 +10,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{Activation, Config};
+use crate::common::dropout::Dropout;
+use crate::gpt_neo::decoder::GptNeoBlock;
+use crate::gpt_neo::LayerState;
+use crate::{Activation, Config, RustBertError};
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
+use tch::{nn, Kind, Tensor};
 
 /// # GPT-Neo Pretrained model weight files
 pub struct GptNeoModelResources;
@@ -92,3 +97,142 @@ pub struct GptNeoConfig {
 }
 
 impl Config<GptNeoConfig> for GptNeoConfig {}
+
+pub struct GptNeoModel {
+    word_embeddings: nn::Embedding,
+    position_embeddings: nn::Embedding,
+    layers: Vec<GptNeoBlock>,
+    dropout: Dropout,
+    layer_norm: nn::LayerNorm,
+    output_attentions: bool,
+    output_hidden_states: bool,
+}
+
+impl GptNeoModel {
+    pub fn new<'p, P>(p: P, config: &GptNeoConfig) -> Result<GptNeoModel, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let word_embeddings = nn::embedding(
+            p / "wte",
+            config.vocab_size,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let position_embeddings = nn::embedding(
+            p / "wpe",
+            config.max_position_embeddings,
+            config.hidden_size,
+            Default::default(),
+        );
+
+        let dropout = Dropout::new(config.embed_dropout);
+
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: config.layer_norm_epsilon,
+            ..Default::default()
+        };
+
+        let layer_norm = nn::layer_norm(p / "ln_f", vec![config.hidden_size], layer_norm_config);
+
+        let mut layers: Vec<GptNeoBlock> = Vec::with_capacity(config.num_layers as usize);
+        let p_layers = p / "h";
+        for layer_index in 0..config.num_layers {
+            layers.push(GptNeoBlock::new(
+                &p_layers / layer_index,
+                layer_index as usize,
+                config,
+            )?);
+        }
+
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
+
+        Ok(GptNeoModel {
+            word_embeddings,
+            position_embeddings,
+            layers,
+            dropout,
+            layer_norm,
+            output_attentions,
+            output_hidden_states,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        layer_states: Option<Vec<Option<LayerState>>>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<GptNeoOutput, RustBertError> {
+        let (calc_input_embeddings, input_shape, device) = if let Some(input_ids) = input_ids {
+            if input_embeds.is_none() {
+                (
+                    Some(input_ids.apply(&self.word_embeddings)),
+                    input_ids.size(),
+                    input_ids.device(),
+                )
+            } else {
+                return Err(RustBertError::ValueError(
+                    "Only one of input ids or input embeddings may be set".into(),
+                ));
+            }
+        } else if let Some(input_embeds) = input_embeds {
+            let mut input_shape = input_embeds.size();
+            let _ = input_shape.pop();
+            (None, input_shape, input_embeds.device())
+        } else {
+            return Err(RustBertError::ValueError(
+                "At least one of input ids or input embeddings must be set".into(),
+            ));
+        };
+
+        let (batch_size, current_sequence_length) = (input_shape[0], input_shape[1]);
+
+        let past_length = if let Some(past_state_value) = &layer_states {
+            if let Some(first_layer_state) = &past_state_value[0] {
+                let mut size_iter = first_layer_state.prev_key.size().into_iter().rev();
+                size_iter.next();
+                size_iter.next().unwrap()
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        let calc_position_ids = if position_ids.is_none() {
+            let position_ids = Tensor::arange1(
+                past_length,
+                current_sequence_length + past_length,
+                (Kind::Int64, device),
+            );
+            Some(
+                position_ids
+                    .unsqueeze(0)
+                    .view([-1, current_sequence_length]),
+            )
+        } else {
+            None
+        };
+
+        let position_ids = position_ids.unwrap_or_else(|| calc_position_ids.as_ref().unwrap());
+    }
+}
+
+/// Container for the GPT-Neo model output.
+pub struct GptNeoOutput {
+    /// Last hidden states from the model
+    pub hidden_states: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
