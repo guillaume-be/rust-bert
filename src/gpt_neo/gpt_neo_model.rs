@@ -178,7 +178,7 @@ impl GptNeoModel {
         layer_states: Option<Vec<Option<LayerState>>>,
         attention_mask: Option<&Tensor>,
         train: bool,
-    ) -> Result<GptNeoOutput, RustBertError> {
+    ) -> Result<GptNeoModelOutput, RustBertError> {
         let (calc_input_embeddings, input_shape, device) = if let Some(input_ids) = input_ids {
             if input_embeds.is_none() {
                 (
@@ -310,8 +310,9 @@ impl GptNeoModel {
             .apply(&self.layer_norm)
             .view(output_shape.as_slice());
 
-        Ok(GptNeoOutput {
+        Ok(GptNeoModelOutput {
             hidden_states,
+            next_cache: Some(next_cache),
             all_hidden_states,
             all_attentions,
         })
@@ -320,7 +321,6 @@ impl GptNeoModel {
 
 pub struct GptNeoForCausalLM {
     transformer: GptNeoModel,
-    lm_head: nn::Linear,
 }
 
 impl GptNeoForCausalLM {
@@ -332,21 +332,7 @@ impl GptNeoForCausalLM {
 
         let transformer = GptNeoModel::new(p / "transformer", config)?;
 
-        let lm_head_config = nn::LinearConfig {
-            bias: false,
-            ..Default::default()
-        };
-        let lm_head = nn::linear(
-            p / "lm_head",
-            config.hidden_size,
-            config.vocab_size,
-            lm_head_config,
-        );
-
-        Ok(GptNeoForCausalLM {
-            transformer,
-            lm_head,
-        })
+        Ok(GptNeoForCausalLM { transformer })
     }
 
     pub fn forward_t(
@@ -358,7 +344,7 @@ impl GptNeoForCausalLM {
         layer_states: Option<Vec<Option<LayerState>>>,
         attention_mask: Option<&Tensor>,
         train: bool,
-    ) -> Result<GptNeoOutput, RustBertError> {
+    ) -> Result<GptNeoModelLMOutput, RustBertError> {
         let base_model_output = self.transformer.forward_t(
             input_ids,
             input_embeds,
@@ -369,19 +355,37 @@ impl GptNeoForCausalLM {
             train,
         )?;
 
-        let lm_logits = base_model_output.hidden_states.apply(&self.lm_head);
+        let lm_logits = base_model_output
+            .hidden_states
+            .linear::<Tensor>(&self.transformer.word_embeddings.ws, None);
 
-        Ok(GptNeoOutput {
-            hidden_states: lm_logits,
-            ..base_model_output
+        Ok(GptNeoModelLMOutput {
+            lm_logits,
+            next_cache: base_model_output.next_cache,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
         })
     }
 }
 
 /// Container for the GPT-Neo model output.
-pub struct GptNeoOutput {
+pub struct GptNeoModelOutput {
     /// Last hidden states from the model
     pub hidden_states: Tensor,
+    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
+    pub next_cache: Option<Vec<Option<LayerState>>>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
+
+///Container holding a GPT-Neo model with LM head output
+pub struct GptNeoModelLMOutput {
+    /// logits
+    pub lm_logits: Tensor,
+    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
+    pub next_cache: Option<Vec<Option<LayerState>>>,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers

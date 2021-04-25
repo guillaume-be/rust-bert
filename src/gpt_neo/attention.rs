@@ -193,7 +193,7 @@ pub(crate) trait GptNeoAttentionUtils {
                 )));
             }
         };
-        let mut new_shape = input_tensor.size();
+        let mut new_shape = output_tensor.size();
         new_shape.truncate(new_shape.len() - 2);
         new_shape.push(num_heads * attention_head_size);
         Ok(output_tensor.view(new_shape.as_slice()))
@@ -211,7 +211,7 @@ pub(crate) trait GptNeoAttentionUtils {
     ) -> (Tensor, Tensor) {
         let mut attention_weights = query
             .matmul(&key.transpose(-1, -2))
-            .where1(causal_mask, masked_bias);
+            .where1(causal_mask, &masked_bias.to_kind(query.kind()));
 
         if let Some(attention_mask_value) = attention_mask {
             attention_weights = attention_weights + attention_mask_value;
@@ -250,17 +250,14 @@ impl GptNeoSelfAttention {
         let p = p.borrow();
         let max_positions = config.max_position_embeddings;
 
-        let mut bias = p.var(
-            "bias",
-            &[1, 1, max_positions, max_positions],
-            Init::Const(0.),
-        );
-        bias.copy_(
-            &Tensor::ones(&[max_positions, max_positions], (Kind::Int8, p.device()))
-                .tril(0)
-                .view([1, 1, max_positions, max_positions]),
-        );
-        let masked_bias = p.var("masked_bias", &[0], Init::Const(-1e9));
+        let bias_value = Tensor::ones(&[max_positions, max_positions], (Kind::Int8, p.device()))
+            .tril(0)
+            .view([1, 1, max_positions, max_positions])
+            .requires_grad_(false);
+
+        let bias = p.var_copy("bias", &bias_value);
+
+        let masked_bias = p.var("masked_bias", &[1], Init::Const(-1e9));
 
         let attention_dropout = Dropout::new(config.attention_dropout);
         let resid_dropout = Dropout::new(config.resid_dropout);
@@ -291,7 +288,7 @@ impl GptNeoSelfAttention {
             linear_config,
         );
         let out_proj = nn::linear(
-            p / "k_proj",
+            p / "out_proj",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
@@ -346,10 +343,9 @@ impl GptNeoSelfAttention {
 
         let causal_mask = self
             .bias
-            .narrow(0, key_length - query_length, key_length)
-            .slice(1, 0, key_length, 1)
-            .unsqueeze(0)
-            .unsqueeze(0);
+            .narrow(2, key_length - query_length, key_length)
+            .slice(3, 0, key_length, 1)
+            .to_kind(Kind::Bool);
 
         let (attention_output, attention_weights) = Self::attend(
             &query,
@@ -400,7 +396,7 @@ impl GptNeoLocalSelfAttention {
     {
         let p = p.borrow();
 
-        let masked_bias = p.var("masked_bias", &[0], Init::Const(-1e9));
+        let masked_bias = p.var("masked_bias", &[1], Init::Const(-1e9));
 
         let attention_dropout = Dropout::new(config.attention_dropout);
         let resid_dropout = Dropout::new(config.resid_dropout);
@@ -431,7 +427,7 @@ impl GptNeoLocalSelfAttention {
             linear_config,
         );
         let out_proj = nn::linear(
-            p / "k_proj",
+            p / "out_proj",
             config.hidden_size,
             config.hidden_size,
             Default::default(),
@@ -553,15 +549,17 @@ impl GptNeoAttention {
     where
         P: Borrow<nn::Path<'p>>,
     {
+        let p = p.borrow();
+
         let attention_type = &config.attention_layers[layer_id];
 
         Ok(match attention_type {
             AttentionLayerType::Global => {
-                GptNeoAttention::SelfAttention(GptNeoSelfAttention::new(p, config))
+                GptNeoAttention::SelfAttention(GptNeoSelfAttention::new(p / "attention", config))
             }
-            AttentionLayerType::Local => {
-                GptNeoAttention::LocalSelfAttention(GptNeoLocalSelfAttention::new(p, config))
-            }
+            AttentionLayerType::Local => GptNeoAttention::LocalSelfAttention(
+                GptNeoLocalSelfAttention::new(p / "attention", config),
+            ),
         })
     }
 
