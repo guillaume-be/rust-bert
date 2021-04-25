@@ -318,6 +318,66 @@ impl GptNeoModel {
     }
 }
 
+pub struct GptNeoForCausalLM {
+    transformer: GptNeoModel,
+    lm_head: nn::Linear,
+}
+
+impl GptNeoForCausalLM {
+    pub fn new<'p, P>(p: P, config: &GptNeoConfig) -> Result<GptNeoForCausalLM, RustBertError>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let transformer = GptNeoModel::new(p / "transformer", config)?;
+
+        let lm_head_config = nn::LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+        let lm_head = nn::linear(
+            p / "lm_head",
+            config.hidden_size,
+            config.vocab_size,
+            lm_head_config,
+        );
+
+        Ok(GptNeoForCausalLM {
+            transformer,
+            lm_head,
+        })
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        layer_states: Option<Vec<Option<LayerState>>>,
+        attention_mask: Option<&Tensor>,
+        train: bool,
+    ) -> Result<GptNeoOutput, RustBertError> {
+        let base_model_output = self.transformer.forward_t(
+            input_ids,
+            input_embeds,
+            token_type_ids,
+            position_ids,
+            layer_states,
+            attention_mask,
+            train,
+        )?;
+
+        let lm_logits = base_model_output.hidden_states.apply(&self.lm_head);
+
+        Ok(GptNeoOutput {
+            hidden_states: lm_logits,
+            ..base_model_output
+        })
+    }
+}
+
 /// Container for the GPT-Neo model output.
 pub struct GptNeoOutput {
     /// Last hidden states from the model
