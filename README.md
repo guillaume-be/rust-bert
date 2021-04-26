@@ -251,7 +251,7 @@ Output:
 ]
 ```
 
-#### 8. Part of Speech tagging
+#### 9. Part of Speech tagging
 Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 ```rust
     let ner_model = NERModel::new(default::default())?;
