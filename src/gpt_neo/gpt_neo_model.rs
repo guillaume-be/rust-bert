@@ -14,7 +14,16 @@ use crate::common::dropout::Dropout;
 use crate::gpt_neo::attention::{GptNeoAttention, GptNeoAttentionUtils};
 use crate::gpt_neo::decoder::GptNeoBlock;
 use crate::gpt_neo::LayerState;
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::{
+    PreparedInput, PrivateLanguageGenerator,
+};
+use crate::pipelines::generation_utils::{
+    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
+};
 use crate::{Activation, Config, RustBertError};
+use rust_tokenizers::tokenizer::Gpt2Tokenizer;
+use rust_tokenizers::vocab::Gpt2Vocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Kind, Tensor};
@@ -368,6 +377,52 @@ impl GptNeoForCausalLM {
     }
 }
 
+impl LMHeadModel for GptNeoForCausalLM {
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        layer_past: Cache,
+        attention_mask: &Option<Tensor>,
+        token_type_ids: &Option<Tensor>,
+        position_ids: &Option<Tensor>,
+        input_embeds: &Option<Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        _decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match layer_past {
+            Cache::GPTNeoCache(layer_past) => self.forward_t(
+                input_ids.as_ref(),
+                input_embeds.as_ref(),
+                token_type_ids.as_ref(),
+                position_ids.as_ref(),
+                layer_past,
+                attention_mask.as_ref(),
+                train,
+            ),
+            Cache::None => self.forward_t(
+                input_ids.as_ref(),
+                input_embeds.as_ref(),
+                token_type_ids.as_ref(),
+                position_ids.as_ref(),
+                None,
+                attention_mask.as_ref(),
+                train,
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with GPT-Neo Model".into(),
+                ));
+            }
+        }?;
+
+        Ok(LMModelOutput {
+            lm_logits: base_model_output.lm_logits,
+            cache: Cache::GPTNeoCache(base_model_output.next_cache),
+        })
+    }
+}
+
 /// Container for the GPT-Neo model output.
 pub struct GptNeoModelOutput {
     /// Last hidden states from the model
@@ -391,3 +446,190 @@ pub struct GptNeoModelLMOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }
+
+/// # Language generation model based on the GPT-Neo architecture
+pub struct GptNeoGenerator {
+    model: GptNeoForCausalLM,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+}
+
+impl GptNeoGenerator {
+    /// Build a new `GPTNeoGenerator`
+    ///
+    /// # Arguments
+    ///
+    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::gpt_neo::GPTNeoGenerator;
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    ///
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let gpt2_generator = GPTNeoGenerator::new(generate_config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(generate_config: GenerateConfig) -> Result<GptNeoGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::GPTNeo,
+            vocab_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
+            false,
+            None,
+            None,
+        )?;
+        let config = GptNeoConfig::from_file(config_path);
+        let model = GptNeoForCausalLM::new(&var_store.root(), &config)?;
+        var_store.load(weights_path)?;
+
+        let bos_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::bos_value()])[0]);
+        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()]));
+        let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()])[0]);
+        let is_encoder_decoder = false;
+        let vocab_size = config.vocab_size;
+        let decoder_start_id = None;
+
+        Ok(GptNeoGenerator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<GptNeoForCausalLM, Gpt2Vocab, Gpt2Tokenizer> for GptNeoGenerator {
+    fn get_model(&self) -> &GptNeoForCausalLM {
+        &self.model
+    }
+    fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        _encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        attention_mask: Tensor,
+    ) -> PreparedInput<'a> {
+        let position_ids = (attention_mask.totype(Kind::Int64).cumsum(-1, Kind::Int64) - 1)
+            .masked_fill(&attention_mask.eq(0), 1);
+
+        match past {
+            Cache::GPTNeoCache(past) => {
+                if past.is_some() {
+                    PreparedInput {
+                        prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
+                        prepared_attention_mask: Some(attention_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: None,
+                        prepared_position_ids: Some(position_ids.select(1, -1).unsqueeze(-1)),
+                        prepared_past: Cache::GPTNeoCache(past),
+                    }
+                } else {
+                    PreparedInput {
+                        prepared_input: Some(input_ids),
+                        prepared_attention_mask: Some(attention_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: None,
+                        prepared_position_ids: Some(position_ids),
+                        prepared_past: Cache::GPTNeoCache(None),
+                    }
+                }
+            }
+            Cache::None => PreparedInput {
+                prepared_input: Some(input_ids),
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: None,
+                prepared_decoder_input: None,
+                prepared_position_ids: Some(position_ids),
+                prepared_past: Cache::GPTNeoCache(None),
+            },
+            _ => panic!("Cache type incompatible with GPT-Neo"),
+        }
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        _encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::GPTNeoCache(cached_decoder_state) => match cached_decoder_state {
+                Some(old_cache) => {
+                    for layer_state in old_cache.iter_mut() {
+                        if layer_state.is_some() {
+                            layer_state.as_mut().unwrap().reorder_cache(beam_indices)
+                        };
+                    }
+                    None
+                }
+                None => None,
+            },
+            Cache::None => None,
+            _ => {
+                panic!("Invalid cache for GPT-Neo model");
+            }
+        }
+    }
+}
+
+impl LanguageGenerator<GptNeoForCausalLM, Gpt2Vocab, Gpt2Tokenizer> for GptNeoGenerator {}

@@ -75,6 +75,7 @@ use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
+use crate::gpt_neo::LayerState as GPTNeoLayerState;
 use crate::pipelines::generation_utils::private_generation_utils::{
     GenerateOptions, PrivateLanguageGenerator,
 };
@@ -220,6 +221,7 @@ pub enum Cache {
     XLNetCache(Option<Vec<Option<XLNetLayerState>>>),
     ReformerCache(Option<Vec<Option<ReformerLayerState>>>),
     ProphetNetCache(Option<Vec<(Option<ProphetNetLayerState>, Option<ProphetNetLayerState>)>>),
+    GPTNeoCache(Option<Vec<Option<GPTNeoLayerState>>>),
     None,
 }
 
