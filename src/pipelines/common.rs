@@ -23,6 +23,7 @@ use crate::common::error::RustBertError;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::gpt2::Gpt2Config;
+use crate::gpt_neo::GptNeoConfig;
 use crate::longformer::LongformerConfig;
 use crate::mobilebert::MobileBertConfig;
 use crate::pegasus::PegasusConfig;
@@ -65,6 +66,7 @@ pub enum ModelType {
     ProphetNet,
     Longformer,
     Pegasus,
+    GPTNeo,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -97,6 +99,8 @@ pub enum ConfigOption {
     Longformer(LongformerConfig),
     /// Pegasus configuration
     Pegasus(PegasusConfig),
+    /// GPT-Neo configuration
+    GPTNeo(GptNeoConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -142,7 +146,7 @@ impl ConfigOption {
             ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
             ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
             ModelType::XLNet => ConfigOption::XLNet(XLNetConfig::from_file(path)),
-            ModelType::GPT2 => ConfigOption::GPT2(Gpt2Config::from_file(path)),
+            ModelType::GPT2 | ModelType::GPTNeo => ConfigOption::GPT2(Gpt2Config::from_file(path)),
             ModelType::OpenAiGpt => ConfigOption::GPT2(Gpt2Config::from_file(path)),
             ModelType::Reformer => ConfigOption::Reformer(ReformerConfig::from_file(path)),
             ModelType::ProphetNet => ConfigOption::ProphetNet(ProphetNetConfig::from_file(path)),
@@ -188,6 +192,7 @@ impl ConfigOption {
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
             Self::GPT2(_) => panic!("GPT2 does not use a label mapping"),
+            Self::GPTNeo(_) => panic!("GPT-Neo does not use a label mapping"),
             Self::Pegasus(_) => panic!("Pegasus does not use a label mapping"),
         }
     }
@@ -332,7 +337,7 @@ impl TokenizerOption {
                 }
                 TokenizerOption::Reformer(ReformerTokenizer::from_file(vocab_path, lower_case)?)
             }
-            ModelType::GPT2 => TokenizerOption::GPT2(Gpt2Tokenizer::from_file(
+            ModelType::GPT2 | ModelType::GPTNeo => TokenizerOption::GPT2(Gpt2Tokenizer::from_file(
                 vocab_path,
                 merges_path.expect("No merges specified!"),
                 lower_case,
