@@ -143,7 +143,8 @@ pub(crate) trait GptNeoAttentionUtils {
             None
         };
 
-        let attention_mask = attention_mask.unwrap_or(calc_attention_mask.as_ref().unwrap());
+        let attention_mask =
+            attention_mask.unwrap_or_else(|| calc_attention_mask.as_ref().unwrap());
         let attention_mask =
             Self::look_back(&attention_mask, block_length, window_size, None, false)?.unsqueeze(-2);
         let causal_mask = causal_mask * attention_mask;
@@ -220,7 +221,6 @@ pub(crate) trait GptNeoAttentionUtils {
         attention_weights = attention_weights
             .softmax(-1, Kind::Float)
             .apply_t(attention_dropout, train);
-
         let attention_output = attention_weights.matmul(value);
         (attention_output, attention_weights)
     }
@@ -328,7 +328,10 @@ impl GptNeoSelfAttention {
 
         if let Some(layer_state_value) = &layer_state {
             key = Tensor::cat(&[&layer_state_value.prev_key, &key], -2);
-            value = Tensor::cat(&[layer_state_value.prev_value.as_ref().unwrap(), &key], -2);
+            value = Tensor::cat(
+                &[layer_state_value.prev_value.as_ref().unwrap(), &value],
+                -2,
+            );
         };
 
         let layer_state = Some(LayerState {
@@ -343,7 +346,7 @@ impl GptNeoSelfAttention {
 
         let causal_mask = self
             .bias
-            .narrow(2, key_length - query_length, key_length)
+            .slice(2, key_length - query_length, key_length, 1)
             .slice(3, 0, key_length, 1)
             .to_kind(Kind::Bool);
 
@@ -497,8 +500,8 @@ impl GptNeoLocalSelfAttention {
         let mut value = Self::look_back(&value, block_length, self.window_size, None, true)?;
 
         if layer_state.is_some() {
-            key = key.select(1, -1);
-            value = value.select(1, -1);
+            key = key.narrow(1, -1, 1);
+            value = value.narrow(1, -1, 1);
         }
 
         let query = Self::split_heads(&query, self.num_heads, self.head_dim)?;
@@ -506,7 +509,7 @@ impl GptNeoLocalSelfAttention {
         let value = Self::split_heads(&value, self.num_heads, self.head_dim)?;
 
         let calc_attention_mask = if layer_state.is_some() {
-            Some(attention_mask.select(3, -1).select(1, -1))
+            Some(attention_mask.narrow(3, -1, 1).narrow(1, -1, 1))
         } else {
             None
         };
