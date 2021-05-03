@@ -108,6 +108,12 @@ pub struct GptNeoConfig {
 
 impl Config<GptNeoConfig> for GptNeoConfig {}
 
+/// # GPT-Neo Base model
+/// Base architecture for GPT-Neo models. Task-specific models will be built from this common base model
+/// It is made of the following blocks:
+/// - `word_embeddings`: Word embeddings
+/// - `position_embeddings`: Position embeddings
+/// - `layers`: Vector of `GptNeoBlock` (transformer part of the model)
 pub struct GptNeoModel {
     word_embeddings: nn::Embedding,
     position_embeddings: nn::Embedding,
@@ -122,6 +128,27 @@ pub struct GptNeoModel {
 impl GptNeoAttentionUtils for GptNeoModel {}
 
 impl GptNeoModel {
+    /// Build a new `GptNeoModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the GPT-Neo model
+    /// * `config` - `GptNeoConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::gpt_neo::{GptNeoConfig, GptNeoModel};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = GptNeoConfig::from_file(config_path);
+    /// let gpt_neo_model = GptNeoModel::new(&p.root(), &config).unwrap();
+    /// ```
     pub fn new<'p, P>(p: P, config: &GptNeoConfig) -> Result<GptNeoModel, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
@@ -178,6 +205,56 @@ impl GptNeoModel {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
+    /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `layer_states` - Optional Vector `Option<Vec<Option<&LayerState>>>` of length *n_layer* containing tuples with the past keys and values for both the self attention of each layer.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<GptNeoModelOutput, RustBertError>` containing:
+    ///   - `hidden_states` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*) representing the activations of the last hidden state
+    ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past content for the the attention layers
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layer + 1* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layer* containign the attention weights for each layer
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::gpt_neo::{GptNeoConfig, GptNeoModel};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = GptNeoConfig::from_file(config_path);
+    /// # let gpt_neo_model = GptNeoModel::new(&vs.root(), &config).unwrap();
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     gpt_neo_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     )
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -328,11 +405,36 @@ impl GptNeoModel {
     }
 }
 
+/// # GPT-Neo Model for causal language modeling
+/// Gpt-Neo model with a vocabulary decoding head. The language model decoding head is tied to the word embedding matrix weights
+/// It is made of the following blocks:
+/// - `transformer`: `GptNeoModel` Base ProphetNet model
 pub struct GptNeoForCausalLM {
     transformer: GptNeoModel,
 }
 
 impl GptNeoForCausalLM {
+    /// Build a new `GptNeoForCausalLM`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the GPT-Neo model
+    /// * `config` - `GptNeoConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    /// use rust_bert::gpt_neo::{GptNeoConfig, GptNeoForCausalLM};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = GptNeoConfig::from_file(config_path);
+    /// let gpt_neo_model = GptNeoForCausalLM::new(&p.root(), &config).unwrap();
+    /// ```
     pub fn new<'p, P>(p: P, config: &GptNeoConfig) -> Result<GptNeoForCausalLM, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
@@ -344,6 +446,56 @@ impl GptNeoForCausalLM {
         Ok(GptNeoForCausalLM { transformer })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
+    /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `layer_states` - Optional Vector `Option<Vec<Option<&LayerState>>>` of length *n_layer* containing tuples with the past keys and values for both the self attention of each layer.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<GptNeoModelLMOutput, RustBertError>` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past content for the the attention layers
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layer + 1* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layer* containign the attention weights for each layer
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::gpt_neo::{GptNeoConfig, GptNeoForCausalLM};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = GptNeoConfig::from_file(config_path);
+    /// # let gpt_neo_model = GptNeoForCausalLM::new(&vs.root(), &config).unwrap();
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     gpt_neo_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false
+    ///     )
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,

@@ -19,7 +19,7 @@ use tch::nn::Init;
 use tch::{nn, Device, Kind, Tensor};
 
 #[derive(Debug)]
-/// # Cache for GPTNeo attention layers
+/// # Cache for GPT-Neo attention layers
 /// Stores the cached value of key and value
 pub struct LayerState {
     /// Cached keys
