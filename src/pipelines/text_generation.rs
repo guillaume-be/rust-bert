@@ -15,8 +15,15 @@
 //! Text generation pipeline from a prompt text.
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //! By default, the dependencies for this model will be downloaded for a GPT2-medium model.
+//! Available architectures for text generation include:
+//! - OpenAI GPT
+//! - OpenAI GPT2
+//! - GPT-Neo
+//! - XLNet
+//! - Reformer
+//!
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
-//! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/gpt2
+//! The dependencies will be downloaded to the user's home directory, e.g. under ~/.cache/.rustbert/gpt2
 use tch::{Device, Tensor};
 
 use crate::common::error::RustBertError;
