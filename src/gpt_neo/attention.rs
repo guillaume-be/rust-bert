@@ -581,9 +581,11 @@ impl GptNeoAttention {
                 let output = attention.forward_t(
                     hidden_states,
                     layer_state,
-                    attention_mask.ok_or(RustBertError::ValueError(
-                        "Attention mask must be provided for Local self attention".to_string(),
-                    ))?,
+                    attention_mask.ok_or_else(|| {
+                        RustBertError::ValueError(
+                            "Attention mask must be provided for Local self attention".to_string(),
+                        )
+                    })?,
                     train,
                 )?;
                 let new_layer_state = if let Some(old_layer_state) = layer_state {

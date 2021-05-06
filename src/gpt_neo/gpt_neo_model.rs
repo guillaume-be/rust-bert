@@ -382,7 +382,7 @@ impl GptNeoModel {
         };
         hidden_state = hidden_state.apply_t(&self.dropout, train);
 
-        let mut output_shape = input_shape.clone();
+        let mut output_shape = input_shape;
         output_shape.push(*hidden_state.size().last().unwrap());
 
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {

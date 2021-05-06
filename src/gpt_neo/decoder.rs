@@ -92,11 +92,7 @@ impl GptNeoBlock {
             ..Default::default()
         };
 
-        let ln_1 = nn::layer_norm(
-            p / "ln_1",
-            vec![config.hidden_size],
-            layer_norm_config.clone(),
-        );
+        let ln_1 = nn::layer_norm(p / "ln_1", vec![config.hidden_size], layer_norm_config);
         let ln_2 = nn::layer_norm(p / "ln_2", vec![config.hidden_size], layer_norm_config);
         let attention = GptNeoAttention::new(p / "attn", config, layer_id)?;
 
