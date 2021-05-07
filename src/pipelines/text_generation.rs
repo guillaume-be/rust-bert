@@ -15,8 +15,15 @@
 //! Text generation pipeline from a prompt text.
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //! By default, the dependencies for this model will be downloaded for a GPT2-medium model.
+//! Available architectures for text generation include:
+//! - OpenAI GPT
+//! - OpenAI GPT2
+//! - GPT-Neo
+//! - XLNet
+//! - Reformer
+//!
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
-//! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/gpt2
+//! The dependencies will be downloaded to the user's home directory, e.g. under ~/.cache/.rustbert/gpt2
 use tch::{Device, Tensor};
 
 use crate::common::error::RustBertError;
@@ -24,6 +31,7 @@ use crate::common::resources::RemoteResource;
 use crate::gpt2::{
     GPT2Generator, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
+use crate::gpt_neo::GptNeoGenerator;
 use crate::openai_gpt::OpenAIGenerator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
@@ -174,6 +182,8 @@ pub enum TextGenerationOption {
     GPT2(GPT2Generator),
     /// Text Generator based on GPT model
     GPT(OpenAIGenerator),
+    /// Text Generator based on GPT-Neo model
+    GPTNeo(GptNeoGenerator),
     /// Text Generator based on XLNet model
     XLNet(XLNetGenerator),
     /// Text Generator based on Reformer model
@@ -195,6 +205,9 @@ impl TextGenerationOption {
             ModelType::Reformer => Ok(TextGenerationOption::Reformer(ReformerGenerator::new(
                 config.into(),
             )?)),
+            ModelType::GPTNeo => Ok(TextGenerationOption::GPTNeo(GptNeoGenerator::new(
+                config.into(),
+            )?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Text generation not implemented for {:?}!",
                 config.model_type
@@ -205,8 +218,9 @@ impl TextGenerationOption {
     /// Returns the `ModelType` for this TextGenerationOption
     pub fn model_type(&self) -> ModelType {
         match *self {
-            Self::GPT2(_) => ModelType::GPT2,
             Self::GPT(_) => ModelType::OpenAiGpt,
+            Self::GPT2(_) => ModelType::GPT2,
+            Self::GPTNeo(_) => ModelType::GPTNeo,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
         }
@@ -215,8 +229,9 @@ impl TextGenerationOption {
     /// Interface method to access tokenizer
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
-            Self::GPT2(model_ref) => model_ref.get_tokenizer(),
             Self::GPT(model_ref) => model_ref.get_tokenizer(),
+            Self::GPT2(model_ref) => model_ref.get_tokenizer(),
+            Self::GPTNeo(model_ref) => model_ref.get_tokenizer(),
             Self::XLNet(model_ref) => model_ref.get_tokenizer(),
             Self::Reformer(model_ref) => model_ref.get_tokenizer(),
         }
@@ -234,10 +249,13 @@ impl TextGenerationOption {
         S: AsRef<[&'a str]>,
     {
         match *self {
+            Self::GPT(ref model) => {
+                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
+            }
             Self::GPT2(ref model) => {
                 model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
             }
-            Self::GPT(ref model) => {
+            Self::GPTNeo(ref model) => {
                 model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
             }
             Self::XLNet(ref model) => {

@@ -95,6 +95,7 @@ jobs:
             --test xlnet
             --test longformer
             --test pegasus
+            --test gpt_neo
 
   convert-model:
     name: Model conversion test

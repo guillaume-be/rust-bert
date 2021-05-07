@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file. The format 
 - Addition of a lightweight English Part of Speech tagging pretrained MobileBERT model
 - Addition of the Pegasus language model and support for conditional generation
 - Addition of a model for Pegasus summarization pretrained on the CNN-DM dataset
+- Addition of the GPT-Neo language model and pretrained snapshots (125M, 1.3B and 2.7B parameters). Registration of GPT-Neo as an option for `TextGenerationPipeline`.
 
 ### Changed
 - (BREAKING) Changed `classif_dropout` in `BartConfig` to be an optional field. This affects dependencies instantiating `BartConfig` from scratch, or using `classif_config` for custom model heads.
