@@ -1294,10 +1294,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         };
         let pad_token_id = match self.get_pad_id() {
             Some(value) => Some(*value),
-            None => match &eos_token_ids {
-                Some(eos_ids) => Some(eos_ids[0]),
-                None => None,
-            },
+            None => eos_token_ids.as_ref().map(|eos_ids| eos_ids[0]),
         };
 
         let input_ids = match prompt_texts {
@@ -1348,10 +1345,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
 
         let pad_token_id = match self.get_pad_id() {
             Some(value) => Some(*value),
-            None => match &eos_token_ids {
-                Some(eos_ids) => Some(eos_ids[0]),
-                None => None,
-            },
+            None => eos_token_ids.as_ref().map(|eos_ids| eos_ids[0]),
         };
 
         let input_ids_len = *input_ids.size().last().unwrap();

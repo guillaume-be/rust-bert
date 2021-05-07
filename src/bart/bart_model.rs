@@ -377,8 +377,8 @@ impl BartModel {
         BartModel {
             encoder,
             decoder,
-            pad_token_id,
             embeddings,
+            pad_token_id,
         }
     }
 
@@ -1231,10 +1231,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         encoder_outputs: Option<Tensor>,
         beam_indices: &Tensor,
     ) -> Option<Tensor> {
-        let encoder_outputs = match encoder_outputs {
-            Some(value) => Some(value.index_select(0, beam_indices)),
-            None => None,
-        };
+        let encoder_outputs = encoder_outputs.map(|value| value.index_select(0, beam_indices));
         match past {
             Cache::BARTCache(old_cache_option) => match old_cache_option {
                 Some(old_cache) => {

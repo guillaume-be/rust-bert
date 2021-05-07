@@ -117,10 +117,7 @@ impl XLNetLayer {
             train,
         );
         let output_h = self.ff.forward_t(&output_h, train);
-        let output_g = match output_g {
-            Some(value) => Some(self.ff.forward_t(&value, train)),
-            None => None,
-        };
+        let output_g = output_g.map(|value| self.ff.forward_t(&value, train));
         (output_h, output_g, attention_probas_h, attention_probas_g)
     }
 }

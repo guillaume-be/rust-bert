@@ -423,17 +423,14 @@ impl Gpt2Model {
             .unsqueeze(0),
         };
 
-        let attention_mask: Option<Tensor> = match attention_mask {
-            Some(value) => Some(
-                (value
-                    .view((input_embeddings.size()[0], -1))
-                    .unsqueeze(1)
-                    .unsqueeze(2)
-                    - 1.0)
-                    * 10000.0,
-            ),
-            None => None,
-        };
+        let attention_mask: Option<Tensor> = attention_mask.as_ref().map(|value| {
+            (value
+                .view((input_embeddings.size()[0], -1))
+                .unsqueeze(1)
+                .unsqueeze(2)
+                - 1.0)
+                * 10000.0
+        });
 
         let position_embeds = position_ids.apply(&self.wpe);
         let token_type_embeds = match token_type_ids {

@@ -45,11 +45,11 @@ pub struct SummaryConfig {
 
 impl From<&XLNetConfig> for SummaryConfig {
     fn from(config: &XLNetConfig) -> Self {
-        let num_labels = if let Some(id2label) = &config.id2label {
-            Some(id2label.len() as i64)
-        } else {
-            None
-        };
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .map(|id2label| id2label.len() as i64);
+
         SummaryConfig {
             summary_type: config.summary_type,
             summary_use_proj: config.summary_use_proj,

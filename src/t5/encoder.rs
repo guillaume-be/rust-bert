@@ -169,10 +169,9 @@ impl T5Block {
             cross_attention_position_bias,
             cross_attention_layer_past,
         ) = if self.cross_attention.is_some() & encoder_hidden_states.is_some() {
-            let query_length = match &self_attention_layer_past {
-                Some(value) => Some(value.prev_key.size()[2]),
-                None => None,
-            };
+            let query_length = self_attention_layer_past
+                .as_ref()
+                .map(|value| value.prev_key.size()[2]);
             self.cross_attention.as_ref().unwrap().forward_t(
                 &hidden_states,
                 encoder_hidden_states,

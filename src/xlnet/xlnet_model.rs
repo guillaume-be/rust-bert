@@ -309,10 +309,7 @@ impl XLNetModel {
                 }
                 _ => {}
             }
-            let bsz = match batch_size {
-                Some(value) => Some(value / 2),
-                None => None,
-            };
+            let bsz = batch_size.map(|value| value / 2);
 
             let forward_positions_embeddings =
                 self.positional_embedding(&forward_positions_sequence, &inverse_frequency, bsz);
@@ -424,22 +421,13 @@ impl XLNetModel {
             },
         };
 
-        let token_type_ids = match token_type_ids {
-            Some(token_type_ids) => Some(token_type_ids.transpose(0, 1).contiguous()),
-            None => None,
-        };
-        let attention_mask = match attention_mask {
-            Some(attention_mask) => Some(attention_mask.transpose(0, 1).contiguous()),
-            None => None,
-        };
-        let perm_mask = match perm_mask {
-            Some(perm_mask) => Some(perm_mask.permute(&[1, 2, 0]).contiguous()),
-            None => None,
-        };
-        let target_mapping = match target_mapping {
-            Some(target_mapping) => Some(target_mapping.permute(&[1, 2, 0]).contiguous()),
-            None => None,
-        };
+        let token_type_ids =
+            token_type_ids.map(|token_type_ids| token_type_ids.transpose(0, 1).contiguous());
+        let attention_mask =
+            attention_mask.map(|attention_mask| attention_mask.transpose(0, 1).contiguous());
+        let perm_mask = perm_mask.map(|perm_mask| perm_mask.permute(&[1, 2, 0]).contiguous());
+        let target_mapping =
+            target_mapping.map(|target_mapping| target_mapping.permute(&[1, 2, 0]).contiguous());
 
         let m_len = if let Some(mems) = &old_layer_states {
             if let Some(mem_0) = &mems[0] {
@@ -462,11 +450,7 @@ impl XLNetModel {
             AttentionType::bi => None,
         };
 
-        let input_mask: Option<Tensor> = if let Some(attention_mask) = attention_mask {
-            Some(1.0 - attention_mask)
-        } else {
-            None
-        };
+        let input_mask: Option<Tensor> = attention_mask.map(|attention_mask| 1.0 - attention_mask);
 
         let mut data_mask: Option<Tensor> = match (input_mask, perm_mask) {
             (Some(input_mask_value), Some(perm_mask_value)) => {
@@ -509,16 +493,12 @@ impl XLNetModel {
         };
 
         let mut output_h = word_emb_k.apply_t(&self.dropout, train);
-        let mut output_g = if let Some(target_mapping_value) = &target_mapping {
-            Some(
-                (&self
-                    .mask_emb
-                    .expand(&[target_mapping_value.size()[0], batch_size, -1], true))
-                    .apply_t(&self.dropout, train),
-            )
-        } else {
-            None
-        };
+        let mut output_g = target_mapping.as_ref().map(|target_mapping_value| {
+            (&self
+                .mask_emb
+                .expand(&[target_mapping_value.size()[0], batch_size, -1], true))
+                .apply_t(&self.dropout, train)
+        });
 
         let seg_mat = if let Some(token_type_ids_value) = token_type_ids {
             let cat_ids = if m_len > 0 {
@@ -591,11 +571,7 @@ impl XLNetModel {
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
                 hidden_states.push((
                     output_h.copy(),
-                    if let Some(output) = &output_g {
-                        Some(output.copy())
-                    } else {
-                        None
-                    },
+                    output_g.as_ref().map(|output| output.copy()),
                 ));
             };
             if let Some(attentions) = all_attentions.borrow_mut() {
