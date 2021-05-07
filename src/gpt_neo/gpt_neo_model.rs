@@ -664,7 +664,7 @@ impl GptNeoGenerator {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::gpt_neo::GPTNeoGenerator;
+    /// use rust_bert::gpt_neo::GptNeoGenerator;
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     ///
     /// let generate_config = GenerateConfig {
@@ -675,7 +675,7 @@ impl GptNeoGenerator {
     ///     num_return_sequences: 3,
     ///     ..Default::default()
     /// };
-    /// let gpt2_generator = GPTNeoGenerator::new(generate_config)?;
+    /// let gpt_neo_generator = GptNeoGenerator::new(generate_config)?;
     /// # Ok(())
     /// # }
     /// ```

@@ -815,14 +815,18 @@ impl TokenClassificationModel {
                     let sentence = (sub_tokens[0]).sentence;
                     let index = (sub_tokens[0]).index;
                     let word_index = (sub_tokens[0]).word_index;
-                    let offset_start = match &sub_tokens.first().unwrap().offset {
-                        Some(offset) => Some(offset.begin),
-                        None => None,
-                    };
-                    let offset_end = match &sub_tokens.last().unwrap().offset {
-                        Some(offset) => Some(offset.end),
-                        None => None,
-                    };
+                    let offset_start = sub_tokens
+                        .first()
+                        .unwrap()
+                        .offset
+                        .as_ref()
+                        .map(|offset| offset.begin);
+                    let offset_end = sub_tokens
+                        .last()
+                        .unwrap()
+                        .offset
+                        .as_ref()
+                        .map(|offset| offset.end);
                     let offset = if let (Some(offset_start), Some(offset_end)) =
                         (offset_start, offset_end)
                     {

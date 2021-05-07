@@ -138,7 +138,7 @@ impl RemoteResource {
     pub fn from_pretrained(name_url_tuple: (&str, &str)) -> RemoteResource {
         let cache_subdir = name_url_tuple.0.to_string();
         let url = name_url_tuple.1.to_string();
-        RemoteResource { cache_subdir, url }
+        RemoteResource { url, cache_subdir }
     }
 }
 

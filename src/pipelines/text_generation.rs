@@ -319,11 +319,9 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         let min_length = generation_config.min_length;
         let max_length = generation_config.max_length;
         let model = TextGenerationOption::new(generation_config)?;
-        let prefix_length = if let Some(prefix) = &prefix {
-            Some(model.get_tokenizer().tokenize(prefix).len() as i64)
-        } else {
-            None
-        };
+        let prefix_length = prefix
+            .as_ref()
+            .map(|prefix| model.get_tokenizer().tokenize(prefix).len() as i64);
 
         Ok(TextGenerationModel {
             model,
