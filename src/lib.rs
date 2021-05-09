@@ -40,6 +40,7 @@
 //! RoBERTa|✅|✅|✅| | | |✅|
 //! GPT| | | |✅ | | | |
 //! GPT2| | | |✅ | | | |
+//! GPT-Neo| | | |✅ | | | |
 //! BART|✅| | |✅ |✅| | |
 //! Marian| | | |  | |✅| |
 //! Electra | |✅| | | | |✅|
@@ -73,6 +74,7 @@ mod common;
 pub mod distilbert;
 pub mod electra;
 pub mod gpt2;
+pub mod gpt_neo;
 pub mod longformer;
 pub mod marian;
 pub mod mobilebert;

@@ -37,11 +37,10 @@ pub struct LayerState {
 
 impl Clone for LayerState {
     fn clone(&self) -> Self {
-        let prev_buckets = if let Some(prev_buckets) = &self.prev_buckets {
-            Some(prev_buckets.copy())
-        } else {
-            None
-        };
+        let prev_buckets = self
+            .prev_buckets
+            .as_ref()
+            .map(|prev_buckets| prev_buckets.copy());
         LayerState {
             prev_buckets,
             prev_states: self.prev_states.copy(),
@@ -866,11 +865,9 @@ impl LSHSelfAttention {
             None
         };
 
-        buckets = if let Some(buckets_value) = buckets {
-            Some(buckets_value.view([batch_size, self.num_attention_heads, num_hashes, -1]))
-        } else {
-            None
-        };
+        buckets = buckets.map(|buckets_value| {
+            buckets_value.view([batch_size, self.num_attention_heads, num_hashes, -1])
+        });
 
         Ok((out_vectors, attention_probs, buckets))
     }

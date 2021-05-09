@@ -502,10 +502,7 @@ impl TranslationConfig {
         let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
             translation_resource.merges_resource,
         ));
-        let prefix = match translation_resource.prefix {
-            Some(value) => Some(value.to_string()),
-            None => None,
-        };
+        let prefix = translation_resource.prefix.map(|value| value.to_string());
         TranslationConfig {
             model_resource,
             config_resource,

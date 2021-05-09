@@ -18,6 +18,7 @@ BERT|✅|✅|✅| | | |✅|
 RoBERTa|✅|✅|✅| | | |✅| 
 GPT| | | |✅ | | | | 
 GPT2| | | |✅ | | | | 
+GPT-Neo| | | |✅ | | | | 
 BART|✅| | |✅ |✅| | | 
 Marian| | | |  | |✅| | 
 Electra | |✅| | | | |✅| 
@@ -251,14 +252,14 @@ Output:
 ]
 ```
 
-#### 8. Part of Speech tagging
+#### 9. Part of Speech tagging
 Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 ```rust
-    let ner_model = NERModel::new(default::default())?;
+    let pos_model = POSModel::new(default::default())?;
 
     let input = ["My name is Bob];
     
-    let output = ner_model.predict(&input);
+    let output = pos_model.predict(&input);
 ```
 Output:
 ```

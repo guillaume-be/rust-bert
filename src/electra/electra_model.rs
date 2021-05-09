@@ -449,8 +449,8 @@ impl ElectraGeneratorHead {
         let activation = Activation::gelu.get_function();
 
         ElectraGeneratorHead {
-            layer_norm,
             dense,
+            layer_norm,
             activation,
         }
     }

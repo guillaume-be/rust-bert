@@ -279,11 +279,10 @@ impl ProphetNetDecoder {
         let (batch_size, sequence_length) = (input_size[0], input_size[1]);
 
         let prev_num_input_ids = if let Some(old_layer_states_vec) = &old_layer_states {
-            if let Some(layer_states) = &old_layer_states_vec[0].0 {
-                Some(layer_states.prev_key.size()[2])
-            } else {
-                None
-            }
+            old_layer_states_vec[0]
+                .0
+                .as_ref()
+                .map(|layer_states| layer_states.prev_key.size()[2])
         } else {
             None
         };
@@ -340,19 +339,14 @@ impl ProphetNetDecoder {
             };
 
         let extended_encoder_attention_mask =
-            if let Some(encoder_attention_mask_value) = encoder_attention_mask {
-                Some(
-                    (encoder_attention_mask_value.ones_like()
-                        - encoder_attention_mask_value.unsqueeze(1).repeat(&[
-                            self.num_attention_heads,
-                            1,
-                            1,
-                        ]))
-                        * -10000.0,
-                )
-            } else {
-                None
-            };
+            encoder_attention_mask.map(|encoder_attention_mask_value| {
+                encoder_attention_mask_value.ones_like()
+                    - encoder_attention_mask_value.unsqueeze(1).repeat(&[
+                        self.num_attention_heads,
+                        1,
+                        1,
+                    ])
+            });
 
         ngram_hidden_states.insert(0, hidden_states);
         let hidden_states = Tensor::cat(ngram_hidden_states.as_slice(), 0)
