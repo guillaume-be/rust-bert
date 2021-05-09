@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file. The format 
 - (BREAKING) Changed `classif_dropout` in `BartConfig` to be an optional field. This affects dependencies instantiating `BartConfig` from scratch, or using `classif_config` for custom model heads.
 - (BREAKING) Changed token classification pipelines to return a Vec<Vec<Token>> instead of a Vec<Token>. The token-level predictions are now returned in separate vectors for each input sequence provided as an input (they were previously returned in a flattened vector)
 - Simplification of the BART language model code base (also used for Marian and Pegasus language models)
+- (BREAKING) Updated to `tch 0.4.1` (based on `libtorch 1.8.1`)
 
 ### Removed
 - Dependency to `itertools` crate

@@ -522,10 +522,10 @@ impl LSHSelfAttention {
             .transpose(0, 1);
 
         let relevant_bucket_indices_chunk = bucket_indices.index(&[
-            relevant_bucket_indices_chunk.get(0),
-            relevant_bucket_indices_chunk.get(1),
-            relevant_bucket_indices_chunk.get(2),
-            relevant_bucket_indices_chunk.get(3),
+            Some(relevant_bucket_indices_chunk.get(0)),
+            Some(relevant_bucket_indices_chunk.get(1)),
+            Some(relevant_bucket_indices_chunk.get(2)),
+            Some(relevant_bucket_indices_chunk.get(3)),
         ]);
 
         let bucket_indices_batch_offset = sequence_length

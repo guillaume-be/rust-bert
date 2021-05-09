@@ -47,7 +47,7 @@
 //!         device: Device::cuda_if_available(),
 //!         ..Default::default()
 //!     };
-//!     let summarization_model = TextGenerationModel::new(text_generation_config)?;
+//!     let model = TextGenerationModel::new(text_generation_config)?;
 //!
 //!     let input_context_1 = "It was a very nice and sunny";
 //!     let input_context_2 = "It was a gloom winter night, and";

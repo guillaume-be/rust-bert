@@ -351,10 +351,14 @@ impl LongformerSelfAttention {
     fn get_global_attention_indices(
         &self,
         is_index_global_attn: &Tensor,
-    ) -> (i64, Vec<Tensor>, Vec<Tensor>, Vec<Tensor>) {
+    ) -> GlobalAttentionIndices {
         let num_global_attention_indices = is_index_global_attn.sum1(&[1], false, Kind::Int64);
         let max_num_global_attention_indices = i64::from(num_global_attention_indices.max());
-        let is_index_global_attn_nonzero = is_index_global_attn.nonzero_numpy();
+        let is_index_global_attn_nonzero = is_index_global_attn
+            .nonzero_numpy()
+            .into_iter()
+            .map(Some)
+            .collect();
 
         let is_local_index_global_attention = Tensor::arange(
             max_num_global_attention_indices,
@@ -362,18 +366,25 @@ impl LongformerSelfAttention {
         )
         .lt1(&num_global_attention_indices.unsqueeze(-1));
 
-        let is_local_index_global_attention_nonzero =
-            is_local_index_global_attention.nonzero_numpy();
+        let is_local_index_global_attention_nonzero = is_local_index_global_attention
+            .nonzero_numpy()
+            .into_iter()
+            .map(Some)
+            .collect();
 
-        let is_local_index_no_global_attention_nonzero =
-            is_local_index_global_attention.eq(0).nonzero_numpy();
+        let is_local_index_no_global_attention_nonzero = is_local_index_global_attention
+            .eq(0)
+            .nonzero_numpy()
+            .into_iter()
+            .map(Some)
+            .collect();
 
-        (
+        GlobalAttentionIndices {
             max_num_global_attention_indices,
             is_index_global_attn_nonzero,
             is_local_index_global_attention_nonzero,
             is_local_index_no_global_attention_nonzero,
-        )
+        }
     }
 
     fn concat_with_global_key_attention_probas(
@@ -381,9 +392,9 @@ impl LongformerSelfAttention {
         key_vectors: &Tensor,
         query_vectors: &Tensor,
         max_num_global_attention_indices: i64,
-        is_index_global_attn_nonzero: &[Tensor],
-        is_local_index_global_attention_nonzero: &[Tensor],
-        is_local_index_no_global_attention_nonzero: &[Tensor],
+        is_index_global_attn_nonzero: &[Option<Tensor>],
+        is_local_index_global_attention_nonzero: &[Option<Tensor>],
+        is_local_index_no_global_attention_nonzero: &[Option<Tensor>],
     ) -> Tensor {
         let batch_size = key_vectors.size()[0];
 
@@ -409,8 +420,18 @@ impl LongformerSelfAttention {
         );
 
         let _ = attention_probas_from_global_key
-            .index_select(0, &is_local_index_no_global_attention_nonzero[0])
-            .index_select(3, &is_local_index_no_global_attention_nonzero[1])
+            .index_select(
+                0,
+                &is_local_index_no_global_attention_nonzero[0]
+                    .as_ref()
+                    .unwrap(),
+            )
+            .index_select(
+                3,
+                &is_local_index_no_global_attention_nonzero[1]
+                    .as_ref()
+                    .unwrap(),
+            )
             .fill_(-10000f64);
 
         attention_probas_from_global_key
@@ -421,8 +442,8 @@ impl LongformerSelfAttention {
         value_vectors: &Tensor,
         attention_probas: &Tensor,
         max_num_global_attention_indices: i64,
-        is_index_global_attn_nonzero: &[Tensor],
-        is_local_index_global_attention_nonzero: &[Tensor],
+        is_index_global_attn_nonzero: &[Option<Tensor>],
+        is_local_index_global_attention_nonzero: &[Option<Tensor>],
     ) -> Tensor {
         let batch_size = attention_probas.size()[0];
 
@@ -469,9 +490,9 @@ impl LongformerSelfAttention {
         &self,
         hidden_states: &Tensor,
         max_num_global_attention_indices: i64,
-        is_index_global_attn_nonzero: &[Tensor],
-        is_local_index_global_attention_nonzero: &[Tensor],
-        is_local_index_no_global_attention_nonzero: &[Tensor],
+        is_index_global_attn_nonzero: &[Option<Tensor>],
+        is_local_index_global_attention_nonzero: &[Option<Tensor>],
+        is_local_index_no_global_attention_nonzero: &[Option<Tensor>],
         is_index_masked: &Tensor,
         train: bool,
     ) -> (Tensor, Tensor) {
@@ -487,13 +508,15 @@ impl LongformerSelfAttention {
             is_local_index_global_attention_nonzero
                 .iter()
                 .rev()
-                .collect::<Vec<&Tensor>>()
+                .map(|o| o.as_ref())
+                .collect::<Vec<Option<&Tensor>>>()
                 .as_slice(),
             &hidden_states.index(
                 is_index_global_attn_nonzero
                     .iter()
                     .rev()
-                    .collect::<Vec<&Tensor>>()
+                    .map(|o| o.as_ref())
+                    .collect::<Vec<Option<&Tensor>>>()
                     .as_slice(),
             ),
             false,
@@ -530,8 +553,18 @@ impl LongformerSelfAttention {
             ]);
 
         let _ = global_attention_scores
-            .index_select(0, &is_local_index_no_global_attention_nonzero[0])
-            .index_select(2, &is_local_index_no_global_attention_nonzero[1])
+            .index_select(
+                0,
+                &is_local_index_no_global_attention_nonzero[0]
+                    .as_ref()
+                    .unwrap(),
+            )
+            .index_select(
+                2,
+                &is_local_index_no_global_attention_nonzero[1]
+                    .as_ref()
+                    .unwrap(),
+            )
             .fill_(-10000f64);
 
         let global_attention_scores = global_attention_scores
@@ -615,28 +648,30 @@ impl LongformerSelfAttention {
             is_local_index_global_attention_nonzero,
             is_local_index_no_global_attention_nonzero,
         ) = if is_global_attention {
-            let (
-                max_num_global_attention_indices,
-                is_index_global_attn_nonzero,
-                is_local_index_global_attention_nonzero,
-                is_local_index_no_global_attention_nonzero,
-            ) = self.get_global_attention_indices(is_index_global_attention);
+            let global_attention_indices =
+                self.get_global_attention_indices(is_index_global_attention);
 
             let global_key_attention_scores = self.concat_with_global_key_attention_probas(
                 &key_vectors,
                 &query_vectors,
-                max_num_global_attention_indices,
-                is_index_global_attn_nonzero.as_slice(),
-                is_local_index_global_attention_nonzero.as_slice(),
-                is_local_index_no_global_attention_nonzero.as_slice(),
+                global_attention_indices.max_num_global_attention_indices,
+                global_attention_indices
+                    .is_index_global_attn_nonzero
+                    .as_slice(),
+                global_attention_indices
+                    .is_local_index_global_attention_nonzero
+                    .as_slice(),
+                global_attention_indices
+                    .is_local_index_no_global_attention_nonzero
+                    .as_slice(),
             );
 
             attention_scores = Tensor::cat(&[&global_key_attention_scores, &attention_scores], -1);
             (
-                Some(max_num_global_attention_indices),
-                Some(is_index_global_attn_nonzero),
-                Some(is_local_index_global_attention_nonzero),
-                Some(is_local_index_no_global_attention_nonzero),
+                Some(global_attention_indices.max_num_global_attention_indices),
+                Some(global_attention_indices.is_index_global_attn_nonzero),
+                Some(global_attention_indices.is_local_index_global_attention_nonzero),
+                Some(global_attention_indices.is_local_index_no_global_attention_nonzero),
             )
         } else {
             (None, None, None, None)
@@ -685,8 +720,16 @@ impl LongformerSelfAttention {
                 );
 
             let nonzero_global_attention_output = global_attention_output.transpose(1, 2).index(&[
-                &is_local_index_global_attention_nonzero.as_ref().unwrap()[0],
-                &is_local_index_global_attention_nonzero.as_ref().unwrap()[1],
+                Some(
+                    is_local_index_global_attention_nonzero.as_ref().unwrap()[0]
+                        .as_ref()
+                        .unwrap(),
+                ),
+                Some(
+                    is_local_index_global_attention_nonzero.as_ref().unwrap()[1]
+                        .as_ref()
+                        .unwrap(),
+                ),
             ]);
             let _ = attention_output.index_put_(
                 is_index_global_attn_nonzero
@@ -694,10 +737,14 @@ impl LongformerSelfAttention {
                     .unwrap()
                     .iter()
                     .rev()
-                    .collect::<Vec<&Tensor>>()
+                    .map(|o| o.as_ref())
+                    .collect::<Vec<Option<&Tensor>>>()
                     .as_slice(),
                 &nonzero_global_attention_output.view([
-                    is_local_index_global_attention_nonzero.as_ref().unwrap()[0].size()[0],
+                    is_local_index_global_attention_nonzero.as_ref().unwrap()[0]
+                        .as_ref()
+                        .unwrap()
+                        .size()[0],
                     -1,
                 ]),
                 false,
@@ -738,4 +785,11 @@ impl LongformerSelfAttention {
             global_attention_probas,
         )
     }
+}
+
+struct GlobalAttentionIndices {
+    max_num_global_attention_indices: i64,
+    is_index_global_attn_nonzero: Vec<Option<Tensor>>,
+    is_local_index_global_attention_nonzero: Vec<Option<Tensor>>,
+    is_local_index_no_global_attention_nonzero: Vec<Option<Tensor>>,
 }
