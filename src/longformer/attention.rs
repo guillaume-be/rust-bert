@@ -351,18 +351,13 @@ impl LongformerSelfAttention {
     fn get_global_attention_indices(
         &self,
         is_index_global_attn: &Tensor,
-    ) -> (
-        i64,
-        Vec<Option<Tensor>>,
-        Vec<Option<Tensor>>,
-        Vec<Option<Tensor>>,
-    ) {
+    ) -> GlobalAttentionIndices {
         let num_global_attention_indices = is_index_global_attn.sum1(&[1], false, Kind::Int64);
         let max_num_global_attention_indices = i64::from(num_global_attention_indices.max());
         let is_index_global_attn_nonzero = is_index_global_attn
             .nonzero_numpy()
             .into_iter()
-            .map(|t| Some(t))
+            .map(Some)
             .collect();
 
         let is_local_index_global_attention = Tensor::arange(
@@ -374,22 +369,22 @@ impl LongformerSelfAttention {
         let is_local_index_global_attention_nonzero = is_local_index_global_attention
             .nonzero_numpy()
             .into_iter()
-            .map(|t| Some(t))
+            .map(Some)
             .collect();
 
         let is_local_index_no_global_attention_nonzero = is_local_index_global_attention
             .eq(0)
             .nonzero_numpy()
             .into_iter()
-            .map(|t| Some(t))
+            .map(Some)
             .collect();
 
-        (
+        GlobalAttentionIndices {
             max_num_global_attention_indices,
             is_index_global_attn_nonzero,
             is_local_index_global_attention_nonzero,
             is_local_index_no_global_attention_nonzero,
-        )
+        }
     }
 
     fn concat_with_global_key_attention_probas(
@@ -653,28 +648,30 @@ impl LongformerSelfAttention {
             is_local_index_global_attention_nonzero,
             is_local_index_no_global_attention_nonzero,
         ) = if is_global_attention {
-            let (
-                max_num_global_attention_indices,
-                is_index_global_attn_nonzero,
-                is_local_index_global_attention_nonzero,
-                is_local_index_no_global_attention_nonzero,
-            ) = self.get_global_attention_indices(is_index_global_attention);
+            let global_attention_indices =
+                self.get_global_attention_indices(is_index_global_attention);
 
             let global_key_attention_scores = self.concat_with_global_key_attention_probas(
                 &key_vectors,
                 &query_vectors,
-                max_num_global_attention_indices,
-                is_index_global_attn_nonzero.as_slice(),
-                is_local_index_global_attention_nonzero.as_slice(),
-                is_local_index_no_global_attention_nonzero.as_slice(),
+                global_attention_indices.max_num_global_attention_indices,
+                global_attention_indices
+                    .is_index_global_attn_nonzero
+                    .as_slice(),
+                global_attention_indices
+                    .is_local_index_global_attention_nonzero
+                    .as_slice(),
+                global_attention_indices
+                    .is_local_index_no_global_attention_nonzero
+                    .as_slice(),
             );
 
             attention_scores = Tensor::cat(&[&global_key_attention_scores, &attention_scores], -1);
             (
-                Some(max_num_global_attention_indices),
-                Some(is_index_global_attn_nonzero),
-                Some(is_local_index_global_attention_nonzero),
-                Some(is_local_index_no_global_attention_nonzero),
+                Some(global_attention_indices.max_num_global_attention_indices),
+                Some(global_attention_indices.is_index_global_attn_nonzero),
+                Some(global_attention_indices.is_local_index_global_attention_nonzero),
+                Some(global_attention_indices.is_local_index_no_global_attention_nonzero),
             )
         } else {
             (None, None, None, None)
@@ -788,4 +785,11 @@ impl LongformerSelfAttention {
             global_attention_probas,
         )
     }
+}
+
+struct GlobalAttentionIndices {
+    max_num_global_attention_indices: i64,
+    is_index_global_attn_nonzero: Vec<Option<Tensor>>,
+    is_local_index_global_attention_nonzero: Vec<Option<Tensor>>,
+    is_local_index_no_global_attention_nonzero: Vec<Option<Tensor>>,
 }
