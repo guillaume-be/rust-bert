@@ -80,17 +80,17 @@ impl GptNeoVocabResources {
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
     pub const GPT_NEO_125M: (&'static str, &'static str) = (
         "gpt-neo-125M/vocab",
-        "https://huggingface.co/gpt2/resolve/main/vocab.json",
+        "https://huggingface.co/EleutherAI/gpt-neo-125M/resolve/main/vocab.json",
     );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
     pub const GPT_NEO_1_3B: (&'static str, &'static str) = (
         "gpt-neo-1_3B/vocab",
-        "https://huggingface.co/gpt2/resolve/main/vocab.json",
+        "https://huggingface.co/EleutherAI/gpt-neo-1.3B/resolve/main/vocab.json",
     );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
     pub const GPT_NEO_2_7B: (&'static str, &'static str) = (
         "gpt-neo-2_7B/vocab",
-        "https://huggingface.co/gpt2/resolve/main/vocab.json",
+        "https://huggingface.co/EleutherAI/gpt-neo-2.7B/resolve/main/vocab.json",
     );
 }
 
@@ -98,17 +98,17 @@ impl GptNeoMergesResources {
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
     pub const GPT_NEO_125M: (&'static str, &'static str) = (
         "gpt-neo-125M/merges",
-        "https://huggingface.co/gpt2/resolve/main/merges.txt",
+        "https://huggingface.co/EleutherAI/gpt-neo-125M/resolve/main/merges.txt",
     );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
     pub const GPT_NEO_1_3B: (&'static str, &'static str) = (
         "gpt-neo-1_3B/merges",
-        "https://huggingface.co/gpt2/resolve/main/merges.txt",
+        "https://huggingface.co/EleutherAI/gpt-neo-1.3B/resolve/main/merges.txt",
     );
     /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
     pub const GPT_NEO_2_7B: (&'static str, &'static str) = (
         "gpt-neo-2_7B/merges",
-        "https://huggingface.co/gpt2/resolve/main/merges.txt",
+        "https://huggingface.co/EleutherAI/gpt-neo-2.7B/resolve/main/merges.txt",
     );
 }
 
