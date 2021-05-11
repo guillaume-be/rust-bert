@@ -1,5 +1,5 @@
 from transformers import DISTILBERT_PRETRAINED_CONFIG_ARCHIVE_MAP
-from transformers.tokenization_distilbert import PRETRAINED_VOCAB_FILES_MAP
+from transformers.models.distilbert.tokenization_distilbert import PRETRAINED_VOCAB_FILES_MAP
 from transformers.file_utils import get_from_cache, hf_bucket_url
 from pathlib import Path
 import shutil
@@ -16,7 +16,7 @@ target_path = Path.home() / 'rustbert' / 'distilbert'
 
 temp_config = get_from_cache(config_path)
 temp_vocab = get_from_cache(vocab_path)
-temp_weights = get_from_cache(hf_bucket_url(weights_path, filename="pytorch_model.bin", use_cdn=True))
+temp_weights = get_from_cache(hf_bucket_url(weights_path, filename="pytorch_model.bin"))
 
 os.makedirs(str(target_path), exist_ok=True)
 

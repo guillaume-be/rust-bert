@@ -38,10 +38,8 @@
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: PegasusTokenizer = PegasusTokenizer::from_file(
-//!     vocab_path.to_str().unwrap(),
-//!     false,
-//! )?;
+//! let tokenizer: PegasusTokenizer =
+//!     PegasusTokenizer::from_file(vocab_path.to_str().unwrap(), false)?;
 //! let config = PegasusConfig::from_file(config_path);
 //! let pegasus_model = PegasusModel::new(&vs.root(), &config);
 //! vs.load(weights_path)?;

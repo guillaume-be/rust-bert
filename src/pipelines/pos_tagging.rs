@@ -29,8 +29,7 @@
 //! ```no_run
 //! # use rust_bert::pipelines::pos_tagging::POSTag;
 //! # let output =
-//! [
-//!   [
+//! [[
 //!     POSTag {
 //!         word: String::from("My"),
 //!         score: 0.2465,
@@ -76,8 +75,7 @@
 //!         score: 1.0,
 //!         label: String::from("."),
 //!     },
-//!   ],
-//! ]
+//! ]]
 //! # ;
 //! ```
 //!
