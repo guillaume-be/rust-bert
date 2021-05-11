@@ -325,30 +325,30 @@
 //! # use rust_bert::pipelines::ner::Entity;
 //! # let output =
 //! [
-//!   [
-//!     Entity {
-//!         word: String::from("Amy"),
-//!         score: 0.9986,
-//!         label: String::from("I-PER"),
-//!     },
-//!     Entity {
-//!         word: String::from("Paris"),
-//!         score: 0.9985,
-//!         label: String::from("I-LOC"),
-//!     },
-//!   ],
-//!   [
-//!     Entity {
-//!         word: String::from("Paris"),
-//!         score: 0.9988,
-//!         label: String::from("I-LOC"),
-//!     },
-//!     Entity {
-//!         word: String::from("France"),
-//!         score: 0.9993,
-//!         label: String::from("I-LOC"),
-//!     },
-//!   ]
+//!     [
+//!         Entity {
+//!             word: String::from("Amy"),
+//!             score: 0.9986,
+//!             label: String::from("I-PER"),
+//!         },
+//!         Entity {
+//!             word: String::from("Paris"),
+//!             score: 0.9985,
+//!             label: String::from("I-LOC"),
+//!         },
+//!     ],
+//!     [
+//!         Entity {
+//!             word: String::from("Paris"),
+//!             score: 0.9988,
+//!             label: String::from("I-LOC"),
+//!         },
+//!         Entity {
+//!             word: String::from("France"),
+//!             score: 0.9993,
+//!             label: String::from("I-LOC"),
+//!         },
+//!     ],
 //! ]
 //! # ;
 //! ```
@@ -359,9 +359,7 @@
 //! use rust_bert::pipelines::pos_tagging::POSModel;
 //! # fn main() -> anyhow::Result<()> {
 //! let pos_model = POSModel::new(Default::default())?;
-//! let input = [
-//!     "My name is Bob",
-//! ];
+//! let input = ["My name is Bob"];
 //! let output = pos_model.predict(&input);
 //! # Ok(())
 //! # }

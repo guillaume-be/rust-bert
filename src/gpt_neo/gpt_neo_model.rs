@@ -178,10 +178,10 @@ impl GptNeoModel {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::gpt_neo::{GptNeoConfig, GptNeoModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::gpt_neo::{GptNeoConfig, GptNeoModel};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -291,7 +291,7 @@ impl GptNeoModel {
     ///         None,
     ///         None,
     ///         None,
-    ///         false
+    ///         false,
     ///     )
     /// });
     /// ```
@@ -464,10 +464,10 @@ impl GptNeoForCausalLM {
     /// # Example
     ///
     /// ```no_run
+    /// use rust_bert::gpt_neo::{GptNeoConfig, GptNeoForCausalLM};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
-    /// use rust_bert::gpt_neo::{GptNeoConfig, GptNeoForCausalLM};
     ///
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
@@ -532,7 +532,7 @@ impl GptNeoForCausalLM {
     ///         None,
     ///         None,
     ///         None,
-    ///         false
+    ///         false,
     ///     )
     /// });
     /// ```

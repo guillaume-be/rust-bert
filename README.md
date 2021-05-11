@@ -5,8 +5,34 @@
 [![Documentation](https://docs.rs/rust-bert/badge.svg)](https://docs.rs/rust-bert)
 ![License](https://img.shields.io/crates/l/rust_bert.svg)
 
-Rust native Transformer-based models implementation. Port of Hugging Face's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers). Supports multi-threaded tokenization and GPU inference.
+Rust-native state-of-the-art Natural Language Processing models and pipelines. Port of Hugging Face's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers). Supports multi-threaded tokenization and GPU inference.
 This repository exposes the model base architecture, task-specific heads (see below) and [ready-to-use pipelines](#ready-to-use-pipelines). [Benchmarks](#benchmarks) are available at the end of this document.
+
+Get started with tasks including question answering, named entity recognition, translation, summarization, text generation, conversational agents and more in just a few lines of code:
+```rust
+    let qa_model = QuestionAnsweringModel::new(Default::default())?;
+                                                        
+    let question = String::from("Where does Amy live ?");
+    let context = String::from("Amy lives in Amsterdam");
+
+    let answers = qa_model.predict(&[QaInput { question, context }], 1, 32);
+```
+
+Output:
+```
+[Answer { score: 0.9976, start: 13, end: 21, answer: "Amsterdam" }]
+```
+
+The tasks currently supported include:
+  - Translation
+  - Summarization
+  - Multi-turn dialogue
+  - Zero-shot classification
+  - Sentiment Analysis
+  - Named Entity Recognition
+  - Part of Speech tagging
+  - Question-Answering
+  - Language Generation.
 
 <details>
 <summary> <b>Expand to display the supported models/tasks matrix </b> </summary>
@@ -317,7 +343,7 @@ Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 ```rust
     let pos_model = POSModel::new(default::default())?;
 
-    let input = ["My name is Bob];
+    let input = ["My name is Bob"];
     
     let output = pos_model.predict(&input);
 ```
@@ -338,29 +364,18 @@ For simple pipelines (sequence classification, tokens classification, question a
 
 For text generation tasks (summarization, translation, conversation, free text generation), significant benefits can be expected (up to 2 to 4 times faster processing depending on the input and application). The article [Accelerating text generation with Rust](https://guillaume-be.github.io/2020-11-21/generation_benchmarks) focuses on these text generation applications and provides more details on the performance comparison to Python.
 
-## Base models
+## Loading pretrained and custom model weights
 
 The base model and task-specific heads are also available for users looking to expose their own transformer based models.
 Examples on how to prepare the date using a native tokenizers Rust library are available in `./examples` for BERT, DistilBERT, RoBERTa, GPT, GPT2 and BART.
 Note that when importing models from Pytorch, the convention for parameters naming needs to be aligned with the Rust schema. Loading of the pre-trained weights will fail if any of the model parameters weights cannot be found in the weight files.
 If this quality check is to be skipped, an alternative method `load_partial` can be invoked from the variables store.
 
-## Setup
+Pretrained models are available on Hugging face's [model hub](https://huggingface.co/models?filter=rust) and can be loaded using `RemoteResources` defined in this library.
+A conversion utility script is included in `./utils` to convert Pytorch weights to a set of weights compatible with this library. This script requires Python and `torch` to be set-up, and can be used as follows:
+`python ./utils/convert_model.py path/to/pytorch_model.bin` where `path/to/pytorch_model.bin` is the location of the original Pytorch weights.
 
-A number of pretrained model configuration, weights and vocabulary are downloaded directly from [Hugging Face's model repository](https://huggingface.co/models).
-The list of models available with Rust-compatible weights is available at [https://huggingface.co/models?filter=rust](https://huggingface.co/models?filter=rust).
-The models will be downloaded to the environment variable `RUSTBERT_CACHE` if it exists, otherwise to `~/.cache/.rustbert`.
-Additional models can be added if of interest, please raise an issue.
 
-In order to load custom weights to the library, these need to be converter to a binary format that can be read by Libtorch (the original `.bin` files are pickles and cannot be used directly).
-Several Python scripts to load Pytorch weights and convert them to the appropriate format are provided and can be adapted based on the model needs.
-
-1. Compile the package: `cargo build`
-2. Download the model files & perform necessary conversions
-   - Set-up a virtual environment and install dependencies
-   - Download the Pytorch model of interest (`pytorch_model.bin` from [Hugging Face's model repository](https://huggingface.co/models))
-   - run the conversion script `python /utils/convert_model.py <PATH_TO_PYTORCH_WEIGHTS>`.
-   
 ## Citation
 
 If you use `rust-bert` for your work, please cite [End-to-end NLP Pipelines in Rust](https://www.aclweb.org/anthology/2020.nlposs-1.4/):

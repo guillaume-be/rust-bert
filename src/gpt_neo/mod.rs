@@ -16,10 +16,12 @@
 //! - 2.7B parameters model (GptNeoModelResources::GPT_NEO_2_7B)
 //!
 //! ```no_run
+//! use rust_bert::gpt_neo::{
+//!     GptNeoConfigResources, GptNeoMergesResources, GptNeoModelResources, GptNeoVocabResources,
+//! };
 //! use rust_bert::pipelines::common::ModelType;
+//! use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 //! use rust_bert::resources::{RemoteResource, Resource};
-//! use rust_bert::gpt_neo::{GptNeoConfigResources, GptNeoVocabResources, GptNeoModelResources, GptNeoMergesResources};
-//! use rust_bert::pipelines::text_generation::{TextGenerationModel, TextGenerationConfig};
 //! use tch::Device;
 //!
 //! fn main() -> anyhow::Result<()> {
