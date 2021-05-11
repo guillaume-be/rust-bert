@@ -8,7 +8,8 @@
 Rust native Transformer-based models implementation. Port of Hugging Face's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers). Supports multi-threaded tokenization and GPU inference.
 This repository exposes the model base architecture, task-specific heads (see below) and [ready-to-use pipelines](#ready-to-use-pipelines). [Benchmarks](#benchmarks) are available at the end of this document.
 
-The following models are currently implemented:
+<details>
+<summary> <b>Expand to display the supported models/tasks matrix </b> </summary>
 
 | |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|
 :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
@@ -29,6 +30,7 @@ Reformer|✅| |✅|✅ | | |✅|
 ProphetNet| | | |✅ |✅ | | | 
 Longformer|✅|✅|✅| | | |✅| 
 Pegasus| | | | |✅| | | 
+</details>
 
 ## Ready-to-use pipelines
 	
@@ -37,8 +39,9 @@ Based on Hugging Face's pipelines, ready to use end-to-end NLP pipelines are ava
 **Disclaimer**
 The contributors of this repository are not responsible for any generation from the 3rd party utilization of the pretrained systems proposed herein.
 
+<details>
+<summary> <b>1. Question Answering</b> </summary>
 
-#### 1. Question Answering
 Extractive question answering from a given question and context. DistilBERT model fine-tuned on SQuAD (Stanford Question Answering Dataset)
 
 ```rust
@@ -52,10 +55,13 @@ Extractive question answering from a given question and context. DistilBERT mode
 
 Output:
 ```
-[Answer { score: 0.9976814985275269, start: 13, end: 21, answer: "Amsterdam" }]
+[Answer { score: 0.9976, start: 13, end: 21, answer: "Amsterdam" }]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>2. Translation </b> </summary>
 
-#### 2. Translation
 Translation using the MarianMT architecture and pre-trained models from the Opus-MT team from Language Technology at the University of Helsinki.
 Currently supported languages are :
  - English <-> French
@@ -86,8 +92,11 @@ Output:
 ```
 Il s'agit d'une phrase à traduire
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>3. Summarization </b> </summary>
 
-#### 3. Summarization
 Abstractive summarization using a pretrained BART model.
 
 ```rust
@@ -125,8 +134,11 @@ Output:
 This is the first such discovery in a planet in its star's habitable zone. 
 The planet is not too hot and not too cold for liquid water to exist."
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>4. Dialogue Model </b> </summary>
 
-#### 4. Dialogue Model
 Conversation model based on Microsoft's [DialoGPT](https://github.com/microsoft/DialoGPT).
 This pipeline allows the generation of single or multi-turn conversations between a human and a model.
 The DialoGPT's page states that
@@ -148,8 +160,11 @@ Example output:
 ```
 "The Big Lebowski."
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>5. Natural Language Generation </b> </summary>
 
-#### 5. Natural Language Generation
 Generate language based on a prompt. GPT2 and GPT available as base models.
 Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
@@ -175,8 +190,11 @@ Example output:
     "The cat was attacked by two stray dogs and was taken to a hospital. Two other cats were also injured in the attack and are being treated."
 ]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>6. Zero-shot classification </b> </summary>
 
-#### 6. Zero-shot classification
 Performs zero-shot classification on input sentences with provided labels using a model fine-tuned for Natural Language Inference.
 ```rust
     let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
@@ -200,8 +218,11 @@ Output:
   [ Label { "politics", score: 0.975 }, Label { "public health", score: 0.0818 }, Label {"economics", score: 0.852 }, Label {"sports", score: 0.001 } ],
 ]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>7. Sentiment analysis </b> </summary>
 
-#### 7. Sentiment analysis
 Predicts the binary sentiment for a sentence. DistilBERT model fine-tuned on SST-2.
 ```rust
     let sentiment_classifier = SentimentModel::new(Default::default())?;
@@ -224,8 +245,11 @@ Output:
     Sentiment { polarity: Positive, score: 0.9997248985164333 }
 ]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>8. Named Entity Recognition </b> </summary>
 
-#### 8. Named Entity Recognition
 Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model fine-tuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz).
 Models are currently available for English, German, Spanish and Dutch.
 ```rust
@@ -251,8 +275,11 @@ Output:
   ]
 ]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>9. Part of Speech tagging </b> </summary>
 
-#### 9. Part of Speech tagging
 Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 ```rust
     let pos_model = POSModel::new(default::default())?;
@@ -270,6 +297,7 @@ Output:
     Entity { word: "Bob", score: 0.7460, label: "NNP" }
 ]
 ```
+</details>
 
 ## Benchmarks
 
