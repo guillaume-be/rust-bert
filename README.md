@@ -32,6 +32,39 @@ Longformer|✅|✅|✅| | | |✅|
 Pegasus| | | | |✅| | | 
 </details>
 
+## Getting started
+
+This library relies on the [tch](https://github.com/LaurentMazare/tch-rs) crate for bindings to the C++ Libtorch API.
+The libtorch library is required can be downloaded either automatically or manually. The following provides a reference on how to set-up yoru environment
+to use these bindings, please refer to the [tch](https://github.com/LaurentMazare/tch-rs) for detailed information or support.
+
+Furthermore, this library relies on a cache folder for downloading pre-trained models. 
+This cache location defaults to `~/.cache/.rustbert`, but can be changed by setting the `RUSTBERT_CACHE` environment variable. Note that the language models used by this library are in the order of the 100s of MBs to GBs.
+
+### Manual installation (recommended)
+
+1. Download `libtorch` from https://pytorch.org/get-started/locally/. This package requires `v1.8.1`: if this version is no longer available on the "get started" page,
+the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu111/libtorch-shared-with-deps-1.8.1%2Bcu111.zip` for a Linux version with CUDA11.
+2. Extract the library to a location of your choice
+3. Set the following environment variables
+##### Linux:
+```bash
+export LIBTORCH=/path/to/libtorch
+export LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH
+```
+
+##### Windows
+```powershell
+$Env:LIBTORCH = "X:\path\to\libtorch"
+$Env:Path += ";X:\path\to\libtorch\lib"
+```
+
+### Automatic installation
+
+Alternatively, you can let the `build` script automatically download the `libtorch` library for you.
+The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu111`.
+Note that the libtorch library is large (order of several GBs for the CUDA-enabled version) and the first build may therefore take several minutes to complete.
+
 ## Ready-to-use pipelines
 	
 Based on Hugging Face's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
