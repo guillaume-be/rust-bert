@@ -705,7 +705,12 @@ impl QuestionAnsweringModel {
                             let end_pos = feature.offsets[ends[idx] as usize]
                                 .unwrap_or(Offset { begin: 0, end: 0 })
                                 .end as usize;
-                            let answer = example.context[start_pos..end_pos].to_string();
+                            let answer = example
+                                .context
+                                .chars()
+                                .take(end_pos)
+                                .skip(start_pos)
+                                .collect::<String>();
 
                             answers.push(Answer {
                                 score: scores[idx],

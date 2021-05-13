@@ -23,6 +23,9 @@ All notable changes to this project will be documented in this file. The format 
 - Simplification of the BART language model code base (also used for Marian and Pegasus language models)
 - (BREAKING) Updated to `tch 0.4.1` (based on `libtorch 1.8.1`)
 
+### Fixed
+- Fixed character indexing error for Question Answering pipeline answers
+
 ### Removed
 - Dependency to `itertools` crate
 
