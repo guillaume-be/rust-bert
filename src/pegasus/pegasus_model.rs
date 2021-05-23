@@ -10,9 +10,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartConfig, BartModelOutput};
+use crate::bart::BartModelOutput;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
+use crate::mbart::MBartConfig;
 use crate::pegasus::decoder::PegasusDecoder;
 use crate::pegasus::encoder::PegasusEncoder;
 use crate::pegasus::LayerState;
@@ -65,7 +66,7 @@ impl PegasusVocabResources {
 
 /// # Pegasus model configuration
 /// Defines the Pegasus model architecture (e.g. number of layers, hidden layer size, label mapping...)
-pub type PegasusConfig = BartConfig;
+pub type PegasusConfig = MBartConfig;
 
 fn _shift_tokens_right(
     input_ids: &Tensor,
