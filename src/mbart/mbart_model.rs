@@ -1,6 +1,20 @@
+// Copyright 2021, The Facebook AI Research Team and The HuggingFace Inc. team. All rights reserved.
+// Copyright 2020 Guillaume Becquin
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//     http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::{Activation, Config};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tch::kind::Kind::Int64;
+use tch::Tensor;
 
 /// # MBART Pretrained model weight files
 pub struct MBartModelResources;
@@ -76,3 +90,15 @@ pub struct MBartConfig {
 }
 
 impl Config<MBartConfig> for MBartConfig {}
+
+fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
+    let output = input_ids.masked_fill(&input_ids.eq(-100), pad_token_id);
+    let index_eos: Tensor = input_ids.ne(pad_token_id).sum1(&[1], true, Int64) - 1;
+    output
+        .select(1, 0)
+        .copy_(&input_ids.gather(1, &index_eos, true).squeeze());
+    output
+        .slice(1, 1, *output.size().last().unwrap(), 1)
+        .copy_(&input_ids.slice(1, 0, *output.size().last().unwrap() - 1, 1));
+    output
+}

@@ -224,7 +224,7 @@ pub struct BartConfig {
 
 impl Config<BartConfig> for BartConfig {}
 
-fn _make_causal_mask(
+pub(crate) fn _make_causal_mask(
     input_ids_shape: &[i64],
     dtype: Kind,
     device: Device,
