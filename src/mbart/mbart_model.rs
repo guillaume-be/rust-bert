@@ -10,11 +10,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::dropout::Dropout;
 use crate::{Activation, Config};
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use tch::kind::Kind::Int64;
-use tch::Tensor;
+use tch::{nn, Tensor};
 
 /// # MBART Pretrained model weight files
 pub struct MBartModelResources;
@@ -101,4 +103,56 @@ fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
         .slice(1, 1, *output.size().last().unwrap(), 1)
         .copy_(&input_ids.slice(1, 0, *output.size().last().unwrap() - 1, 1));
     output
+}
+
+pub struct MBartClassificationHead {
+    dense: nn::Linear,
+    dropout: Dropout,
+    out_proj: nn::Linear,
+}
+
+impl MBartClassificationHead {
+    pub fn new<'p, P>(p: P, config: &MBartConfig) -> MBartClassificationHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dense = nn::linear(
+            p / "dense",
+            config.d_model,
+            config.d_model,
+            Default::default(),
+        );
+
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("id2label not provided in configuration")
+            .len() as i64;
+
+        let out_proj = nn::linear(
+            p / "out_proj",
+            config.d_model,
+            num_labels,
+            Default::default(),
+        );
+
+        let dropout = Dropout::new(config.classifier_dropout.unwrap_or(0.0));
+
+        MBartClassificationHead {
+            dense,
+            dropout,
+            out_proj,
+        }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        hidden_states
+            .apply_t(&self.dropout, train)
+            .apply(&self.dense)
+            .tanh()
+            .apply_t(&self.dropout, train)
+            .apply(&self.out_proj)
+    }
 }
