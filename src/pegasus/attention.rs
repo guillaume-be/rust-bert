@@ -17,5 +17,3 @@ use crate::bart::LayerState as BartLayerState;
 /// Stores the cached value of key, value and key padding mask to avoid recalculation (e.g. at each generation step)
 /// Identical to BART cache (type alias).
 pub type LayerState = BartLayerState;
-
-pub type PegasusAttention = BartAttention;

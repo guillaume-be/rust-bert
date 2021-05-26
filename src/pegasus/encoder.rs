@@ -84,7 +84,7 @@ impl PegasusEncoder {
 
         let x = input_ids.apply(embeddings) * self.scale_embedding;
         let x = x + &self.embed_positions.forward(input_ids, 0);
-        let x = x.apply_t(&self.dropout, train);
+        let mut hidden_state = x.apply_t(&self.dropout, train);
 
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
             Some(vec![])
@@ -97,7 +97,6 @@ impl PegasusEncoder {
             None
         };
 
-        let mut hidden_state = x.copy();
         let mut attention_weights: Option<Tensor>;
 
         for layer in &self.layers {

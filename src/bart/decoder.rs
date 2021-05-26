@@ -207,8 +207,6 @@ impl BartDecoder {
             None
         };
 
-        let pad_token_id = config.pad_token_id.unwrap_or(1);
-
         let embed_positions = if static_position_embeddings {
             EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(
                 p / "embed_positions",
@@ -220,7 +218,6 @@ impl BartDecoder {
                 p / "embed_positions",
                 config.max_position_embeddings,
                 config.d_model,
-                pad_token_id,
             ))
         };
 

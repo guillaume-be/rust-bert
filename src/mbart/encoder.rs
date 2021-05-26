@@ -10,12 +10,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::bart::{BartEncoderOutput, LearnedPositionalEmbedding, _expand_mask};
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::mbart::attention::MBartAttention;
+use crate::mbart::embeddings::MBartLearnedPositionalEmbedding;
 use crate::mbart::MBartConfig;
 use crate::Activation;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
 pub struct MBartEncoderLayer {
@@ -116,3 +118,125 @@ impl MBartEncoderLayer {
         (output, attention_weights)
     }
 }
+
+pub struct MBartEncoder {
+    dropout: Dropout,
+    layer_norm_embedding: nn::LayerNorm,
+    layer_norm: nn::LayerNorm,
+    layers: Vec<MBartEncoderLayer>,
+    embed_positions: MBartLearnedPositionalEmbedding,
+    output_attentions: bool,
+    output_hidden_states: bool,
+    scale_embedding: f64,
+}
+
+impl MBartEncoder {
+    pub fn new<'p, P>(p: P, config: &MBartConfig) -> MBartEncoder
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
+
+        let scale_embedding = if let Some(scale_embeddings) = config.scale_embedding {
+            if scale_embeddings {
+                (config.d_model as f64).sqrt()
+            } else {
+                1.0
+            }
+        } else {
+            1.0
+        };
+
+        let dropout = Dropout::new(config.dropout);
+
+        let layer_norm_embedding = nn::layer_norm(
+            p / "layernorm_embedding",
+            vec![config.d_model],
+            Default::default(),
+        );
+
+        let layer_norm = nn::layer_norm(p / "layernorm", vec![config.d_model], Default::default());
+
+        let embed_positions = MBartLearnedPositionalEmbedding::new(
+            p / "embed_positions",
+            config.max_position_embeddings,
+            config.d_model,
+        );
+
+        let mut layers: Vec<MBartEncoderLayer> = vec![];
+        let p_layers = p / "layers";
+        for layer_index in 0..config.encoder_layers {
+            layers.push(MBartEncoderLayer::new(&p_layers / layer_index, config));
+        }
+
+        MBartEncoder {
+            dropout,
+            layer_norm_embedding,
+            layer_norm,
+            layers,
+            embed_positions,
+            output_attentions,
+            output_hidden_states,
+            scale_embedding,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: &Tensor,
+        attention_mask: Option<&Tensor>,
+        embeddings: &nn::Embedding,
+        train: bool,
+    ) -> MBartEncoderOutput {
+        let attention_mask = attention_mask.map(|mask| _expand_mask(mask, None));
+
+        let x = input_ids.apply(embeddings) * self.scale_embedding;
+        let x = x + &self.embed_positions.forward(input_ids, 0);
+        let mut hidden_state = x
+            .apply(&self.layer_norm_embedding)
+            .apply_t(&self.dropout, train);
+
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
+
+        let mut attention_weights: Option<Tensor>;
+
+        for layer in &self.layers {
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
+            };
+
+            let temp = layer.forward_t(&hidden_state, attention_mask.as_ref(), train);
+            hidden_state = temp.0;
+            attention_weights = temp.1;
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(attention_weights.as_ref().unwrap().copy());
+            };
+        }
+
+        if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+            hidden_states.push(hidden_state.as_ref().copy());
+        };
+
+        hidden_state = hidden_state.apply(&self.layer_norm);
+
+        MBartEncoderOutput {
+            hidden_state,
+            all_hidden_states,
+            all_attentions,
+        }
+    }
+}
+
+/// Container holding a MBART encoder output
+pub type MBartEncoderOutput = BartEncoderOutput;

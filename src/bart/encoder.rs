@@ -167,8 +167,6 @@ impl BartEncoder {
             None
         };
 
-        let pad_token_id = config.pad_token_id.unwrap_or(1);
-
         let embed_positions = if static_position_embeddings {
             EmbeddingOption::SinusoidalPositionalEmbedding(SinusoidalPositionalEmbedding::new(
                 p / "embed_positions",
@@ -180,7 +178,6 @@ impl BartEncoder {
                 p / "embed_positions",
                 config.max_position_embeddings,
                 config.d_model,
-                pad_token_id,
             ))
         };
 
@@ -217,7 +214,7 @@ impl BartEncoder {
         } else {
             x
         };
-        let x = x.apply_t(&self.dropout, train);
+        let mut hidden_state = x.apply_t(&self.dropout, train);
 
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
             Some(vec![])
@@ -230,7 +227,6 @@ impl BartEncoder {
             None
         };
 
-        let mut hidden_state = x.copy();
         let mut attention_weights: Option<Tensor>;
 
         for layer in &self.layers {
