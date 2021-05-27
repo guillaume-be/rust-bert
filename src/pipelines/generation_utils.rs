@@ -1202,6 +1202,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
+        prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
     ) -> Vec<String>
     where
         S: AsRef<[&'a str]>,
@@ -1212,6 +1213,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             min_length,
             max_length,
             decoder_start_token_id,
+            prefix_allowed_tokens_fn,
         );
         let mut output = Vec::with_capacity(generated.len());
         for generated_sequence in generated {
@@ -1279,6 +1281,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
+        prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
     ) -> Vec<Vec<i64>>
     where
         S: AsRef<[&'a str]>,
@@ -1314,6 +1317,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             min_length,
             max_length,
             decoder_start_token_id,
+            prefix_allowed_tokens_fn,
         )
     }
 
@@ -1324,6 +1328,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
+        prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
     ) -> Vec<Vec<i64>> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
