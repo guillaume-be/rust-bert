@@ -755,7 +755,8 @@ impl T5Generator {
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id = Some(0);
-        let max_position_embeddings = config.n_positions;
+        // T5 do not have an embedding matrix for position IDs and relies on relative positions instead
+        let max_position_embeddings = i64::MAX;
 
         Ok(T5Generator {
             model,
