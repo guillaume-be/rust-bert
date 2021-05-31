@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 ### Fixed
 - Fixed conversation model panic for user inputs exceeding the maximum model length (1000 tokens)
+- Fixed translation model panic for user inputs exceeding the maximum number of position embeddings
 
 ## [0.15.0] - 2021-05-16
 ### Added
