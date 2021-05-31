@@ -674,6 +674,7 @@ pub struct GPT2Generator {
     is_encoder_decoder: bool,
     vocab_size: i64,
     decoder_start_id: Option<i64>,
+    max_position_embeddings: i64,
 }
 
 impl GPT2Generator {
@@ -726,6 +727,7 @@ impl GPT2Generator {
         let bos_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::bos_value()])[0]);
         let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()]));
         let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()])[0]);
+        let max_position_embeddings = config.n_positions;
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
         let decoder_start_id = None;
@@ -741,6 +743,7 @@ impl GPT2Generator {
             is_encoder_decoder,
             vocab_size,
             decoder_start_id,
+            max_position_embeddings,
         })
     }
 }
@@ -775,6 +778,9 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     }
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
+    }
+    fn get_max_positions_embeddings(&self) -> i64 {
+        self.max_position_embeddings
     }
 
     fn prepare_inputs_for_generation<'a>(

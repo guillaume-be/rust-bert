@@ -976,6 +976,7 @@ pub struct BartGenerator {
     is_encoder_decoder: bool,
     vocab_size: i64,
     decoder_start_id: Option<i64>,
+    max_position_embeddings: i64,
 }
 
 impl BartGenerator {
@@ -1080,6 +1081,7 @@ impl BartGenerator {
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id = Some(2);
+        let max_position_embeddings = config.max_position_embeddings;
 
         Ok(BartGenerator {
             model,
@@ -1092,6 +1094,7 @@ impl BartGenerator {
             is_encoder_decoder,
             vocab_size,
             decoder_start_id,
+            max_position_embeddings,
         })
     }
 
@@ -1136,6 +1139,9 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     }
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
+    }
+    fn get_max_positions_embeddings(&self) -> i64 {
+        self.max_position_embeddings
     }
 
     fn prepare_scores_for_generation(
