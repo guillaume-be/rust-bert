@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.15.1] - 2021-06-01
 ### Fixed
 - Fixed conversation model panic for user inputs exceeding the maximum model length (1000 tokens)
 - Fixed translation model panic for user inputs exceeding the maximum number of position embeddings
