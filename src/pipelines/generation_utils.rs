@@ -279,6 +279,7 @@ pub(crate) mod private_generation_utils {
         fn is_encoder_decoder(&self) -> bool;
         fn get_vocab_size(&self) -> i64;
         fn get_decoder_start_id(&self) -> Option<i64>;
+        fn get_max_positions_embeddings(&self) -> i64;
 
         fn prepare_scores_for_generation(
             &self,
@@ -1338,7 +1339,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let config = PrivateLanguageGenerator::get_config(self);
         let max_length = max_length.into().unwrap_or(config.max_length);
         let encoding_max_len = if self.is_encoder_decoder() {
-            1024i64
+            PrivateLanguageGenerator::get_max_positions_embeddings(self)
         } else {
             max_length
         };
