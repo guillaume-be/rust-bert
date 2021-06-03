@@ -1187,7 +1187,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// * `min_length` - `impl Into<Option<i64>>` Optional minimum output sequence length
     /// * `max_length` - `impl Into<Option<i64>>` Optional maximum output sequence length
     /// * `decoder_start_token_id` - `impl Into<Option<i64>>` Optional decoder start token id
-    /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor)` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
+    /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
     ///
     /// # Returns
     /// * `Vec<String>` Vector of generated strings based on the prompts of length *number_of_prompts* x *num_return_sequences*.
@@ -1303,7 +1303,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// * `min_length` - `impl Into<Option<i64>>` Optional minimum output sequence length
     /// * `max_length` - `impl Into<Option<i64>>` Optional maximum output sequence length
     /// * `decoder_start_token_id` - `impl Into<Option<i64>>` Optional decoder start token id
-    /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor)` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
+    /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
     ///
     /// # Returns
     /// * `Vec<Vec<i64>>` Vector of Vector of generated token indices based on the prompts of length *number_of_prompts* x *num_return_sequences*.
@@ -1426,7 +1426,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// * `min_length` - `impl Into<Option<i64>>` Optional minimum output sequence length
     /// * `max_length` - `impl Into<Option<i64>>` Optional maximum output sequence length
     /// * `decoder_start_token_id` - `impl Into<Option<i64>>` Optional decoder start token id
-    /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor)` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
+    /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
     ///
     /// # Returns
     /// * `Vec<Vec<i64>>` Vector of Vector of generated token indices based on the prompts of length *number_of_prompts* x *num_return_sequences*.
