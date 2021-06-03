@@ -397,8 +397,7 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
             if previous_token_ids
                 .iter::<i64>()
                 .unwrap()
-                .collect::<Vec<i64>>()
-                .contains(paragraph_token)
+                .any(|x| x == *paragraph_token)
             {
                 return vec![50256];
             }
@@ -462,8 +461,7 @@ fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
             if previous_token_ids
                 .iter::<i64>()
                 .unwrap()
-                .collect::<Vec<i64>>()
-                .contains(paragraph_token)
+                .any(|x| x == *paragraph_token)
             {
                 return vec![50256];
             }
