@@ -1,12 +1,14 @@
 use rust_bert::gpt2::{
-    GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources,
-    Gpt2VocabResources,
+    GPT2Generator, GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources,
+    Gpt2ModelResources, Gpt2VocabResources,
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::conversation::{
     ConversationConfig, ConversationManager, ConversationModel,
 };
-use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
+use rust_bert::pipelines::generation_utils::{
+    Cache, GenerateConfig, LMHeadModel, LanguageGenerator,
+};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
@@ -29,7 +31,6 @@ fn gpt2_lm_model() -> anyhow::Result<()> {
     let merges_path = merges_resource.get_local_path()?;
     let weights_path = weights_resource.get_local_path()?;
 
-    //    Set-up masked LM model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(
@@ -122,7 +123,6 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
     let model_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
-    //    Set-up masked LM model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
         model_resource,
@@ -159,7 +159,6 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
     let model_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
-    //    Set-up masked LM model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
         model_resource,
@@ -208,7 +207,6 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
     let model_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
-    //    Set-up masked LM model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
         model_resource,
@@ -270,7 +268,6 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
     let model_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
-    //    Set-up masked LM model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
         model_resource,
@@ -331,7 +328,6 @@ fn gpt2_diverse_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()
     let model_resource =
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
-    //    Set-up masked LM model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
         model_resource,
@@ -377,6 +373,134 @@ fn gpt2_diverse_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()
     assert_eq!(
         output[5],
         "Language models can generate a lot of data, but they're not the only way to do it"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
+    //    Resources definition
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+
+    fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
+        let paragraph_tokens = [198, 628];
+
+        for paragraph_token in paragraph_tokens.iter() {
+            if previous_token_ids
+                .iter::<i64>()
+                .unwrap()
+                .any(|x| x == *paragraph_token)
+            {
+                return vec![50256];
+            }
+        }
+        (0..50255).collect()
+    }
+
+    let generate_config = GenerateConfig {
+        max_length: 56,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        do_sample: false,
+        num_beams: 1,
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(generate_config)?;
+
+    let input_context_1 = "Rust is a";
+    let input_context_2 = "There was a ";
+    let output = model.generate(
+        Some(&[input_context_1, input_context_2]),
+        None,
+        None,
+        None,
+        None,
+        Some(&force_one_paragraph),
+    );
+
+    assert_eq!(output.len(), 2);
+    assert_eq!(
+        output[0],
+        "Rust is a very simple and powerful library for building and running web applications. It is a simple, fast, and lightweight library that can be used to build web applications in a number of different ways.\n"
+    );
+    assert_eq!(
+        output[1],
+        "There was a urn in the room, and I was sitting on it. I was like, \'What the hell is going on?\' And he said, \'Well, I\'m not sure. I\'m just going to go back to my room and get some coffee.\' And"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
+    //    Resources definition
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+
+    fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
+        let paragraph_tokens = [198, 628];
+
+        for paragraph_token in paragraph_tokens.iter() {
+            if previous_token_ids
+                .iter::<i64>()
+                .unwrap()
+                .any(|x| x == *paragraph_token)
+            {
+                return vec![50256];
+            }
+        }
+        (0..50255).collect()
+    }
+
+    let generate_config = GenerateConfig {
+        max_length: 32,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        do_sample: false,
+        num_beams: 3,
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(generate_config)?;
+
+    let input_context_1 = "Rust is a";
+    let input_context_2 = "There was a ";
+    let output = model.generate(
+        Some(&[input_context_1, input_context_2]),
+        None,
+        None,
+        None,
+        None,
+        Some(&force_one_paragraph),
+    );
+
+    assert_eq!(output.len(), 2);
+    assert_eq!(
+        output[0],
+        "Rust is a simple, fast, and easy-to-use framework for building web applications. It is designed to be easy to use and maintain, and"
+    );
+    assert_eq!(
+        output[1],
+        "There was a urn in the back of the room, and I was sitting on it, and it looked like it was going to explode. And then I"
     );
 
     Ok(())

@@ -249,21 +249,46 @@ impl TextGenerationOption {
         S: AsRef<[&'a str]>,
     {
         match *self {
-            Self::GPT(ref model) => {
-                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
-            }
-            Self::GPT2(ref model) => {
-                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
-            }
-            Self::GPTNeo(ref model) => {
-                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
-            }
-            Self::XLNet(ref model) => {
-                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
-            }
-            Self::Reformer(ref model) => {
-                model.generate_indices(prompt_texts, attention_mask, min_length, max_length, None)
-            }
+            Self::GPT(ref model) => model.generate_indices(
+                prompt_texts,
+                attention_mask,
+                min_length,
+                max_length,
+                None,
+                None,
+            ),
+            Self::GPT2(ref model) => model.generate_indices(
+                prompt_texts,
+                attention_mask,
+                min_length,
+                max_length,
+                None,
+                None,
+            ),
+            Self::GPTNeo(ref model) => model.generate_indices(
+                prompt_texts,
+                attention_mask,
+                min_length,
+                max_length,
+                None,
+                None,
+            ),
+            Self::XLNet(ref model) => model.generate_indices(
+                prompt_texts,
+                attention_mask,
+                min_length,
+                max_length,
+                None,
+                None,
+            ),
+            Self::Reformer(ref model) => model.generate_indices(
+                prompt_texts,
+                attention_mask,
+                min_length,
+                max_length,
+                None,
+                None,
+            ),
         }
     }
 }

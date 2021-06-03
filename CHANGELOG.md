@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+## Added
+- (BREAKING) Support for `prefix_allowed_tokens_fn` arguments for generation, allowing users to control the generation via custom functions
 
 ## [0.15.1] - 2021-06-01
 ### Fixed
