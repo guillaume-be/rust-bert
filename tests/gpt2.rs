@@ -414,6 +414,7 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
         merges_resource,
         do_sample: false,
         num_beams: 1,
+        device: Device::Cpu,
         ..Default::default()
     };
     let model = GPT2Generator::new(generate_config)?;
@@ -478,6 +479,7 @@ fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
         merges_resource,
         do_sample: false,
         num_beams: 3,
+        device: Device::Cpu,
         ..Default::default()
     };
     let model = GPT2Generator::new(generate_config)?;

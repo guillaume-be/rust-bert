@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     //    Define input
     let input = ["translate English to German: This sentence will get translated to German"];
 
-    let output = t5_model.generate(Some(input.to_vec()), None, None, None, None);
+    let output = t5_model.generate(Some(input.to_vec()), None, None, None, None, None);
     println!("{:?}", output);
 
     Ok(())
