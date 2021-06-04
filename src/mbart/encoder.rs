@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartEncoderOutput, LearnedPositionalEmbedding, _expand_mask};
+use crate::bart::{BartEncoderOutput, _expand_mask};
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::mbart::attention::MBartAttention;

@@ -11,13 +11,11 @@
 // limitations under the License.
 
 use crate::bart::{BartDecoderOutput, _expand_mask, _prepare_decoder_attention_mask};
-use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::mbart::MBartDecoderLayer;
 use crate::pegasus::attention::LayerState;
 use crate::pegasus::embeddings::SinusoidalPositionalEmbedding;
 use crate::pegasus::PegasusConfig;
-use crate::Activation;
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 

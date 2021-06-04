@@ -13,7 +13,7 @@
 
 use std::borrow::Borrow;
 use tch::kind::Kind::Int64;
-use tch::nn::{embedding, EmbeddingConfig};
+use tch::nn::embedding;
 use tch::{nn, Tensor};
 
 /// # Abstraction that holds a embeddings configuration
