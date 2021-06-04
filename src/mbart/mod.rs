@@ -5,7 +5,8 @@ mod encoder;
 mod mbart_model;
 
 pub use mbart_model::{
-    MBartConfig, MBartConfigResources, MBartModelResources, MBartVocabResources,
+    MBartConfig, MBartConfigResources, MBartModel, MBartModelOutput, MBartModelResources,
+    MBartVocabResources,
 };
 
 pub use attention::LayerState;

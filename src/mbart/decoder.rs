@@ -325,4 +325,5 @@ impl MBartDecoder {
     }
 }
 
+/// Container holding a MBART decoder output
 pub type MBartDecoderOutput = BartDecoderOutput;
