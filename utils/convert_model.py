@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import subprocess
 import argparse
+import sys
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -17,14 +18,16 @@ if __name__ == "__main__":
     nps = {}
     for k, v in weights.items():
         k = k.replace("gamma", "weight").replace("beta", "bias")
-        nps[k] = np.ascontiguousarray(v.cpu().numpy())
-
+        if k in {"lm_head.weight", "model.encoder.embed_tokens.weight", "model.decoder.embed_tokens.weight"}:
+            continue
+        nps[k] = np.ascontiguousarray(v.cpu().numpy().astype(np.float32))
+        print(k + str(sys.getsizeof(nps[k])))
     np.savez(target_folder / 'model.npz', **nps)
 
-    source = str(target_folder / 'model.npz')
-    target = str(target_folder / 'rust_model.ot')
-
-    toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
-    subprocess.run(
-        ['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target],
-    )
+    # source = str(target_folder / 'model.npz')
+    # target = str(target_folder / 'rust_model.ot')
+    #
+    # toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
+    # subprocess.run(
+    #     ['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target],
+    # )

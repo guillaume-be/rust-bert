@@ -579,7 +579,7 @@ impl MBartForSequenceClassification {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::mbart::{MBartConfig, MBartForConditionalGeneration};
+    /// use rust_bert::mbart::{MBartConfig, MBartForSequenceClassification};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
@@ -594,12 +594,11 @@ impl MBartForSequenceClassification {
     ///
     ///  let model_output = no_grad(|| {
     ///    mbart_model
-    ///         .forward_t(Some(&input_tensor),
+    ///         .forward_t(&input_tensor,
     ///                    Some(&encoder_attention_mask),
     ///                    None,
     ///                    Some(&target_tensor),
     ///                    Some(&decoder_attention_mask),
-    ///                    None,
     ///                    false)
     ///    });
     /// ```

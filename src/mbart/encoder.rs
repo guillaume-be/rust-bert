@@ -157,7 +157,7 @@ impl MBartEncoder {
             Default::default(),
         );
 
-        let layer_norm = nn::layer_norm(p / "layernorm", vec![config.d_model], Default::default());
+        let layer_norm = nn::layer_norm(p / "layer_norm", vec![config.d_model], Default::default());
 
         let embed_positions = MBartLearnedPositionalEmbedding::new(
             p / "embed_positions",
