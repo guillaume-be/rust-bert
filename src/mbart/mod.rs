@@ -5,7 +5,8 @@ mod encoder;
 mod mbart_model;
 
 pub use mbart_model::{
-    MBartConfig, MBartConfigResources, MBartModel, MBartModelOutput, MBartModelResources,
+    MBartConfig, MBartConfigResources, MBartForConditionalGeneration,
+    MBartForSequenceClassification, MBartModel, MBartModelOutput, MBartModelResources,
     MBartVocabResources,
 };
 
