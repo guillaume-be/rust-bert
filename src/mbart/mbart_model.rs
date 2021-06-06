@@ -781,6 +781,7 @@ pub struct MBartGenerator {
     is_encoder_decoder: bool,
     vocab_size: i64,
     decoder_start_id: Option<i64>,
+    max_position_embeddings: i64,
 }
 
 impl MBartGenerator {
@@ -862,12 +863,12 @@ impl MBartGenerator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
-            ModelType::Bart,
+            ModelType::MBart,
             vocab_path.to_str().unwrap(),
             None,
             false,
             None,
-            false,
+            None,
         )?;
         let config = MBartConfig::from_file(config_path);
         let model = MBartForConditionalGeneration::new(&var_store.root(), &config);
@@ -882,6 +883,7 @@ impl MBartGenerator {
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id = Some(2);
+        let max_position_embeddings = config.max_position_embeddings;
 
         Ok(MBartGenerator {
             model,
@@ -894,6 +896,7 @@ impl MBartGenerator {
             is_encoder_decoder,
             vocab_size,
             decoder_start_id,
+            max_position_embeddings,
         })
     }
 
@@ -940,14 +943,19 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
         self.decoder_start_id
     }
 
+    fn get_max_positions_embeddings(&self) -> i64 {
+        self.max_position_embeddings
+    }
+
     fn prepare_scores_for_generation(
         &self,
         scores: &mut Tensor,
         current_length: i64,
         max_length: i64,
+        forced_bos_token_id: Option<i64>,
     ) {
         if current_length == 1 {
-            self.force_token_id_generation(scores, &[self.get_bos_id().unwrap()]);
+            self.force_token_id_generation(scores, &[forced_bos_token_id.unwrap_or(250004)]);
         } else if current_length == max_length - 1 {
             self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
         }

@@ -258,6 +258,7 @@ pub(crate) mod private_generation_utils {
         pub length_penalty: f64,
         pub num_beam_groups: Option<i64>,
         pub diversity_penalty: Option<f64>,
+        pub forced_bos_token_id: Option<i64>,
     }
 
     pub struct PreparedInput<'a> {
@@ -287,6 +288,7 @@ pub(crate) mod private_generation_utils {
             _scores: &mut Tensor,
             _current_length: i64,
             _max_length: i64,
+            _forced_bos_token_id: Option<i64>,
         ) {
         }
 
@@ -665,13 +667,13 @@ pub(crate) mod private_generation_utils {
                         f64::NEG_INFINITY,
                     );
                 }
-                if self.is_encoder_decoder() & !gen_opt.do_sample {
-                    self.prepare_scores_for_generation(
-                        &mut next_token_logits,
-                        current_length,
-                        gen_opt.max_length,
-                    );
-                }
+
+                self.prepare_scores_for_generation(
+                    &mut next_token_logits,
+                    current_length,
+                    gen_opt.max_length,
+                    gen_opt.forced_bos_token_id,
+                );
 
                 // Top-k and top-p sampling
                 let next_token = if gen_opt.do_sample {
@@ -861,13 +863,13 @@ pub(crate) mod private_generation_utils {
                     if gen_opt.temperature > 1f64 {
                         next_token_logits /= gen_opt.temperature;
                     }
-                    if self.is_encoder_decoder() & !gen_opt.do_sample {
-                        self.prepare_scores_for_generation(
-                            &mut next_token_logits,
-                            current_length,
-                            gen_opt.max_length,
-                        );
-                    }
+                    self.prepare_scores_for_generation(
+                        &mut next_token_logits,
+                        current_length,
+                        gen_opt.max_length,
+                        gen_opt.forced_bos_token_id,
+                    );
+
                     let mut scores = next_token_logits.log_softmax(-1, Float);
                     // Do not allow eos token if min length is not reached
                     if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
@@ -1274,6 +1276,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
+        forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
     ) -> Vec<String>
     where
@@ -1285,6 +1288,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             min_length,
             max_length,
             decoder_start_token_id,
+            forced_bos_token_id,
             prefix_allowed_tokens_fn,
         );
         let mut output = Vec::with_capacity(generated.len());
@@ -1376,6 +1380,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
+        forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
     ) -> Vec<Vec<i64>>
     where
@@ -1412,6 +1417,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             min_length,
             max_length,
             decoder_start_token_id,
+            forced_bos_token_id,
             prefix_allowed_tokens_fn,
         )
     }
@@ -1499,6 +1505,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
+        forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
     ) -> Vec<Vec<i64>> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
@@ -1628,6 +1635,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             length_penalty,
             num_beam_groups,
             diversity_penalty,
+            forced_bos_token_id: forced_bos_token_id.into(),
         };
 
         let decoded = no_grad(|| {

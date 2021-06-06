@@ -1148,9 +1148,13 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         scores: &mut Tensor,
         current_length: i64,
         max_length: i64,
+        forced_bos_token_id: Option<i64>,
     ) {
         if current_length == 1 {
-            self.force_token_id_generation(scores, &[self.get_bos_id().unwrap()]);
+            self.force_token_id_generation(
+                scores,
+                &[forced_bos_token_id.unwrap_or_else(|| self.get_bos_id().unwrap())],
+            );
         } else if current_length == max_length - 1 {
             self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
         }

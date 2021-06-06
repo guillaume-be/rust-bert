@@ -727,6 +727,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
         scores: &mut Tensor,
         current_length: i64,
         max_length: i64,
+        _forced_bos_token_id: Option<i64>,
     ) {
         if current_length == max_length - 1 {
             self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());

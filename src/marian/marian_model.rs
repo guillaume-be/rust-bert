@@ -895,6 +895,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         scores: &mut Tensor,
         current_length: i64,
         max_length: i64,
+        _forced_bos_token_id: Option<i64>,
     ) {
         let _ = scores.index_fill_(
             1,
