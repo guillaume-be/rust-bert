@@ -782,12 +782,11 @@ impl BartForSequenceClassification {
     ///
     ///  let model_output = no_grad(|| {
     ///    bart_model
-    ///         .forward_t(Some(&input_tensor),
+    ///         .forward_t(&input_tensor,
     ///                    Some(&encoder_attention_mask),
     ///                    None,
     ///                    Some(&target_tensor),
     ///                    Some(&decoder_attention_mask),
-    ///                    None,
     ///                    false)
     ///    });
     /// ```

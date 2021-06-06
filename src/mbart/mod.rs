@@ -6,8 +6,8 @@ mod mbart_model;
 
 pub use mbart_model::{
     MBartConfig, MBartConfigResources, MBartForConditionalGeneration,
-    MBartForSequenceClassification, MBartModel, MBartModelOutput, MBartModelResources,
-    MBartVocabResources,
+    MBartForSequenceClassification, MBartGenerator, MBartModel, MBartModelOutput,
+    MBartModelResources, MBartVocabResources,
 };
 
 pub use attention::LayerState;
