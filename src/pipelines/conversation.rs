@@ -698,7 +698,7 @@ impl ConversationOption {
 
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
-            Self::GPT2(model_ref) => model_ref.get_tokenizer(),
+            Self::GPT2(model_ref) => model_ref._get_tokenizer(),
         }
     }
 

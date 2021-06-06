@@ -9,7 +9,6 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/distilbert_masked_lm.rs`, run with `cargo run --example distilbert_masked_lm`.
 //! The example below illustrate a DistilBERT Masked language model example, the structure is similar for other models.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)

@@ -117,7 +117,7 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
         OpenAiGptModelResources::GPT,
     ));
 
-    //    Set-up masked LM model
+    //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
         model_resource,
@@ -159,7 +159,7 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
         OpenAiGptModelResources::GPT,
     ));
 
-    //    Set-up masked LM model
+    //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
         model_resource,
@@ -211,7 +211,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
         OpenAiGptModelResources::GPT,
     ));
 
-    //    Set-up masked LM model
+    //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
         model_resource,
@@ -279,7 +279,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
         OpenAiGptModelResources::GPT,
     ));
 
-    //    Set-up masked LM model
+    //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
         model_resource,

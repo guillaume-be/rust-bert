@@ -6,7 +6,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/generation.rs`, run with `cargo run --example generation`.
+//! A full working example is provided in `examples/generation_gpt2`, run with `cargo run --example generation_gpt2`.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.

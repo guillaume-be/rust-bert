@@ -36,6 +36,7 @@
 //! let min_length = Some(32);
 //! let max_length = Some(128);
 //! let decoder_start_id = None;
+//! let forced_bos_token_id = None;
 //!
 //! let input_context = "The dog";
 //! let second_input_context = "The cat was";
@@ -45,6 +46,7 @@
 //!     min_length,
 //!     max_length,
 //!     decoder_start_id,
+//!     forced_bos_token_id,
 //!     None,
 //! );
 //! # Ok(())
@@ -86,6 +88,7 @@ use crate::t5::LayerState as T5LayerState;
 use crate::xlnet::LayerState as XLNetLayerState;
 
 use self::ordered_float::OrderedFloat;
+use crate::pipelines::common::TokenizerOption;
 
 extern crate ordered_float;
 
@@ -272,7 +275,7 @@ pub(crate) mod private_generation_utils {
 
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
         fn get_model(&self) -> &T;
-        fn get_tokenizer(&self) -> &TokenizerOption;
+        fn _get_tokenizer(&self) -> &TokenizerOption;
         fn get_var_store(&self) -> &nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
         fn get_bos_id(&self) -> &Option<i64>;
@@ -322,10 +325,10 @@ pub(crate) mod private_generation_utils {
         where
             S: AsRef<[&'a str]>,
         {
-            let tokens = self.get_tokenizer().tokenize_list(prompt_text.as_ref());
+            let tokens = self._get_tokenizer().tokenize_list(prompt_text.as_ref());
             let token_ids = tokens
                 .into_iter()
-                .map(|prompt_tokens| self.get_tokenizer().convert_tokens_to_ids(&prompt_tokens))
+                .map(|prompt_tokens| self._get_tokenizer().convert_tokens_to_ids(&prompt_tokens))
                 .collect::<Vec<Vec<i64>>>();
 
             let num_truncated_tokens = token_ids
@@ -365,7 +368,7 @@ pub(crate) mod private_generation_utils {
 
             let pad_token = match pad_token_id {
                 Some(value) => value,
-                None => self.get_tokenizer().get_unk_id(),
+                None => self._get_tokenizer().get_unk_id(),
             };
 
             let token_ids = token_ids
@@ -1219,7 +1222,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     num_return_sequences: 3,
     ///     ..Default::default()
     /// };
-    /// let mut gpt2_generator = GPT2Generator::new(generate_config)?;
+    /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
     ///
@@ -1227,6 +1230,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let min_length = 32;
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
+    /// let forced_bos_token_id = None;
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
@@ -1251,6 +1255,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     min_length,
     ///     max_length,
     ///     decoder_start_token_id,
+    ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph)
     /// );
     /// # Ok(())
@@ -1293,7 +1298,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         );
         let mut output = Vec::with_capacity(generated.len());
         for generated_sequence in generated {
-            output.push(self.get_tokenizer().decode(generated_sequence, true, true));
+            output.push(self._get_tokenizer().decode(generated_sequence, true, true));
         }
         output
     }
@@ -1337,13 +1342,14 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     num_return_sequences: 3,
     ///     ..Default::default()
     /// };
-    /// let mut gpt2_generator = GPT2Generator::new(generate_config)?;
+    /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
     /// let attention_mask = None;
     /// let min_length = 32;
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
+    /// let forced_bos_token_id = None;
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
@@ -1368,6 +1374,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     min_length,
     ///     max_length,
     ///     decoder_start_token_id,
+    ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
     /// );
     /// # Ok(())
@@ -1462,13 +1469,14 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     num_return_sequences: 3,
     ///     ..Default::default()
     /// };
-    /// let mut gpt2_generator = GPT2Generator::new(generate_config)?;
+    /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
     /// let attention_mask = None;
     /// let min_length = 32;
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
+    /// let forced_bos_token_id = None;
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
@@ -1493,6 +1501,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     min_length,
     ///     max_length,
     ///     decoder_start_token_id,
+    ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
     /// );
     /// # Ok(())
@@ -1673,6 +1682,46 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             output_ids.push(sequence_output_ids.clone());
         }
         output_ids
+    }
+
+    /// Returns a reference to the text generator's tokenizer
+    ///
+    /// # Returns
+    /// * `&TokenizerOption` Reference to the generator's tokenizer.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// # use tch::Device;
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::gpt2::GPT2Generator;
+    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+    /// use tch::Tensor;
+    /// # let mut home: PathBuf = dirs::home_dir().unwrap();
+    /// # home.push("rustbert");
+    /// # home.push("gpt2");
+    /// # let config_path = &home.as_path().join("config.json");
+    /// # let vocab_path = &home.as_path().join("vocab.txt");
+    /// # let merges_path = &home.as_path().join("merges.txt");
+    /// # let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::cuda_if_available();
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let gpt2_generator = GPT2Generator::new(generate_config)?;
+    /// let tokenizer = gpt2_generator.get_tokenizer();
+    /// tokenizer.tokenize("Hello, world!");
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn get_tokenizer(&self) -> &TokenizerOption {
+        self._get_tokenizer()
     }
 }
 

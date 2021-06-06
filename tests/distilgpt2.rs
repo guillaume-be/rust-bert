@@ -28,7 +28,7 @@ fn distilgpt2_lm_model() -> anyhow::Result<()> {
     let merges_path = merges_resource.get_local_path()?;
     let weights_path = weights_resource.get_local_path()?;
 
-    //    Set-up masked LM model
+    //    Set-up model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(

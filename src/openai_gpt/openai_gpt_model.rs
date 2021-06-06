@@ -576,7 +576,7 @@ impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTok
     fn get_model(&self) -> &OpenAIGPTLMHeadModel {
         &self.model
     }
-    fn get_tokenizer(&self) -> &TokenizerOption {
+    fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {

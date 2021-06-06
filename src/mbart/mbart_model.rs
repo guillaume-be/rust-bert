@@ -698,7 +698,7 @@ impl LMHeadModel for MBartForConditionalGeneration {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = MBartConfig::from_file(config_path);
-    /// # let bart_model: MBartForConditionalGeneration = MBartForConditionalGeneration::new(&vs.root(), &config);
+    /// # let mbart_model: MBartForConditionalGeneration = MBartForConditionalGeneration::new(&vs.root(), &config);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -915,7 +915,7 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
     fn get_model(&self) -> &MBartForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &TokenizerOption {
+    fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -1002,7 +1002,7 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
     where
         S: AsRef<[&'a str]>,
     {
-        let tokens = self.get_tokenizer().encode_list(
+        let tokens = self._get_tokenizer().encode_list(
             prompt_text.as_ref(),
             max_len as usize,
             &TruncationStrategy::LongestFirst,
@@ -1018,7 +1018,7 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
         let pad_token = match pad_token_id {
             Some(value) => value,
             None => self
-                .get_tokenizer()
+                ._get_tokenizer()
                 .convert_tokens_to_ids(&[MBart50Vocab::unknown_value()])[0],
         };
 

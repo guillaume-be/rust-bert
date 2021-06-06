@@ -778,7 +778,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     fn get_model(&self) -> &T5ForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &TokenizerOption {
+    fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -850,7 +850,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     where
         S: AsRef<[&'a str]>,
     {
-        let tokens = self.get_tokenizer().encode_list(
+        let tokens = self._get_tokenizer().encode_list(
             prompt_text.as_ref(),
             max_len as usize,
             &TruncationStrategy::LongestFirst,
@@ -865,7 +865,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self.get_tokenizer().get_unk_id(),
+            None => self._get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids

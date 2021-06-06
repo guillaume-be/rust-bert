@@ -16,7 +16,7 @@ use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 
 fn main() -> anyhow::Result<()> {
-    //    Set-up masked LM model
+    //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
         max_length: 30,

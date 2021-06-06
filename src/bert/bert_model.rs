@@ -1240,7 +1240,7 @@ mod test {
 
     #[test]
     #[ignore] // compilation is enough, no need to run
-    fn bart_model_send() {
+    fn bert_model_send() {
         let config_resource =
             Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
         let config_path = config_resource.get_local_path().expect("");

@@ -6,8 +6,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/bart`, run with `cargo run --example bart`.
-//! Alternatively, the summarization capabilities are illustrated in `examples/summarization.rs`, run with `cargo run --example summarization`.
+//! The summarization capabilities are illustrated in `examples/summarization_bart`, run with `cargo run --example summarization_bart`.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.

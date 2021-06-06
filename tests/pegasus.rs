@@ -7,7 +7,7 @@ use tch::Device;
 
 #[test]
 fn pegasus_summarization_greedy() -> anyhow::Result<()> {
-    //    Set-up masked LM model
+    //    Set-up model
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         PegasusConfigResources::CNN_DAILYMAIL,
     ));

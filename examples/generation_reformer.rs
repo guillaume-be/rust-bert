@@ -22,7 +22,7 @@ use rust_bert::reformer::{
 use rust_bert::resources::{RemoteResource, Resource};
 
 fn main() -> anyhow::Result<()> {
-    //    Set-up masked LM model
+    //    Set-up model
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         ReformerConfigResources::CRIME_AND_PUNISHMENT,
