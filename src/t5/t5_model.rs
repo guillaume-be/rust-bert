@@ -696,6 +696,7 @@ pub struct T5Generator {
     is_encoder_decoder: bool,
     vocab_size: i64,
     decoder_start_id: Option<i64>,
+    max_position_embeddings: i64,
 }
 
 impl T5Generator {
@@ -754,6 +755,8 @@ impl T5Generator {
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id = Some(0);
+        // T5 do not have an embedding matrix for position IDs and relies on relative positions instead
+        let max_position_embeddings = i64::MAX;
 
         Ok(T5Generator {
             model,
@@ -766,6 +769,7 @@ impl T5Generator {
             is_encoder_decoder,
             vocab_size,
             decoder_start_id,
+            max_position_embeddings,
         })
     }
 }
@@ -800,6 +804,9 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     }
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
+    }
+    fn get_max_positions_embeddings(&self) -> i64 {
+        self.max_position_embeddings
     }
 
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {

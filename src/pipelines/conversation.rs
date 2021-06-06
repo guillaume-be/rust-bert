@@ -122,7 +122,7 @@ impl Default for ConversationConfig {
             )),
             min_length: 0,
             max_length: 1000,
-            min_length_for_response: 32,
+            min_length_for_response: 64,
             do_sample: true,
             early_stopping: false,
             num_beams: 1,
@@ -717,7 +717,7 @@ impl ConversationOption {
     ) -> Vec<Vec<i64>> {
         match *self {
             Self::GPT2(ref model) => {
-                model.generate_from_ids_and_past(input_ids, attention_mask, None, None, None)
+                model.generate_from_ids_and_past(input_ids, attention_mask, None, None, None, None)
             }
         }
     }
@@ -897,18 +897,15 @@ impl ConversationModel {
             concatenated_inputs.push(concatenated_element);
         }
 
-        let max_len = concatenated_inputs
-            .iter()
-            .map(|input| input.len())
-            .max()
-            .unwrap()
-            .min(self.max_allowed_context_length as usize);
-
         let truncated_concatenated_inputs = concatenated_inputs
             .iter()
             .map(|input| {
-                if input.len() > max_len {
-                    let start = self.get_truncated_input_index(&input, max_len, pad_token);
+                if input.len() > self.max_allowed_context_length as usize {
+                    let start = self.get_truncated_input_index(
+                        &input,
+                        self.max_allowed_context_length as usize,
+                        pad_token,
+                    );
                     &input[start..]
                 } else {
                     input.as_slice()
@@ -963,7 +960,9 @@ impl ConversationModel {
             .map(|(i, _)| i + 1)
             .collect();
 
-        *eos_indices.first().unwrap_or(&0usize)
+        // Return the position of the first EOS index that fits the max length requirement.
+        // If it does not exist, no solution exists and truncate text at a non-EOS position
+        *eos_indices.first().unwrap_or(&(start_length - max_length))
     }
 
     /// Encodes prompts into Vectors of indices to be processed by the model. This method may be used to
@@ -997,6 +996,7 @@ impl ConversationModel {
                     .convert_tokens_to_ids(&prompt_tokens)
             })
             .map(|mut tokens| {
+                tokens.truncate(self.max_allowed_context_length as usize - 1);
                 tokens.push(self.eos_token_id);
                 tokens
             })

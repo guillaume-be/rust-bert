@@ -455,6 +455,7 @@ pub struct OpenAIGenerator {
     is_encoder_decoder: bool,
     vocab_size: i64,
     decoder_start_id: Option<i64>,
+    max_position_embeddings: i64,
 }
 
 impl OpenAIGenerator {
@@ -551,6 +552,7 @@ impl OpenAIGenerator {
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
         let decoder_start_id = None;
+        let max_position_embeddings = config.n_positions;
 
         Ok(OpenAIGenerator {
             model,
@@ -563,6 +565,7 @@ impl OpenAIGenerator {
             is_encoder_decoder,
             vocab_size,
             decoder_start_id,
+            max_position_embeddings,
         })
     }
 }
@@ -599,6 +602,9 @@ impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTok
     }
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
+    }
+    fn get_max_positions_embeddings(&self) -> i64 {
+        self.max_position_embeddings
     }
 }
 

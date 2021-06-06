@@ -45,6 +45,7 @@
 //!     min_length,
 //!     max_length,
 //!     decoder_start_id,
+//!     None,
 //! );
 //! # Ok(())
 //! # }
@@ -233,7 +234,7 @@ pub(crate) mod private_generation_utils {
     use rust_tokenizers::vocab::Vocab;
     use rust_tokenizers::TokenIdsWithOffsets;
     use tch::kind::Kind::{Bool, Float, Int64};
-    use tch::{nn, Device, Tensor};
+    use tch::{nn, Device, Kind, Tensor};
 
     use crate::pipelines::common::TokenizerOption;
     use crate::pipelines::generation_utils::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
@@ -279,6 +280,7 @@ pub(crate) mod private_generation_utils {
         fn is_encoder_decoder(&self) -> bool;
         fn get_vocab_size(&self) -> i64;
         fn get_decoder_start_id(&self) -> Option<i64>;
+        fn get_max_positions_embeddings(&self) -> i64;
 
         fn prepare_scores_for_generation(
             &self,
@@ -544,6 +546,31 @@ pub(crate) mod private_generation_utils {
             }
         }
 
+        fn apply_prefix_allowed_tokens_function(
+            &self,
+            prefix_allowed_tokens_fn: &dyn Fn(i64, &Tensor) -> Vec<i64>,
+            num_beams: i64,
+            input_ids: &Tensor,
+            scores: &mut Tensor,
+        ) {
+            let mask = scores.new_full(
+                scores.size().as_slice(),
+                f64::INFINITY,
+                (Kind::Float, scores.device()),
+            );
+            for idx in 0..scores.size()[0] {
+                let batch_id = idx / num_beams;
+                let allowed_tokens: Vec<i64> =
+                    prefix_allowed_tokens_fn(batch_id, &input_ids.get(idx));
+                let _ = mask.get(idx).index_fill_(
+                    0,
+                    &Tensor::of_slice(allowed_tokens.as_slice()).to(scores.device()),
+                    0,
+                );
+            }
+            let _ = scores.subtract_(&mask);
+        }
+
         fn generate_no_beam_search(
             &self,
             input_ids: Tensor,
@@ -552,6 +579,7 @@ pub(crate) mod private_generation_utils {
             batch_size: i64,
             attention_mask: Tensor,
             gen_opt: GenerateOptions,
+            prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
         ) -> Tensor {
             let mut unfinished_sentences =
                 Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()));
@@ -589,7 +617,7 @@ pub(crate) mod private_generation_utils {
                 past = temp.cache;
 
                 let mut next_token_logits = outputs.select(1, -1);
-                //            Reduce probability for repeated inputs
+                // Reduce probability for repeated inputs
                 if gen_opt.repetition_penalty > 1f64 {
                     self.enforce_repetition_penalty(
                         &mut next_token_logits,
@@ -599,7 +627,7 @@ pub(crate) mod private_generation_utils {
                         gen_opt.repetition_penalty,
                     )
                 }
-                //            Get banned tokens and set their probability to 0
+                // Get banned tokens and set their probability to 0
                 if gen_opt.no_repeat_ngram_size > 0 {
                     let banned_tokens = self.get_banned_tokens(
                         &input_ids,
@@ -618,7 +646,17 @@ pub(crate) mod private_generation_utils {
                     }
                 }
 
-                //            Do not allow eos token if min length is not reached
+                // Apply custom prefix constraint function
+                if let Some(prefix_allowed_tokens_function) = prefix_allowed_tokens_fn {
+                    self.apply_prefix_allowed_tokens_function(
+                        prefix_allowed_tokens_function,
+                        1,
+                        &input_ids,
+                        &mut next_token_logits,
+                    )
+                }
+
+                // Do not allow eos token if min length is not reached
                 if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
                     let _ = next_token_logits.index_fill_(
                         1,
@@ -635,7 +673,7 @@ pub(crate) mod private_generation_utils {
                     );
                 }
 
-                //            Top-k and top-p sampling
+                // Top-k and top-p sampling
                 let next_token = if gen_opt.do_sample {
                     if gen_opt.temperature > 1f64 {
                         next_token_logits /= gen_opt.temperature;
@@ -652,7 +690,7 @@ pub(crate) mod private_generation_utils {
                     next_token_logits.argmax(-1, false)
                 };
 
-                //            Add tokens to unfinished sentences
+                // Add tokens to unfinished sentences
                 let tokens_to_add = match &gen_opt.eos_token_ids {
                     Some(_) => {
                         next_token * &unfinished_sentences
@@ -704,6 +742,7 @@ pub(crate) mod private_generation_utils {
             batch_size: i64,
             mut attention_mask: Tensor,
             gen_opt: GenerateOptions,
+            prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
         ) -> Tensor {
             let num_beam_groups = gen_opt.num_beam_groups.unwrap_or(1);
             let num_sub_beams = gen_opt.num_beams / num_beam_groups;
@@ -808,7 +847,7 @@ pub(crate) mod private_generation_utils {
                             .select(1, -1)
                             .index_select(0, batch_group_indices.as_ref().unwrap())
                     };
-                    //            Reduce probability for repeated inputs
+                    // Reduce probability for repeated inputs
                     if gen_opt.repetition_penalty > 1f64 {
                         self.enforce_repetition_penalty(
                             &mut next_token_logits,
@@ -830,7 +869,7 @@ pub(crate) mod private_generation_utils {
                         );
                     }
                     let mut scores = next_token_logits.log_softmax(-1, Float);
-                    //            Do not allow eos token if min length is not reached
+                    // Do not allow eos token if min length is not reached
                     if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
                         let _ = scores.index_fill_(
                             1,
@@ -839,7 +878,7 @@ pub(crate) mod private_generation_utils {
                             f64::NEG_INFINITY,
                         );
                     }
-                    //            Get banned tokens and set their probability to 0
+                    // Get banned tokens and set their probability to 0
                     if gen_opt.no_repeat_ngram_size > 0 {
                         let banned_tokens = self.get_banned_tokens(
                             group_input_ids.as_ref().unwrap_or(&input_ids),
@@ -858,7 +897,7 @@ pub(crate) mod private_generation_utils {
                         }
                     }
 
-                    //            Update scores with diversity penalty
+                    // Update scores with diversity penalty
                     if num_beam_groups > 1 {
                         self.run_hamming_diversity_penalty(
                             &mut scores,
@@ -869,6 +908,16 @@ pub(crate) mod private_generation_utils {
                             group_size,
                             group_start_index,
                         );
+                    }
+
+                    // Apply custom prefix constraint function
+                    if let Some(prefix_allowed_tokens_function) = prefix_allowed_tokens_fn {
+                        self.apply_prefix_allowed_tokens_function(
+                            prefix_allowed_tokens_function,
+                            num_sub_beams,
+                            &input_ids,
+                            &mut scores,
+                        )
                     }
 
                     let mut next_scores: Tensor = &scores
@@ -1135,6 +1184,10 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///
     /// * `prompt_texts` - `Option<Vec<&str>>` Optional vector of text prompts. An empty prompt to the model may be passed if the model implement a `bos_id`.
     /// * `attention_mask` - `Option<Tensor>` Optional attention mask to hide portions of the prompt.
+    /// * `min_length` - `impl Into<Option<i64>>` Optional minimum output sequence length
+    /// * `max_length` - `impl Into<Option<i64>>` Optional maximum output sequence length
+    /// * `decoder_start_token_id` - `impl Into<Option<i64>>` Optional decoder start token id
+    /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
     ///
     /// # Returns
     /// * `Vec<String>` Vector of generated strings based on the prompts of length *number_of_prompts* x *num_return_sequences*.
@@ -1147,6 +1200,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::gpt2::GPT2Generator;
     /// use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+    /// use tch::Tensor;
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("gpt2");
@@ -1172,12 +1226,30 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
     ///
+    /// //Example custom function for fine-grained generation control
+    /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
+    ///     let paragraph_tokens = [198, 628];
+    ///
+    ///     for paragraph_token in paragraph_tokens.iter() {
+    ///         if previous_token_ids
+    ///             .iter::<i64>()
+    ///             .unwrap()
+    ///             .collect::<Vec<i64>>()
+    ///             .contains(paragraph_token)
+    ///         {
+    ///             return vec![50256];
+    ///         }
+    ///     }
+    ///     (0..50255).collect()
+    /// }
+    ///
     /// let output = gpt2_generator.generate(
     ///     Some(vec![input_context, second_input_context]),
     ///     attention_mask,
     ///     min_length,
     ///     max_length,
     ///     decoder_start_token_id,
+    ///     Some(&force_one_paragraph)
     /// );
     /// # Ok(())
     /// # }
@@ -1202,6 +1274,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
+        prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
     ) -> Vec<String>
     where
         S: AsRef<[&'a str]>,
@@ -1212,6 +1285,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             min_length,
             max_length,
             decoder_start_token_id,
+            prefix_allowed_tokens_fn,
         );
         let mut output = Vec::with_capacity(generated.len());
         for generated_sequence in generated {
@@ -1226,6 +1300,10 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///
     /// * `prompt_texts` - `Option<Vec<&str>>` Optional vector of text prompts. An empty prompt to the model may be passed if the model implement a `bos_id`.
     /// * `attention_mask` - `Option<Tensor>` Optional attention mask to hide portions of the prompt.
+    /// * `min_length` - `impl Into<Option<i64>>` Optional minimum output sequence length
+    /// * `max_length` - `impl Into<Option<i64>>` Optional maximum output sequence length
+    /// * `decoder_start_token_id` - `impl Into<Option<i64>>` Optional decoder start token id
+    /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
     ///
     /// # Returns
     /// * `Vec<Vec<i64>>` Vector of Vector of generated token indices based on the prompts of length *number_of_prompts* x *num_return_sequences*.
@@ -1238,6 +1316,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::gpt2::GPT2Generator;
     /// use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+    /// use tch::Tensor;
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
     /// # home.push("gpt2");
@@ -1262,12 +1341,30 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
     ///
+    /// //Example custom function for fine-grained generation control
+    /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
+    ///     let paragraph_tokens = [198, 628];
+    ///
+    ///     for paragraph_token in paragraph_tokens.iter() {
+    ///         if previous_token_ids
+    ///             .iter::<i64>()
+    ///             .unwrap()
+    ///             .collect::<Vec<i64>>()
+    ///             .contains(paragraph_token)
+    ///         {
+    ///             return vec![50256];
+    ///         }
+    ///     }
+    ///     (0..50255).collect()
+    /// }
+    ///
     /// let output = gpt2_generator.generate_indices(
     ///     Some(vec![input_context, second_input_context]),
     ///     attention_mask,
     ///     min_length,
     ///     max_length,
     ///     decoder_start_token_id,
+    ///     Some(&force_one_paragraph),
     /// );
     /// # Ok(())
     /// # }
@@ -1279,6 +1376,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
+        prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
     ) -> Vec<Vec<i64>>
     where
         S: AsRef<[&'a str]>,
@@ -1288,7 +1386,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let config = PrivateLanguageGenerator::get_config(self);
         let max_length = max_length.into().unwrap_or(config.max_length);
         let encoding_max_len = if self.is_encoder_decoder() {
-            1024i64
+            PrivateLanguageGenerator::get_max_positions_embeddings(self)
         } else {
             max_length
         };
@@ -1314,9 +1412,86 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             min_length,
             max_length,
             decoder_start_token_id,
+            prefix_allowed_tokens_fn,
         )
     }
 
+    /// Generate token indices given a list of indices (useful when the input has been pre-tokenized).
+    /// Returns a list of output tokens that need to be decoded using a tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - `Tensor` pre-tokenized and encoded input for generation.
+    /// * `attention_mask` - `Option<Tensor>` Optional attention mask to hide portions of the prompt.
+    /// * `min_length` - `impl Into<Option<i64>>` Optional minimum output sequence length
+    /// * `max_length` - `impl Into<Option<i64>>` Optional maximum output sequence length
+    /// * `decoder_start_token_id` - `impl Into<Option<i64>>` Optional decoder start token id
+    /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
+    ///
+    /// # Returns
+    /// * `Vec<Vec<i64>>` Vector of Vector of generated token indices based on the prompts of length *number_of_prompts* x *num_return_sequences*.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use std::path::PathBuf;
+    /// # use tch::Device;
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::gpt2::GPT2Generator;
+    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+    /// use tch::Tensor;
+    /// # let mut home: PathBuf = dirs::home_dir().unwrap();
+    /// # home.push("rustbert");
+    /// # home.push("gpt2");
+    /// # let config_path = &home.as_path().join("config.json");
+    /// # let vocab_path = &home.as_path().join("vocab.txt");
+    /// # let merges_path = &home.as_path().join("merges.txt");
+    /// # let weights_path = &home.as_path().join("model.ot");
+    /// let device = Device::cuda_if_available();
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let mut gpt2_generator = GPT2Generator::new(generate_config)?;
+    /// let input_context = "The dog";
+    /// let second_input_context = "The cat was";
+    /// let attention_mask = None;
+    /// let min_length = 32;
+    /// let max_length = 128;
+    /// let decoder_start_token_id = None;
+    ///
+    /// //Example custom function for fine-grained generation control
+    /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
+    ///     let paragraph_tokens = [198, 628];
+    ///
+    ///     for paragraph_token in paragraph_tokens.iter() {
+    ///         if previous_token_ids
+    ///             .iter::<i64>()
+    ///             .unwrap()
+    ///             .collect::<Vec<i64>>()
+    ///             .contains(paragraph_token)
+    ///         {
+    ///             return vec![50256];
+    ///         }
+    ///     }
+    ///     (0..50255).collect()
+    /// }
+    ///
+    /// let output = gpt2_generator.generate_indices(
+    ///     Some(vec![input_context, second_input_context]),
+    ///     attention_mask,
+    ///     min_length,
+    ///     max_length,
+    ///     decoder_start_token_id,
+    ///     Some(&force_one_paragraph),
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
     fn generate_from_ids_and_past(
         &self,
         input_ids: Tensor,
@@ -1324,6 +1499,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
+        prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
     ) -> Vec<Vec<i64>> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
@@ -1463,6 +1639,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                     effective_batch_size,
                     attention_mask,
                     gen_opt,
+                    prefix_allowed_tokens_fn,
                 )
             } else {
                 self.generate_no_beam_search(
@@ -1472,6 +1649,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                     effective_batch_size,
                     attention_mask,
                     gen_opt,
+                    prefix_allowed_tokens_fn,
                 )
             }
         });

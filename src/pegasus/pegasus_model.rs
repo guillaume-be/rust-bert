@@ -557,6 +557,7 @@ pub struct PegasusConditionalGenerator {
     is_encoder_decoder: bool,
     vocab_size: i64,
     decoder_start_id: Option<i64>,
+    max_position_embeddings: i64,
 }
 
 impl PegasusConditionalGenerator {
@@ -658,6 +659,7 @@ impl PegasusConditionalGenerator {
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id = Some(0);
+        let max_position_embeddings = config.max_position_embeddings;
 
         Ok(PegasusConditionalGenerator {
             model,
@@ -670,6 +672,7 @@ impl PegasusConditionalGenerator {
             is_encoder_decoder,
             vocab_size,
             decoder_start_id,
+            max_position_embeddings,
         })
     }
 
@@ -714,6 +717,9 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
     }
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
+    }
+    fn get_max_positions_embeddings(&self) -> i64 {
+        self.max_position_embeddings
     }
 
     fn prepare_scores_for_generation(
