@@ -18,10 +18,10 @@
 //! #
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
+//! use rust_bert::mbart::{MBartConfig, MBartModel};
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::MBart50Tokenizer;
-//! use rust_bert::mbart::{MBartConfig, MBartModel};
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
@@ -38,10 +38,8 @@
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: MBart50Tokenizer = MBart50Tokenizer::from_file(
-//!     vocab_path.to_str().unwrap(),
-//!     false,
-//! )?;
+//! let tokenizer: MBart50Tokenizer =
+//!     MBart50Tokenizer::from_file(vocab_path.to_str().unwrap(), false)?;
 //! let config = MBartConfig::from_file(config_path);
 //! let bart_model = MBartModel::new(&vs.root(), &config);
 //! vs.load(weights_path)?;

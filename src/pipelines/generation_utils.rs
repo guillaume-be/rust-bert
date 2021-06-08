@@ -1256,7 +1256,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     max_length,
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
-    ///     Some(&force_one_paragraph)
+    ///     Some(&force_one_paragraph),
     /// );
     /// # Ok(())
     /// # }

@@ -3,7 +3,6 @@ use rust_bert::mbart::{
     MBartVocabResources,
 };
 use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
-use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{MBart50Tokenizer, Tokenizer, TruncationStrategy};
