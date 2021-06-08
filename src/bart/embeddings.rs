@@ -13,7 +13,7 @@
 
 use std::borrow::Borrow;
 use tch::kind::Kind::Int64;
-use tch::nn::{embedding, EmbeddingConfig};
+use tch::nn::embedding;
 use tch::{nn, Tensor};
 
 /// # Abstraction that holds a embeddings configuration
@@ -40,34 +40,25 @@ impl EmbeddingOption {
 #[derive(Debug)]
 pub struct LearnedPositionalEmbedding {
     embedding: nn::Embedding,
-    padding_index: i64,
     offset: i64,
 }
 
 impl LearnedPositionalEmbedding {
-    pub fn new<'p, P>(
-        p: P,
-        num_embeddings: i64,
-        embedding_dim: i64,
-        padding_index: i64,
-    ) -> LearnedPositionalEmbedding
+    pub fn new<'p, P>(p: P, num_embeddings: i64, embedding_dim: i64) -> LearnedPositionalEmbedding
     where
         P: Borrow<nn::Path<'p>>,
     {
         let offset = 2;
 
-        let embedding_config = EmbeddingConfig {
-            ..Default::default()
-        };
         let num_embeddings = num_embeddings + offset;
 
-        let embedding: nn::Embedding =
-            embedding(p.borrow(), num_embeddings, embedding_dim, embedding_config);
-        LearnedPositionalEmbedding {
-            embedding,
-            padding_index,
-            offset,
-        }
+        let embedding: nn::Embedding = embedding(
+            p.borrow(),
+            num_embeddings,
+            embedding_dim,
+            Default::default(),
+        );
+        LearnedPositionalEmbedding { embedding, offset }
     }
 
     pub fn forward(&self, input: &Tensor, past_key_values_length: i64) -> Tensor {

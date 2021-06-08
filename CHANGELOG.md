@@ -3,7 +3,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 ## Added
-- (BREAKING) Support for `prefix_allowed_tokens_fn` arguments for generation, allowing users to control the generation via custom functions
+- (BREAKING) Support for `prefix_allowed_tokens_fn` argument  for generation, allowing users to control the generation via custom functions
+- (BREAKING) Support for `forced_bos_token_id` argument for generation, allowing users to force a given BOS token for generation (useful for MBart/M2M-class models)
+- Addition of the MBart Language model and support for text generation / direct translation between 50 language
 
 ## [0.15.1] - 2021-06-01
 ### Fixed

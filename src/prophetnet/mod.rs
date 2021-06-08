@@ -7,7 +7,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example (generation) is provided in `examples/summarization_prophetnet`, run with `cargo run --example summarization_prophetnet`.
+//! A full working example (summarization) is provided in `examples/summarization_prophetnet`, run with `cargo run --example summarization_prophetnet`.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.

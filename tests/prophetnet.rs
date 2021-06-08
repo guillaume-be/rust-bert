@@ -9,7 +9,7 @@ use tch::Device;
 
 #[test]
 fn prophetnet_summarization_greedy() -> anyhow::Result<()> {
-    //    Set-up masked LM model
+    //    Set-up model
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         ProphetNetConfigResources::PROPHETNET_LARGE_CNN_DM,
     ));

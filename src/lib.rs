@@ -58,6 +58,7 @@
 //! GPT-Neo| | | |✅ | | | |
 //! BART|✅| | |✅ |✅| | |
 //! Marian| | | |  | |✅| |
+//! MBart|✅| | |✅ | | | |
 //! Electra | |✅| | | | |✅|
 //! ALBERT |✅|✅|✅| | | |✅|
 //! T5 | | | |✅ |✅|✅| |
@@ -579,6 +580,7 @@ pub mod gpt2;
 pub mod gpt_neo;
 pub mod longformer;
 pub mod marian;
+pub mod mbart;
 pub mod mobilebert;
 pub mod openai_gpt;
 pub mod pegasus;

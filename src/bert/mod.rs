@@ -10,7 +10,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/bert`, run with `cargo run --example bert`.
+//! A full working example is provided in `examples/masked_language_model_bert`, run with `cargo run --example masked_language_model_bert`.
 //! The example below illustrate a Masked language model example, the structure is similar for other models.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)

@@ -1,5 +1,5 @@
-// Copyright 2021, Google and The HuggingFace Inc. team. All rights reserved.
-// Copyright 2021 Guillaume Becquin
+// Copyright 2021, The Facebook AI Research Team and The HuggingFace Inc. team. All rights reserved.
+// Copyright 2020 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,9 +10,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::bart::BartAttention;
 use crate::bart::LayerState as BartLayerState;
 
-/// # Cache for Pegasus attention layers
-/// Stores the cached value of key, value and key padding mask to avoid recalculation (e.g. at each generation step)
-/// Identical to BART cache (type alias).
+pub type MBartAttention = BartAttention;
 pub type LayerState = BartLayerState;

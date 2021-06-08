@@ -426,6 +426,7 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
         None,
         None,
         None,
+        None,
         Some(&force_one_paragraph),
     );
 
@@ -486,6 +487,7 @@ fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
     let input_context_2 = "There was a ";
     let output = model.generate(
         Some(&[input_context_1, input_context_2]),
+        None,
         None,
         None,
         None,

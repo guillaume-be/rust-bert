@@ -859,7 +859,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
     fn get_model(&self) -> &MarianForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &TokenizerOption {
+    fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -895,6 +895,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         scores: &mut Tensor,
         current_length: i64,
         max_length: i64,
+        _forced_bos_token_id: Option<i64>,
     ) {
         let _ = scores.index_fill_(
             1,
@@ -949,7 +950,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
     where
         T: AsRef<[&'a str]>,
     {
-        let tokens = self.get_tokenizer().encode_list(
+        let tokens = self._get_tokenizer().encode_list(
             prompt_text.as_ref(),
             max_len as usize,
             &TruncationStrategy::LongestFirst,
@@ -964,7 +965,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self.get_tokenizer().get_unk_id(),
+            None => self._get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids

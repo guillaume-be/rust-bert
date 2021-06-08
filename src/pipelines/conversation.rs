@@ -698,7 +698,7 @@ impl ConversationOption {
 
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
-            Self::GPT2(model_ref) => model_ref.get_tokenizer(),
+            Self::GPT2(model_ref) => model_ref._get_tokenizer(),
         }
     }
 
@@ -716,9 +716,15 @@ impl ConversationOption {
         attention_mask: Option<Tensor>,
     ) -> Vec<Vec<i64>> {
         match *self {
-            Self::GPT2(ref model) => {
-                model.generate_from_ids_and_past(input_ids, attention_mask, None, None, None, None)
-            }
+            Self::GPT2(ref model) => model.generate_from_ids_and_past(
+                input_ids,
+                attention_mask,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
         }
     }
 }

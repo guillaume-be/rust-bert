@@ -1114,7 +1114,7 @@ impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTo
     fn get_model(&self) -> &ReformerModelWithLMHead {
         &self.model
     }
-    fn get_tokenizer(&self) -> &TokenizerOption {
+    fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {

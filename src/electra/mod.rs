@@ -14,7 +14,6 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/electra_masked_lm.rs`, run with `cargo run --example electra_masked_lm`.
 //! The example below illustrate a Masked language model example, the structure is similar for other models (e.g. discriminator).
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)

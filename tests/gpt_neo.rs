@@ -29,7 +29,7 @@ fn gpt_neo_lm() -> anyhow::Result<()> {
     let merges_path = merges_resource.get_local_path()?;
     let weights_path = weights_resource.get_local_path()?;
 
-    //    Set-up masked LM model
+    //    Set-up model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(
@@ -122,7 +122,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
         GptNeoModelResources::GPT_NEO_125M,
     ));
 
-    //    Set-up translation model
+    //    Set-up model
     let generation_config = TextGenerationConfig {
         model_type: ModelType::GPTNeo,
         model_resource,

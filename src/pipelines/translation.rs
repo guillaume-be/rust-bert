@@ -675,10 +675,10 @@ impl TranslationOption {
     {
         match *self {
             Self::Marian(ref model) => {
-                model.generate(prompt_texts, attention_mask, None, None, None, None)
+                model.generate(prompt_texts, attention_mask, None, None, None, None, None)
             }
             Self::T5(ref model) => {
-                model.generate(prompt_texts, attention_mask, None, None, None, None)
+                model.generate(prompt_texts, attention_mask, None, None, None, None, None)
             }
         }
     }

@@ -77,7 +77,6 @@ fn bart_lm_model() -> anyhow::Result<()> {
 
 #[test]
 fn bart_summarization_greedy() -> anyhow::Result<()> {
-    //    Set-up masked LM model
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         BartConfigResources::DISTILBART_CNN_6_6,
     ));
@@ -139,7 +138,6 @@ about exoplanets like K2-18b."];
 
 #[test]
 fn bart_summarization_beam_search() -> anyhow::Result<()> {
-    //    Set-up masked LM model
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         BartConfigResources::DISTILBART_CNN_6_6,
     ));
@@ -202,7 +200,7 @@ about exoplanets like K2-18b."];
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_zero_shot_classification() -> anyhow::Result<()> {
-    //    Set-up model model
+    //    Set-up model
     let zero_shot_config = ZeroShotClassificationConfig {
         device: Device::Cpu,
         ..Default::default()
@@ -235,7 +233,7 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
-    //    Set-up model model
+    // Set-up model
     let zero_shot_config = ZeroShotClassificationConfig {
         device: Device::Cpu,
         ..Default::default()

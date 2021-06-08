@@ -229,11 +229,11 @@ impl TextGenerationOption {
     /// Interface method to access tokenizer
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
-            Self::GPT(model_ref) => model_ref.get_tokenizer(),
-            Self::GPT2(model_ref) => model_ref.get_tokenizer(),
-            Self::GPTNeo(model_ref) => model_ref.get_tokenizer(),
-            Self::XLNet(model_ref) => model_ref.get_tokenizer(),
-            Self::Reformer(model_ref) => model_ref.get_tokenizer(),
+            Self::GPT(model_ref) => model_ref._get_tokenizer(),
+            Self::GPT2(model_ref) => model_ref._get_tokenizer(),
+            Self::GPTNeo(model_ref) => model_ref._get_tokenizer(),
+            Self::XLNet(model_ref) => model_ref._get_tokenizer(),
+            Self::Reformer(model_ref) => model_ref._get_tokenizer(),
         }
     }
 
@@ -256,12 +256,14 @@ impl TextGenerationOption {
                 max_length,
                 None,
                 None,
+                None,
             ),
             Self::GPT2(ref model) => model.generate_indices(
                 prompt_texts,
                 attention_mask,
                 min_length,
                 max_length,
+                None,
                 None,
                 None,
             ),
@@ -272,6 +274,7 @@ impl TextGenerationOption {
                 max_length,
                 None,
                 None,
+                None,
             ),
             Self::XLNet(ref model) => model.generate_indices(
                 prompt_texts,
@@ -280,12 +283,14 @@ impl TextGenerationOption {
                 max_length,
                 None,
                 None,
+                None,
             ),
             Self::Reformer(ref model) => model.generate_indices(
                 prompt_texts,
                 attention_mask,
                 min_length,
                 max_length,
+                None,
                 None,
                 None,
             ),

@@ -10,9 +10,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::{BartConfig, BartModelOutput};
+use crate::bart::BartModelOutput;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
+use crate::mbart::MBartConfig;
 use crate::pegasus::decoder::PegasusDecoder;
 use crate::pegasus::encoder::PegasusEncoder;
 use crate::pegasus::LayerState;
@@ -65,7 +66,7 @@ impl PegasusVocabResources {
 
 /// # Pegasus model configuration
 /// Defines the Pegasus model architecture (e.g. number of layers, hidden layer size, label mapping...)
-pub type PegasusConfig = BartConfig;
+pub type PegasusConfig = MBartConfig;
 
 fn _shift_tokens_right(
     input_ids: &Tensor,
@@ -690,7 +691,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
     fn get_model(&self) -> &PegasusForConditionalGeneration {
         &self.model
     }
-    fn get_tokenizer(&self) -> &TokenizerOption {
+    fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
     fn get_var_store(&self) -> &nn::VarStore {
@@ -726,6 +727,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
         scores: &mut Tensor,
         current_length: i64,
         max_length: i64,
+        _forced_bos_token_id: Option<i64>,
     ) {
         if current_length == max_length - 1 {
             self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
@@ -773,7 +775,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
     where
         S: AsRef<[&'a str]>,
     {
-        let tokens = self.get_tokenizer().encode_list(
+        let tokens = self._get_tokenizer().encode_list(
             prompt_text.as_ref(),
             max_len as usize,
             &TruncationStrategy::LongestFirst,
@@ -789,7 +791,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
         let pad_token = match pad_token_id {
             Some(value) => value,
             None => self
-                .get_tokenizer()
+                ._get_tokenizer()
                 .convert_tokens_to_ids(&[PegasusVocab::pad_value()])[0],
         };
 

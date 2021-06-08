@@ -20,7 +20,7 @@ use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
 
 fn main() -> anyhow::Result<()> {
-    //    Set-up masked LM model
+    //    Set-up model
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,

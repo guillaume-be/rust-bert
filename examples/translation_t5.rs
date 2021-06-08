@@ -35,13 +35,13 @@ fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    //    Set-up masked LM model
+    //    Set-up model
     let t5_model = T5Generator::new(generate_config)?;
 
     //    Define input
     let input = ["translate English to German: This sentence will get translated to German"];
 
-    let output = t5_model.generate(Some(input.to_vec()), None, None, None, None, None);
+    let output = t5_model.generate(Some(input.to_vec()), None, None, None, None, None, None);
     println!("{:?}", output);
 
     Ok(())
