@@ -8,6 +8,7 @@ import sys
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("source_file", help="Absolute path to the Pytorch weights file to convert")
+    parser.add_argument("--skip_embeddings", action="store_true", help="Skip shared embeddings / language model head")
     args = parser.parse_args()
 
     source_file = Path(args.source_file)
@@ -18,16 +19,17 @@ if __name__ == "__main__":
     nps = {}
     for k, v in weights.items():
         k = k.replace("gamma", "weight").replace("beta", "bias")
-        if k in {"lm_head.weight", "model.encoder.embed_tokens.weight", "model.decoder.embed_tokens.weight"}:
-            continue
+        if args.skip_embeddings:
+            if k in {"lm_head.weight", "model.encoder.embed_tokens.weight", "model.decoder.embed_tokens.weight"}:
+                continue
         nps[k] = np.ascontiguousarray(v.cpu().numpy().astype(np.float32))
-        print(k + str(sys.getsizeof(nps[k])))
+        print(f'converted {k} - {str(sys.getsizeof(nps[k]))} bytes')
     np.savez(target_folder / 'model.npz', **nps)
 
-    # source = str(target_folder / 'model.npz')
-    # target = str(target_folder / 'rust_model.ot')
-    #
-    # toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
-    # subprocess.run(
-    #     ['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target],
-    # )
+    source = str(target_folder / 'model.npz')
+    target = str(target_folder / 'rust_model.ot')
+
+    toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
+    subprocess.run(
+        ['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target],
+    )
