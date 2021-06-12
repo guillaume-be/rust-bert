@@ -14,7 +14,6 @@
 
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
-use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::gpt2::transformer::Block;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
@@ -482,10 +481,8 @@ impl Gpt2Model {
 /// GPT2 model with a decoding head (linear layer without bias). The weights of the linear layer are tied to the word embeddings
 /// It is made of the following blocks:
 /// - `transformer`: Base Gpt2Model
-/// - `lm_head`: Linear layer without bias tied to the weights of the token id embeddings
 pub struct GPT2LMHeadModel {
     transformer: Gpt2Model,
-    lm_head: LinearNoBias,
 }
 
 impl GPT2LMHeadModel {
@@ -517,16 +514,8 @@ impl GPT2LMHeadModel {
         let p = p.borrow();
 
         let transformer = Gpt2Model::new(p, config);
-        let lm_head = linear_no_bias(
-            p / "lm_head",
-            config.n_embd,
-            config.vocab_size,
-            Default::default(),
-        );
-        GPT2LMHeadModel {
-            transformer,
-            lm_head,
-        }
+
+        GPT2LMHeadModel { transformer }
     }
 }
 
@@ -641,7 +630,9 @@ impl LMHeadModel for GPT2LMHeadModel {
             }
         }?;
 
-        let lm_logits = base_model_output.output.apply(&self.lm_head);
+        let lm_logits = base_model_output
+            .output
+            .linear::<Tensor>(&self.transformer.wte.ws, None);
         Ok(LMModelOutput {
             lm_logits,
             cache: Cache::GPT2Cache(base_model_output.cache),

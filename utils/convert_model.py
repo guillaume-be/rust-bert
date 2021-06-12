@@ -18,10 +18,10 @@ if __name__ == "__main__":
     nps = {}
     for k, v in weights.items():
         k = k.replace("gamma", "weight").replace("beta", "bias")
-        if k in {"lm_head.weight", "model.encoder.embed_tokens.weight", "model.decoder.embed_tokens.weight"}:
-            continue
+        # if k in {"lm_head.weight", "model.encoder.embed_tokens.weight", "model.decoder.embed_tokens.weight"}:
+        #     continue
         nps[k] = np.ascontiguousarray(v.cpu().numpy().astype(np.float32))
-        print(k + str(sys.getsizeof(nps[k])))
+        print(f'converted {k} - {str(sys.getsizeof(nps[k]))} bytes')
     np.savez(target_folder / 'model.npz', **nps)
 
     # source = str(target_folder / 'model.npz')
