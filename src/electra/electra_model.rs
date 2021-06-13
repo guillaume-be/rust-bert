@@ -95,7 +95,7 @@ pub struct ElectraConfig {
     pub label2id: Option<HashMap<String, i64>>,
 }
 
-impl Config<ElectraConfig> for ElectraConfig {}
+impl Config for ElectraConfig {}
 
 /// # Electra Base model
 /// Base architecture for Electra models.

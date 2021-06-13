@@ -112,7 +112,7 @@ pub struct BertConfig {
     pub label2id: Option<HashMap<String, i64>>,
 }
 
-impl Config<BertConfig> for BertConfig {}
+impl Config for BertConfig {}
 
 /// # BERT Base model
 /// Base architecture for BERT models. Task-specific models will be built from this common base model

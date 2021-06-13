@@ -579,6 +579,7 @@ pub mod electra;
 pub mod gpt2;
 pub mod gpt_neo;
 pub mod longformer;
+pub mod m2m_100;
 pub mod marian;
 pub mod mbart;
 pub mod mobilebert;

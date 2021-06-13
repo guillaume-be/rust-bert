@@ -107,7 +107,7 @@ pub struct MBartConfig {
     pub static_position_embeddings: Option<bool>,
 }
 
-impl Config<MBartConfig> for MBartConfig {}
+impl Config for MBartConfig {}
 
 fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
     let output = input_ids.masked_fill(&input_ids.eq(-100), pad_token_id);

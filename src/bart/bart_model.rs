@@ -222,7 +222,7 @@ pub struct BartConfig {
     pub vocab_size: i64,
 }
 
-impl Config<BartConfig> for BartConfig {}
+impl Config for BartConfig {}
 
 pub(crate) fn _make_causal_mask(
     input_ids_shape: &[i64],

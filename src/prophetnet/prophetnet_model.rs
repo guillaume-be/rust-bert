@@ -120,7 +120,7 @@ pub struct ProphetNetConfig {
     pub add_cross_attention: Option<bool>,
 }
 
-impl Config<ProphetNetConfig> for ProphetNetConfig {}
+impl Config for ProphetNetConfig {}
 
 /// # ProphetNet Base model
 /// Base architecture for ProphetNet models. Task-specific models will be built from this common base model

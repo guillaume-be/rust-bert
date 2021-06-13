@@ -115,7 +115,7 @@ pub struct ReformerConfig {
     pub output_hidden_states: Option<bool>,
 }
 
-impl Config<ReformerConfig> for ReformerConfig {}
+impl Config for ReformerConfig {}
 
 pub struct ReformerLMHead {
     decoder: nn::Linear,

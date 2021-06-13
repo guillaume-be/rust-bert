@@ -116,7 +116,7 @@ pub struct XLNetConfig {
     pub chunk_size_feed_forward: Option<i64>,
 }
 
-impl Config<XLNetConfig> for XLNetConfig {}
+impl Config for XLNetConfig {}
 
 /// # XLNet Base model
 /// Base architecture for XLNet models. Task-specific models will be built from this common base model

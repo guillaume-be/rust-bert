@@ -199,7 +199,7 @@ pub struct Gpt2Config {
     pub vocab_size: i64,
 }
 
-impl Config<Gpt2Config> for Gpt2Config {}
+impl Config for Gpt2Config {}
 
 /// # GPT2 Base model
 /// Base architecture for GPT2 model. Usually complemented with a task-specific head, such as a language model head.

@@ -112,7 +112,7 @@ pub struct DistilBertConfig {
     pub vocab_size: i64,
 }
 
-impl Config<DistilBertConfig> for DistilBertConfig {}
+impl Config for DistilBertConfig {}
 
 /// # DistilBERT Base model
 /// Base architecture for DistilBERT models. Task-specific models will be built from this common base model

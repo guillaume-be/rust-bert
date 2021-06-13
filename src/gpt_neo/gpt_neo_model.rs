@@ -146,7 +146,7 @@ pub struct GptNeoConfig {
     pub resid_dropout: f64,
 }
 
-impl Config<GptNeoConfig> for GptNeoConfig {}
+impl Config for GptNeoConfig {}
 
 /// # GPT-Neo Base model
 /// Base architecture for GPT-Neo models. Task-specific models will be built from this common base model

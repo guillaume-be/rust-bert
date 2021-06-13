@@ -120,7 +120,7 @@ pub struct LongformerConfig {
     pub label2id: Option<HashMap<String, i64>>,
 }
 
-impl Config<LongformerConfig> for LongformerConfig {}
+impl Config for LongformerConfig {}
 
 fn get_question_end_index(input_ids: &Tensor, sep_token_id: i64) -> Tensor {
     input_ids

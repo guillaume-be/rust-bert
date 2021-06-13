@@ -158,7 +158,7 @@ pub struct TranslationEnToRo {
     prefix: String,
 }
 
-impl Config<T5Config> for T5Config {}
+impl Config for T5Config {}
 
 /// # T5 Base model
 /// Base architecture for T5 model. Usually complemented with a task-specific head, such as a language model head.

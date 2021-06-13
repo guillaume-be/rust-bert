@@ -194,7 +194,7 @@ pub struct MobileBertConfig {
     pub label2id: Option<HashMap<String, i64>>,
 }
 
-impl Config<MobileBertConfig> for MobileBertConfig {}
+impl Config for MobileBertConfig {}
 
 pub struct MobileBertPredictionHeadTransform {
     dense: nn::Linear,

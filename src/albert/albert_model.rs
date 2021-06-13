@@ -88,7 +88,7 @@ pub struct AlbertConfig {
     pub label2id: Option<HashMap<String, i64>>,
 }
 
-impl Config<AlbertConfig> for AlbertConfig {}
+impl Config for AlbertConfig {}
 
 /// # ALBERT Base model
 /// Base architecture for ALBERT models. Task-specific models will be built from this common base model
