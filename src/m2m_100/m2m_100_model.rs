@@ -56,4 +56,4 @@ impl M2M100MergesResources {
     );
 }
 
-pub type M2MConfig = MBartConfig;
+pub type M2M100Config = MBartConfig;
