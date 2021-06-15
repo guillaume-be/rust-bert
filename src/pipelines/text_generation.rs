@@ -257,6 +257,7 @@ impl TextGenerationOption {
                 None,
                 None,
                 None,
+                false,
             ),
             Self::GPT2(ref model) => model.generate_indices(
                 prompt_texts,
@@ -266,6 +267,7 @@ impl TextGenerationOption {
                 None,
                 None,
                 None,
+                false,
             ),
             Self::GPTNeo(ref model) => model.generate_indices(
                 prompt_texts,
@@ -275,6 +277,7 @@ impl TextGenerationOption {
                 None,
                 None,
                 None,
+                false,
             ),
             Self::XLNet(ref model) => model.generate_indices(
                 prompt_texts,
@@ -284,6 +287,7 @@ impl TextGenerationOption {
                 None,
                 None,
                 None,
+                false,
             ),
             Self::Reformer(ref model) => model.generate_indices(
                 prompt_texts,
@@ -293,6 +297,7 @@ impl TextGenerationOption {
                 None,
                 None,
                 None,
+                false,
             ),
         }
     }

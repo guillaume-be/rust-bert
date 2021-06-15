@@ -724,6 +724,7 @@ impl ConversationOption {
                 None,
                 None,
                 None,
+                false,
             ),
         }
     }
