@@ -436,12 +436,12 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
         output[0].text,
         "Rust is a very simple and powerful library for building and running web applications. It is a simple, fast, and lightweight library that can be used to build web applications in a number of different ways.\n"
     );
-    assert!(output[0].score.unwrap().is_nan());
+    assert!((output[0].score.unwrap() - (-1.4666)).abs() < 1e-4);
     assert_eq!(
         output[1].text,
         "There was a urn in the room, and I was sitting on it. I was like, \'What the hell is going on?\' And he said, \'Well, I\'m not sure. I\'m just going to go back to my room and get some coffee.\' And"
     );
-    assert!(output[1].score.unwrap().is_nan());
+    assert!((output[1].score.unwrap() - (-1.3545)).abs() < 1e-4);
 
     Ok(())
 }

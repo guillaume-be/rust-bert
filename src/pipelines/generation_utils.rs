@@ -706,17 +706,16 @@ pub(crate) mod private_generation_utils {
                 };
 
                 if let Some(prev_scores) = scores_output {
+                    let finished_mask = unfinished_sentences.eq(0);
                     scores_output = Some(
                         prev_scores
-                            + (&next_token_logits.log_softmax(-1, Float).gather(
-                                1,
-                                &next_token.unsqueeze(0),
-                                true,
-                            ) * &unfinished_sentences)
-                                .squeeze(),
+                            + (&next_token_logits
+                                .log_softmax(-1, Float)
+                                .gather(1, &next_token.reshape(&[-1, 1]), true)
+                                .squeeze()
+                                .masked_fill(&finished_mask, 0)),
                     );
                 }
-
                 // Add tokens to unfinished sentences
                 let tokens_to_add = match &gen_opt.eos_token_ids {
                     Some(_) => {
