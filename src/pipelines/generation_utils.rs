@@ -48,6 +48,7 @@
 //!     decoder_start_id,
 //!     forced_bos_token_id,
 //!     None,
+//!     false,
 //! );
 //! # Ok(())
 //! # }
@@ -1215,6 +1216,22 @@ pub(crate) mod private_generation_utils {
     }
 }
 
+#[derive(Debug, Clone)]
+/// # Generated text output
+/// Contains generated text and an optional log-likelihood score for the generated sequence
+pub struct TextOutput {
+    pub text: String,
+    pub score: Option<f64>,
+}
+
+#[derive(Debug, Clone)]
+/// # Generated indices output
+/// Contains generated indices and an optional log-likelihood score for the generated sequence
+pub struct IndicesOutput {
+    pub indices: Vec<i64>,
+    pub score: Option<f64>,
+}
+
 /// # Common trait for text generation models.
 /// Main API for text generation
 pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
@@ -1232,7 +1249,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
     ///
     /// # Returns
-    /// * `Vec<String>` Vector of generated strings based on the prompts of length *number_of_prompts* x *num_return_sequences*.
+    /// * `Vec<TextOutput>` Vector of length *number_of_prompts* x *num_return_sequences* containing TextOutput with the generated texts and the generation score if `output_scores` is true.
     ///
     /// # Example
     ///
@@ -1268,6 +1285,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
     /// let forced_bos_token_id = None;
+    /// let output_scores = true;
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
@@ -1294,6 +1312,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
+    ///     output_scores
     /// );
     /// # Ok(())
     /// # }
@@ -1320,11 +1339,12 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         decoder_start_token_id: impl Into<Option<i64>>,
         forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
-    ) -> (Vec<String>, Option<Vec<f64>>)
+        output_scores: bool,
+    ) -> Vec<TextOutput>
     where
         S: AsRef<[&'a str]>,
     {
-        let (generated_indices, scores) = self.generate_indices(
+        let indices_outputs = self.generate_indices(
             prompt_texts,
             attention_mask,
             min_length,
@@ -1332,13 +1352,18 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             decoder_start_token_id,
             forced_bos_token_id,
             prefix_allowed_tokens_fn,
-            true,
+            output_scores,
         );
-        let mut output = Vec::with_capacity(generated.len());
-        for generated_sequence in generated {
-            output.push(self._get_tokenizer().decode(generated_sequence, true, true));
+        let mut output = Vec::with_capacity(indices_outputs.len());
+        for generated_sequence in indices_outputs {
+            output.push(TextOutput {
+                text: self
+                    ._get_tokenizer()
+                    .decode(generated_sequence.indices, true, true),
+                score: generated_sequence.score,
+            });
         }
-        (output, scores)
+        output
     }
 
     /// Generate token indices without decoding (useful for token-level operations before returning final text or as validation step during training).
@@ -1353,7 +1378,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
     ///
     /// # Returns
-    /// * `Vec<Vec<i64>>` Vector of Vector of generated token indices based on the prompts of length *number_of_prompts* x *num_return_sequences*.
+    /// * `Vec<IndicesOutput>` Vector of length *number_of_prompts* x *num_return_sequences* containing IndicesOutput with the generated indices and the generation score if `output_scores` is true.
     ///
     /// # Example
     ///
@@ -1388,6 +1413,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
     /// let forced_bos_token_id = None;
+    /// let output_scores = true;
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
@@ -1414,6 +1440,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
+    ///     output_scores
     /// );
     /// # Ok(())
     /// # }
@@ -1428,7 +1455,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
         output_scores: bool,
-    ) -> (Vec<Vec<i64>>, Option<Vec<f64>>)
+    ) -> Vec<IndicesOutput>
     where
         S: AsRef<[&'a str]>,
     {
@@ -1482,7 +1509,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// * `prefix_allowed_tokens_fn` - `Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>` Optional function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
     ///
     /// # Returns
-    /// * `Vec<Vec<i64>>` Vector of Vector of generated token indices based on the prompts of length *number_of_prompts* x *num_return_sequences*.
+    /// * `Vec<IndicesOutput>` Vector of length *number_of_prompts* x *num_return_sequences* containing IndicesOutput with the generated indices and the generation score if `output_scores` is true.
     ///
     /// # Example
     ///
@@ -1517,6 +1544,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
     /// let forced_bos_token_id = None;
+    /// let output_scores = true;
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
@@ -1543,6 +1571,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
+    ///     output_scores
     /// );
     /// # Ok(())
     /// # }
@@ -1557,7 +1586,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
         output_scores: bool,
-    ) -> (Vec<Vec<i64>>, Option<Vec<f64>>) {
+    ) -> Vec<IndicesOutput> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
         let config = PrivateLanguageGenerator::get_config(self);
@@ -1714,17 +1743,20 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             }
         });
         let num_sequences = *decoded.size().first().unwrap();
-        let mut output_ids = Vec::with_capacity(num_sequences as usize);
+        let mut output = Vec::with_capacity(num_sequences as usize);
         for sequence_index in 0..num_sequences {
-            let sequence_output_ids = decoded
+            let indices = decoded
                 .as_ref()
                 .get(sequence_index)
                 .iter::<i64>()
                 .unwrap()
                 .collect::<Vec<i64>>();
-            output_ids.push(sequence_output_ids.clone());
+            let score = scores
+                .as_ref()
+                .map(|scores_value| scores_value[sequence_index as usize]);
+            output.push(IndicesOutput { indices, score });
         }
-        (output_ids, scores)
+        output
     }
 
     /// Returns a reference to the text generator's tokenizer

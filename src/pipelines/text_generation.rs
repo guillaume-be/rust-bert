@@ -249,56 +249,76 @@ impl TextGenerationOption {
         S: AsRef<[&'a str]>,
     {
         match *self {
-            Self::GPT(ref model) => model.generate_indices(
-                prompt_texts,
-                attention_mask,
-                min_length,
-                max_length,
-                None,
-                None,
-                None,
-                false,
-            ),
-            Self::GPT2(ref model) => model.generate_indices(
-                prompt_texts,
-                attention_mask,
-                min_length,
-                max_length,
-                None,
-                None,
-                None,
-                false,
-            ),
-            Self::GPTNeo(ref model) => model.generate_indices(
-                prompt_texts,
-                attention_mask,
-                min_length,
-                max_length,
-                None,
-                None,
-                None,
-                false,
-            ),
-            Self::XLNet(ref model) => model.generate_indices(
-                prompt_texts,
-                attention_mask,
-                min_length,
-                max_length,
-                None,
-                None,
-                None,
-                false,
-            ),
-            Self::Reformer(ref model) => model.generate_indices(
-                prompt_texts,
-                attention_mask,
-                min_length,
-                max_length,
-                None,
-                None,
-                None,
-                false,
-            ),
+            Self::GPT(ref model) => model
+                .generate_indices(
+                    prompt_texts,
+                    attention_mask,
+                    min_length,
+                    max_length,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
+            Self::GPT2(ref model) => model
+                .generate_indices(
+                    prompt_texts,
+                    attention_mask,
+                    min_length,
+                    max_length,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
+            Self::GPTNeo(ref model) => model
+                .generate_indices(
+                    prompt_texts,
+                    attention_mask,
+                    min_length,
+                    max_length,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
+            Self::XLNet(ref model) => model
+                .generate_indices(
+                    prompt_texts,
+                    attention_mask,
+                    min_length,
+                    max_length,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
+            Self::Reformer(ref model) => model
+                .generate_indices(
+                    prompt_texts,
+                    attention_mask,
+                    min_length,
+                    max_length,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
         }
     }
 }

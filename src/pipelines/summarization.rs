@@ -263,18 +263,62 @@ impl SummarizationOption {
         S: AsRef<[&'a str]>,
     {
         match *self {
-            Self::Bart(ref model) => {
-                model.generate(prompt_texts, attention_mask, None, None, None, None, None)
-            }
-            Self::T5(ref model) => {
-                model.generate(prompt_texts, attention_mask, None, None, None, None, None)
-            }
-            Self::ProphetNet(ref model) => {
-                model.generate(prompt_texts, attention_mask, None, None, None, None, None)
-            }
-            Self::Pegasus(ref model) => {
-                model.generate(prompt_texts, attention_mask, None, None, None, None, None)
-            }
+            Self::Bart(ref model) => model
+                .generate(
+                    prompt_texts,
+                    attention_mask,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
+            Self::T5(ref model) => model
+                .generate(
+                    prompt_texts,
+                    attention_mask,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
+            Self::ProphetNet(ref model) => model
+                .generate(
+                    prompt_texts,
+                    attention_mask,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
+            Self::Pegasus(ref model) => model
+                .generate(
+                    prompt_texts,
+                    attention_mask,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
         }
     }
 }

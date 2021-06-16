@@ -428,17 +428,20 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
         None,
         None,
         Some(&force_one_paragraph),
+        true,
     );
 
     assert_eq!(output.len(), 2);
     assert_eq!(
-        output[0],
+        output[0].text,
         "Rust is a very simple and powerful library for building and running web applications. It is a simple, fast, and lightweight library that can be used to build web applications in a number of different ways.\n"
     );
+    assert!(output[0].score.unwrap().is_nan());
     assert_eq!(
-        output[1],
+        output[1].text,
         "There was a urn in the room, and I was sitting on it. I was like, \'What the hell is going on?\' And he said, \'Well, I\'m not sure. I\'m just going to go back to my room and get some coffee.\' And"
     );
+    assert!(output[1].score.unwrap().is_nan());
 
     Ok(())
 }
@@ -493,17 +496,20 @@ fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
         None,
         None,
         Some(&force_one_paragraph),
+        true,
     );
 
     assert_eq!(output.len(), 2);
     assert_eq!(
-        output[0],
+        output[0].text,
         "Rust is a simple, fast, and easy-to-use framework for building web applications. It is designed to be easy to use and maintain, and"
     );
+    assert!((output[0].score.unwrap() - (-1.2750)).abs() < 1e-4);
     assert_eq!(
-        output[1],
+        output[1].text,
         "There was a urn in the back of the room, and I was sitting on it, and it looked like it was going to explode. And then I"
     );
+    assert!((output[1].score.unwrap() - (-1.3326)).abs() < 1e-4);
 
     Ok(())
 }
