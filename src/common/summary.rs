@@ -78,7 +78,7 @@ impl SequenceSummary {
     {
         let p = p.borrow();
 
-        let summary_type = config.summary_type.clone().unwrap_or(SummaryType::last);
+        let summary_type = config.summary_type.unwrap_or(SummaryType::last);
         let summary = if let Some(summary_use_proj) = config.summary_use_proj {
             let num_classes = match (config.summary_proj_to_labels, config.num_labels) {
                 (Some(summary_proj_to_labels), Some(num_labels))
