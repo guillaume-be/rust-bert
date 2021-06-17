@@ -1218,7 +1218,7 @@ pub(crate) mod private_generation_utils {
 #[derive(Debug, Clone)]
 /// # Generated text output
 /// Contains generated text and an optional log-likelihood score for the generated sequence
-pub struct TextOutput {
+pub struct GeneratedTextOutput {
     pub text: String,
     pub score: Option<f64>,
 }
@@ -1226,7 +1226,7 @@ pub struct TextOutput {
 #[derive(Debug, Clone)]
 /// # Generated indices output
 /// Contains generated indices and an optional log-likelihood score for the generated sequence
-pub struct IndicesOutput {
+pub struct GeneratedIndicesOutput {
     pub indices: Vec<i64>,
     pub score: Option<f64>,
 }
@@ -1339,7 +1339,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
         output_scores: bool,
-    ) -> Vec<TextOutput>
+    ) -> Vec<GeneratedTextOutput>
     where
         S: AsRef<[&'a str]>,
     {
@@ -1355,7 +1355,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         );
         let mut output = Vec::with_capacity(indices_outputs.len());
         for generated_sequence in indices_outputs {
-            output.push(TextOutput {
+            output.push(GeneratedTextOutput {
                 text: self
                     ._get_tokenizer()
                     .decode(generated_sequence.indices, true, true),
@@ -1454,7 +1454,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
         output_scores: bool,
-    ) -> Vec<IndicesOutput>
+    ) -> Vec<GeneratedIndicesOutput>
     where
         S: AsRef<[&'a str]>,
     {
@@ -1585,7 +1585,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
         output_scores: bool,
-    ) -> Vec<IndicesOutput> {
+    ) -> Vec<GeneratedIndicesOutput> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
         let config = PrivateLanguageGenerator::get_config(self);
@@ -1753,7 +1753,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             let score = scores
                 .as_ref()
                 .map(|scores_value| scores_value[sequence_index as usize]);
-            output.push(IndicesOutput { indices, score });
+            output.push(GeneratedIndicesOutput { indices, score });
         }
         output
     }
