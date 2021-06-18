@@ -716,15 +716,20 @@ impl ConversationOption {
         attention_mask: Option<Tensor>,
     ) -> Vec<Vec<i64>> {
         match *self {
-            Self::GPT2(ref model) => model.generate_from_ids_and_past(
-                input_ids,
-                attention_mask,
-                None,
-                None,
-                None,
-                None,
-                None,
-            ),
+            Self::GPT2(ref model) => model
+                .generate_from_ids_and_past(
+                    input_ids,
+                    attention_mask,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
         }
     }
 }

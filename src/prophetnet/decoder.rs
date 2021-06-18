@@ -308,9 +308,9 @@ impl ProphetNetDecoder {
 
         let hidden_states = (input_embeds + main_stream_pos_embed).transpose(0, 1);
 
-        let (mut ngram_hidden_states, extended_attention_mask, extended_predict_attention_mask) =
+        let (mut ngram_hidden_states, extended_attention_mask, extended_predict_attention_mask) = {
+            let mut ngram_hidden_states = Vec::with_capacity(self.ngram as usize);
             if old_layer_states.is_some() {
-                let mut ngram_hidden_states = Vec::with_capacity(self.ngram as usize);
                 for ngram in 0..self.ngram {
                     ngram_hidden_states.push(
                         (&self.ngram_embeddings.get(ngram - 1) + &predicting_stream_pos_embed)
@@ -320,7 +320,6 @@ impl ProphetNetDecoder {
                 }
                 (ngram_hidden_states, None, None)
             } else {
-                let mut ngram_hidden_states = Vec::with_capacity(self.ngram as usize);
                 for ngram in 0..self.ngram {
                     ngram_hidden_states.push(
                         (&self.ngram_embeddings.get(ngram - 1) + &predicting_stream_pos_embed)
@@ -336,7 +335,8 @@ impl ProphetNetDecoder {
                     Some(extended_attention_mask),
                     Some(extended_predict_attention_mask),
                 )
-            };
+            }
+        };
 
         let extended_encoder_attention_mask =
             encoder_attention_mask.map(|encoder_attention_mask_value| {

@@ -20,17 +20,17 @@ fn main() -> anyhow::Result<()> {
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
         max_length: 30,
-        do_sample: true,
-        num_beams: 5,
-        temperature: 1.1,
-        num_return_sequences: 3,
+        do_sample: false,
+        num_beams: 1,
+        temperature: 1.0,
+        num_return_sequences: 1,
         ..Default::default()
     };
     let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The dog";
-    let second_input_context = "The cat was";
-    let output = model.generate(&[input_context, second_input_context], None);
+    // let second_input_context = "The cat was";
+    let output = model.generate(&[input_context], None);
 
     for sentence in output {
         println!("{:?}", sentence);
