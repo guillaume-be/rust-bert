@@ -13,5 +13,4 @@
 use crate::bart::BartAttention;
 use crate::bart::LayerState as BartLayerState;
 
-pub type M2M100Attention = BartAttention;
 pub type LayerState = BartLayerState;

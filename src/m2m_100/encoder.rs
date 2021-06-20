@@ -60,10 +60,10 @@ impl M2M100Encoder {
             config.pad_token_id.unwrap_or(1),
         );
 
-        let mut layers: Vec<MBartEncoderLayer> = vec![];
+        let mut layers: Vec<M2M100EncoderLayer> = vec![];
         let p_layers = p / "layers";
         for layer_index in 0..config.encoder_layers {
-            layers.push(MBartEncoderLayer::new(&p_layers / layer_index, config));
+            layers.push(M2M100EncoderLayer::new(&p_layers / layer_index, config));
         }
 
         M2M100Encoder {
