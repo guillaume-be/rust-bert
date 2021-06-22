@@ -14,6 +14,8 @@ use crate::m2m_100::decoder::M2M100Decoder;
 use crate::m2m_100::encoder::M2M100Encoder;
 use crate::m2m_100::LayerState;
 use crate::mbart::{MBartConfig, MBartModelOutput};
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
@@ -276,3 +278,241 @@ impl M2M100Model {
 
 /// Container holding a M2M100 model output
 pub type M2M100ModelOutput = MBartModelOutput;
+
+/// # M2M100 Model for conditional generation
+/// M2M100 model with a vocabulary decoding head
+/// It is made of the following blocks:
+/// - `base_model`: `M2M100Model` Base M2M100 model
+/// - `linear`: Linear layer without bias tied to the weights of the token id embeddings
+pub struct M2M100ForConditionalGeneration {
+    base_model: M2M100Model,
+}
+
+impl M2M100ForConditionalGeneration {
+    /// Build a new `M2M100ForConditionalGeneration`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BART model
+    /// * `config` - `M2M100Config` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::m2m_100::{M2M100Config, M2M100ForConditionalGeneration};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = M2M100Config::from_file(config_path);
+    /// let bart: M2M100ForConditionalGeneration = M2M100ForConditionalGeneration::new(&p.root(), &config);
+    /// ```
+    pub fn new<'p, P>(p: P, config: &M2M100Config) -> M2M100ForConditionalGeneration
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let base_model = M2M100Model::new(p.borrow() / "model", config);
+        M2M100ForConditionalGeneration { base_model }
+    }
+
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). Must be provided when not running in generation mode
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
+    /// These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialiazed with a BOS token)
+    /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `M2M100ModelOutput` containing:
+    ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *vocab_size*) representing the logits for each vocabulary item and position
+    ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
+    ///   - `cache` - `(Option<Tensor>, Option<Vec<&LayerState, &LayerState>>)` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
+    ///   - `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BartConfig::from_file(config_path);
+    /// # let m2m100_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config);
+    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///
+    ///  let model_output = no_grad(|| {
+    ///    m2m100_model
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&encoder_attention_mask),
+    ///                    None,
+    ///                    Some(&target_tensor),
+    ///                    Some(&decoder_attention_mask),
+    ///                    None,
+    ///                    false)
+    ///    });
+    /// ```
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        encoder_output: Option<&Tensor>,
+        decoder_input_ids: Option<&Tensor>,
+        decoder_attention_mask: Option<&Tensor>,
+        old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        train: bool,
+    ) -> M2M100ModelOutput {
+        let base_model_output = self.base_model.forward_t(
+            input_ids,
+            attention_mask,
+            decoder_input_ids,
+            encoder_output,
+            decoder_attention_mask,
+            old_layer_states,
+            train,
+        );
+
+        let lm_logits = base_model_output
+            .decoder_output
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None);
+        M2M100ModelOutput {
+            decoder_output: lm_logits,
+            ..base_model_output
+        }
+    }
+
+    pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
+        self.base_model
+            .encoder
+            .forward_t(
+                input_ids,
+                attention_mask,
+                &self.base_model.embeddings,
+                false,
+            )
+            .hidden_state
+    }
+}
+
+impl LMHeadModel for M2M100ForConditionalGeneration {
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing th elast calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `input_embeds` - Unused for BART
+    /// * `token_type_ids` - Unused for BART
+    /// * `position_ids` - Unused for BART
+    /// * `encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *hidden_size*). When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LMModelOutput` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    ///   - `cache` - `BartCache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
+    ///     both the self attention and the encoder cross attention of each layer of the decoder.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::pipelines::generation_utils::LMHeadModel;
+    /// use rust_bert::bart::{BartForConditionalGeneration, BartConfig};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BartConfig::from_file(config_path);
+    /// # let bart_model: BartForConditionalGeneration = BartForConditionalGeneration::new(&vs.root(), &config);
+    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///
+    ///  let model_output = no_grad(|| {
+    ///    bart_model
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&encoder_attention_mask),
+    ///                    None,
+    ///                    Some(&target_tensor),
+    ///                    Some(&decoder_attention_mask),
+    ///                    None,
+    ///                    false)
+    ///    });
+    /// ```
+    fn forward_t(
+        &self,
+        input_ids: &Option<Tensor>,
+        cache: Cache,
+        attention_mask: &Option<Tensor>,
+        _token_type_ids: &Option<Tensor>,
+        _position_ids: &Option<Tensor>,
+        _input_embeds: &Option<Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: &Option<Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match cache {
+            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                decoder_input_ids.as_ref(),
+                encoder_outputs,
+                None,
+                cached_layer_states,
+                train,
+            ),
+
+            Cache::None => self.base_model.forward_t(
+                input_ids.as_ref(),
+                attention_mask.as_ref(),
+                decoder_input_ids.as_ref(),
+                encoder_outputs,
+                None,
+                None,
+                train,
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with M2M100 Model".into(),
+                ));
+            }
+        };
+
+        let lm_logits = base_model_output
+            .decoder_output
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None);
+        Ok(LMModelOutput {
+            lm_logits,
+            cache: Cache::BARTCache(base_model_output.cache),
+        })
+    }
+}
