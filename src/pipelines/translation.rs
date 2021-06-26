@@ -428,7 +428,7 @@ pub struct TranslationConfig {
 }
 
 impl TranslationConfig {
-    /// Create a new `TranslationCondiguration` from an available language.
+    /// Create a new `TranslationConfiguration` from an available language.
     ///
     /// # Arguments
     ///

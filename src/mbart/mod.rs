@@ -6,7 +6,7 @@
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! The summarization capabilities are illustrated in `examples/translation_mbart`, run with `cargo run --example translation_mbart`.
+//! The translation capabilities are illustrated in `examples/translation_mbart`, run with `cargo run --example translation_mbart`.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
@@ -41,7 +41,7 @@
 //! let tokenizer: MBart50Tokenizer =
 //!     MBart50Tokenizer::from_file(vocab_path.to_str().unwrap(), false)?;
 //! let config = MBartConfig::from_file(config_path);
-//! let bart_model = MBartModel::new(&vs.root(), &config);
+//! let mbart_model = MBartModel::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
 //! # Ok(())

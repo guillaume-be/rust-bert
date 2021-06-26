@@ -263,7 +263,7 @@ impl GptNeoModel {
     ///   - `hidden_states` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*) representing the activations of the last hidden state
     ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past content for the the attention layers
     ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layer + 1* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layer* containign the attention weights for each layer
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layer* containing the attention weights for each layer
     ///
     /// # Example
     ///
@@ -504,7 +504,7 @@ impl GptNeoForCausalLM {
     ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
     ///   - `next_cache` - `Option<Vec<Option<LayerState>>>` of length *n_layer* containing the past content for the the attention layers
     ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *n_layer + 1* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layer* containign the attention weights for each layer
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *n_layer* containing the attention weights for each layer
     ///
     /// # Example
     ///

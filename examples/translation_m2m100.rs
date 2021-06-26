@@ -1,4 +1,4 @@
-// Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
+// Copyright 2021 The Fairseq Authors and The HuggingFace Inc. team. All rights reserved.
 // Copyright 2019 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.

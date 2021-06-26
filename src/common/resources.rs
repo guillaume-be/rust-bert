@@ -115,7 +115,7 @@ impl RemoteResource {
     }
 
     /// Creates a new RemoteResource from an URL and local name. Will define a local path pointing to
-    /// ~/.cache/.rusbert/model_name. Note that this does not download the resource (only declares
+    /// ~/.cache/.rustbert/model_name. Note that this does not download the resource (only declares
     /// the remote and local locations)
     ///
     /// # Arguments
