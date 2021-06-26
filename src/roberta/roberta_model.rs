@@ -33,37 +33,37 @@ pub struct RobertaVocabResources;
 pub struct RobertaMergesResources;
 
 impl RobertaModelResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/model",
         "https://huggingface.co/roberta-base/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at https://huggingface.co/distilroberta-base. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at <https://huggingface.co/distilroberta-base>. Modified with conversion to C-array format.
     pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
         "distilroberta-base/model",
         "https://cdn.huggingface.co/distilroberta-base-rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at <https://huggingface.co/deepset/roberta-base-squad2>. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/model",
         "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/model",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/model",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/model",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/model",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/rust_model.ot",
@@ -71,37 +71,37 @@ impl RobertaModelResources {
 }
 
 impl RobertaConfigResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/config",
         "https://huggingface.co/roberta-base/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at https://huggingface.co/distilroberta-base. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at <https://huggingface.co/distilroberta-base>. Modified with conversion to C-array format.
     pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
         "distilroberta-base/config",
         "https://cdn.huggingface.co/distilroberta-base-config.json",
     );
-    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at <https://huggingface.co/deepset/roberta-base-squad2>. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/config",
         "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/config",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/config",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/config",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/config",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/config.json",
@@ -109,37 +109,37 @@ impl RobertaConfigResources {
 }
 
 impl RobertaVocabResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/vocab",
         "https://huggingface.co/roberta-base/resolve/main/vocab.json",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at https://huggingface.co/distilroberta-base. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at <https://huggingface.co/distilroberta-base>. Modified with conversion to C-array format.
     pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
         "distilroberta-base/vocab",
         "https://cdn.huggingface.co/distilroberta-base-vocab.json",
     );
-    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at <https://huggingface.co/deepset/roberta-base-squad2>. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/vocab",
         "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/vocab.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/spiece",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english/resolve/main/sentencepiece.bpe.model",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/spiece",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german/resolve/main/sentencepiece.bpe.model",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/spiece",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch/resolve/main/sentencepiece.bpe.model",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/spiece",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/sentencepiece.bpe.model",
@@ -147,17 +147,17 @@ impl RobertaVocabResources {
 }
 
 impl RobertaMergesResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/merges",
         "https://huggingface.co/roberta-base/resolve/main/merges.txt",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at https://huggingface.co/distilroberta-base. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at <https://huggingface.co/distilroberta-base>. Modified with conversion to C-array format.
     pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
         "distilroberta-base/merges",
         "https://cdn.huggingface.co/distilroberta-base-merges.txt",
     );
-    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at <https://huggingface.co/deepset/roberta-base-squad2>. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/merges",
         "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/merges.txt",

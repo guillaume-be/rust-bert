@@ -44,32 +44,32 @@ pub struct Gpt2VocabResources;
 pub struct Gpt2MergesResources;
 
 impl Gpt2ModelResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2: (&'static str, &'static str) = (
         "gpt2/model",
         "https://huggingface.co/gpt2/resolve/main/rust_model.ot",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/model",
         "https://huggingface.co/gpt2-medium/resolve/main/rust_model.ot",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_LARGE: (&'static str, &'static str) = (
         "gpt2-large/model",
         "https://huggingface.co/gpt2-large/resolve/main/rust_model.ot",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_XL: (&'static str, &'static str) = (
         "gpt2-xl/model",
         "https://huggingface.co/gpt2-xl/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/model",
         "https://huggingface.co/distilgpt2/resolve/main/rust_model.ot",
     );
-    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/model",
         "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/rust_model.ot",
@@ -77,32 +77,32 @@ impl Gpt2ModelResources {
 }
 
 impl Gpt2ConfigResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2: (&'static str, &'static str) = (
         "gpt2/config",
         "https://huggingface.co/gpt2/resolve/main/config.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/config",
         "https://huggingface.co/gpt2-medium/resolve/main/config.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_LARGE: (&'static str, &'static str) = (
         "gpt2-large/config",
         "https://huggingface.co/gpt2-large/resolve/main/config.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_XL: (&'static str, &'static str) = (
         "gpt2-xl/config",
         "https://huggingface.co/gpt2-xl/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/config",
         "https://huggingface.co/distilgpt2/resolve/main/config.json",
     );
-    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/config",
         "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/config.json",
@@ -110,32 +110,32 @@ impl Gpt2ConfigResources {
 }
 
 impl Gpt2VocabResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2: (&'static str, &'static str) = (
         "gpt2/vocab",
         "https://huggingface.co/gpt2/resolve/main/vocab.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/vocab",
         "https://huggingface.co/gpt2-medium/resolve/main/vocab.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_LARGE: (&'static str, &'static str) = (
         "gpt2-large/vocab",
         "https://huggingface.co/gpt2-large/resolve/main/vocab.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_XL: (&'static str, &'static str) = (
         "gpt2-xl/vocab",
         "https://huggingface.co/gpt2-xl/resolve/main/vocab.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/vocab",
         "https://huggingface.co/distilgpt2/resolve/main/vocab.json",
     );
-    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/vocab",
         "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/vocab.json",
@@ -143,32 +143,32 @@ impl Gpt2VocabResources {
 }
 
 impl Gpt2MergesResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2: (&'static str, &'static str) = (
         "gpt2/merges",
         "https://huggingface.co/gpt2/resolve/main/merges.txt",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/merges",
         "https://huggingface.co/gpt2-medium/resolve/main/merges.txt",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_LARGE: (&'static str, &'static str) = (
         "gpt2-large/merges",
         "https://huggingface.co/gpt2-large/resolve/main/merges.txt",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_XL: (&'static str, &'static str) = (
         "gpt2-xl/merges",
         "https://huggingface.co/gpt2-xl/resolve/main/merges.txt",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/merges",
         "https://huggingface.co/distilgpt2/resolve/main/merges.txt",
     );
-    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/merges",
         "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/merges.txt",

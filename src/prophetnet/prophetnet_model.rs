@@ -42,12 +42,12 @@ pub struct ProphetNetConfigResources;
 pub struct ProphetNetVocabResources;
 
 impl ProphetNetModelResources {
-    /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/ProphetNet>. Modified with conversion to C-array format.
     pub const PROPHETNET_LARGE_UNCASED: (&'static str, &'static str) = (
         "prophetnet-large-uncased/model",
         "https://huggingface.co/microsoft/prophetnet-large-uncased/resolve/main/rust_model.ot",
     );
-    /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/ProphetNet>. Modified with conversion to C-array format.
     pub const PROPHETNET_LARGE_CNN_DM: (&'static str, &'static str) = (
         "prophetnet-large-uncased-cnndm/model",
         "https://huggingface.co/microsoft/prophetnet-large-uncased-cnndm/resolve/main/rust_model.ot",
@@ -55,12 +55,12 @@ impl ProphetNetModelResources {
 }
 
 impl ProphetNetConfigResources {
-    /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/ProphetNet>. Modified with conversion to C-array format.
     pub const PROPHETNET_LARGE_UNCASED: (&'static str, &'static str) = (
         "prophetnet-large-uncased/config",
         "https://huggingface.co/microsoft/prophetnet-large-uncased/resolve/main/config.json",
     );
-    /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/ProphetNet>. Modified with conversion to C-array format.
     pub const PROPHETNET_LARGE_CNN_DM: (&'static str, &'static str) = (
         "prophetnet-large-uncased-cnndm/config",
         "https://huggingface.co/microsoft/prophetnet-large-uncased-cnndm/resolve/main/config.json",
@@ -68,12 +68,12 @@ impl ProphetNetConfigResources {
 }
 
 impl ProphetNetVocabResources {
-    /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/ProphetNet>. Modified with conversion to C-array format.
     pub const PROPHETNET_LARGE_UNCASED: (&'static str, &'static str) = (
         "prophetnet-large-uncased/vocab",
         "https://huggingface.co/microsoft/prophetnet-large-uncased/resolve/main/prophetnet.tokenizer",
     );
-    /// Shared under MIT license by the Microsoft team at https://github.com/microsoft/ProphetNet. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/ProphetNet>. Modified with conversion to C-array format.
     pub const PROPHETNET_LARGE_CNN_DM: (&'static str, &'static str) = (
         "prophetnet-large-uncased-cnndm/vocab",
         "https://huggingface.co/microsoft/prophetnet-large-uncased-cnndm/resolve/main/prophetnet.tokenizer",

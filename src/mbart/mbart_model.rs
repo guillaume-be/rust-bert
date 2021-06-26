@@ -44,7 +44,7 @@ pub struct MBartConfigResources;
 pub struct MBartVocabResources;
 
 impl MBartModelResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const MBART50_MANY_TO_MANY: (&'static str, &'static str) = (
         "mbart-50-many-to-many-mmt/model",
         "https://huggingface.co/facebook/mbart-large-50-many-to-many-mmt/resolve/main/rust_model.ot",
@@ -52,7 +52,7 @@ impl MBartModelResources {
 }
 
 impl MBartConfigResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const MBART50_MANY_TO_MANY: (&'static str, &'static str) = (
         "mbart-50-many-to-many-mmt/config",
         "https://huggingface.co/facebook/mbart-large-50-many-to-many-mmt/resolve/main/config.json",
@@ -60,7 +60,7 @@ impl MBartConfigResources {
 }
 
 impl MBartVocabResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const MBART50_MANY_TO_MANY: (&'static str, &'static str) = (
         "mbart-50-many-to-many-mmt/vocab",
         "https://huggingface.co/facebook/mbart-large-50-many-to-many-mmt/resolve/main/sentencepiece.bpe.model",

@@ -31,7 +31,7 @@ pub struct AlbertConfigResources;
 pub struct AlbertVocabResources;
 
 impl AlbertModelResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/ALBERT>. Modified with conversion to C-array format.
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
         "albert-base-v2/model",
         "https://huggingface.co/albert-base-v2/resolve/main/rust_model.ot",
@@ -39,7 +39,7 @@ impl AlbertModelResources {
 }
 
 impl AlbertConfigResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/ALBERT>. Modified with conversion to C-array format.
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
         "albert-base-v2/config",
         "https://huggingface.co/albert-base-v2/resolve/main/config.json",
@@ -47,7 +47,7 @@ impl AlbertConfigResources {
 }
 
 impl AlbertVocabResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/ALBERT>. Modified with conversion to C-array format.
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
         "albert-base-v2/spiece",
         "https://huggingface.co/albert-base-v2/resolve/main/spiece.model",

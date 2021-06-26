@@ -45,7 +45,7 @@ pub struct M2M100VocabResources;
 pub struct M2M100MergesResources;
 
 impl M2M100ModelResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const M2M100_418M: (&'static str, &'static str) = (
         "m2m100-418m/model",
         "https://huggingface.co/facebook/m2m100_418M/resolve/main/rust_model.ot",
@@ -53,7 +53,7 @@ impl M2M100ModelResources {
 }
 
 impl M2M100ConfigResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const M2M100_418M: (&'static str, &'static str) = (
         "m2m100-418m/config",
         "https://huggingface.co/facebook/m2m100_418M/resolve/main/config.json",
@@ -61,7 +61,7 @@ impl M2M100ConfigResources {
 }
 
 impl M2M100VocabResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const M2M100_418M: (&'static str, &'static str) = (
         "m2m100-418m/vocab",
         "https://huggingface.co/facebook/m2m100_418M/resolve/main/vocab.json",
@@ -69,7 +69,7 @@ impl M2M100VocabResources {
 }
 
 impl M2M100MergesResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const M2M100_418M: (&'static str, &'static str) = (
         "m2m100-418m/merges",
         "https://huggingface.co/facebook/m2m100_418M/resolve/main/sentencepiece.bpe.model",

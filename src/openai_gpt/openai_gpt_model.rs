@@ -45,7 +45,7 @@ pub struct OpenAiGptVocabResources;
 pub struct OpenAiGptMergesResources;
 
 impl OpenAiGptModelResources {
-    /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
+    /// Shared under MIT license by the OpenAI team at <https://github.com/openai/finetune-transformer-lm>. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/model",
         "https://huggingface.co/openai-gpt/resolve/main/rust_model.ot",
@@ -53,7 +53,7 @@ impl OpenAiGptModelResources {
 }
 
 impl OpenAiGptConfigResources {
-    /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
+    /// Shared under MIT license by the OpenAI team at <https://github.com/openai/finetune-transformer-lm>. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/config",
         "https://huggingface.co/openai-gpt/resolve/main/config.json",
@@ -61,7 +61,7 @@ impl OpenAiGptConfigResources {
 }
 
 impl OpenAiGptVocabResources {
-    /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
+    /// Shared under MIT license by the OpenAI team at <https://github.com/openai/finetune-transformer-lm>. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/vocab",
         "https://huggingface.co/openai-gpt/resolve/main/vocab.json",
@@ -69,7 +69,7 @@ impl OpenAiGptVocabResources {
 }
 
 impl OpenAiGptMergesResources {
-    /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
+    /// Shared under MIT license by the OpenAI team at <https://github.com/openai/finetune-transformer-lm>. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/merges",
         "https://huggingface.co/openai-gpt/resolve/main/merges.txt",

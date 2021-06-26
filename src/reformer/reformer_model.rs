@@ -47,7 +47,7 @@ pub struct ReformerConfigResources;
 pub struct ReformerVocabResources;
 
 impl ReformerModelResources {
-    /// Shared under Apache 2.0 license by the Trax Authors at https://github.com/google/trax/tree/master/trax/models/reformer. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Trax Authors at <https://github.com/google/trax/tree/master/trax/models/reformer>. Modified with conversion to C-array format.
     pub const CRIME_AND_PUNISHMENT: (&'static str, &'static str) = (
         "reformer-crime-punishment/model",
         "https://huggingface.co/google/reformer-crime-and-punishment/resolve/main/rust_model.ot",
@@ -55,7 +55,7 @@ impl ReformerModelResources {
 }
 
 impl ReformerConfigResources {
-    /// Shared under Apache 2.0 license by the Trax Authors at https://github.com/google/trax/tree/master/trax/models/reformer. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Trax Authors at <https://github.com/google/trax/tree/master/trax/models/reformer>. Modified with conversion to C-array format.
     pub const CRIME_AND_PUNISHMENT: (&'static str, &'static str) = (
         "reformer-crime-punishment/config",
         "https://huggingface.co/google/reformer-crime-and-punishment/resolve/main/config.json",
@@ -63,7 +63,7 @@ impl ReformerConfigResources {
 }
 
 impl ReformerVocabResources {
-    /// Shared under Apache 2.0 license by the Trax Authors at https://github.com/google/trax/tree/master/trax/models/reformer. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Trax Authors at <https://github.com/google/trax/tree/master/trax/models/reformer>. Modified with conversion to C-array format.
     pub const CRIME_AND_PUNISHMENT: (&'static str, &'static str) = (
         "reformer-crime-punishment/spiece",
         "https://huggingface.co/google/reformer-crime-and-punishment/resolve/main/spiece.model",

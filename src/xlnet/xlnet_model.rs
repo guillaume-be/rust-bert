@@ -43,7 +43,7 @@ pub struct XLNetConfigResources;
 pub struct XLNetVocabResources;
 
 impl XLNetModelResources {
-    /// Shared under Apache 2.0 license by the XLNet Authors at https://github.com/zihangdai/xlnet. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the XLNet Authors at <https://github.com/zihangdai/xlnet>. Modified with conversion to C-array format.
     pub const XLNET_BASE_CASED: (&'static str, &'static str) = (
         "xlnet-base-cased/model",
         "https://huggingface.co/xlnet-base-cased/resolve/main/rust_model.ot",
@@ -51,7 +51,7 @@ impl XLNetModelResources {
 }
 
 impl XLNetConfigResources {
-    /// Shared under Apache 2.0 license by the XLNet Authors at https://github.com/zihangdai/xlnet. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the XLNet Authors at <https://github.com/zihangdai/xlnet>. Modified with conversion to C-array format.
     pub const XLNET_BASE_CASED: (&'static str, &'static str) = (
         "xlnet-base-cased/config",
         "https://huggingface.co/xlnet-base-cased/resolve/main/config.json",
@@ -59,7 +59,7 @@ impl XLNetConfigResources {
 }
 
 impl XLNetVocabResources {
-    /// Shared under Apache 2.0 license by the XLNet Authors at https://github.com/zihangdai/xlnet. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the XLNet Authors at <https://github.com/zihangdai/xlnet>. Modified with conversion to C-array format.
     pub const XLNET_BASE_CASED: (&'static str, &'static str) = (
         "xlnet-base-cased/spiece",
         "https://huggingface.co/xlnet-base-cased/resolve/main/spiece.model",

@@ -50,32 +50,32 @@ pub struct BartVocabResources;
 pub struct BartMergesResources;
 
 impl BartModelResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART: (&'static str, &'static str) = (
         "bart/model",
         "https://huggingface.co/facebook/bart-large/resolve/main/rust_model.ot",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_CNN: (&'static str, &'static str) = (
         "bart-cnn/model",
         "https://huggingface.co/facebook/bart-large-cnn/resolve/main/rust_model.ot",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_XSUM: (&'static str, &'static str) = (
         "bart-xsum/model",
         "https://huggingface.co/facebook/bart-large-xsum/resolve/main/rust_model.ot",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_MNLI: (&'static str, &'static str) = (
         "bart-large-mnli/model",
         "https://huggingface.co/facebook/bart-large-mnli/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-6-6. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-6-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
         "distilbart-cnn-6-6/model",
         "https://huggingface.co/sshleifer/distilbart-cnn-6-6/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-12-6. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-12-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
         "distilbart-cnn-12-6/model",
         "https://huggingface.co/sshleifer/distilbart-cnn-12-6/resolve/main/rust_model.ot",
@@ -83,32 +83,32 @@ impl BartModelResources {
 }
 
 impl BartConfigResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART: (&'static str, &'static str) = (
         "bart/config",
         "https://huggingface.co/facebook/bart-large/resolve/main/config.json",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_CNN: (&'static str, &'static str) = (
         "bart-cnn/config",
         "https://huggingface.co/facebook/bart-large-cnn/resolve/main/config.json",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_XSUM: (&'static str, &'static str) = (
         "bart-xsum/config",
         "https://huggingface.co/facebook/bart-large-xsum/resolve/main/config.json",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_MNLI: (&'static str, &'static str) = (
         "bart-large-mnli/config",
         "https://huggingface.co/facebook/bart-large-mnli/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-6-6. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-6-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
         "distilbart-cnn-6-6/config",
         "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/config.json",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-12-6. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-12-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
         "distilbart-cnn-12-6/config",
         "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/config.json",
@@ -116,32 +116,32 @@ impl BartConfigResources {
 }
 
 impl BartVocabResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART: (&'static str, &'static str) = (
         "bart/vocab",
         "https://huggingface.co/roberta-large/resolve/main/vocab.json",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_CNN: (&'static str, &'static str) = (
         "bart-cnn/vocab",
         "https://huggingface.co/roberta-large/resolve/main/vocab.json",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_XSUM: (&'static str, &'static str) = (
         "bart-xsum/vocab",
         "https://huggingface.co/roberta-large/resolve/main/vocab.json",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_MNLI: (&'static str, &'static str) = (
         "bart-large-mnli/vocab",
         "https://huggingface.co/roberta-large/resolve/main/vocab.json",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-6-6. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-6-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
         "distilbart-cnn-6-6/vocab",
         "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/vocab.json",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-12-6. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-12-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
         "distilbart-cnn-12-6/vocab",
         "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/vocab.json",
@@ -149,32 +149,32 @@ impl BartVocabResources {
 }
 
 impl BartMergesResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART: (&'static str, &'static str) = (
         "bart/merges",
         "https://huggingface.co/roberta-large/resolve/main/merges.txt",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_CNN: (&'static str, &'static str) = (
         "bart-cnn/merges",
         "https://huggingface.co/roberta-large/resolve/main/merges.txt",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_XSUM: (&'static str, &'static str) = (
         "bart-xsum/merges",
         "https://huggingface.co/roberta-large/resolve/main/merges.txt",
     );
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const BART_MNLI: (&'static str, &'static str) = (
         "bart-large-mnli/merges",
         "https://huggingface.co/roberta-large/resolve/main/merges.txt",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-6-6. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-6-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
         "distilbart-cnn-6-6/merges",
         "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/merges.txt",
     );
-    /// Shared under Apache 2.0 license by the Hugging Face team at https://huggingface.co/sshleifer/distilbart-cnn-12-6. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-12-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
         "distilbart-cnn-12-6/merges",
         "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/merges.txt",

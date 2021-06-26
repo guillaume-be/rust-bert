@@ -41,7 +41,7 @@ pub struct PegasusConfigResources;
 pub struct PegasusVocabResources;
 
 impl PegasusModelResources {
-    /// Shared under Apache 2.0 license by the Pegasus team at https://huggingface.co/google/pegasus-cnn_dailymail. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Pegasus team at <https://huggingface.co/google/pegasus-cnn_dailymail>. Modified with conversion to C-array format.
     pub const CNN_DAILYMAIL: (&'static str, &'static str) = (
         "pegasus-cnn_dailymail/model",
         "https://huggingface.co/google/pegasus-cnn_dailymail/resolve/main/rust_model.ot",
@@ -49,7 +49,7 @@ impl PegasusModelResources {
 }
 
 impl PegasusConfigResources {
-    /// Shared under Apache 2.0 license by the Pegasus team at https://huggingface.co/google/pegasus-cnn_dailymail.
+    /// Shared under Apache 2.0 license by the Pegasus team at <https://huggingface.co/google/pegasus-cnn_dailymail>.
     pub const CNN_DAILYMAIL: (&'static str, &'static str) = (
         "pegasus-cnn_dailymail/config",
         "https://huggingface.co/google/pegasus-cnn_dailymail/resolve/main/config.json",
@@ -57,7 +57,7 @@ impl PegasusConfigResources {
 }
 
 impl PegasusVocabResources {
-    /// Shared under Apache 2.0 license by the Pegasus team at https://huggingface.co/google/pegasus-cnn_dailymail.
+    /// Shared under Apache 2.0 license by the Pegasus team at <https://huggingface.co/google/pegasus-cnn_dailymail>.
     pub const CNN_DAILYMAIL: (&'static str, &'static str) = (
         "pegasus-cnn_dailymail/spiece",
         "https://huggingface.co/google/pegasus-cnn_dailymail/resolve/main/spiece.model",

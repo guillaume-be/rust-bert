@@ -12,7 +12,7 @@
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
 //! - `MarianTokenizer` using a `vocab.json` vocabulary and `spiece.model` sentence piece model
 //!
-//! Pretrained models for a number of language pairs are available and can be downloaded using RemoteResources. These are shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT.
+//! Pretrained models for a number of language pairs are available and can be downloaded using RemoteResources. These are shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at <https://github.com/Helsinki-NLP/Opus-MT>.
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {

@@ -31,17 +31,17 @@ pub struct DistilBertConfigResources;
 pub struct DistilBertVocabResources;
 
 impl DistilBertModelResources {
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SST2: (&'static str, &'static str) = (
         "distilbert-sst2/model",
         "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT: (&'static str, &'static str) = (
         "distilbert/model",
         "https://huggingface.co/distilbert-base-uncased/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
         "distilbert-qa/model",
         "https://huggingface.co/distilbert-base-cased-distilled-squad/resolve/main/rust_model.ot",
@@ -49,17 +49,17 @@ impl DistilBertModelResources {
 }
 
 impl DistilBertConfigResources {
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SST2: (&'static str, &'static str) = (
         "distilbert-sst2/config",
         "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT: (&'static str, &'static str) = (
         "distilbert/config",
         "https://huggingface.co/distilbert-base-uncased/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
         "distilbert-qa/config",
         "https://huggingface.co/distilbert-base-cased-distilled-squad/resolve/main/config.json",
@@ -67,17 +67,17 @@ impl DistilBertConfigResources {
 }
 
 impl DistilBertVocabResources {
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SST2: (&'static str, &'static str) = (
         "distilbert-sst2/vocab",
         "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/vocab.txt",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT: (&'static str, &'static str) = (
         "distilbert/vocab",
         "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
         "distilbert-qa/vocab",
         "https://huggingface.co/bert-large-cased/resolve/main/vocab.txt",

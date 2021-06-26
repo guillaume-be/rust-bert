@@ -37,17 +37,17 @@ pub struct BertConfigResources;
 pub struct BertVocabResources;
 
 impl BertModelResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/bert. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/bert>. Modified with conversion to C-array format.
     pub const BERT: (&'static str, &'static str) = (
         "bert/model",
         "https://huggingface.co/bert-base-uncased/resolve/main/rust_model.ot",
     );
-    /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at https://github.com/dbmdz/berts. Modified with conversion to C-array format.
+    /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at <https://github.com/dbmdz/berts>. Modified with conversion to C-array format.
     pub const BERT_NER: (&'static str, &'static str) = (
         "bert-ner/model",
         "https://huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by Hugging Face Inc at https://github.com/huggingface/transformers/tree/master/examples/question-answering. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by Hugging Face Inc at <https://github.com/huggingface/transformers/tree/master/examples/question-answering>. Modified with conversion to C-array format.
     pub const BERT_QA: (&'static str, &'static str) = (
         "bert-qa/model",
         "https://huggingface.co/bert-large-cased-whole-word-masking-finetuned-squad/resolve/main/rust_model.ot",
@@ -55,17 +55,17 @@ impl BertModelResources {
 }
 
 impl BertConfigResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/bert. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/bert>. Modified with conversion to C-array format.
     pub const BERT: (&'static str, &'static str) = (
         "bert/config",
         "https://huggingface.co/bert-base-uncased/resolve/main/config.json",
     );
-    /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at https://github.com/dbmdz/berts. Modified with conversion to C-array format.
+    /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at <https://github.com/dbmdz/berts>. Modified with conversion to C-array format.
     pub const BERT_NER: (&'static str, &'static str) = (
         "bert-ner/config",
         "https://huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by Hugging Face Inc at https://github.com/huggingface/transformers/tree/master/examples/question-answering. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by Hugging Face Inc at <https://github.com/huggingface/transformers/tree/master/examples/question-answering>. Modified with conversion to C-array format.
     pub const BERT_QA: (&'static str, &'static str) = (
         "bert-qa/config",
         "https://huggingface.co/bert-large-cased-whole-word-masking-finetuned-squad/resolve/main/config.json",
@@ -73,17 +73,17 @@ impl BertConfigResources {
 }
 
 impl BertVocabResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/bert. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/bert>. Modified with conversion to C-array format.
     pub const BERT: (&'static str, &'static str) = (
         "bert/vocab",
         "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt",
     );
-    /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at https://github.com/dbmdz/berts. Modified with conversion to C-array format.
+    /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at <https://github.com/dbmdz/berts>. Modified with conversion to C-array format.
     pub const BERT_NER: (&'static str, &'static str) = (
         "bert-ner/vocab",
         "https://huggingface.co/dbmdz/bert-large-cased-finetuned-conll03-english/resolve/main/vocab.txt",
     );
-    /// Shared under Apache 2.0 license by Hugging Face Inc at https://github.com/huggingface/transformers/tree/master/examples/question-answering. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by Hugging Face Inc at <https://github.com/huggingface/transformers/tree/master/examples/question-answering>. Modified with conversion to C-array format.
     pub const BERT_QA: (&'static str, &'static str) = (
         "bert-qa/vocab",
         "https://huggingface.co/bert-large-cased-whole-word-masking-finetuned-squad/resolve/main/vocab.txt",

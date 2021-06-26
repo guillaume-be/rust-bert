@@ -43,12 +43,12 @@ pub struct T5VocabResources;
 pub struct T5Prefix;
 
 impl T5ModelResources {
-    /// Shared under Apache 2.0 license by the T5 Authors at https://github.com/google-research/text-to-text-transfer-transformer. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the T5 Authors at <https://github.com/google-research/text-to-text-transfer-transformer>. Modified with conversion to C-array format.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/model",
         "https://huggingface.co/t5-small/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the T5 Authors at https://github.com/google-research/text-to-text-transfer-transformer. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the T5 Authors at <https://github.com/google-research/text-to-text-transfer-transformer>. Modified with conversion to C-array format.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/model",
         "https://huggingface.co/t5-base/resolve/main/rust_model.ot",
@@ -56,12 +56,12 @@ impl T5ModelResources {
 }
 
 impl T5ConfigResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/config",
         "https://huggingface.co/t5-small/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/config",
         "https://huggingface.co/t5-base/resolve/main/config.json",
@@ -69,12 +69,12 @@ impl T5ConfigResources {
 }
 
 impl T5VocabResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/spiece",
         "https://huggingface.co/t5-small/resolve/main/spiece.model",
     );
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/spiece",
         "https://huggingface.co/t5-base/resolve/main/spiece.model",

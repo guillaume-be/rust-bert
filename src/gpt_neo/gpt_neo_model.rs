@@ -41,17 +41,17 @@ pub struct GptNeoVocabResources;
 pub struct GptNeoMergesResources;
 
 impl GptNeoModelResources {
-    /// Shared under Apache 2.0 license by the EleutherAI contributors at https://www.eleuther.ai. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
     pub const GPT_NEO_125M: (&'static str, &'static str) = (
         "gpt-neo-125M/model",
         "https://huggingface.co/EleutherAI/gpt-neo-125M/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the EleutherAI contributors at https://www.eleuther.ai. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
     pub const GPT_NEO_1_3B: (&'static str, &'static str) = (
         "gpt-neo-1_3B/model",
         "https://huggingface.co/EleutherAI/gpt-neo-1.3B/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the EleutherAI contributors at https://www.eleuther.ai. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
     pub const GPT_NEO_2_7B: (&'static str, &'static str) = (
         "gpt-neo-2_7B/model",
         "https://huggingface.co/EleutherAI/gpt-neo-2.7B/resolve/main/rust_model.ot",
@@ -59,17 +59,17 @@ impl GptNeoModelResources {
 }
 
 impl GptNeoConfigResources {
-    /// Shared under Apache 2.0 license by the EleutherAI contributors at https://www.eleuther.ai. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
     pub const GPT_NEO_125M: (&'static str, &'static str) = (
         "gpt-neo-125M/config",
         "https://huggingface.co/EleutherAI/gpt-neo-125M/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the EleutherAI contributors at https://www.eleuther.ai. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
     pub const GPT_NEO_1_3B: (&'static str, &'static str) = (
         "gpt-neo-1_3B/config",
         "https://huggingface.co/EleutherAI/gpt-neo-1.3B/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the EleutherAI contributors at https://www.eleuther.ai. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
     pub const GPT_NEO_2_7B: (&'static str, &'static str) = (
         "gpt-neo-2_7B/config",
         "https://huggingface.co/EleutherAI/gpt-neo-2.7B/resolve/main/config.json",
@@ -77,17 +77,17 @@ impl GptNeoConfigResources {
 }
 
 impl GptNeoVocabResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT_NEO_125M: (&'static str, &'static str) = (
         "gpt-neo-125M/vocab",
         "https://huggingface.co/EleutherAI/gpt-neo-125M/resolve/main/vocab.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT_NEO_1_3B: (&'static str, &'static str) = (
         "gpt-neo-1_3B/vocab",
         "https://huggingface.co/EleutherAI/gpt-neo-1.3B/resolve/main/vocab.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT_NEO_2_7B: (&'static str, &'static str) = (
         "gpt-neo-2_7B/vocab",
         "https://huggingface.co/EleutherAI/gpt-neo-2.7B/resolve/main/vocab.json",
@@ -95,17 +95,17 @@ impl GptNeoVocabResources {
 }
 
 impl GptNeoMergesResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
     pub const GPT_NEO_125M: (&'static str, &'static str) = (
         "gpt-neo-125M/merges",
         "https://huggingface.co/EleutherAI/gpt-neo-125M/resolve/main/merges.txt",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
     pub const GPT_NEO_1_3B: (&'static str, &'static str) = (
         "gpt-neo-1_3B/merges",
         "https://huggingface.co/EleutherAI/gpt-neo-1.3B/resolve/main/merges.txt",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
     pub const GPT_NEO_2_7B: (&'static str, &'static str) = (
         "gpt-neo-2_7B/merges",
         "https://huggingface.co/EleutherAI/gpt-neo-2.7B/resolve/main/merges.txt",
