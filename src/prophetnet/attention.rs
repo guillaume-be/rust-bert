@@ -742,7 +742,7 @@ pub(crate) fn compute_relative_buckets(
         (
             num_buckets,
             relative_positions.zeros_like(),
-            inverse_relative_positions.maximum(&inverse_relative_positions.zeros_like()),
+            inverse_relative_positions.max_other(&inverse_relative_positions.zeros_like()),
         )
     };
     let max_exact = num_buckets / 2;

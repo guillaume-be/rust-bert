@@ -254,7 +254,7 @@ impl T5Attention {
             ret += n.lt(0).to_kind(Kind::Int64) * num_buckets;
             n.abs()
         } else {
-            n.maximum(&n.zeros_like())
+            n.max_other(&n.zeros_like())
         };
 
         let max_exact = num_buckets / 2;
