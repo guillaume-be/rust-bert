@@ -537,7 +537,10 @@ impl LSHSelfAttention {
                     *relevant_bucket_indices_chunk.size().last().unwrap(),
                     (Kind::Int64, hidden_states.device()),
                 )
-                .floor_divide_scalar(*relevant_bucket_indices_chunk.size().last().unwrap()));
+                .divide_scalar_mode(
+                    *relevant_bucket_indices_chunk.size().last().unwrap(),
+                    "floor",
+                ));
 
         let relevant_bucket_indices_chunk_all_batch =
             &relevant_bucket_indices_chunk + bucket_indices_batch_offset;
@@ -569,7 +572,9 @@ impl LSHSelfAttention {
         indices: &Tensor,
         sequence_length: i64,
     ) -> Tensor {
-        let start_indices_chunk = (indices.select(1, -1).floor_divide_scalar(self.chunk_length)
+        let start_indices_chunk = (indices
+            .select(1, -1)
+            .divide_scalar_mode(self.chunk_length, "floor")
             - self.num_chunks_before)
             * self.chunk_length;
         let total_chunk_size =
