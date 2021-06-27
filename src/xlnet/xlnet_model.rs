@@ -305,7 +305,7 @@ impl XLNetModel {
         }
         if self.bi_data {
             let mut backward_positions_sequence =
-                Tensor::arange_start_step(-begin, -end, 1, (Kind::Float, device));
+                Tensor::arange_start(-begin, -end, (Kind::Float, device));
             match self.clamp_len {
                 Some(clamp_value) if clamp_value > 0 => {
                     let _ = backward_positions_sequence.clamp_(-clamp_value, clamp_value);

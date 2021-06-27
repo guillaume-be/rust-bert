@@ -418,10 +418,9 @@ impl ReformerModel {
             let input_ids = Tensor::cat(&[input_ids, &input_ids_padding], -1);
             new_input_shape = input_ids.size();
             let position_ids = if let Some(position_ids) = position_ids {
-                let position_ids_padding = Tensor::arange_start_step(
+                let position_ids_padding = Tensor::arange_start(
                     *input_shape.last().unwrap(),
                     self.least_common_mult_chunk_length,
-                    1,
                     (Kind::Int64, device),
                 )
                 .unsqueeze(0)
