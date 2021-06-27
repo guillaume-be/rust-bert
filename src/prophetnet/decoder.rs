@@ -510,7 +510,7 @@ impl ProphetNetDecoder {
         let input_size = position_ids.size();
         let (batch_size, sequence_length) = (input_size[0], input_size[1]);
 
-        let position_ids = Tensor::arange1(
+        let position_ids = Tensor::arange_start(
             1,
             self.max_target_positions,
             (Kind::Int64, position_ids.device()),

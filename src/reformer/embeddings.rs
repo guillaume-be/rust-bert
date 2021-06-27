@@ -263,7 +263,7 @@ impl ReformerEmbeddings {
 
         let calc_position_ids = if position_ids.is_none() {
             Some(
-                Tensor::arange2(
+                Tensor::arange_start_step(
                     start_ids_pos_encoding,
                     start_ids_pos_encoding + input_shape[1],
                     1,

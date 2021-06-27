@@ -307,7 +307,7 @@ impl LSHSelfAttention {
                     .unsqueeze(1)
                     .expand(&buckets.size(), true)
                     .to_kind(Kind::Bool);
-                buckets = buckets.where1(
+                buckets = buckets.where_self(
                     &buckets_mask,
                     &Tensor::of_slice(&[num_buckets - 1])
                         .to_kind(Kind::Float)
@@ -423,15 +423,16 @@ impl LSHSelfAttention {
             );
 
             if let Some(mask) = mask {
-                query_key_dots = query_key_dots.where1(&mask.to_kind(Kind::Bool), &self.mask_value);
+                query_key_dots =
+                    query_key_dots.where_self(&mask.to_kind(Kind::Bool), &self.mask_value);
             }
         }
         {
             let self_mask = query_bucket_idx
                 .unsqueeze(-1)
-                .ne1(&key_value_bucket_idx.unsqueeze(-2));
+                .ne_tensor(&key_value_bucket_idx.unsqueeze(-2));
             query_key_dots =
-                query_key_dots.where1(&self_mask.to_kind(Kind::Bool), &self.self_mask_value);
+                query_key_dots.where_self(&self_mask.to_kind(Kind::Bool), &self.self_mask_value);
         }
 
         let mut logits = query_key_dots.logsumexp(&[-1], true);
@@ -441,7 +442,7 @@ impl LSHSelfAttention {
 
         let mut out_vectors = attention_probs.matmul(&value_vectors);
         if out_vectors.dim() > 4 {
-            logits = logits.flatten(2, 3).squeeze1(-1);
+            logits = logits.flatten(2, 3).squeeze_dim(-1);
             out_vectors = out_vectors.flatten(2, 3)
         }
 
@@ -476,7 +477,9 @@ impl LSHSelfAttention {
         };
 
         if self.is_decoder {
-            let causal_mask = query_indices.unsqueeze(-1).ge1(&key_indices.unsqueeze(-2));
+            let causal_mask = query_indices
+                .unsqueeze(-1)
+                .ge_tensor(&key_indices.unsqueeze(-2));
             let attention_mask = if let Some(attention_mask) = attention_mask {
                 causal_mask * attention_mask
             } else {
@@ -534,7 +537,7 @@ impl LSHSelfAttention {
                     *relevant_bucket_indices_chunk.size().last().unwrap(),
                     (Kind::Int64, hidden_states.device()),
                 )
-                .floor_divide1(*relevant_bucket_indices_chunk.size().last().unwrap()));
+                .floor_divide_scalar(*relevant_bucket_indices_chunk.size().last().unwrap()));
 
         let relevant_bucket_indices_chunk_all_batch =
             &relevant_bucket_indices_chunk + bucket_indices_batch_offset;
@@ -566,7 +569,7 @@ impl LSHSelfAttention {
         indices: &Tensor,
         sequence_length: i64,
     ) -> Tensor {
-        let start_indices_chunk = (indices.select(1, -1).floor_divide1(self.chunk_length)
+        let start_indices_chunk = (indices.select(1, -1).floor_divide_scalar(self.chunk_length)
             - self.num_chunks_before)
             * self.chunk_length;
         let total_chunk_size =
@@ -593,7 +596,7 @@ impl LSHSelfAttention {
     }
 
     fn len_norm(&self, input_tensor: &Tensor, epsilon: f64) -> Tensor {
-        let variance = (input_tensor * input_tensor).mean1(&[-1], true, input_tensor.kind());
+        let variance = (input_tensor * input_tensor).mean_dim(&[-1], true, input_tensor.kind());
         input_tensor * (variance + epsilon).rsqrt()
     }
 
@@ -850,7 +853,7 @@ impl LSHSelfAttention {
             )?
             .unsqueeze(-1);
             let probs_vectors = (&logits - &logits.logsumexp(&[2], true)).exp();
-            out_vectors = (out_vectors * probs_vectors).sum1(&[2], false, Kind::Float);
+            out_vectors = (out_vectors * probs_vectors).sum_dim_intlist(&[2], false, Kind::Float);
         }
 
         out_vectors = merge_hidden_size_dim(
@@ -967,7 +970,9 @@ impl LocalSelfAttention {
         });
 
         if self.is_decoder {
-            let causal_mask = query_indices.unsqueeze(-1).ge1(&key_indices.unsqueeze(-2));
+            let causal_mask = query_indices
+                .unsqueeze(-1)
+                .ge_tensor(&key_indices.unsqueeze(-2));
             attention_mask = Some(if let Some(mask) = attention_mask {
                 causal_mask * mask
             } else {
@@ -1087,7 +1092,7 @@ impl LocalSelfAttention {
         );
 
         if let Some(mask) = attention_mask {
-            query_key_dots = query_key_dots.where1(&mask.to_kind(Kind::Bool), &self.mask_value);
+            query_key_dots = query_key_dots.where_self(&mask.to_kind(Kind::Bool), &self.mask_value);
         }
 
         let logits = query_key_dots.logsumexp(&[-1], true);
