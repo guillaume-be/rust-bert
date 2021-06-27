@@ -493,13 +493,13 @@ pub(crate) mod private_generation_utils {
                 if min_tokens_to_keep > 1 {
                     let _ = sorted_indices_to_remove.index_fill_(
                         1,
-                        &Tensor::arange1(0, min_tokens_to_keep + 1, (Int64, logits.device())),
+                        &Tensor::arange_start(0, min_tokens_to_keep + 1, (Int64, logits.device())),
                         0,
                     );
                 }
                 let _ = sorted_indices_to_remove.index_copy_(
                     1,
-                    &Tensor::arange1(1, vocab_size, (Int64, logits.device())),
+                    &Tensor::arange_start(1, vocab_size, (Int64, logits.device())),
                     &sorted_indices_to_remove
                         .slice(1, 0, vocab_size - 1, 1)
                         .copy(),
@@ -700,7 +700,7 @@ pub(crate) mod private_generation_utils {
                         1,
                     );
                     let probabilities = next_token_logits.softmax(-1, Float);
-                    probabilities.multinomial(1, false).squeeze1(1)
+                    probabilities.multinomial(1, false).squeeze_dim(1)
                 } else {
                     next_token_logits.argmax(-1, false)
                 };
@@ -989,12 +989,12 @@ pub(crate) mod private_generation_utils {
                     };
 
                     let eos_token_ids = gen_opt.eos_token_ids.as_ref();
-                    let beam_ids_tensor = &next_tokens.floor_divide1(vocab_size);
+                    let beam_ids_tensor = &next_tokens.floor_divide_scalar(vocab_size);
                     let effective_beam_ids_tensor = (&next_tokens.ones_like().cumsum(0, Int64) - 1)
                         * group_size
                         + beam_ids_tensor;
                     let token_id_tensor = &next_tokens - beam_ids_tensor * vocab_size;
-                    let (max_scores, _) = next_scores.max2(1, false);
+                    let (max_scores, _) = next_scores.max_dim(1, false);
                     let mut eos_mask = token_id_tensor.ones_like();
                     if let Some(eos_token_id) = eos_token_ids {
                         eos_mask -= token_id_tensor.eq(eos_token_id[0]).to_kind(Int64);
@@ -1063,7 +1063,7 @@ pub(crate) mod private_generation_utils {
                             &group_beam_tokens,
                         );
                         let new_indices = gen_opt.num_beams
-                            * group_beam_indices.floor_divide1(group_size)
+                            * group_beam_indices.floor_divide_scalar(group_size)
                             + group_start_index
                             + group_beam_indices.remainder(group_size);
                         let _ = beam_indices.index_copy_(
@@ -1180,7 +1180,7 @@ pub(crate) mod private_generation_utils {
             for (hypothesis_index, best_id) in best_ids.iter().enumerate() {
                 let _ = decoded.get(hypothesis_index as i64).index_copy_(
                     0,
-                    &Tensor::arange1(
+                    &Tensor::arange_start(
                         0,
                         i64::from(sentence_lengths.get(hypothesis_index as i64)),
                         (Int64, input_ids.device()),
@@ -1311,7 +1311,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
-    ///     output_scores
+    ///     output_scores,
     /// );
     /// # Ok(())
     /// # }
@@ -1439,7 +1439,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
-    ///     output_scores
+    ///     output_scores,
     /// );
     /// # Ok(())
     /// # }
@@ -1570,7 +1570,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
-    ///     output_scores
+    ///     output_scores,
     /// );
     /// # Ok(())
     /// # }

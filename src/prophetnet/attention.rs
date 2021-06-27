@@ -602,7 +602,7 @@ impl ProphetNetNgramAttention {
         let hidden_states_size = hidden_states.size();
         let (sequence_length, batch_size) = (hidden_states_size[0], hidden_states_size[1]);
         let calc_main_relative_position_buckets = if main_relative_position_buckets.is_none() {
-            let relative_positions = Tensor::arange1(
+            let relative_positions = Tensor::arange_start(
                 1,
                 attention_weights.size().last().unwrap() + 1,
                 (Kind::Int64, hidden_states.device()),
@@ -742,7 +742,7 @@ pub(crate) fn compute_relative_buckets(
         (
             num_buckets,
             relative_positions.zeros_like(),
-            inverse_relative_positions.max1(&inverse_relative_positions.zeros_like()),
+            inverse_relative_positions.max_other(&inverse_relative_positions.zeros_like()),
         )
     };
     let max_exact = num_buckets / 2;
@@ -754,10 +754,10 @@ pub(crate) fn compute_relative_buckets(
         + max_exact_f64;
 
     let val_if_large = val_if_large
-        .min1(&(val_if_large.ones_like() * (num_buckets as f64 - 1.0)))
+        .min_other(&(val_if_large.ones_like() * (num_buckets as f64 - 1.0)))
         .totype(Kind::Int64);
 
-    relative_positions_bucket + inverse_relative_positions.where1(&is_small, &val_if_large)
+    relative_positions_bucket + inverse_relative_positions.where_self(&is_small, &val_if_large)
 }
 
 pub(crate) fn compute_all_stream_relative_buckets(

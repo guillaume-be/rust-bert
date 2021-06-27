@@ -687,10 +687,10 @@ impl ZeroShotClassificationModel {
         });
 
         let scores = output.softmax(1, Float).select(-1, -1);
-        let label_indices = scores.as_ref().argmax(-1, true).squeeze1(1);
+        let label_indices = scores.as_ref().argmax(-1, true).squeeze_dim(1);
         let scores = scores
             .gather(1, &label_indices.unsqueeze(-1), false)
-            .squeeze1(1);
+            .squeeze_dim(1);
         let label_indices = label_indices.iter::<i64>().unwrap().collect::<Vec<i64>>();
         let scores = scores.iter::<f64>().unwrap().collect::<Vec<f64>>();
 

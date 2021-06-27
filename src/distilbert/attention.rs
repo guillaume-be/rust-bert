@@ -83,7 +83,7 @@ impl MultiHeadSelfAttention {
         let scores = if let Some(mask) = mask {
             let unmasked_scores = q.matmul(&k.transpose(2, 3));
             let mask = mask
-                .le1(&(mask.zeros_like() + 0.1))
+                .le_tensor(&(mask.zeros_like() + 0.1))
                 .view((bs, 1i64, 1i64, k_length))
                 .expand_as(&unmasked_scores);
             unmasked_scores.masked_fill(&mask, f64::NEG_INFINITY)

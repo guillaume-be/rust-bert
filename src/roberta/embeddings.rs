@@ -39,7 +39,7 @@ impl RobertaEmbeddings {
     fn create_position_ids_from_embeddings(&self, x: &Tensor) -> Tensor {
         let input_shape = x.size();
         let input_shape = vec![input_shape[0], input_shape[1]];
-        let position_ids: Tensor = Tensor::arange1(
+        let position_ids: Tensor = Tensor::arange_start(
             self.padding_index + 1,
             input_shape[0],
             (Kind::Int64, x.device()),

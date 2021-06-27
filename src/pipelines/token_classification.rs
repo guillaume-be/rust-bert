@@ -692,7 +692,7 @@ impl TokenClassificationModel {
             )
         });
         let output = output.detach().to(Device::Cpu);
-        let score: Tensor = output.exp() / output.exp().sum1(&[-1], true, Float);
+        let score: Tensor = output.exp() / output.exp().sum_dim_intlist(&[-1], true, Float);
         let labels_idx = &score.argmax(-1, true);
         let mut tokens: Vec<Vec<Token>> = vec![];
         for sentence_idx in 0..labels_idx.size()[0] {

@@ -287,13 +287,16 @@ impl XLNetModel {
         batch_size: Option<i64>,
         device: Device,
     ) -> Tensor {
-        let frequency_sequence = Tensor::arange2(0, self.d_model, 2, (Kind::Float, device));
-        let inverse_frequency = 1f64 / Tensor::pow2(10000f64, &(frequency_sequence / self.d_model));
+        let frequency_sequence =
+            Tensor::arange_start_step(0, self.d_model, 2, (Kind::Float, device));
+        let inverse_frequency =
+            1f64 / Tensor::pow_scalar(10000f64, &(frequency_sequence / self.d_model));
         let (begin, end) = match self.attention_type {
             AttentionType::bi => (k_len, -q_len),
             AttentionType::uni => (k_len, -1),
         };
-        let mut forward_positions_sequence = Tensor::arange2(begin, end, -1, (Kind::Float, device));
+        let mut forward_positions_sequence =
+            Tensor::arange_start_step(begin, end, -1, (Kind::Float, device));
         match self.clamp_len {
             Some(clamp_value) if clamp_value > 0 => {
                 let _ = forward_positions_sequence.clamp_(-clamp_value, clamp_value);
@@ -302,7 +305,7 @@ impl XLNetModel {
         }
         if self.bi_data {
             let mut backward_positions_sequence =
-                Tensor::arange2(-begin, -end, 1, (Kind::Float, device));
+                Tensor::arange_start_step(-begin, -end, 1, (Kind::Float, device));
             match self.clamp_len {
                 Some(clamp_value) if clamp_value > 0 => {
                     let _ = backward_positions_sequence.clamp_(-clamp_value, clamp_value);
@@ -512,7 +515,7 @@ impl XLNetModel {
             };
             let seg_mat = token_type_ids_value
                 .unsqueeze(-1)
-                .ne1(&cat_ids.unsqueeze(0))
+                .ne_tensor(&cat_ids.unsqueeze(0))
                 .to_kind(Kind::Int64);
             Some(seg_mat.one_hot(2).to_kind(Kind::Float))
         } else {
@@ -1461,8 +1464,8 @@ impl XLNetForQuestionAnswering {
         let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
-        let start_logits = start_logits.squeeze1(-1);
-        let end_logits = end_logits.squeeze1(-1);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
 
         XLNetQuestionAnsweringOutput {
             start_logits,
