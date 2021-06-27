@@ -22,6 +22,7 @@ use rust_bert::resources::{RemoteResource, Resource};
 fn main() -> anyhow::Result<()> {
     let generate_config = GenerateConfig {
         max_length: 142,
+        min_length: 0,
         model_resource: Resource::Remote(RemoteResource::from_pretrained(
             M2M100ModelResources::M2M100_418M,
         )),
@@ -42,8 +43,8 @@ fn main() -> anyhow::Result<()> {
 
     let model = M2M100Generator::new(generate_config)?;
 
-    let input_context_1 = ">>en.<< The quick brown fox jumps over the lazy dog.";
-    let target_language = model.get_tokenizer().convert_tokens_to_ids([">>de.<<"])[0];
+    let input_context_1 = ">>en.<< The dog did not wake up.";
+    let target_language = model.get_tokenizer().convert_tokens_to_ids([">>es.<<"])[0];
 
     let output = model.generate(
         Some(&[input_context_1]),
