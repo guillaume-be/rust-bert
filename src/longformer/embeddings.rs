@@ -86,7 +86,7 @@ impl LongformerEmbeddings {
         let input_shape = inputs_embeds.size();
         let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
 
-        Tensor::arange1(
+        Tensor::arange_start(
             self.pad_token_id + 1,
             sequence_length + self.pad_token_id + 1,
             (Kind::Int64, inputs_embeds.device()),

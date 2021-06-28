@@ -78,7 +78,7 @@ impl SequenceSummary {
     {
         let p = p.borrow();
 
-        let summary_type = config.summary_type.clone().unwrap_or(SummaryType::last);
+        let summary_type = config.summary_type.unwrap_or(SummaryType::last);
         let summary = if let Some(summary_use_proj) = config.summary_use_proj {
             let num_classes = match (config.summary_proj_to_labels, config.num_labels) {
                 (Some(summary_proj_to_labels), Some(num_labels))
@@ -132,7 +132,7 @@ impl SequenceSummary {
         let mut output = match self.summary_type {
             SummaryType::last => hidden_states.select(1, -1),
             SummaryType::first => hidden_states.select(1, 0),
-            SummaryType::mean => hidden_states.mean1(&[1], false, Kind::Float),
+            SummaryType::mean => hidden_states.mean_dim(&[1], false, Kind::Float),
             SummaryType::cls_index => {
                 let cls_index = if let Some(cls_index_value) = cls_index {
                     let mut expand_dim = vec![-1i64; cls_index_value.dim() - 1];
@@ -147,7 +147,7 @@ impl SequenceSummary {
                     let fill_value = fill_value[2];
                     hidden_states.select(-2, 0).full_like(fill_value)
                 };
-                hidden_states.gather(-2, &cls_index, false).squeeze1(-2)
+                hidden_states.gather(-2, &cls_index, false).squeeze_dim(-2)
             }
         };
 

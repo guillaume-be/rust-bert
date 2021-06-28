@@ -97,11 +97,12 @@ fn mbart_translation() -> anyhow::Result<()> {
         None,
         target_language,
         None,
+        false,
     );
 
     assert_eq!(output.len(), 1);
     assert_eq!(
-        output[0],
+        output[0].text,
         "de_DE Der schnelle braune Fuchs springt über den faulen Hund."
     );
 

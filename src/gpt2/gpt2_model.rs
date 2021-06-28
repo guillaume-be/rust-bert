@@ -414,7 +414,7 @@ impl Gpt2Model {
 
         let position_ids = match position_ids {
             Some(value) => value.copy(),
-            None => Tensor::arange1(
+            None => Tensor::arange_start(
                 layer_past_length,
                 seq_length + layer_past_length,
                 (Int64, input_embeddings.device()),

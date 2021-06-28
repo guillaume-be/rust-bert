@@ -140,11 +140,13 @@ fn compute_global_attention_mask(
     let attention_mask = Tensor::arange(input_ids.size()[1], (Kind::Int64, input_ids.device()));
 
     if before_sep_token {
-        attention_mask.expand_as(input_ids).lt1(&question_end_index)
+        attention_mask
+            .expand_as(input_ids)
+            .lt_tensor(&question_end_index)
     } else {
         attention_mask
             .expand_as(input_ids)
-            .gt1(&(question_end_index + 1))
+            .gt_tensor(&(question_end_index + 1))
             * attention_mask
                 .expand_as(input_ids)
                 .lt(*input_ids.size().last().unwrap())
@@ -580,7 +582,7 @@ impl LongformerModel {
                         .unsqueeze(0)
                         .unsqueeze(0)
                         .repeat(&[batch_size, sequence_length, 1])
-                        .le1(&sequence_ids.unsqueeze(-1).unsqueeze(0))
+                        .le_tensor(&sequence_ids.unsqueeze(-1).unsqueeze(0))
                         .totype(Kind::Int);
                     if causal_mask.size()[1] < padded_attention_mask.size()[1] {
                         let prefix_sequence_length =
@@ -1147,8 +1149,8 @@ impl LongformerForQuestionAnswering {
         let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
-        let start_logits = start_logits.squeeze1(-1);
-        let end_logits = end_logits.squeeze1(-1);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
 
         Ok(LongformerQuestionAnsweringOutput {
             start_logits,

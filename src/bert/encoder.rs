@@ -131,11 +131,12 @@ impl BertLayer {
         encoder_mask: &Option<Tensor>,
         train: bool,
     ) -> BertLayerOutput {
+        let (attention_output, attention_weights) =
+            self.attention
+                .forward_t(hidden_states, mask, &None, &None, train);
+
         let (attention_output, attention_scores, cross_attention_scores) =
             if self.is_decoder & encoder_hidden_states.is_some() {
-                let (attention_output, attention_weights) =
-                    self.attention
-                        .forward_t(hidden_states, mask, &None, &None, train);
                 let (attention_output, cross_attention_weights) =
                     self.cross_attention.as_ref().unwrap().forward_t(
                         &attention_output,
@@ -146,9 +147,6 @@ impl BertLayer {
                     );
                 (attention_output, attention_weights, cross_attention_weights)
             } else {
-                let (attention_output, attention_weights) =
-                    self.attention
-                        .forward_t(hidden_states, mask, &None, &None, train);
                 (attention_output, attention_weights, None)
             };
 

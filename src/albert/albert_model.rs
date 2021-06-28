@@ -848,8 +848,8 @@ impl AlbertForQuestionAnswering {
             .apply(&self.qa_outputs)
             .split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
-        let start_logits = start_logits.squeeze1(-1);
-        let end_logits = end_logits.squeeze1(-1);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
 
         AlbertQuestionAnsweringOutput {
             start_logits,

@@ -345,7 +345,7 @@ impl GptNeoModel {
 
         let calc_position_ids = if position_ids.is_none() {
             let position_ids =
-                Tensor::arange1(past_length, full_sequence_length, (Kind::Int64, device));
+                Tensor::arange_start(past_length, full_sequence_length, (Kind::Int64, device));
             Some(
                 position_ids
                     .unsqueeze(0)
