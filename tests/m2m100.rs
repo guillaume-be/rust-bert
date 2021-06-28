@@ -107,10 +107,11 @@ fn m2m100_translation() -> anyhow::Result<()> {
         None,
         target_language,
         None,
+        false,
     );
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], ">>es.<< El perro no se despertó.");
+    assert_eq!(output[0].text, ">>es.<< El perro no se despertó.");
 
     Ok(())
 }
