@@ -989,7 +989,7 @@ pub(crate) mod private_generation_utils {
                     };
 
                     let eos_token_ids = gen_opt.eos_token_ids.as_ref();
-                    let beam_ids_tensor = &next_tokens.floor_divide_scalar(vocab_size);
+                    let beam_ids_tensor = &next_tokens.divide_scalar_mode(vocab_size, "floor");
                     let effective_beam_ids_tensor = (&next_tokens.ones_like().cumsum(0, Int64) - 1)
                         * group_size
                         + beam_ids_tensor;
@@ -1063,7 +1063,7 @@ pub(crate) mod private_generation_utils {
                             &group_beam_tokens,
                         );
                         let new_indices = gen_opt.num_beams
-                            * group_beam_indices.floor_divide_scalar(group_size)
+                            * group_beam_indices.divide_scalar_mode(group_size, "floor")
                             + group_start_index
                             + group_beam_indices.remainder(group_size);
                         let _ = beam_indices.index_copy_(

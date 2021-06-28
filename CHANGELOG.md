@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Changed
 - Updated GPT2 architecture to re-use embeddings for the output projection layer (resulting in smaller model weights files and memory footprint)
+- Upgraded `tch` version to 0.5.0 (using `libtorch` 1.9.0)
 
 ## [0.15.1] - 2021-06-01
 ### Fixed
