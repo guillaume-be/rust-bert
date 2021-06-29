@@ -11,49 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Translation pipeline
-//! Translation based on the Marian encoder-decoder architecture
-//! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
-//! Pre-trained and ready-to-use models are available by creating a configuration from the `Language` enum.
-//! These models have been trained by the [Opus-MT team from Language Technology at the University of Helsinki](https://github.com/Helsinki-NLP/Opus-MT).
-//! The Rust model files are hosted by [Hugging Face Inc](https://huggingface.co).
-//! Currently supported languages are :
-//! - English <-> French
-//! - English <-> Spanish
-//! - English <-> Portuguese
-//! - English <-> Italian
-//! - English <-> Catalan
-//! - English <-> German
-//! - English <-> Russian
-//! - French <-> German
-//!
-//! Customized Translation models can be loaded by creating a configuration from local files.
-//! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/{translation-model-name}
-//!
-//!
-//! ```no_run
-//! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
-//! use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-//! use tch::Device;
-//! let translation_config =
-//!     TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
-//! let mut model = TranslationModel::new(translation_config)?;
-//!
-//! let input = ["This is a sentence to be translated"];
-//!
-//! let output = model.translate(&input);
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! Output: \
-//! ```no_run
-//! # let output =
-//! "Il s'agit d'une phrase à traduire"
-//! # ;
-//! ```
-
 use tch::{Device, Tensor};
 
 use crate::common::error::RustBertError;
@@ -66,41 +23,222 @@ use crate::pipelines::common::ModelType;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::t5::{T5ConfigResources, T5Generator, T5ModelResources, T5Prefix, T5VocabResources};
 
-/// Pretrained languages available for direct use
+/// Language
 pub enum Language {
-    FrenchToEnglish,
-    CatalanToEnglish,
-    SpanishToEnglish,
-    PortugueseToEnglish,
-    ItalianToEnglish,
-    RomanianToEnglish,
-    GermanToEnglish,
-    RussianToEnglish,
-    DutchToEnglish,
-    ChineseToEnglish,
-    SwedishToEnglish,
-    ArabicToEnglish,
-    HindiToEnglish,
-    HebrewToEnglish,
-    EnglishToFrench,
-    EnglishToCatalan,
-    EnglishToSpanish,
-    EnglishToPortuguese,
-    EnglishToItalian,
-    EnglishToRomanian,
-    EnglishToGerman,
-    EnglishToRussian,
-    EnglishToDutch,
-    EnglishToChineseSimplified,
-    EnglishToChineseTraditional,
-    EnglishToSwedish,
-    EnglishToArabic,
-    EnglishToHindi,
-    EnglishToHebrew,
-    EnglishToFrenchV2,
-    EnglishToGermanV2,
-    FrenchToGerman,
-    GermanToFrench,
+    Afrikaans,
+    Danish,
+    Dutch,
+    German,
+    English,
+    Icelandic,
+    Luxembourgish,
+    Norwegian,
+    Swedish,
+    WesternFrisian,
+    Yiddish,
+    Asturian,
+    Catalan,
+    French,
+    Galician,
+    Italian,
+    Occitan,
+    Portuguese,
+    Romanian,
+    Spanish,
+    Belarusian,
+    Bosnian,
+    Bulgarian,
+    Croatian,
+    Czech,
+    Macedonian,
+    Polish,
+    Russian,
+    Serbian,
+    Slovak,
+    Slovenian,
+    Ukrainian,
+    Estonian,
+    Finnish,
+    Hungarian,
+    Latvian,
+    Lithuanian,
+    Albanian,
+    Armenian,
+    Georgian,
+    Greek,
+    Breton,
+    Irish,
+    ScottishGaelic,
+    Welsh,
+    Azerbaijani,
+    Bashkir,
+    Kazakh,
+    Turkish,
+    Uzbek,
+    Japanese,
+    Korean,
+    Vietnamese,
+    ChineseMandarin,
+    Bengali,
+    Gujarati,
+    Hindi,
+    Kannada,
+    Marathi,
+    Nepali,
+    Oriya,
+    Panjabi,
+    Sindhi,
+    Sinhala,
+    Urdu,
+    Tamil,
+    Cebuano,
+    Iloko,
+    Indonesian,
+    Javanese,
+    Malagasy,
+    Malay,
+    Malayalam,
+    Sundanese,
+    Tagalog,
+    Burmese,
+    CentralKhmer,
+    Lao,
+    Thai,
+    Mongolian,
+    Arabic,
+    Hebrew,
+    Pashto,
+    Farsi,
+    Amharic,
+    Fulah,
+    Hausa,
+    Igbo,
+    Lingala,
+    Luganda,
+    NorthernSotho,
+    Somali,
+    Swahili,
+    Swati,
+    Tswana,
+    Wolof,
+    Xhosa,
+    Yoruba,
+    Zulu,
+    HaitianCreole,
+}
+
+impl Language {
+    pub fn get_iso_639_1_code() -> &'static str {
+        match Self {
+            Language::Afrikaans => "af",
+            //     ToDo: continue 639-1 codes
+        }
+    }
+
+    pub fn get_iso_639_3_code() -> &'static str {
+        match Self {
+            Language::Afrikaans => "afr",
+            Language::Danish => "dan",
+            Language::Dutch => "nld",
+            Language::German => "deu",
+            Language::English => "eng",
+            Language::Icelandic => "isl",
+            Language::Luxembourgish => "ltz",
+            Language::Norwegian => "nor",
+            Language::Swedish => "swe",
+            Language::WesternFrisian => "fry",
+            Language::Yiddish => "yid",
+            Language::Asturian => "ast",
+            Language::Catalan => "cat",
+            Language::French => "fra",
+            Language::Galician => "glg",
+            Language::Italian => "ita",
+            Language::Occitan => "oci",
+            Language::Portuguese => "por",
+            Language::Romanian => "ron",
+            Language::Spanish => "spa",
+            Language::Belarusian => "bel",
+            Language::Bosnian => "bos",
+            Language::Bulgarian => "bul",
+            Language::Croatian => "hrv",
+            Language::Czech => "ces",
+            Language::Macedonian => "mkd",
+            Language::Polish => "pol",
+            Language::Russian => "rus",
+            Language::Serbian => "srp",
+            Language::Slovak => "slk",
+            Language::Slovenian => "slv",
+            Language::Ukrainian => "ukr",
+            Language::Estonian => "est",
+            Language::Finnish => "fin",
+            Language::Hungarian => "hun",
+            Language::Latvian => "lav",
+            Language::Lithuanian => "lit",
+            Language::Albanian => "sqi",
+            Language::Armenian => "hye",
+            Language::Georgian => "kat",
+            Language::Greek => "ell",
+            Language::Breton => "bre",
+            Language::Irish => "gle",
+            Language::ScottishGaelic => "gla",
+            Language::Welsh => "cym",
+            Language::Azerbaijani => "aze",
+            Language::Bashkir => "bak",
+            Language::Kazakh => "kaz",
+            Language::Turkish => "tur",
+            Language::Uzbek => "uzb",
+            Language::Japanese => "jpn",
+            Language::Korean => "kor",
+            Language::Vietnamese => "vie",
+            Language::ChineseMandarin => "cmn",
+            Language::Bengali => "ben",
+            Language::Gujarati => "guj",
+            Language::Hindi => "hin",
+            Language::Kannada => "kan",
+            Language::Marathi => "mar",
+            Language::Nepali => "nep",
+            Language::Oriya => "ori",
+            Language::Panjabi => "pan",
+            Language::Sindhi => "snd",
+            Language::Sinhala => "sin",
+            Language::Urdu => "urd",
+            Language::Tamil => "tam",
+            Language::Cebuano => "ceb",
+            Language::Iloko => "ilo",
+            Language::Indonesian => "ind",
+            Language::Javanese => "jav",
+            Language::Malagasy => "mlg",
+            Language::Malay => "msa",
+            Language::Malayalam => "mal",
+            Language::Sundanese => "sun",
+            Language::Tagalog => "tgl",
+            Language::Burmese => "mya",
+            Language::CentralKhmer => "khm",
+            Language::Lao => "lao",
+            Language::Thai => "tha",
+            Language::Mongolian => "mon",
+            Language::Arabic => "ara",
+            Language::Hebrew => "heb",
+            Language::Pashto => "pus",
+            Language::Farsi => "fas",
+            Language::Amharic => "amh",
+            Language::Fulah => "ful",
+            Language::Hausa => "hau",
+            Language::Igbo => "ibo",
+            Language::Lingala => "lin",
+            Language::Luganda => "lug",
+            Language::NorthernSotho => "nso",
+            Language::Somali => "som",
+            Language::Swahili => "swa",
+            Language::Swati => "ssw",
+            Language::Tswana => "tsn",
+            Language::Wolof => "wol",
+            Language::Xhosa => "xho",
+            Language::Yoruba => "yor",
+            Language::Zulu => "zul",
+            Language::HaitianCreole => "hat",
+        }
+    }
 }
 
 struct RemoteTranslationResources {
