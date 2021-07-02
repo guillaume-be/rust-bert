@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file. The format 
 - Updated GPT2 architecture to re-use embeddings for the output projection layer (resulting in smaller model weights files and memory footprint)
 - Upgraded `tch` version to 0.5.0 (using `libtorch` 1.9.0)
 
+## Fixed
+- Updated T5 Decoder cross-attention to no longer use relative position bias (aligned with [Python reference update](https://github.com/huggingface/transformers/pull/8518))
+
 ## [0.15.1] - 2021-06-01
 ### Fixed
 - Fixed conversation model panic for user inputs exceeding the maximum model length (1000 tokens)
