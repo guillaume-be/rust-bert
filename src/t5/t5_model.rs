@@ -99,7 +99,6 @@ pub struct T5Config {
     pub initializer_factor: f64,
     pub is_encoder_decoder: Option<bool>,
     pub layer_norm_epsilon: f64,
-    pub n_positions: i64,
     pub num_heads: i64,
     pub num_layers: i64,
     pub output_past: Option<bool>,
