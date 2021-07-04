@@ -56,10 +56,10 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
-//! use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
+//! use rust_bert::pipelines::translation::{OldLanguage, TranslationConfig, TranslationModel};
 //! use tch::Device;
 //! let translation_config =
-//!     TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
+//!     TranslationConfig::new(OldLanguage::EnglishToFrench, Device::cuda_if_available());
 //! let mut model = TranslationModel::new(translation_config)?;
 //!
 //! let input = ["This is a sentence to be translated"];

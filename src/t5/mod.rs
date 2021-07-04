@@ -56,5 +56,5 @@ mod t5_model;
 pub use attention::LayerState;
 pub use t5_model::{
     T5Config, T5ConfigResources, T5ForConditionalGeneration, T5Generator, T5Model, T5ModelOutput,
-    T5ModelResources, T5Prefix, T5VocabResources,
+    T5ModelResources, T5Prefix, T5SourceLanguages, T5TargetLanguages, T5VocabResources,
 };

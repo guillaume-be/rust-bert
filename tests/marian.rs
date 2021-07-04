@@ -1,11 +1,11 @@
-use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
+use rust_bert::pipelines::translation::{OldLanguage, TranslationConfig, TranslationModel};
 use tch::Device;
 
 #[test]
 // #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn test_translation() -> anyhow::Result<()> {
     //    Set-up translation model
-    let translation_config = TranslationConfig::new(Language::EnglishToFrench, Device::Cpu);
+    let translation_config = TranslationConfig::new(OldLanguage::EnglishToFrench, Device::Cpu);
     let model = TranslationModel::new(translation_config)?;
 
     let input_context_1 = "The quick brown fox jumps over the lazy dog";

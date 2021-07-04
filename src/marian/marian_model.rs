@@ -19,6 +19,7 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
+use crate::pipelines::translation::Language;
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{MarianTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::MarianVocab;
@@ -40,6 +41,12 @@ pub struct MarianSpmResources;
 
 /// # Marian optional prefixes
 pub struct MarianPrefix;
+
+/// # Marian source languages pre-sets
+pub struct MarianSourceLanguages;
+
+/// # Marian target languages pre-sets
+pub struct MarianTargetLanguages;
 
 impl MarianModelResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at https://github.com/Helsinki-NLP/Opus-MT. Modified with conversion to C-array format.
@@ -485,6 +492,68 @@ impl MarianPrefix {
     pub const ARABIC2ENGLISH: Option<&'static str> = None;
     pub const HINDI2ENGLISH: Option<&'static str> = None;
     pub const HEBREW2ENGLISH: Option<&'static str> = None;
+}
+
+impl MarianSourceLanguages {
+    pub const ENGLISH2ROMANCE: [Language; 1] = [Language::English];
+    pub const ENGLISH2GERMAN: [Language; 1] = [Language::English];
+    pub const ENGLISH2RUSSIAN: [Language; 1] = [Language::English];
+    pub const ENGLISH2DUTCH: [Language; 1] = [Language::English];
+    pub const ENGLISH2CHINESE: [Language; 1] = [Language::English];
+    pub const ENGLISH2SWEDISH: [Language; 1] = [Language::English];
+    pub const ENGLISH2ARABIC: [Language; 1] = [Language::English];
+    pub const ENGLISH2HINDI: [Language; 1] = [Language::English];
+    pub const ENGLISH2HEBREW: [Language; 1] = [Language::English];
+    pub const ROMANCE2ENGLISH: [Language; 7] = [
+        Language::French,
+        Language::Spanish,
+        Language::Italian,
+        Language::Catalan,
+        Language::Romanian,
+        Language::Portuguese,
+        Language::Occitan,
+    ];
+    pub const GERMAN2ENGLISH: [Language; 1] = [Language::German];
+    pub const RUSSIAN2ENGLISH: [Language; 1] = [Language::Russian];
+    pub const DUTCH2ENGLISH: [Language; 1] = [Language::Dutch];
+    pub const CHINESE2ENGLISH: [Language; 1] = [Language::ChineseMandarin];
+    pub const SWEDISH2ENGLISH: [Language; 1] = [Language::Swedish];
+    pub const ARABIC2ENGLISH: [Language; 1] = [Language::Arabic];
+    pub const HINDI2ENGLISH: [Language; 1] = [Language::Hindi];
+    pub const HEBREW2ENGLISH: [Language; 1] = [Language::Hebrew];
+    pub const FRENCH2GERMAN: [Language; 1] = [Language::French];
+    pub const GERMAN2FRENCH: [Language; 1] = [Language::German];
+}
+
+impl MarianTargetLanguages {
+    pub const ENGLISH2ROMANCE: [Language; 7] = [
+        Language::French,
+        Language::Spanish,
+        Language::Italian,
+        Language::Catalan,
+        Language::Romanian,
+        Language::Portuguese,
+        Language::Occitan,
+    ];
+    pub const ENGLISH2GERMAN: [Language; 1] = [Language::German];
+    pub const ENGLISH2RUSSIAN: [Language; 1] = [Language::Russian];
+    pub const ENGLISH2DUTCH: [Language; 1] = [Language::Dutch];
+    pub const ENGLISH2CHINESE: [Language; 1] = [Language::ChineseMandarin];
+    pub const ENGLISH2SWEDISH: [Language; 1] = [Language::Swedish];
+    pub const ENGLISH2ARABIC: [Language; 1] = [Language::Arabic];
+    pub const ENGLISH2HINDI: [Language; 1] = [Language::Hindi];
+    pub const ENGLISH2HEBREW: [Language; 1] = [Language::Hebrew];
+    pub const ROMANCE2ENGLISH: [Language; 1] = [Language::English];
+    pub const GERMAN2ENGLISH: [Language; 1] = [Language::English];
+    pub const RUSSIAN2ENGLISH: [Language; 1] = [Language::English];
+    pub const DUTCH2ENGLISH: [Language; 1] = [Language::English];
+    pub const CHINESE2ENGLISH: [Language; 1] = [Language::English];
+    pub const SWEDISH2ENGLISH: [Language; 1] = [Language::English];
+    pub const ARABIC2ENGLISH: [Language; 1] = [Language::English];
+    pub const HINDI2ENGLISH: [Language; 1] = [Language::English];
+    pub const HEBREW2ENGLISH: [Language; 1] = [Language::English];
+    pub const FRENCH2GERMAN: [Language; 1] = [Language::German];
+    pub const GERMAN2FRENCH: [Language; 1] = [Language::French];
 }
 
 /// # Marian Model for conditional generation

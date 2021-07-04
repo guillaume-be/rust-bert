@@ -4,13 +4,14 @@ extern crate criterion;
 use criterion::{black_box, Criterion};
 // use rust_bert::pipelines::common::ModelType;
 // use rust_bert::pipelines::translation::TranslationOption::{Marian, T5};
-use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
+use rust_bert::pipelines::translation::{OldLanguage, TranslationConfig, TranslationModel};
 // use rust_bert::resources::{LocalResource, Resource};
 use std::time::{Duration, Instant};
 use tch::Device;
 
 fn create_translation_model() -> TranslationModel {
-    let config = TranslationConfig::new(Language::EnglishToFrenchV2, Device::cuda_if_available());
+    let config =
+        TranslationConfig::new(OldLanguage::EnglishToFrenchV2, Device::cuda_if_available());
     // let config = TranslationConfig::new_from_resources(
     //     Resource::Local(LocalResource {
     //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/model.ot".into(),
@@ -46,7 +47,7 @@ fn translation_load_model(iters: u64) -> Duration {
     for _i in 0..iters {
         let start = Instant::now();
         let config =
-            TranslationConfig::new(Language::EnglishToFrenchV2, Device::cuda_if_available());
+            TranslationConfig::new(OldLanguage::EnglishToFrenchV2, Device::cuda_if_available());
         // let config = TranslationConfig::new_from_resources(
         //     Resource::Local(LocalResource {
         //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/model.ot".into(),
