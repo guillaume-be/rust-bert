@@ -397,14 +397,6 @@ impl Language {
             Language::HaitianCreole => "hat",
         }
     }
-
-    pub fn get_marian_code(&self) -> &'static str {
-        match self {
-            Language::ChineseMandarin => "cmn_Hans",
-            Language::Arabic => self.get_iso_639_3_code(),
-            _ => self.get_iso_639_1_code(),
-        }
-    }
 }
 
 /// # Configuration for text translation
@@ -512,13 +504,13 @@ impl TranslationConfig {
         merges_resource: Resource,
         source_languages: S,
         target_languages: T,
-        device: Option<Device>,
+        device: impl Into<Option<Device>>,
     ) -> TranslationConfig
     where
         S: AsRef<[Language]>,
         T: AsRef<[Language]>,
     {
-        let device = device.unwrap_or_else(|| Device::cuda_if_available());
+        let device = device.into().unwrap_or_else(|| Device::cuda_if_available());
 
         TranslationConfig {
             model_type,
@@ -637,7 +629,7 @@ impl TranslationOption {
                         ">>{}<< ",
                         target_language
                             .expect("Missing target language for Marian")
-                            .get_marian_code()
+                            .get_iso_639_1_code()
                     ))
                 } else {
                     None
@@ -811,7 +803,7 @@ impl TranslationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn translate<'a, S, L>(
+    pub fn translate<'a, S>(
         &self,
         texts: S,
         source_language: impl Into<Option<Language>>,
