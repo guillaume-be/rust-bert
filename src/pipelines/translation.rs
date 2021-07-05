@@ -15,9 +15,14 @@ use tch::{Device, Tensor};
 
 use crate::common::error::RustBertError;
 use crate::common::resources::Resource;
-use crate::marian::MarianGenerator;
+use crate::marian::{
+    MarianConfigResources, MarianGenerator, MarianModelResources, MarianSourceLanguages,
+    MarianSpmResources, MarianTargetLanguages, MarianVocabResources,
+};
+use crate::mbart::{MBartConfigResources, MBartModelResources, MBartVocabResources};
 use crate::pipelines::common::ModelType;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::resources::RemoteResource;
 use crate::t5::T5Generator;
 use std::collections::HashSet;
 use std::fmt;
@@ -766,31 +771,33 @@ impl TranslationModel {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::translation::{OldLanguage, TranslationConfig, TranslationModel};
+    /// use rust_bert::pipelines::translation::{OldLanguage, TranslationConfig, TranslationModel, Language};
     /// use tch::Device;
     /// use rust_bert::resources::{Resource, RemoteResource};
-    /// use rust_bert::marian::{MarianConfigResources, MarianModelResources, MarianVocabResources, MarianSourceLanguages, MarianTargetLanguages};
+    /// use rust_bert::marian::{MarianConfigResources, MarianModelResources, MarianVocabResources, MarianSourceLanguages, MarianTargetLanguages, MarianSpmResources};
     /// use rust_bert::pipelines::common::ModelType;
     ///
     /// let model_resource = Resource::Remote(RemoteResource::from_pretrained(
-    ///     MarianModelResources::ROMANCE2ENGLISH,
+    ///     MarianModelResources::ENGLISH2ROMANCE,
     /// ));
     /// let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-    ///     MarianConfigResources::ROMANCE2ENGLISH,
+    ///     MarianConfigResources::ENGLISH2ROMANCE,
     /// ));
     /// let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-    ///     MarianVocabResources::ROMANCE2ENGLISH,
+    ///     MarianVocabResources::ENGLISH2ROMANCE,
     /// ));
-    ///
-    /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
-    /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
+    /// let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    ///      MarianSpmResources::ENGLISH2ROMANCE,
+    /// ));
+    /// let source_languages = MarianSourceLanguages::ENGLISH2ROMANCE;
+    /// let target_languages = MarianTargetLanguages::ENGLISH2ROMANCE;
     ///
     /// let translation_config = TranslationConfig::new(
     ///     ModelType::Marian,
     ///     model_resource,
     ///     config_resource,
-    ///     vocab_resource.clone(),
     ///     vocab_resource,
+    ///     merges_resource,
     ///     source_languages,
     ///     target_languages,
     ///     device: Device::cuda_if_available(),
@@ -798,8 +805,10 @@ impl TranslationModel {
     /// let model = TranslationModel::new(translation_config)?;
     ///
     /// let input = ["This is a sentence to be translated"];
+    /// let source_language = None;
+    /// let target_language = Language::French;
     ///
-    /// let output = model.translate(&input);
+    /// let output = model.translate(&input, source_language, target_language);
     /// # Ok(())
     /// # }
     /// ```
@@ -833,6 +842,173 @@ impl TranslationModel {
             }
             None => self.model.generate(Some(texts), None),
         })
+    }
+}
+
+struct TranslationResources {
+    model_resource: Resource,
+    config_resource: Resource,
+    vocab_resource: Resource,
+    merges_resource: Resource,
+}
+
+pub struct TranslationModelBuilder<S, T>
+where
+    S: AsRef<[Language]>,
+    T: AsRef<[Language]>,
+{
+    model_type: Option<ModelType>,
+    model_resource: Option<Resource>,
+    config_resource: Option<Resource>,
+    vocab_resource: Option<Resource>,
+    merges_resource: Option<Resource>,
+    source_languages: Option<S>,
+    target_languages: Option<T>,
+    device: Option<Device>,
+}
+
+impl<S, T> TranslationModelBuilder<S, T>
+where
+    S: AsRef<[Language]>,
+    T: AsRef<[Language]>,
+{
+    pub fn new() -> TranslationModelBuilder<S, T> {
+        TranslationModelBuilder {
+            model_type: None,
+            model_resource: None,
+            config_resource: None,
+            vocab_resource: None,
+            merges_resource: None,
+            source_languages: None,
+            target_languages: None,
+            device: None,
+        }
+    }
+
+    pub fn with_device(&mut self, device: Device) -> &mut Self {
+        self.device = Some(device);
+        self
+    }
+
+    pub fn with_model_type(&mut self, model_type: ModelType) -> &mut Self {
+        self.model_type = Some(model_type);
+        self
+    }
+
+    pub fn with_small_model(&mut self) -> &mut Self {
+        if self.model_type.is_some() {
+            eprintln!(
+                "Model selection overwritten: was {:?}, replaced by {:?}",
+                self.model_type.unwrap(),
+                ModelType::Marian
+            );
+        }
+        self.model_type = Some(ModelType::Marian);
+        self
+    }
+
+    pub fn with_large_model(&mut self) -> &mut Self {
+        if self.model_type.is_some() {
+            eprintln!(
+                "Model selection overwritten: was {:?}, replaced by {:?}",
+                self.model_type.unwrap(),
+                ModelType::MBart
+            );
+        }
+        // ToDo: Replace by M2M100
+        self.model_type = Some(ModelType::MBart);
+        self
+    }
+
+    pub fn with_source_languages(&mut self, source_languages: S) -> &mut Self {
+        self.source_languages = Some(source_languages);
+        self
+    }
+
+    pub fn with_target_languages(&mut self, target_languages: T) -> &mut Self {
+        self.target_languages = Some(target_languages);
+        self
+    }
+
+    fn validate_model_languages(&self, model_type: Option<ModelType>) -> bool {
+        match model_type {
+            Some(ModelType::Marian) => true,
+            Some(ModelType::T5) => true,
+            None => true,
+            _ => false,
+        }
+    }
+
+    fn get_default_model(
+        &self,
+        source_languages: &S,
+        target_languages: &T,
+    ) -> TranslationResources {
+        unimplemented!()
+    }
+
+    pub fn create_model(&self) -> Result<TranslationModel, RustBertError> {
+        let device = self.device.unwrap_or_else(|| Device::cuda_if_available());
+
+        let translation_resources = match (
+            &self.model_type,
+            &self.source_languages,
+            &self.target_languages,
+        ) {
+            (Some(ModelType::MBart), None, None) | (None, None, None) => TranslationResources {
+                // ToDO: Add ModelType::M2M100 and use this as default if nothing passed
+                // ToDO: handle 2 possible sizes for M2M100 (large and extra large)
+                model_resource: Resource::Remote(RemoteResource::from_pretrained(
+                    MBartModelResources::MBART50_MANY_TO_MANY,
+                )),
+                config_resource: Resource::Remote(RemoteResource::from_pretrained(
+                    MBartConfigResources::MBART50_MANY_TO_MANY,
+                )),
+                vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+                    MBartVocabResources::MBART50_MANY_TO_MANY,
+                )),
+                merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+                    MBartVocabResources::MBART50_MANY_TO_MANY,
+                )),
+            },
+            (None, Some(source_languages), Some(target_languages)) => {
+                self.get_default_model(source_languages, target_languages)
+            }
+            (_, None, None) => {
+                return Err(RustBertError::InvalidConfigurationError(format!(
+                    "Source and target languages must be specified for {:?}",
+                    self.model_type.unwrap()
+                )));
+            }
+        };
+
+        let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+            MarianModelResources::ENGLISH2CHINESE,
+        ));
+        let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+            MarianConfigResources::ENGLISH2CHINESE,
+        ));
+        let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+            MarianVocabResources::ENGLISH2CHINESE,
+        ));
+        let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+            MarianSpmResources::ENGLISH2CHINESE,
+        ));
+
+        let source_languages = MarianSourceLanguages::ENGLISH2CHINESE;
+        let target_languages = MarianTargetLanguages::ENGLISH2CHINESE;
+
+        let translation_config = TranslationConfig::new(
+            ModelType::Marian,
+            model_resource,
+            config_resource,
+            vocab_resource,
+            merges_resource,
+            source_languages,
+            target_languages,
+            device,
+        );
+        TranslationModel::new(translation_config)
     }
 }
 
