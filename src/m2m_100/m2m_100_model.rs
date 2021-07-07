@@ -50,6 +50,11 @@ impl M2M100ModelResources {
         "m2m100-418m/model",
         "https://huggingface.co/facebook/m2m100_418M/resolve/main/rust_model.ot",
     );
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_1_2B: (&'static str, &'static str) = (
+        "m2m100-1_2b/model",
+        "https://huggingface.co/facebook/m2m100_1.2B/resolve/main/rust_model.ot",
+    );
 }
 
 impl M2M100ConfigResources {
@@ -57,6 +62,11 @@ impl M2M100ConfigResources {
     pub const M2M100_418M: (&'static str, &'static str) = (
         "m2m100-418m/config",
         "https://huggingface.co/facebook/m2m100_418M/resolve/main/config.json",
+    );
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_1_2B: (&'static str, &'static str) = (
+        "m2m100-1_2b/config",
+        "https://huggingface.co/facebook/m2m100_1.2B/resolve/main/config.json",
     );
 }
 
@@ -66,6 +76,11 @@ impl M2M100VocabResources {
         "m2m100-418m/vocab",
         "https://huggingface.co/facebook/m2m100_418M/resolve/main/vocab.json",
     );
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_1_2B: (&'static str, &'static str) = (
+        "m2m100-1_2b/vocab",
+        "https://huggingface.co/facebook/m2m100_1.2B/resolve/main/vocab.json",
+    );
 }
 
 impl M2M100MergesResources {
@@ -73,6 +88,11 @@ impl M2M100MergesResources {
     pub const M2M100_418M: (&'static str, &'static str) = (
         "m2m100-418m/merges",
         "https://huggingface.co/facebook/m2m100_418M/resolve/main/sentencepiece.bpe.model",
+    );
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_1_2B: (&'static str, &'static str) = (
+        "m2m100-1_2b/merges",
+        "https://huggingface.co/facebook/m2m100_1.2B/resolve/main/sentencepiece.bpe.model",
     );
 }
 
