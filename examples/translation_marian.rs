@@ -13,18 +13,48 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::translation::{OldLanguage, TranslationConfig, TranslationModel};
+use rust_bert::marian::{
+    MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+    MarianTargetLanguages, MarianVocabResources,
+};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
+use rust_bert::resources::{RemoteResource, Resource};
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    let translation_config =
-        TranslationConfig::new(OldLanguage::EnglishToGerman, Device::cuda_if_available());
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        MarianModelResources::ENGLISH2CHINESE,
+    ));
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        MarianConfigResources::ENGLISH2CHINESE,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        MarianVocabResources::ENGLISH2CHINESE,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        MarianSpmResources::ENGLISH2CHINESE,
+    ));
+
+    let source_languages = MarianSourceLanguages::ENGLISH2CHINESE;
+    let target_languages = MarianTargetLanguages::ENGLISH2CHINESE;
+
+    let translation_config = TranslationConfig::new(
+        ModelType::Marian,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        source_languages,
+        target_languages,
+        Device::cuda_if_available(),
+    );
     let model = TranslationModel::new(translation_config)?;
 
     let input_context_1 = "The quick brown fox jumps over the lazy dog";
     let input_context_2 = "The dog did not wake up";
 
-    let output = model.translate(&[input_context_1, input_context_2]);
+    let output = model.translate(&[input_context_1, input_context_2], None, None)?;
 
     for sentence in output {
         println!("{}", sentence);
