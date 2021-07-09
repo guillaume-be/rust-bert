@@ -39,14 +39,14 @@ pub struct MarianVocabResources;
 /// # Marian Pretrained sentence piece model files
 pub struct MarianSpmResources;
 
-/// # Marian optional prefixes
-pub struct MarianPrefix;
-
 /// # Marian source languages pre-sets
 pub struct MarianSourceLanguages;
 
 /// # Marian target languages pre-sets
 pub struct MarianTargetLanguages;
+
+/// # Marian translation model pre-sets
+pub struct MarianModelPreset;
 
 impl MarianModelResources {
     /// Shared under Creative Commons Attribution 4.0 International License license by the Opus-MT team from Language Technology at the University of Helsinki at <https://github.com/Helsinki-NLP/Opus-MT>. Modified with conversion to C-array format.
