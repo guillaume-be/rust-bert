@@ -49,6 +49,7 @@ GPT-Neo| | | |✅ | | | |
 BART|✅| | |✅ |✅| | |
 Marian| | | |  | |✅| | 
 MBart|✅| | |✅ | | | | 
+M2M100| | | |✅ | | | | 
 Electra | |✅| | | | |✅| 
 ALBERT |✅|✅|✅| | | |✅| 
 T5 | | | |✅ |✅|✅| | 
@@ -62,7 +63,7 @@ Pegasus| | | | |✅| | |
 ## Getting started
 
 This library relies on the [tch](https://github.com/LaurentMazare/tch-rs) crate for bindings to the C++ Libtorch API.
-The libtorch library is required can be downloaded either automatically or manually. The following provides a reference on how to set-up yoru environment
+The libtorch library is required can be downloaded either automatically or manually. The following provides a reference on how to set-up your environment
 to use these bindings, please refer to the [tch](https://github.com/LaurentMazare/tch-rs) for detailed information or support.
 
 Furthermore, this library relies on a cache folder for downloading pre-trained models. 

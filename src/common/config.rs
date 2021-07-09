@@ -15,9 +15,9 @@ use std::io::BufReader;
 use std::path::Path;
 
 /// # Utility to deserialize JSON config files
-pub trait Config<T>
+pub trait Config
 where
-    for<'de> T: Deserialize<'de>,
+    for<'de> Self: Deserialize<'de>,
 {
     /// Loads a `Config` object from a JSON file. The format is expected to be aligned with the [Transformers library](https://github.com/huggingface/transformers) configuration files for each model.
     /// The parsing will fail if non-optional keys expected by the model are missing.
@@ -36,10 +36,10 @@ where
     /// let config_path = Path::new("path/to/config.json");
     /// let config = Gpt2Config::from_file(config_path);
     /// ```
-    fn from_file<P: AsRef<Path>>(path: P) -> T {
+    fn from_file<P: AsRef<Path>>(path: P) -> Self {
         let f = File::open(path).expect("Could not open configuration file.");
         let br = BufReader::new(f);
-        let config: T = serde_json::from_reader(br).expect("could not parse configuration");
+        let config: Self = serde_json::from_reader(br).expect("could not parse configuration");
         config
     }
 }

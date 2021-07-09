@@ -59,6 +59,7 @@
 //! BART|✅| | |✅ |✅| | |
 //! Marian| | | |  | |✅| |
 //! MBart|✅| | |✅ | | | |
+//! M2M100| | | |✅ | | | |
 //! Electra | |✅| | | | |✅|
 //! ALBERT |✅|✅|✅| | | |✅|
 //! T5 | | | |✅ |✅|✅| |
@@ -80,7 +81,7 @@
 //!
 //! ### Manual installation (recommended)
 //!
-//! 1. Download `libtorch` from https://pytorch.org/get-started/locally/. This package requires `v1.8.1`: if this version is no longer available on the "get started" page,
+//! 1. Download `libtorch` from <https://pytorch.org/get-started/locally/>. This package requires `v1.8.1`: if this version is no longer available on the "get started" page,
 //! the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu111/libtorch-shared-with-deps-1.8.1%2Bcu111.zip` for a Linux version with CUDA11.
 //! 2. Extract the library to a location of your choice
 //! 3. Set the following environment variables
@@ -579,6 +580,7 @@ pub mod electra;
 pub mod gpt2;
 pub mod gpt_neo;
 pub mod longformer;
+pub mod m2m_100;
 pub mod marian;
 pub mod mbart;
 pub mod mobilebert;
