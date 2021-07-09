@@ -460,40 +460,6 @@ impl MarianSpmResources {
     );
 }
 
-impl MarianPrefix {
-    pub const ENGLISH2FRENCH: Option<&'static str> = Some(">>fr<< ");
-    pub const ENGLISH2CATALAN: Option<&'static str> = Some(">>ca<< ");
-    pub const ENGLISH2SPANISH: Option<&'static str> = Some(">>es<< ");
-    pub const ENGLISH2PORTUGUESE: Option<&'static str> = Some(">>pt<< ");
-    pub const ENGLISH2ITALIAN: Option<&'static str> = Some(">>it<< ");
-    pub const ENGLISH2ROMANIAN: Option<&'static str> = Some(">>ro<< ");
-    pub const ENGLISH2DUTCH: Option<&'static str> = None;
-    pub const ENGLISH2CHINESE_SIMPLIFIED: Option<&'static str> = Some(">>cmn_Hans<< ");
-    pub const ENGLISH2CHINESE_TRADITIONAL: Option<&'static str> = Some(">>cmn_Hant<< ");
-    pub const ENGLISH2GERMAN: Option<&'static str> = None;
-    pub const ENGLISH2RUSSIAN: Option<&'static str> = None;
-    pub const ENGLISH2SWEDISH: Option<&'static str> = None;
-    pub const ENGLISH2ARABIC: Option<&'static str> = Some(">>ara<< ");
-    pub const ENGLISH2HINDI: Option<&'static str> = None;
-    pub const ENGLISH2HEBREW: Option<&'static str> = None;
-    pub const FRENCH2ENGLISH: Option<&'static str> = None;
-    pub const CATALAN2ENGLISH: Option<&'static str> = None;
-    pub const SPANISH2ENGLISH: Option<&'static str> = None;
-    pub const PORTUGUESE2ENGLISH: Option<&'static str> = None;
-    pub const ITALIAN2ENGLISH: Option<&'static str> = None;
-    pub const ROMANIAN2ENGLISH: Option<&'static str> = None;
-    pub const GERMAN2ENGLISH: Option<&'static str> = None;
-    pub const RUSSIAN2ENGLISH: Option<&'static str> = None;
-    pub const FRENCH2GERMAN: Option<&'static str> = None;
-    pub const GERMAN2FRENCH: Option<&'static str> = None;
-    pub const DUTCH2ENGLISH: Option<&'static str> = None;
-    pub const CHINESE2ENGLISH: Option<&'static str> = None;
-    pub const SWEDISH2ENGLISH: Option<&'static str> = None;
-    pub const ARABIC2ENGLISH: Option<&'static str> = None;
-    pub const HINDI2ENGLISH: Option<&'static str> = None;
-    pub const HEBREW2ENGLISH: Option<&'static str> = None;
-}
-
 impl MarianSourceLanguages {
     pub const ENGLISH2ROMANCE: [Language; 1] = [Language::English];
     pub const ENGLISH2GERMAN: [Language; 1] = [Language::English];

@@ -15,6 +15,9 @@ use tch::{Device, Tensor};
 
 use crate::common::error::RustBertError;
 use crate::common::resources::Resource;
+use crate::m2m_100::{
+    M2M100ConfigResources, M2M100MergesResources, M2M100ModelResources, M2M100VocabResources,
+};
 use crate::marian::{
     MarianConfigResources, MarianGenerator, MarianModelResources, MarianSourceLanguages,
     MarianSpmResources, MarianTargetLanguages, MarianVocabResources,
@@ -26,43 +29,6 @@ use crate::resources::RemoteResource;
 use crate::t5::T5Generator;
 use std::collections::HashSet;
 use std::fmt;
-
-/// Pretrained languages available for direct use
-pub enum OldLanguage {
-    FrenchToEnglish,
-    CatalanToEnglish,
-    SpanishToEnglish,
-    PortugueseToEnglish,
-    ItalianToEnglish,
-    RomanianToEnglish,
-    GermanToEnglish,
-    RussianToEnglish,
-    DutchToEnglish,
-    ChineseToEnglish,
-    SwedishToEnglish,
-    ArabicToEnglish,
-    HindiToEnglish,
-    HebrewToEnglish,
-    EnglishToFrench,
-    EnglishToCatalan,
-    EnglishToSpanish,
-    EnglishToPortuguese,
-    EnglishToItalian,
-    EnglishToRomanian,
-    EnglishToGerman,
-    EnglishToRussian,
-    EnglishToDutch,
-    EnglishToChineseSimplified,
-    EnglishToChineseTraditional,
-    EnglishToSwedish,
-    EnglishToArabic,
-    EnglishToHindi,
-    EnglishToHebrew,
-    EnglishToFrenchV2,
-    EnglishToGermanV2,
-    FrenchToGerman,
-    GermanToFrench,
-}
 
 /// Language
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -410,13 +376,13 @@ impl Language {
 pub struct TranslationConfig {
     /// Model type used for translation
     pub model_type: ModelType,
-    /// Model weights resource (default: pretrained BART model on CNN-DM)
+    /// Model weights resource
     pub model_resource: Resource,
-    /// Config resource (default: pretrained BART model on CNN-DM)
+    /// Config resource
     pub config_resource: Resource,
-    /// Vocab resource (default: pretrained BART model on CNN-DM)
+    /// Vocab resource
     pub vocab_resource: Resource,
-    /// Merges resource (default: pretrained BART model on CNN-DM)
+    /// Merges resource
     pub merges_resource: Resource,
     /// Supported source languages
     pub source_languages: HashSet<Language>,
@@ -852,6 +818,13 @@ struct TranslationResources {
     merges_resource: Resource,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum ModelSize {
+    Medium,
+    Large,
+    XLarge,
+}
+
 pub struct TranslationModelBuilder<S, T>
 where
     S: AsRef<[Language]>,
@@ -865,6 +838,7 @@ where
     source_languages: Option<S>,
     target_languages: Option<T>,
     device: Option<Device>,
+    model_size: Option<ModelSize>,
 }
 
 impl<S, T> TranslationModelBuilder<S, T>
@@ -882,6 +856,7 @@ where
             source_languages: None,
             target_languages: None,
             device: None,
+            model_size: None,
         }
     }
 
@@ -895,7 +870,7 @@ where
         self
     }
 
-    pub fn with_small_model(&mut self) -> &mut Self {
+    pub fn with_medium_model(&mut self) -> &mut Self {
         if self.model_type.is_some() {
             eprintln!(
                 "Model selection overwritten: was {:?}, replaced by {:?}",
@@ -904,6 +879,7 @@ where
             );
         }
         self.model_type = Some(ModelType::Marian);
+        self.model_size = Some(ModelSize::Medium);
         self
     }
 
@@ -912,11 +888,24 @@ where
             eprintln!(
                 "Model selection overwritten: was {:?}, replaced by {:?}",
                 self.model_type.unwrap(),
-                ModelType::MBart
+                ModelType::M2M100
             );
         }
-        // ToDo: Replace by M2M100
-        self.model_type = Some(ModelType::MBart);
+        self.model_type = Some(ModelType::M2M100);
+        self.model_size = Some(ModelSize::Large);
+        self
+    }
+
+    pub fn with_xlarge_model(&mut self) -> &mut Self {
+        if self.model_type.is_some() {
+            eprintln!(
+                "Model selection overwritten: was {:?}, replaced by {:?}",
+                self.model_type.unwrap(),
+                ModelType::M2M100
+            );
+        }
+        self.model_type = Some(ModelType::M2M100);
+        self.model_size = Some(ModelSize::XLarge);
         self
     }
 
@@ -947,6 +936,65 @@ where
         unimplemented!()
     }
 
+    fn get_marian_model(
+        &self,
+        source_languages: &S,
+        target_languages: &T,
+    ) -> Result<TranslationResources, RustBertError> {
+        unimplemented!()
+    }
+
+    fn get_bart50_resources(&self) -> TranslationResources {
+        TranslationResources {
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+                MBartModelResources::MBART50_MANY_TO_MANY,
+            )),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+                MBartConfigResources::MBART50_MANY_TO_MANY,
+            )),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+                MBartVocabResources::MBART50_MANY_TO_MANY,
+            )),
+            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+                MBartVocabResources::MBART50_MANY_TO_MANY,
+            )),
+        }
+    }
+
+    fn get_m2m100_large_resources(&self) -> TranslationResources {
+        TranslationResources {
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+                M2M100ModelResources::M2M100_418M,
+            )),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+                M2M100ConfigResources::M2M100_418M,
+            )),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+                M2M100VocabResources::M2M100_418M,
+            )),
+            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+                M2M100MergesResources::M2M100_418M,
+            )),
+        }
+    }
+
+    fn get_m2m100_xlarge_resources(&self) -> TranslationResources {
+        TranslationResources {
+            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+                M2M100ModelResources::M2M100_1_2B,
+            )),
+            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+                M2M100ConfigResources::M2M100_1_2B,
+            )),
+            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+                M2M100VocabResources::M2M100_1_2B,
+            )),
+            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+                M2M100MergesResources::M2M100_1_2B,
+            )),
+        }
+    }
+
     pub fn create_model(&self) -> Result<TranslationModel, RustBertError> {
         let device = self.device.unwrap_or_else(|| Device::cuda_if_available());
 
@@ -955,26 +1003,26 @@ where
             &self.source_languages,
             &self.target_languages,
         ) {
-            (Some(ModelType::MBart), None, None) | (None, None, None) => TranslationResources {
-                // ToDO: Add ModelType::M2M100 and use this as default if nothing passed
-                // ToDO: handle 2 possible sizes for M2M100 (large and extra large)
-                model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                    MBartModelResources::MBART50_MANY_TO_MANY,
-                )),
-                config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                    MBartConfigResources::MBART50_MANY_TO_MANY,
-                )),
-                vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                    MBartVocabResources::MBART50_MANY_TO_MANY,
-                )),
-                merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-                    MBartVocabResources::MBART50_MANY_TO_MANY,
-                )),
+            (Some(ModelType::M2M100), None, None) | (None, None, None) => match self.model_size {
+                Some(value) if ((value == ModelSize::Large) | (value == ModelSize::Medium)) => {
+                    self.get_m2m100_large_resources()
+                }
+                _ => self.get_m2m100_xlarge_resources(),
             },
+            (Some(ModelType::MBart), None, None) => self.get_bart50_resources(),
+            (Some(ModelType::Marian), Some(source_languages), Some(target_languages)) => {
+                self.get_marian_model(source_languages, target_languages)?
+            }
             (None, Some(source_languages), Some(target_languages)) => {
                 self.get_default_model(source_languages, target_languages)
             }
-            (_, None, None) => {
+            (Some(model_type), _, _) => {
+                return Err(RustBertError::InvalidConfigurationError(format!(
+                    "Automated translation model builder not implemented for {:?}",
+                    model_type
+                )));
+            }
+            (_, None, None) | (_, _, None) | (_, None, _) => {
                 return Err(RustBertError::InvalidConfigurationError(format!(
                     "Source and target languages must be specified for {:?}",
                     self.model_type.unwrap()
