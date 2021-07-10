@@ -21,15 +21,16 @@ fn main() -> anyhow::Result<()> {
     let model = TranslationModelBuilder::new()
         .with_device(Device::cuda_if_available())
         // .with_model_type(ModelType::Marian)
+        .with_model_type(ModelType::M2M100)
         .with_large_model()
         .with_source_languages(vec![Language::English])
         .with_target_languages(vec![Language::French])
         .create_model()?;
 
-    let input_context_1 = "The quick brown fox jumps over the lazy dog";
-    let input_context_2 = "The dog did not wake up";
+    // let input_context_1 = "The quick brown fox jumps over the lazy dog.";
+    let input_context_2 = "The dog did not wake up.";
 
-    let output = model.translate(&[input_context_1, input_context_2], None, Language::French)?;
+    let output = model.translate(&[input_context_2], Language::English, Language::French)?;
 
     for sentence in output {
         println!("{}", sentence);
