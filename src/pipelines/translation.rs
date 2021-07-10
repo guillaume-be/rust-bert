@@ -375,54 +375,6 @@ impl Language {
     }
 }
 
-// ToDo: remove
-// pub struct TranslationModelConfig<S, T>
-// where
-//     S: AsRef<[Language]>,
-//     T: AsRef<[Language]>,
-// {
-//     /// Model type used for translation
-//     pub model_type: ModelType,
-//     /// Model weights resource
-//     pub model_resource: Resource,
-//     /// Config resource
-//     pub config_resource: Resource,
-//     /// Vocab resource
-//     pub vocab_resource: Resource,
-//     /// Merges resource
-//     pub merges_resource: Resource,
-//     /// Supported source languages
-//     pub source_languages: S,
-//     /// Supported target languages
-//     pub target_languages: T,
-// }
-//
-// impl<S, T> TranslationModelConfig<S, T>
-// where
-//     S: AsRef<[Language]>,
-//     T: AsRef<[Language]>,
-// {
-//     fn supports_source_languages<L>(&self, source_languages: L) -> bool
-//     where
-//         L: AsRef<[Language]> + Display,
-//     {
-//         source_languages
-//             .as_ref()
-//             .iter()
-//             .all(|language| self.source_languages.as_ref().contains(language))
-//     }
-//
-//     fn supports_target_languages<L>(&self, target_languages: L) -> bool
-//     where
-//         L: AsRef<[Language]> + Display,
-//     {
-//         target_languages
-//             .as_ref()
-//             .iter()
-//             .all(|language| self.target_languages.as_ref().contains(language))
-//     }
-// }
-
 /// # Configuration for text translation
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
 /// different set of default parameters and sets the device to place the model on.
@@ -504,8 +456,8 @@ impl TranslationConfig {
     ///     MarianVocabResources::ROMANCE2ENGLISH,
     /// ));
     ///
-    /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
-    /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
+    /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH.iter().collect();
+    /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH.iter().collect();
     ///
     /// let translation_config = TranslationConfig::new(
     ///     ModelType::Marian,
@@ -627,7 +579,7 @@ impl TranslationOption {
         supported_target_languages: &HashSet<Language>,
     ) -> Result<Option<String>, RustBertError> {
         if let Some(source_language) = source_language {
-            if supported_source_languages.contains(source_language) {
+            if !supported_source_languages.contains(source_language) {
                 return Err(RustBertError::ValueError(format!(
                     "{} not in list of supported languages: {:?}",
                     source_language.to_string(),
@@ -637,7 +589,7 @@ impl TranslationOption {
         }
 
         if let Some(target_language) = target_language {
-            if supported_target_languages.contains(target_language) {
+            if !supported_target_languages.contains(target_language) {
                 return Err(RustBertError::ValueError(format!(
                     "{} not in list of supported languages: {:?}",
                     target_language.to_string(),
@@ -651,9 +603,14 @@ impl TranslationOption {
                 if supported_target_languages.len() > 1 {
                     Some(format!(
                         ">>{}<< ",
-                        target_language
-                            .expect("Missing target language for Marian")
-                            .get_iso_639_1_code()
+                        match target_language {
+                            Some(value) => value.get_iso_639_1_code(),
+                            None => {
+                                return Err(RustBertError::ValueError(
+                                    "Missing target language for Marian".to_string(),
+                                ));
+                            }
+                        }
                     ))
                 } else {
                     None
@@ -747,8 +704,8 @@ impl TranslationModel {
     ///     MarianVocabResources::ROMANCE2ENGLISH,
     /// ));
     ///
-    /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
-    /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
+    /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH.iter().collect();
+    /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH.iter().collect();
     ///
     /// let translation_config = TranslationConfig::new(
     ///     ModelType::Marian,
@@ -808,8 +765,8 @@ impl TranslationModel {
     /// let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
     ///      MarianSpmResources::ENGLISH2ROMANCE,
     /// ));
-    /// let source_languages = MarianSourceLanguages::ENGLISH2ROMANCE;
-    /// let target_languages = MarianTargetLanguages::ENGLISH2ROMANCE;
+    /// let source_languages = MarianSourceLanguages::ENGLISH2ROMANCE.iter().collect();
+    /// let target_languages = MarianTargetLanguages::ENGLISH2ROMANCE.iter().collect();
     ///
     /// let translation_config = TranslationConfig::new(
     ///     ModelType::Marian,
@@ -870,8 +827,8 @@ struct TranslationResources {
     config_resource: Resource,
     vocab_resource: Resource,
     merges_resource: Resource,
-    source_languages: HashSet<Language>,
-    target_languages: HashSet<Language>,
+    source_languages: Vec<Language>,
+    target_languages: Vec<Language>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -883,14 +840,10 @@ enum ModelSize {
 
 pub struct TranslationModelBuilder<S, T>
 where
-    S: AsRef<[Language]> + Display,
-    T: AsRef<[Language]> + Display,
+    S: AsRef<[Language]> + Debug,
+    T: AsRef<[Language]> + Debug,
 {
     model_type: Option<ModelType>,
-    model_resource: Option<Resource>,
-    config_resource: Option<Resource>,
-    vocab_resource: Option<Resource>,
-    merges_resource: Option<Resource>,
     source_languages: Option<S>,
     target_languages: Option<T>,
     device: Option<Device>,
@@ -899,16 +852,12 @@ where
 
 impl<S, T> TranslationModelBuilder<S, T>
 where
-    S: AsRef<[Language]> + Display,
-    T: AsRef<[Language]> + Display,
+    S: AsRef<[Language]> + Debug,
+    T: AsRef<[Language]> + Debug,
 {
     pub fn new() -> TranslationModelBuilder<S, T> {
         TranslationModelBuilder {
             model_type: None,
-            model_resource: None,
-            config_resource: None,
-            vocab_resource: None,
-            merges_resource: None,
             source_languages: None,
             target_languages: None,
             device: None,
@@ -975,342 +924,345 @@ where
         self
     }
 
-    fn validate_model_languages(&self, model_type: Option<ModelType>) -> bool {
-        match model_type {
-            Some(ModelType::Marian) => true,
-            Some(ModelType::T5) => true,
-            None => true,
-            _ => false,
-        }
-    }
-
     fn get_default_model(
         &self,
-        source_languages: &S,
-        target_languages: &T,
-    ) -> TranslationResources {
-        match self.get_marian_model(source_languages, target_languages) {
-            Ok(marian_resources) => marian_resources,
-            Err(_) => match self.model_size {
-                Some(value) if value == ModelSize::XLarge => self.get_m2m100_xlarge_resources(),
-                _ => self.get_m2m100_large_resources(),
+        source_languages: Option<&S>,
+        target_languages: Option<&T>,
+    ) -> Result<TranslationResources, RustBertError> {
+        Ok(
+            match self.get_marian_model(source_languages, target_languages) {
+                Ok(marian_resources) => marian_resources,
+                Err(_) => match self.model_size {
+                    Some(value) if value == ModelSize::XLarge => {
+                        self.get_m2m100_xlarge_resources(source_languages, target_languages)?
+                    }
+                    _ => self.get_m2m100_large_resources(source_languages, target_languages)?,
+                },
             },
-        }
+        )
     }
 
     fn get_marian_model(
         &self,
-        source_languages: &S,
-        target_languages: &T,
+        source_languages: Option<&S>,
+        target_languages: Option<&T>,
     ) -> Result<TranslationResources, RustBertError> {
         let (resources, source_languages, target_languages) =
-            match (source_languages.as_ref(), target_languages.as_ref()) {
-                ([Language::English], [Language::German]) => (
-                    (
-                        MarianModelResources::ENGLISH2GERMAN,
-                        MarianConfigResources::ENGLISH2GERMAN,
-                        MarianVocabResources::ENGLISH2GERMAN,
-                        MarianSpmResources::ENGLISH2GERMAN,
-                    ),
-                    MarianSourceLanguages::ENGLISH2GERMAN
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::ENGLISH2GERMAN
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::English], [Language::Russian]) => (
-                    (
-                        MarianModelResources::ENGLISH2RUSSIAN,
-                        MarianConfigResources::ENGLISH2RUSSIAN,
-                        MarianVocabResources::ENGLISH2RUSSIAN,
-                        MarianSpmResources::ENGLISH2RUSSIAN,
-                    ),
-                    MarianSourceLanguages::ENGLISH2RUSSIAN
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::ENGLISH2RUSSIAN
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::English], [Language::Dutch]) => (
-                    (
-                        MarianModelResources::ENGLISH2DUTCH,
-                        MarianConfigResources::ENGLISH2DUTCH,
-                        MarianVocabResources::ENGLISH2DUTCH,
-                        MarianSpmResources::ENGLISH2DUTCH,
-                    ),
-                    MarianSourceLanguages::ENGLISH2DUTCH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::ENGLISH2DUTCH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::English], [Language::ChineseMandarin]) => (
-                    (
-                        MarianModelResources::ENGLISH2CHINESE,
-                        MarianConfigResources::ENGLISH2CHINESE,
-                        MarianVocabResources::ENGLISH2CHINESE,
-                        MarianSpmResources::ENGLISH2CHINESE,
-                    ),
-                    MarianSourceLanguages::ENGLISH2CHINESE
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::ENGLISH2CHINESE
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::English], [Language::Swedish]) => (
-                    (
-                        MarianModelResources::ENGLISH2SWEDISH,
-                        MarianConfigResources::ENGLISH2SWEDISH,
-                        MarianVocabResources::ENGLISH2SWEDISH,
-                        MarianSpmResources::ENGLISH2SWEDISH,
-                    ),
-                    MarianSourceLanguages::ENGLISH2SWEDISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::ENGLISH2SWEDISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::English], [Language::Arabic]) => (
-                    (
-                        MarianModelResources::ENGLISH2ARABIC,
-                        MarianConfigResources::ENGLISH2ARABIC,
-                        MarianVocabResources::ENGLISH2ARABIC,
-                        MarianSpmResources::ENGLISH2ARABIC,
-                    ),
-                    MarianSourceLanguages::ENGLISH2ARABIC
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::ENGLISH2ARABIC
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::English], [Language::Hindi]) => (
-                    (
-                        MarianModelResources::ENGLISH2HINDI,
-                        MarianConfigResources::ENGLISH2HINDI,
-                        MarianVocabResources::ENGLISH2HINDI,
-                        MarianSpmResources::ENGLISH2HINDI,
-                    ),
-                    MarianSourceLanguages::ENGLISH2HINDI
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::ENGLISH2HINDI
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::English], [Language::Hebrew]) => (
-                    (
-                        MarianModelResources::ENGLISH2HEBREW,
-                        MarianConfigResources::ENGLISH2HEBREW,
-                        MarianVocabResources::ENGLISH2HEBREW,
-                        MarianSpmResources::ENGLISH2HEBREW,
-                    ),
-                    MarianSourceLanguages::ENGLISH2HEBREW
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::ENGLISH2HEBREW
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::German], [Language::English]) => (
-                    (
-                        MarianModelResources::GERMAN2ENGLISH,
-                        MarianConfigResources::GERMAN2ENGLISH,
-                        MarianVocabResources::GERMAN2ENGLISH,
-                        MarianSpmResources::GERMAN2ENGLISH,
-                    ),
-                    MarianSourceLanguages::GERMAN2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::GERMAN2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::Russian], [Language::English]) => (
-                    (
-                        MarianModelResources::RUSSIAN2ENGLISH,
-                        MarianConfigResources::RUSSIAN2ENGLISH,
-                        MarianVocabResources::RUSSIAN2ENGLISH,
-                        MarianSpmResources::RUSSIAN2ENGLISH,
-                    ),
-                    MarianSourceLanguages::RUSSIAN2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::RUSSIAN2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::Dutch], [Language::English]) => (
-                    (
-                        MarianModelResources::DUTCH2ENGLISH,
-                        MarianConfigResources::DUTCH2ENGLISH,
-                        MarianVocabResources::DUTCH2ENGLISH,
-                        MarianSpmResources::DUTCH2ENGLISH,
-                    ),
-                    MarianSourceLanguages::DUTCH2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::DUTCH2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::ChineseMandarin], [Language::English]) => (
-                    (
-                        MarianModelResources::CHINESE2ENGLISH,
-                        MarianConfigResources::CHINESE2ENGLISH,
-                        MarianVocabResources::CHINESE2ENGLISH,
-                        MarianSpmResources::CHINESE2ENGLISH,
-                    ),
-                    MarianSourceLanguages::CHINESE2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::CHINESE2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::Swedish], [Language::English]) => (
-                    (
-                        MarianModelResources::SWEDISH2ENGLISH,
-                        MarianConfigResources::SWEDISH2ENGLISH,
-                        MarianVocabResources::SWEDISH2ENGLISH,
-                        MarianSpmResources::SWEDISH2ENGLISH,
-                    ),
-                    MarianSourceLanguages::SWEDISH2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::SWEDISH2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::Arabic], [Language::English]) => (
-                    (
-                        MarianModelResources::ARABIC2ENGLISH,
-                        MarianConfigResources::ARABIC2ENGLISH,
-                        MarianVocabResources::ARABIC2ENGLISH,
-                        MarianSpmResources::ARABIC2ENGLISH,
-                    ),
-                    MarianSourceLanguages::ARABIC2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::ARABIC2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::Hindi], [Language::English]) => (
-                    (
-                        MarianModelResources::HINDI2ENGLISH,
-                        MarianConfigResources::HINDI2ENGLISH,
-                        MarianVocabResources::HINDI2ENGLISH,
-                        MarianSpmResources::HINDI2ENGLISH,
-                    ),
-                    MarianSourceLanguages::HINDI2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::HINDI2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::Hebrew], [Language::English]) => (
-                    (
-                        MarianModelResources::HEBREW2ENGLISH,
-                        MarianConfigResources::HEBREW2ENGLISH,
-                        MarianVocabResources::HEBREW2ENGLISH,
-                        MarianSpmResources::HEBREW2ENGLISH,
-                    ),
-                    MarianSourceLanguages::HEBREW2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    MarianTargetLanguages::HEBREW2ENGLISH
-                        .iter()
-                        .cloned()
-                        .collect(),
-                ),
-                ([Language::English], languages)
-                    if languages
-                        .iter()
-                        .all(|lang| MarianTargetLanguages::ENGLISH2ROMANCE.contains(lang)) =>
-                {
-                    (
+            if let (Some(source_languages), Some(target_languages)) =
+                (source_languages, target_languages)
+            {
+                match (source_languages.as_ref(), target_languages.as_ref()) {
+                    ([Language::English], [Language::German]) => (
                         (
-                            MarianModelResources::ENGLISH2ROMANCE,
-                            MarianConfigResources::ENGLISH2ROMANCE,
-                            MarianVocabResources::ENGLISH2ROMANCE,
-                            MarianSpmResources::ENGLISH2ROMANCE,
+                            MarianModelResources::ENGLISH2GERMAN,
+                            MarianConfigResources::ENGLISH2GERMAN,
+                            MarianVocabResources::ENGLISH2GERMAN,
+                            MarianSpmResources::ENGLISH2GERMAN,
                         ),
-                        MarianSourceLanguages::ENGLISH2ROMANCE
+                        MarianSourceLanguages::ENGLISH2GERMAN
                             .iter()
                             .cloned()
                             .collect(),
-                        MarianTargetLanguages::ENGLISH2ROMANCE
+                        MarianTargetLanguages::ENGLISH2GERMAN
                             .iter()
                             .cloned()
                             .collect(),
-                    )
-                }
-                (languages, [Language::English])
-                    if languages
-                        .iter()
-                        .all(|lang| MarianSourceLanguages::ROMANCE2ENGLISH.contains(lang)) =>
-                {
-                    (
+                    ),
+                    ([Language::English], [Language::Russian]) => (
                         (
-                            MarianModelResources::ENGLISH2ROMANCE,
-                            MarianConfigResources::ENGLISH2ROMANCE,
-                            MarianVocabResources::ENGLISH2ROMANCE,
-                            MarianSpmResources::ENGLISH2ROMANCE,
+                            MarianModelResources::ENGLISH2RUSSIAN,
+                            MarianConfigResources::ENGLISH2RUSSIAN,
+                            MarianVocabResources::ENGLISH2RUSSIAN,
+                            MarianSpmResources::ENGLISH2RUSSIAN,
                         ),
-                        MarianSourceLanguages::ENGLISH2ROMANCE
+                        MarianSourceLanguages::ENGLISH2RUSSIAN
                             .iter()
                             .cloned()
                             .collect(),
-                        MarianTargetLanguages::ENGLISH2ROMANCE
+                        MarianTargetLanguages::ENGLISH2RUSSIAN
                             .iter()
                             .cloned()
                             .collect(),
-                    )
+                    ),
+                    ([Language::English], [Language::Dutch]) => (
+                        (
+                            MarianModelResources::ENGLISH2DUTCH,
+                            MarianConfigResources::ENGLISH2DUTCH,
+                            MarianVocabResources::ENGLISH2DUTCH,
+                            MarianSpmResources::ENGLISH2DUTCH,
+                        ),
+                        MarianSourceLanguages::ENGLISH2DUTCH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::ENGLISH2DUTCH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::English], [Language::ChineseMandarin]) => (
+                        (
+                            MarianModelResources::ENGLISH2CHINESE,
+                            MarianConfigResources::ENGLISH2CHINESE,
+                            MarianVocabResources::ENGLISH2CHINESE,
+                            MarianSpmResources::ENGLISH2CHINESE,
+                        ),
+                        MarianSourceLanguages::ENGLISH2CHINESE
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::ENGLISH2CHINESE
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::English], [Language::Swedish]) => (
+                        (
+                            MarianModelResources::ENGLISH2SWEDISH,
+                            MarianConfigResources::ENGLISH2SWEDISH,
+                            MarianVocabResources::ENGLISH2SWEDISH,
+                            MarianSpmResources::ENGLISH2SWEDISH,
+                        ),
+                        MarianSourceLanguages::ENGLISH2SWEDISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::ENGLISH2SWEDISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::English], [Language::Arabic]) => (
+                        (
+                            MarianModelResources::ENGLISH2ARABIC,
+                            MarianConfigResources::ENGLISH2ARABIC,
+                            MarianVocabResources::ENGLISH2ARABIC,
+                            MarianSpmResources::ENGLISH2ARABIC,
+                        ),
+                        MarianSourceLanguages::ENGLISH2ARABIC
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::ENGLISH2ARABIC
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::English], [Language::Hindi]) => (
+                        (
+                            MarianModelResources::ENGLISH2HINDI,
+                            MarianConfigResources::ENGLISH2HINDI,
+                            MarianVocabResources::ENGLISH2HINDI,
+                            MarianSpmResources::ENGLISH2HINDI,
+                        ),
+                        MarianSourceLanguages::ENGLISH2HINDI
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::ENGLISH2HINDI
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::English], [Language::Hebrew]) => (
+                        (
+                            MarianModelResources::ENGLISH2HEBREW,
+                            MarianConfigResources::ENGLISH2HEBREW,
+                            MarianVocabResources::ENGLISH2HEBREW,
+                            MarianSpmResources::ENGLISH2HEBREW,
+                        ),
+                        MarianSourceLanguages::ENGLISH2HEBREW
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::ENGLISH2HEBREW
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::German], [Language::English]) => (
+                        (
+                            MarianModelResources::GERMAN2ENGLISH,
+                            MarianConfigResources::GERMAN2ENGLISH,
+                            MarianVocabResources::GERMAN2ENGLISH,
+                            MarianSpmResources::GERMAN2ENGLISH,
+                        ),
+                        MarianSourceLanguages::GERMAN2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::GERMAN2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::Russian], [Language::English]) => (
+                        (
+                            MarianModelResources::RUSSIAN2ENGLISH,
+                            MarianConfigResources::RUSSIAN2ENGLISH,
+                            MarianVocabResources::RUSSIAN2ENGLISH,
+                            MarianSpmResources::RUSSIAN2ENGLISH,
+                        ),
+                        MarianSourceLanguages::RUSSIAN2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::RUSSIAN2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::Dutch], [Language::English]) => (
+                        (
+                            MarianModelResources::DUTCH2ENGLISH,
+                            MarianConfigResources::DUTCH2ENGLISH,
+                            MarianVocabResources::DUTCH2ENGLISH,
+                            MarianSpmResources::DUTCH2ENGLISH,
+                        ),
+                        MarianSourceLanguages::DUTCH2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::DUTCH2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::ChineseMandarin], [Language::English]) => (
+                        (
+                            MarianModelResources::CHINESE2ENGLISH,
+                            MarianConfigResources::CHINESE2ENGLISH,
+                            MarianVocabResources::CHINESE2ENGLISH,
+                            MarianSpmResources::CHINESE2ENGLISH,
+                        ),
+                        MarianSourceLanguages::CHINESE2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::CHINESE2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::Swedish], [Language::English]) => (
+                        (
+                            MarianModelResources::SWEDISH2ENGLISH,
+                            MarianConfigResources::SWEDISH2ENGLISH,
+                            MarianVocabResources::SWEDISH2ENGLISH,
+                            MarianSpmResources::SWEDISH2ENGLISH,
+                        ),
+                        MarianSourceLanguages::SWEDISH2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::SWEDISH2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::Arabic], [Language::English]) => (
+                        (
+                            MarianModelResources::ARABIC2ENGLISH,
+                            MarianConfigResources::ARABIC2ENGLISH,
+                            MarianVocabResources::ARABIC2ENGLISH,
+                            MarianSpmResources::ARABIC2ENGLISH,
+                        ),
+                        MarianSourceLanguages::ARABIC2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::ARABIC2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::Hindi], [Language::English]) => (
+                        (
+                            MarianModelResources::HINDI2ENGLISH,
+                            MarianConfigResources::HINDI2ENGLISH,
+                            MarianVocabResources::HINDI2ENGLISH,
+                            MarianSpmResources::HINDI2ENGLISH,
+                        ),
+                        MarianSourceLanguages::HINDI2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::HINDI2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::Hebrew], [Language::English]) => (
+                        (
+                            MarianModelResources::HEBREW2ENGLISH,
+                            MarianConfigResources::HEBREW2ENGLISH,
+                            MarianVocabResources::HEBREW2ENGLISH,
+                            MarianSpmResources::HEBREW2ENGLISH,
+                        ),
+                        MarianSourceLanguages::HEBREW2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                        MarianTargetLanguages::HEBREW2ENGLISH
+                            .iter()
+                            .cloned()
+                            .collect(),
+                    ),
+                    ([Language::English], languages)
+                        if languages
+                            .iter()
+                            .all(|lang| MarianTargetLanguages::ENGLISH2ROMANCE.contains(lang)) =>
+                    {
+                        (
+                            (
+                                MarianModelResources::ENGLISH2ROMANCE,
+                                MarianConfigResources::ENGLISH2ROMANCE,
+                                MarianVocabResources::ENGLISH2ROMANCE,
+                                MarianSpmResources::ENGLISH2ROMANCE,
+                            ),
+                            MarianSourceLanguages::ENGLISH2ROMANCE
+                                .iter()
+                                .cloned()
+                                .collect(),
+                            MarianTargetLanguages::ENGLISH2ROMANCE
+                                .iter()
+                                .cloned()
+                                .collect(),
+                        )
+                    }
+                    (languages, [Language::English])
+                        if languages
+                            .iter()
+                            .all(|lang| MarianSourceLanguages::ROMANCE2ENGLISH.contains(lang)) =>
+                    {
+                        (
+                            (
+                                MarianModelResources::ENGLISH2ROMANCE,
+                                MarianConfigResources::ENGLISH2ROMANCE,
+                                MarianVocabResources::ENGLISH2ROMANCE,
+                                MarianSpmResources::ENGLISH2ROMANCE,
+                            ),
+                            MarianSourceLanguages::ENGLISH2ROMANCE
+                                .iter()
+                                .cloned()
+                                .collect(),
+                            MarianTargetLanguages::ENGLISH2ROMANCE
+                                .iter()
+                                .cloned()
+                                .collect(),
+                        )
+                    }
+                    (_, _) => {
+                        return Err(RustBertError::InvalidConfigurationError(format!(
+                            "No Pretrained Marian configuration found for {:?} to {:?} translation",
+                            source_languages, target_languages
+                        )));
+                    }
                 }
-                (_, _) => {
-                    return Err(RustBertError::InvalidConfigurationError(format!(
-                        "No Pretrained Marian configuration found for {} to {} translation",
-                        source_languages, target_languages
-                    )));
-                }
+            } else {
+                return Err(RustBertError::InvalidConfigurationError(format!(
+                    "Source and target languages must be provided for Marian models"
+                )));
             };
 
         Ok(TranslationResources {
@@ -1324,8 +1276,40 @@ where
         })
     }
 
-    fn get_mbart50_resources(&self) -> TranslationResources {
-        TranslationResources {
+    fn get_mbart50_resources(
+        &self,
+        source_languages: Option<&S>,
+        target_languages: Option<&T>,
+    ) -> Result<TranslationResources, RustBertError> {
+        if let Some(source_languages) = source_languages {
+            if !source_languages
+                .as_ref()
+                .iter()
+                .all(|lang| MBartSourceLanguages::MBART50_MANY_TO_MANY.contains(lang))
+            {
+                return Err(RustBertError::ValueError(format!(
+                    "{:?} not in list of supported languages: {:?}",
+                    source_languages.as_ref(),
+                    MBartSourceLanguages::MBART50_MANY_TO_MANY
+                )));
+            }
+        }
+
+        if let Some(target_languages) = target_languages {
+            if !target_languages
+                .as_ref()
+                .iter()
+                .all(|lang| MBartTargetLanguages::MBART50_MANY_TO_MANY.contains(lang))
+            {
+                return Err(RustBertError::ValueError(format!(
+                    "{:?} not in list of supported languages: {:?}",
+                    target_languages,
+                    MBartTargetLanguages::MBART50_MANY_TO_MANY
+                )));
+            }
+        }
+
+        Ok(TranslationResources {
             model_type: ModelType::MBart,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 MBartModelResources::MBART50_MANY_TO_MANY,
@@ -1347,11 +1331,43 @@ where
                 .iter()
                 .cloned()
                 .collect(),
-        }
+        })
     }
 
-    fn get_m2m100_large_resources(&self) -> TranslationResources {
-        TranslationResources {
+    fn get_m2m100_large_resources(
+        &self,
+        source_languages: Option<&S>,
+        target_languages: Option<&T>,
+    ) -> Result<TranslationResources, RustBertError> {
+        if let Some(source_languages) = source_languages {
+            if !source_languages
+                .as_ref()
+                .iter()
+                .all(|lang| M2M100SourceLanguages::M2M100_418M.contains(lang))
+            {
+                return Err(RustBertError::ValueError(format!(
+                    "{:?} not in list of supported languages: {:?}",
+                    source_languages.as_ref(),
+                    M2M100SourceLanguages::M2M100_418M
+                )));
+            }
+        }
+
+        if let Some(target_languages) = target_languages {
+            if !target_languages
+                .as_ref()
+                .iter()
+                .all(|lang| M2M100TargetLanguages::M2M100_418M.contains(lang))
+            {
+                return Err(RustBertError::ValueError(format!(
+                    "{:?} not in list of supported languages: {:?}",
+                    target_languages,
+                    M2M100TargetLanguages::M2M100_418M
+                )));
+            }
+        }
+
+        Ok(TranslationResources {
             model_type: ModelType::M2M100,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 M2M100ModelResources::M2M100_418M,
@@ -1367,11 +1383,43 @@ where
             )),
             source_languages: M2M100SourceLanguages::M2M100_418M.iter().cloned().collect(),
             target_languages: M2M100TargetLanguages::M2M100_418M.iter().cloned().collect(),
-        }
+        })
     }
 
-    fn get_m2m100_xlarge_resources(&self) -> TranslationResources {
-        TranslationResources {
+    fn get_m2m100_xlarge_resources(
+        &self,
+        source_languages: Option<&S>,
+        target_languages: Option<&T>,
+    ) -> Result<TranslationResources, RustBertError> {
+        if let Some(source_languages) = source_languages {
+            if !source_languages
+                .as_ref()
+                .iter()
+                .all(|lang| M2M100SourceLanguages::M2M100_1_2B.contains(lang))
+            {
+                return Err(RustBertError::ValueError(format!(
+                    "{:?} not in list of supported languages: {:?}",
+                    source_languages.as_ref(),
+                    M2M100SourceLanguages::M2M100_1_2B
+                )));
+            }
+        }
+
+        if let Some(target_languages) = target_languages {
+            if !target_languages
+                .as_ref()
+                .iter()
+                .all(|lang| M2M100TargetLanguages::M2M100_1_2B.contains(lang))
+            {
+                return Err(RustBertError::ValueError(format!(
+                    "{:?} not in list of supported languages: {:?}",
+                    target_languages,
+                    M2M100TargetLanguages::M2M100_1_2B
+                )));
+            }
+        }
+
+        Ok(TranslationResources {
             model_type: ModelType::M2M100,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 M2M100ModelResources::M2M100_1_2B,
@@ -1387,7 +1435,7 @@ where
             )),
             source_languages: M2M100SourceLanguages::M2M100_1_2B.iter().cloned().collect(),
             target_languages: M2M100TargetLanguages::M2M100_1_2B.iter().cloned().collect(),
-        }
+        })
     }
 
     pub fn create_model(&self) -> Result<TranslationModel, RustBertError> {
@@ -1398,16 +1446,26 @@ where
             &self.source_languages,
             &self.target_languages,
         ) {
-            (Some(ModelType::M2M100), None, None) | (None, None, None) => match self.model_size {
-                Some(value) if value == ModelSize::XLarge => self.get_m2m100_xlarge_resources(),
-                _ => self.get_m2m100_large_resources(),
-            },
-            (Some(ModelType::MBart), None, None) => self.get_mbart50_resources(),
-            (Some(ModelType::Marian), Some(source_languages), Some(target_languages)) => {
-                self.get_marian_model(source_languages, target_languages)?
+            (Some(ModelType::M2M100), source_languages, target_languages) => {
+                match self.model_size {
+                    Some(value) if value == ModelSize::XLarge => self.get_m2m100_xlarge_resources(
+                        source_languages.as_ref(),
+                        target_languages.as_ref(),
+                    )?,
+                    _ => self.get_m2m100_large_resources(
+                        source_languages.as_ref(),
+                        target_languages.as_ref(),
+                    )?,
+                }
             }
-            (None, Some(source_languages), Some(target_languages)) => {
-                self.get_default_model(source_languages, target_languages)
+            (Some(ModelType::MBart), source_languages, target_languages) => {
+                self.get_mbart50_resources(source_languages.as_ref(), target_languages.as_ref())?
+            }
+            (Some(ModelType::Marian), source_languages, target_languages) => {
+                self.get_marian_model(source_languages.as_ref(), target_languages.as_ref())?
+            }
+            (None, source_languages, target_languages) => {
+                self.get_default_model(source_languages.as_ref(), target_languages.as_ref())?
             }
             (_, None, None) | (_, _, None) | (_, None, _) => {
                 return Err(RustBertError::InvalidConfigurationError(format!(
@@ -1423,30 +1481,14 @@ where
             }
         };
 
-        let model_resource = Resource::Remote(RemoteResource::from_pretrained(
-            MarianModelResources::ENGLISH2CHINESE,
-        ));
-        let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-            MarianConfigResources::ENGLISH2CHINESE,
-        ));
-        let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-            MarianVocabResources::ENGLISH2CHINESE,
-        ));
-        let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-            MarianSpmResources::ENGLISH2CHINESE,
-        ));
-
-        let source_languages = MarianSourceLanguages::ENGLISH2CHINESE;
-        let target_languages = MarianTargetLanguages::ENGLISH2CHINESE;
-
         let translation_config = TranslationConfig::new(
-            ModelType::Marian,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
-            source_languages,
-            target_languages,
+            translation_resources.model_type,
+            translation_resources.model_resource,
+            translation_resources.config_resource,
+            translation_resources.vocab_resource,
+            translation_resources.merges_resource,
+            translation_resources.source_languages,
+            translation_resources.target_languages,
             device,
         );
         TranslationModel::new(translation_config)
@@ -1484,8 +1526,8 @@ mod test {
             MarianVocabResources::ROMANCE2ENGLISH,
         ));
 
-        let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
-        let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
+        let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH.iter().collect();
+        let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH.iter().collect();
 
         let translation_config = TranslationConfig::new(
             ModelType::Marian,
