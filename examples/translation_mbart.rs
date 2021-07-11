@@ -13,48 +13,52 @@
 extern crate anyhow;
 
 use rust_bert::mbart::{
-    MBartConfigResources, MBartGenerator, MBartModelResources, MBartVocabResources,
+    MBartConfigResources, MBartModelResources, MBartSourceLanguages, MBartTargetLanguages,
+    MBartVocabResources,
 };
-use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::{RemoteResource, Resource};
+use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    let generate_config = GenerateConfig {
-        max_length: 56,
-        model_resource: Resource::Remote(RemoteResource::from_pretrained(
-            MBartModelResources::MBART50_MANY_TO_MANY,
-        )),
-        config_resource: Resource::Remote(RemoteResource::from_pretrained(
-            MBartConfigResources::MBART50_MANY_TO_MANY,
-        )),
-        vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-            MBartVocabResources::MBART50_MANY_TO_MANY,
-        )),
-        merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-            MBartVocabResources::MBART50_MANY_TO_MANY,
-        )),
-        do_sample: false,
-        num_beams: 1,
-        ..Default::default()
-    };
-    let model = MBartGenerator::new(generate_config)?;
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        MBartModelResources::MBART50_MANY_TO_MANY,
+    ));
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        MBartConfigResources::MBART50_MANY_TO_MANY,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        MBartVocabResources::MBART50_MANY_TO_MANY,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        MBartVocabResources::MBART50_MANY_TO_MANY,
+    ));
 
-    let input_context_1 = "en_XX The quick brown fox jumps over the lazy dog.";
-    let target_language = model.get_tokenizer().convert_tokens_to_ids(["de_DE"])[0];
+    let source_languages = MBartSourceLanguages::MBART50_MANY_TO_MANY;
+    let target_languages = MBartTargetLanguages::MBART50_MANY_TO_MANY;
 
-    let output = model.generate(
-        Some(&[input_context_1]),
-        None,
-        None,
-        None,
-        None,
-        target_language,
-        None,
-        false,
+    let translation_config = TranslationConfig::new(
+        ModelType::MBart,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        source_languages,
+        target_languages,
+        Device::cuda_if_available(),
     );
+    let model = TranslationModel::new(translation_config)?;
 
-    for sentence in output {
-        println!("{:?}", sentence.text);
+    let source_sentence = "This sentence will be translated in multiple languages.";
+
+    let mut outputs = Vec::new();
+    outputs.extend(model.translate([source_sentence], Language::English, Language::French)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::Spanish)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::Hindi)?);
+
+    for sentence in outputs {
+        println!("{}", sentence);
     }
     Ok(())
 }

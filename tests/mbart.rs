@@ -1,8 +1,8 @@
 use rust_bert::mbart::{
-    MBartConfig, MBartConfigResources, MBartGenerator, MBartModel, MBartModelResources,
-    MBartVocabResources,
+    MBartConfig, MBartConfigResources, MBartModel, MBartModelResources, MBartVocabResources,
 };
-use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::translation::{Language, TranslationModelBuilder};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{MBart50Tokenizer, Tokenizer, TruncationStrategy};
@@ -65,46 +65,28 @@ fn mbart_lm_model() -> anyhow::Result<()> {
 
 #[test]
 fn mbart_translation() -> anyhow::Result<()> {
-    //    Resources paths
-    let generate_config = GenerateConfig {
-        max_length: 56,
-        model_resource: Resource::Remote(RemoteResource::from_pretrained(
-            MBartModelResources::MBART50_MANY_TO_MANY,
-        )),
-        config_resource: Resource::Remote(RemoteResource::from_pretrained(
-            MBartConfigResources::MBART50_MANY_TO_MANY,
-        )),
-        vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-            MBartVocabResources::MBART50_MANY_TO_MANY,
-        )),
-        merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-            MBartVocabResources::MBART50_MANY_TO_MANY,
-        )),
-        do_sample: false,
-        num_beams: 3,
-        ..Default::default()
-    };
-    let model = MBartGenerator::new(generate_config)?;
+    let model = TranslationModelBuilder::new()
+        .with_device(Device::cuda_if_available())
+        .with_model_type(ModelType::MBart)
+        .create_model()?;
 
-    let input_context = "en_XX The quick brown fox jumps over the lazy dog.";
-    let target_language = model.get_tokenizer().convert_tokens_to_ids(["de_DE"])[0];
+    let source_sentence = "This sentence will be translated in multiple languages.";
 
-    let output = model.generate(
-        Some(&[input_context]),
-        None,
-        None,
-        None,
-        None,
-        target_language,
-        None,
-        false,
-    );
+    let mut outputs = Vec::new();
+    outputs.extend(model.translate([source_sentence], Language::English, Language::French)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::Spanish)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::Hindi)?);
 
-    assert_eq!(output.len(), 1);
+    assert_eq!(outputs.len(), 3);
     assert_eq!(
-        output[0].text,
-        "de_DE Der schnelle braune Fuchs springt über den faulen Hund."
+        outputs[0],
+        " Cette phrase sera traduite en plusieurs langues."
     );
+    assert_eq!(
+        outputs[1],
+        " Esta frase será traducida en múltiples idiomas."
+    );
+    assert_eq!(outputs[2], " यह वाक्य कई भाषाओं में अनुवाद किया जाएगा.");
 
     Ok(())
 }

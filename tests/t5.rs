@@ -1,31 +1,65 @@
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
-use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
+use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 use tch::Device;
 
 #[test]
 fn test_translation_t5() -> anyhow::Result<()> {
-    //    Set-up translation model
-    let translation_config = TranslationConfig::new_from_resources(
-        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL)),
-        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL)),
-        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL)),
-        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL)),
-        Some("translate English to French:".to_string()),
-        Device::cuda_if_available(),
+    let model_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
+
+    let source_languages = [
+        Language::English,
+        Language::French,
+        Language::German,
+        Language::Romanian,
+    ];
+    let target_languages = [
+        Language::English,
+        Language::French,
+        Language::German,
+        Language::Romanian,
+    ];
+
+    let translation_config = TranslationConfig::new(
         ModelType::T5,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        source_languages,
+        target_languages,
+        Device::cuda_if_available(),
     );
     let model = TranslationModel::new(translation_config)?;
 
-    let input_context = "The quick brown fox jumps over the lazy dog.";
+    let source_sentence = "This sentence will be translated in multiple languages.";
 
-    let output = model.translate(&[input_context]);
+    let mut outputs = Vec::new();
+    outputs.extend(model.translate([source_sentence], Language::English, Language::French)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::German)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::Romanian)?);
 
+    assert_eq!(outputs.len(), 3);
     assert_eq!(
-        output[0],
-        " Le renard brun rapide saute au-dessus du chien paresseux."
+        outputs[0],
+        " Cette phrase sera traduite dans plusieurs langues."
+    );
+    assert_eq!(
+        outputs[1],
+        " Dieser Satz wird in mehreren Sprachen übersetzt."
+    );
+    assert_eq!(
+        outputs[2],
+        " Această frază va fi tradusă în mai multe limbi."
     );
 
     Ok(())

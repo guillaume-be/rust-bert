@@ -34,14 +34,10 @@ enum ModelSize {
     XLarge,
 }
 
-pub struct TranslationModelBuilder<S, T>
-where
-    S: AsRef<[Language]> + Debug,
-    T: AsRef<[Language]> + Debug,
-{
+pub struct TranslationModelBuilder {
     model_type: Option<ModelType>,
-    source_languages: Option<S>,
-    target_languages: Option<T>,
+    source_languages: Option<Vec<Language>>,
+    target_languages: Option<Vec<Language>>,
     device: Option<Device>,
     model_size: Option<ModelSize>,
 }
@@ -61,12 +57,8 @@ macro_rules! get_marian_resources {
     };
 }
 
-impl<S, T> TranslationModelBuilder<S, T>
-where
-    S: AsRef<[Language]> + Debug,
-    T: AsRef<[Language]> + Debug,
-{
-    pub fn new() -> TranslationModelBuilder<S, T> {
+impl TranslationModelBuilder {
+    pub fn new() -> TranslationModelBuilder {
         TranslationModelBuilder {
             model_type: None,
             source_languages: None,
@@ -131,20 +123,26 @@ where
         self
     }
 
-    pub fn with_source_languages(&mut self, source_languages: S) -> &mut Self {
-        self.source_languages = Some(source_languages);
+    pub fn with_source_languages<S>(&mut self, source_languages: S) -> &mut Self
+    where
+        S: AsRef<[Language]> + Debug,
+    {
+        self.source_languages = Some(source_languages.as_ref().to_vec());
         self
     }
 
-    pub fn with_target_languages(&mut self, target_languages: T) -> &mut Self {
-        self.target_languages = Some(target_languages);
+    pub fn with_target_languages<T>(&mut self, target_languages: T) -> &mut Self
+    where
+        T: AsRef<[Language]> + Debug,
+    {
+        self.target_languages = Some(target_languages.as_ref().to_vec());
         self
     }
 
     fn get_default_model(
         &self,
-        source_languages: Option<&S>,
-        target_languages: Option<&T>,
+        source_languages: Option<&Vec<Language>>,
+        target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
         Ok(
             match self.get_marian_model(source_languages, target_languages) {
@@ -161,14 +159,14 @@ where
 
     fn get_marian_model(
         &self,
-        source_languages: Option<&S>,
-        target_languages: Option<&T>,
+        source_languages: Option<&Vec<Language>>,
+        target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
         let (resources, source_languages, target_languages) =
             if let (Some(source_languages), Some(target_languages)) =
                 (source_languages, target_languages)
             {
-                match (source_languages.as_ref(), target_languages.as_ref()) {
+                match (source_languages.as_slice(), target_languages.as_slice()) {
                     ([Language::English], [Language::German]) => {
                         get_marian_resources!(ENGLISH2RUSSIAN)
                     }
@@ -257,18 +255,17 @@ where
 
     fn get_mbart50_resources(
         &self,
-        source_languages: Option<&S>,
-        target_languages: Option<&T>,
+        source_languages: Option<&Vec<Language>>,
+        target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
         if let Some(source_languages) = source_languages {
             if !source_languages
-                .as_ref()
                 .iter()
                 .all(|lang| MBartSourceLanguages::MBART50_MANY_TO_MANY.contains(lang))
             {
                 return Err(RustBertError::ValueError(format!(
                     "{:?} not in list of supported languages: {:?}",
-                    source_languages.as_ref(),
+                    source_languages,
                     MBartSourceLanguages::MBART50_MANY_TO_MANY
                 )));
             }
@@ -276,7 +273,6 @@ where
 
         if let Some(target_languages) = target_languages {
             if !target_languages
-                .as_ref()
                 .iter()
                 .all(|lang| MBartTargetLanguages::MBART50_MANY_TO_MANY.contains(lang))
             {
@@ -315,18 +311,17 @@ where
 
     fn get_m2m100_large_resources(
         &self,
-        source_languages: Option<&S>,
-        target_languages: Option<&T>,
+        source_languages: Option<&Vec<Language>>,
+        target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
         if let Some(source_languages) = source_languages {
             if !source_languages
-                .as_ref()
                 .iter()
                 .all(|lang| M2M100SourceLanguages::M2M100_418M.contains(lang))
             {
                 return Err(RustBertError::ValueError(format!(
                     "{:?} not in list of supported languages: {:?}",
-                    source_languages.as_ref(),
+                    source_languages,
                     M2M100SourceLanguages::M2M100_418M
                 )));
             }
@@ -334,7 +329,6 @@ where
 
         if let Some(target_languages) = target_languages {
             if !target_languages
-                .as_ref()
                 .iter()
                 .all(|lang| M2M100TargetLanguages::M2M100_418M.contains(lang))
             {
@@ -367,18 +361,17 @@ where
 
     fn get_m2m100_xlarge_resources(
         &self,
-        source_languages: Option<&S>,
-        target_languages: Option<&T>,
+        source_languages: Option<&Vec<Language>>,
+        target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
         if let Some(source_languages) = source_languages {
             if !source_languages
-                .as_ref()
                 .iter()
                 .all(|lang| M2M100SourceLanguages::M2M100_1_2B.contains(lang))
             {
                 return Err(RustBertError::ValueError(format!(
                     "{:?} not in list of supported languages: {:?}",
-                    source_languages.as_ref(),
+                    source_languages,
                     M2M100SourceLanguages::M2M100_1_2B
                 )));
             }
@@ -386,7 +379,6 @@ where
 
         if let Some(target_languages) = target_languages {
             if !target_languages
-                .as_ref()
                 .iter()
                 .all(|lang| M2M100TargetLanguages::M2M100_1_2B.contains(lang))
             {
