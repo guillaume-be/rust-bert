@@ -45,7 +45,7 @@ fn main() -> anyhow::Result<()> {
     let model = M2M100Generator::new(generate_config)?;
 
     let input_context_1 = ">>en.<< The dog did not wake up.";
-    let target_language = model.get_tokenizer().convert_tokens_to_ids([">>fr.<<"])[0];
+    let target_language = model.get_tokenizer().convert_tokens_to_ids([">>es.<<"])[0];
 
     println!("{:?} - {:?}", input_context_1, target_language);
     let output = model.generate(
