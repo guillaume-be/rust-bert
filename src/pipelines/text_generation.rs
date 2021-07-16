@@ -141,7 +141,7 @@ impl Default for TextGenerationConfig {
             top_p: 0.9,
             repetition_penalty: 1.0,
             length_penalty: 1.0,
-            no_repeat_ngram_size: 3,
+            no_repeat_ngram_size: 0,
             num_return_sequences: 1,
             num_beam_groups: None,
             diversity_penalty: None,
