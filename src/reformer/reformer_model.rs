@@ -418,10 +418,9 @@ impl ReformerModel {
             let input_ids = Tensor::cat(&[input_ids, &input_ids_padding], -1);
             new_input_shape = input_ids.size();
             let position_ids = if let Some(position_ids) = position_ids {
-                let position_ids_padding = Tensor::arange2(
+                let position_ids_padding = Tensor::arange_start(
                     *input_shape.last().unwrap(),
                     self.least_common_mult_chunk_length,
-                    1,
                     (Kind::Int64, device),
                 )
                 .unsqueeze(0)
@@ -568,7 +567,7 @@ impl ReformerModelWithLMHead {
     ///
     /// let model_output = no_grad(|| {
     ///     reformer_model.forward_t(
-    ///         Some(&input_tensor),    
+    ///         Some(&input_tensor),
     ///         Some(&input_positions),
     ///         None,
     ///         Some(&attention_mask),
@@ -801,7 +800,7 @@ impl ReformerForSequenceClassification {
     ///
     /// let model_output = no_grad(|| {
     ///     reformer_model.forward_t(
-    ///         Some(&input_tensor),    
+    ///         Some(&input_tensor),
     ///         Some(&input_positions),
     ///         None,
     ///         Some(&attention_mask),
@@ -939,7 +938,7 @@ impl ReformerForQuestionAnswering {
     ///
     /// let model_output = no_grad(|| {
     ///     reformer_model.forward_t(
-    ///         Some(&input_tensor),    
+    ///         Some(&input_tensor),
     ///         Some(&input_positions),
     ///         None,
     ///         Some(&attention_mask),
@@ -972,8 +971,8 @@ impl ReformerForQuestionAnswering {
             .apply(&self.qa_outputs)
             .split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
-        let start_logits = start_logits.squeeze1(-1);
-        let end_logits = end_logits.squeeze1(-1);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
 
         Ok(ReformerQuestionAnsweringModelOutput {
             start_logits,

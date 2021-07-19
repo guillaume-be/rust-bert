@@ -86,8 +86,8 @@ fn mbart_translation() -> anyhow::Result<()> {
     };
     let model = MBartGenerator::new(generate_config)?;
 
-    let input_context = "en_XX The quick brown fox jumps over the lazy dog.";
-    let target_language = model.get_tokenizer().convert_tokens_to_ids(["de_DE"])[0];
+    let input_context = ">>en<< The quick brown fox jumps over the lazy dog.";
+    let target_language = model.get_tokenizer().convert_tokens_to_ids([">>de<<"])[0];
 
     let output = model.generate(
         Some(&[input_context]),
@@ -103,7 +103,7 @@ fn mbart_translation() -> anyhow::Result<()> {
     assert_eq!(output.len(), 1);
     assert_eq!(
         output[0].text,
-        "de_DE Der schnelle braune Fuchs springt über den faulen Hund."
+        " Der schnelle braune Fuchs springt über den faulen Hund."
     );
 
     Ok(())

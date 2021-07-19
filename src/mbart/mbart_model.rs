@@ -111,7 +111,10 @@ impl Config<MBartConfig> for MBartConfig {}
 
 fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
     let output = input_ids.masked_fill(&input_ids.eq(-100), pad_token_id);
-    let index_eos: Tensor = input_ids.ne(pad_token_id).sum1(&[1], true, Int64) - 1;
+    let index_eos: Tensor = input_ids
+        .ne(pad_token_id)
+        .sum_dim_intlist(&[1], true, Int64)
+        - 1;
     output
         .select(1, 0)
         .copy_(&input_ids.gather(1, &index_eos, true).squeeze());
@@ -375,7 +378,7 @@ impl MBartForConditionalGeneration {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BART model
+    /// * `p` - Variable store path for the root of the MBart model
     /// * `config` - `MBartConfig` object defining the model architecture
     ///
     /// # Example
@@ -509,10 +512,10 @@ impl MBartForConditionalGeneration {
     }
 }
 
-/// # BART Model for sequence classification
-/// BART model with a classification head
+/// # MBart Model for sequence classification
+/// MBart model with a classification head
 /// It is made of the following blocks:
-/// - `base_model`: `BartModel` Base BART model
+/// - `base_model`: `MBartModel` Base MBart model
 /// - `classification_head`: `BartClassificationHead` made of 2 linear layers mapping hidden states to a target class
 /// - `eos_token_id`: token id for the EOS token carrying the pooled representation for classification
 pub struct MBartForSequenceClassification {
@@ -526,7 +529,7 @@ impl MBartForSequenceClassification {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BART model
+    /// * `p` - Variable store path for the root of the MBart model
     /// * `config` - `MBartConfig` object defining the model architecture
     ///
     /// # Example
@@ -632,7 +635,7 @@ impl MBartForSequenceClassification {
             train,
         );
         let eos_mask = input_ids.eq(self.eos_token_id);
-        let reshape = eos_mask.sum1(&[1], true, Int64);
+        let reshape = eos_mask.sum_dim_intlist(&[1], true, Int64);
         let sentence_representation = base_model_output
             .decoder_output
             .permute(&[2, 0, 1])
@@ -669,9 +672,9 @@ impl LMHeadModel for MBartForConditionalGeneration {
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing th elast calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
     /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `input_embeds` - Unused for BART
-    /// * `token_type_ids` - Unused for BART
-    /// * `position_ids` - Unused for BART
+    /// * `input_embeds` - Unused for MBart
+    /// * `token_type_ids` - Unused for MBart
+    /// * `position_ids` - Unused for MBart
     /// * `encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *hidden_size*). When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -1064,7 +1067,7 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
             },
             Cache::None => {}
             _ => {
-                panic!("Invalid cache for BART model");
+                panic!("Invalid cache for MBart model");
             }
         };
         encoder_outputs

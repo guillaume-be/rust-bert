@@ -132,7 +132,9 @@ pub(crate) trait GptNeoAttentionUtils {
         let query_indices = Self::split_sequence_length_dim_to(&indices, num_blocks, block_length)?;
         let key_indices = Self::look_back(&indices, block_length, window_size, None, false)?;
 
-        let causal_mask = query_indices.unsqueeze(-1).ge1(&key_indices.unsqueeze(-2));
+        let causal_mask = query_indices
+            .unsqueeze(-1)
+            .ge_tensor(&key_indices.unsqueeze(-2));
 
         let calc_attention_mask = if attention_mask.is_none() {
             Some(Tensor::ones(
@@ -212,7 +214,7 @@ pub(crate) trait GptNeoAttentionUtils {
     ) -> (Tensor, Tensor) {
         let mut attention_weights = query
             .matmul(&key.transpose(-1, -2))
-            .where1(causal_mask, &masked_bias.to_kind(query.kind()));
+            .where_self(causal_mask, &masked_bias.to_kind(query.kind()));
 
         if let Some(attention_mask_value) = attention_mask {
             attention_weights = attention_weights + attention_mask_value;

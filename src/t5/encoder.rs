@@ -120,7 +120,7 @@ impl T5Block {
             Some(T5LayerCrossAttention::new(
                 &p / module_index,
                 config,
-                has_relative_attention_bias,
+                false,
                 is_decoder,
                 store_cache,
                 output_attentions,
@@ -328,7 +328,7 @@ impl T5Stack {
                         input_shape[1],
                         1,
                     ]);
-                    let causal_mask = causal_mask.le1(&seq_ids.unsqueeze(0).unsqueeze(-1));
+                    let causal_mask = causal_mask.le_tensor(&seq_ids.unsqueeze(0).unsqueeze(-1));
                     causal_mask.unsqueeze(1) * attention_mask.unsqueeze(1).unsqueeze(1)
                 } else {
                     attention_mask.unsqueeze(1).unsqueeze(1)

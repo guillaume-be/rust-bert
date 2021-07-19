@@ -323,7 +323,7 @@ impl<T: BertEmbedding> BertModel<T> {
                         input_shape[1],
                         1,
                     ]);
-                    let causal_mask = causal_mask.le1(&seq_ids.unsqueeze(0).unsqueeze(-1));
+                    let causal_mask = causal_mask.le_tensor(&seq_ids.unsqueeze(0).unsqueeze(-1));
                     causal_mask * mask.unsqueeze(1).unsqueeze(1)
                 } else {
                     mask.unsqueeze(1).unsqueeze(1)
@@ -1161,8 +1161,8 @@ impl BertForQuestionAnswering {
         let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
-        let start_logits = start_logits.squeeze1(-1);
-        let end_logits = end_logits.squeeze1(-1);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
 
         BertQuestionAnsweringOutput {
             start_logits,

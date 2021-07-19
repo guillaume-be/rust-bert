@@ -32,8 +32,8 @@ impl T5LayerNorm {
 
 impl Module for T5LayerNorm {
     fn forward(&self, x: &Tensor) -> Tensor {
-        let variance = x.pow(2f64).mean1(&[-1], true, Kind::Float);
-        let x = x / (variance + self.epsilon).sqrt();
+        let variance = x.pow(2f64).mean_dim(&[-1], true, Kind::Float);
+        let x = x * (variance + self.epsilon).rsqrt();
         &self.weight * x
     }
 }

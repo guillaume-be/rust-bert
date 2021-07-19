@@ -39,8 +39,8 @@ fn main() -> anyhow::Result<()> {
     };
     let model = MBartGenerator::new(generate_config)?;
 
-    let input_context_1 = "en_XX The quick brown fox jumps over the lazy dog.";
-    let target_language = model.get_tokenizer().convert_tokens_to_ids(["de_DE"])[0];
+    let input_context_1 = ">>en<< The quick brown fox jumps over the lazy dog.";
+    let target_language = model.get_tokenizer().convert_tokens_to_ids([">>de<<"])[0];
 
     let output = model.generate(
         Some(&[input_context_1]),

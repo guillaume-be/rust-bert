@@ -87,7 +87,7 @@ impl SinusoidalPositionalEmbedding {
     pub fn forward(&self, input: &Tensor, past_key_values_length: i64) -> Tensor {
         let input_shape = input.size();
         let (_, sequence_length) = (input_shape[0], input_shape[1]);
-        let positions = Tensor::arange1(
+        let positions = Tensor::arange_start(
             past_key_values_length,
             past_key_values_length + sequence_length,
             (Kind::Int64, input.device()),
