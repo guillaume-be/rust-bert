@@ -147,7 +147,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
 
     assert_eq!(output.len(), 2);
     assert_eq!(output[0], "It was a very nice and sunny day. The sun was shining through the clouds, and the sky was clear. The wind was blowing through the trees,");
-    assert_eq!(output[1], "It was a gloom winter night, and the sky was dark.\n\n\"I'm sorry,\" I said. \"I didn't mean to.\"\n\n");
+    assert_eq!(output[1], "It was a gloom winter night, and the sky was dark and cold, and the wind was blowing thick and heavy.\n\n\"What\'s the matter?\"");
 
     Ok(())
 }

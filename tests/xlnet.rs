@@ -230,7 +230,7 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
     assert_eq!(output.len(), 1);
     assert_eq!(
         output[0],
-        " Once upon a time, there was a time when there was only one man in the world who could do all the things he wanted to do. There was only"
+        " Once upon a time, there was a time when there was no one who could do magic. There was no one who could do magic. There was no one"
     );
 
     Ok(())
