@@ -168,8 +168,9 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
         merges_resource,
         max_length: 20,
         do_sample: false,
+        early_stopping: true,
         num_beams: 5,
-        temperature: 2.0,
+        temperature: 1.0,
         num_return_sequences: 3,
         ..Default::default()
     };
@@ -181,15 +182,15 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
     assert_eq!(output.len(), 3);
     assert_eq!(
         output[0],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be right"
+        "the dog is a good dog. \" \n \" he's a good dog, \" i agreed."
     );
     assert_eq!(
         output[1],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be back"
+        "the dog is a good dog. \" \n \" he\'s a good dog. \" \n \" he"
     );
     assert_eq!(
         output[2],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. \" \n \" i"
+        "the dog is a good dog. \" \n \" he\'s a good dog. \" \n \" i"
     );
 
     Ok(())
@@ -220,8 +221,9 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
         merges_resource,
         max_length: 20,
         do_sample: false,
+        early_stopping: true,
         num_beams: 5,
-        temperature: 2.0,
+        temperature: 1.0,
         num_return_sequences: 3,
         ..Default::default()
     };
@@ -233,31 +235,31 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
 
     assert_eq!(output.len(), 6);
 
-    //    Un-padded sequence (generation for `The dog is`) is identical to the
+    //    Un-padded sequence (generation for `The dog is`) is identical to the case with a unique input
     assert_eq!(
         output[0],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be right"
+        "the dog is a good dog. \" \n \" he's a good dog, \" i agreed."
     );
     assert_eq!(
         output[1],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be back"
+        "the dog is a good dog. \" \n \" he\'s a good dog. \" \n \" he"
     );
     assert_eq!(
         output[2],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. \" \n \" i"
+        "the dog is a good dog. \" \n \" he\'s a good dog. \" \n \" i"
     );
 
     assert_eq!(
         output[3],
-        "the cat. \" \n \" i don\'t know what you\'re talking about. i don\'t"
+        "the cat. \" \n \" what? \" \n \" you heard me. \" \n \" i"
     );
     assert_eq!(
         output[4],
-        "the cat. \" \n \" i don\'t know what you\'re talking about. i\'m not"
+        "the cat. \" \n \" what? \" \n \" you heard me. \" \n \" no"
     );
     assert_eq!(
         output[5],
-        "the cat. \" \n \" i don\'t know what you\'re talking about. i do know"
+        "the cat. \" \n \" what? \" \n \" you heard me. \" \n \" oh"
     );
 
     Ok(())

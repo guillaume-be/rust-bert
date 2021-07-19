@@ -74,7 +74,7 @@ pub struct TextGenerationConfig {
     pub repetition_penalty: f64,
     /// Exponential penalty based on the length of the hypotheses generated (default: 1.0)
     pub length_penalty: f64,
-    /// Number of allowed repetitions of n-grams. Values higher than 0 turn on this feature (default: 3)
+    /// Number of allowed repetitions of n-grams. Values higher than 0 turn on this feature and will prevent repeats of n-grams with a length equal or greater to this value (default: 0)
     pub no_repeat_ngram_size: i64,
     /// Number of sequences to return for each prompt text (default: 1)
     pub num_return_sequences: i64,
