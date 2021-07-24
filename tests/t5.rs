@@ -83,9 +83,9 @@ about exoplanets like K2-18b."];
 
     assert_eq! (
     output[0],
-    " the presence of water vapour was confirmed in the atmosphere of K2-18b. this is the first \
-        such discovery in a planet in its star's habitable zone. previous discoveries were made on \
-        planets with high temperatures or other pronounced differences."
+    " the presence of water vapour was confirmed in the atmosphere of K2-18b. \
+    this is the first such discovery in a planet in its star's habitable zone. \
+    previous discoveries were made on planets with high temperatures or other pronounced differences from Earth."
     );
 
     Ok(())

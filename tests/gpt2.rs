@@ -352,15 +352,15 @@ fn gpt2_diverse_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()
     assert_eq!(output.len(), 6);
     assert_eq!(
         output[0],
-        "It was a nice and peaceful evening for me,\" he said.\n\n\"It was nice to"
+        "It was a nice and peaceful evening for me,\" he said.\n\n\"It was a good"
     );
     assert_eq!(
         output[1],
-        "It was a nice and warm day, and I'm glad I did.\n\n\"I'm"
+        "It was a nice and peaceful evening for me,\" he said.\n\n\"It was a nice"
     );
     assert_eq!(
         output[2],
-        "It was a nice and warm day, and I'm glad I did.\n\n\"I was"
+        "It was a nice and warm day, and I\'m glad I did.\n\n\"I'm"
     );
     assert_eq!(
         output[3],
