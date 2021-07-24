@@ -43,7 +43,7 @@
 //!
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer: M2M100Tokenizer = M2M100Tokenizer::from_file(
+//! let tokenizer: M2M100Tokenizer = M2M100Tokenizer::from_files(
 //!     vocab_path.to_str().unwrap(),
 //!     merges_path.to_str().unwrap(),
 //!     false,
