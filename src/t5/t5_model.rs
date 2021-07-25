@@ -43,12 +43,12 @@ pub struct T5VocabResources;
 pub struct T5Prefix;
 
 impl T5ModelResources {
-    /// Shared under Apache 2.0 license by the T5 Authors at https://github.com/google-research/text-to-text-transfer-transformer. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the T5 Authors at <https://github.com/google-research/text-to-text-transfer-transformer>. Modified with conversion to C-array format.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/model",
         "https://huggingface.co/t5-small/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the T5 Authors at https://github.com/google-research/text-to-text-transfer-transformer. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the T5 Authors at <https://github.com/google-research/text-to-text-transfer-transformer>. Modified with conversion to C-array format.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/model",
         "https://huggingface.co/t5-base/resolve/main/rust_model.ot",
@@ -56,12 +56,12 @@ impl T5ModelResources {
 }
 
 impl T5ConfigResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/config",
         "https://huggingface.co/t5-small/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/config",
         "https://huggingface.co/t5-base/resolve/main/config.json",
@@ -69,12 +69,12 @@ impl T5ConfigResources {
 }
 
 impl T5VocabResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
     pub const T5_SMALL: (&'static str, &'static str) = (
         "t5-small/spiece",
         "https://huggingface.co/t5-small/resolve/main/spiece.model",
     );
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/text-to-text-transfer-transformer.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/spiece",
         "https://huggingface.co/t5-base/resolve/main/spiece.model",
@@ -157,7 +157,7 @@ pub struct TranslationEnToRo {
     prefix: String,
 }
 
-impl Config<T5Config> for T5Config {}
+impl Config for T5Config {}
 
 /// # T5 Base model
 /// Base architecture for T5 model. Usually complemented with a task-specific head, such as a language model head.
@@ -449,7 +449,7 @@ impl T5ForConditionalGeneration {
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `input_embeds` - Optional input tensor of shape (*batch size*, *source_sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
     /// * `decoder_input_embeds` - Optional input tensor of shape (*batch size*, *target_sequence_length*, *embeddings dimension*). This or `decoder_input_ids` must be provided.
-    /// * `old_layer_states` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing th elast calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `old_layer_states` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
     ///
     /// # Returns
@@ -557,7 +557,7 @@ impl LMHeadModel for T5ForConditionalGeneration {
     /// # Arguments
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
-    /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing th elast calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
     /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
     /// * `input_embeds` - Unused for T5
     /// * `token_type_ids` - Unused for T5
