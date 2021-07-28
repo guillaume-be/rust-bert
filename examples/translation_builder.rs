@@ -26,7 +26,7 @@ fn main() -> anyhow::Result<()> {
         .with_target_languages(vec![Language::Spanish])
         .create_model()?;
 
-    let input_context_1 = "The quick brown fox jumps over the lazy dog.";
+    let input_context_1 = "This is a sentence to be translated";
     let input_context_2 = "The dog did not wake up.";
 
     let output = model.translate(&[input_context_1, input_context_2], None, Language::Spanish)?;

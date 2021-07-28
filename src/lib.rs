@@ -168,23 +168,28 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
-//! use rust_bert::pipelines::translation::{OldLanguage, TranslationConfig, TranslationModel};
+//! use rust_bert::pipelines::common::ModelType;
+//! use rust_bert::pipelines::translation::{
+//!     Language, TranslationConfig, TranslationModel, TranslationModelBuilder,
+//! };
 //! use tch::Device;
-//! let translation_config =
-//!     TranslationConfig::new(OldLanguage::EnglishToFrench, Device::cuda_if_available());
-//! let mut model = TranslationModel::new(translation_config)?;
+//! let model = TranslationModelBuilder::new()
+//!     .with_device(Device::cuda_if_available())
+//!     .with_model_type(ModelType::Marian)
+//!     .with_source_languages(vec![Language::English])
+//!     .with_target_languages(vec![Language::French])
+//!     .create_model()?;
 //!
 //! let input = ["This is a sentence to be translated"];
 //!
-//! let output = model.translate(&input);
+//! let output = model.translate(&input, None, Language::French);
 //! # Ok(())
 //! # }
 //! ```
-//!
 //! Output: \
 //! ```no_run
 //! # let output =
-//! "Il s'agit d'une phrase à traduire"
+//! " Il s'agit d'une phrase à traduire"
 //! # ;
 //! ```
 //!
