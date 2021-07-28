@@ -120,7 +120,7 @@ impl T5Block {
             Some(T5LayerCrossAttention::new(
                 &p / module_index,
                 config,
-                has_relative_attention_bias,
+                false,
                 is_decoder,
                 store_cache,
                 output_attentions,
