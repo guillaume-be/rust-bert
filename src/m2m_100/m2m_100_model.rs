@@ -1,5 +1,5 @@
-// Copyright 2021, Google and The HuggingFace Inc. team. All rights reserved.
-// Copyright 2021 Guillaume Becquin
+// Copyright 2021 The Fairseq Authors and The HuggingFace Inc. team. All rights reserved.
+// Copyright 2020 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,13 +10,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bart::BartModelOutput;
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
-use crate::mbart::MBartConfig;
-use crate::pegasus::decoder::PegasusDecoder;
-use crate::pegasus::encoder::PegasusEncoder;
-use crate::pegasus::LayerState;
+use crate::gpt2::{
+    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
+};
+use crate::m2m_100::decoder::M2M100Decoder;
+use crate::m2m_100::encoder::M2M100Encoder;
+use crate::m2m_100::LayerState;
+use crate::mbart::{MBartConfig, MBartModelOutput};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
@@ -24,94 +24,123 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
+use crate::resources::{RemoteResource, Resource};
 use crate::{Config, RustBertError};
-use rust_tokenizers::tokenizer::{PegasusTokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::PegasusVocab;
+use rust_tokenizers::tokenizer::{M2M100Tokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::{M2M100Vocab, Vocab};
 use std::borrow::Borrow;
-use tch::nn::{embedding, EmbeddingConfig, Init};
-use tch::{nn, Tensor};
+use tch::nn::{embedding, EmbeddingConfig};
+use tch::{nn, Kind, Tensor};
 
-/// # Pegasus Pretrained model weight files
-pub struct PegasusModelResources;
+/// # M2M100 Pretrained model weight files
+pub struct M2M100ModelResources;
 
-/// # Pegasus Pretrained model config files
-pub struct PegasusConfigResources;
+/// # M2M100 Pretrained model config files
+pub struct M2M100ConfigResources;
 
-/// # Pegasus Pretrained model vocab files
-pub struct PegasusVocabResources;
+/// # M2M100 Pretrained model vocab files
+pub struct M2M100VocabResources;
 
-impl PegasusModelResources {
-    /// Shared under Apache 2.0 license by the Pegasus team at <https://huggingface.co/google/pegasus-cnn_dailymail>. Modified with conversion to C-array format.
-    pub const CNN_DAILYMAIL: (&'static str, &'static str) = (
-        "pegasus-cnn_dailymail/model",
-        "https://huggingface.co/google/pegasus-cnn_dailymail/resolve/main/rust_model.ot",
+/// # M2M100 Pretrained model merges files
+pub struct M2M100MergesResources;
+
+impl M2M100ModelResources {
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_418M: (&'static str, &'static str) = (
+        "m2m100-418m/model",
+        "https://huggingface.co/facebook/m2m100_418M/resolve/main/rust_model.ot",
+    );
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_1_2B: (&'static str, &'static str) = (
+        "m2m100-1_2b/model",
+        "https://huggingface.co/facebook/m2m100_1.2B/resolve/main/rust_model.ot",
     );
 }
 
-impl PegasusConfigResources {
-    /// Shared under Apache 2.0 license by the Pegasus team at <https://huggingface.co/google/pegasus-cnn_dailymail>.
-    pub const CNN_DAILYMAIL: (&'static str, &'static str) = (
-        "pegasus-cnn_dailymail/config",
-        "https://huggingface.co/google/pegasus-cnn_dailymail/resolve/main/config.json",
+impl M2M100ConfigResources {
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_418M: (&'static str, &'static str) = (
+        "m2m100-418m/config",
+        "https://huggingface.co/facebook/m2m100_418M/resolve/main/config.json",
+    );
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_1_2B: (&'static str, &'static str) = (
+        "m2m100-1_2b/config",
+        "https://huggingface.co/facebook/m2m100_1.2B/resolve/main/config.json",
     );
 }
 
-impl PegasusVocabResources {
-    /// Shared under Apache 2.0 license by the Pegasus team at <https://huggingface.co/google/pegasus-cnn_dailymail>.
-    pub const CNN_DAILYMAIL: (&'static str, &'static str) = (
-        "pegasus-cnn_dailymail/spiece",
-        "https://huggingface.co/google/pegasus-cnn_dailymail/resolve/main/spiece.model",
+impl M2M100VocabResources {
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_418M: (&'static str, &'static str) = (
+        "m2m100-418m/vocab",
+        "https://huggingface.co/facebook/m2m100_418M/resolve/main/vocab.json",
+    );
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_1_2B: (&'static str, &'static str) = (
+        "m2m100-1_2b/vocab",
+        "https://huggingface.co/facebook/m2m100_1.2B/resolve/main/vocab.json",
     );
 }
 
-/// # Pegasus model configuration
-/// Defines the Pegasus model architecture (e.g. number of layers, hidden layer size, label mapping...)
-pub type PegasusConfig = MBartConfig;
+impl M2M100MergesResources {
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_418M: (&'static str, &'static str) = (
+        "m2m100-418m/merges",
+        "https://huggingface.co/facebook/m2m100_418M/resolve/main/sentencepiece.bpe.model",
+    );
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
+    pub const M2M100_1_2B: (&'static str, &'static str) = (
+        "m2m100-1_2b/merges",
+        "https://huggingface.co/facebook/m2m100_1.2B/resolve/main/sentencepiece.bpe.model",
+    );
+}
+
+pub type M2M100Config = MBartConfig;
 
 fn _shift_tokens_right(
     input_ids: &Tensor,
     pad_token_id: i64,
     decoder_start_token_id: i64,
 ) -> Tensor {
-    let input_ids_length = input_ids.size()[1];
-    let mut shifted_input_ids = Tensor::zeros(
+    let shifted_input_ids = Tensor::zeros(
         input_ids.size().as_slice(),
-        (input_ids.kind(), input_ids.device()),
+        (Kind::Int64, input_ids.device()),
     );
-    let _ = shifted_input_ids
-        .slice(1, 1, input_ids_length, 1)
-        .copy_(&input_ids.slice(1, 0, input_ids_length - 1, 1));
-
     let _ = shifted_input_ids.select(1, 0).fill_(decoder_start_token_id);
-    let _ = shifted_input_ids.masked_fill_(&shifted_input_ids.eq(-100), pad_token_id);
-
-    shifted_input_ids
+    let _ = shifted_input_ids
+        .slice(1, 1, *shifted_input_ids.size().last().unwrap(), 1)
+        .copy_(&input_ids.slice(1, 0, *input_ids.size().last().unwrap() - 1, 1));
+    shifted_input_ids.masked_fill(&shifted_input_ids.eq(-100), pad_token_id)
 }
 
-/// # Pegasus Base model
-/// Base architecture for Pegasus model. Usually complemented with a task-specific head, such as a language model head.
+/// # M2M100 Base model
+/// Base architecture for M2M100 model. Usually complemented with a task-specific head, such as a language model head.
 /// It is made of the following blocks:
-/// - `encoder`: `PegasusEncoder` (transformer) made of a vector of encoding layers
-/// - `decoder`: `PegasusDecoder` (transformer)  made of a vector of decoding layers with self attention and encoder cross-attention.
+/// - `encoder`: `M2M100Encoder` (transformer) made of a vector of encoding layers
+/// - `decoder`: `M2M100Decoder` (transformer)  made of a vector of decoding layers with self attention and encoder cross-attention.
 /// caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
-pub struct PegasusModel {
-    pub(crate) encoder: PegasusEncoder,
-    decoder: PegasusDecoder,
+/// - `pad_token_id`: padding token id
+pub struct M2M100Model {
+    pub(crate) encoder: M2M100Encoder,
+    decoder: M2M100Decoder,
     pub(crate) embeddings: nn::Embedding,
+    pad_token_id: i64,
+    decoder_start_token_id: i64,
 }
 
-impl PegasusModel {
-    /// Build a new `PegasusModel`
+impl M2M100Model {
+    /// Build a new `M2M100Model`
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the Pegasus model
-    /// * `config` - `PegasusConfig` object defining the model architecture
+    /// * `p` - Variable store path for the root of the M2M100 model
+    /// * `config` - `M2M100Config` object defining the model architecture
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pegasus::{PegasusConfig, PegasusModel};
+    /// use rust_bert::m2m_100::{M2M100Config, M2M100Model};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -119,16 +148,17 @@ impl PegasusModel {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = PegasusConfig::from_file(config_path);
-    /// let pegasus: PegasusModel = PegasusModel::new(&p.root() / "pegasus", &config);
+    /// let config = M2M100Config::from_file(config_path);
+    /// let m2m100: M2M100Model = M2M100Model::new(&p.root() / "m2m100", &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &PegasusConfig) -> PegasusModel
+    pub fn new<'p, P>(p: P, config: &M2M100Config) -> M2M100Model
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
-        let pad_token_id = config.pad_token_id.unwrap_or(0);
+        let pad_token_id = config.pad_token_id.unwrap_or(1);
+        let decoder_start_token_id = config.decoder_start_token_id.unwrap_or(2);
         let embedding_config = EmbeddingConfig {
             padding_idx: pad_token_id,
             ..Default::default()
@@ -140,13 +170,15 @@ impl PegasusModel {
             embedding_config,
         );
 
-        let encoder = PegasusEncoder::new(p / "encoder", config);
-        let decoder = PegasusDecoder::new(p / "decoder", config);
+        let encoder = M2M100Encoder::new(p / "encoder", config);
+        let decoder = M2M100Decoder::new(p / "decoder", config);
 
-        PegasusModel {
+        M2M100Model {
             encoder,
             decoder,
             embeddings,
+            pad_token_id,
+            decoder_start_token_id,
         }
     }
 
@@ -164,7 +196,7 @@ impl PegasusModel {
     ///
     /// # Returns
     ///
-    /// * `PegasusModelOutput` containing:
+    /// * `M2M100ModelOutput` containing:
     ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *hidden_size*) representing the activations of the last decoder hidden state
     ///   - `encoder_hidden_states` - `Option<Tensor>` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state if it was not provided, otherwise None
     ///   - `cache` - `(Option<Tensor>, Option<Vec<&LayerState, &LayerState>>)` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
@@ -180,26 +212,26 @@ impl PegasusModel {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::pegasus::{PegasusConfig, PegasusModel};
+    /// use rust_bert::m2m_100::{M2M100Config, M2M100Model};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = PegasusConfig::from_file(config_path);
-    /// # let pegasus_model: PegasusModel = PegasusModel::new(&vs.root(), &config);
+    /// # let config = M2M100Config::from_file(config_path);
+    /// # let m2m100_model: M2M100Model = M2M100Model::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
-    /// let decoder_input_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     /// let encoder_attention_mask =
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     /// let decoder_attention_mask =
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     pegasus_model.forward_t(
+    ///     m2m100_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
-    ///         &decoder_input_tensor,
+    ///         Some(&target_tensor),
     ///         None,
     ///         Some(&decoder_attention_mask),
     ///         None,
@@ -211,12 +243,25 @@ impl PegasusModel {
         &self,
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        decoder_input_ids: &Tensor,
+        decoder_input_ids: Option<&Tensor>,
         encoder_output: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
         layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> PegasusModelOutput {
+    ) -> M2M100ModelOutput {
+        let calc_decoder_input_ids = if decoder_input_ids.is_none() {
+            Some(_shift_tokens_right(
+                input_ids.unwrap(),
+                self.pad_token_id,
+                self.decoder_start_token_id,
+            ))
+        } else {
+            None
+        };
+
+        let decoder_input_ids =
+            decoder_input_ids.unwrap_or_else(|| calc_decoder_input_ids.as_ref().unwrap());
+
         let calc_encoder_output = if encoder_output.is_none() {
             Some(self.encoder.forward_t(
                 input_ids.unwrap(),
@@ -250,7 +295,8 @@ impl PegasusModel {
             layer_states,
             train,
         );
-        PegasusModelOutput {
+
+        M2M100ModelOutput {
             decoder_output: decoder_output.hidden_state,
             encoder_hidden_state: calc_hidden_states,
             cache: decoder_output.next_decoder_cache,
@@ -262,29 +308,30 @@ impl PegasusModel {
     }
 }
 
-/// # Pegasus Model for conditional generation
-/// Pegasus model with a vocabulary decoding head
+/// Container holding a M2M100 model output
+pub type M2M100ModelOutput = MBartModelOutput;
+
+/// # M2M100 Model for conditional generation
+/// M2M100 model with a vocabulary decoding head
 /// It is made of the following blocks:
-/// - `base_model`: `PegasusModel` Base Pegasus model
-pub struct PegasusForConditionalGeneration {
-    base_model: PegasusModel,
-    final_logits_bias: Tensor,
-    pad_token_id: i64,
-    decoder_start_token_id: i64,
+/// - `base_model`: `M2M100Model` Base M2M100 model
+/// - `linear`: Linear layer without bias tied to the weights of the token id embeddings
+pub struct M2M100ForConditionalGeneration {
+    base_model: M2M100Model,
 }
 
-impl PegasusForConditionalGeneration {
-    /// Build a new `PegasusForConditionalGeneration`
+impl M2M100ForConditionalGeneration {
+    /// Build a new `M2M100ForConditionalGeneration`
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BART model
-    /// * `config` - `PegasusConfig` object defining the model architecture
+    /// * `p` - Variable store path for the root of the M2M100 model
+    /// * `config` - `M2M100Config` object defining the model architecture
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::pegasus::{PegasusConfig, PegasusForConditionalGeneration};
+    /// use rust_bert::m2m_100::{M2M100Config, M2M100ForConditionalGeneration};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -292,33 +339,16 @@ impl PegasusForConditionalGeneration {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = PegasusConfig::from_file(config_path);
-    /// let pegasus: PegasusForConditionalGeneration =
-    ///     PegasusForConditionalGeneration::new(&p.root(), &config);
+    /// let config = M2M100Config::from_file(config_path);
+    /// let m2m100: M2M100ForConditionalGeneration =
+    ///     M2M100ForConditionalGeneration::new(&p.root(), &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &PegasusConfig) -> PegasusForConditionalGeneration
+    pub fn new<'p, P>(p: P, config: &M2M100Config) -> M2M100ForConditionalGeneration
     where
         P: Borrow<nn::Path<'p>>,
     {
-        let p = p.borrow();
-
-        let base_model = PegasusModel::new(p / "model", config);
-
-        let final_logits_bias = p.var(
-            "final_logits_bias",
-            &[1, config.vocab_size],
-            Init::Const(0.0),
-        );
-
-        let pad_token_id = config.pad_token_id.unwrap_or(0);
-        let decoder_start_token_id = config.decoder_start_token_id.unwrap_or(0);
-
-        PegasusForConditionalGeneration {
-            base_model,
-            final_logits_bias,
-            pad_token_id,
-            decoder_start_token_id,
-        }
+        let base_model = M2M100Model::new(p.borrow() / "model", config);
+        M2M100ForConditionalGeneration { base_model }
     }
 
     /// Forward pass through the model
@@ -335,7 +365,7 @@ impl PegasusForConditionalGeneration {
     ///
     /// # Returns
     ///
-    /// * `PegasusModelOutput` containing:
+    /// * `M2M100ModelOutput` containing:
     ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *vocab_size*) representing the logits for each vocabulary item and position
     ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
     ///   - `cache` - `(Option<Tensor>, Option<Vec<&LayerState, &LayerState>>)` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
@@ -351,25 +381,25 @@ impl PegasusForConditionalGeneration {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::pegasus::{PegasusConfig, PegasusForConditionalGeneration};
+    /// # use rust_bert::m2m_100::{M2M100Config, M2M100ForConditionalGeneration};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = PegasusConfig::from_file(config_path);
-    /// # let pegasus_model: PegasusForConditionalGeneration = PegasusForConditionalGeneration::new(&vs.root(), &config);
+    /// # let config = M2M100Config::from_file(config_path);
+    /// # let m2m100_model: M2M100ForConditionalGeneration = M2M100ForConditionalGeneration::new(&vs.root(), &config);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
-    ///  let decoder_input_ids = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     ///  let model_output = no_grad(|| {
-    ///    pegasus_model
+    ///    m2m100_model
     ///         .forward_t(Some(&input_tensor),
     ///                    Some(&encoder_attention_mask),
     ///                    None,
-    ///                    Some(&decoder_input_ids),
+    ///                    Some(&target_tensor),
     ///                    Some(&decoder_attention_mask),
     ///                    None,
     ///                    false)
@@ -384,20 +414,7 @@ impl PegasusForConditionalGeneration {
         decoder_attention_mask: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> PegasusModelOutput {
-        let calc_decoder_input_ids = if decoder_input_ids.is_none() {
-            Some(_shift_tokens_right(
-                input_ids.unwrap(),
-                self.pad_token_id,
-                self.decoder_start_token_id,
-            ))
-        } else {
-            None
-        };
-
-        let decoder_input_ids =
-            decoder_input_ids.unwrap_or_else(|| calc_decoder_input_ids.as_ref().unwrap());
-
+    ) -> M2M100ModelOutput {
         let base_model_output = self.base_model.forward_t(
             input_ids,
             attention_mask,
@@ -410,9 +427,8 @@ impl PegasusForConditionalGeneration {
 
         let lm_logits = base_model_output
             .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
-            + &self.final_logits_bias;
-        PegasusModelOutput {
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None);
+        M2M100ModelOutput {
             decoder_output: lm_logits,
             ..base_model_output
         }
@@ -431,7 +447,7 @@ impl PegasusForConditionalGeneration {
     }
 }
 
-impl LMHeadModel for PegasusForConditionalGeneration {
+impl LMHeadModel for M2M100ForConditionalGeneration {
     /// Forward pass through the model
     ///
     /// # Arguments
@@ -439,19 +455,18 @@ impl LMHeadModel for PegasusForConditionalGeneration {
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
     /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `input_embeds` - Unused for Pegasus
-    /// * `token_type_ids` - Unused for Pegasus
-    /// * `position_ids` - Unused for Pegasus
+    /// * `input_embeds` - Unused for M2M100
+    /// * `token_type_ids` - Unused for M2M100
+    /// * `position_ids` - Unused for M2M100
     /// * `encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *hidden_size*). When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
-    ///
     ///
     /// # Returns
     ///
     /// * `LMModelOutput` containing:
     ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
-    ///   - `cache` - `BartCache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
+    ///   - `cache` - `BARTCache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
     ///     both the self attention and the encoder cross attention of each layer of the decoder.
     ///
     /// # Example
@@ -462,13 +477,13 @@ impl LMHeadModel for PegasusForConditionalGeneration {
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::pipelines::generation_utils::LMHeadModel;
-    /// use rust_bert::pegasus::{PegasusForConditionalGeneration, PegasusConfig};
+    /// use rust_bert::m2m_100::{M2M100ForConditionalGeneration, M2M100Config};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = PegasusConfig::from_file(config_path);
-    /// # let pegasus_model: PegasusForConditionalGeneration = PegasusForConditionalGeneration::new(&vs.root(), &config);
+    /// # let config = M2M100Config::from_file(config_path);
+    /// # let m2m100_model: M2M100ForConditionalGeneration = M2M100ForConditionalGeneration::new(&vs.root(), &config);
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -476,7 +491,7 @@ impl LMHeadModel for PegasusForConditionalGeneration {
     ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     ///  let model_output = no_grad(|| {
-    ///    pegasus_model
+    ///    m2m100_model
     ///         .forward_t(Some(&input_tensor),
     ///                    Some(&encoder_attention_mask),
     ///                    None,
@@ -502,26 +517,17 @@ impl LMHeadModel for PegasusForConditionalGeneration {
             Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
-                decoder_input_ids.as_ref().ok_or_else(|| {
-                    RustBertError::ValueError(
-                        "Decoder input ids must be provided for Pegasus language models"
-                            .to_string(),
-                    )
-                })?,
+                decoder_input_ids.as_ref(),
                 encoder_outputs,
                 None,
                 cached_layer_states,
                 train,
             ),
+
             Cache::None => self.base_model.forward_t(
                 input_ids.as_ref(),
                 attention_mask.as_ref(),
-                decoder_input_ids.as_ref().ok_or_else(|| {
-                    RustBertError::ValueError(
-                        "Decoder input ids must be provided for Pegasus language models"
-                            .to_string(),
-                    )
-                })?,
+                decoder_input_ids.as_ref(),
                 encoder_outputs,
                 None,
                 None,
@@ -529,15 +535,14 @@ impl LMHeadModel for PegasusForConditionalGeneration {
             ),
             _ => {
                 return Err(RustBertError::ValueError(
-                    "Cache not compatible with Pegasus Model".into(),
+                    "Cache not compatible with M2M100 Model".into(),
                 ));
             }
         };
 
         let lm_logits = base_model_output
             .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
-            + &self.final_logits_bias;
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None);
         Ok(LMModelOutput {
             lm_logits,
             cache: Cache::BARTCache(base_model_output.cache),
@@ -545,9 +550,9 @@ impl LMHeadModel for PegasusForConditionalGeneration {
     }
 }
 
-/// # Language generation model based on the Pegasus architecture
-pub struct PegasusConditionalGenerator {
-    model: PegasusForConditionalGeneration,
+/// # Language generation model based on the M2M100 architecture
+pub struct M2M100Generator {
+    model: M2M100ForConditionalGeneration,
     tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
@@ -560,12 +565,13 @@ pub struct PegasusConditionalGenerator {
     max_position_embeddings: i64,
 }
 
-impl PegasusConditionalGenerator {
-    /// Build a new `PegasusGenerator`
+impl M2M100Generator {
+    /// Build a new `M2M100Generator`
     ///
     /// # Arguments
     ///
     /// * `vocab_path` - Path to the model vocabulary, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
+    /// * `merges_path` - Path to the bpe merges, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
     /// * `config_path` - Path to the model configuration, expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers) convention
     /// * `weights_path` - Path to the model weight files. These need to be converted form the `.bin` to `.ot` format using the utility script provided.
     /// * `device` - Device to run the model on, e.g. `Device::Cpu` or `Device::Cuda(0)`
@@ -576,13 +582,14 @@ impl PegasusConditionalGenerator {
     /// # use std::path::PathBuf;
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pegasus::PegasusConditionalGenerator;
+    /// use rust_bert::m2m_100::M2M100Generator;
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
-    /// # home.push("pegasus-cnn_dailymail");
+    /// # home.push("openai-gpt");
     /// # let config_path = &home.as_path().join("config.json");
-    /// # let vocab_path = &home.as_path().join("spiece.model");
+    /// # let vocab_path = &home.as_path().join("vocab.txt");
+    /// # let merges_path = &home.as_path().join("merges.txt");
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
@@ -593,19 +600,17 @@ impl PegasusConditionalGenerator {
     ///     num_return_sequences: 3,
     ///     ..Default::default()
     /// };
-    /// let pegasus_generator = PegasusConditionalGenerator::new(generate_config)?;
+    /// let m2m100_generator = M2M100Generator::new(generate_config)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(
-        generate_config: GenerateConfig,
-    ) -> Result<PegasusConditionalGenerator, RustBertError> {
+    pub fn new(generate_config: GenerateConfig) -> Result<M2M100Generator, RustBertError> {
         //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
         let model_resource = if generate_config.model_resource
             == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(
-                PegasusModelResources::CNN_DAILYMAIL,
+                M2M100ModelResources::M2M100_418M,
             ))
         } else {
             generate_config.model_resource.clone()
@@ -615,7 +620,7 @@ impl PegasusConditionalGenerator {
             == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(
-                PegasusConfigResources::CNN_DAILYMAIL,
+                M2M100ConfigResources::M2M100_418M,
             ))
         } else {
             generate_config.config_resource.clone()
@@ -625,43 +630,54 @@ impl PegasusConditionalGenerator {
             == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
         {
             Resource::Remote(RemoteResource::from_pretrained(
-                PegasusVocabResources::CNN_DAILYMAIL,
+                M2M100VocabResources::M2M100_418M,
             ))
         } else {
             generate_config.vocab_resource.clone()
         };
 
+        let merges_resource = if generate_config.merges_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                M2M100MergesResources::M2M100_418M,
+            ))
+        } else {
+            generate_config.merges_resource.clone()
+        };
+
         let config_path = config_resource.get_local_path()?;
         let vocab_path = vocab_resource.get_local_path()?;
+        let merges_path = merges_resource.get_local_path()?;
         let weights_path = model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
-            ModelType::Pegasus,
+            ModelType::M2M100,
             vocab_path.to_str().unwrap(),
-            None,
+            Some(merges_path.to_str().unwrap()),
             false,
             None,
             None,
         )?;
-        let config = PegasusConfig::from_file(config_path);
-        let model = PegasusForConditionalGeneration::new(&var_store.root(), &config);
+        let config = M2M100Config::from_file(config_path);
+        let model = M2M100ForConditionalGeneration::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(0);
         let eos_token_ids = Some(match config.eos_token_id {
             Some(value) => vec![value],
-            None => vec![1],
+            None => vec![2],
         });
-        let pad_token_id = Some(config.pad_token_id.unwrap_or(0));
+        let pad_token_id = Some(config.pad_token_id.unwrap_or(1));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(0);
+        let decoder_start_id = Some(2);
         let max_position_embeddings = config.max_position_embeddings;
 
-        Ok(PegasusConditionalGenerator {
+        Ok(M2M100Generator {
             model,
             tokenizer,
             var_store,
@@ -685,10 +701,10 @@ impl PegasusConditionalGenerator {
     }
 }
 
-impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, PegasusTokenizer>
-    for PegasusConditionalGenerator
+impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M100Tokenizer>
+    for M2M100Generator
 {
-    fn get_model(&self) -> &PegasusForConditionalGeneration {
+    fn get_model(&self) -> &M2M100ForConditionalGeneration {
         &self.model
     }
     fn _get_tokenizer(&self) -> &TokenizerOption {
@@ -718,6 +734,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
     }
+
     fn get_max_positions_embeddings(&self) -> i64 {
         self.max_position_embeddings
     }
@@ -727,9 +744,11 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
         scores: &mut Tensor,
         current_length: i64,
         max_length: i64,
-        _forced_bos_token_id: Option<i64>,
+        forced_bos_token_id: Option<i64>,
     ) {
-        if current_length == max_length - 1 {
+        if current_length == 1 {
+            self.force_token_id_generation(scores, &[forced_bos_token_id.unwrap_or(250004)]);
+        } else if current_length == max_length - 1 {
             self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
         }
     }
@@ -762,7 +781,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
                 prepared_position_ids: None,
                 prepared_past: Cache::BARTCache(None),
             },
-            _ => panic!("Cache type incompatible with Pegasus"),
+            _ => panic!("Cache type incompatible with M2M100"),
         }
     }
 
@@ -792,7 +811,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
             Some(value) => value,
             None => self
                 ._get_tokenizer()
-                .convert_tokens_to_ids(&[PegasusVocab::pad_value()])[0],
+                .convert_tokens_to_ids(&[M2M100Vocab::unknown_value()])[0],
         };
 
         let token_ids = token_ids
@@ -837,19 +856,14 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
             },
             Cache::None => {}
             _ => {
-                panic!("Invalid cache for Pegasus model");
+                panic!("Invalid cache for M2M100 model");
             }
         };
         encoder_outputs
     }
 }
 
-impl LanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, PegasusTokenizer>
-    for PegasusConditionalGenerator
+impl LanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M100Tokenizer>
+    for M2M100Generator
 {
 }
-
-/// Container holding a Pegasus model output. The decoder output may hold the hidden state of
-/// the last layer of the decoder, or may hold logits for a custom head module after the
-/// decoder (e.g. for classification or language modeling tasks)
-pub type PegasusModelOutput = BartModelOutput;

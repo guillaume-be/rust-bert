@@ -70,7 +70,7 @@ pub use bart_model::{
 };
 
 pub(crate) use attention::BartAttention;
-pub(crate) use bart_model::{_expand_mask, _prepare_decoder_attention_mask};
+pub(crate) use bart_model::{_expand_mask, _make_causal_mask, _prepare_decoder_attention_mask};
 pub(crate) use decoder::BartDecoderOutput;
 pub(crate) use embeddings::LearnedPositionalEmbedding;
 pub(crate) use encoder::BartEncoderOutput;

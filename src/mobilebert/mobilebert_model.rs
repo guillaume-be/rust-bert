@@ -31,12 +31,12 @@ pub struct MobileBertConfigResources;
 pub struct MobileBertVocabResources;
 
 impl MobileBertModelResources {
-    /// Shared under Apache 2.0 license by the Google team at https://huggingface.co/google/mobilebert-uncased. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://huggingface.co/google/mobilebert-uncased>. Modified with conversion to C-array format.
     pub const MOBILEBERT_UNCASED: (&'static str, &'static str) = (
         "mobilebert-uncased/model",
         "https://huggingface.co/google/mobilebert-uncased/resolve/main/rust_model.ot",
     );
-    /// Shared under MIT license at https://huggingface.co/mrm8488/mobilebert-finetuned-pos. Modified with conversion to C-array format.
+    /// Shared under MIT license at <https://huggingface.co/mrm8488/mobilebert-finetuned-pos>. Modified with conversion to C-array format.
     pub const MOBILEBERT_ENGLISH_POS: (&'static str, &'static str) = (
         "mobilebert-finetuned-pos/model",
         "https://huggingface.co/mrm8488/mobilebert-finetuned-pos/resolve/main/rust_model.ot",
@@ -44,12 +44,12 @@ impl MobileBertModelResources {
 }
 
 impl MobileBertConfigResources {
-    /// Shared under Apache 2.0 license by the Google team at https://huggingface.co/google/mobilebert-uncased. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://huggingface.co/google/mobilebert-uncased>. Modified with conversion to C-array format.
     pub const MOBILEBERT_UNCASED: (&'static str, &'static str) = (
         "mobilebert-uncased/config",
         "https://huggingface.co/google/mobilebert-uncased/resolve/main/config.json",
     );
-    /// Shared under MIT license at https://huggingface.co/mrm8488/mobilebert-finetuned-pos. Modified with conversion to C-array format.
+    /// Shared under MIT license at <https://huggingface.co/mrm8488/mobilebert-finetuned-pos>. Modified with conversion to C-array format.
     pub const MOBILEBERT_ENGLISH_POS: (&'static str, &'static str) = (
         "mobilebert-finetuned-pos/config",
         "https://huggingface.co/mrm8488/mobilebert-finetuned-pos/resolve/main/config.json",
@@ -57,12 +57,12 @@ impl MobileBertConfigResources {
 }
 
 impl MobileBertVocabResources {
-    /// Shared under Apache 2.0 license by the Google team at https://huggingface.co/google/mobilebert-uncased. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://huggingface.co/google/mobilebert-uncased>. Modified with conversion to C-array format.
     pub const MOBILEBERT_UNCASED: (&'static str, &'static str) = (
         "mobilebert-uncased/vocab",
         "https://huggingface.co/google/mobilebert-uncased/resolve/main/vocab.txt",
     );
-    /// Shared under MIT license at https://huggingface.co/mrm8488/mobilebert-finetuned-pos. Modified with conversion to C-array format.
+    /// Shared under MIT license at <https://huggingface.co/mrm8488/mobilebert-finetuned-pos>. Modified with conversion to C-array format.
     pub const MOBILEBERT_ENGLISH_POS: (&'static str, &'static str) = (
         "mobilebert-finetuned-pos/vocab",
         "https://huggingface.co/mrm8488/mobilebert-finetuned-pos/resolve/main/vocab.txt",
@@ -194,7 +194,7 @@ pub struct MobileBertConfig {
     pub label2id: Option<HashMap<String, i64>>,
 }
 
-impl Config<MobileBertConfig> for MobileBertConfig {}
+impl Config for MobileBertConfig {}
 
 pub struct MobileBertPredictionHeadTransform {
     dense: nn::Linear,
@@ -319,7 +319,7 @@ impl MobileBertModel {
     ///
     /// * `p` - Variable store path for the root of the MobileBERT model
     /// * `config` - `MobileBertConfig` object defining the model architecture and decoder status
-    /// * `add_poling_layer` - boolean flag indicating if a pooling layer shuld be added after the encoder
+    /// * `add_poling_layer` - boolean flag indicating if a pooling layer should be added after the encoder
     ///
     /// # Example
     ///

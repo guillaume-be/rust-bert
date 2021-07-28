@@ -622,7 +622,7 @@ impl ConversationManager {
     ///
     /// # Returns
     ///
-    /// * `Option<Conversation>` deregistered conversation
+    /// * `Option<Conversation>` de-registered conversation
     ///
     /// # Example
     ///
@@ -643,7 +643,7 @@ impl ConversationManager {
     ///
     /// # Returns
     ///
-    /// * `HashMap<Uuid, Conversation>` deregistered conversations
+    /// * `HashMap<Uuid, Conversation>` de-registered conversations
     ///
     /// # Example
     ///
