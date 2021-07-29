@@ -477,7 +477,7 @@ impl TranslationConfig {
         S: AsRef<[Language]>,
         T: AsRef<[Language]>,
     {
-        let device = device.into().unwrap_or_else(|| Device::cuda_if_available());
+        let device = device.into().unwrap_or_else(Device::cuda_if_available);
 
         TranslationConfig {
             model_type,
@@ -532,6 +532,7 @@ impl From<TranslationConfig> for GenerateConfig {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 /// # Abstraction that holds one particular translation model, for any of the supported models
 pub enum TranslationOption {
     /// Translator based on Marian model

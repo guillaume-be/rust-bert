@@ -89,7 +89,7 @@ impl DistilBertEmbedding {
                 embedding_config,
             ),
 
-            true => create_sinusoidal_embeddings(&config, p.device()),
+            true => create_sinusoidal_embeddings(config, p.device()),
         };
         let layer_norm_config = nn::LayerNormConfig {
             eps: 1e-12,
@@ -117,7 +117,7 @@ impl DistilBertEmbedding {
 
 impl ModuleT for DistilBertEmbedding {
     fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
-        let seq_length = (&input).size().last().unwrap().to_owned();
+        let seq_length = input.size().last().unwrap().to_owned();
         let position_ids = Tensor::arange(seq_length, (Kind::Int64, input.device()));
         let position_ids = position_ids.unsqueeze(0).expand_as(input);
 

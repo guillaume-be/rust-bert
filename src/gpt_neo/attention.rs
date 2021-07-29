@@ -148,7 +148,7 @@ pub(crate) trait GptNeoAttentionUtils {
         let attention_mask =
             attention_mask.unwrap_or_else(|| calc_attention_mask.as_ref().unwrap());
         let attention_mask =
-            Self::look_back(&attention_mask, block_length, window_size, None, false)?.unsqueeze(-2);
+            Self::look_back(attention_mask, block_length, window_size, None, false)?.unsqueeze(-2);
         let causal_mask = causal_mask * attention_mask;
 
         let relative_position = key_indices.unsqueeze(-2) - query_indices.unsqueeze(-1);
@@ -522,7 +522,7 @@ impl GptNeoLocalSelfAttention {
             &query,
             &key,
             &value,
-            &attention_mask,
+            attention_mask,
             &self.masked_bias,
             &self.attention_dropout,
             None,

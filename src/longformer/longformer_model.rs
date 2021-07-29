@@ -390,7 +390,7 @@ impl LongformerModel {
         });
 
         let attention_mask =
-            attention_mask.map(|value| self.pad_with_boolean(&value, &[0, padding_length], false));
+            attention_mask.map(|value| self.pad_with_boolean(value, &[0, padding_length], false));
         let token_type_ids =
             token_type_ids.map(|value| value.constant_pad_nd(&[0, padding_length]));
         Ok(PaddedInput {

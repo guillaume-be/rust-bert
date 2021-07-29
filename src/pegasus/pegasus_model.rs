@@ -242,8 +242,8 @@ impl PegasusModel {
         let encoder_output = encoder_output.unwrap_or_else(|| calc_hidden_states.as_ref().unwrap());
 
         let decoder_output = self.decoder.forward_t(
-            &decoder_input_ids,
-            &encoder_output,
+            decoder_input_ids,
+            encoder_output,
             attention_mask,
             decoder_attention_mask,
             &self.embeddings,

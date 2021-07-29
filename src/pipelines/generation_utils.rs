@@ -441,11 +441,10 @@ pub(crate) mod private_generation_utils {
                     let query = &hypothesis_input_ids
                         [cur_len as usize + 1 - no_repeat_ngram_size as usize..]
                         .to_vec();
-                    let ngram_indices: Vec<(i64, i64)> = input
+                    for ngram in input
                         .windows(no_repeat_ngram_size as usize)
                         .map(|win| (*win.first().unwrap(), *win.last().unwrap()))
-                        .collect();
-                    for ngram in ngram_indices.into_iter() {
+                    {
                         let ngram = &hypothesis_input_ids[ngram.0 as usize..ngram.1 as usize + 1];
                         let key = ngram[..no_repeat_ngram_size as usize - 1].to_vec();
                         let value = *ngram.last().unwrap();
@@ -1185,7 +1184,7 @@ pub(crate) mod private_generation_utils {
                         i64::from(sentence_lengths.get(hypothesis_index as i64)),
                         (Int64, input_ids.device()),
                     ),
-                    &best_id,
+                    best_id,
                 );
                 let sentence_length = i64::from(sentence_lengths.get(hypothesis_index as i64));
                 if sentence_length < gen_opt.max_length {

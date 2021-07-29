@@ -57,6 +57,12 @@ macro_rules! get_marian_resources {
     };
 }
 
+impl Default for TranslationModelBuilder {
+    fn default() -> Self {
+        TranslationModelBuilder::new()
+    }
+}
+
 impl TranslationModelBuilder {
     pub fn new() -> TranslationModelBuilder {
         TranslationModelBuilder {
@@ -237,9 +243,9 @@ impl TranslationModelBuilder {
                     }
                 }
             } else {
-                return Err(RustBertError::InvalidConfigurationError(format!(
-                    "Source and target languages must be provided for Marian models"
-                )));
+                return Err(RustBertError::InvalidConfigurationError(
+                    "Source and target languages must be provided for Marian models".to_string(),
+                ));
             };
 
         Ok(TranslationResources {
@@ -298,14 +304,8 @@ impl TranslationModelBuilder {
             merges_resource: Resource::Remote(RemoteResource::from_pretrained(
                 MBartVocabResources::MBART50_MANY_TO_MANY,
             )),
-            source_languages: MBartSourceLanguages::MBART50_MANY_TO_MANY
-                .iter()
-                .cloned()
-                .collect(),
-            target_languages: MBartTargetLanguages::MBART50_MANY_TO_MANY
-                .iter()
-                .cloned()
-                .collect(),
+            source_languages: MBartSourceLanguages::MBART50_MANY_TO_MANY.to_vec(),
+            target_languages: MBartTargetLanguages::MBART50_MANY_TO_MANY.to_vec(),
         })
     }
 
@@ -354,8 +354,8 @@ impl TranslationModelBuilder {
             merges_resource: Resource::Remote(RemoteResource::from_pretrained(
                 M2M100MergesResources::M2M100_418M,
             )),
-            source_languages: M2M100SourceLanguages::M2M100_418M.iter().cloned().collect(),
-            target_languages: M2M100TargetLanguages::M2M100_418M.iter().cloned().collect(),
+            source_languages: M2M100SourceLanguages::M2M100_418M.to_vec(),
+            target_languages: M2M100TargetLanguages::M2M100_418M.to_vec(),
         })
     }
 
@@ -404,13 +404,13 @@ impl TranslationModelBuilder {
             merges_resource: Resource::Remote(RemoteResource::from_pretrained(
                 M2M100MergesResources::M2M100_1_2B,
             )),
-            source_languages: M2M100SourceLanguages::M2M100_1_2B.iter().cloned().collect(),
-            target_languages: M2M100TargetLanguages::M2M100_1_2B.iter().cloned().collect(),
+            source_languages: M2M100SourceLanguages::M2M100_1_2B.to_vec(),
+            target_languages: M2M100TargetLanguages::M2M100_1_2B.to_vec(),
         })
     }
 
     pub fn create_model(&self) -> Result<TranslationModel, RustBertError> {
-        let device = self.device.unwrap_or_else(|| Device::cuda_if_available());
+        let device = self.device.unwrap_or_else(Device::cuda_if_available);
 
         let translation_resources = match (
             &self.model_type,

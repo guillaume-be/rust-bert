@@ -644,7 +644,7 @@ impl QuestionAnsweringModel {
             .enumerate()
             .map(|(example_index, qa_example)| {
                 self.generate_features(
-                    &qa_example,
+                    qa_example,
                     self.max_seq_len,
                     self.doc_stride,
                     self.max_query_length,
