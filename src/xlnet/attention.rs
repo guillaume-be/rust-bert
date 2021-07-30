@@ -172,9 +172,9 @@ impl XLNetRelativeAttention {
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
-        let ac = Tensor::einsum("ibnd,jbnd->bnij", &[&(q_head + &self.r_w_bias), &k_head_h]);
+        let ac = Tensor::einsum("ibnd,jbnd->bnij", &[&(q_head + &self.r_w_bias), k_head_h]);
         let bd = self.rel_shift_bnij(
-            &Tensor::einsum("ibnd,jbnd->bnij", &[&(q_head + &self.r_r_bias), &k_head_r]),
+            &Tensor::einsum("ibnd,jbnd->bnij", &[&(q_head + &self.r_r_bias), k_head_r]),
             ac.size()[3],
         );
 

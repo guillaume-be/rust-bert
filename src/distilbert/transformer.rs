@@ -74,14 +74,14 @@ impl TransformerBlock {
     {
         let p = p.borrow();
 
-        let attention = MultiHeadSelfAttention::new(p / "attention", &config);
+        let attention = MultiHeadSelfAttention::new(p / "attention", config);
         let layer_norm_config = nn::LayerNormConfig {
             eps: 1e-12,
             ..Default::default()
         };
         let sa_layer_norm =
             nn::layer_norm(p / "sa_layer_norm", vec![config.dim], layer_norm_config);
-        let ffn = FeedForwardNetwork::new(p / "ffn", &config);
+        let ffn = FeedForwardNetwork::new(p / "ffn", config);
         let output_layer_norm =
             nn::layer_norm(p / "output_layer_norm", vec![config.dim], layer_norm_config);
 
@@ -99,9 +99,7 @@ impl TransformerBlock {
         mask: &Option<Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
-        let (output, sa_weights) = self
-            .attention
-            .forward_t(&input, &input, &input, mask, train);
+        let (output, sa_weights) = self.attention.forward_t(input, input, input, mask, train);
         let output = (input + &output).apply(&self.sa_layer_norm);
         let output = (&output + self.ffn.forward_t(&output, train)).apply(&self.output_layer_norm);
         (output, sa_weights)

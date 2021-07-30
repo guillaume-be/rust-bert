@@ -60,13 +60,13 @@ impl BertLayer {
     {
         let p = p.borrow();
 
-        let attention = BertAttention::new(p / "attention", &config);
+        let attention = BertAttention::new(p / "attention", config);
         let (is_decoder, cross_attention) = match config.is_decoder {
             Some(value) => {
                 if value {
                     (
                         value,
-                        Some(BertAttention::new(p / "cross_attention", &config)),
+                        Some(BertAttention::new(p / "cross_attention", config)),
                     )
                 } else {
                     (value, None)
@@ -75,8 +75,8 @@ impl BertLayer {
             None => (false, None),
         };
 
-        let intermediate = BertIntermediate::new(p / "intermediate", &config);
-        let output = BertOutput::new(p / "output", &config);
+        let intermediate = BertIntermediate::new(p / "intermediate", config);
+        let output = BertOutput::new(p / "output", config);
 
         BertLayer {
             attention,
@@ -279,7 +279,7 @@ impl BertEncoder {
 
             let layer_output = layer.forward_t(
                 &hidden_state,
-                &mask,
+                mask,
                 encoder_hidden_states,
                 encoder_mask,
                 train,

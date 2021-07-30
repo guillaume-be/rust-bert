@@ -669,7 +669,7 @@ impl LSHSelfAttention {
                         num_hashes,
                         hidden_states,
                         &layer_state.prev_states,
-                        &prev_buckets,
+                        prev_buckets,
                     );
                 let query_key_vectors = self.query_per_attention_head(&key_value_hidden_states);
                 let value_vectors = self.value_per_attention_head(&key_value_hidden_states);
@@ -1311,7 +1311,7 @@ impl ReformerAttention {
                     Some(Tensor::cat(
                         &[
                             buckets_value,
-                            &layer_state.as_ref().unwrap().prev_buckets.as_ref().unwrap(),
+                            layer_state.as_ref().unwrap().prev_buckets.as_ref().unwrap(),
                         ],
                         -1,
                     ))

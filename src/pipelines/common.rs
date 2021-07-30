@@ -50,7 +50,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
-#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
 /// # Identifies the type of model
 pub enum ModelType {
     Bart,

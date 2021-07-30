@@ -423,13 +423,13 @@ impl LongformerSelfAttention {
         let _ = attention_probas_from_global_key
             .index_select(
                 0,
-                &is_local_index_no_global_attention_nonzero[0]
+                is_local_index_no_global_attention_nonzero[0]
                     .as_ref()
                     .unwrap(),
             )
             .index_select(
                 3,
-                &is_local_index_no_global_attention_nonzero[1]
+                is_local_index_no_global_attention_nonzero[1]
                     .as_ref()
                     .unwrap(),
             )
@@ -481,7 +481,7 @@ impl LongformerSelfAttention {
 
         let attn_output_without_global = self.sliding_chunks_matmul_attention_probas_value(
             &attention_probas_without_global,
-            &value_vectors,
+            value_vectors,
             self.one_sided_attention_window_size,
         );
         attention_output_only_global + attn_output_without_global
@@ -556,13 +556,13 @@ impl LongformerSelfAttention {
         let _ = global_attention_scores
             .index_select(
                 0,
-                &is_local_index_no_global_attention_nonzero[0]
+                is_local_index_no_global_attention_nonzero[0]
                     .as_ref()
                     .unwrap(),
             )
             .index_select(
                 2,
-                &is_local_index_no_global_attention_nonzero[1]
+                is_local_index_no_global_attention_nonzero[1]
                     .as_ref()
                     .unwrap(),
             )

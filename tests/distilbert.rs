@@ -89,7 +89,7 @@ fn distilbert_masked_lm() -> anyhow::Result<()> {
     tokenized_input[1][6] = 103;
     let tokenized_input = tokenized_input
         .iter()
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::of_slice(input))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 

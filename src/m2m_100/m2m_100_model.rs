@@ -24,6 +24,7 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
+use crate::pipelines::translation::Language;
 use crate::resources::{RemoteResource, Resource};
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{M2M100Tokenizer, TruncationStrategy};
@@ -43,6 +44,12 @@ pub struct M2M100VocabResources;
 
 /// # M2M100 Pretrained model merges files
 pub struct M2M100MergesResources;
+
+/// # M2M100 source languages pre-sets
+pub struct M2M100SourceLanguages;
+
+/// # M2M100 target languages pre-sets
+pub type M2M100TargetLanguages = M2M100SourceLanguages;
 
 impl M2M100ModelResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
@@ -94,6 +101,12 @@ impl M2M100MergesResources {
         "m2m100-1_2b/merges",
         "https://huggingface.co/facebook/m2m100_1.2B/resolve/main/sentencepiece.bpe.model",
     );
+}
+
+#[rustfmt::skip]
+impl M2M100SourceLanguages {
+    pub const M2M100_418M: [Language; 100] = [Language::Afrikaans, Language::Danish, Language::Dutch, Language::German, Language::English, Language::Icelandic, Language::Luxembourgish, Language::Norwegian, Language::Swedish, Language::WesternFrisian, Language::Yiddish, Language::Asturian, Language::Catalan, Language::French, Language::Galician, Language::Italian, Language::Occitan, Language::Portuguese, Language::Romanian, Language::Spanish, Language::Belarusian, Language::Bosnian, Language::Bulgarian, Language::Croatian, Language::Czech, Language::Macedonian, Language::Polish, Language::Russian, Language::Serbian, Language::Slovak, Language::Slovenian, Language::Ukrainian, Language::Estonian, Language::Finnish, Language::Hungarian, Language::Latvian, Language::Lithuanian, Language::Albanian, Language::Armenian, Language::Georgian, Language::Greek, Language::Breton, Language::Irish, Language::ScottishGaelic, Language::Welsh, Language::Azerbaijani, Language::Bashkir, Language::Kazakh, Language::Turkish, Language::Uzbek, Language::Japanese, Language::Korean, Language::Vietnamese, Language::ChineseMandarin, Language::Bengali, Language::Gujarati, Language::Hindi, Language::Kannada, Language::Marathi, Language::Nepali, Language::Oriya, Language::Panjabi, Language::Sindhi, Language::Sinhala, Language::Urdu, Language::Tamil, Language::Cebuano, Language::Iloko, Language::Indonesian, Language::Javanese, Language::Malagasy, Language::Malay, Language::Malayalam, Language::Sundanese, Language::Tagalog, Language::Burmese, Language::CentralKhmer, Language::Lao, Language::Thai, Language::Mongolian, Language::Arabic, Language::Hebrew, Language::Pashto, Language::Farsi, Language::Amharic, Language::Fulah, Language::Hausa, Language::Igbo, Language::Lingala, Language::Luganda, Language::NorthernSotho, Language::Somali, Language::Swahili, Language::Swati, Language::Tswana, Language::Wolof, Language::Xhosa, Language::Yoruba, Language::Zulu, Language::HaitianCreole];
+    pub const M2M100_1_2B: [Language; 100] = M2M100SourceLanguages::M2M100_418M;
 }
 
 pub type M2M100Config = MBartConfig;
@@ -287,8 +300,8 @@ impl M2M100Model {
         let encoder_output = encoder_output.unwrap_or_else(|| calc_hidden_states.as_ref().unwrap());
 
         let decoder_output = self.decoder.forward_t(
-            &decoder_input_ids,
-            &encoder_output,
+            decoder_input_ids,
+            encoder_output,
             attention_mask,
             decoder_attention_mask,
             &self.embeddings,

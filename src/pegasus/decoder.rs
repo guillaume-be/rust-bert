@@ -152,7 +152,7 @@ impl PegasusDecoder {
             };
             let temp = layer.forward_t(
                 &hidden_state,
-                &encoder_hidden_states,
+                encoder_hidden_states,
                 encoder_attention_mask.as_ref(),
                 decoder_attention_mask.as_ref(),
                 layer_state,

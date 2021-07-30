@@ -913,7 +913,7 @@ impl ConversationModel {
             .map(|input| {
                 if input.len() > self.max_allowed_context_length as usize {
                     let start = self.get_truncated_input_index(
-                        &input,
+                        input,
                         self.max_allowed_context_length as usize,
                         pad_token,
                     );

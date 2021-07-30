@@ -492,7 +492,7 @@ impl MobileBertEncoder {
                 if let Some(hidden_states) = all_hidden_states.borrow_mut() {
                     hidden_states.push(hidden_state.copy());
                 }
-                layer.forward_t(&hidden_state, attention_mask, train)
+                layer.forward_t(hidden_state, attention_mask, train)
             };
             x = Some(temp.0);
             attention_weights = temp.1;

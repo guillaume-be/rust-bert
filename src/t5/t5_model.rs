@@ -27,6 +27,7 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
+use crate::pipelines::translation::Language;
 use crate::t5::attention::LayerState;
 use crate::t5::encoder::T5Stack;
 
@@ -41,6 +42,12 @@ pub struct T5VocabResources;
 
 /// # T5 optional prefixes
 pub struct T5Prefix;
+
+/// # T5 source languages pre-sets
+pub struct T5SourceLanguages;
+
+/// # T5 target languages pre-sets
+pub type T5TargetLanguages = T5SourceLanguages;
 
 impl T5ModelResources {
     /// Shared under Apache 2.0 license by the T5 Authors at <https://github.com/google-research/text-to-text-transfer-transformer>. Modified with conversion to C-array format.
@@ -79,6 +86,13 @@ impl T5VocabResources {
         "t5-base/spiece",
         "https://huggingface.co/t5-base/resolve/main/spiece.model",
     );
+}
+
+const T5LANGUAGES: [Language; 3] = [Language::English, Language::French, Language::German];
+
+impl T5SourceLanguages {
+    pub const T5_SMALL: [Language; 3] = T5LANGUAGES;
+    pub const T5_BASE: [Language; 3] = T5LANGUAGES;
 }
 
 impl T5Prefix {

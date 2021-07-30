@@ -315,7 +315,7 @@ impl T5Stack {
         };
         let attention_mask = match attention_mask {
             Some(value) => value,
-            None => &calculated_attention_mask.as_ref().unwrap(),
+            None => calculated_attention_mask.as_ref().unwrap(),
         };
         let extended_attention_mask = match attention_mask.dim() {
             3 => attention_mask.unsqueeze(1),
