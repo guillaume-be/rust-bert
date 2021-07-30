@@ -128,7 +128,7 @@ impl Attention {
         attention_mask: &Option<Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
-        let mut w = query.matmul(&key);
+        let mut w = query.matmul(key);
         if self.scale {
             w = w / (*value.size().last().unwrap() as f64).sqrt();
         }
@@ -141,7 +141,7 @@ impl Attention {
             w = w + mask;
         }
         w = w.softmax(-1, Float).apply_t(&self.attn_dropout, train);
-        let output = w.matmul(&value);
+        let output = w.matmul(value);
 
         if self.output_attentions {
             (output, Some(w))
@@ -173,7 +173,7 @@ impl Attention {
             None => (key, value),
         };
         let present = Tensor::stack(&[key.transpose(-2, -1), value.copy()], 0);
-        let (a, attentions) = self.attention(&query, &key, &value, &attention_mask, train);
+        let (a, attentions) = self.attention(&query, &key, &value, attention_mask, train);
 
         let a = self
             .flatten(a)

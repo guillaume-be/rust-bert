@@ -4,38 +4,58 @@ extern crate criterion;
 use criterion::{black_box, Criterion};
 // use rust_bert::pipelines::common::ModelType;
 // use rust_bert::pipelines::translation::TranslationOption::{Marian, T5};
-use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::translation::{Language, TranslationModel, TranslationModelBuilder};
 // use rust_bert::resources::{LocalResource, Resource};
 use std::time::{Duration, Instant};
 use tch::Device;
 
 fn create_translation_model() -> TranslationModel {
-    let config = TranslationConfig::new(Language::EnglishToFrenchV2, Device::cuda_if_available());
-    // let config = TranslationConfig::new_from_resources(
-    //     Resource::Local(LocalResource {
-    //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/model.ot".into(),
-    //     }),
-    //     Resource::Local(LocalResource {
-    //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/config.json".into(),
-    //     }),
-    //     Resource::Local(LocalResource {
-    //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/vocab.json".into(),
-    //     }),
-    //     Resource::Local(LocalResource {
-    //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/spiece.model".into(),
-    //     }),
-    //     None,
-    //     Device::cuda_if_available(),
+    let model = TranslationModelBuilder::new()
+        .with_device(Device::cuda_if_available())
+        .with_model_type(ModelType::Marian)
+        // .with_model_type(ModelType::T5)
+        .with_source_languages(vec![Language::English])
+        .with_target_languages(vec![Language::French])
+        .create_model()
+        .unwrap();
+
+    // let model_resource = Resource::Local(LocalResource {
+    //     local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/model.ot".into(),
+    // });
+    // let config_resource = Resource::Local(LocalResource {
+    //     local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/config.json".into(),
+    // });
+    // let vocab_resource = Resource::Local(LocalResource {
+    //     local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/vocab.json".into(),
+    // });
+    // let merges_resource = Resource::Local(LocalResource {
+    //     local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/spiece.model".into(),
+    // });
+    //
+    // let source_languages = [Language::English];
+    // let target_languages = [Language::Spanish];
+    //
+    // let translation_config = TranslationConfig::new(
     //     ModelType::Marian,
+    //     model_resource,
+    //     config_resource,
+    //     vocab_resource,
+    //     merges_resource,
+    //     source_languages,
+    //     target_languages,
+    //     Device::cuda_if_available(),
     // );
-    TranslationModel::new(config).unwrap()
+    // let model = TranslationModel::new(translation_config).unwrap();
+
+    model
 }
 
 fn translation_forward_pass(iters: u64, model: &TranslationModel, data: &[&str]) -> Duration {
     let mut duration = Duration::new(0, 0);
     for _i in 0..iters {
         let start = Instant::now();
-        let _ = model.translate(data);
+        let _ = model.translate(data, None, Language::French).unwrap();
         duration = duration.checked_add(start.elapsed()).unwrap();
     }
     duration
@@ -45,33 +65,14 @@ fn translation_load_model(iters: u64) -> Duration {
     let mut duration = Duration::new(0, 0);
     for _i in 0..iters {
         let start = Instant::now();
-        let config =
-            TranslationConfig::new(Language::EnglishToFrenchV2, Device::cuda_if_available());
-        // let config = TranslationConfig::new_from_resources(
-        //     Resource::Local(LocalResource {
-        //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/model.ot".into(),
-        //     }),
-        //     Resource::Local(LocalResource {
-        //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/config.json".into(),
-        //     }),
-        //     Resource::Local(LocalResource {
-        //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/vocab.json".into(),
-        //     }),
-        //     Resource::Local(LocalResource {
-        //         local_path: "E:/Coding/cache/rustbert/marian-mt-en-es/spiece.model".into(),
-        //     }),
-        //     None,
-        //     Device::cuda_if_available(),
-        //     ModelType::Marian,
-        // );
-        TranslationModel::new(config).unwrap();
+        let _ = create_translation_model();
         duration = duration.checked_add(start.elapsed()).unwrap();
     }
     duration
 }
 
 fn bench_squad(c: &mut Criterion) {
-    //    Set-up summarization model
+    //    Set-up translation model
     unsafe {
         torch_sys::dummy_cuda_dependency();
     }

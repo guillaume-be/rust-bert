@@ -12,46 +12,56 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::{RemoteResource, Resource};
-use rust_bert::t5::{T5ConfigResources, T5Generator, T5ModelResources, T5VocabResources};
+use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
+use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    //    Resources paths
+    let model_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_BASE));
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_BASE));
     let vocab_resource =
         Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_BASE));
-    let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_BASE));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_BASE));
 
-    let generate_config = GenerateConfig {
-        model_resource: weights_resource,
-        vocab_resource,
+    let source_languages = [
+        Language::English,
+        Language::French,
+        Language::German,
+        Language::Romanian,
+    ];
+    let target_languages = [
+        Language::English,
+        Language::French,
+        Language::German,
+        Language::Romanian,
+    ];
+
+    let translation_config = TranslationConfig::new(
+        ModelType::T5,
+        model_resource,
         config_resource,
-        max_length: 40,
-        do_sample: false,
-        num_beams: 4,
-        ..Default::default()
-    };
-
-    //    Set-up model
-    let t5_model = T5Generator::new(generate_config)?;
-
-    //    Define input
-    let input = ["translate English to German: This sentence will get translated to German"];
-
-    let output = t5_model.generate(
-        Some(input.to_vec()),
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        false,
+        vocab_resource,
+        merges_resource,
+        source_languages,
+        target_languages,
+        Device::cuda_if_available(),
     );
-    println!("{:?}", output);
+    let model = TranslationModel::new(translation_config)?;
 
+    let source_sentence = "This sentence will be translated in multiple languages.";
+
+    let mut outputs = Vec::new();
+    outputs.extend(model.translate([source_sentence], Language::English, Language::French)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::German)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::Romanian)?);
+
+    for sentence in outputs {
+        println!("{}", sentence);
+    }
     Ok(())
 }

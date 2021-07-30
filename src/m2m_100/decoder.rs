@@ -121,9 +121,9 @@ impl M2M100Decoder {
 
         let decoder_attention_mask = decoder_attention_mask.map(|attention_mask| {
             if let Some(causal_mask) = causal_mask {
-                causal_mask + _expand_mask(&attention_mask, Some(sequence_length))
+                causal_mask + _expand_mask(attention_mask, Some(sequence_length))
             } else {
-                _expand_mask(&attention_mask, Some(sequence_length))
+                _expand_mask(attention_mask, Some(sequence_length))
             }
         });
 
@@ -162,7 +162,7 @@ impl M2M100Decoder {
             };
             let temp = layer.forward_t(
                 &hidden_state,
-                &encoder_hidden_states,
+                encoder_hidden_states,
                 encoder_attention_mask.as_ref(),
                 decoder_attention_mask.as_ref(),
                 layer_state,

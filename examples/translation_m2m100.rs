@@ -13,52 +13,52 @@
 extern crate anyhow;
 
 use rust_bert::m2m_100::{
-    M2M100ConfigResources, M2M100Generator, M2M100MergesResources, M2M100ModelResources,
-    M2M100VocabResources,
+    M2M100ConfigResources, M2M100MergesResources, M2M100ModelResources, M2M100SourceLanguages,
+    M2M100TargetLanguages, M2M100VocabResources,
 };
-use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::{RemoteResource, Resource};
+use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    let generate_config = GenerateConfig {
-        max_length: 142,
-        min_length: 0,
-        model_resource: Resource::Remote(RemoteResource::from_pretrained(
-            M2M100ModelResources::M2M100_418M,
-        )),
-        config_resource: Resource::Remote(RemoteResource::from_pretrained(
-            M2M100ConfigResources::M2M100_418M,
-        )),
-        vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-            M2M100VocabResources::M2M100_418M,
-        )),
-        merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-            M2M100MergesResources::M2M100_418M,
-        )),
-        do_sample: false,
-        early_stopping: true,
-        num_beams: 3,
-        ..Default::default()
-    };
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        M2M100ModelResources::M2M100_418M,
+    ));
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        M2M100ConfigResources::M2M100_418M,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        M2M100VocabResources::M2M100_418M,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        M2M100MergesResources::M2M100_418M,
+    ));
 
-    let model = M2M100Generator::new(generate_config)?;
+    let source_languages = M2M100SourceLanguages::M2M100_418M;
+    let target_languages = M2M100TargetLanguages::M2M100_418M;
 
-    let input_context_1 = ">>en.<< The dog did not wake up.";
-    let target_language = model.get_tokenizer().convert_tokens_to_ids([">>es.<<"])[0];
-
-    let output = model.generate(
-        Some(&[input_context_1]),
-        None,
-        None,
-        None,
-        None,
-        target_language,
-        None,
-        false,
+    let translation_config = TranslationConfig::new(
+        ModelType::M2M100,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        source_languages,
+        target_languages,
+        Device::cuda_if_available(),
     );
+    let model = TranslationModel::new(translation_config)?;
 
-    for sentence in output {
-        println!("{:?}", sentence);
+    let source_sentence = "This sentence will be translated in multiple languages.";
+
+    let mut outputs = Vec::new();
+    outputs.extend(model.translate([source_sentence], Language::English, Language::French)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::Spanish)?);
+    outputs.extend(model.translate([source_sentence], Language::English, Language::Hindi)?);
+
+    for sentence in outputs {
+        println!("{}", sentence);
     }
     Ok(())
 }

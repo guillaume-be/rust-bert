@@ -31,7 +31,7 @@ impl AlbertLayer {
     {
         let p = p.borrow();
 
-        let attention = AlbertSelfAttention::new(p / "attention", &config);
+        let attention = AlbertSelfAttention::new(p / "attention", config);
 
         let layer_norm_eps = config.layer_norm_eps.unwrap_or(1e-12);
         let layer_norm_config = nn::LayerNormConfig {
@@ -138,7 +138,7 @@ impl AlbertLayerGroup {
                 hidden_states.push(hidden_state.as_ref().copy());
             };
 
-            let temp = layer.forward_t(&hidden_state, &mask, train);
+            let temp = layer.forward_t(&hidden_state, mask, train);
             hidden_state = temp.0;
             attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {

@@ -464,7 +464,7 @@ impl BertLMPredictionHead {
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        self.transform.forward(&hidden_states).apply(&self.decoder) + &self.bias
+        self.transform.forward(hidden_states).apply(&self.decoder) + &self.bias
     }
 }
 

@@ -23,6 +23,7 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
+use crate::pipelines::translation::Language;
 use crate::resources::{RemoteResource, Resource};
 use crate::{Activation, Config, RustBertError};
 use rust_tokenizers::tokenizer::{MBart50Tokenizer, TruncationStrategy};
@@ -42,6 +43,12 @@ pub struct MBartConfigResources;
 
 /// # MBART Pretrained model vocab files
 pub struct MBartVocabResources;
+
+/// # MBART source languages pre-sets
+pub struct MBartSourceLanguages;
+
+/// # MBART target languages pre-sets
+pub type MBartTargetLanguages = MBartSourceLanguages;
 
 impl MBartModelResources {
     /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
@@ -65,6 +72,11 @@ impl MBartVocabResources {
         "mbart-50-many-to-many-mmt/vocab",
         "https://huggingface.co/facebook/mbart-large-50-many-to-many-mmt/resolve/main/sentencepiece.bpe.model",
     );
+}
+
+#[rustfmt::skip]
+impl MBartSourceLanguages {
+    pub const MBART50_MANY_TO_MANY: [Language; 51] = [Language::Arabic, Language::Czech, Language::German, Language::English, Language::Spanish, Language::Estonian, Language::Finnish, Language::French, Language::Gujarati, Language::Hindi, Language::Italian, Language::Japanese, Language::Kazakh, Language::Korean, Language::Lithuanian, Language::Latvian, Language::Burmese, Language::Nepali, Language::Dutch, Language::Romanian, Language::Russian, Language::Sinhala, Language::Turkish, Language::Vietnamese, Language::ChineseMandarin, Language::Afrikaans, Language::Azerbaijani, Language::Bengali, Language::Farsi, Language::Hebrew, Language::Croatian, Language::Indonesian, Language::Georgian, Language::CentralKhmer, Language::Macedonian, Language::Malayalam, Language::Mongolian, Language::Marathi, Language::Polish, Language::Pashto, Language::Portuguese, Language::Swedish, Language::Swahili, Language::Tamil, Language::Thai, Language::Tagalog, Language::Ukrainian, Language::Urdu, Language::Xhosa, Language::Galician, Language::Slovenian];
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -342,8 +354,8 @@ impl MBartModel {
         let encoder_output = encoder_output.unwrap_or_else(|| calc_hidden_states.as_ref().unwrap());
 
         let decoder_output = self.decoder.forward_t(
-            &decoder_input_ids,
-            &encoder_output,
+            decoder_input_ids,
+            encoder_output,
             attention_mask,
             decoder_attention_mask,
             &self.embeddings,
