@@ -123,32 +123,45 @@ Output:
 <details>
 <summary> <b>2. Translation </b> </summary>
 
-Translation using the MarianMT architecture and pre-trained models from the Opus-MT team from Language Technology at the University of Helsinki.
-Currently supported languages are :
- - English <-> French
- - English <-> Spanish
- - English <-> Portuguese
- - English <-> Italian
- - English <-> Catalan
- - English <-> German
- - English <-> Russian
- - English <-> Chinese (Simplified)
- - English <-> Chinese (Traditional)
- - English <-> Dutch
- - English <-> Swedish
- - English <-> Arabic
- - English <-> Hebrew
- - English <-> Hindi
- - French <-> German
+Translation pipeline supporting a broad range of source and target languages. Leverages two main architectures for translation tasks:
+- Marian-based models, for specific source/target combinations
+- M2M100 models allowing for direct translation between 100 languages (at a higher computational cost and lower performance for some selected languages)
 
-```rust
-    let translation_config = TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
-    let mut model = TranslationModel::new(translation_config)?;
-                                                        
-    let input = ["This is a sentence to be translated"];
-    let output = model.translate(&input);
-```
+Marian-based pretrained models for the following language pairs are readily available in the library - but the user can import any Pytorch-based
+model for predictions
+- English <-> French
+- English <-> Spanish
+- English <-> Portuguese
+- English <-> Italian
+- English <-> Catalan
+- English <-> German
+- English <-> Russian
+- English <-> Chinese
+- English <-> Dutch
+- English <-> Swedish
+- English <-> Arabic
+- English <-> Hebrew
+- English <-> Hindi
+- French <-> German
 
+For languages not supported by the proposed pretrained Marian models, the user can leverage a M2M100 model supporting direct translation between 100 languages (without intermediate English translation)
+The full list of supported languages is available in the [crate documentation](docs.rs/rust-bert/0.15.1/rust_bert/pipelines/translation/enum.Language.html)
+
+ ```rust
+ use rust_bert::pipelines::translation::{Language, TranslationModelBuilder};
+ fn main() -> anyhow::Result<()> {
+ let model = TranslationModelBuilder::new()
+         .with_source_languages(vec![Language::English])
+         .with_target_languages(vec![Language::Spanish, Language::French, Language::Italian])
+         .create_model()?;
+     let input_text = "This is a sentence to be translated";
+     let output = model.translate(&[input_text], None, Language::Spanish)?;
+     for sentence in output {
+         println!("{}", sentence);
+     }
+     Ok(())
+ }
+ ```
 Output:
 ```
 Il s'agit d'une phrase à traduire
