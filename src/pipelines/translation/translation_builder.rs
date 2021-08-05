@@ -34,6 +34,50 @@ enum ModelSize {
     XLarge,
 }
 
+/// # Translation Model Builder
+/// Allows the user to provide a variable set of inputs and identifies the best translation model that fulfills the constraints provided
+/// by the user. Options that can provided by the user include:
+/// - Target device (CPU/CUDA)
+/// - Model size (medium, large or extra large)
+/// - source languages to support (as an array of [`Language`])
+/// - target languages to support (as an array of [`Language`])
+/// - model type ([`ModelType`], supported models include `Marian`, `T5`, `MBart50` or `M2M100`)
+///
+/// The logic for selecting the most appropriate model is as follows:
+/// - If not specified, the model will be executed on a CUDA device if available, otherwise on the CPU
+/// - If the model type is specified (e.g. `Marian`), a model with this architecture will be created. The compatibility of the model
+/// with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
+/// - If the model size is specified, a model of the corresponding size class (computational budget) will be created. The compatibility of the model
+/// with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
+/// - If no source or target languages are provided, a multilingual M2M100 model will be returned
+/// - If no model type is provided, an average sized-model (Marian) will be returned if a pretrained model exists that covers the requested source/target languages provided.
+/// Otherwise a M2M100 multi-lingual model will be returned.
+///
+/// The options for the builder are provided with dedicated "builder function", the call to `create_model()` creates a model
+/// from the builder.
+///
+/// # Example
+///
+/// ```no_run
+/// use rust_bert::pipelines::translation::{Language, TranslationModelBuilder};
+/// fn main() -> anyhow::Result<()> {
+///     let model = TranslationModelBuilder::new()
+///         .with_source_languages(vec![Language::English])
+///         .with_target_languages(vec![Language::Spanish, Language::French, Language::Italian])
+///         .create_model()?;
+///
+///     let input_context_1 = "This is a sentence to be translated";
+///     let input_context_2 = "The dog did not wake up.";
+///
+///     let output =
+///         model.translate(&[input_context_1, input_context_2], None, Language::Spanish)?;
+///
+///     for sentence in output {
+///         println!("{}", sentence);
+///     }
+///     Ok(())
+/// }
+/// ```
 pub struct TranslationModelBuilder {
     model_type: Option<ModelType>,
     source_languages: Option<Vec<Language>>,
@@ -64,6 +108,20 @@ impl Default for TranslationModelBuilder {
 }
 
 impl TranslationModelBuilder {
+    /// Build a new `TranslationModelBuilder`
+    ///
+    /// # Returns
+    /// * `TranslationModelBuilder` Translation model builder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new().create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn new() -> TranslationModelBuilder {
         TranslationModelBuilder {
             model_type: None,
@@ -74,16 +132,72 @@ impl TranslationModelBuilder {
         }
     }
 
+    /// Specify the device for the translation model
+    ///
+    /// # Arguments
+    /// * `device` - [`tch::Device`] target device for the model.
+    ///
+    /// # Returns
+    /// * `TranslationModelBuilder` Translation model builder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// use tch::Device;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new()
+    ///         .with_device(Device::Cuda(0))
+    ///         .create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn with_device(&mut self, device: Device) -> &mut Self {
         self.device = Some(device);
         self
     }
 
+    /// Specify the model type for the translation model
+    ///
+    /// # Arguments
+    /// * `model_type` - [`ModelType`] type of translation model to load.
+    ///
+    /// # Returns
+    /// * `TranslationModelBuilder` Translation model builder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::common::ModelType;
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new()
+    ///         .with_model_type(ModelType::M2M100)
+    ///         .create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn with_model_type(&mut self, model_type: ModelType) -> &mut Self {
         self.model_type = Some(model_type);
         self
     }
 
+    /// Use a medium-sized translation model (Marian-based)
+    ///
+    /// # Returns
+    /// * `TranslationModelBuilder` Translation model builder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new()
+    ///         .with_medium_model()
+    ///         .create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn with_medium_model(&mut self) -> &mut Self {
         if let Some(model_type) = self.model_type {
             if model_type != ModelType::Marian {
@@ -99,6 +213,22 @@ impl TranslationModelBuilder {
         self
     }
 
+    /// Use a large translation model (M2M100, 418M parameters-based)
+    ///
+    /// # Returns
+    /// * `TranslationModelBuilder` Translation model builder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new()
+    ///         .with_large_model()
+    ///         .create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn with_large_model(&mut self) -> &mut Self {
         if let Some(model_type) = self.model_type {
             if model_type != ModelType::M2M100 {
@@ -114,6 +244,22 @@ impl TranslationModelBuilder {
         self
     }
 
+    /// Use a very large translation model (M2M100, 1.2B parameters-based)
+    ///
+    /// # Returns
+    /// * `TranslationModelBuilder` Translation model builder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new()
+    ///         .with_xlarge_model()
+    ///         .create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn with_xlarge_model(&mut self) -> &mut Self {
         if let Some(model_type) = self.model_type {
             if model_type != ModelType::M2M100 {
@@ -129,6 +275,26 @@ impl TranslationModelBuilder {
         self
     }
 
+    /// Specify the source languages the model should support
+    ///
+    /// # Arguments
+    /// * `source_languages` - Array-like of [`Language`] the model should be able to translate from
+    ///
+    /// # Returns
+    /// * `TranslationModelBuilder` Translation model builder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::translation::Language;
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new()
+    ///         .with_source_languages([Language::French, Language::Italian])
+    ///         .create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn with_source_languages<S>(&mut self, source_languages: S) -> &mut Self
     where
         S: AsRef<[Language]> + Debug,
@@ -137,6 +303,30 @@ impl TranslationModelBuilder {
         self
     }
 
+    /// Specify the target languages the model should support
+    ///
+    /// # Arguments
+    /// * `target_languages` - Array-like of [`Language`] the model should be able to translate to
+    ///
+    /// # Returns
+    /// * `TranslationModelBuilder` Translation model builder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::translation::Language;
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new()
+    ///         .with_target_languages([
+    ///             Language::Japanese,
+    ///             Language::Korean,
+    ///             Language::ChineseMandarin,
+    ///         ])
+    ///         .create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn with_target_languages<T>(&mut self, target_languages: T) -> &mut Self
     where
         T: AsRef<[Language]> + Debug,
@@ -409,6 +599,27 @@ impl TranslationModelBuilder {
         })
     }
 
+    /// Creates the translation model based on the specifications provided
+    ///
+    /// # Returns
+    /// * `TranslationModel` Generated translation model
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::translation::Language;
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new()
+    ///         .with_target_languages([
+    ///             Language::Japanese,
+    ///             Language::Korean,
+    ///             Language::ChineseMandarin,
+    ///         ])
+    ///         .create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn create_model(&self) -> Result<TranslationModel, RustBertError> {
         let device = self.device.unwrap_or_else(Device::cuda_if_available);
 

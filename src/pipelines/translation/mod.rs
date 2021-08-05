@@ -15,15 +15,17 @@
 //! Models with multiple possible source language require specifying the source language for M2M100 and MBart models (and is optional for Marian models)
 //!
 //! ```no_run
-//!
-//! use rust_bert::resources::{Resource, RemoteResource};
-//! use rust_bert::m2m_100::{M2M100SourceLanguages, M2M100TargetLanguages, M2M100ModelResources, M2M100ConfigResources, M2M100VocabResources, M2M100MergesResources};
-//! use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel, Language};
+//! use rust_bert::m2m_100::{
+//!     M2M100ConfigResources, M2M100MergesResources, M2M100ModelResources, M2M100SourceLanguages,
+//!     M2M100TargetLanguages, M2M100VocabResources,
+//! };
 //! use rust_bert::pipelines::common::ModelType;
+//! use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
+//! use rust_bert::resources::{RemoteResource, Resource};
 //! use tch::Device;
 //!
 //! fn main() -> anyhow::Result<()> {
-//! let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+//!     let model_resource = Resource::Remote(RemoteResource::from_pretrained(
 //!         M2M100ModelResources::M2M100_418M,
 //!     ));
 //!     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
@@ -62,7 +64,6 @@
 //!     }
 //!     Ok(())
 //! }
-//!
 //! ```
 //!
 //! The scenario above requires the user to know the kind of model to be used for translation. In order to facilitate the selection of
@@ -72,7 +73,7 @@
 //! ```no_run
 //! use rust_bert::pipelines::translation::{Language, TranslationModelBuilder};
 //! fn main() -> anyhow::Result<()> {
-//! let model = TranslationModelBuilder::new()
+//!     let model = TranslationModelBuilder::new()
 //!         .with_source_languages(vec![Language::English])
 //!         .with_target_languages(vec![Language::Spanish, Language::French, Language::Italian])
 //!         .create_model()?;
@@ -80,7 +81,8 @@
 //!     let input_context_1 = "This is a sentence to be translated";
 //!     let input_context_2 = "The dog did not wake up.";
 //!
-//!     let output = model.translate(&[input_context_1, input_context_2], None, Language::Spanish)?;
+//!     let output =
+//!         model.translate(&[input_context_1, input_context_2], None, Language::Spanish)?;
 //!
 //!     for sentence in output {
 //!         println!("{}", sentence);
@@ -88,7 +90,6 @@
 //!     Ok(())
 //! }
 //! ```
-//!
 
 mod translation_builder;
 mod translation_pipeline;
