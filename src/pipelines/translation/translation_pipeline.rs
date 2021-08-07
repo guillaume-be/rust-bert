@@ -870,7 +870,6 @@ impl TranslationModel {
     /// Translates texts provided
     ///
     /// # Arguments
-    ///
     /// * `input` - `&[&str]` Array of texts to summarize.
     ///
     /// # Returns
