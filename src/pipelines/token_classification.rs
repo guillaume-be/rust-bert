@@ -556,6 +556,7 @@ pub struct TokenClassificationModel {
     label_mapping: HashMap<i64, String>,
     var_store: VarStore,
     label_aggregation_function: LabelAggregationOption,
+    max_length: usize,
 }
 
 impl TokenClassificationModel {
@@ -599,9 +600,13 @@ impl TokenClassificationModel {
         )?;
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
+        let max_length = model_config
+            .get_max_len()
+            .map(|v| v as usize)
+            .unwrap_or(usize::MAX);
         let token_sequence_classifier =
             TokenClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
-        let label_mapping = model_config.get_label_mapping();
+        let label_mapping = model_config.get_label_mapping().clone();
         var_store.load(weights_path)?;
         Ok(TokenClassificationModel {
             tokenizer,
@@ -609,6 +614,7 @@ impl TokenClassificationModel {
             label_mapping,
             var_store,
             label_aggregation_function,
+            max_length,
         })
     }
 
@@ -616,9 +622,12 @@ impl TokenClassificationModel {
     where
         S: AsRef<[&'a str]>,
     {
-        let tokenized_input: Vec<TokenizedInput> =
-            self.tokenizer
-                .encode_list(input.as_ref(), 128, &TruncationStrategy::LongestFirst, 0);
+        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_list(
+            input.as_ref(),
+            self.max_length,
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
         let max_len = tokenized_input
             .iter()
             .map(|input| input.token_ids.len())

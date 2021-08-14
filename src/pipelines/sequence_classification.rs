@@ -472,6 +472,7 @@ pub struct SequenceClassificationModel {
     sequence_classifier: SequenceClassificationOption,
     label_mapping: HashMap<i64, String>,
     var_store: VarStore,
+    max_length: usize,
 }
 
 impl SequenceClassificationModel {
@@ -514,15 +515,20 @@ impl SequenceClassificationModel {
         )?;
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
+        let max_length = model_config
+            .get_max_len()
+            .map(|v| v as usize)
+            .unwrap_or(usize::MAX);
         let sequence_classifier =
             SequenceClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
-        let label_mapping = model_config.get_label_mapping();
+        let label_mapping = model_config.get_label_mapping().clone();
         var_store.load(weights_path)?;
         Ok(SequenceClassificationModel {
             tokenizer,
             sequence_classifier,
             label_mapping,
             var_store,
+            max_length,
         })
     }
 
@@ -530,9 +536,12 @@ impl SequenceClassificationModel {
     where
         S: AsRef<[&'a str]>,
     {
-        let tokenized_input: Vec<TokenizedInput> =
-            self.tokenizer
-                .encode_list(input.as_ref(), 128, &TruncationStrategy::LongestFirst, 0);
+        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_list(
+            input.as_ref(),
+            self.max_length,
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
         let max_len = tokenized_input
             .iter()
             .map(|input| input.token_ids.len())

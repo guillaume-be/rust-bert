@@ -171,51 +171,86 @@ impl ConfigOption {
         }
     }
 
-    pub fn get_label_mapping(self) -> HashMap<i64, String> {
+    pub fn get_label_mapping(&self) -> &HashMap<i64, String> {
         match self {
             Self::Bart(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
-            Self::Bert(config) => config
+            Self::Bert(config) => &config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::DistilBert(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Electra(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Marian(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::MobileBert(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Albert(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::XLNet(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Reformer(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::ProphetNet(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Longformer(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::MBart(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::M2M100(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
             Self::GPT2(_) => panic!("GPT2 does not use a label mapping"),
             Self::GPTNeo(_) => panic!("GPT-Neo does not use a label mapping"),
             Self::Pegasus(_) => panic!("Pegasus does not use a label mapping"),
+        }
+    }
+
+    pub fn get_max_len(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => Some(config.max_position_embeddings),
+            Self::Bert(config) => Some(config.max_position_embeddings),
+            Self::DistilBert(config) => Some(config.max_position_embeddings),
+            Self::Electra(config) => Some(config.max_position_embeddings),
+            Self::Marian(config) => Some(config.max_position_embeddings),
+            Self::MobileBert(config) => Some(config.max_position_embeddings),
+            Self::T5(_) => None,
+            Self::Albert(config) => Some(config.max_position_embeddings),
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => Some(config.n_positions),
+            Self::Reformer(config) => Some(config.max_position_embeddings),
+            Self::ProphetNet(config) => Some(config.max_position_embeddings),
+            Self::Longformer(config) => Some(config.max_position_embeddings),
+            Self::Pegasus(config) => Some(config.max_position_embeddings),
+            Self::GPTNeo(config) => Some(config.max_position_embeddings),
+            Self::MBart(config) => Some(config.max_position_embeddings),
+            Self::M2M100(config) => Some(config.max_position_embeddings),
         }
     }
 }
