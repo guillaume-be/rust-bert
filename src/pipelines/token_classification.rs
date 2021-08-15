@@ -126,7 +126,6 @@ use crate::xlnet::XLNetForTokenClassification;
 use rust_tokenizers::tokenizer::Tokenizer;
 use rust_tokenizers::{
     ConsolidatableTokens, ConsolidatedTokenIterator, Mask, Offset, TokenIdsWithOffsets, TokenTrait,
-    TokenizedInput,
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
@@ -692,9 +691,9 @@ impl TokenClassificationModel {
             let end_cutoff = if end_token < total_length {
                 doc_stride / 2
             } else {
-                sub_encoded_input.ids.len()
+                encoded_span.token_ids.len()
             };
-            let mut reference_feature = vec![true; sub_encoded_input.ids.len()];
+            let mut reference_feature = vec![true; encoded_span.token_ids.len()];
             reference_feature[..start_cutoff]
                 .iter_mut()
                 .for_each(|v| *v = false);
@@ -771,12 +770,12 @@ impl TokenClassificationModel {
 
         while start < len_features {
             let end = start + min(len_features - start, self.batch_size);
-            let batch_features = &mut features[start..end];
 
             no_grad(|| {
+                let batch_features = &mut features[start..end];
                 let (input_ids, attention_masks) = self.pad_features(batch_features);
                 let output = self.token_sequence_classifier.forward_t(
-                    Some(input_ids),
+                    Some(input_ids.copy()),
                     Some(attention_masks),
                     None,
                     None,
@@ -788,11 +787,17 @@ impl TokenClassificationModel {
                 for sentence_idx in 0..label_indices.size()[0] {
                     let labels = label_indices.get(sentence_idx);
                     let sentence_tokens = &features[sentence_idx as usize];
+                    let sentence_reference_flag = &sentence_tokens.reference_feature;
                     let original_chars = input.as_ref()[sentence_idx as usize]
                         .chars()
                         .collect::<Vec<char>>();
                     let mut word_idx: u16 = 0;
-                    for position_idx in 0..sentence_tokens.input_ids.len() {
+                    for position_idx in sentence_reference_flag
+                        .into_iter()
+                        .enumerate()
+                        .filter(|(_, flag)| **flag)
+                        .map(|(pos, _)| pos)
+                    {
                         let mask = sentence_tokens.mask[position_idx];
                         if (mask == Mask::Special) & (!return_special) {
                             continue;
@@ -804,7 +809,7 @@ impl TokenClassificationModel {
                             self.decode_token(
                                 &original_chars,
                                 sentence_tokens,
-                                &input_tensor,
+                                &input_ids,
                                 &labels,
                                 &score,
                                 sentence_idx,
@@ -812,61 +817,23 @@ impl TokenClassificationModel {
                                 word_idx - 1,
                             )
                         };
-                        sequence_tokens.push(token);
+                        example_tokens_map
+                            .get_mut(&(sentence_idx as usize))
+                            .unwrap()
+                            .push(token);
                     }
-                    tokens.push(sequence_tokens);
                 }
-            })
+            });
+            start = end;
         }
-        // let output = no_grad(|| {
-        //     self.token_sequence_classifier.forward_t(
-        //         Some(input_tensor.copy()),
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         false,
-        //     )
-        // });
-        // let output = output.detach().to(Device::Cpu);
-        // let score: Tensor = output.exp() / output.exp().sum_dim_intlist(&[-1], true, Float);
-        // let labels_idx = &score.argmax(-1, true);
-        // let mut tokens: Vec<Vec<Token>> = vec![];
-        // for sentence_idx in 0..labels_idx.size()[0] {
-        //     let mut sequence_tokens = vec![];
-        //     let labels = labels_idx.get(sentence_idx);
-        //     let sentence_tokens = &tokenized_input[sentence_idx as usize];
-        //     let original_chars = input.as_ref()[sentence_idx as usize]
-        //         .chars()
-        //         .collect::<Vec<char>>();
-        //     let mut word_idx: u16 = 0;
-        //     for position_idx in 0..sentence_tokens.token_ids.len() {
-        //         let mask = sentence_tokens.mask[position_idx];
-        //         if (mask == Mask::Special) & (!return_special) {
-        //             continue;
-        //         }
-        //         if !(mask == Mask::Continuation) {
-        //             word_idx += 1;
-        //         }
-        //         let token = {
-        //             self.decode_token(
-        //                 &original_chars,
-        //                 sentence_tokens,
-        //                 &input_tensor,
-        //                 &labels,
-        //                 &score,
-        //                 sentence_idx,
-        //                 position_idx as i64,
-        //                 word_idx - 1,
-        //             )
-        //         };
-        //         sequence_tokens.push(token);
-        //     }
-        //     tokens.push(sequence_tokens);
-        // }
-        // if consolidate_sub_tokens {
-        //     self.consolidate_tokens(&mut tokens, &self.label_aggregation_function);
-        // }
+        let mut tokens = example_tokens_map
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect::<Vec<Vec<Token>>>();
+
+        if consolidate_sub_tokens {
+            self.consolidate_tokens(&mut tokens, &self.label_aggregation_function);
+        }
         tokens
     }
 
