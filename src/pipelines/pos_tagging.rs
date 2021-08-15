@@ -129,6 +129,7 @@ impl Default for POSConfig {
                 add_prefix_space: None,
                 device: Device::cuda_if_available(),
                 label_aggregation_function: LabelAggregationOption::First,
+                batch_size: 64,
             },
         }
     }
