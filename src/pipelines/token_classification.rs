@@ -786,9 +786,9 @@ impl TokenClassificationModel {
                 let label_indices = score.argmax(-1, true);
                 for sentence_idx in 0..label_indices.size()[0] {
                     let labels = label_indices.get(sentence_idx);
-                    let sentence_tokens = &features[sentence_idx as usize];
-                    let sentence_reference_flag = &sentence_tokens.reference_feature;
-                    let original_chars = input.as_ref()[sentence_idx as usize]
+                    let feature = &features[sentence_idx as usize];
+                    let sentence_reference_flag = &feature.reference_feature;
+                    let original_chars = input.as_ref()[feature.example_index]
                         .chars()
                         .collect::<Vec<char>>();
                     let mut word_idx: u16 = 0;
@@ -798,7 +798,7 @@ impl TokenClassificationModel {
                         .filter(|(_, flag)| **flag)
                         .map(|(pos, _)| pos)
                     {
-                        let mask = sentence_tokens.mask[position_idx];
+                        let mask = feature.mask[position_idx];
                         if (mask == Mask::Special) & (!return_special) {
                             continue;
                         }
@@ -808,7 +808,7 @@ impl TokenClassificationModel {
                         let token = {
                             self.decode_token(
                                 &original_chars,
-                                sentence_tokens,
+                                feature,
                                 &input_ids,
                                 &labels,
                                 &score,
@@ -818,7 +818,7 @@ impl TokenClassificationModel {
                             )
                         };
                         example_tokens_map
-                            .get_mut(&(sentence_idx as usize))
+                            .get_mut(&(feature.example_index))
                             .unwrap()
                             .push(token);
                     }
