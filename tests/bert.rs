@@ -379,11 +379,11 @@ fn bert_pre_trained_ner() -> anyhow::Result<()> {
     assert_eq!(output[0][1].label, "I-LOC");
 
     assert_eq!(output[1][0].word, "Paris");
-    assert!((output[1][0].score - 0.9988).abs() < 1e-4);
+    assert!((output[1][0].score - 0.9981).abs() < 1e-4);
     assert_eq!(output[1][0].label, "I-LOC");
 
     assert_eq!(output[1][1].word, "France");
-    assert!((output[1][1].score - 0.9994).abs() < 1e-4);
+    assert!((output[1][1].score - 0.9984).abs() < 1e-4);
     assert_eq!(output[1][1].label, "I-LOC");
 
     Ok(())

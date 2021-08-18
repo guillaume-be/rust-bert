@@ -867,6 +867,10 @@ impl TokenClassificationModel {
         }
         let mut tokens = example_tokens_map
             .into_iter()
+            .collect::<Vec<(usize, Vec<Token>)>>();
+        tokens.sort_by_key(|kv| kv.0);
+        let mut tokens = tokens
+            .into_iter()
             .map(|(_, v)| v)
             .collect::<Vec<Vec<Token>>>();
 
