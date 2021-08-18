@@ -177,7 +177,7 @@ impl ConfigOption {
                 .id2label
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
-            Self::Bert(config) => &config
+            Self::Bert(config) => config
                 .id2label
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),

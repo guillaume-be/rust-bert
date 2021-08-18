@@ -639,7 +639,7 @@ impl TokenClassificationModel {
         })
     }
 
-    fn generate_features<'a, S>(&self, input: S, example_index: usize) -> Vec<InputFeature>
+    fn generate_features<S>(&self, input: S, example_index: usize) -> Vec<InputFeature>
     where
         S: AsRef<str>,
     {
@@ -832,7 +832,7 @@ impl TokenClassificationModel {
                         .collect::<Vec<char>>();
                     let mut word_idx: u16 = 0;
                     for position_idx in sentence_reference_flag
-                        .into_iter()
+                        .iter()
                         .enumerate()
                         .filter(|(_, flag)| **flag)
                         .map(|(pos, _)| pos)
