@@ -460,11 +460,11 @@ impl TokenClassificationOption {
 
     fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Tensor {
         match *self {
@@ -488,14 +488,7 @@ impl TokenClassificationOption {
             }
             Self::MobileBert(ref model) => {
                 model
-                    .forward_t(
-                        input_ids.as_ref(),
-                        None,
-                        None,
-                        input_embeds,
-                        mask.as_ref(),
-                        train,
-                    )
+                    .forward_t(input_ids, None, None, input_embeds, mask, train)
                     .expect("Error in mobilebert forward_t")
                     .logits
             }
@@ -538,12 +531,12 @@ impl TokenClassificationOption {
             Self::XLNet(ref model) => {
                 model
                     .forward_t(
-                        input_ids.as_ref(),
-                        mask.as_ref(),
+                        input_ids,
+                        mask,
                         None,
                         None,
                         None,
-                        token_type_ids.as_ref(),
+                        token_type_ids,
                         input_embeds,
                         train,
                     )
@@ -814,8 +807,8 @@ impl TokenClassificationModel {
                 let batch_features = &mut features[start..end];
                 let (input_ids, attention_masks) = self.pad_features(batch_features);
                 let output = self.token_sequence_classifier.forward_t(
-                    Some(input_ids.copy()),
-                    Some(attention_masks),
+                    Some(&input_ids),
+                    Some(&attention_masks),
                     None,
                     None,
                     None,

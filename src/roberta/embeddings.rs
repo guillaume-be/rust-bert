@@ -159,9 +159,9 @@ impl BertEmbedding for RobertaEmbeddings {
     /// let embedded_output = no_grad(|| {
     ///     roberta_embeddings
     ///         .forward_t(
-    ///             Some(input_tensor),
-    ///             Some(token_type_ids),
-    ///             Some(position_ids),
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
     ///             false,
     ///         )
@@ -170,13 +170,13 @@ impl BertEmbedding for RobertaEmbeddings {
     /// ```
     fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<Tensor, RustBertError> {
-        let (input_embeddings, input_shape) = match &input_ids {
+        let (calc_input_embeddings, input_shape) = match input_ids {
             Some(input_value) => match &input_embeds {
                 Some(_) => {
                     return Err(RustBertError::ValueError(
@@ -184,12 +184,12 @@ impl BertEmbedding for RobertaEmbeddings {
                     ));
                 }
                 None => (
-                    input_value.apply_t(&self.word_embeddings, train),
+                    Some(input_value.apply_t(&self.word_embeddings, train)),
                     input_value.size(),
                 ),
             },
-            None => match &input_embeds {
-                Some(embeds) => (embeds.copy(), vec![embeds.size()[0], embeds.size()[1]]),
+            None => match input_embeds {
+                Some(embeds) => (None, vec![embeds.size()[0], embeds.size()[1]]),
                 None => {
                     return Err(RustBertError::ValueError(
                         "At least one of input ids or input embeddings must be set".into(),
@@ -198,17 +198,30 @@ impl BertEmbedding for RobertaEmbeddings {
             },
         };
 
-        let position_ids = match position_ids {
-            Some(value) => value,
-            None => match input_ids {
+        let input_embeddings =
+            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
+
+        let calc_position_ids = if position_ids.is_none() {
+            Some(match input_ids {
                 Some(value) => self.create_position_ids_from_input_ids(&value),
                 None => self.create_position_ids_from_embeddings(&input_embeds.unwrap()),
-            },
+            })
+        } else {
+            None
         };
 
-        let token_type_ids = token_type_ids.unwrap_or_else(|| {
-            Tensor::zeros(&input_shape, (Kind::Int64, input_embeddings.device()))
-        });
+        let calc_token_type_ids = if token_type_ids.is_none() {
+            Some(Tensor::zeros(
+                &input_shape,
+                (Kind::Int64, input_embeddings.device()),
+            ))
+        } else {
+            None
+        };
+
+        let position_ids = position_ids.unwrap_or_else(|| calc_position_ids.as_ref().unwrap());
+        let token_type_ids =
+            token_type_ids.unwrap_or_else(|| calc_token_type_ids.as_ref().unwrap());
 
         let position_embeddings = position_ids.apply(&self.position_embeddings);
         let token_type_embeddings = token_type_ids.apply(&self.token_type_embeddings);

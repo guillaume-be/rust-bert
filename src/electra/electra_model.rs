@@ -281,9 +281,9 @@ impl ElectraModel {
 
         let encoder_output = self.encoder.forward_t(
             &hidden_states,
-            &Some(extended_attention_mask),
-            &None,
-            &None,
+            Some(&extended_attention_mask),
+            None,
+            None,
             train,
         );
 

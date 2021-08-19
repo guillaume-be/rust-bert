@@ -121,19 +121,19 @@ impl BertLayer {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Float, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
-    /// let layer_output = no_grad(|| layer.forward_t(&input_tensor, &Some(mask), &None, &None, false));
+    /// let layer_output = no_grad(|| layer.forward_t(&input_tensor, Some(&mask), None, None, false));
     /// ```
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> BertLayerOutput {
         let (attention_output, attention_weights) =
             self.attention
-                .forward_t(hidden_states, mask, &None, &None, train);
+                .forward_t(hidden_states, mask, None, None, train);
 
         let (attention_output, attention_scores, cross_attention_scores) =
             if self.is_decoder & encoder_hidden_states.is_some() {
@@ -248,14 +248,14 @@ impl BertEncoder {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let encoder_output =
-    ///     no_grad(|| encoder.forward_t(&input_tensor, &Some(mask), &None, &None, false));
+    ///     no_grad(|| encoder.forward_t(&input_tensor, Some(&mask), None, None, false));
     /// ```
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> BertEncoderOutput {
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {

@@ -27,10 +27,10 @@ pub trait BertEmbedding {
 
     fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<Tensor, RustBertError>;
 }
@@ -153,9 +153,9 @@ impl BertEmbedding for BertEmbeddings {
     /// let embedded_output = no_grad(|| {
     ///     bert_embeddings
     ///         .forward_t(
-    ///             Some(input_tensor),
-    ///             Some(token_type_ids),
-    ///             Some(position_ids),
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
     ///             false,
     ///         )
@@ -164,13 +164,13 @@ impl BertEmbedding for BertEmbeddings {
     /// ```
     fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<Tensor, RustBertError> {
-        let (input_embeddings, input_shape) = match input_ids {
+        let (calc_input_embeddings, input_shape) = match input_ids {
             Some(input_value) => match input_embeds {
                 Some(_) => {
                     return Err(RustBertError::ValueError(
@@ -178,14 +178,14 @@ impl BertEmbedding for BertEmbeddings {
                     ));
                 }
                 None => (
-                    input_value.apply_t(&self.word_embeddings, train),
+                    Some(input_value.apply_t(&self.word_embeddings, train)),
                     input_value.size(),
                 ),
             },
             None => match input_embeds {
                 Some(embeds) => {
                     let size = vec![embeds.size()[0], embeds.size()[1]];
-                    (embeds, size)
+                    (None, size)
                 }
                 None => {
                     return Err(RustBertError::ValueError(
@@ -195,17 +195,32 @@ impl BertEmbedding for BertEmbeddings {
             },
         };
 
-        let seq_length = input_embeddings.as_ref().size()[1].to_owned();
+        let input_embeddings =
+            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
+        let seq_length = input_embeddings.size()[1];
 
-        let position_ids = position_ids.unwrap_or_else(|| {
-            Tensor::arange(seq_length, (Kind::Int64, input_embeddings.device()))
-                .unsqueeze(0)
-                .expand(&input_shape, true)
-        });
+        let calc_position_ids = if position_ids.is_none() {
+            Some(
+                Tensor::arange(seq_length, (Kind::Int64, input_embeddings.device()))
+                    .unsqueeze(0)
+                    .expand(&input_shape, true),
+            )
+        } else {
+            None
+        };
 
-        let token_type_ids = token_type_ids.unwrap_or_else(|| {
-            Tensor::zeros(&input_shape, (Kind::Int64, input_embeddings.device()))
-        });
+        let calc_token_type_ids = if token_type_ids.is_none() {
+            Some(Tensor::zeros(
+                &input_shape,
+                (Kind::Int64, input_embeddings.device()),
+            ))
+        } else {
+            None
+        };
+
+        let position_ids = position_ids.unwrap_or_else(|| calc_position_ids.as_ref().unwrap());
+        let token_type_ids =
+            token_type_ids.unwrap_or_else(|| calc_token_type_ids.as_ref().unwrap());
 
         let position_embeddings = position_ids.apply(&self.position_embeddings);
         let token_type_embeddings = token_type_ids.apply(&self.token_type_embeddings);
