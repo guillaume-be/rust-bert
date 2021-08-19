@@ -23,8 +23,8 @@ fn main() -> anyhow::Result<()> {
 
     //    Run model
     let output = pos_model.predict(&input);
-    for pos_tag in output {
-        println!("{:?}", pos_tag);
+    for (pos, pos_tag) in output[0].iter().enumerate() {
+        println!("{} - {:?}", pos, pos_tag);
     }
 
     Ok(())

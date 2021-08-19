@@ -13,9 +13,11 @@ All notable changes to this project will be documented in this file. The format 
 - Updated GPT2 architecture to re-use embeddings for the output projection layer (resulting in smaller model weights files and memory footprint)
 - Upgraded `tch` version to 0.5.0 (using `libtorch` 1.9.0)
 - Changed default value of `no_repeat_ngram_size` for text generation from 3 to 0, aligning with [Python's Transformers](https://huggingface.co/transformers/main_classes/model.html?highlight=no_repeat_ngram_size#transformers.generation_utils.GenerationMixin.generate)
+- Added the possibility to handle long inputs for token classification tasks (exceeding the model maximum length) using sliding windows over the input
 
 ## Fixed
 - Updated T5 Decoder cross-attention to no longer use relative position bias (aligned with [Python reference update](https://github.com/huggingface/transformers/pull/8518))
+- Removed hardcoded maximum length for sequence and token classification tasks, now using the model maximum position embeddings instead
 
 ## [0.15.1] - 2021-06-01
 ### Fixed
