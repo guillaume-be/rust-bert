@@ -418,7 +418,7 @@ impl MobileBertModel {
         input_ids: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<MobileBertOutput, RustBertError> {
@@ -610,7 +610,7 @@ impl MobileBertForMaskedLM {
         input_ids: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<MobileBertMaskedLMOutput, RustBertError> {
@@ -752,7 +752,7 @@ impl MobileBertForSequenceClassification {
         input_ids: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<MobileBertSequenceClassificationOutput, RustBertError> {
@@ -885,7 +885,7 @@ impl MobileBertForQuestionAnswering {
         input_ids: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<MobileBertQuestionAnsweringOutput, RustBertError> {
@@ -1022,7 +1022,7 @@ impl MobileBertForMultipleChoice {
         input_ids: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<MobileBertSequenceClassificationOutput, RustBertError> {
@@ -1052,7 +1052,7 @@ impl MobileBertForMultipleChoice {
             input_ids.as_ref(),
             token_type_ids.as_ref(),
             position_ids.as_ref(),
-            input_embeds,
+            input_embeds.as_ref(),
             attention_mask.as_ref(),
             train,
         )?;
@@ -1189,7 +1189,7 @@ impl MobileBertForTokenClassification {
         input_ids: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<MobileBertTokenClassificationOutput, RustBertError> {

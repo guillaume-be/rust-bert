@@ -100,42 +100,41 @@ impl MobileBertEmbeddings {
         input_ids: Option<&Tensor>,
         token_type_ids: &Tensor,
         position_ids: &Tensor,
-        input_embeds: Option<Tensor>,
+        input_embeddings: Option<&Tensor>,
         train: bool,
     ) -> Result<Tensor, RustBertError> {
-        let (mut input_embeddings, input_shape) = match input_ids {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (
-                    input_value.apply_t(&self.word_embeddings, train),
-                    input_value.size(),
-                ),
-            },
-            None => match input_embeds {
-                Some(embeds) => {
-                    let size = vec![embeds.size()[0], embeds.size()[1]];
-                    (embeds, size)
-                }
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
+        let (calc_input_embeddings, input_shape) = match (input_ids, input_embeddings) {
+            (Some(_), Some(_)) => {
+                return Err(RustBertError::ValueError(
+                    "Only one of input ids or input embeddings may be set".into(),
+                ));
+            }
+            (Some(input_value), None) => (
+                Some(input_value.apply_t(&self.word_embeddings, train)),
+                input_value.size(),
+            ),
+            (None, Some(embeds)) => {
+                let size = vec![embeds.size()[0], embeds.size()[1]];
+                (None, size)
+            }
+            (None, None) => {
+                return Err(RustBertError::ValueError(
+                    "At least one of input ids or input embeddings must be set".into(),
+                ));
+            }
         };
+
+        let input_embeddings =
+            input_embeddings.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let seq_length = input_shape[1];
 
-        if self.trigram_input {
+        let updated_input_embeddings = if self.trigram_input {
             let padding_tensor = Tensor::zeros(
                 &[input_shape[0], 1, self.embedding_size],
                 (Kind::Float, input_embeddings.device()),
             );
-            input_embeddings = Tensor::cat(
+            let input_embeddings = Tensor::cat(
                 &[
                     &Tensor::cat(
                         &[
@@ -155,11 +154,23 @@ impl MobileBertEmbeddings {
                 ],
                 2,
             );
+            Some(input_embeddings)
+        } else {
+            None
         };
 
-        if self.trigram_input | (self.embedding_size != self.hidden_size) {
-            input_embeddings = input_embeddings.apply(&self.embedding_transformation);
-        }
+        let input_embeddings = updated_input_embeddings
+            .as_ref()
+            .unwrap_or(input_embeddings);
+        let updated_input_embeddings =
+            if self.trigram_input | (self.embedding_size != self.hidden_size) {
+                Some(input_embeddings.apply(&self.embedding_transformation))
+            } else {
+                None
+            };
+        let input_embeddings = updated_input_embeddings
+            .as_ref()
+            .unwrap_or(input_embeddings);
 
         let position_embeddings = position_ids.apply(&self.position_embeddings);
         let token_type_embeddings = token_type_ids.apply(&self.token_type_embeddings);
