@@ -62,7 +62,7 @@ fn albert_masked_lm() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| albert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| albert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     //    Print masked tokens
     let index_1 = model_output
@@ -135,7 +135,7 @@ fn albert_for_sequence_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| albert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| albert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 3]);
     assert_eq!(
@@ -199,7 +199,7 @@ fn albert_for_multiple_choice() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = no_grad(|| {
         albert_model
-            .forward_t(Some(input_tensor), None, None, None, None, false)
+            .forward_t(Some(&input_tensor), None, None, None, None, false)
             .unwrap()
     });
 
@@ -268,7 +268,7 @@ fn albert_for_token_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| bert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| bert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 12, 4]);
     assert_eq!(
@@ -329,7 +329,7 @@ fn albert_for_question_answering() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| albert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| albert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.start_logits.size(), &[2, 12]);
     assert_eq!(model_output.end_logits.size(), &[2, 12]);

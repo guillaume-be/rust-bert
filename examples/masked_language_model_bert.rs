@@ -67,13 +67,13 @@ fn main() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = no_grad(|| {
         bert_model.forward_t(
-            Some(input_tensor),
+            Some(&input_tensor),
             None,
             None,
             None,
             None,
-            &None,
-            &None,
+            None,
+            None,
             false,
         )
     });

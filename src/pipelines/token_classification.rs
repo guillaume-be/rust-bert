@@ -545,12 +545,12 @@ impl TokenClassificationOption {
             Self::Longformer(ref model) => {
                 model
                     .forward_t(
-                        input_ids.as_ref(),
-                        mask.as_ref(),
+                        input_ids,
+                        mask,
                         None,
-                        token_type_ids.as_ref(),
-                        position_ids.as_ref(),
-                        input_embeds.as_ref(),
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
                         train,
                     )
                     .expect("Error in longformer forward_t")

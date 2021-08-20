@@ -390,38 +390,34 @@ impl XLNetModel {
         perm_mask: Option<&Tensor>,
         target_mapping: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<XLNetModelOutput, RustBertError> {
-        let (word_emb_k, input_shape) = match input_ids {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => {
-                    let size = input_value.size();
-                    (
-                        input_value
-                            .transpose(0, 1)
-                            .contiguous()
-                            .apply_t(&self.word_embeddings, train),
-                        vec![size[1], size[0]],
-                    )
-                }
-            },
-            None => match input_embeds {
-                Some(embeds) => {
-                    let size = vec![embeds.size()[1], embeds.size()[0]];
-                    (embeds.transpose(0, 1).contiguous(), size)
-                }
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
+        let (word_emb_k, input_shape) = match (input_ids, input_embeds) {
+            (Some(_), Some(_)) => {
+                return Err(RustBertError::ValueError(
+                    "Only one of input ids or input embeddings may be set".into(),
+                ));
+            }
+            (Some(input_value), None) => {
+                let size = input_value.size();
+                (
+                    input_value
+                        .transpose(0, 1)
+                        .contiguous()
+                        .apply_t(&self.word_embeddings, train),
+                    vec![size[1], size[0]],
+                )
+            }
+            (None, Some(embeds)) => {
+                let size = vec![embeds.size()[1], embeds.size()[0]];
+                (embeds.transpose(0, 1).contiguous(), size)
+            }
+            (None, None) => {
+                return Err(RustBertError::ValueError(
+                    "At least one of input ids or input embeddings must be set".into(),
+                ));
+            }
         };
 
         let token_type_ids =
@@ -715,7 +711,7 @@ impl XLNetLMHeadModel {
         perm_mask: Option<&Tensor>,
         target_mapping: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = self.base_model.forward_t(
@@ -966,7 +962,7 @@ impl XLNetForSequenceClassification {
         perm_mask: Option<&Tensor>,
         target_mapping: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> XLNetSequenceClassificationOutput {
         let base_model_output = self
@@ -1124,7 +1120,7 @@ impl XLNetForTokenClassification {
         perm_mask: Option<&Tensor>,
         target_mapping: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> XLNetTokenClassificationOutput {
         let base_model_output = self
@@ -1273,7 +1269,7 @@ impl XLNetForMultipleChoice {
         perm_mask: Option<&Tensor>,
         target_mapping: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> XLNetSequenceClassificationOutput {
         let (input_ids, num_choices) = match input_ids {
@@ -1305,7 +1301,7 @@ impl XLNetForMultipleChoice {
                 perm_mask,
                 target_mapping,
                 token_type_ids.as_ref(),
-                input_embeds,
+                input_embeds.as_ref(),
                 train,
             )
             .unwrap();
@@ -1444,7 +1440,7 @@ impl XLNetForQuestionAnswering {
         perm_mask: Option<&Tensor>,
         target_mapping: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> XLNetQuestionAnsweringOutput {
         let base_model_output = self
