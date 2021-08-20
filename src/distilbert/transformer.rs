@@ -96,7 +96,7 @@ impl TransformerBlock {
     pub fn forward_t(
         &self,
         input: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let (output, sa_weights) = self.attention.forward_t(input, input, input, mask, train);
@@ -136,7 +136,7 @@ impl Transformer {
     pub fn forward_t(
         &self,
         input: &Tensor,
-        mask: Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> DistilBertTransformerOutput {
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
@@ -150,16 +150,23 @@ impl Transformer {
             None
         };
 
-        let mut hidden_state = input.copy();
+        // let mut hidden_state = input.copy();
+        let mut hidden_state: Option<Tensor> = None;
         let mut attention_weights: Option<Tensor>;
 
         for layer in &self.layers {
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
+                if let Some(hidden_state) = &hidden_state {
+                    hidden_states.push(hidden_state.copy());
+                }
+            };
+            let temp = if let Some(hidden_state) = &hidden_state {
+                layer.forward_t(hidden_state, mask, train)
+            } else {
+                layer.forward_t(input, mask, train)
             };
 
-            let temp = layer.forward_t(&hidden_state, &mask, train);
-            hidden_state = temp.0;
+            hidden_state = Some(temp.0);
             attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
@@ -167,7 +174,7 @@ impl Transformer {
         }
 
         DistilBertTransformerOutput {
-            hidden_state,
+            hidden_state: hidden_state.unwrap(),
             all_hidden_states,
             all_attentions,
         }
