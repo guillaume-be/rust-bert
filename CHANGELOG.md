@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. The format 
 - Upgraded `tch` version to 0.5.0 (using `libtorch` 1.9.0)
 - Changed default value of `no_repeat_ngram_size` for text generation from 3 to 0, aligning with [Python's Transformers](https://huggingface.co/transformers/main_classes/model.html?highlight=no_repeat_ngram_size#transformers.generation_utils.GenerationMixin.generate)
 - Added the possibility to handle long inputs for token classification tasks (exceeding the model maximum length) using sliding windows over the input
+- (BREAKING) Generalized borrowing of Tensors as input for models
 
 ## Fixed
 - Updated T5 Decoder cross-attention to no longer use relative position bias (aligned with [Python reference update](https://github.com/huggingface/transformers/pull/8518))
