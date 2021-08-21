@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::mobilebert::mobilebert_model::{NormalizationLayer, NormalizationType};
 use crate::mobilebert::MobileBertConfig;
 use crate::RustBertError;
@@ -103,26 +104,8 @@ impl MobileBertEmbeddings {
         input_embeddings: Option<&Tensor>,
         train: bool,
     ) -> Result<Tensor, RustBertError> {
-        let (calc_input_embeddings, input_shape) = match (input_ids, input_embeddings) {
-            (Some(_), Some(_)) => {
-                return Err(RustBertError::ValueError(
-                    "Only one of input ids or input embeddings may be set".into(),
-                ));
-            }
-            (Some(input_value), None) => (
-                Some(input_value.apply_t(&self.word_embeddings, train)),
-                input_value.size(),
-            ),
-            (None, Some(embeds)) => {
-                let size = vec![embeds.size()[0], embeds.size()[1]];
-                (None, size)
-            }
-            (None, None) => {
-                return Err(RustBertError::ValueError(
-                    "At least one of input ids or input embeddings must be set".into(),
-                ));
-            }
-        };
+        let (calc_input_embeddings, input_shape, _) =
+            process_ids_embeddings_pair(input_ids, input_embeddings, &self.word_embeddings)?;
 
         let input_embeddings =
             input_embeddings.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());

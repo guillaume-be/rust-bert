@@ -207,28 +207,7 @@ impl DistilBertModel {
         input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertTransformerOutput, RustBertError> {
-        let calc_input_embeddings = match input {
-            Some(input_value) => {
-                if input_embeds.is_some() {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".to_string(),
-                    ));
-                } else {
-                    Some(input_value.apply_t(&self.embeddings, train))
-                }
-            }
-            None => {
-                if input_embeds.is_some() {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".to_string(),
-                    ));
-                } else {
-                    None
-                }
-            }
-        };
-        let input_embeddings =
-            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
+        let input_embeddings = self.embeddings.forward_t(input, input_embeds, train)?;
         let transformer_output = (&self.transformer).forward_t(&input_embeddings, mask, train);
         Ok(transformer_output)
     }

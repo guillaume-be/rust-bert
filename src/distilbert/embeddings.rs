@@ -11,10 +11,12 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::distilbert::distilbert_model::DistilBertConfig;
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::kind::Kind::Float;
-use tch::nn::{embedding, EmbeddingConfig, ModuleT};
+use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Device, Kind, Tensor};
 
 fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn::Embedding {
@@ -113,20 +115,27 @@ impl DistilBertEmbedding {
     pub fn _set_word_embeddings(&mut self, new_embeddings: nn::Embedding) {
         self.word_embeddings = new_embeddings;
     }
-}
 
-impl ModuleT for DistilBertEmbedding {
-    fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
-        let seq_length = input.size().last().unwrap().to_owned();
-        let position_ids = Tensor::arange(seq_length, (Kind::Int64, input.device()));
-        let position_ids = position_ids.unsqueeze(0).expand_as(input);
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<Tensor, RustBertError> {
+        let (calc_input_embeddings, input_size, device) =
+            process_ids_embeddings_pair(input_ids, input_embeds, &self.word_embeddings)?;
+        let word_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
-        let word_embed = input.apply(&self.word_embeddings);
+        let seq_length = input_size[1];
+        let position_ids = Tensor::arange(seq_length, (Kind::Int64, device));
+        let position_ids = position_ids
+            .unsqueeze(0)
+            .expand(input_size.as_slice(), true);
         let position_embed = position_ids.apply(&self.position_embeddings);
 
-        let embeddings = word_embed + position_embed;
-        embeddings
+        let embeddings = word_embeds + position_embed;
+        Ok(embeddings
             .apply(&self.layer_norm)
-            .apply_t(&self.dropout, train)
+            .apply_t(&self.dropout, train))
     }
 }

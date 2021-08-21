@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::longformer::LongformerConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -103,25 +104,8 @@ impl LongformerEmbeddings {
         input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<Tensor, RustBertError> {
-        let (input_shape, calc_input_embeddings) = if let Some(input_ids) = input_ids {
-            if input_embeds.is_none() {
-                (
-                    input_ids.size(),
-                    Some(input_ids.apply(&self.word_embeddings)),
-                )
-            } else {
-                return Err(RustBertError::ValueError(
-                    "Only one of input ids or input embeddings may be set".into(),
-                ));
-            }
-        } else if let Some(input_embeds) = input_embeds {
-            let input_shape = &input_embeds.size()[..2];
-            (input_shape.to_vec(), None)
-        } else {
-            return Err(RustBertError::ValueError(
-                "At least one of input ids or input embeddings must be set".into(),
-            ));
-        };
+        let (calc_input_embeddings, input_shape, _) =
+            process_ids_embeddings_pair(input_ids, input_embeds, &self.word_embeddings)?;
         let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let calc_position_ids = if position_ids.is_none() {

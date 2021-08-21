@@ -52,10 +52,10 @@ impl Block {
     pub fn forward_t(
         &self,
         x: &Tensor,
-        attention_mask: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
-        let (output, _, attentions) = self.attn.forward_t(x, &None, attention_mask, train);
+        let (output, _, attentions) = self.attn.forward_t(x, None, attention_mask, train);
         let x = (x + output).apply(&self.ln_1);
         let m = self.mlp.forward_t(&x, train);
         let x = (x + m).apply(&self.ln_2);

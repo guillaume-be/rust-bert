@@ -790,35 +790,35 @@ impl LMHeadModel for XLNetLMHeadModel {
     /// ```
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         layer_past: Cache,
-        attention_mask: &Option<Tensor>,
-        _token_type_ids: &Option<Tensor>,
-        _position_ids: &Option<Tensor>,
-        _input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
         _encoder_outputs: Option<&Tensor>,
-        decoder_input_ids: &Option<Tensor>,
+        decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         match layer_past {
             Cache::XLNetCache(layer_past) => self.forward_t(
-                input_ids.as_ref(),
+                input_ids,
                 None,
                 layer_past,
-                attention_mask.as_ref(),
+                attention_mask,
                 // For XLNet the decoder_input_ids are used as a placeholder for the target mapping
-                decoder_input_ids.as_ref(),
+                decoder_input_ids,
                 None,
                 None,
                 train,
             ),
             Cache::None => self.forward_t(
-                input_ids.as_ref(),
+                input_ids,
                 None,
                 None,
-                attention_mask.as_ref(),
+                attention_mask,
                 // For XLNet the decoder_input_ids are used as a placeholder for the target mapping
-                decoder_input_ids.as_ref(),
+                decoder_input_ids,
                 None,
                 None,
                 train,

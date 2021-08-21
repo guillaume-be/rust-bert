@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::reformer::attention_utils::get_least_common_mult_chunk_len;
 use crate::reformer::ReformerConfig;
 use crate::RustBertError;
@@ -230,36 +231,14 @@ impl ReformerEmbeddings {
         &self,
         input_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         start_ids_pos_encoding: i64,
         train: bool,
     ) -> Result<Tensor, RustBertError> {
-        let (input_embeddings, input_shape, device) = match input_ids {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (
-                    input_value.apply_t(&self.word_embeddings, train),
-                    input_value.size(),
-                    input_value.device(),
-                ),
-            },
-            None => match input_embeds {
-                Some(embeds) => {
-                    let size = vec![embeds.size()[0], embeds.size()[1]];
-                    let device = embeds.device();
-                    (embeds, size, device)
-                }
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (calc_input_embeddings, input_shape, device) =
+            process_ids_embeddings_pair(input_ids, input_embeds, &self.word_embeddings)?;
+        let input_embeddings =
+            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let calc_position_ids = if position_ids.is_none() {
             Some(

@@ -12,6 +12,7 @@
 
 use crate::common::activations::{Activation, TensorFunction};
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::mobilebert::embeddings::MobileBertEmbeddings;
 use crate::mobilebert::encoder::{MobileBertEncoder, MobileBertPooler};
 use crate::{Config, RustBertError};
@@ -422,24 +423,8 @@ impl MobileBertModel {
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<MobileBertOutput, RustBertError> {
-        let (input_shape, device) = match input_ids {
-            Some(input_value) => match &input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (input_value.size(), input_value.device()),
-            },
-            None => match &input_embeds {
-                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (input_shape, device) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
         let calc_attention_mask = if attention_mask.is_none() {
             Some(Tensor::ones(input_shape.as_slice(), (Kind::Int64, device)))

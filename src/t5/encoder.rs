@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::t5::attention::{LayerState, T5LayerCrossAttention, T5LayerSelfAttention};
 use crate::t5::layer_norm::T5LayerNorm;
 use crate::t5::T5Config;
@@ -260,32 +261,15 @@ impl T5Stack {
         attention_mask: Option<&Tensor>,
         encoder_hidden_states: Option<&Tensor>,
         encoder_attention_mask: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         embeddings: &nn::Embedding,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
     ) -> Result<T5StackOutput, RustBertError> {
-        let (input_embeddings, input_shape) = match input_ids {
-            Some(input_ids_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (input_ids_value.apply(embeddings), input_ids_value.size()),
-            },
-            None => match input_embeds {
-                Some(embeds) => {
-                    let size = vec![embeds.size()[0], embeds.size()[1]];
-                    (embeds, size)
-                }
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (calc_input_embeddings, input_shape, _) =
+            process_ids_embeddings_pair(input_ids, input_embeds, embeddings)?;
+        let input_embeddings =
+            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
 

@@ -12,6 +12,7 @@
 
 use crate::common::activations::{TensorFunction, _tanh};
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::longformer::embeddings::LongformerEmbeddings;
 use crate::longformer::encoder::LongformerEncoder;
 use crate::{Activation, Config, RustBertError};
@@ -354,21 +355,8 @@ impl LongformerModel {
         padding_length: i64,
         train: bool,
     ) -> Result<PaddedInput, RustBertError> {
-        let input_shape = if let Some(input_ids) = input_ids {
-            if input_embeds.is_none() {
-                input_ids.size()
-            } else {
-                return Err(RustBertError::ValueError(
-                    "Only one of input ids or input embeddings may be set".into(),
-                ));
-            }
-        } else if let Some(input_embeds) = input_embeds {
-            input_embeds.size()[..2].to_vec()
-        } else {
-            return Err(RustBertError::ValueError(
-                "At least one of input ids or input embeddings must be set".into(),
-            ));
-        };
+        let (input_shape, _) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
         let batch_size = input_shape[0];
 
         let input_ids = input_ids

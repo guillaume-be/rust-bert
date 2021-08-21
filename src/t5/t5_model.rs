@@ -1,15 +1,3 @@
-use std::borrow::Borrow;
-
-use rust_tokenizers::tokenizer::{T5Tokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::T5Vocab;
-use serde::{Deserialize, Serialize};
-use tch::nn::embedding;
-use tch::{nn, Tensor};
-
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
-use crate::pipelines::common::{ModelType, TokenizerOption};
-use crate::{Config, RustBertError};
 // Copyright 2018 Mesh TensorFlow authors, T5 Authors and HuggingFace Inc. team.
 // Copyright 2020 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +9,18 @@ use crate::{Config, RustBertError};
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use std::borrow::Borrow;
+
+use rust_tokenizers::tokenizer::{T5Tokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::T5Vocab;
+use serde::{Deserialize, Serialize};
+use tch::nn::embedding;
+use tch::{nn, Tensor};
+
+use crate::common::resources::{RemoteResource, Resource};
+use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
+use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
@@ -30,6 +30,7 @@ use crate::pipelines::generation_utils::{
 use crate::pipelines::translation::Language;
 use crate::t5::attention::LayerState;
 use crate::t5::encoder::T5Stack;
+use crate::{Config, RustBertError};
 
 /// # T5 Pretrained model weight files
 pub struct T5ModelResources;
@@ -328,8 +329,8 @@ impl T5Model {
         encoder_outputs: Option<&Tensor>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
-        decoder_input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
+        decoder_input_embeds: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
     ) -> T5ModelOutput {
@@ -520,8 +521,8 @@ impl T5ForConditionalGeneration {
         encoder_outputs: Option<&Tensor>,
         decoder_input_ids: Option<&Tensor>,
         decoder_attention_mask: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
-        decoder_input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
+        decoder_input_embeds: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
     ) -> T5ModelOutput {
@@ -625,20 +626,20 @@ impl LMHeadModel for T5ForConditionalGeneration {
     /// ```
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         cache: Cache,
-        attention_mask: &Option<Tensor>,
-        _token_type_ids: &Option<Tensor>,
-        _position_ids: &Option<Tensor>,
-        _input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
         encoder_outputs: Option<&Tensor>,
-        decoder_input_ids: &Option<Tensor>,
+        decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match cache {
             Cache::T5Cache(cached_layer_states) => self.base_model.forward_t(
-                input_ids.as_ref(),
-                attention_mask.as_ref(),
+                input_ids,
+                attention_mask,
                 encoder_outputs,
                 Option::from(decoder_input_ids),
                 None,
@@ -648,8 +649,8 @@ impl LMHeadModel for T5ForConditionalGeneration {
                 train,
             ),
             Cache::None => self.base_model.forward_t(
-                input_ids.as_ref(),
-                attention_mask.as_ref(),
+                input_ids,
+                attention_mask,
                 encoder_outputs,
                 Option::from(decoder_input_ids),
                 None,

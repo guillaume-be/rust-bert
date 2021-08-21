@@ -22,6 +22,7 @@ use tch::{nn, Device, Kind, Tensor};
 
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
 use crate::pipelines::common::{ModelType, TokenizerOption};
@@ -293,21 +294,14 @@ impl ReformerModel {
         &self,
         input_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         num_hashes: Option<i64>,
         old_layer_states: Option<Vec<Option<LayerState>>>,
         train: bool,
     ) -> Result<ReformerModelOutput, RustBertError> {
-        let (input_shape, device) = if let Some(input_ids) = input_ids {
-            (input_ids.size(), input_ids.device())
-        } else if let Some(input_embeds) = &input_embeds {
-            (input_embeds.size(), input_embeds.device())
-        } else {
-            return Err(RustBertError::ValueError(
-                "At least one of input ids or input embeddings must be set".into(),
-            ));
-        };
+        let (input_shape, device) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
         let original_sequence_length = *input_shape.last().unwrap();
 
@@ -341,7 +335,7 @@ impl ReformerModel {
             let embedding_output = self.embeddings.forward_t(
                 padded_input.input_ids.as_ref(),
                 padded_input.position_ids.as_ref(),
-                padded_input.input_embeds,
+                padded_input.input_embeds.as_ref(),
                 start_idx_pos_encodings,
                 train,
             )?;
@@ -383,7 +377,7 @@ impl ReformerModel {
     fn pad_to_mult_of_chunk_length(
         &self,
         input_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         position_ids: Option<&Tensor>,
         input_shape: &[i64],
@@ -442,7 +436,7 @@ impl ReformerModel {
                 *input_shape.last().unwrap(),
                 false,
             )?;
-            let input_embeds = Tensor::cat(&[input_embeds, input_embeds_padding], -1);
+            let input_embeds = Tensor::cat(&[input_embeds, &input_embeds_padding], -1);
             new_input_shape = input_embeds.size();
             Some(input_embeds)
         } else {
@@ -581,7 +575,7 @@ impl ReformerModelWithLMHead {
         &self,
         input_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         num_hashes: Option<i64>,
         old_layer_states: Option<Vec<Option<LayerState>>>,
@@ -611,35 +605,27 @@ impl ReformerModelWithLMHead {
 impl LMHeadModel for ReformerModelWithLMHead {
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         cache: Cache,
-        attention_mask: &Option<Tensor>,
-        _token_type_ids: &Option<Tensor>,
-        _position_ids: &Option<Tensor>,
-        _input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
         _encoder_outputs: Option<&Tensor>,
-        _decoder_input_ids: &Option<Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let output = match cache {
             Cache::ReformerCache(cached_layer_states) => self.forward_t(
-                input_ids.as_ref(),
+                input_ids,
                 None,
                 None,
-                attention_mask.as_ref(),
+                attention_mask,
                 None,
                 cached_layer_states,
                 train,
             ),
-            Cache::None => self.forward_t(
-                input_ids.as_ref(),
-                None,
-                None,
-                attention_mask.as_ref(),
-                None,
-                None,
-                train,
-            ),
+            Cache::None => self.forward_t(input_ids, None, None, attention_mask, None, None, train),
             _ => {
                 return Err(RustBertError::ValueError(
                     "Cache not compatible with Reformer Model".into(),
@@ -813,7 +799,7 @@ impl ReformerForSequenceClassification {
         &self,
         input_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         num_hashes: Option<i64>,
         train: bool,
@@ -951,7 +937,7 @@ impl ReformerForQuestionAnswering {
         &self,
         input_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         num_hashes: Option<i64>,
         train: bool,

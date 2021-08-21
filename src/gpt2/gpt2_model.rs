@@ -14,6 +14,7 @@
 
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::gpt2::transformer::Block;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
@@ -347,12 +348,12 @@ impl Gpt2Model {
     /// let model_output = no_grad(|| {
     ///     gpt2_model
     ///         .forward_t(
-    ///             &Some(input_tensor),
-    ///             &Some(past),
-    ///             &Some(attention_mask),
-    ///             &Some(token_type_ids),
-    ///             &Some(position_ids),
-    ///             &None,
+    ///             Some(&input_tensor),
+    ///             Some(&past),
+    ///             Some(&attention_mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
     ///             false,
     ///         )
     ///         .unwrap()
@@ -360,35 +361,20 @@ impl Gpt2Model {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
-        layer_past: &Option<Vec<Tensor>>,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        layer_past: Option<&Vec<Tensor>>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<Gpt2ModelOutput, RustBertError> {
-        let (input_embeddings, seq_length) = match input_ids {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (
-                    input_value.apply(&self.wte),
-                    *input_value.size().last().unwrap(),
-                ),
-            },
-            None => match input_embeds {
-                Some(embeds) => (embeds.copy(), embeds.size()[1]),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (calc_input_embeddings, input_size, _) =
+            process_ids_embeddings_pair(input_ids, input_embeds, &self.wte)?;
+        let input_embeddings =
+            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
+
+        let seq_length = input_size[1];
 
         let (layer_past, layer_past_length) = match layer_past {
             Some(value) => {
@@ -458,7 +444,8 @@ impl Gpt2Model {
                 hidden_states.push(hidden_state.as_ref().copy());
             };
 
-            let temp = layer.forward_t(&hidden_state, &past, &attention_mask, train);
+            let temp =
+                layer.forward_t(&hidden_state, past.as_ref(), attention_mask.as_ref(), train);
             hidden_state = temp.0;
             if let Some(presents) = all_presents.borrow_mut() {
                 presents.push(temp.1.as_ref().copy());
@@ -579,14 +566,14 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// let model_output = no_grad(|| {
     ///     gpt2_model
     ///         .forward_t(
-    ///             &Some(input_tensor),
+    ///             Some(&input_tensor),
     ///             Cache::GPT2Cache(Some(past)),
-    ///             &Some(attention_mask),
-    ///             &Some(token_type_ids),
-    ///             &Some(position_ids),
-    ///             &None,
+    ///             Some(&attention_mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
-    ///             &None,
+    ///             None,
+    ///             None,
     ///             false,
     ///         )
     ///         .unwrap()
@@ -594,20 +581,20 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// ```
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         layer_past: Cache,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         _encoder_outputs: Option<&Tensor>,
-        _decoder_input_ids: &Option<Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match layer_past {
             Cache::GPT2Cache(layer_past) => self.transformer.forward_t(
                 input_ids,
-                &layer_past,
+                layer_past.as_ref(),
                 attention_mask,
                 token_type_ids,
                 position_ids,
@@ -616,7 +603,7 @@ impl LMHeadModel for GPT2LMHeadModel {
             ),
             Cache::None => self.transformer.forward_t(
                 input_ids,
-                &None,
+                None,
                 attention_mask,
                 token_type_ids,
                 position_ids,

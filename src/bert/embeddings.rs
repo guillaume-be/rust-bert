@@ -13,6 +13,7 @@
 
 use crate::bert::bert_model::BertConfig;
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
@@ -170,30 +171,8 @@ impl BertEmbedding for BertEmbeddings {
         input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<Tensor, RustBertError> {
-        let (calc_input_embeddings, input_shape) = match input_ids {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (
-                    Some(input_value.apply_t(&self.word_embeddings, train)),
-                    input_value.size(),
-                ),
-            },
-            None => match input_embeds {
-                Some(embeds) => {
-                    let size = vec![embeds.size()[0], embeds.size()[1]];
-                    (None, size)
-                }
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (calc_input_embeddings, input_shape, _) =
+            process_ids_embeddings_pair(input_ids, input_embeds, &self.word_embeddings)?;
 
         let input_embeddings =
             input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());

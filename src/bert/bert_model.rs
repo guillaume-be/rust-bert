@@ -14,6 +14,7 @@
 use crate::bert::encoder::{BertEncoder, BertPooler};
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::{
     bert::embeddings::{BertEmbedding, BertEmbeddings},
@@ -292,24 +293,8 @@ impl<T: BertEmbedding> BertModel<T> {
         encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<BertModelOutput, RustBertError> {
-        let (input_shape, device) = match input_ids {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (input_value.size(), input_value.device()),
-            },
-            None => match input_embeds {
-                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (input_shape, device) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
         let calc_mask = Tensor::ones(&input_shape, (Kind::Int64, device));
         let mask = mask.unwrap_or_else(|| &calc_mask);
