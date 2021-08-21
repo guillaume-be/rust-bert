@@ -71,7 +71,7 @@ impl AlbertLayer {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let (attention_output, attention_weights) =
@@ -116,7 +116,7 @@ impl AlbertLayerGroup {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
@@ -219,7 +219,7 @@ impl AlbertTransformer {
                 hidden_states.push(hidden_state.as_ref().copy());
             };
 
-            let temp = layer.forward_t(&hidden_state, &mask, train);
+            let temp = layer.forward_t(&hidden_state, mask.as_ref(), train);
             hidden_state = temp.0;
             let attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {

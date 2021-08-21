@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::prophetnet::attention::{
     compute_all_stream_relative_buckets, LayerState, ProphetNetAttention, ProphetNetFeedForward,
     ProphetNetNgramAttention,
@@ -251,28 +252,15 @@ impl ProphetNetDecoder {
         word_embeddings: Option<&nn::Embedding>,
         train: bool,
     ) -> Result<ProphetNetDecoderOutput, RustBertError> {
-        let calc_input_embeddings = if let Some(input_ids) = input_ids {
-            if input_embeds.is_none() {
-                Some(input_ids.apply(match word_embeddings {
-                    Some(value) => value,
-                    None => {
-                        return Err(RustBertError::ValueError(
-                            "Embeddings must be provided if input_embeds is not given".into(),
-                        ));
-                    }
-                }))
-            } else {
-                return Err(RustBertError::ValueError(
-                    "Only one of input ids or input embeddings may be set".into(),
-                ));
-            }
-        } else if input_embeds.is_some() {
-            None
-        } else {
-            return Err(RustBertError::ValueError(
-                "At least one of input ids or input embeddings must be set".into(),
-            ));
-        };
+        let (calc_input_embeddings, _, _) = process_ids_embeddings_pair(
+            input_ids,
+            input_embeds,
+            word_embeddings.ok_or_else(|| {
+                return RustBertError::ValueError(
+                    "Embeddings must be provided if input_embeds is not given".into(),
+                );
+            })?,
+        )?;
         let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let input_size = input_embeds.size();

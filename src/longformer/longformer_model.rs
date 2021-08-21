@@ -455,21 +455,8 @@ impl LongformerModel {
         input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<LongformerModelOutput, RustBertError> {
-        let (input_shape, device) = if let Some(input_ids) = input_ids {
-            if input_embeds.is_none() {
-                (input_ids.size(), input_ids.device())
-            } else {
-                return Err(RustBertError::ValueError(
-                    "Only one of input ids or input embeddings may be set".into(),
-                ));
-            }
-        } else if let Some(input_embeds) = input_embeds {
-            (input_embeds.size()[..2].to_vec(), input_embeds.device())
-        } else {
-            return Err(RustBertError::ValueError(
-                "At least one of input ids or input embeddings must be set".into(),
-            ));
-        };
+        let (input_shape, device) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
         let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
 
