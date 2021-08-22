@@ -382,7 +382,7 @@ impl ZeroShotClassificationOption {
             Self::Bart(ref model) => {
                 model
                     .forward_t(
-                        &input_ids.expect("`input_ids` must be provided for BART models"),
+                        input_ids.expect("`input_ids` must be provided for BART models"),
                         mask,
                         None,
                         None,

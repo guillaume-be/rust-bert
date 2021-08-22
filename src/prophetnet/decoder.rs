@@ -256,9 +256,9 @@ impl ProphetNetDecoder {
             input_ids,
             input_embeds,
             word_embeddings.ok_or_else(|| {
-                return RustBertError::ValueError(
+                RustBertError::ValueError(
                     "Embeddings must be provided if input_embeds is not given".into(),
-                );
+                )
             })?,
         )?;
         let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());

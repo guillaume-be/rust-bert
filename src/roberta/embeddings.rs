@@ -185,8 +185,8 @@ impl BertEmbedding for RobertaEmbeddings {
 
         let calc_position_ids = if position_ids.is_none() {
             Some(match input_ids {
-                Some(value) => self.create_position_ids_from_input_ids(&value),
-                None => self.create_position_ids_from_embeddings(&input_embeds.unwrap()),
+                Some(value) => self.create_position_ids_from_input_ids(value),
+                None => self.create_position_ids_from_embeddings(input_embeds.unwrap()),
             })
         } else {
             None

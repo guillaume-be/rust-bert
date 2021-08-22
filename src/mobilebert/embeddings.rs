@@ -126,7 +126,7 @@ impl MobileBertEmbeddings {
                         ],
                         1,
                     ),
-                    &input_embeddings,
+                    input_embeddings,
                     &Tensor::cat(
                         &[
                             &padding_tensor,

@@ -62,14 +62,14 @@ fn distilgpt2_lm_model() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = gpt2_model
         .forward_t(
-            &Some(input_tensor),
+            Some(&input_tensor),
             Cache::None,
-            &None,
-            &None,
-            &None,
-            &None,
             None,
-            &None,
+            None,
+            None,
+            None,
+            None,
+            None,
             false,
         )
         .unwrap();
