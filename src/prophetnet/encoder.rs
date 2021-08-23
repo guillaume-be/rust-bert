@@ -187,14 +187,8 @@ impl ProphetNetEncoder {
 
         for layer in &self.layers {
             let temp = if let Some(x_value) = &x {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(x_value.transpose(0, 1));
-                }
                 layer.forward_t(x_value, extended_attention_mask.as_ref(), train)
             } else {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(hidden_state.transpose(0, 1));
-                }
                 layer.forward_t(&hidden_state, extended_attention_mask.as_ref(), train)
             };
             x = Some(temp.0);
@@ -202,10 +196,10 @@ impl ProphetNetEncoder {
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
             };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(x.as_ref().unwrap().transpose(0, 1));
+            };
         }
-        if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-            hidden_states.push(x.as_ref().unwrap().transpose(0, 1));
-        };
 
         Ok(ProphetNetEncoderOutput {
             hidden_states: x.unwrap().transpose(0, 1),

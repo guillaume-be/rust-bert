@@ -252,7 +252,7 @@ impl BertEncoder {
     /// ```
     pub fn forward_t(
         &self,
-        hidden_states: &Tensor,
+        input: &Tensor,
         mask: Option<&Tensor>,
         encoder_hidden_states: Option<&Tensor>,
         encoder_mask: Option<&Tensor>,
@@ -269,30 +269,34 @@ impl BertEncoder {
             None
         };
 
-        let mut hidden_state = hidden_states.copy();
+        let mut hidden_state = None::<Tensor>;
         let mut attention_weights: Option<Tensor>;
 
         for layer in &self.layers {
-            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
+            let layer_output = if let Some(hidden_state) = &hidden_state {
+                layer.forward_t(
+                    hidden_state,
+                    mask,
+                    encoder_hidden_states,
+                    encoder_mask,
+                    train,
+                )
+            } else {
+                layer.forward_t(input, mask, encoder_hidden_states, encoder_mask, train)
             };
 
-            let layer_output = layer.forward_t(
-                &hidden_state,
-                mask,
-                encoder_hidden_states,
-                encoder_mask,
-                train,
-            );
-            hidden_state = layer_output.hidden_state;
+            hidden_state = Some(layer_output.hidden_state);
             attention_weights = layer_output.attention_weights;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
             };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().unwrap().copy());
+            };
         }
 
         BertEncoderOutput {
-            hidden_state,
+            hidden_state: hidden_state.unwrap(),
             all_hidden_states,
             all_attentions,
         }

@@ -138,7 +138,7 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
     assert!(model_output.all_attentions.is_some());
     assert!(model_output.all_hidden_states.is_some());
     assert_eq!(
-        config.num_hidden_layers as usize + 1,
+        config.num_hidden_layers as usize,
         model_output.all_hidden_states.as_ref().unwrap().len()
     );
     assert_eq!(

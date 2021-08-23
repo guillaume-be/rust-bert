@@ -392,14 +392,8 @@ impl GptNeoModel {
             };
 
             let temp = if let Some(x_value) = &x {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(x_value.copy());
-                }
                 layer.forward_t(x_value, layer_state.as_ref(), attention_mask, train)?
             } else {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(hidden_state.copy());
-                }
                 layer.forward_t(&hidden_state, layer_state.as_ref(), attention_mask, train)?
             };
             x = Some(temp.0);
@@ -408,10 +402,10 @@ impl GptNeoModel {
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
             };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(x.as_ref().unwrap().copy());
+            };
         }
-        if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-            hidden_states.push(x.as_ref().unwrap().copy());
-        };
 
         let hidden_states = x
             .unwrap()

@@ -387,20 +387,6 @@ impl ProphetNetDecoder {
                 (None, None)
             };
             let temp = if let Some(x_value) = &x {
-                if let Some(main_stream_hidden_states) = all_main_stream_hidden_states.borrow_mut()
-                {
-                    main_stream_hidden_states
-                        .push(x_value.slice(0, 0, sequence_length, 1).transpose(0, 1));
-                }
-                if let Some(ngram_stream_hidden_states) =
-                    all_ngram_stream_hidden_states.borrow_mut()
-                {
-                    ngram_stream_hidden_states.push(
-                        x_value
-                            .slice(0, sequence_length, x_value.size()[0], 1)
-                            .transpose(0, 1),
-                    );
-                }
                 layer.forward_t(
                     x_value,
                     encoder_hidden_states.as_ref(),
@@ -414,23 +400,6 @@ impl ProphetNetDecoder {
                     train,
                 )
             } else {
-                if let Some(main_stream_hidden_states) = all_main_stream_hidden_states.borrow_mut()
-                {
-                    main_stream_hidden_states.push(
-                        hidden_states
-                            .slice(0, 0, sequence_length, 1)
-                            .transpose(0, 1),
-                    );
-                }
-                if let Some(ngram_stream_hidden_states) =
-                    all_ngram_stream_hidden_states.borrow_mut()
-                {
-                    ngram_stream_hidden_states.push(
-                        hidden_states
-                            .slice(0, sequence_length, hidden_states.size()[0], 1)
-                            .transpose(0, 1),
-                    );
-                }
                 layer.forward_t(
                     &hidden_states,
                     encoder_hidden_states.as_ref(),
@@ -455,23 +424,23 @@ impl ProphetNetDecoder {
             if let Some(all_cross_attentions) = all_cross_attentions.borrow_mut() {
                 all_cross_attentions.push(temp.cross_attention_weights.unwrap());
             };
+            if let Some(main_stream_hidden_states) = all_main_stream_hidden_states.borrow_mut() {
+                main_stream_hidden_states.push(
+                    x.as_ref()
+                        .unwrap()
+                        .slice(0, 0, sequence_length, 1)
+                        .transpose(0, 1),
+                );
+            };
+            if let Some(ngram_stream_hidden_states) = all_ngram_stream_hidden_states.borrow_mut() {
+                ngram_stream_hidden_states.push(
+                    x.as_ref()
+                        .unwrap()
+                        .slice(0, sequence_length, x.as_ref().unwrap().size()[0], 1)
+                        .transpose(0, 1),
+                );
+            };
             next_decoder_cache.push(temp.layer_states);
-        }
-        if let Some(main_stream_hidden_states) = all_main_stream_hidden_states.borrow_mut() {
-            main_stream_hidden_states.push(
-                x.as_ref()
-                    .unwrap()
-                    .slice(0, 0, sequence_length, 1)
-                    .transpose(0, 1),
-            );
-        }
-        if let Some(ngram_stream_hidden_states) = all_ngram_stream_hidden_states.borrow_mut() {
-            ngram_stream_hidden_states.push(
-                x.as_ref()
-                    .unwrap()
-                    .slice(0, sequence_length, x.as_ref().unwrap().size()[0], 1)
-                    .transpose(0, 1),
-            );
         }
         let x = x.unwrap();
 

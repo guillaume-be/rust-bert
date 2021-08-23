@@ -98,7 +98,7 @@ fn gpt_neo_lm() -> anyhow::Result<()> {
     );
 
     assert!(model_output.all_hidden_states.is_some());
-    assert_eq!(model_output.all_hidden_states.as_ref().unwrap().len(), 13);
+    assert_eq!(model_output.all_hidden_states.as_ref().unwrap().len(), 12);
     assert_eq!(
         model_output.all_hidden_states.as_ref().unwrap()[0].size(),
         vec![1, 4, 768]

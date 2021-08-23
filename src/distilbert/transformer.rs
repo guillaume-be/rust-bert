@@ -155,11 +155,6 @@ impl Transformer {
         let mut attention_weights: Option<Tensor>;
 
         for layer in &self.layers {
-            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                if let Some(hidden_state) = &hidden_state {
-                    hidden_states.push(hidden_state.copy());
-                }
-            };
             let temp = if let Some(hidden_state) = &hidden_state {
                 layer.forward_t(hidden_state, mask, train)
             } else {
@@ -170,6 +165,9 @@ impl Transformer {
             attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
+            };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().unwrap().copy());
             };
         }
 

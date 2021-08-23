@@ -318,9 +318,6 @@ impl LongformerEncoder {
 
         for layer in &self.layers {
             let temp = if let Some(x_value) = &x {
-                if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
-                    all_hidden_states.push(x_value.transpose(0, 1));
-                }
                 layer.forward_t(
                     x_value,
                     attention_mask,
@@ -330,9 +327,6 @@ impl LongformerEncoder {
                     train,
                 )
             } else {
-                if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
-                    all_hidden_states.push(hidden_states.transpose(0, 1));
-                }
                 layer.forward_t(
                     hidden_states,
                     attention_mask,
@@ -351,10 +345,10 @@ impl LongformerEncoder {
             if let Some(global_attentions) = all_global_attentions.borrow_mut() {
                 global_attentions.push(global_attention_weights.as_ref().unwrap().transpose(2, 3));
             };
+            if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
+                all_hidden_states.push(x.as_ref().unwrap().copy());
+            };
         }
-        if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
-            all_hidden_states.push(x.as_ref().unwrap().copy());
-        };
 
         LongformerEncoderOutput {
             hidden_states: x.unwrap(),
