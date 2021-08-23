@@ -166,8 +166,8 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
     assert_eq!(
         model_output.all_hidden_states.as_ref().unwrap()[0].size(),
         vec!(
-            *config.attention_window.iter().max().unwrap(),
             2,
+            *config.attention_window.iter().max().unwrap(),
             config.hidden_size
         )
     );
