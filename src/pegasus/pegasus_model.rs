@@ -488,21 +488,21 @@ impl LMHeadModel for PegasusForConditionalGeneration {
     /// ```
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         cache: Cache,
-        attention_mask: &Option<Tensor>,
-        _token_type_ids: &Option<Tensor>,
-        _position_ids: &Option<Tensor>,
-        _input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
         encoder_outputs: Option<&Tensor>,
-        decoder_input_ids: &Option<Tensor>,
+        decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match cache {
             Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
-                input_ids.as_ref(),
-                attention_mask.as_ref(),
-                decoder_input_ids.as_ref().ok_or_else(|| {
+                input_ids,
+                attention_mask,
+                decoder_input_ids.ok_or_else(|| {
                     RustBertError::ValueError(
                         "Decoder input ids must be provided for Pegasus language models"
                             .to_string(),
@@ -514,9 +514,9 @@ impl LMHeadModel for PegasusForConditionalGeneration {
                 train,
             ),
             Cache::None => self.base_model.forward_t(
-                input_ids.as_ref(),
-                attention_mask.as_ref(),
-                decoder_input_ids.as_ref().ok_or_else(|| {
+                input_ids,
+                attention_mask,
+                decoder_input_ids.ok_or_else(|| {
                     RustBertError::ValueError(
                         "Decoder input ids must be provided for Pegasus language models"
                             .to_string(),

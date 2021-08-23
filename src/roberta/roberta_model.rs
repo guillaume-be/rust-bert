@@ -305,26 +305,26 @@ impl RobertaForMaskedLM {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
-    ///         &None,
-    ///         &None,
+    ///         None,
+    ///         None,
     ///         false,
     ///     )
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> RobertaMaskedLMOutput {
         let base_model_output = self
@@ -489,10 +489,10 @@ impl RobertaForSequenceClassification {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -500,11 +500,11 @@ impl RobertaForSequenceClassification {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> RobertaSequenceClassificationOutput {
         let base_model_output = self
@@ -515,8 +515,8 @@ impl RobertaForSequenceClassification {
                 token_type_ids,
                 position_ids,
                 input_embeds,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
@@ -625,20 +625,20 @@ impl RobertaForMultipleChoice {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         input_tensor,
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         &input_tensor,
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         false,
     ///     )
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Tensor,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
+        input_ids: &Tensor,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
         train: bool,
     ) -> RobertaSequenceClassificationOutput {
         let num_choices = input_ids.size()[1];
@@ -653,13 +653,13 @@ impl RobertaForMultipleChoice {
         let base_model_output = self
             .roberta
             .forward_t(
-                input_ids,
-                mask,
-                token_type_ids,
-                position_ids,
+                input_ids.as_ref(),
+                mask.as_ref(),
+                token_type_ids.as_ref(),
+                position_ids.as_ref(),
                 None,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
@@ -782,10 +782,10 @@ impl RobertaForTokenClassification {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -793,11 +793,11 @@ impl RobertaForTokenClassification {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> RobertaTokenClassificationOutput {
         let base_model_output = self
@@ -808,8 +808,8 @@ impl RobertaForTokenClassification {
                 token_type_ids,
                 position_ids,
                 input_embeds,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
@@ -926,10 +926,10 @@ impl RobertaForQuestionAnswering {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -937,11 +937,11 @@ impl RobertaForQuestionAnswering {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> RobertaQuestionAnsweringOutput {
         let base_model_output = self
@@ -952,8 +952,8 @@ impl RobertaForQuestionAnswering {
                 token_type_ids,
                 position_ids,
                 input_embeds,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();

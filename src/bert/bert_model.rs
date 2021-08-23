@@ -14,6 +14,7 @@
 use crate::bert::encoder::{BertEncoder, BertPooler};
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::{
     bert::embeddings::{BertEmbedding, BertEmbeddings},
@@ -269,13 +270,13 @@ impl<T: BertEmbedding> BertModel<T> {
     /// let model_output = no_grad(|| {
     ///     bert_model
     ///         .forward_t(
-    ///             Some(input_tensor),
-    ///             Some(mask),
-    ///             Some(token_type_ids),
-    ///             Some(position_ids),
+    ///             Some(&input_tensor),
+    ///             Some(&mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
-    ///             &None,
-    ///             &None,
+    ///             None,
+    ///             None,
     ///             false,
     ///         )
     ///         .unwrap()
@@ -283,35 +284,20 @@ impl<T: BertEmbedding> BertModel<T> {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<BertModelOutput, RustBertError> {
-        let (input_shape, device) = match &input_ids {
-            Some(input_value) => match &input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (input_value.size(), input_value.device()),
-            },
-            None => match &input_embeds {
-                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (input_shape, device) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
-        let mask = mask.unwrap_or_else(|| Tensor::ones(&input_shape, (Kind::Int64, device)));
+        let calc_mask = Tensor::ones(&input_shape, (Kind::Int64, device));
+        let mask = mask.unwrap_or(&calc_mask);
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),
@@ -376,9 +362,9 @@ impl<T: BertEmbedding> BertModel<T> {
 
         let encoder_output = self.encoder.forward_t(
             &embedding_output,
-            &Some(extended_attention_mask),
+            Some(&extended_attention_mask),
             encoder_hidden_states,
-            &encoder_extended_attention_mask,
+            encoder_extended_attention_mask.as_ref(),
             train,
         );
 
@@ -554,26 +540,26 @@ impl BertForMaskedLM {
     ///
     /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
-    ///         &None,
-    ///         &None,
+    ///         None,
+    ///         None,
     ///         false,
     ///     )
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> BertMaskedLMOutput {
         let base_model_output = self
@@ -699,10 +685,10 @@ impl BertForSequenceClassification {
     ///
     /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -710,11 +696,11 @@ impl BertForSequenceClassification {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> BertSequenceClassificationOutput {
         let base_model_output = self
@@ -725,8 +711,8 @@ impl BertForSequenceClassification {
                 token_type_ids,
                 position_ids,
                 input_embeds,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
@@ -835,20 +821,20 @@ impl BertForMultipleChoice {
     ///
     /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
-    ///         input_tensor,
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         &input_tensor,
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         false,
     ///     )
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Tensor,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
+        input_ids: &Tensor,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
         train: bool,
     ) -> BertSequenceClassificationOutput {
         let num_choices = input_ids.size()[1];
@@ -863,13 +849,13 @@ impl BertForMultipleChoice {
         let base_model_output = self
             .bert
             .forward_t(
-                Some(input_ids),
-                mask,
-                token_type_ids,
-                position_ids,
+                Some(&input_ids),
+                mask.as_ref(),
+                token_type_ids.as_ref(),
+                position_ids.as_ref(),
                 None,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
@@ -989,10 +975,10 @@ impl BertForTokenClassification {
     ///
     /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -1000,11 +986,11 @@ impl BertForTokenClassification {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> BertTokenClassificationOutput {
         let base_model_output = self
@@ -1015,8 +1001,8 @@ impl BertForTokenClassification {
                 token_type_ids,
                 position_ids,
                 input_embeds,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
@@ -1126,10 +1112,10 @@ impl BertForQuestionAnswering {
     ///
     /// let model_output = no_grad(|| {
     ///     bert_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -1137,11 +1123,11 @@ impl BertForQuestionAnswering {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> BertQuestionAnsweringOutput {
         let base_model_output = self
@@ -1152,8 +1138,8 @@ impl BertForQuestionAnswering {
                 token_type_ids,
                 position_ids,
                 input_embeds,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();

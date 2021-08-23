@@ -82,13 +82,13 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = no_grad(|| {
         roberta_model.forward_t(
-            Some(input_tensor),
+            Some(&input_tensor),
             None,
             None,
             None,
             None,
-            &None,
-            &None,
+            None,
+            None,
             false,
         )
     });
@@ -172,7 +172,7 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| roberta_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| roberta_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 3]);
     assert_eq!(
@@ -242,7 +242,7 @@ fn roberta_for_multiple_choice() -> anyhow::Result<()> {
         .unsqueeze(0);
 
     //    Forward pass
-    let model_output = no_grad(|| roberta_model.forward_t(input_tensor, None, None, None, false));
+    let model_output = no_grad(|| roberta_model.forward_t(&input_tensor, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[1, 2]);
     assert_eq!(
@@ -317,7 +317,7 @@ fn roberta_for_token_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| roberta_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| roberta_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 9, 4]);
     assert_eq!(

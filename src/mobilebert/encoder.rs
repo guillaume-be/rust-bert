@@ -484,14 +484,8 @@ impl MobileBertEncoder {
 
         for layer in &self.layers {
             let temp = if let Some(x_value) = &x {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(x_value.copy());
-                }
                 layer.forward_t(x_value, attention_mask, train)
             } else {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(hidden_state.copy());
-                }
                 layer.forward_t(hidden_state, attention_mask, train)
             };
             x = Some(temp.0);
@@ -499,10 +493,11 @@ impl MobileBertEncoder {
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
             };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(x.as_ref().unwrap().copy());
+            };
         }
-        if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-            hidden_states.push(x.as_ref().unwrap().copy());
-        };
+
         MobileBertEncoderOutput {
             hidden_state: x.unwrap(),
             all_hidden_states,

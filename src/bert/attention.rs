@@ -89,9 +89,9 @@ impl BertSelfAttention {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let (key_layer, value_layer, mask) = match encoder_hidden_states {
@@ -200,9 +200,9 @@ impl BertAttention {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let (self_output, attention_weights) = self._self.forward_t(

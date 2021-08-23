@@ -14,6 +14,7 @@
 use crate::albert::encoder::AlbertTransformer;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::{albert::embeddings::AlbertEmbeddings, common::activations::TensorFunction};
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
@@ -191,10 +192,10 @@ impl AlbertModel {
     /// let model_output = no_grad(|| {
     ///     albert_model
     ///         .forward_t(
-    ///             Some(input_tensor),
-    ///             Some(mask),
-    ///             Some(token_type_ids),
-    ///             Some(position_ids),
+    ///             Some(&input_tensor),
+    ///             Some(&mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
     ///             false,
     ///         )
@@ -203,33 +204,22 @@ impl AlbertModel {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<AlbertOutput, RustBertError> {
-        let (input_shape, device) = match &input_ids {
-            Some(input_value) => match &input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (input_value.size(), input_value.device()),
-            },
-            None => match &input_embeds {
-                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (input_shape, device) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
-        let mask = mask.unwrap_or_else(|| Tensor::ones(&input_shape, (Kind::Int64, device)));
+        let calc_mask = if mask.is_none() {
+            Some(Tensor::ones(&input_shape, (Kind::Int64, device)))
+        } else {
+            None
+        };
+        let mask = mask.unwrap_or_else(|| calc_mask.as_ref().unwrap());
 
         let extended_attention_mask = mask.unsqueeze(1).unsqueeze(2);
         let extended_attention_mask: Tensor =
@@ -401,10 +391,10 @@ impl AlbertForMaskedLM {
     ///
     /// let masked_lm_output = no_grad(|| {
     ///     albert_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -412,11 +402,11 @@ impl AlbertForMaskedLM {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> AlbertMaskedLMOutput {
         let base_model_output = self
@@ -541,21 +531,21 @@ impl AlbertForSequenceClassification {
     ///
     ///  let classification_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> AlbertSequenceClassificationOutput {
         let base_model_output = self
@@ -683,21 +673,21 @@ impl AlbertForTokenClassification {
     ///
     ///  let model_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> AlbertTokenClassificationOutput {
         let base_model_output = self
@@ -815,21 +805,21 @@ impl AlbertForQuestionAnswering {
     ///
     ///  let model_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> AlbertQuestionAnsweringOutput {
         let base_model_output = self
@@ -958,21 +948,21 @@ impl AlbertForMultipleChoice {
     ///
     ///  let model_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false).unwrap()
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<AlbertSequenceClassificationOutput, RustBertError> {
         let (input_ids, input_embeds, num_choices) = match &input_ids {
@@ -1008,17 +998,14 @@ impl AlbertForMultipleChoice {
         let position_ids =
             position_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
 
-        let base_model_output = self
-            .albert
-            .forward_t(
-                input_ids,
-                mask,
-                token_type_ids,
-                position_ids,
-                input_embeds,
-                train,
-            )
-            .unwrap();
+        let base_model_output = self.albert.forward_t(
+            input_ids.as_ref(),
+            mask.as_ref(),
+            token_type_ids.as_ref(),
+            position_ids.as_ref(),
+            input_embeds.as_ref(),
+            train,
+        )?;
         let logits = base_model_output
             .pooled_output
             .apply_t(&self.dropout, train)

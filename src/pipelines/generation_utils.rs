@@ -616,14 +616,14 @@ pub(crate) mod private_generation_utils {
                 let temp = self
                     .get_model()
                     .forward_t(
-                        &prepared_input.prepared_input,
+                        prepared_input.prepared_input.as_ref(),
                         prepared_input.prepared_past,
-                        &prepared_input.prepared_attention_mask,
-                        &None,
-                        &prepared_input.prepared_position_ids,
-                        &None,
+                        prepared_input.prepared_attention_mask.as_ref(),
+                        None,
+                        prepared_input.prepared_position_ids.as_ref(),
+                        None,
                         prepared_input.prepared_encoder_output,
-                        &prepared_input.prepared_decoder_input,
+                        prepared_input.prepared_decoder_input.as_ref(),
                         false,
                     )
                     .unwrap();
@@ -835,14 +835,14 @@ pub(crate) mod private_generation_utils {
                 let temp = self
                     .get_model()
                     .forward_t(
-                        &prepared_input.prepared_input,
+                        prepared_input.prepared_input.as_ref(),
                         prepared_input.prepared_past,
-                        &prepared_input.prepared_attention_mask,
-                        &None,
-                        &prepared_input.prepared_position_ids,
-                        &None,
+                        prepared_input.prepared_attention_mask.as_ref(),
+                        None,
+                        prepared_input.prepared_position_ids.as_ref(),
+                        None,
                         prepared_input.prepared_encoder_output,
-                        &prepared_input.prepared_decoder_input,
+                        prepared_input.prepared_decoder_input.as_ref(),
                         false,
                     )
                     .unwrap();
@@ -1941,14 +1941,14 @@ pub trait LMHeadModel {
     /// let model_output = no_grad(|| {
     ///     gpt2_model
     ///         .forward_t(
-    ///             &Some(input_tensor),
+    ///             Some(&input_tensor),
     ///             Cache::GPT2Cache(Some(past)),
-    ///             &Some(attention_mask),
-    ///             &Some(token_type_ids),
-    ///             &Some(position_ids),
-    ///             &None,
+    ///             Some(&attention_mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
-    ///             &None,
+    ///             None,
+    ///             None,
     ///             false,
     ///         )
     ///         .unwrap()
@@ -1956,14 +1956,14 @@ pub trait LMHeadModel {
     /// ```
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         layer_past: Cache,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         encoder_outputs: Option<&Tensor>,
-        decoder_input_ids: &Option<Tensor>,
+        decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError>;
 }

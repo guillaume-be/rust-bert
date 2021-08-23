@@ -125,7 +125,7 @@ impl Attention {
         query: &Tensor,
         key: &Tensor,
         value: &Tensor,
-        attention_mask: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let mut w = query.matmul(key);
@@ -153,8 +153,8 @@ impl Attention {
     pub fn forward_t(
         &self,
         x: &Tensor,
-        layer_past: &Option<Tensor>,
-        attention_mask: &Option<Tensor>,
+        layer_past: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Tensor, Option<Tensor>) {
         let x = x.apply(&self.c_attn).split(self.n_state, 2);

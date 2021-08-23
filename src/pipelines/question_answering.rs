@@ -421,9 +421,9 @@ impl QuestionAnsweringOption {
     /// Interface method to forward_t() of the particular models.
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Tensor) {
         match *self {
@@ -439,14 +439,7 @@ impl QuestionAnsweringOption {
             }
             Self::MobileBert(ref model) => {
                 let outputs = model
-                    .forward_t(
-                        input_ids.as_ref(),
-                        None,
-                        None,
-                        input_embeds,
-                        mask.as_ref(),
-                        train,
-                    )
+                    .forward_t(input_ids, None, None, input_embeds, mask, train)
                     .expect("Error in mobilebert forward_t");
                 (outputs.start_logits, outputs.end_logits)
             }
@@ -459,35 +452,19 @@ impl QuestionAnsweringOption {
                 (outputs.start_logits, outputs.end_logits)
             }
             Self::XLNet(ref model) => {
-                let outputs = model.forward_t(
-                    input_ids.as_ref(),
-                    mask.as_ref(),
-                    None,
-                    None,
-                    None,
-                    None,
-                    input_embeds,
-                    train,
-                );
+                let outputs =
+                    model.forward_t(input_ids, mask, None, None, None, None, input_embeds, train);
                 (outputs.start_logits, outputs.end_logits)
             }
             Self::Reformer(ref model) => {
                 let outputs = model
-                    .forward_t(input_ids.as_ref(), None, None, mask.as_ref(), None, train)
+                    .forward_t(input_ids, None, None, mask, None, train)
                     .expect("Error in reformer forward pass");
                 (outputs.start_logits, outputs.end_logits)
             }
             Self::Longformer(ref model) => {
                 let outputs = model
-                    .forward_t(
-                        input_ids.as_ref(),
-                        mask.as_ref(),
-                        None,
-                        None,
-                        None,
-                        None,
-                        train,
-                    )
+                    .forward_t(input_ids, mask, None, None, None, None, train)
                     .expect("Error in reformer forward pass");
                 (outputs.start_logits, outputs.end_logits)
             }
@@ -666,7 +643,7 @@ impl QuestionAnsweringModel {
 
                 let (start_logits, end_logits) =
                     self.qa_model
-                        .forward_t(Some(input_ids), Some(attention_masks), None, false);
+                        .forward_t(Some(&input_ids), Some(&attention_masks), None, false);
 
                 let start_logits = start_logits.detach();
                 let end_logits = end_logits.detach();

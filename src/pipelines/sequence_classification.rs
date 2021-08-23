@@ -353,19 +353,19 @@ impl SequenceClassificationOption {
     /// Interface method to forward_t() of the particular models.
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Tensor {
         match *self {
             Self::Bart(ref model) => {
                 model
                     .forward_t(
-                        &input_ids.expect("`input_ids` must be provided for BART models"),
-                        mask.as_ref(),
+                        input_ids.expect("`input_ids` must be provided for BART models"),
+                        mask,
                         None,
                         None,
                         None,
@@ -393,14 +393,7 @@ impl SequenceClassificationOption {
             }
             Self::MobileBert(ref model) => {
                 model
-                    .forward_t(
-                        input_ids.as_ref(),
-                        None,
-                        None,
-                        input_embeds,
-                        mask.as_ref(),
-                        train,
-                    )
+                    .forward_t(input_ids, None, None, input_embeds, mask, train)
                     .expect("Error in mobilebert forward_t")
                     .logits
             }
@@ -431,12 +424,12 @@ impl SequenceClassificationOption {
             Self::XLNet(ref model) => {
                 model
                     .forward_t(
-                        input_ids.as_ref(),
-                        mask.as_ref(),
+                        input_ids,
+                        mask,
                         None,
                         None,
                         None,
-                        token_type_ids.as_ref(),
+                        token_type_ids,
                         input_embeds,
                         train,
                     )
@@ -444,19 +437,19 @@ impl SequenceClassificationOption {
             }
             Self::Reformer(ref model) => {
                 model
-                    .forward_t(input_ids.as_ref(), None, None, mask.as_ref(), None, train)
+                    .forward_t(input_ids, None, None, mask, None, train)
                     .expect("Error in Reformer forward pass.")
                     .logits
             }
             Self::Longformer(ref model) => {
                 model
                     .forward_t(
-                        input_ids.as_ref(),
-                        mask.as_ref(),
+                        input_ids,
+                        mask,
                         None,
-                        token_type_ids.as_ref(),
-                        position_ids.as_ref(),
-                        input_embeds.as_ref(),
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
                         train,
                     )
                     .expect("Error in Longformer forward pass.")
@@ -597,7 +590,7 @@ impl SequenceClassificationModel {
         let input_tensor = self.prepare_for_model(input.as_ref());
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
-                Some(input_tensor.copy()),
+                Some(&input_tensor),
                 None,
                 None,
                 None,
@@ -666,7 +659,7 @@ impl SequenceClassificationModel {
         let input_tensor = self.prepare_for_model(input.to_vec());
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
-                Some(input_tensor.copy()),
+                Some(&input_tensor),
                 None,
                 None,
                 None,

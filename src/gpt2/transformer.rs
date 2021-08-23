@@ -93,8 +93,8 @@ impl Block {
     pub fn forward_t(
         &self,
         x: &Tensor,
-        layer_past: &Option<Tensor>,
-        attention_mask: &Option<Tensor>,
+        layer_past: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Tensor, Option<Tensor>) {
         let (output, present, attentions) =

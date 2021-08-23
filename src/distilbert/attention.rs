@@ -69,7 +69,7 @@ impl MultiHeadSelfAttention {
         query: &Tensor,
         key: &Tensor,
         value: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let bs = query.size()[0];

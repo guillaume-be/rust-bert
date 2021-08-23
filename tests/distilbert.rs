@@ -96,7 +96,7 @@ fn distilbert_masked_lm() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = no_grad(|| {
         distil_bert_model
-            .forward_t(Some(input_tensor), None, None, false)
+            .forward_t(Some(&input_tensor), None, None, false)
             .unwrap()
     });
 
@@ -167,7 +167,7 @@ fn distilbert_for_question_answering() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = no_grad(|| {
         distil_bert_model
-            .forward_t(Some(input_tensor), None, None, false)
+            .forward_t(Some(&input_tensor), None, None, false)
             .unwrap()
     });
 
@@ -238,7 +238,7 @@ fn distilbert_for_token_classification() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = no_grad(|| {
         distil_bert_model
-            .forward_t(Some(input_tensor), None, None, false)
+            .forward_t(Some(&input_tensor), None, None, false)
             .unwrap()
     });
 

@@ -15,6 +15,7 @@
 use crate::bert::BertConfig;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::electra::embeddings::ElectraEmbeddings;
 use crate::{bert::encoder::BertEncoder, common::activations::TensorFunction};
 use crate::{Config, RustBertError};
@@ -216,10 +217,10 @@ impl ElectraModel {
     /// let model_output = no_grad(|| {
     ///     electra_model
     ///         .forward_t(
-    ///             Some(input_tensor),
-    ///             Some(mask),
-    ///             Some(token_type_ids),
-    ///             Some(position_ids),
+    ///             Some(&input_tensor),
+    ///             Some(&mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
     ///             false,
     ///         )
@@ -228,33 +229,22 @@ impl ElectraModel {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<ElectraModelOutput, RustBertError> {
-        let (input_shape, device) = match &input_ids {
-            Some(input_value) => match &input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (input_value.size(), input_value.device()),
-            },
-            None => match &input_embeds {
-                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (input_shape, device) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
-        let mask = mask.unwrap_or_else(|| Tensor::ones(&input_shape, (Kind::Int64, device)));
+        let calc_mask = if mask.is_none() {
+            Some(Tensor::ones(&input_shape, (Kind::Int64, device)))
+        } else {
+            None
+        };
+        let mask = mask.unwrap_or_else(|| calc_mask.as_ref().unwrap());
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),
@@ -281,9 +271,9 @@ impl ElectraModel {
 
         let encoder_output = self.encoder.forward_t(
             &hidden_states,
-            &Some(extended_attention_mask),
-            &None,
-            &None,
+            Some(&extended_attention_mask),
+            None,
+            None,
             train,
         );
 
@@ -590,10 +580,10 @@ impl ElectraForMaskedLM {
     ///
     /// let model_output = no_grad(|| {
     ///     electra_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -601,11 +591,11 @@ impl ElectraForMaskedLM {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> ElectraMaskedLMOutput {
         let base_model_output = self
@@ -717,21 +707,21 @@ impl ElectraDiscriminator {
     ///
     ///  let model_output = no_grad(|| {
     ///    electra_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> ElectraDiscriminatorOutput {
         let base_model_output = self
@@ -858,21 +848,21 @@ impl ElectraForTokenClassification {
     ///
     ///  let model_output = no_grad(|| {
     ///    electra_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> ElectraTokenClassificationOutput {
         let base_model_output = self

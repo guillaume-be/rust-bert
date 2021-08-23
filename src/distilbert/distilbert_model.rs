@@ -196,36 +196,18 @@ impl DistilBertModel {
     ///
     /// let model_output = no_grad(|| {
     ///     distilbert_model
-    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
     ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertTransformerOutput, RustBertError> {
-        let input_embeddings = match input {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => input_value.apply_t(&self.embeddings, train),
-            },
-            None => match input_embeds {
-                Some(embeds) => embeds,
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
-
+        let input_embeddings = self.embeddings.forward_t(input, input_embeds, train)?;
         let transformer_output = (&self.transformer).forward_t(&input_embeddings, mask, train);
         Ok(transformer_output)
     }
@@ -334,17 +316,17 @@ impl DistilBertModelClassifier {
     ///
     ///  let model_output = no_grad(|| {
     ///    distilbert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
     ///                    None,
     ///                    false).unwrap()
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertSequenceClassificationOutput, RustBertError> {
         let base_model_output =
@@ -473,15 +455,15 @@ impl DistilBertModelMaskedLM {
     ///
     /// let model_output = no_grad(|| {
     ///     distilbert_model
-    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
     ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertMaskedLMOutput, RustBertError> {
         let base_model_output =
@@ -592,15 +574,15 @@ impl DistilBertForQuestionAnswering {
     ///
     /// let model_output = no_grad(|| {
     ///     distilbert_model
-    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
     ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertQuestionAnsweringOutput, RustBertError> {
         let base_model_output =
@@ -720,15 +702,15 @@ impl DistilBertForTokenClassification {
     ///
     /// let model_output = no_grad(|| {
     ///     distilbert_model
-    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
     ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertTokenClassificationOutput, RustBertError> {
         let base_model_output =

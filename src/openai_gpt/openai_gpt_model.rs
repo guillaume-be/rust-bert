@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
@@ -197,11 +198,11 @@ impl OpenAiGptModel {
     /// let model_output = no_grad(|| {
     ///     gpt_model
     ///         .forward_t(
-    ///             &Some(input_tensor),
-    ///             &Some(attention_mask),
-    ///             &Some(token_type_ids),
-    ///             &Some(position_ids),
-    ///             &None,
+    ///             Some(&input_tensor),
+    ///             Some(&attention_mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
     ///             false,
     ///         )
     ///         .unwrap()
@@ -209,41 +210,25 @@ impl OpenAiGptModel {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<OpenAiGptModelOutput, RustBertError> {
-        let (input_embeddings, seq_length) = match input_ids {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (
-                    input_value.apply(&self.tokens_embed),
-                    *input_value.size().last().unwrap(),
-                ),
-            },
-            None => match input_embeds {
-                Some(embeds) => (embeds.copy(), embeds.size()[1]),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (calc_input_embeddings, input_shape, _) =
+            process_ids_embeddings_pair(input_ids, input_embeds, &self.tokens_embed)?;
+        let input_embeddings =
+            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
+        let seq_length = input_shape[1];
 
         let position_ids = match position_ids {
             Some(value) => value.copy(),
             None => Tensor::arange(seq_length, (Int64, input_embeddings.device())).unsqueeze(0),
         };
 
-        let attention_mask: Option<Tensor> = attention_mask.as_ref().map(|value| {
+        let attention_mask = attention_mask.as_ref().map(|value| {
             (value
                 .view((input_embeddings.size()[0], -1))
                 .unsqueeze(1)
@@ -271,14 +256,13 @@ impl OpenAiGptModel {
         };
 
         for layer in &self.h {
-            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
-            };
-
-            let temp = layer.forward_t(&hidden_state, &attention_mask, train);
+            let temp = layer.forward_t(&hidden_state, attention_mask.as_ref(), train);
             hidden_state = temp.0;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(temp.1.as_ref().unwrap().copy());
+            };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
             };
         }
 
@@ -392,27 +376,27 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///
     ///  let model_output = no_grad(|| {
     ///    gpt_model
-    ///         .forward_t(&Some(input_tensor),
+    ///         .forward_t(Some(&input_tensor),
     ///                    Cache::None,
-    ///                    &Some(attention_mask),
-    ///                    &Some(token_type_ids),
-    ///                    &Some(position_ids),
-    ///                    &None,
+    ///                    Some(&attention_mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
-    ///                    &None,
+    ///                    None,
+    ///                    None,
     ///                    false).unwrap()
     ///    });
     /// ```
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         _layer_past: Cache,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         _encoder_outputs: Option<&Tensor>,
-        _decoder_input_ids: &Option<Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = self.transformer.forward_t(

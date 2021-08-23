@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::gpt_neo::attention::{GptNeoAttention, GptNeoAttentionUtils};
 use crate::gpt_neo::decoder::GptNeoBlock;
 use crate::gpt_neo::LayerState;
@@ -305,27 +306,8 @@ impl GptNeoModel {
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> Result<GptNeoModelOutput, RustBertError> {
-        let (calc_input_embeddings, input_shape, device) = if let Some(input_ids) = input_ids {
-            if input_embeds.is_none() {
-                (
-                    Some(input_ids.apply(&self.word_embeddings)),
-                    input_ids.size(),
-                    input_ids.device(),
-                )
-            } else {
-                return Err(RustBertError::ValueError(
-                    "Only one of input ids or input embeddings may be set".into(),
-                ));
-            }
-        } else if let Some(input_embeds) = input_embeds {
-            let mut input_shape = input_embeds.size();
-            let _ = input_shape.pop();
-            (None, input_shape, input_embeds.device())
-        } else {
-            return Err(RustBertError::ValueError(
-                "At least one of input ids or input embeddings must be set".into(),
-            ));
-        };
+        let (calc_input_embeddings, input_shape, device) =
+            process_ids_embeddings_pair(input_ids, input_embeds, &self.word_embeddings)?;
 
         let (batch_size, current_sequence_length) = (input_shape[0], input_shape[1]);
 
@@ -410,14 +392,8 @@ impl GptNeoModel {
             };
 
             let temp = if let Some(x_value) = &x {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(x_value.copy());
-                }
                 layer.forward_t(x_value, layer_state.as_ref(), attention_mask, train)?
             } else {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(hidden_state.copy());
-                }
                 layer.forward_t(&hidden_state, layer_state.as_ref(), attention_mask, train)?
             };
             x = Some(temp.0);
@@ -426,10 +402,10 @@ impl GptNeoModel {
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
             };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(x.as_ref().unwrap().copy());
+            };
         }
-        if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-            hidden_states.push(x.as_ref().unwrap().copy());
-        };
 
         let hidden_states = x
             .unwrap()
@@ -572,33 +548,33 @@ impl GptNeoForCausalLM {
 impl LMHeadModel for GptNeoForCausalLM {
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         layer_past: Cache,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         _encoder_outputs: Option<&Tensor>,
-        _decoder_input_ids: &Option<Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match layer_past {
             Cache::GPTNeoCache(layer_past) => self.forward_t(
-                input_ids.as_ref(),
-                input_embeds.as_ref(),
-                token_type_ids.as_ref(),
-                position_ids.as_ref(),
+                input_ids,
+                input_embeds,
+                token_type_ids,
+                position_ids,
                 layer_past,
-                attention_mask.as_ref(),
+                attention_mask,
                 train,
             ),
             Cache::None => self.forward_t(
-                input_ids.as_ref(),
-                input_embeds.as_ref(),
-                token_type_ids.as_ref(),
-                position_ids.as_ref(),
+                input_ids,
+                input_embeds,
+                token_type_ids,
+                position_ids,
                 None,
-                attention_mask.as_ref(),
+                attention_mask,
                 train,
             ),
             _ => {

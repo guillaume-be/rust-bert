@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::prophetnet::attention::{ProphetNetAttention, ProphetNetFeedForward};
 use crate::prophetnet::embeddings::ProphetNetPositionalEmbeddings;
 use crate::prophetnet::ProphetNetConfig;
@@ -140,28 +141,15 @@ impl ProphetNetEncoder {
         word_embeddings: Option<&nn::Embedding>,
         train: bool,
     ) -> Result<ProphetNetEncoderOutput, RustBertError> {
-        let calc_input_embeddings = if let Some(input_ids) = input_ids {
-            if input_embeds.is_none() {
-                Some(input_ids.apply(match word_embeddings {
-                    Some(value) => value,
-                    None => {
-                        return Err(RustBertError::ValueError(
-                            "Embeddings must be provided if input_embeds is not given".into(),
-                        ));
-                    }
-                }))
-            } else {
-                return Err(RustBertError::ValueError(
-                    "Only one of input ids or input embeddings may be set".into(),
-                ));
-            }
-        } else if input_embeds.is_some() {
-            None
-        } else {
-            return Err(RustBertError::ValueError(
-                "At least one of input ids or input embeddings must be set".into(),
-            ));
-        };
+        let (calc_input_embeddings, _, _) = process_ids_embeddings_pair(
+            input_ids,
+            input_embeds,
+            word_embeddings.ok_or_else(|| {
+                RustBertError::ValueError(
+                    "Embeddings must be provided if input_embeds is not given".into(),
+                )
+            })?,
+        )?;
 
         let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
@@ -199,14 +187,8 @@ impl ProphetNetEncoder {
 
         for layer in &self.layers {
             let temp = if let Some(x_value) = &x {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(x_value.transpose(0, 1));
-                }
                 layer.forward_t(x_value, extended_attention_mask.as_ref(), train)
             } else {
-                if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                    hidden_states.push(hidden_state.transpose(0, 1));
-                }
                 layer.forward_t(&hidden_state, extended_attention_mask.as_ref(), train)
             };
             x = Some(temp.0);
@@ -214,10 +196,10 @@ impl ProphetNetEncoder {
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
             };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(x.as_ref().unwrap().transpose(0, 1));
+            };
         }
-        if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-            hidden_states.push(x.as_ref().unwrap().transpose(0, 1));
-        };
 
         Ok(ProphetNetEncoderOutput {
             hidden_states: x.unwrap().transpose(0, 1),

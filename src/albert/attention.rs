@@ -100,7 +100,7 @@ impl AlbertSelfAttention {
     pub fn forward_t(
         &self,
         input_ids: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let bs = *input_ids.size().first().unwrap();

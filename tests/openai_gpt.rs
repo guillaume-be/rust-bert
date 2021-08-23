@@ -65,14 +65,14 @@ fn openai_gpt_lm_model() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = openai_gpt
         .forward_t(
-            &Some(input_tensor),
+            Some(&input_tensor),
             Cache::None,
-            &None,
-            &None,
-            &None,
-            &None,
             None,
-            &None,
+            None,
+            None,
+            None,
+            None,
+            None,
             false,
         )
         .unwrap();

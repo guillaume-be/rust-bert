@@ -59,7 +59,7 @@ fn electra_masked_lm() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| electra_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| electra_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     //    Decode output
     let index_1 = model_output
@@ -138,7 +138,7 @@ fn electra_discriminator() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| electra_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| electra_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     //    Validate model predictions
     let expected_probabilities = vec![
