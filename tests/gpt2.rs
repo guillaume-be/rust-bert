@@ -488,7 +488,7 @@ fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
     let input_context_1 = "Hello, my name is";
 
     let baseline_output = model.generate(
-        Some(&[input_context_1, input_context_2]),
+        Some(&[input_context_1]),
         None,
         None,
         None,
@@ -500,7 +500,7 @@ fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
     );
 
     let output = model.generate(
-        Some(&[input_context_1, input_context_2]),
+        Some(&[input_context_1]),
         None,
         None,
         None,
@@ -568,7 +568,7 @@ fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
     let input_context_1 = "Hello, my name is";
 
     let baseline_output = model.generate(
-        Some(&[input_context_1, input_context_2]),
+        Some(&[input_context_1]),
         None,
         None,
         None,
@@ -580,7 +580,7 @@ fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
     );
 
     let output = model.generate(
-        Some(&[input_context_1, input_context_2]),
+        Some(&[input_context_1]),
         None,
         None,
         None,
