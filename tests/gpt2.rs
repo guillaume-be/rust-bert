@@ -460,7 +460,7 @@ fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = GenerateConfig {
-        max_length: 56,
+        max_length: 36,
         model_resource,
         config_resource,
         vocab_resource,
@@ -512,10 +512,10 @@ fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
     );
     assert_eq!(baseline_output.len(), 1);
     assert_eq!(
-        output[0].text,
+        baseline_output[0].text,
         "Hello, my name is John. I'm a writer, and I'm writing a book. I've been writing for a long time. I was born in New York City,"
     );
-    assert!((output[0].score.unwrap() - (-1.3316)).abs() < 1e-4);
+    assert!((baseline_output[0].score.unwrap() - (-1.3316)).abs() < 1e-4);
 
     assert_eq!(output.len(), 1);
     assert_eq!(
@@ -540,7 +540,7 @@ fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
         Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = GenerateConfig {
-        max_length: 56,
+        max_length: 36,
         model_resource,
         config_resource,
         vocab_resource,
@@ -592,10 +592,10 @@ fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
     );
     assert_eq!(baseline_output.len(), 1);
     assert_eq!(
-        output[0].text,
+        baseline_output[0].text,
         "Hello, my name is John, and I am a member of the Church of Jesus Christ of Latter-day Saints.\n\nI am a Mormon. I have been a member"
     );
-    assert!((output[0].score.unwrap() - (-1.0503)).abs() < 1e-4);
+    assert!((baseline_output[0].score.unwrap() - (-1.0503)).abs() < 1e-4);
 
     assert_eq!(output.len(), 1);
     assert_eq!(

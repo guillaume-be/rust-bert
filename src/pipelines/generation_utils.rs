@@ -614,10 +614,8 @@ pub(crate) mod private_generation_utils {
                 true
             } else if tokens.len() > prev_tokens.len() {
                 false
-            } else if &prev_tokens[prev_tokens.len() - tokens.len()..] == tokens {
-                true
             } else {
-                false
+                &prev_tokens[prev_tokens.len() - tokens.len()..] == tokens
             }
         }
 
