@@ -48,6 +48,7 @@
 //!     decoder_start_id,
 //!     forced_bos_token_id,
 //!     None,
+//!     None,
 //!     false,
 //! );
 //! # Ok(())
@@ -577,13 +578,47 @@ pub(crate) mod private_generation_utils {
             let _ = scores.subtract_(&mask);
         }
 
-        fn tokens_match(prev_tokens: &[i64], prev_len: usize, tokens: &[i64]) -> bool {
-            // if tokens.is_empty() {
-            //     true
-            // } else if tokens.len() > prev_len {
-            //     false
-            // }
-            false
+        fn split_bad_word_ids<'a>(
+            &self,
+            bad_word_ids: Option<&'a Vec<Vec<i64>>>,
+        ) -> (Option<Vec<i64>>, Option<Vec<&'a Vec<i64>>>) {
+            if let Some(bad_word_ids) = bad_word_ids {
+                let mut bad_word_ids_length_1 = vec![];
+                let mut bad_word_ids_length_greater_than_1 = vec![];
+                for bad_word in bad_word_ids {
+                    if bad_word.len() == 1 {
+                        bad_word_ids_length_1.push(bad_word[0]);
+                    } else {
+                        bad_word_ids_length_greater_than_1.push(bad_word);
+                    }
+                }
+                let bad_word_ids_length_1 = if !bad_word_ids_length_1.is_empty() {
+                    Some(bad_word_ids_length_1)
+                } else {
+                    None
+                };
+                let bad_word_ids_length_greater_than_1 =
+                    if !bad_word_ids_length_greater_than_1.is_empty() {
+                        Some(bad_word_ids_length_greater_than_1)
+                    } else {
+                        None
+                    };
+                (bad_word_ids_length_1, bad_word_ids_length_greater_than_1)
+            } else {
+                (None, None)
+            }
+        }
+
+        fn tokens_match(&self, prev_tokens: &[i64], tokens: &[i64]) -> bool {
+            if tokens.is_empty() {
+                true
+            } else if tokens.len() > prev_tokens.len() {
+                false
+            } else if &prev_tokens[prev_tokens.len() - tokens.len()..] == tokens {
+                true
+            } else {
+                false
+            }
         }
 
         fn calc_static_bad_word_mask(
@@ -593,14 +628,38 @@ pub(crate) mod private_generation_utils {
         ) -> Tensor {
             let mut static_bad_words_mask =
                 Tensor::zeros(&[scores.size()[1]], (Kind::Int8, scores.device()));
-            let _ =
-                static_bad_words_mask.index_fill_(0, &Tensor::of_slice(bad_words_id_length_1), 1);
+            let _ = static_bad_words_mask.index_fill_(
+                0,
+                &Tensor::of_slice(bad_words_id_length_1).to_device(scores.device()),
+                1,
+            );
             static_bad_words_mask.unsqueeze(0).totype(Kind::Bool)
+        }
+
+        fn get_dynamic_bad_word_ids(
+            &self,
+            prev_tokens: &[Vec<i64>],
+            bad_word_ids_length_greater_than_1: &[&Vec<i64>],
+        ) -> Vec<Vec<i64>> {
+            let mut banned_tokens = Vec::new();
+            for prev_token_sequence in prev_tokens {
+                let mut sequence_banned_tokens = Vec::new();
+                for bad_word_ids in bad_word_ids_length_greater_than_1 {
+                    if self
+                        .tokens_match(prev_token_sequence, &bad_word_ids[..bad_word_ids.len() - 1])
+                    {
+                        sequence_banned_tokens.push(*bad_word_ids.last().unwrap());
+                    }
+                }
+                banned_tokens.push(sequence_banned_tokens);
+            }
+
+            banned_tokens
         }
 
         fn ban_bad_words(
             &self,
-            dynamic_bad_words: &[&[i64]],
+            dynamic_bad_words: Option<&Vec<&Vec<i64>>>,
             static_bad_words_mask: Option<&Tensor>,
             token_ids: &Tensor,
             scores: &mut Tensor,
@@ -621,6 +680,51 @@ pub(crate) mod private_generation_utils {
                         .unwrap()
                         .collect::<Vec<i64>>(),
                 )
+            }
+
+            let dynamic_bad_words_mask = if let Some(dynamic_bad_words) = dynamic_bad_words {
+                let dynamic_banned_tokens =
+                    self.get_dynamic_bad_word_ids(&prev_tokens, dynamic_bad_words);
+                let dynamic_banned_mask =
+                    Tensor::zeros(scores.size().as_slice(), (Kind::Int, scores.device()));
+                for (sequence_index, sequence_ban_tokens) in
+                    dynamic_banned_tokens.iter().enumerate()
+                {
+                    if !sequence_ban_tokens.is_empty() {
+                        let _ = dynamic_banned_mask.get(sequence_index as i64).index_fill_(
+                            0,
+                            &Tensor::of_slice(sequence_ban_tokens).to_device(scores.device()),
+                            1,
+                        );
+                    }
+                }
+                Some(dynamic_banned_mask.to_kind(Kind::Bool))
+            } else {
+                None
+            };
+
+            let combined_bad_word_mask = {
+                if let (Some(static_mask), Some(dynamic_mask)) =
+                    (static_bad_words_mask, &dynamic_bad_words_mask)
+                {
+                    Some(static_mask.bitwise_or_tensor(dynamic_mask))
+                } else {
+                    None
+                }
+            };
+
+            let bad_word_mask = if combined_bad_word_mask.is_some() {
+                combined_bad_word_mask.as_ref()
+            } else if static_bad_words_mask.is_some() {
+                static_bad_words_mask
+            } else if dynamic_bad_words_mask.is_some() {
+                dynamic_bad_words_mask.as_ref()
+            } else {
+                None
+            };
+
+            if let Some(bad_word_mask) = bad_word_mask {
+                let _ = scores.masked_fill_(bad_word_mask, f64::NEG_INFINITY);
             }
         }
 
@@ -828,6 +932,9 @@ pub(crate) mod private_generation_utils {
             let num_beam_groups = gen_opt.num_beam_groups.unwrap_or(1);
             let num_sub_beams = gen_opt.num_beams / num_beam_groups;
             let diversity_penalty = gen_opt.diversity_penalty.unwrap_or(5.5);
+            let (bad_word_ids_length_1, bad_word_ids_length_greater_than_1) =
+                self.split_bad_word_ids(gen_opt.bad_word_ids);
+            let mut static_bad_words_mask: Option<Tensor> = None;
 
             let mut hypotheses = (0..batch_size)
                 .map(|_| {
@@ -950,6 +1057,7 @@ pub(crate) mod private_generation_utils {
                     );
 
                     let mut scores = next_token_logits.log_softmax(-1, Float);
+
                     // Do not allow eos token if min length is not reached
                     if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
                         let _ = scores.index_fill_(
@@ -959,7 +1067,26 @@ pub(crate) mod private_generation_utils {
                             f64::NEG_INFINITY,
                         );
                     }
-                    // Get banned tokens and set their probability to 0
+
+                    // Get bad word_ids and set their probability to 0
+                    if gen_opt.bad_word_ids.is_some() {
+                        // Calculate static bad words masks if not set yet
+                        if let Some(bad_word_ids_length_1) = &bad_word_ids_length_1 {
+                            if static_bad_words_mask.is_none() {
+                                static_bad_words_mask = Some(
+                                    self.calc_static_bad_word_mask(&scores, bad_word_ids_length_1),
+                                );
+                            }
+                        }
+                        self.ban_bad_words(
+                            bad_word_ids_length_greater_than_1.as_ref(),
+                            static_bad_words_mask.as_ref(),
+                            group_input_ids.as_ref().unwrap_or(&input_ids),
+                            &mut scores,
+                        );
+                    }
+
+                    // Get repeated tokens and set their probability to 0
                     if gen_opt.no_repeat_ngram_size > 0 {
                         let banned_tokens = self.get_banned_tokens(
                             group_input_ids.as_ref().unwrap_or(&input_ids),
@@ -1331,6 +1458,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
     /// let forced_bos_token_id = None;
+    /// let bad_word_ids = None;
     /// let output_scores = true;
     ///
     /// //Example custom function for fine-grained generation control
@@ -1358,6 +1486,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
+    ///     bad_word_ids,
     ///     output_scores,
     /// );
     /// # Ok(())
@@ -1462,6 +1591,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let decoder_start_token_id = None;
     /// let forced_bos_token_id = None;
     /// let output_scores = true;
+    /// let bad_word_ids = None;
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
@@ -1488,6 +1618,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
+    ///     bad_word_ids,
     ///     output_scores,
     /// );
     /// # Ok(())
@@ -1595,6 +1726,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let decoder_start_token_id = None;
     /// let forced_bos_token_id = None;
     /// let output_scores = true;
+    /// let bad_word_ids = None;
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
@@ -1621,6 +1753,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///     decoder_start_token_id,
     ///     forced_bos_token_id,
     ///     Some(&force_one_paragraph),
+    ///     bad_word_ids,
     ///     output_scores,
     /// );
     /// # Ok(())
