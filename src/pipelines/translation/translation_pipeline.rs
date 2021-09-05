@@ -749,6 +749,7 @@ impl TranslationOption {
                     None,
                     None,
                     None,
+                    None,
                     false,
                 )
                 .into_iter()
@@ -758,6 +759,7 @@ impl TranslationOption {
                 .generate(
                     prompt_texts,
                     attention_mask,
+                    None,
                     None,
                     None,
                     None,
@@ -777,6 +779,7 @@ impl TranslationOption {
                     None,
                     forced_bos_token_id,
                     None,
+                    None,
                     false,
                 )
                 .into_iter()
@@ -790,6 +793,7 @@ impl TranslationOption {
                     None,
                     None,
                     forced_bos_token_id,
+                    None,
                     None,
                     false,
                 )

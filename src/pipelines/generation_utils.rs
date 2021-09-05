@@ -245,7 +245,7 @@ pub(crate) mod private_generation_utils {
 
     use super::ordered_float::OrderedFloat;
 
-    pub struct GenerateOptions {
+    pub struct GenerateOptions<'a> {
         pub min_length: i64,
         pub max_length: i64,
         pub do_sample: bool,
@@ -263,6 +263,7 @@ pub(crate) mod private_generation_utils {
         pub num_beam_groups: Option<i64>,
         pub diversity_penalty: Option<f64>,
         pub forced_bos_token_id: Option<i64>,
+        pub bad_word_ids: Option<&'a Vec<Vec<i64>>>,
     }
 
     pub struct PreparedInput<'a> {
@@ -574,6 +575,53 @@ pub(crate) mod private_generation_utils {
                 );
             }
             let _ = scores.subtract_(&mask);
+        }
+
+        fn tokens_match(prev_tokens: &[i64], prev_len: usize, tokens: &[i64]) -> bool {
+            // if tokens.is_empty() {
+            //     true
+            // } else if tokens.len() > prev_len {
+            //     false
+            // }
+            false
+        }
+
+        fn calc_static_bad_word_mask(
+            &self,
+            scores: &Tensor,
+            bad_words_id_length_1: &[i64],
+        ) -> Tensor {
+            let mut static_bad_words_mask =
+                Tensor::zeros(&[scores.size()[1]], (Kind::Int8, scores.device()));
+            let _ =
+                static_bad_words_mask.index_fill_(0, &Tensor::of_slice(bad_words_id_length_1), 1);
+            static_bad_words_mask.unsqueeze(0).totype(Kind::Bool)
+        }
+
+        fn ban_bad_words(
+            &self,
+            dynamic_bad_words: &[&[i64]],
+            static_bad_words_mask: Option<&Tensor>,
+            token_ids: &Tensor,
+            scores: &mut Tensor,
+        ) {
+            let longest_bad_word = dynamic_bad_words
+                .iter()
+                .map(|bad_word| bad_word.len())
+                .max()
+                .unwrap() as i64;
+
+            let last_token_ids = token_ids.slice(1, -longest_bad_word, None, 1);
+            let mut prev_tokens = Vec::new();
+            for sequence_idx in 0..token_ids.size()[0] {
+                prev_tokens.push(
+                    last_token_ids
+                        .get(sequence_idx)
+                        .iter::<i64>()
+                        .unwrap()
+                        .collect::<Vec<i64>>(),
+                )
+            }
         }
 
         fn generate_no_beam_search(
@@ -1337,6 +1385,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         decoder_start_token_id: impl Into<Option<i64>>,
         forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
+        bad_word_ids: Option<&Vec<Vec<i64>>>,
         output_scores: bool,
     ) -> Vec<GeneratedTextOutput>
     where
@@ -1350,6 +1399,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             decoder_start_token_id,
             forced_bos_token_id,
             prefix_allowed_tokens_fn,
+            bad_word_ids,
             output_scores,
         );
         let mut output = Vec::with_capacity(indices_outputs.len());
@@ -1452,6 +1502,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         decoder_start_token_id: impl Into<Option<i64>>,
         forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
+        bad_word_ids: Option<&Vec<Vec<i64>>>,
         output_scores: bool,
     ) -> Vec<GeneratedIndicesOutput>
     where
@@ -1490,6 +1541,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             decoder_start_token_id,
             forced_bos_token_id,
             prefix_allowed_tokens_fn,
+            bad_word_ids,
             output_scores,
         )
     }
@@ -1583,6 +1635,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         decoder_start_token_id: impl Into<Option<i64>>,
         forced_bos_token_id: impl Into<Option<i64>>,
         prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
+        bad_word_ids: Option<&Vec<Vec<i64>>>,
         output_scores: bool,
     ) -> Vec<GeneratedIndicesOutput> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
@@ -1713,6 +1766,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             num_beam_groups,
             diversity_penalty,
             forced_bos_token_id: forced_bos_token_id.into(),
+            bad_word_ids,
         };
 
         let (decoded, scores) = no_grad(|| {

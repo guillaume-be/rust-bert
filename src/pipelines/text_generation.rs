@@ -258,6 +258,7 @@ impl TextGenerationOption {
                     None,
                     None,
                     None,
+                    None,
                     false,
                 )
                 .into_iter()
@@ -269,6 +270,7 @@ impl TextGenerationOption {
                     attention_mask,
                     min_length,
                     max_length,
+                    None,
                     None,
                     None,
                     None,
@@ -286,6 +288,7 @@ impl TextGenerationOption {
                     None,
                     None,
                     None,
+                    None,
                     false,
                 )
                 .into_iter()
@@ -300,6 +303,7 @@ impl TextGenerationOption {
                     None,
                     None,
                     None,
+                    None,
                     false,
                 )
                 .into_iter()
@@ -311,6 +315,7 @@ impl TextGenerationOption {
                     attention_mask,
                     min_length,
                     max_length,
+                    None,
                     None,
                     None,
                     None,
