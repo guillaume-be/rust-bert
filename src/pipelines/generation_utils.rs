@@ -744,6 +744,9 @@ pub(crate) mod private_generation_utils {
             let mut sentence_lengths: Tensor =
                 Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()))
                     * gen_opt.max_length as i64;
+            let (bad_word_ids_length_1, bad_word_ids_length_greater_than_1) =
+                self.split_bad_word_ids(gen_opt.bad_word_ids);
+            let mut static_bad_words_mask: Option<Tensor> = None;
             let mut attention_mask = attention_mask.copy();
             let mut input_ids = input_ids.copy();
             let mut past: Cache = Cache::None;
@@ -793,6 +796,26 @@ pub(crate) mod private_generation_utils {
                         gen_opt.repetition_penalty,
                     )
                 }
+
+                // Get bad word_ids and set their probability to 0
+                if gen_opt.bad_word_ids.is_some() {
+                    // Calculate static bad words masks if not set yet
+                    if let Some(bad_word_ids_length_1) = &bad_word_ids_length_1 {
+                        if static_bad_words_mask.is_none() {
+                            static_bad_words_mask = Some(self.calc_static_bad_word_mask(
+                                &next_token_logits,
+                                bad_word_ids_length_1,
+                            ));
+                        }
+                    }
+                    self.ban_bad_words(
+                        bad_word_ids_length_greater_than_1.as_ref(),
+                        static_bad_words_mask.as_ref(),
+                        &input_ids,
+                        &mut next_token_logits,
+                    );
+                }
+
                 // Get banned tokens and set their probability to 0
                 if gen_opt.no_repeat_ngram_size > 0 {
                     let banned_tokens = self.get_banned_tokens(

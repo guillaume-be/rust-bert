@@ -428,6 +428,7 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
         None,
         None,
         Some(&force_one_paragraph),
+        None,
         true,
     );
 
@@ -442,6 +443,166 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
         "There was a urn in the room, and I was sitting on it. I was like, \'What the hell is going on?\' And he said, \'Well, I\'m not sure. I\'m just going to go back to my room and get some coffee.\' And"
     );
     assert!((output[1].score.unwrap() - (-1.3545)).abs() < 1e-4);
+
+    Ok(())
+}
+
+#[test]
+fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
+    //    Resources definition
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+
+    let generate_config = GenerateConfig {
+        max_length: 56,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        do_sample: false,
+        num_beams: 1,
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(generate_config)?;
+
+    let bad_words = vec![" honeybees", " a writer"];
+    let bad_word_ids = model
+        .get_tokenizer()
+        .encode_list(
+            bad_words.as_slice(),
+            512,
+            &TruncationStrategy::DoNotTruncate,
+            0,
+        )
+        .into_iter()
+        .map(|tokenized_input| tokenized_input.token_ids)
+        .collect::<Vec<Vec<i64>>>();
+
+    let input_context_1 = "Hello, my name is";
+
+    let baseline_output = model.generate(
+        Some(&[input_context_1, input_context_2]),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        true,
+    );
+
+    let output = model.generate(
+        Some(&[input_context_1, input_context_2]),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(&bad_word_ids),
+        true,
+    );
+    assert_eq!(baseline_output.len(), 1);
+    assert_eq!(
+        output[0].text,
+        "Hello, my name is John. I'm a writer, and I'm writing a book. I've been writing for a long time. I was born in New York City,"
+    );
+    assert!((output[0].score.unwrap() - (-1.3316)).abs() < 1e-4);
+
+    assert_eq!(output.len(), 1);
+    assert_eq!(
+        output[0].text,
+        "Hello, my name is John. I'm a student at the University of California, Berkeley. I've been studying computer science for a year. I have a PhD in computer science"
+    );
+    assert!((output[0].score.unwrap() - (-1.2307)).abs() < 1e-4);
+
+    Ok(())
+}
+
+#[test]
+fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
+    //    Resources definition
+    let config_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource =
+        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+
+    let generate_config = GenerateConfig {
+        max_length: 56,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        do_sample: false,
+        num_beams: 3,
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(generate_config)?;
+
+    let bad_words = vec![" honeybees", " a member"];
+    let bad_word_ids = model
+        .get_tokenizer()
+        .encode_list(
+            bad_words.as_slice(),
+            512,
+            &TruncationStrategy::DoNotTruncate,
+            0,
+        )
+        .into_iter()
+        .map(|tokenized_input| tokenized_input.token_ids)
+        .collect::<Vec<Vec<i64>>>();
+
+    let input_context_1 = "Hello, my name is";
+
+    let baseline_output = model.generate(
+        Some(&[input_context_1, input_context_2]),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        true,
+    );
+
+    let output = model.generate(
+        Some(&[input_context_1, input_context_2]),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(&bad_word_ids),
+        true,
+    );
+    assert_eq!(baseline_output.len(), 1);
+    assert_eq!(
+        output[0].text,
+        "Hello, my name is John, and I am a member of the Church of Jesus Christ of Latter-day Saints.\n\nI am a Mormon. I have been a member"
+    );
+    assert!((output[0].score.unwrap() - (-1.0503)).abs() < 1e-4);
+
+    assert_eq!(output.len(), 1);
+    assert_eq!(
+        output[0].text,
+        "Hello, my name is John, and I am the owner of a small business.\n\nI have been in business for over 20 years. I have been a business owner for"
+    );
+    assert!((output[0].score.unwrap() - (-1.3742)).abs() < 1e-4);
 
     Ok(())
 }
@@ -496,6 +657,7 @@ fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
         None,
         None,
         Some(&force_one_paragraph),
+        None,
         true,
     );
 
