@@ -272,6 +272,7 @@ impl SummarizationOption {
                     None,
                     None,
                     None,
+                    None,
                     false,
                 )
                 .into_iter()
@@ -281,6 +282,7 @@ impl SummarizationOption {
                 .generate(
                     prompt_texts,
                     attention_mask,
+                    None,
                     None,
                     None,
                     None,
@@ -300,6 +302,7 @@ impl SummarizationOption {
                     None,
                     None,
                     None,
+                    None,
                     false,
                 )
                 .into_iter()
@@ -309,6 +312,7 @@ impl SummarizationOption {
                 .generate(
                     prompt_texts,
                     attention_mask,
+                    None,
                     None,
                     None,
                     None,
