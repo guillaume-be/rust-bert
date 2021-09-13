@@ -16,6 +16,7 @@ use crate::bart::decoder::BartDecoder;
 use crate::bart::encoder::BartEncoder;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::kind::get_negative_infinity;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
@@ -33,7 +34,6 @@ use rust_tokenizers::vocab::{RobertaVocab, Vocab};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use tch::kind::Kind::Int64;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Device, Kind, Tensor};
 
@@ -271,9 +271,12 @@ pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>) -> Tensor 
         .unsqueeze(1)
         .unsqueeze(1)
         .expand(&[batch_size, 1, target_length, source_length], true)
-        .totype(Kind::Float);
+        .totype(mask.kind());
     let inverted_mask: Tensor = 1 - expanded_mask;
-    inverted_mask.masked_fill(&inverted_mask.to_kind(Kind::Bool), f64::NEG_INFINITY)
+    inverted_mask.masked_fill(
+        &inverted_mask.to_kind(Kind::Bool),
+        get_negative_infinity(inverted_mask.kind()).unwrap(),
+    )
 }
 
 pub(crate) fn _prepare_decoder_attention_mask(
@@ -308,9 +311,9 @@ pub(crate) fn _prepare_decoder_attention_mask(
 fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
     let index_eos: Tensor = input_ids
         .ne(pad_token_id)
-        .sum_dim_intlist(&[-1], true, Int64)
+        .sum_dim_intlist(&[-1], true, Kind::Int64)
         - 1;
-    let output = input_ids.empty_like().to_kind(Int64);
+    let output = input_ids.empty_like().to_kind(Kind::Int64);
     output
         .select(1, 0)
         .copy_(&input_ids.gather(1, &index_eos, true).squeeze());
@@ -812,7 +815,7 @@ impl BartForSequenceClassification {
             train,
         );
         let eos_mask = input_ids.eq(self.eos_token_id);
-        let reshape = eos_mask.sum_dim_intlist(&[1], true, Int64);
+        let reshape = eos_mask.sum_dim_intlist(&[1], true, Kind::Bool);
         let sentence_representation = base_model_output
             .decoder_output
             .permute(&[2, 0, 1])

@@ -24,7 +24,6 @@ use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use tch::kind::Kind::Float;
 use tch::nn::Init;
 use tch::{nn, Kind, Tensor};
 
@@ -251,20 +250,19 @@ impl<T: BertEmbedding> BertModel<T> {
     ///
     /// ```no_run
     /// # use rust_bert::bert::{BertModel, BertConfig, BertEmbeddings};
-    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
     /// # use rust_bert::Config;
     /// # use std::path::Path;
-    /// # use tch::kind::Kind::Int64;
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
     /// # let bert_model: BertModel<BertEmbeddings> = BertModel::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
@@ -296,14 +294,14 @@ impl<T: BertEmbedding> BertModel<T> {
         let (input_shape, device) =
             get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
-        let calc_mask = Tensor::ones(&input_shape, (Kind::Int64, device));
+        let calc_mask = Tensor::ones(&input_shape, (Kind::Int8, device));
         let mask = mask.unwrap_or(&calc_mask);
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),
             2 => {
                 if self.is_decoder {
-                    let seq_ids = Tensor::arange(input_shape[1], (Float, device));
+                    let seq_ids = Tensor::arange(input_shape[1], (Kind::Int8, device));
                     let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&[
                         input_shape[0],
                         input_shape[1],
@@ -336,7 +334,7 @@ impl<T: BertEmbedding> BertModel<T> {
                             encoder_hidden_states_shape[0],
                             encoder_hidden_states_shape[1],
                         ],
-                        (Kind::Int64, device),
+                        (Kind::Int8, device),
                     ),
                 };
                 match encoder_mask.dim() {
@@ -522,20 +520,19 @@ impl BertForMaskedLM {
     ///
     /// ```no_run
     /// # use rust_bert::bert::{BertForMaskedLM, BertConfig};
-    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
     /// # use rust_bert::Config;
     /// # use std::path::Path;
-    /// # use tch::kind::Kind::Int64;
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
     /// # let bert_model = BertForMaskedLM::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
@@ -667,20 +664,19 @@ impl BertForSequenceClassification {
     ///
     /// ```no_run
     /// # use rust_bert::bert::{BertForSequenceClassification, BertConfig};
-    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
     /// # use rust_bert::Config;
     /// # use std::path::Path;
-    /// # use tch::kind::Kind::Int64;
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
     /// # let bert_model = BertForSequenceClassification::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
     ///     .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
