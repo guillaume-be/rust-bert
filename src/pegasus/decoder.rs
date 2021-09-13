@@ -119,7 +119,7 @@ impl PegasusDecoder {
         );
 
         let encoder_attention_mask = encoder_attention_mask
-            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap())));
+            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap()), x.kind()));
 
         let mut hidden_state = x.apply_t(&self.dropout, train);
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {

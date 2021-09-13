@@ -264,18 +264,18 @@ pub(crate) fn _make_causal_mask(
     )
 }
 
-pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>) -> Tensor {
+pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>, dtype: Kind) -> Tensor {
     let (batch_size, source_length) = mask.size2().unwrap();
     let target_length = target_length.unwrap_or(source_length);
     let expanded_mask = mask
         .unsqueeze(1)
         .unsqueeze(1)
         .expand(&[batch_size, 1, target_length, source_length], true)
-        .totype(mask.kind());
+        .totype(dtype);
     let inverted_mask: Tensor = 1 - expanded_mask;
     inverted_mask.masked_fill(
         &inverted_mask.to_kind(Kind::Bool),
-        get_negative_infinity(inverted_mask.kind()).unwrap(),
+        get_negative_infinity(dtype).unwrap(),
     )
 }
 
@@ -297,8 +297,12 @@ pub(crate) fn _prepare_decoder_attention_mask(
         None
     };
 
-    if let Some(attention_mask) = &attention_mask {
-        let expanded_attention_mask = _expand_mask(attention_mask, Some(last_input_shape_dim));
+    if let Some(attention_mask) = attention_mask {
+        let expanded_attention_mask = _expand_mask(
+            attention_mask,
+            Some(last_input_shape_dim),
+            input_embeds.kind(),
+        );
         combined_attention_mask = match combined_attention_mask {
             Some(value) => Some(value + expanded_attention_mask),
             None => Some(expanded_attention_mask),
@@ -815,7 +819,7 @@ impl BartForSequenceClassification {
             train,
         );
         let eos_mask = input_ids.eq(self.eos_token_id);
-        let reshape = eos_mask.sum_dim_intlist(&[1], true, Kind::Bool);
+        let reshape = eos_mask.sum_dim_intlist(&[1], true, input_ids.kind());
         let sentence_representation = base_model_output
             .decoder_output
             .permute(&[2, 0, 1])
