@@ -364,7 +364,7 @@ impl TranslationModelBuilder {
             {
                 match (source_languages.as_slice(), target_languages.as_slice()) {
                     ([Language::English], [Language::German]) => {
-                        get_marian_resources!(ENGLISH2RUSSIAN)
+                        get_marian_resources!(ENGLISH2GERMAN)
                     }
                     ([Language::English], [Language::Russian]) => {
                         get_marian_resources!(ENGLISH2RUSSIAN)
