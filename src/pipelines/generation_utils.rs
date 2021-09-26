@@ -245,6 +245,7 @@ pub(crate) mod private_generation_utils {
     use crate::pipelines::generation_utils::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
 
     use super::ordered_float::OrderedFloat;
+    use crate::common::kind::get_positive_infinity;
 
     pub struct GenerateOptions<'a> {
         pub min_length: i64,
@@ -565,7 +566,7 @@ pub(crate) mod private_generation_utils {
         ) {
             let mask = scores.new_full(
                 scores.size().as_slice(),
-                f64::INFINITY,
+                get_positive_infinity(scores.kind()).unwrap(),
                 (scores.kind(), scores.device()),
             );
             for idx in 0..scores.size()[0] {

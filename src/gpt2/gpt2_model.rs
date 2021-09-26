@@ -408,13 +408,14 @@ impl Gpt2Model {
             .unsqueeze(0),
         };
 
-        let attention_mask: Option<Tensor> = attention_mask.as_ref().map(|value| {
-            (value
+        let attention_mask: Option<Tensor> = attention_mask.map(|value| {
+            ((value
                 .view((input_embeddings.size()[0], -1))
                 .unsqueeze(1)
                 .unsqueeze(2)
                 - 1.0)
-                * 10000.0
+                * 10000.0)
+                .to_kind(input_embeddings.kind())
         });
 
         let position_embeds = position_ids.apply(&self.wpe);

@@ -216,18 +216,18 @@ pub(crate) trait GptNeoAttentionUtils {
         let attention_weights = query.matmul(&key.transpose(-1, -2));
         let mut attention_weights = attention_weights.where_self(
             causal_mask,
-            &Tensor::of_slice(&[-1e9f32]).to_device(attention_weights.device()),
+            &Tensor::of_slice(&[f32::NEG_INFINITY]).to_device(attention_weights.device()),
         );
 
         if let Some(attention_mask_value) = attention_mask {
             attention_weights = attention_weights + attention_mask_value;
         };
 
-        let attention_weights2 = attention_weights
-            .softmax(-1, attention_weights.kind())
+        let attention_weights = attention_weights.softmax(-1, attention_weights.kind());
+        let attention_weights = attention_weights
             .to_kind(value.kind())
             .apply_t(attention_dropout, train);
-        let attention_output = attention_weights2.matmul(value);
+        let attention_output = attention_weights.matmul(value);
         (attention_output, attention_weights)
     }
 }
