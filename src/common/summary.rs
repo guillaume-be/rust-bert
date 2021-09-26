@@ -16,7 +16,7 @@ use crate::xlnet::XLNetConfig;
 use crate::RustBertError;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Tensor};
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
@@ -132,7 +132,7 @@ impl SequenceSummary {
         let mut output = match self.summary_type {
             SummaryType::last => hidden_states.select(1, -1),
             SummaryType::first => hidden_states.select(1, 0),
-            SummaryType::mean => hidden_states.mean_dim(&[1], false, Kind::Float),
+            SummaryType::mean => hidden_states.mean_dim(&[1], false, hidden_states.kind()),
             SummaryType::cls_index => {
                 let cls_index = if let Some(cls_index_value) = cls_index {
                     let mut expand_dim = vec![-1i64; cls_index_value.dim() - 1];
