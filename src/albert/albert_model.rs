@@ -221,10 +221,6 @@ impl AlbertModel {
         };
         let mask = mask.unwrap_or_else(|| calc_mask.as_ref().unwrap());
 
-        let extended_attention_mask = mask.unsqueeze(1).unsqueeze(2);
-        let extended_attention_mask: Tensor =
-            (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
-
         let embedding_output = self.embeddings.forward_t(
             input_ids,
             token_type_ids,
@@ -232,6 +228,11 @@ impl AlbertModel {
             input_embeds,
             train,
         )?;
+
+        let extended_attention_mask = mask.unsqueeze(1).unsqueeze(2);
+        let extended_attention_mask: Tensor =
+            ((extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0)
+                .to_kind(embedding_output.kind());
 
         let transformer_output =
             self.encoder

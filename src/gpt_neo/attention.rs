@@ -216,7 +216,7 @@ pub(crate) trait GptNeoAttentionUtils {
         let attention_weights = query.matmul(&key.transpose(-1, -2));
         let mut attention_weights = attention_weights.where_self(
             causal_mask,
-            &Tensor::of_slice(&[f32::NEG_INFINITY]).to_device(attention_weights.device()),
+            &Tensor::of_slice(&[-1e9f32]).to_device(attention_weights.device()),
         );
 
         if let Some(attention_mask_value) = attention_mask {

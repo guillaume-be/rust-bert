@@ -132,7 +132,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
         min_length: 10,
         max_length: 32,
         do_sample: false,
-        early_stopping: false,
+        early_stopping: true,
         num_beams: 4,
         num_return_sequences: 1,
         device: Device::Cpu,
