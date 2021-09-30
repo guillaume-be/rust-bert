@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::kind::get_negative_infinity;
 use crate::longformer::LongformerConfig;
 use std::borrow::Borrow;
 use tch::{nn, Kind, Tensor};
@@ -183,7 +184,10 @@ impl LongformerSelfAttention {
         let _ = input_tensor
             .slice(1, 0, affected_sequence_length, 1)
             .slice(3, 0, affected_sequence_length + 1, 1)
-            .masked_fill_(&beginning_mask, f64::NEG_INFINITY);
+            .masked_fill_(
+                &beginning_mask,
+                get_negative_infinity(input_tensor.kind()).unwrap(),
+            );
 
         let _ = input_tensor
             .narrow(1, -affected_sequence_length, affected_sequence_length)
@@ -192,7 +196,10 @@ impl LongformerSelfAttention {
                 -(affected_sequence_length + 1),
                 affected_sequence_length + 1,
             )
-            .masked_fill_(&ending_mask, f64::NEG_INFINITY);
+            .masked_fill_(
+                &ending_mask,
+                get_negative_infinity(input_tensor.kind()).unwrap(),
+            );
     }
 
     fn sliding_chunks_query_key_matmul(
@@ -227,7 +234,10 @@ impl LongformerSelfAttention {
                 window_overlap,
                 window_overlap * 2 + 1,
             ],
-            (Kind::Float, diagonal_chunked_attention_scores.device()),
+            (
+                diagonal_chunked_attention_scores.kind(),
+                diagonal_chunked_attention_scores.device(),
+            ),
         );
 
         let diagonal_attention_scores_size = diagonal_attention_scores.size();
@@ -406,7 +416,7 @@ impl LongformerSelfAttention {
                 self.num_heads,
                 self.head_dim,
             ],
-            (Kind::Float, key_vectors.device()),
+            (key_vectors.kind(), key_vectors.device()),
         );
 
         let _ = key_vectors_only_global.index_put_(
@@ -457,7 +467,7 @@ impl LongformerSelfAttention {
                 self.num_heads,
                 self.head_dim,
             ],
-            (Kind::Float, value_vectors.device()),
+            (value_vectors.kind(), value_vectors.device()),
         );
 
         let _ = value_vectors_only_global.index_put_(
@@ -502,7 +512,7 @@ impl LongformerSelfAttention {
 
         let mut global_attention_hidden_states = Tensor::zeros(
             &[max_num_global_attention_indices, batch_size, self.embed_dim],
-            (Kind::Float, hidden_states.device()),
+            (hidden_states.kind(), hidden_states.device()),
         );
 
         let _ = global_attention_hidden_states.index_put_(
@@ -566,10 +576,10 @@ impl LongformerSelfAttention {
                     .as_ref()
                     .unwrap(),
             )
-            .fill_(-10000f64);
+            .fill_(-10000_f64);
 
         let global_attention_scores = global_attention_scores
-            .masked_fill(&is_index_masked.unsqueeze(1).unsqueeze(1), -10000f64)
+            .masked_fill(&is_index_masked.unsqueeze(1).unsqueeze(1), -10000_f64)
             .view([
                 batch_size * self.num_heads,
                 max_num_global_attention_indices,
@@ -577,7 +587,7 @@ impl LongformerSelfAttention {
             ]);
 
         let global_attention_probas = global_attention_scores
-            .softmax(-1, Kind::Float)
+            .softmax(-1, global_attention_scores.kind())
             .apply_t(&self.dropout, train);
 
         let global_attention_output = global_attention_probas.bmm(&global_value_vectors);
@@ -629,13 +639,13 @@ impl LongformerSelfAttention {
 
         let remove_from_windowed_attention_mask = attention_mask.ne(0).unsqueeze(-1).unsqueeze(-1);
         let float_mask = remove_from_windowed_attention_mask
-            .totype(Kind::Float)
+            .totype(attention_scores.kind())
             .masked_fill(&remove_from_windowed_attention_mask, -10000.0);
 
         let diagonal_mask = self.sliding_chunks_query_key_matmul(
             &Tensor::ones(
                 float_mask.size().as_slice(),
-                (Kind::Float, float_mask.device()),
+                (float_mask.kind(), float_mask.device()),
             ),
             &float_mask,
             self.one_sided_attention_window_size,
@@ -679,7 +689,7 @@ impl LongformerSelfAttention {
         };
 
         let mut attention_probas = attention_scores
-            .softmax(-1, Kind::Float)
+            .softmax(-1, attention_scores.kind())
             .masked_fill(&is_index_masked.unsqueeze(-1).unsqueeze(-1), 0.0)
             .apply_t(&self.dropout, train);
 
@@ -758,7 +768,7 @@ impl LongformerSelfAttention {
                         .index(is_index_global_attn_nonzero.as_ref().unwrap())
                         .size()
                         .as_slice(),
-                    (Kind::Float, attention_output.device()),
+                    (attention_output.kind(), attention_output.device()),
                 ),
                 false,
             );

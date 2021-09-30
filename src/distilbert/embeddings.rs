@@ -19,7 +19,14 @@ use tch::kind::Kind::Float;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Device, Kind, Tensor};
 
-fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn::Embedding {
+fn create_sinusoidal_embeddings<'p, P>(
+    config: &DistilBertConfig,
+    p: P,
+    device: Device,
+) -> nn::Embedding
+where
+    P: Borrow<nn::Path<'p>>,
+{
     let mut sinusoidal_embedding: Vec<Tensor> =
         Vec::with_capacity(config.max_position_embeddings as usize);
     for pos in 0..config.max_position_embeddings {
@@ -27,11 +34,11 @@ fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn
         for j in 0..config.dim {
             if j % 2 == 0 {
                 temp_vec.push(
-                    (pos as f64 / 10000f64.powf((2 * (j / 2)) as f64 / config.dim as f64)).sin(),
+                    (pos as f64 / 10000_f64.powf((2 * (j / 2)) as f64 / config.dim as f64)).sin(),
                 );
             } else {
                 temp_vec.push(
-                    (pos as f64 / 10000f64.powf((2 * (j / 2)) as f64 / config.dim as f64)).cos(),
+                    (pos as f64 / 10000_f64.powf((2 * (j / 2)) as f64 / config.dim as f64)).cos(),
                 );
             }
         }
@@ -47,7 +54,7 @@ fn create_sinusoidal_embeddings(config: &DistilBertConfig, device: Device) -> nn
         ..Default::default()
     };
     let mut embeddings = embedding(
-        &nn::VarStore::new(device).root(),
+        p.borrow(),
         config.max_position_embeddings,
         config.dim,
         embedding_config,
@@ -90,8 +97,7 @@ impl DistilBertEmbedding {
                 config.dim,
                 embedding_config,
             ),
-
-            true => create_sinusoidal_embeddings(config, p.device()),
+            true => create_sinusoidal_embeddings(config, p / "position_embeddings", p.device()),
         };
         let layer_norm_config = nn::LayerNormConfig {
             eps: 1e-12,

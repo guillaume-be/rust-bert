@@ -415,8 +415,8 @@ impl Gpt2Model {
                 .unsqueeze(2)
                 .to_kind(input_embeddings.kind());
 
-            let attention_mask = (1.0 - attention_mask) * (-10000.0);
-            attention_mask
+            let attention_mask: Tensor = (1.0 - attention_mask) * (-10000.0);
+            attention_mask.to_kind(input_embeddings.kind())
         });
 
         let position_embeds = position_ids.apply(&self.wpe);

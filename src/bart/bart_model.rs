@@ -235,7 +235,7 @@ pub(crate) fn _make_causal_mask(
 
     let mut mask = Tensor::full(
         &[target_length, target_length],
-        f64::NEG_INFINITY,
+        get_negative_infinity(dtype).unwrap(),
         (dtype, device),
     );
     let mask_cond = Tensor::arange(target_length, (dtype, device));

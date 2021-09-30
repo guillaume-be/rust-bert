@@ -320,8 +320,17 @@ impl<T: BertEmbedding> BertModel<T> {
             }
         };
 
+        let embedding_output = self.embeddings.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
+
         let extended_attention_mask: Tensor =
-            (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
+            ((extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0)
+                .to_kind(embedding_output.kind());
 
         let encoder_extended_attention_mask: Option<Tensor> =
             if self.is_decoder & encoder_hidden_states.is_some() {
@@ -349,14 +358,6 @@ impl<T: BertEmbedding> BertModel<T> {
             } else {
                 None
             };
-
-        let embedding_output = self.embeddings.forward_t(
-            input_ids,
-            token_type_ids,
-            position_ids,
-            input_embeds,
-            train,
-        )?;
 
         let encoder_output = self.encoder.forward_t(
             &embedding_output,
