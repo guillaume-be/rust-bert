@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::bart::BartModelOutput;
+use crate::common::kind::get_negative_infinity;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
 use crate::mbart::MBartConfig;
@@ -681,7 +682,11 @@ impl PegasusConditionalGenerator {
             .filter(|pos| !token_ids.contains(pos))
             .collect();
         let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
+        let _ = scores.index_fill_(
+            1,
+            &impossible_tokens,
+            get_negative_infinity(scores.kind()).unwrap(),
+        );
     }
 }
 

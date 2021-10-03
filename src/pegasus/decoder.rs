@@ -105,11 +105,15 @@ impl PegasusDecoder {
             0
         };
 
+        let x = input_ids.apply(embeddings) * self.scale_embedding;
         let positions = self
             .embed_positions
             .forward(input_ids, past_key_values_length);
-
-        let x: Tensor = input_ids.apply(embeddings) * self.scale_embedding + positions;
+        let x = if positions.kind() != x.kind() {
+            positions.to_kind(x.kind()) + x
+        } else {
+            positions + x
+        };
 
         let decoder_attention_mask = _prepare_decoder_attention_mask(
             decoder_attention_mask,

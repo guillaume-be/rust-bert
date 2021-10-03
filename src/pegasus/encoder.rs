@@ -81,7 +81,12 @@ impl PegasusEncoder {
         train: bool,
     ) -> PegasusEncoderOutput {
         let x = input_ids.apply(embeddings) * self.scale_embedding;
-        let x = x + &self.embed_positions.forward(input_ids, 0);
+        let positions = self.embed_positions.forward(input_ids, 0);
+        let x = if positions.kind() != x.kind() {
+            positions.to_kind(x.kind()) + x
+        } else {
+            positions + x
+        };
 
         let attention_mask = attention_mask.map(|mask| _expand_mask(mask, None, x.kind()));
 
