@@ -85,8 +85,7 @@ impl M2M100Encoder {
         train: bool,
     ) -> M2M100EncoderOutput {
         let x = input_ids.apply(embeddings) * self.scale_embedding;
-        let x = x + &self.embed_positions.forward(input_ids, 0);
-
+        let x = &self.embed_positions.forward(input_ids, 0, x.kind()) + x;
         let attention_mask = attention_mask.map(|mask| _expand_mask(mask, None, x.kind()));
 
         let mut hidden_state = x.apply_t(&self.dropout, train);
