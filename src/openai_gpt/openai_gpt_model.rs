@@ -229,12 +229,13 @@ impl OpenAiGptModel {
         };
 
         let attention_mask = attention_mask.as_ref().map(|value| {
-            (value
+            ((value
                 .view((input_embeddings.size()[0], -1))
                 .unsqueeze(1)
                 .unsqueeze(2)
                 - 1.0)
-                * 10000.0
+                * 10000.0)
+                .to_kind(input_embeddings.kind())
         });
 
         let position_embeds = position_ids.apply(&self.positions_embed);
