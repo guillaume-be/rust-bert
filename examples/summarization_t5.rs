@@ -18,8 +18,6 @@ use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 
 fn main() -> anyhow::Result<()> {
-    // let summarization_model = SummarizationModel::new(Default::default())?;
-
     let config_resource =
         Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
     let vocab_resource =
