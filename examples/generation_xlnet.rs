@@ -20,7 +20,6 @@ use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
 
 fn main() -> anyhow::Result<()> {
-    //    Set-up model
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,
@@ -42,7 +41,7 @@ fn main() -> anyhow::Result<()> {
         vocab_resource,
         merges_resource,
         max_length: 32,
-        do_sample: true,
+        do_sample: false,
         num_beams: 3,
         temperature: 1.0,
         num_return_sequences: 1,
