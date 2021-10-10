@@ -1,3 +1,4 @@
+mod attention;
 mod embeddings;
 mod fnet_model;
 
