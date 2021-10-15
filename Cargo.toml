@@ -57,7 +57,7 @@ all-tests = []
 features = ["doc-only"]
 
 [dependencies]
-rust_tokenizers = "~6.2.4"
+rust_tokenizers = "~6.2.5"
 tch = "~0.5.0"
 serde_json = "1.0.66"
 serde = { version = "1.0.129", features = ["derive"] }
