@@ -11,9 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::{TensorFunction, _tanh};
 use crate::{Activation, Config};
 use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use tch::nn::LayerNormConfig;
+use tch::{nn, Tensor};
 
 /// # FNet Pretrained model weight files
 pub struct FNetModelResources;
@@ -72,3 +76,98 @@ pub struct FNetConfig {
 }
 
 impl Config for FNetConfig {}
+
+struct FNetPooler {
+    dense: nn::Linear,
+    activation: TensorFunction,
+}
+
+impl FNetPooler {
+    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetPooler
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let dense = nn::linear(
+            p.borrow() / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let activation = TensorFunction::new(Box::new(_tanh));
+
+        FNetPooler { dense, activation }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        self.activation.get_fn()(&hidden_states.select(1, 0).apply(&self.dense))
+    }
+}
+
+struct FNetPredictionHeadTransform {
+    dense: nn::Linear,
+    activation: TensorFunction,
+    layer_norm: nn::LayerNorm,
+}
+
+impl FNetPredictionHeadTransform {
+    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetPredictionHeadTransform
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let activation = config.hidden_act.get_function();
+        let layer_norm_config = LayerNormConfig {
+            eps: config.layer_norm_eps.unwrap_or(1e-12),
+            ..Default::default()
+        };
+        let layer_norm =
+            nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
+
+        FNetPredictionHeadTransform {
+            dense,
+            activation,
+            layer_norm,
+        }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        let hidden_states = hidden_states.apply(&self.dense);
+        let hidden_states: Tensor = self.activation.get_fn()(&hidden_states);
+        hidden_states.apply(&self.layer_norm)
+    }
+}
+
+struct FNetLMPredictionHead {
+    transform: FNetPredictionHeadTransform,
+    decoder: nn::Linear,
+}
+
+impl FNetLMPredictionHead {
+    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetLMPredictionHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let transform = FNetPredictionHeadTransform::new(p / "transform", config);
+        let decoder = nn::linear(
+            p / "decoder",
+            config.hidden_size,
+            config.vocab_size,
+            Default::default(),
+        );
+
+        FNetLMPredictionHead { transform, decoder }
+    }
+
+    pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        self.transform.forward(hidden_states).apply(&self.decoder)
+    }
+}
