@@ -12,7 +12,9 @@
 // limitations under the License.
 
 use crate::common::activations::{TensorFunction, _tanh};
-use crate::{Activation, Config};
+use crate::fnet::embeddings::FNetEmbeddings;
+use crate::fnet::encoder::FNetEncoder;
+use crate::{Activation, Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -169,5 +171,65 @@ impl FNetLMPredictionHead {
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
         self.transform.forward(hidden_states).apply(&self.decoder)
+    }
+}
+
+/// Container for the FNet model output.
+pub struct FNetModelOutput {
+    /// Last hidden states from the model
+    pub hidden_states: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+}
+
+pub struct FNetModel {
+    embeddings: FNetEmbeddings,
+    encoder: FNetEncoder,
+    pooler: Option<FNetPooler>,
+}
+
+impl FNetModel {
+    pub fn new<'p, P>(p: P, config: &FNetConfig, add_pooling_layer: bool) -> FNetModel
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let embeddings = FNetEmbeddings::new(p / "embeddings", config);
+        let encoder = FNetEncoder::new(p / "encoder", config);
+        let pooler = if add_pooling_layer {
+            Some(FNetPooler::new(p / "pooler", config))
+        } else {
+            None
+        };
+
+        FNetModel {
+            embeddings,
+            encoder,
+            pooler,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeddings: Option<&Tensor>,
+        train: bool,
+    ) -> Result<FNetModelOutput, RustBertError> {
+        let hidden_states = self.embeddings.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeddings,
+            train,
+        )?;
+
+        let mut encoder_output = self.encoder.forward_t(&hidden_states, train);
+        if let Some(pooler) = &self.pooler {
+            encoder_output.hidden_states = pooler.forward(&encoder_output.hidden_states);
+        };
+        Ok(encoder_output)
     }
 }
