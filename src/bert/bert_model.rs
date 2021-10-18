@@ -1236,7 +1236,6 @@ mod test {
         let vs = tch::nn::VarStore::new(device);
         let config = BertConfig::from_file(config_path);
 
-        let b: BertModel<BertEmbeddings> = BertModel::new(&vs.root(), &config);
-        let _: Box<dyn Send> = Box::new(b);
+        let _: Box<dyn Send> = Box::new(BertModel::new(&vs.root(), &config));
     }
 }

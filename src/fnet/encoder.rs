@@ -12,7 +12,6 @@
 // limitations under the License.
 
 use crate::fnet::attention::FNetLayer;
-use crate::fnet::fnet_model::FNetModelOutput;
 use crate::fnet::FNetConfig;
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
@@ -44,7 +43,7 @@ impl FNetEncoder {
         }
     }
 
-    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> FNetModelOutput {
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> FNetEncoderOutput {
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
             Some(vec![])
         } else {
@@ -66,9 +65,17 @@ impl FNetEncoder {
             };
         }
 
-        FNetModelOutput {
+        FNetEncoderOutput {
             hidden_states: x.unwrap(),
             all_hidden_states,
         }
     }
+}
+
+/// Container for the FNet encoder output.
+pub struct FNetEncoderOutput {
+    /// Last hidden states from the model
+    pub hidden_states: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
 }

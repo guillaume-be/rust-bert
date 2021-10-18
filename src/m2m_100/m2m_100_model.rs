@@ -880,3 +880,31 @@ impl LanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M100Tokeni
     for M2M100Generator
 {
 }
+
+#[cfg(test)]
+mod test {
+    use tch::Device;
+
+    use crate::{
+        resources::{RemoteResource, Resource},
+        Config,
+    };
+
+    use super::*;
+
+    #[test]
+    #[ignore] // compilation is enough, no need to run
+    fn mbart_model_send() {
+        let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+            M2M100ConfigResources::M2M100_418M,
+        ));
+        let config_path = config_resource.get_local_path().expect("");
+
+        //    Set-up masked LM model
+        let device = Device::cuda_if_available();
+        let vs = tch::nn::VarStore::new(device);
+        let config = M2M100Config::from_file(config_path);
+
+        let _: Box<dyn Send> = Box::new(M2M100Model::new(&vs.root(), &config));
+    }
+}

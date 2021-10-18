@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::common::activations::{TensorFunction, _tanh};
+use crate::common::dropout::Dropout;
 use crate::fnet::embeddings::FNetEmbeddings;
 use crate::fnet::encoder::FNetEncoder;
 use crate::{Activation, Config, RustBertError};
@@ -174,14 +175,6 @@ impl FNetLMPredictionHead {
     }
 }
 
-/// Container for the FNet model output.
-pub struct FNetModelOutput {
-    /// Last hidden states from the model
-    pub hidden_states: Tensor,
-    /// Hidden states for all intermediate layers
-    pub all_hidden_states: Option<Vec<Tensor>>,
-}
-
 pub struct FNetModel {
     embeddings: FNetEmbeddings,
     encoder: FNetEncoder,
@@ -226,10 +219,175 @@ impl FNetModel {
             train,
         )?;
 
-        let mut encoder_output = self.encoder.forward_t(&hidden_states, train);
-        if let Some(pooler) = &self.pooler {
-            encoder_output.hidden_states = pooler.forward(&encoder_output.hidden_states);
+        let encoder_output = self.encoder.forward_t(&hidden_states, train);
+        let pooled_output = if let Some(pooler) = &self.pooler {
+            Some(pooler.forward(&encoder_output.hidden_states))
+        } else {
+            None
         };
-        Ok(encoder_output)
+        Ok(FNetModelOutput {
+            hidden_states,
+            pooled_output,
+            all_hidden_states: encoder_output.all_hidden_states,
+        })
+    }
+}
+
+pub struct FNetForMaskedLM {
+    fnet: FNetModel,
+    lm_head: FNetLMPredictionHead,
+}
+
+impl FNetForMaskedLM {
+    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForMaskedLM
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let fnet = FNetModel::new(p / "fnet", config, false);
+        let lm_head = FNetLMPredictionHead::new(p.sub("cls").sub("predictions"), config);
+
+        FNetForMaskedLM { fnet, lm_head }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeddings: Option<&Tensor>,
+        train: bool,
+    ) -> Result<FNetMaskedLMOutput, RustBertError> {
+        let model_output = self.fnet.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeddings,
+            train,
+        )?;
+
+        let prediction_scores = self.lm_head.forward(&model_output.hidden_states);
+
+        Ok(FNetMaskedLMOutput {
+            prediction_scores,
+            all_hidden_states: model_output.all_hidden_states,
+        })
+    }
+}
+
+pub struct FNetForSequenceClassification {
+    fnet: FNetModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl FNetForSequenceClassification {
+    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForSequenceClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let fnet = FNetModel::new(p / "fnet", config, true);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let classifier = nn::linear(
+            p / "classifier",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
+
+        FNetForSequenceClassification {
+            fnet,
+            dropout,
+            classifier,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeddings: Option<&Tensor>,
+        train: bool,
+    ) -> Result<FNetSequenceClassificationOutput, RustBertError> {
+        let base_model_output = self.fnet.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeddings,
+            train,
+        )?;
+
+        let logits = base_model_output
+            .pooled_output
+            .unwrap()
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
+
+        Ok(FNetSequenceClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+        })
+    }
+}
+
+/// Container for the FNet model output.
+pub struct FNetModelOutput {
+    /// Last hidden states from the model
+    pub hidden_states: Tensor,
+    /// Pooled output (hidden state for the first token)
+    pub pooled_output: Option<Tensor>,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+}
+
+/// Container for the FNet masked LM model output.
+pub struct FNetMaskedLMOutput {
+    /// Logits for the vocabulary items at each sequence position
+    pub prediction_scores: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+}
+
+/// Container for the FNet sequence classification model output.
+pub struct FNetSequenceClassificationOutput {
+    /// Logits for each input (sequence) for each target class
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+}
+
+#[cfg(test)]
+mod test {
+    use tch::Device;
+
+    use crate::{
+        resources::{RemoteResource, Resource},
+        Config,
+    };
+
+    use super::*;
+
+    #[test]
+    #[ignore] // compilation is enough, no need to run
+    fn fnet_model_send() {
+        let config_resource =
+            Resource::Remote(RemoteResource::from_pretrained(FNetConfigResources::BASE));
+        let config_path = config_resource.get_local_path().expect("");
+
+        //    Set-up masked LM model
+        let device = Device::cuda_if_available();
+        let vs = tch::nn::VarStore::new(device);
+        let config = FNetConfig::from_file(config_path);
+
+        let _: Box<dyn Send> = Box::new(FNetModel::new(&vs.root(), &config, true));
     }
 }

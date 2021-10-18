@@ -1090,3 +1090,31 @@ impl LanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart50Token
     for MBartGenerator
 {
 }
+
+#[cfg(test)]
+mod test {
+    use tch::Device;
+
+    use crate::{
+        resources::{RemoteResource, Resource},
+        Config,
+    };
+
+    use super::*;
+
+    #[test]
+    #[ignore] // compilation is enough, no need to run
+    fn mbart_model_send() {
+        let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+            MBartConfigResources::MBART50_MANY_TO_MANY,
+        ));
+        let config_path = config_resource.get_local_path().expect("");
+
+        //    Set-up masked LM model
+        let device = Device::cuda_if_available();
+        let vs = tch::nn::VarStore::new(device);
+        let config = MBartConfig::from_file(config_path);
+
+        let _: Box<dyn Send> = Box::new(MBartModel::new(&vs.root(), &config));
+    }
+}
