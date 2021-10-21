@@ -62,7 +62,7 @@
 //! # ;
 //! ```
 
-use tch::{Device, Tensor};
+use tch::Device;
 
 use crate::bart::{
     BartConfigResources, BartGenerator, BartMergesResources, BartModelResources, BartVocabResources,
@@ -254,72 +254,28 @@ impl SummarizationOption {
     }
 
     /// Interface method to generate() of the particular models.
-    pub fn generate<'a, S>(
-        &self,
-        prompt_texts: Option<S>,
-        attention_mask: Option<Tensor>,
-    ) -> Vec<String>
+    pub fn generate<'a, S>(&self, prompt_texts: Option<S>) -> Vec<String>
     where
         S: AsRef<[&'a str]>,
     {
         match *self {
             Self::Bart(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None, None, None, None, None, None, false)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::T5(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None, None, None, None, None, None, false)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::ProphetNet(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None, None, None, None, None, None, false)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::Pegasus(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None, None, None, None, None, None, false)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
@@ -411,17 +367,15 @@ impl SummarizationModel {
         S: AsRef<[&'a str]>,
     {
         match &self.prefix {
-            None => self.model.generate(Some(texts), None),
+            None => self.model.generate(Some(texts)),
             Some(prefix) => {
                 let texts = texts
                     .as_ref()
                     .iter()
                     .map(|text| format!("{}{}", prefix, text))
                     .collect::<Vec<String>>();
-                self.model.generate(
-                    Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
-                    None,
-                )
+                self.model
+                    .generate(Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()))
             }
         }
     }

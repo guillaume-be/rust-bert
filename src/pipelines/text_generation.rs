@@ -24,7 +24,7 @@
 //!
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
 //! The dependencies will be downloaded to the user's home directory, e.g. under ~/.cache/.rustbert/gpt2
-use tch::{Device, Tensor};
+use tch::Device;
 
 use crate::common::error::RustBertError;
 use crate::common::resources::RemoteResource;
@@ -241,7 +241,6 @@ impl TextGenerationOption {
     pub fn generate_indices<'a, S>(
         &self,
         prompt_texts: Option<S>,
-        attention_mask: Option<Tensor>,
         min_length: Option<i64>,
         max_length: Option<i64>,
     ) -> Vec<Vec<i64>>
@@ -252,7 +251,6 @@ impl TextGenerationOption {
             Self::GPT(ref model) => model
                 .generate_indices(
                     prompt_texts,
-                    attention_mask,
                     min_length,
                     max_length,
                     None,
@@ -267,7 +265,6 @@ impl TextGenerationOption {
             Self::GPT2(ref model) => model
                 .generate_indices(
                     prompt_texts,
-                    attention_mask,
                     min_length,
                     max_length,
                     None,
@@ -282,7 +279,6 @@ impl TextGenerationOption {
             Self::GPTNeo(ref model) => model
                 .generate_indices(
                     prompt_texts,
-                    attention_mask,
                     min_length,
                     max_length,
                     None,
@@ -297,7 +293,6 @@ impl TextGenerationOption {
             Self::XLNet(ref model) => model
                 .generate_indices(
                     prompt_texts,
-                    attention_mask,
                     min_length,
                     max_length,
                     None,
@@ -312,7 +307,6 @@ impl TextGenerationOption {
             Self::Reformer(ref model) => model
                 .generate_indices(
                     prompt_texts,
-                    attention_mask,
                     min_length,
                     max_length,
                     None,
@@ -431,7 +425,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
             (None, None) => (None, None),
         };
         let generated_indices = match (prefix, prefix_length) {
-            (None, _) => self.model.generate_indices(Some(texts), None, None, None),
+            (None, _) => self.model.generate_indices(Some(texts), None, None),
             (Some(prefix), Some(prefix_length)) => {
                 let texts = texts
                     .as_ref()
@@ -440,7 +434,6 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                     .collect::<Vec<String>>();
                 self.model.generate_indices(
                     Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
-                    None,
                     Some(self.min_length + prefix_length),
                     Some(self.max_length + prefix_length),
                 )

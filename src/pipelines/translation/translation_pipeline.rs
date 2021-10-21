@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{Device, Tensor};
+use tch::Device;
 
 use crate::common::error::RustBertError;
 use crate::common::resources::Resource;
@@ -733,7 +733,6 @@ impl TranslationOption {
     pub fn generate<'a, S>(
         &self,
         prompt_texts: Option<S>,
-        attention_mask: Option<Tensor>,
         forced_bos_token_id: Option<i64>,
     ) -> Vec<String>
     where
@@ -741,39 +740,18 @@ impl TranslationOption {
     {
         match *self {
             Self::Marian(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None, None, None, None, None, None, false)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::T5(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None, None, None, None, None, None, false)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::MBart(ref model) => model
                 .generate(
                     prompt_texts,
-                    attention_mask,
                     None,
                     None,
                     None,
@@ -788,7 +766,6 @@ impl TranslationOption {
             Self::M2M100(ref model) => model
                 .generate(
                     prompt_texts,
-                    attention_mask,
                     None,
                     None,
                     None,
@@ -952,11 +929,10 @@ impl TranslationModel {
                     .collect::<Vec<String>>();
                 self.model.generate(
                     Some(texts.iter().map(AsRef::as_ref).collect::<Vec<&str>>()),
-                    None,
                     forced_bos_token_id,
                 )
             }
-            None => self.model.generate(Some(texts), None, forced_bos_token_id),
+            None => self.model.generate(Some(texts), forced_bos_token_id),
         })
     }
 }

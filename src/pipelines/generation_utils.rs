@@ -42,7 +42,6 @@
 //! let second_input_context = "The cat was";
 //! let output = gpt2_generator.generate(
 //!     Some(vec![input_context, second_input_context]),
-//!     None,
 //!     min_length,
 //!     max_length,
 //!     decoder_start_id,
@@ -1426,6 +1425,10 @@ pub struct GeneratedIndicesOutput {
     pub score: Option<f64>,
 }
 
+// pub struct GenerationOptions {
+//
+// }
+
 /// # Common trait for text generation models.
 /// Main API for text generation
 pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
@@ -1436,7 +1439,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # Arguments
     ///
     /// * `prompt_texts` - `Option<Vec<&str>>` Optional vector of text prompts. An empty prompt to the model may be passed if the model implement a `bos_id`.
-    /// * `attention_mask` - `Option<Tensor>` Optional attention mask to hide portions of the prompt.
     /// * `min_length` - `impl Into<Option<i64>>` Optional minimum output sequence length
     /// * `max_length` - `impl Into<Option<i64>>` Optional maximum output sequence length
     /// * `decoder_start_token_id` - `impl Into<Option<i64>>` Optional decoder start token id
@@ -1474,7 +1476,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
     ///
-    /// let attention_mask = None;
     /// let min_length = 32;
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
@@ -1501,7 +1502,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///
     /// let output = gpt2_generator.generate(
     ///     Some(vec![input_context, second_input_context]),
-    ///     attention_mask,
     ///     min_length,
     ///     max_length,
     ///     decoder_start_token_id,
@@ -1529,7 +1529,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     fn generate<'a, S>(
         &self,
         prompt_texts: Option<S>,
-        attention_mask: Option<Tensor>,
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
@@ -1543,7 +1542,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     {
         let indices_outputs = self.generate_indices(
             prompt_texts,
-            attention_mask,
             min_length,
             max_length,
             decoder_start_token_id,
@@ -1569,7 +1567,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # Arguments
     ///
     /// * `prompt_texts` - `Option<Vec<&str>>` Optional vector of text prompts. An empty prompt to the model may be passed if the model implement a `bos_id`.
-    /// * `attention_mask` - `Option<Tensor>` Optional attention mask to hide portions of the prompt.
     /// * `min_length` - `impl Into<Option<i64>>` Optional minimum output sequence length
     /// * `max_length` - `impl Into<Option<i64>>` Optional maximum output sequence length
     /// * `decoder_start_token_id` - `impl Into<Option<i64>>` Optional decoder start token id
@@ -1606,7 +1603,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
-    /// let attention_mask = None;
     /// let min_length = 32;
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
@@ -1633,7 +1629,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///
     /// let output = gpt2_generator.generate_indices(
     ///     Some(vec![input_context, second_input_context]),
-    ///     attention_mask,
     ///     min_length,
     ///     max_length,
     ///     decoder_start_token_id,
@@ -1648,7 +1643,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     fn generate_indices<'a, S>(
         &self,
         prompt_texts: Option<S>,
-        attention_mask: Option<Tensor>,
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
         decoder_start_token_id: impl Into<Option<i64>>,
@@ -1687,7 +1681,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         };
         self.generate_from_ids_and_past(
             input_ids,
-            attention_mask,
+            None,
             min_length,
             max_length,
             decoder_start_token_id,
@@ -1741,7 +1735,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
     /// let second_input_context = "The cat was";
-    /// let attention_mask = None;
     /// let min_length = 32;
     /// let max_length = 128;
     /// let decoder_start_token_id = None;
@@ -1768,7 +1761,6 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///
     /// let output = gpt2_generator.generate_indices(
     ///     Some(vec![input_context, second_input_context]),
-    ///     attention_mask,
     ///     min_length,
     ///     max_length,
     ///     decoder_start_token_id,
