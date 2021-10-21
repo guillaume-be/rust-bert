@@ -195,9 +195,9 @@ impl POSModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict<'a, S>(&self, input: S) -> Vec<Vec<POSTag>>
+    pub fn predict<S>(&self, input: &[S]) -> Vec<Vec<POSTag>>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str>,
     {
         self.token_classification_model
             .predict(input, true, false)

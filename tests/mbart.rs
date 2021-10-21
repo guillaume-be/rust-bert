@@ -73,9 +73,9 @@ fn mbart_translation() -> anyhow::Result<()> {
     let source_sentence = "This sentence will be translated in multiple languages.";
 
     let mut outputs = Vec::new();
-    outputs.extend(model.translate([source_sentence], Language::English, Language::French)?);
-    outputs.extend(model.translate([source_sentence], Language::English, Language::Spanish)?);
-    outputs.extend(model.translate([source_sentence], Language::English, Language::Hindi)?);
+    outputs.extend(model.translate(&[source_sentence], Language::English, Language::French)?);
+    outputs.extend(model.translate(&[source_sentence], Language::English, Language::Spanish)?);
+    outputs.extend(model.translate(&[source_sentence], Language::English, Language::Hindi)?);
 
     assert_eq!(outputs.len(), 3);
     assert_eq!(

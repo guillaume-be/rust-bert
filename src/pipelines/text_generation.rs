@@ -238,15 +238,15 @@ impl TextGenerationOption {
     }
 
     /// Interface method to generate() of the particular models.
-    pub fn generate_indices<'a, S>(
+    pub fn generate_indices<S>(
         &self,
-        prompt_texts: Option<S>,
+        prompt_texts: Option<&[S]>,
         attention_mask: Option<Tensor>,
         min_length: Option<i64>,
         max_length: Option<i64>,
     ) -> Vec<Vec<i64>>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         match *self {
             Self::GPT(ref model) => model
@@ -418,9 +418,9 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
     /// # Ok(())
     /// # }
     /// ```
-    pub fn generate<'a, S>(&self, texts: S, prefix: impl Into<Option<&'a str>>) -> Vec<String>
+    pub fn generate<'a, S>(&self, texts: &[S], prefix: impl Into<Option<&'a str>>) -> Vec<String>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync + std::fmt::Display,
     {
         let (prefix, prefix_length) = match (prefix.into(), &self.prefix) {
             (Some(query_prefix), _) => (
@@ -439,7 +439,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                     .map(|text| format!("{} {}", prefix, text))
                     .collect::<Vec<String>>();
                 self.model.generate_indices(
-                    Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
+                    Some(&texts),
                     None,
                     Some(self.min_length + prefix_length),
                     Some(self.max_length + prefix_length),

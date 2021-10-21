@@ -776,17 +776,16 @@ impl TokenClassificationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict<'a, S>(
+    pub fn predict<S>(
         &self,
-        input: S,
+        input: &[S],
         consolidate_sub_tokens: bool,
         return_special: bool,
     ) -> Vec<Vec<Token>>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str>,
     {
         let mut features: Vec<InputFeature> = input
-            .as_ref()
             .iter()
             .enumerate()
             .map(|(example_index, example)| self.generate_features(example, example_index))
@@ -794,7 +793,7 @@ impl TokenClassificationModel {
             .collect();
 
         let mut example_tokens_map: HashMap<usize, Vec<Token>> = HashMap::new();
-        for example_idx in 0..input.as_ref().len() {
+        for example_idx in 0..input.len() {
             example_tokens_map.insert(example_idx, Vec::new());
         }
         let mut start = 0usize;
@@ -821,6 +820,7 @@ impl TokenClassificationModel {
                     let feature = &features[sentence_idx as usize];
                     let sentence_reference_flag = &feature.reference_feature;
                     let original_chars = input.as_ref()[feature.example_index]
+                        .as_ref()
                         .chars()
                         .collect::<Vec<char>>();
                     let mut word_idx: u16 = 0;
