@@ -4,7 +4,9 @@ mod encoder;
 mod fnet_model;
 
 pub use fnet_model::{
-    FNetConfig, FNetConfigResources, FNetForMaskedLM, FNetForSequenceClassification,
+    FNetConfig, FNetConfigResources, FNetForMaskedLM, FNetForMultipleChoice,
+    FNetForQuestionAnswering, FNetForSequenceClassification, FNetForTokenClassification,
     FNetMaskedLMOutput, FNetModel, FNetModelOutput, FNetModelResources,
-    FNetSequenceClassificationOutput, FNetVocabResources,
+    FNetQuestionAnsweringOutput, FNetSequenceClassificationOutput, FNetTokenClassificationOutput,
+    FNetVocabResources,
 };

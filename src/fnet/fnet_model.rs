@@ -13,6 +13,7 @@
 
 use crate::common::activations::{TensorFunction, _tanh};
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::fnet::embeddings::FNetEmbeddings;
 use crate::fnet::encoder::FNetEncoder;
 use crate::{Activation, Config, RustBertError};
@@ -339,6 +340,184 @@ impl FNetForSequenceClassification {
     }
 }
 
+pub struct FNetForMultipleChoice {
+    fnet: FNetModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl FNetForMultipleChoice {
+    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForMultipleChoice
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let fnet = FNetModel::new(p / "fnet", config, true);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let classifier = nn::linear(p / "classifier", config.hidden_size, 1, Default::default());
+
+        FNetForMultipleChoice {
+            fnet,
+            dropout,
+            classifier,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeddings: Option<&Tensor>,
+        train: bool,
+    ) -> Result<FNetSequenceClassificationOutput, RustBertError> {
+        let (input_shape, _) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeddings)?;
+        let num_choices = input_shape[1];
+
+        let input_ids = input_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let token_type_ids =
+            token_type_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let position_ids =
+            position_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let input_embeddings =
+            input_embeddings.map(|tensor| tensor.view((-1, tensor.size()[2], tensor.size()[3])));
+
+        let base_model_output = self.fnet.forward_t(
+            input_ids.as_ref(),
+            token_type_ids.as_ref(),
+            position_ids.as_ref(),
+            input_embeddings.as_ref(),
+            train,
+        )?;
+
+        let logits = base_model_output
+            .pooled_output
+            .unwrap()
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier)
+            .view((-1, num_choices));
+
+        Ok(FNetSequenceClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+        })
+    }
+}
+
+pub struct FNetForTokenClassification {
+    fnet: FNetModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl FNetForTokenClassification {
+    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForTokenClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let fnet = FNetModel::new(p / "fnet", config, false);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let classifier = nn::linear(
+            p / "classifier",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
+
+        FNetForTokenClassification {
+            fnet,
+            dropout,
+            classifier,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeddings: Option<&Tensor>,
+        train: bool,
+    ) -> Result<FNetTokenClassificationOutput, RustBertError> {
+        let base_model_output = self.fnet.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeddings,
+            train,
+        )?;
+
+        let logits = base_model_output
+            .hidden_states
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
+
+        Ok(FNetTokenClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+        })
+    }
+}
+
+pub struct FNetForQuestionAnswering {
+    fnet: FNetModel,
+    qa_outputs: nn::Linear,
+}
+
+impl FNetForQuestionAnswering {
+    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForQuestionAnswering
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let fnet = FNetModel::new(p / "fnet", config, false);
+        let qa_outputs = nn::linear(p / "classifier", config.hidden_size, 2, Default::default());
+
+        FNetForQuestionAnswering { fnet, qa_outputs }
+    }
+
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeddings: Option<&Tensor>,
+        train: bool,
+    ) -> Result<FNetQuestionAnsweringOutput, RustBertError> {
+        let base_model_output = self.fnet.forward_t(
+            input_ids,
+            token_type_ids,
+            position_ids,
+            input_embeddings,
+            train,
+        )?;
+
+        let logits = base_model_output
+            .hidden_states
+            .apply(&self.qa_outputs)
+            .split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
+
+        Ok(FNetQuestionAnsweringOutput {
+            start_logits,
+            end_logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+        })
+    }
+}
+
 /// Container for the FNet model output.
 pub struct FNetModelOutput {
     /// Last hidden states from the model
@@ -361,6 +540,19 @@ pub struct FNetMaskedLMOutput {
 pub struct FNetSequenceClassificationOutput {
     /// Logits for each input (sequence) for each target class
     pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+}
+
+/// Container for the FNet token classification model output.
+pub type FNetTokenClassificationOutput = FNetSequenceClassificationOutput;
+
+/// Container for the FNet question answering model output.
+pub struct FNetQuestionAnsweringOutput {
+    /// Logits for the start position for token of each input sequence
+    pub start_logits: Tensor,
+    /// Logits for the end position for token of each input sequence
+    pub end_logits: Tensor,
     /// Hidden states for all intermediate layers
     pub all_hidden_states: Option<Vec<Tensor>>,
 }
