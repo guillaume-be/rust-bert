@@ -20,7 +20,7 @@ use crate::marian::MarianGenerator;
 use crate::mbart::MBartGenerator;
 use crate::pipelines::common::ModelType;
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::t5::T5Generator;
 use std::collections::HashSet;
 use std::fmt;
@@ -740,43 +740,37 @@ impl TranslationOption {
     {
         match *self {
             Self::Marian(ref model) => model
-                .generate(prompt_texts, None, None, None, None, None, None, false)
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::T5(ref model) => model
-                .generate(prompt_texts, None, None, None, None, None, None, false)
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
-            Self::MBart(ref model) => model
-                .generate(
-                    prompt_texts,
-                    None,
-                    None,
-                    None,
+            Self::MBart(ref model) => {
+                let generate_options = GenerateOptions {
                     forced_bos_token_id,
-                    None,
-                    None,
-                    false,
-                )
-                .into_iter()
-                .map(|output| output.text)
-                .collect(),
-            Self::M2M100(ref model) => model
-                .generate(
-                    prompt_texts,
-                    None,
-                    None,
-                    None,
+                    ..Default::default()
+                };
+                model
+                    .generate(prompt_texts, Some(generate_options))
+                    .into_iter()
+                    .map(|output| output.text)
+                    .collect()
+            }
+            Self::M2M100(ref model) => {
+                let generate_options = GenerateOptions {
                     forced_bos_token_id,
-                    None,
-                    None,
-                    false,
-                )
-                .into_iter()
-                .map(|output| output.text)
-                .collect(),
+                    ..Default::default()
+                };
+                model
+                    .generate(prompt_texts, Some(generate_options))
+                    .into_iter()
+                    .map(|output| output.text)
+                    .collect()
+            }
         }
     }
 }

@@ -35,7 +35,7 @@ use crate::gpt_neo::GptNeoGenerator;
 use crate::openai_gpt::OpenAIGenerator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::reformer::ReformerGenerator;
 use crate::resources::Resource;
 use crate::xlnet::XLNetGenerator;
@@ -247,74 +247,34 @@ impl TextGenerationOption {
     where
         S: AsRef<[&'a str]>,
     {
+        let generate_options = Some(GenerateOptions {
+            min_length,
+            max_length,
+            ..Default::default()
+        });
         match *self {
             Self::GPT(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::GPT2(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::GPTNeo(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::XLNet(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::Reformer(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),

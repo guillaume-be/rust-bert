@@ -260,22 +260,22 @@ impl SummarizationOption {
     {
         match *self {
             Self::Bart(ref model) => model
-                .generate(prompt_texts, None, None, None, None, None, None, false)
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::T5(ref model) => model
-                .generate(prompt_texts, None, None, None, None, None, None, false)
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::ProphetNet(ref model) => model
-                .generate(prompt_texts, None, None, None, None, None, None, false)
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::Pegasus(ref model) => model
-                .generate(prompt_texts, None, None, None, None, None, None, false)
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
