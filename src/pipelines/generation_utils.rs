@@ -21,10 +21,9 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::gpt2::GPT2Generator;
-//! use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+//! use rust_bert::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 //!
 //! let generate_config = GenerateConfig {
-//!     max_length: 30,
 //!     do_sample: true,
 //!     num_beams: 5,
 //!     temperature: 1.1,
@@ -33,22 +32,20 @@
 //! };
 //! let mut gpt2_generator = GPT2Generator::new(generate_config)?;
 //!
-//! let min_length = Some(32);
-//! let max_length = Some(128);
-//! let decoder_start_id = None;
-//! let forced_bos_token_id = None;
 //!
 //! let input_context = "The dog";
 //! let second_input_context = "The cat was";
+//!
+//! let generate_options = GenerateOptions {
+//!     min_length: Some(32),
+//!     max_length: Some(128),
+//!     output_scores: true,
+//!     ..Default::default()
+//! };
+//!
 //! let output = gpt2_generator.generate(
 //!     Some(vec![input_context, second_input_context]),
-//!     min_length,
-//!     max_length,
-//!     decoder_start_id,
-//!     forced_bos_token_id,
-//!     None,
-//!     None,
-//!     false,
+//!     Some(generate_options),
 //! );
 //! # Ok(())
 //! # }
@@ -1772,10 +1769,12 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let repetition_penalty = unpack_config!(repetition_penalty, generate_options, config);
         let length_penalty = unpack_config!(length_penalty, generate_options, config);
         let no_repeat_ngram_size = unpack_config!(no_repeat_ngram_size, generate_options, config);
-        let num_beam_groups =
-            generate_options.map_or(config.num_beam_groups, |opts| opts.num_beam_groups);
-        let diversity_penalty =
-            generate_options.map_or(config.diversity_penalty, |opts| opts.diversity_penalty);
+        let num_beam_groups = generate_options.map_or(config.num_beam_groups, |opts| {
+            opts.num_beam_groups.or(config.num_beam_groups)
+        });
+        let diversity_penalty = generate_options.map_or(config.diversity_penalty, |opts| {
+            opts.diversity_penalty.or(config.diversity_penalty)
+        });
         let decoder_start_token_id = generate_options.and_then(|opts| opts.decoder_start_token_id);
         let forced_bos_token_id = generate_options.and_then(|opts| opts.forced_bos_token_id);
         let bad_word_ids = generate_options.and_then(|opts| opts.bad_word_ids);
