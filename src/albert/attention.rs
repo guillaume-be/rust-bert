@@ -128,7 +128,8 @@ impl AlbertSelfAttention {
             self.hidden_size,
         ));
 
-        let context: Tensor = Tensor::einsum("bfnd,ndh->bfh", &[context, w]) + &self.dense.bs;
+        let context: Tensor =
+            Tensor::einsum("bfnd,ndh->bfh", &[context, w]) + self.dense.bs.as_ref().unwrap();
         let context = (input_ids + context.apply_t(&self.dropout, train)).apply(&self.layer_norm);
 
         if !self.output_attentions {
