@@ -21,7 +21,9 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::gpt2::GPT2Generator;
-//! use rust_bert::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
+//! use rust_bert::pipelines::generation_utils::{
+//!     GenerateConfig, GenerateOptions, LanguageGenerator,
+//! };
 //!
 //! let generate_config = GenerateConfig {
 //!     do_sample: true,
@@ -31,7 +33,6 @@
 //!     ..Default::default()
 //! };
 //! let mut gpt2_generator = GPT2Generator::new(generate_config)?;
-//!
 //!
 //! let input_context = "The dog";
 //! let second_input_context = "The cat was";
@@ -1527,7 +1528,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::gpt2::GPT2Generator;
-    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
+    /// use rust_bert::pipelines::generation_utils::{
+    ///     GenerateConfig, GenerateOptions, LanguageGenerator,
+    /// };
     /// use tch::Tensor;
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
@@ -1576,7 +1579,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///
     /// let output = gpt2_generator.generate(
     ///     Some(vec![input_context, second_input_context]),
-    ///     Some(generate_options)
+    ///     Some(generate_options),
     /// );
     /// # Ok(())
     /// # }
@@ -1632,7 +1635,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::gpt2::GPT2Generator;
-    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
+    /// use rust_bert::pipelines::generation_utils::{
+    ///     GenerateConfig, GenerateOptions, LanguageGenerator,
+    /// };
     /// use tch::Tensor;
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
@@ -1681,7 +1686,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     ///
     /// let output = gpt2_generator.generate_indices(
     ///     Some(vec![input_context, second_input_context]),
-    ///     Some(generate_options)
+    ///     Some(generate_options),
     /// );
     /// # Ok(())
     /// # }
@@ -1740,7 +1745,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # use tch::Device;
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::gpt2::GPT2Generator;
-    /// use rust_bert::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
+    /// use rust_bert::pipelines::generation_utils::{
+    ///     GenerateConfig, GenerateOptions, LanguageGenerator,
+    /// };
     /// use tch::{Kind, Tensor};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
     /// # home.push("rustbert");
@@ -1752,8 +1759,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let device = Device::cuda_if_available();
     ///
     /// let gpt2_generator = GPT2Generator::new(Default::default())?;
-    /// let input_tensor = Tensor::randn(&[32,128], (Kind::Int64, Device::Cpu));
-    /// let input_mask = Tensor::ones(&[32,128], (Kind::Int64, Device::Cpu));
+    /// let input_tensor = Tensor::randn(&[32, 128], (Kind::Int64, Device::Cpu));
+    /// let input_mask = Tensor::ones(&[32, 128], (Kind::Int64, Device::Cpu));
     ///
     /// let generate_options = GenerateOptions {
     ///     min_length: Some(32),
@@ -1765,7 +1772,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// let output = gpt2_generator.generate_from_ids_and_past(
     ///     input_tensor,
     ///     Some(input_mask),
-    ///     Some(generate_options)
+    ///     Some(generate_options),
     /// );
     /// # Ok(())
     /// # }

@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 ## Added
 - (BREAKING) Support for `bad_word_ids` generation, allowing to ban a set of word ids for all model supporting text generation
+- (BREAKING) Extension of the generation options that can be provided at runtime (after a model has been instantiated with a `GenerateConfig`), allowing to update the generation options from one text generation to another with the same model. This feature is implemented at the `LanguageGenerator` trait level, the high-level `TextGeneration` pipeline API remains unchanged.
 
 ## [0.16.0] - 2021-08-24
 ## Added

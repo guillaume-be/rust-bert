@@ -22,6 +22,13 @@
 //! - XLNet
 //! - Reformer
 //!
+//! Two APIs exist to build text generation models:
+//! - `TextGenerationModel` is a high-level module that exposes text generation capabilities with a set of reasonable defaults
+//! - the `LanguageGenerator` trait exposes lower-level text generation capabilities allowing the user to provide additional
+//! generation options when building the model (via `GenerateConfig`) and at each query (via `GenerateOptions`). Please check the
+//! [`generation_utils` module](../generation_utils/index.html) for more details
+//!
+//!
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
 //! The dependencies will be downloaded to the user's home directory, e.g. under ~/.cache/.rustbert/gpt2
 use tch::Device;
