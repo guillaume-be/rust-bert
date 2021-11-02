@@ -408,14 +408,14 @@ impl SummarizationModel {
     /// (New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
     pub fn summarize<S>(&self, texts: &[S]) -> Vec<String>
     where
-        S: AsRef<str> + Sync + std::fmt::Display,
+        S: AsRef<str> + Sync,
     {
         match &self.prefix {
             None => self.model.generate(Some(texts), None),
             Some(prefix) => {
                 let texts = texts
                     .iter()
-                    .map(|text| format!("{}{}", prefix, text))
+                    .map(|text| format!("{}{}", prefix, text.as_ref()))
                     .collect::<Vec<String>>();
                 self.model.generate(Some(&texts), None)
             }

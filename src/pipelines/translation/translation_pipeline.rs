@@ -934,7 +934,7 @@ impl TranslationModel {
         target_language: impl Into<Option<Language>>,
     ) -> Result<Vec<String>, RustBertError>
     where
-        S: AsRef<str> + Sync + Display,
+        S: AsRef<str> + Sync,
     {
         let (prefix, forced_bos_token_id) = self.model.validate_and_get_prefix_and_forced_bos_id(
             source_language.into().as_ref(),
@@ -947,7 +947,7 @@ impl TranslationModel {
             Some(value) => {
                 let texts = texts
                     .iter()
-                    .map(|v| format!("{}{}", value, v))
+                    .map(|v| format!("{}{}", value, v.as_ref()))
                     .collect::<Vec<String>>();
                 self.model.generate(Some(&texts), None, forced_bos_token_id)
             }

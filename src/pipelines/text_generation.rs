@@ -420,7 +420,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
     /// ```
     pub fn generate<'a, S>(&self, texts: &[S], prefix: impl Into<Option<&'a str>>) -> Vec<String>
     where
-        S: AsRef<str> + Sync + std::fmt::Display,
+        S: AsRef<str> + Sync,
     {
         let (prefix, prefix_length) = match (prefix.into(), &self.prefix) {
             (Some(query_prefix), _) => (
@@ -436,7 +436,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                 let texts = texts
                     .as_ref()
                     .iter()
-                    .map(|text| format!("{} {}", prefix, text))
+                    .map(|text| format!("{} {}", prefix, text.as_ref()))
                     .collect::<Vec<String>>();
                 self.model.generate_indices(
                     Some(&texts),

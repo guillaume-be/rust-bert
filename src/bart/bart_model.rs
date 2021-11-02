@@ -1204,8 +1204,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     where
         S: AsRef<str> + Sync,
     {
-        let tokenizer = self._get_tokenizer();
-        let tokens = tokenizer.encode_list(
+        let tokens = self._get_tokenizer().encode_list(
             prompt_text,
             max_len as usize,
             &TruncationStrategy::LongestFirst,
