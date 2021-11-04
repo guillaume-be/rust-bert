@@ -838,11 +838,11 @@ impl ConversationModel {
                 let generated_response = &generated_sequence[input_length - removed_padding.0..];
                 conversation
                     .generated_responses
-                    .push(self.model.get_tokenizer().decode(
-                        &generated_response,
-                        true,
-                        true,
-                    ));
+                    .push(
+                        self.model
+                            .get_tokenizer()
+                            .decode(generated_response, true, true),
+                    );
                 conversation.history.push(conversation_promp_ids);
                 conversation.history.push(generated_response.to_vec());
                 conversation.mark_processed();

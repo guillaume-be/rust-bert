@@ -819,7 +819,7 @@ impl TokenClassificationModel {
                     let labels = label_indices.get(sentence_idx);
                     let feature = &features[sentence_idx as usize];
                     let sentence_reference_flag = &feature.reference_feature;
-                    let original_chars = input.as_ref()[feature.example_index]
+                    let original_chars = input[feature.example_index]
                         .as_ref()
                         .chars()
                         .collect::<Vec<char>>();

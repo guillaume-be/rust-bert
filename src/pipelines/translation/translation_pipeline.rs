@@ -586,8 +586,7 @@ impl TranslationOption {
             if !supported_source_languages.contains(source_language) {
                 return Err(RustBertError::ValueError(format!(
                     "{} not in list of supported languages: {:?}",
-                    source_language.to_string(),
-                    supported_source_languages
+                    source_language, supported_source_languages
                 )));
             }
         }
@@ -596,8 +595,7 @@ impl TranslationOption {
             if !supported_target_languages.contains(target_language) {
                 return Err(RustBertError::ValueError(format!(
                     "{} not in list of supported languages: {:?}",
-                    target_language.to_string(),
-                    supported_target_languages
+                    target_language, supported_target_languages
                 )));
             }
         }
@@ -630,7 +628,7 @@ impl TranslationOption {
                 Some(format!(
                     "translate {} to {}:",
                     match source_language {
-                        Some(value) => value.to_string(),
+                        Some(value) => value,
                         None => {
                             return Err(RustBertError::ValueError(
                                 "Missing source language for T5".to_string(),
@@ -638,7 +636,7 @@ impl TranslationOption {
                         }
                     },
                     match target_language {
-                        Some(value) => value.to_string(),
+                        Some(value) => value,
                         None => {
                             return Err(RustBertError::ValueError(
                                 "Missing target language for T5".to_string(),
