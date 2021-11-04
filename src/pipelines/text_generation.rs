@@ -451,14 +451,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         let mut output = Vec::with_capacity(generated_indices.len());
         for generated_sequence in generated_indices {
             output.push(self.model.get_tokenizer().decode(
-                if prefix_length.is_some() {
-                    generated_sequence
-                        .into_iter()
-                        .skip(prefix_length.unwrap_or(0) as usize)
-                        .collect::<Vec<i64>>()
-                } else {
-                    generated_sequence
-                },
+                &generated_sequence[prefix_length.unwrap_or(0) as usize..],
                 true,
                 true,
             ));

@@ -935,19 +935,19 @@ impl TokenClassificationModel {
         let text = match offsets {
             None => match self.tokenizer {
                 TokenizerOption::Bert(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                    Tokenizer::decode(tokenizer, &[token_id], false, false)
                 }
                 TokenizerOption::Roberta(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                    Tokenizer::decode(tokenizer, &[token_id], false, false)
                 }
                 TokenizerOption::XLMRoberta(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                    Tokenizer::decode(tokenizer, &[token_id], false, false)
                 }
                 TokenizerOption::Albert(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                    Tokenizer::decode(tokenizer, &[token_id], false, false)
                 }
                 TokenizerOption::XLNet(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, vec![token_id], false, false)
+                    Tokenizer::decode(tokenizer, &[token_id], false, false)
                 }
                 _ => panic!(
                     "Token classification not implemented for {:?}!",

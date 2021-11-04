@@ -839,7 +839,7 @@ impl ConversationModel {
                 conversation
                     .generated_responses
                     .push(self.model.get_tokenizer().decode(
-                        generated_response.to_vec(),
+                        &generated_response,
                         true,
                         true,
                     ));

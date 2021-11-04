@@ -843,7 +843,7 @@ impl TokenizerOption {
     /// Interface method to decoding
     pub fn decode(
         &self,
-        token_ids: Vec<i64>,
+        token_ids: &[i64],
         skip_special_tokens: bool,
         clean_up_tokenization_spaces: bool,
     ) -> String {

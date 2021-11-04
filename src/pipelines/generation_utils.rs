@@ -1557,7 +1557,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             output.push(GeneratedTextOutput {
                 text: self
                     ._get_tokenizer()
-                    .decode(generated_sequence.indices, true, true),
+                    .decode(&generated_sequence.indices, true, true),
                 score: generated_sequence.score,
             });
         }
