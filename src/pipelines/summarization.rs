@@ -254,13 +254,13 @@ impl SummarizationOption {
     }
 
     /// Interface method to generate() of the particular models.
-    pub fn generate<'a, S>(
+    pub fn generate<S>(
         &self,
-        prompt_texts: Option<S>,
+        prompt_texts: Option<&[S]>,
         attention_mask: Option<Tensor>,
     ) -> Vec<String>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         match *self {
             Self::Bart(ref model) => model
@@ -406,22 +406,18 @@ impl SummarizationModel {
     /// # }
     /// ```
     /// (New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
-    pub fn summarize<'a, S>(&self, texts: S) -> Vec<String>
+    pub fn summarize<S>(&self, texts: &[S]) -> Vec<String>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         match &self.prefix {
             None => self.model.generate(Some(texts), None),
             Some(prefix) => {
                 let texts = texts
-                    .as_ref()
                     .iter()
-                    .map(|text| format!("{}{}", prefix, text))
+                    .map(|text| format!("{}{}", prefix, text.as_ref()))
                     .collect::<Vec<String>>();
-                self.model.generate(
-                    Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
-                    None,
-                )
+                self.model.generate(Some(&texts), None)
             }
         }
     }

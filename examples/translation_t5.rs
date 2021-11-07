@@ -56,9 +56,9 @@ fn main() -> anyhow::Result<()> {
     let source_sentence = "This sentence will be translated in multiple languages.";
 
     let mut outputs = Vec::new();
-    outputs.extend(model.translate([source_sentence], Language::English, Language::French)?);
-    outputs.extend(model.translate([source_sentence], Language::English, Language::German)?);
-    outputs.extend(model.translate([source_sentence], Language::English, Language::Romanian)?);
+    outputs.extend(model.translate(&[source_sentence], Language::English, Language::French)?);
+    outputs.extend(model.translate(&[source_sentence], Language::English, Language::German)?);
+    outputs.extend(model.translate(&[source_sentence], Language::English, Language::Romanian)?);
 
     for sentence in outputs {
         println!("{}", sentence);
