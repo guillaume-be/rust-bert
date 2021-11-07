@@ -94,7 +94,8 @@ impl FNetEmbeddings {
         let (calc_input_embeddings, input_shape, _) =
             process_ids_embeddings_pair(input_ids, input_embeddings, &self.word_embeddings)?;
 
-        let input_embeddings = input_ids.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
+        let input_embeddings =
+            input_embeddings.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let calc_token_type_ids = if token_type_ids.is_none() {
             Some(Tensor::zeros(

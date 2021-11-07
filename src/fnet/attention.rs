@@ -103,11 +103,8 @@ impl FNetOutput {
             eps: config.layer_norm_eps.unwrap_or(1e-12),
             ..Default::default()
         };
-        let layer_norm = nn::layer_norm(
-            p.sub("output").sub("LayerNorm"),
-            vec![config.hidden_size],
-            layer_norm_config,
-        );
+        let layer_norm =
+            nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
 
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
