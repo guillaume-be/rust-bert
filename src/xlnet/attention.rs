@@ -236,37 +236,36 @@ impl XLNetRelativeAttention {
         target_mapping: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<Tensor>) {
-        if let Some(g) = g {
-            let cat_value = if let Some(mems) = &layer_state {
-                if mems.prev_content.size().len() > 1 {
-                    Some(Tensor::cat(&[&mems.prev_content, h], 0))
-                } else {
-                    None
-                }
+        let cat_value = if let Some(mems) = &layer_state {
+            if mems.prev_content.size().len() > 1 {
+                Some(Tensor::cat(&[&mems.prev_content, h], 0))
             } else {
                 None
-            };
-            let cat = match &cat_value {
-                Some(value) => value,
-                None => h,
-            };
+            }
+        } else {
+            None
+        };
+        let cat = match &cat_value {
+            Some(value) => value,
+            None => h,
+        };
+        let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.query]);
+        let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.key]);
+        let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.value]);
+        let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.pos]);
 
-            let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.query]);
-            let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.key]);
-            let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.value]);
-            let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.pos]);
+        let (attention_vec_h, attention_probas_h) = self.rel_attention_core(
+            &q_head_h,
+            &k_head_h,
+            &v_head_h,
+            &k_head_r,
+            seg_mat,
+            attn_mask_h,
+            train,
+        );
+        let output_h = self.post_attention(h, &attention_vec_h, true, train);
 
-            let (attention_vec_h, attention_probas_h) = self.rel_attention_core(
-                &q_head_h,
-                &k_head_h,
-                &v_head_h,
-                &k_head_r,
-                seg_mat,
-                attn_mask_h,
-                train,
-            );
-
-            let output_h = self.post_attention(h, &attention_vec_h, true, train);
+        let (output_g, attention_probas_g) = if let Some(g) = g {
             let q_head_g = Tensor::einsum("ibh,hnd->ibnd", &[g, &self.query]);
 
             let (attention_vec_g, attention_probas_g) = match target_mapping {
@@ -297,44 +296,10 @@ impl XLNetRelativeAttention {
             };
 
             let output_g = self.post_attention(g, &attention_vec_g, true, train);
-            (
-                output_h,
-                Some(output_g),
-                attention_probas_h,
-                attention_probas_g,
-            )
+            (Some(output_g), attention_probas_g)
         } else {
-            let cat_value = if let Some(mems) = &layer_state {
-                if mems.prev_content.size().len() > 1 {
-                    Some(Tensor::cat(&[&mems.prev_content, h], 0))
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            let cat = match &cat_value {
-                Some(value) => value,
-                None => h,
-            };
-
-            let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.query]);
-            let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.key]);
-            let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.value]);
-            let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.pos]);
-
-            let (attention_vec, attention_probas) = self.rel_attention_core(
-                &q_head_h,
-                &k_head_h,
-                &v_head_h,
-                &k_head_r,
-                seg_mat,
-                attn_mask_h,
-                train,
-            );
-
-            let output_h = self.post_attention(h, &attention_vec, true, train);
-            (output_h, None, attention_probas, None)
-        }
+            (None, None)
+        };
+        (output_h, output_g, attention_probas_h, attention_probas_g)
     }
 }

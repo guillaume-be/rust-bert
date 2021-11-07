@@ -930,7 +930,7 @@ pub(crate) mod private_generation_utils {
                 current_length += 1;
             }
             let scores_output = scores_output.map(|scores_tensor| {
-                (scores_tensor / sentence_lengths.pow(gen_opt.length_penalty))
+                (scores_tensor / sentence_lengths.pow_tensor_scalar(gen_opt.length_penalty))
                     .iter::<f64>()
                     .unwrap()
                     .collect::<Vec<f64>>()
