@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 ## Changed
 - Updated to `tch` 1.6.0 (libtorch 1.10)
+- (BREAKING) Simplified the generics for multiple library traits taking as a rule `&[AsRef<str>]` or `&str` as inputs (no longer accepts owned types `Vec` and `String`)
 
 ## Added
 - (BREAKING) Support for `bad_word_ids` generation, allowing to ban a set of word ids for all model supporting text generation
