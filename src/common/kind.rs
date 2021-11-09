@@ -1,5 +1,4 @@
 use crate::RustBertError;
-use half;
 use tch::{Kind, Scalar};
 
 pub(crate) fn get_positive_infinity(kind: Kind) -> Result<Scalar, RustBertError> {
