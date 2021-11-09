@@ -326,6 +326,36 @@ impl TextGenerationOption {
                 .collect(),
         }
     }
+
+    pub fn half(&mut self) {
+        match self {
+            Self::GPT(model_ref) => model_ref.half(),
+            Self::GPT2(model_ref) => model_ref.half(),
+            Self::GPTNeo(model_ref) => model_ref.half(),
+            Self::XLNet(model_ref) => model_ref.half(),
+            Self::Reformer(model_ref) => model_ref.half(),
+        }
+    }
+
+    pub fn float(&mut self) {
+        match self {
+            Self::GPT(model_ref) => model_ref.float(),
+            Self::GPT2(model_ref) => model_ref.float(),
+            Self::GPTNeo(model_ref) => model_ref.float(),
+            Self::XLNet(model_ref) => model_ref.float(),
+            Self::Reformer(model_ref) => model_ref.float(),
+        }
+    }
+
+    pub fn set_device(&mut self, device: Device) {
+        match self {
+            Self::GPT(model_ref) => model_ref.set_device(device),
+            Self::GPT2(model_ref) => model_ref.set_device(device),
+            Self::GPTNeo(model_ref) => model_ref.set_device(device),
+            Self::XLNet(model_ref) => model_ref.set_device(device),
+            Self::Reformer(model_ref) => model_ref.set_device(device),
+        }
+    }
 }
 
 /// # TextGenerationModel to generate texts from a prompt
@@ -390,6 +420,18 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
             min_length,
             max_length,
         })
+    }
+
+    pub fn half(&mut self) {
+        self.model.half();
+    }
+
+    pub fn float(&mut self) {
+        self.model.float();
+    }
+
+    pub fn set_device(&mut self, device: Device) {
+        self.model.set_device(device);
     }
 
     /// Generate texts from provided prompts

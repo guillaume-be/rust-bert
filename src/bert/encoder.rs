@@ -108,18 +108,17 @@ impl BertLayer {
     ///
     /// ```no_run
     /// # use rust_bert::bert::{BertConfig, BertLayer};
-    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
     /// # use rust_bert::Config;
     /// # use std::path::Path;
-    /// # use tch::kind::Kind::{Int64, Float};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
     /// let layer: BertLayer = BertLayer::new(&vs.root(), &config);
     /// let (batch_size, sequence_length, hidden_size) = (64, 128, 512);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Float, device));
-    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Kind::Float, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     ///
     /// let layer_output = no_grad(|| layer.forward_t(&input_tensor, Some(&mask), None, None, false));
     /// ```
@@ -234,18 +233,17 @@ impl BertEncoder {
     ///
     /// ```no_run
     /// # use rust_bert::bert::{BertConfig, BertEncoder};
-    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
     /// # use rust_bert::Config;
     /// # use std::path::Path;
-    /// # use tch::kind::Kind::{Int64, Float};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
     /// let encoder: BertEncoder = BertEncoder::new(&vs.root(), &config);
     /// let (batch_size, sequence_length, hidden_size) = (64, 128, 512);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Float, device));
-    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Kind::Float, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int8, device));
     ///
     /// let encoder_output =
     ///     no_grad(|| encoder.forward_t(&input_tensor, Some(&mask), None, None, false));
@@ -361,17 +359,16 @@ impl BertPooler {
     ///
     /// ```no_run
     /// # use rust_bert::bert::{BertConfig, BertPooler};
-    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
     /// # use rust_bert::Config;
     /// # use std::path::Path;
-    /// # use tch::kind::Kind::Float;
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
     /// let pooler: BertPooler = BertPooler::new(&vs.root(), &config);
     /// let (batch_size, sequence_length, hidden_size) = (64, 128, 512);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Float, device));
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Kind::Float, device));
     ///
     /// let pooler_output = no_grad(|| pooler.forward(&input_tensor));
     /// ```

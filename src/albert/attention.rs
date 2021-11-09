@@ -14,7 +14,6 @@
 use crate::albert::AlbertConfig;
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
-use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
 #[derive(Debug)]
@@ -119,7 +118,10 @@ impl AlbertSelfAttention {
             query_layer.matmul(&key_layer.transpose(-1, -2))
         };
 
-        let weights = scores.softmax(-1, Float).apply_t(&self.dropout, train);
+        let weights = scores
+            .softmax(-1, scores.kind())
+            .apply_t(&self.dropout, train);
+
         let context = weights.matmul(&value_layer).transpose(1, 2).contiguous();
 
         let w = self.dense.ws.transpose(0, 1).view((

@@ -59,7 +59,7 @@ impl SinusoidalPositionalEmbedding {
             let mut temp_vec: Vec<f64> = Vec::with_capacity(embedding_dim as usize);
             for j in 0..embedding_dim {
                 let base_value =
-                    pos as f64 / 10000f64.powf((2 * (j / 2)) as f64 / embedding_dim as f64);
+                    pos as f64 / 10000_f64.powf((2 * (j / 2)) as f64 / embedding_dim as f64);
                 if j % 2 == 0 {
                     temp_vec.push(base_value.sin());
                 } else {
@@ -81,7 +81,7 @@ impl SinusoidalPositionalEmbedding {
         reordered_sinusoidal_embeddings
             .slice(1, sentinel, embedding_dim, 1)
             .copy_(&sinusoidal_embeddings.slice(1, 1, embedding_dim, 2));
-        reordered_sinusoidal_embeddings
+        reordered_sinusoidal_embeddings.to_kind(Kind::Half)
     }
 
     pub fn forward(&self, input: &Tensor, past_key_values_length: i64) -> Tensor {

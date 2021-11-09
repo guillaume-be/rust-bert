@@ -221,7 +221,7 @@ impl ProphetNetAttention {
                 sequence_length,
                 key_sequence_key,
             ])
-            .softmax(-1, Kind::Float)
+            .softmax(-1, attention_weights_reshaped.kind())
             .apply_t(&self.attention_dropout, train);
 
         let attention_output = attention_probs

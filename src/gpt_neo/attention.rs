@@ -15,7 +15,6 @@ use crate::gpt_neo::gpt_neo_model::AttentionLayerType;
 use crate::gpt_neo::GptNeoConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
-use tch::nn::Init;
 use tch::{nn, Device, Kind, Tensor};
 
 #[derive(Debug)]
@@ -207,21 +206,26 @@ pub(crate) trait GptNeoAttentionUtils {
         key: &Tensor,
         value: &Tensor,
         causal_mask: &Tensor,
-        masked_bias: &Tensor,
         attention_dropout: &Dropout,
         attention_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Tensor) {
-        let mut attention_weights = query
-            .matmul(&key.transpose(-1, -2))
-            .where_self(causal_mask, &masked_bias.to_kind(query.kind()));
+        let query = query.to_kind(Kind::Float);
+        let key = key.to_kind(Kind::Float);
+
+        let attention_weights = query.matmul(&key.transpose(-1, -2));
+        let mut attention_weights = attention_weights.where_self(
+            causal_mask,
+            &Tensor::of_slice(&[-1e9f32]).to_device(attention_weights.device()),
+        );
 
         if let Some(attention_mask_value) = attention_mask {
             attention_weights = attention_weights + attention_mask_value;
         };
 
-        attention_weights = attention_weights
-            .softmax(-1, Kind::Float)
+        let attention_weights = attention_weights.softmax(-1, attention_weights.kind());
+        let attention_weights = attention_weights
+            .to_kind(value.kind())
             .apply_t(attention_dropout, train);
         let attention_output = attention_weights.matmul(value);
         (attention_output, attention_weights)
@@ -236,7 +240,6 @@ pub struct GptNeoSelfAttention {
     attention_dropout: Dropout,
     resid_dropout: Dropout,
     bias: Tensor,
-    masked_bias: Tensor,
     num_heads: i64,
     head_dim: i64,
     output_attentions: bool,
@@ -258,8 +261,6 @@ impl GptNeoSelfAttention {
             .requires_grad_(false);
 
         let bias = p.var_copy("bias", &bias_value);
-
-        let masked_bias = p.var("masked_bias", &[1], Init::Const(-1e9));
 
         let attention_dropout = Dropout::new(config.attention_dropout);
         let resid_dropout = Dropout::new(config.resid_dropout);
@@ -306,7 +307,6 @@ impl GptNeoSelfAttention {
             attention_dropout,
             resid_dropout,
             bias,
-            masked_bias,
             num_heads,
             head_dim,
             output_attentions,
@@ -357,7 +357,6 @@ impl GptNeoSelfAttention {
             &key,
             &value,
             &causal_mask,
-            &self.masked_bias,
             &self.attention_dropout,
             attention_mask,
             train,
@@ -384,7 +383,6 @@ pub struct GptNeoLocalSelfAttention {
     out_proj: nn::Linear,
     attention_dropout: Dropout,
     resid_dropout: Dropout,
-    masked_bias: Tensor,
     num_heads: i64,
     head_dim: i64,
     window_size: i64,
@@ -400,8 +398,6 @@ impl GptNeoLocalSelfAttention {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-
-        let masked_bias = p.var("masked_bias", &[1], Init::Const(-1e9));
 
         let attention_dropout = Dropout::new(config.attention_dropout);
         let resid_dropout = Dropout::new(config.resid_dropout);
@@ -449,7 +445,6 @@ impl GptNeoLocalSelfAttention {
             out_proj,
             attention_dropout,
             resid_dropout,
-            masked_bias,
             num_heads,
             head_dim,
             window_size,
@@ -523,7 +518,6 @@ impl GptNeoLocalSelfAttention {
             &key,
             &value,
             attention_mask,
-            &self.masked_bias,
             &self.attention_dropout,
             None,
             train,
@@ -539,7 +533,6 @@ impl GptNeoLocalSelfAttention {
         } else {
             None
         };
-
         Ok((attention_output, attention_weights))
     }
 }

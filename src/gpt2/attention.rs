@@ -74,6 +74,9 @@ impl Attention {
         let bias = Tensor::ones(&[config.n_ctx, config.n_ctx], (Float, p.device()))
             .tril(0)
             .view((1, 1, config.n_ctx, config.n_ctx));
+
+        let bias = p.var_copy("bias", &bias);
+
         let c_attn = GPTConv1D::new(p / "c_attn", config.n_embd * 3, config.n_embd);
         let c_proj = GPTConv1D::new(p / "c_proj", config.n_embd, config.n_embd);
 
@@ -135,12 +138,12 @@ impl Attention {
 
         let (nd, ns) = (w.size()[2], w.size()[3]);
         let b = self.bias.narrow(2, ns - nd, nd).narrow(3, 0, ns);
-
         let mut w: Tensor = w * &b + 1e4 * (&b - 1);
         if let Some(mask) = attention_mask {
             w = w + mask;
         }
-        w = w.softmax(-1, Float).apply_t(&self.attn_dropout, train);
+        w = w.softmax(-1, w.kind()).apply_t(&self.attn_dropout, train);
+
         let output = w.matmul(value);
 
         if self.output_attentions {

@@ -67,6 +67,7 @@ cached-path = "0.5.1"
 lazy_static = "1.4.0"
 uuid = { version = "0.8.2", features = ["v4"] }
 thiserror = "1.0.30"
+half = "1.7.1"
 
 [dev-dependencies]
 anyhow = "1.0.44"

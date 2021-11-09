@@ -190,10 +190,11 @@ impl MBartEncoder {
         embeddings: &nn::Embedding,
         train: bool,
     ) -> MBartEncoderOutput {
-        let attention_mask = attention_mask.map(|mask| _expand_mask(mask, None));
-
         let x = input_ids.apply(embeddings) * self.scale_embedding;
         let x = x + &self.embed_positions.forward(input_ids, 0);
+
+        let attention_mask = attention_mask.map(|mask| _expand_mask(mask, None, x.kind()));
+
         let mut hidden_state = x
             .apply(&self.layer_norm_embedding)
             .apply_t(&self.dropout, train);

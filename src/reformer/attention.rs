@@ -122,6 +122,37 @@ impl NumBuckets {
     }
 }
 
+fn apply_mask_with_fp16_compatibility(
+    input_tensor: &Tensor,
+    mask: &Tensor,
+    fp32_value: &Tensor,
+    fp16_value: &Tensor,
+) -> Result<Tensor, RustBertError> {
+    Ok(match input_tensor.kind() {
+        Kind::Float => input_tensor.where_self(
+            &mask.to_kind(Kind::Bool),
+            &fp32_value.to_device(input_tensor.device()),
+        ),
+        Kind::Half => input_tensor.where_self(
+            &mask.to_kind(Kind::Bool),
+            &fp16_value
+                .to_device(input_tensor.device()),
+        ),
+        Kind::BFloat16 => input_tensor.where_self(
+            &mask.to_kind(Kind::Bool),
+            &fp16_value
+                .to_kind(input_tensor.kind())
+                .to_device(input_tensor.device()),
+        ),
+        _ => {
+            return Err(RustBertError::ValueError(format!(
+                "Type not supported: {:?}, supported types are Float (single precision), Half and BFloat16 (half precision)",
+                input_tensor.kind()
+            )))
+        }
+    })
+}
+
 /// # LSH Self Attention for Reformer model
 pub struct LSHSelfAttention {
     chunk_length: i64,
@@ -137,8 +168,10 @@ pub struct LSHSelfAttention {
     hidden_size: i64,
     query_key: nn::Linear,
     value: nn::Linear,
-    self_mask_value: Tensor,
-    mask_value: Tensor,
+    self_mask_value_fp32: Tensor,
+    mask_value_fp32: Tensor,
+    self_mask_value_fp16: Tensor,
+    mask_value_fp16: Tensor,
     use_cache: bool,
     output_attentions: bool,
 }
@@ -177,12 +210,15 @@ impl LSHSelfAttention {
         let query_key = nn::linear(p / "query_key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
-        let self_mask_value = Tensor::of_slice(&[-1e5])
+        let self_mask_value_fp32 = Tensor::of_slice(&[-1e5])
             .to_kind(Kind::Float)
             .to(p.device());
-        let mask_value = Tensor::of_slice(&[-1e9])
+        let mask_value_fp32 = Tensor::of_slice(&[-1e9])
             .to_kind(Kind::Float)
             .to(p.device());
+
+        let self_mask_value_fp16 = Tensor::of_slice(&[-1e3]).to_kind(Kind::Half).to(p.device());
+        let mask_value_fp16 = Tensor::of_slice(&[-1e4]).to_kind(Kind::Half).to(p.device());
 
         Ok(LSHSelfAttention {
             chunk_length,
@@ -198,8 +234,10 @@ impl LSHSelfAttention {
             hidden_size,
             query_key,
             value,
-            self_mask_value,
-            mask_value,
+            self_mask_value_fp32,
+            mask_value_fp32,
+            self_mask_value_fp16,
+            mask_value_fp16,
             use_cache,
             output_attentions,
         })
@@ -310,7 +348,7 @@ impl LSHSelfAttention {
                 buckets = buckets.where_self(
                     &buckets_mask,
                     &Tensor::of_slice(&[num_buckets - 1])
-                        .to_kind(Kind::Float)
+                        .to_kind(buckets.kind())
                         .to(buckets_mask.device()),
                 )
             } else if increase_num_buckets {
@@ -423,16 +461,24 @@ impl LSHSelfAttention {
             );
 
             if let Some(mask) = mask {
-                query_key_dots =
-                    query_key_dots.where_self(&mask.to_kind(Kind::Bool), &self.mask_value);
+                query_key_dots = apply_mask_with_fp16_compatibility(
+                    &query_key_dots,
+                    &mask,
+                    &self.mask_value_fp32,
+                    &self.mask_value_fp16,
+                )?;
             }
         }
         {
             let self_mask = query_bucket_idx
                 .unsqueeze(-1)
                 .ne_tensor(&key_value_bucket_idx.unsqueeze(-2));
-            query_key_dots =
-                query_key_dots.where_self(&self_mask.to_kind(Kind::Bool), &self.self_mask_value);
+            query_key_dots = apply_mask_with_fp16_compatibility(
+                &query_key_dots,
+                &self_mask,
+                &self.self_mask_value_fp32,
+                &self.self_mask_value_fp16,
+            )?;
         }
 
         let mut logits = query_key_dots.logsumexp(&[-1], true);
@@ -858,7 +904,8 @@ impl LSHSelfAttention {
             )?
             .unsqueeze(-1);
             let probs_vectors = (&logits - &logits.logsumexp(&[2], true)).exp();
-            out_vectors = (out_vectors * probs_vectors).sum_dim_intlist(&[2], false, Kind::Float);
+            let out_kind = out_vectors.kind();
+            out_vectors = (out_vectors * probs_vectors).sum_dim_intlist(&[2], false, out_kind);
         }
 
         out_vectors = merge_hidden_size_dim(
@@ -896,7 +943,8 @@ pub struct LocalSelfAttention {
     query: nn::Linear,
     key: nn::Linear,
     value: nn::Linear,
-    mask_value: Tensor,
+    mask_value_fp32: Tensor,
+    mask_value_fp16: Tensor,
     use_cache: bool,
     output_attentions: bool,
 }
@@ -934,9 +982,11 @@ impl LocalSelfAttention {
         let key = nn::linear(p / "key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
-        let mask_value = Tensor::of_slice(&[-1e9])
+        let mask_value_fp32 = Tensor::of_slice(&[-1e9])
             .to_kind(Kind::Float)
             .to(p.device());
+
+        let mask_value_fp16 = Tensor::of_slice(&[-1e4]).to_kind(Kind::Half).to(p.device());
 
         LocalSelfAttention {
             chunk_length,
@@ -951,7 +1001,8 @@ impl LocalSelfAttention {
             query,
             key,
             value,
-            mask_value,
+            mask_value_fp32,
+            mask_value_fp16,
             use_cache,
             output_attentions,
         }
@@ -1097,7 +1148,12 @@ impl LocalSelfAttention {
         );
 
         if let Some(mask) = attention_mask {
-            query_key_dots = query_key_dots.where_self(&mask.to_kind(Kind::Bool), &self.mask_value);
+            query_key_dots = apply_mask_with_fp16_compatibility(
+                &query_key_dots,
+                &mask,
+                &self.mask_value_fp32,
+                &self.mask_value_fp16,
+            )?;
         }
 
         let logits = query_key_dots.logsumexp(&[-1], true);

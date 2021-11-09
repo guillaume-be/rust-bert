@@ -798,6 +798,9 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     fn get_var_store(&self) -> &nn::VarStore {
         &self.var_store
     }
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
+    }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }

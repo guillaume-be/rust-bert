@@ -154,8 +154,9 @@ impl ProphetNetEncoder {
         let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let extended_attention_mask = attention_mask.map(|mask| {
-            (mask.ones_like() - mask.unsqueeze(1).repeat(&[self.num_attention_heads, 1, 1]))
-                * -10000.0
+            ((mask.ones_like() - mask.unsqueeze(1).repeat(&[self.num_attention_heads, 1, 1]))
+                * -10000.0)
+                .to_kind(input_embeds.kind())
         });
 
         let (position_embeddings, _) = self.position_embeddings.forward(

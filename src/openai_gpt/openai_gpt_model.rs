@@ -229,12 +229,13 @@ impl OpenAiGptModel {
         };
 
         let attention_mask = attention_mask.as_ref().map(|value| {
-            (value
+            ((value
                 .view((input_embeddings.size()[0], -1))
                 .unsqueeze(1)
                 .unsqueeze(2)
                 - 1.0)
-                * 10000.0
+                * 10000.0)
+                .to_kind(input_embeddings.kind())
         });
 
         let position_embeds = position_ids.apply(&self.positions_embed);
@@ -565,6 +566,9 @@ impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTok
     }
     fn get_var_store(&self) -> &nn::VarStore {
         &self.var_store
+    }
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config

@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Added
 - (BREAKING) Support for `bad_word_ids` generation, allowing to ban a set of word ids for all model supporting text generation
+- Support for half-precision mode for all models (reducing memory footprint). A model can be converted to half-precision by calling the `half()` method on the `VarStore` is it currently stored in. Half-precision Torch kernels are not available for CPU (limited to CUDA devices)
 
 ## [0.16.0] - 2021-08-24
 ## Added

@@ -224,7 +224,7 @@ impl T5Attention {
         scores += position_bias;
 
         let attention_weights = scores
-            .softmax(-1, Kind::Float)
+            .softmax(-1, scores.kind())
             .apply_t(&self.dropout, train);
         let context = self
             .unshape(attention_weights.matmul(&v), bs)

@@ -13,7 +13,6 @@
 use crate::common::dropout::Dropout;
 use crate::distilbert::distilbert_model::DistilBertConfig;
 use std::borrow::Borrow;
-use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
 #[derive(Debug)]
@@ -91,7 +90,9 @@ impl MultiHeadSelfAttention {
             q.matmul(&k.transpose(2, 3))
         };
 
-        let weights = scores.softmax(-1, Float).apply_t(&self.dropout, train);
+        let weights = scores
+            .softmax(-1, scores.kind())
+            .apply_t(&self.dropout, train);
         let context = self
             .flatten(weights.matmul(&v), bs, self.dim_per_head)
             .apply(&self.out_lin);
