@@ -1063,17 +1063,17 @@ impl
         }
     }
 
-    fn encode_prompt_text<'a, S>(
+    fn encode_prompt_text<S>(
         &self,
-        prompt_text: S,
+        prompt_text: &[S],
         max_len: i64,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let tokens = self._get_tokenizer().encode_list(
-            prompt_text.as_ref(),
+            prompt_text,
             max_len as usize,
             &TruncationStrategy::LongestFirst,
             0,

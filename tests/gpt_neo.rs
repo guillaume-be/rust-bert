@@ -72,7 +72,7 @@ fn gpt_neo_lm() -> anyhow::Result<()> {
         .get(-1)
         .argmax(-1, true)
         .int64_value(&[0]);
-    let next_word = tokenizer.decode(vec![next_word_id], true, true);
+    let next_word = tokenizer.decode(&[next_word_id], true, true);
     let next_score = model_output
         .lm_logits
         .get(0)

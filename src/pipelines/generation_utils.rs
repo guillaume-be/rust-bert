@@ -41,7 +41,7 @@
 //! let input_context = "The dog";
 //! let second_input_context = "The cat was";
 //! let output = gpt2_generator.generate(
-//!     Some(vec![input_context, second_input_context]),
+//!     Some(&[input_context, second_input_context]),
 //!     None,
 //!     min_length,
 //!     max_length,
@@ -321,16 +321,16 @@ pub(crate) mod private_generation_utils {
             }
         }
 
-        fn encode_prompt_text<'a, S>(
+        fn encode_prompt_text<S>(
             &self,
-            prompt_text: S,
+            prompt_text: &[S],
             max_len: i64,
             pad_token_id: Option<i64>,
         ) -> Tensor
         where
-            S: AsRef<[&'a str]>,
+            S: AsRef<str> + Sync,
         {
-            let tokens = self._get_tokenizer().tokenize_list(prompt_text.as_ref());
+            let tokens = self._get_tokenizer().tokenize_list(prompt_text);
             let token_ids = tokens
                 .into_iter()
                 .map(|prompt_tokens| self._get_tokenizer().convert_tokens_to_ids(&prompt_tokens))
@@ -934,7 +934,7 @@ pub(crate) mod private_generation_utils {
                 current_length += 1;
             }
             let scores_output = scores_output.map(|scores_tensor| {
-                (scores_tensor / sentence_lengths.pow(gen_opt.length_penalty))
+                (scores_tensor / sentence_lengths.pow_tensor_scalar(gen_opt.length_penalty))
                     .iter::<f64>()
                     .unwrap()
                     .collect::<Vec<f64>>()
@@ -1504,7 +1504,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// }
     ///
     /// let output = gpt2_generator.generate(
-    ///     Some(vec![input_context, second_input_context]),
+    ///     Some(&[input_context, second_input_context]),
     ///     attention_mask,
     ///     min_length,
     ///     max_length,
@@ -1530,9 +1530,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// ]
     /// # ;
     /// ```
-    fn generate<'a, S>(
+    fn generate<S>(
         &self,
-        prompt_texts: Option<S>,
+        prompt_texts: Option<&[S]>,
         attention_mask: Option<Tensor>,
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
@@ -1543,7 +1543,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         output_scores: bool,
     ) -> Vec<GeneratedTextOutput>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let indices_outputs = self.generate_indices(
             prompt_texts,
@@ -1561,7 +1561,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             output.push(GeneratedTextOutput {
                 text: self
                     ._get_tokenizer()
-                    .decode(generated_sequence.indices, true, true),
+                    .decode(&generated_sequence.indices, true, true),
                 score: generated_sequence.score,
             });
         }
@@ -1636,7 +1636,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// }
     ///
     /// let output = gpt2_generator.generate_indices(
-    ///     Some(vec![input_context, second_input_context]),
+    ///     Some(&[input_context, second_input_context]),
     ///     attention_mask,
     ///     min_length,
     ///     max_length,
@@ -1649,9 +1649,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # Ok(())
     /// # }
     /// ```
-    fn generate_indices<'a, S>(
+    fn generate_indices<S>(
         &self,
-        prompt_texts: Option<S>,
+        prompt_texts: Option<&[S]>,
         attention_mask: Option<Tensor>,
         min_length: impl Into<Option<i64>>,
         max_length: impl Into<Option<i64>>,
@@ -1662,7 +1662,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         output_scores: bool,
     ) -> Vec<GeneratedIndicesOutput>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
@@ -1771,7 +1771,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// }
     ///
     /// let output = gpt2_generator.generate_indices(
-    ///     Some(vec![input_context, second_input_context]),
+    ///     Some(&[input_context, second_input_context]),
     ///     attention_mask,
     ///     min_length,
     ///     max_length,

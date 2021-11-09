@@ -44,9 +44,9 @@ fn test_translation_t5() -> anyhow::Result<()> {
     let source_sentence = "This sentence will be translated in multiple languages.";
 
     let mut outputs = Vec::new();
-    outputs.extend(model.translate([source_sentence], Language::English, Language::French)?);
-    outputs.extend(model.translate([source_sentence], Language::English, Language::German)?);
-    outputs.extend(model.translate([source_sentence], Language::English, Language::Romanian)?);
+    outputs.extend(model.translate(&[source_sentence], Language::English, Language::French)?);
+    outputs.extend(model.translate(&[source_sentence], Language::English, Language::German)?);
+    outputs.extend(model.translate(&[source_sentence], Language::English, Language::Romanian)?);
 
     assert_eq!(outputs.len(), 3);
     assert_eq!(

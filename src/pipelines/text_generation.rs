@@ -238,15 +238,15 @@ impl TextGenerationOption {
     }
 
     /// Interface method to generate() of the particular models.
-    pub fn generate_indices<'a, S>(
+    pub fn generate_indices<S>(
         &self,
-        prompt_texts: Option<S>,
+        prompt_texts: Option<&[S]>,
         attention_mask: Option<Tensor>,
         min_length: Option<i64>,
         max_length: Option<i64>,
     ) -> Vec<Vec<i64>>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         match *self {
             Self::GPT(ref model) => model
@@ -460,9 +460,9 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
     /// # Ok(())
     /// # }
     /// ```
-    pub fn generate<'a, S>(&self, texts: S, prefix: impl Into<Option<&'a str>>) -> Vec<String>
+    pub fn generate<'a, S>(&self, texts: &[S], prefix: impl Into<Option<&'a str>>) -> Vec<String>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let (prefix, prefix_length) = match (prefix.into(), &self.prefix) {
             (Some(query_prefix), _) => (
@@ -478,10 +478,10 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                 let texts = texts
                     .as_ref()
                     .iter()
-                    .map(|text| format!("{} {}", prefix, text))
+                    .map(|text| format!("{} {}", prefix, text.as_ref()))
                     .collect::<Vec<String>>();
                 self.model.generate_indices(
-                    Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
+                    Some(&texts),
                     None,
                     Some(self.min_length + prefix_length),
                     Some(self.max_length + prefix_length),
@@ -493,14 +493,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         let mut output = Vec::with_capacity(generated_indices.len());
         for generated_sequence in generated_indices {
             output.push(self.model.get_tokenizer().decode(
-                if prefix_length.is_some() {
-                    generated_sequence
-                        .into_iter()
-                        .skip(prefix_length.unwrap_or(0) as usize)
-                        .collect::<Vec<i64>>()
-                } else {
-                    generated_sequence
-                },
+                &generated_sequence[prefix_length.unwrap_or(0) as usize..],
                 true,
                 true,
             ));
