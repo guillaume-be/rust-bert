@@ -1936,7 +1936,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             length_penalty,
             num_beam_groups,
             diversity_penalty,
-            forced_bos_token_id: forced_bos_token_id.into(),
+            forced_bos_token_id,
             bad_word_ids,
         };
 

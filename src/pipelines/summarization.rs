@@ -254,7 +254,7 @@ impl SummarizationOption {
     }
 
     /// Interface method to generate() of the particular models.
-    pub fn generate<'a, S>(&self, prompt_texts: Option<&[S]>) -> Vec<String>
+    pub fn generate<S>(&self, prompt_texts: Option<&[S]>) -> Vec<String>
     where
         S: AsRef<str> + Sync,
     {
