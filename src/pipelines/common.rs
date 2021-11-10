@@ -494,13 +494,16 @@ impl TokenizerOption {
     }
 
     /// Interface method
-    pub fn encode_list(
+    pub fn encode_list<S>(
         &self,
-        text_list: &[&str],
+        text_list: &[S],
         max_len: usize,
         truncation_strategy: &TruncationStrategy,
         stride: usize,
-    ) -> Vec<TokenizedInput> {
+    ) -> Vec<TokenizedInput>
+    where
+        S: AsRef<str> + Sync,
+    {
         match *self {
             Self::Bert(ref tokenizer) => MultiThreadedTokenizer::encode_list(
                 tokenizer,
@@ -809,7 +812,10 @@ impl TokenizerOption {
     }
 
     /// Interface method to tokenization
-    pub fn tokenize_list(&self, text: &[&str]) -> Vec<Vec<String>> {
+    pub fn tokenize_list<S>(&self, text: &[S]) -> Vec<Vec<String>>
+    where
+        S: AsRef<str> + Sync,
+    {
         match *self {
             Self::Bert(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
@@ -837,7 +843,7 @@ impl TokenizerOption {
     /// Interface method to decoding
     pub fn decode(
         &self,
-        token_ids: Vec<i64>,
+        token_ids: &[i64],
         skip_special_tokens: bool,
         clean_up_tokenization_spaces: bool,
     ) -> String {
@@ -964,10 +970,9 @@ impl TokenizerOption {
     }
 
     /// Interface method to convert tokens to ids
-    pub fn convert_tokens_to_ids<S, ST>(&self, tokens: S) -> Vec<i64>
+    pub fn convert_tokens_to_ids<S>(&self, tokens: &[S]) -> Vec<i64>
     where
-        S: AsRef<[ST]>,
-        ST: AsRef<str>,
+        S: AsRef<str>,
     {
         match *self {
             Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),

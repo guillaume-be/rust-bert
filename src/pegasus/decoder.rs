@@ -105,11 +105,15 @@ impl PegasusDecoder {
             0
         };
 
+        let x = input_ids.apply(embeddings) * self.scale_embedding;
         let positions = self
             .embed_positions
             .forward(input_ids, past_key_values_length);
-
-        let x: Tensor = input_ids.apply(embeddings) * self.scale_embedding + positions;
+        let x = if positions.kind() != x.kind() {
+            positions.to_kind(x.kind()) + x
+        } else {
+            positions + x
+        };
 
         let decoder_attention_mask = _prepare_decoder_attention_mask(
             decoder_attention_mask,
@@ -119,7 +123,7 @@ impl PegasusDecoder {
         );
 
         let encoder_attention_mask = encoder_attention_mask
-            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap())));
+            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap()), x.kind()));
 
         let mut hidden_state = x.apply_t(&self.dropout, train);
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {

@@ -12,9 +12,8 @@
 // limitations under the License.
 
 use std::borrow::Borrow;
-use tch::kind::Kind::Int64;
 use tch::nn::embedding;
-use tch::{nn, Tensor};
+use tch::{nn, Kind, Tensor};
 
 /// # Abstraction that holds a embeddings configuration
 pub enum EmbeddingOption {
@@ -67,7 +66,7 @@ impl LearnedPositionalEmbedding {
         let positions = Tensor::arange_start(
             past_key_values_length,
             past_key_values_length + sequence_length,
-            (Int64, input.device()),
+            (Kind::Int64, input.device()),
         ) + self.offset;
         positions.apply(&self.embedding)
     }
@@ -102,7 +101,7 @@ impl SinusoidalPositionalEmbedding {
         let positions = Tensor::arange_start(
             past_key_values_length,
             past_key_values_length + sequence_length,
-            (Int64, input.device()),
+            (Kind::Int64, input.device()),
         );
         positions.apply(&self.embedding)
     }

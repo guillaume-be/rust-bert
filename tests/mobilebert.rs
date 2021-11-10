@@ -182,7 +182,7 @@ fn mobilebert_for_multiple_choice() -> anyhow::Result<()> {
     let prompt = "In Italy, pizza served in formal settings, such as at a restaurant, is presented unsliced.";
     let inputs = ["Very positive sentence", "Second sentence input"];
     let tokenized_input = tokenizer.encode_pair_list(
-        inputs
+        &inputs
             .iter()
             .map(|&inp| (prompt, inp))
             .collect::<Vec<(&str, &str)>>(),

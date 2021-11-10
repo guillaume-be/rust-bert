@@ -72,7 +72,7 @@ fn gpt_neo_lm() -> anyhow::Result<()> {
         .get(-1)
         .argmax(-1, true)
         .int64_value(&[0]);
-    let next_word = tokenizer.decode(vec![next_word_id], true, true);
+    let next_word = tokenizer.decode(&[next_word_id], true, true);
     let next_score = model_output
         .lm_logits
         .get(0)
@@ -132,7 +132,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
         min_length: 10,
         max_length: 32,
         do_sample: false,
-        early_stopping: false,
+        early_stopping: true,
         num_beams: 4,
         num_return_sequences: 1,
         device: Device::Cpu,

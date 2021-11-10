@@ -17,7 +17,7 @@ use crate::mobilebert::MobileBertConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::EmbeddingConfig;
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Tensor};
 
 pub struct MobileBertEmbeddings {
     trigram_input: bool,
@@ -115,7 +115,7 @@ impl MobileBertEmbeddings {
         let updated_input_embeddings = if self.trigram_input {
             let padding_tensor = Tensor::zeros(
                 &[input_shape[0], 1, self.embedding_size],
-                (Kind::Float, input_embeddings.device()),
+                (input_embeddings.kind(), input_embeddings.device()),
             );
             let input_embeddings = Tensor::cat(
                 &[

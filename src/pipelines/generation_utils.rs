@@ -45,7 +45,7 @@
 //! };
 //!
 //! let output = gpt2_generator.generate(
-//!     Some(vec![input_context, second_input_context]),
+//!     Some(&[input_context, second_input_context]),
 //!     Some(generate_options),
 //! );
 //! # Ok(())
@@ -242,6 +242,7 @@ pub(crate) mod private_generation_utils {
     use crate::pipelines::generation_utils::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
 
     use super::ordered_float::OrderedFloat;
+    use crate::common::kind::get_positive_infinity;
 
     pub struct InternalGenerateOptions<'a> {
         pub min_length: i64,
@@ -277,6 +278,7 @@ pub(crate) mod private_generation_utils {
         fn get_model(&self) -> &T;
         fn _get_tokenizer(&self) -> &TokenizerOption;
         fn get_var_store(&self) -> &nn::VarStore;
+        fn get_var_store_mut(&mut self) -> &mut nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
         fn get_bos_id(&self) -> &Option<i64>;
         fn get_eos_ids(&self) -> &Option<Vec<i64>>;
@@ -316,16 +318,16 @@ pub(crate) mod private_generation_utils {
             }
         }
 
-        fn encode_prompt_text<'a, S>(
+        fn encode_prompt_text<S>(
             &self,
-            prompt_text: S,
+            prompt_text: &[S],
             max_len: i64,
             pad_token_id: Option<i64>,
         ) -> Tensor
         where
-            S: AsRef<[&'a str]>,
+            S: AsRef<str> + Sync,
         {
-            let tokens = self._get_tokenizer().tokenize_list(prompt_text.as_ref());
+            let tokens = self._get_tokenizer().tokenize_list(prompt_text);
             let token_ids = tokens
                 .into_iter()
                 .map(|prompt_tokens| self._get_tokenizer().convert_tokens_to_ids(&prompt_tokens))
@@ -485,7 +487,9 @@ pub(crate) mod private_generation_utils {
             }
             if top_p < 1f64 {
                 let (sorted_logits, sorted_indices) = logits.sort(-1, true);
-                let cumulative_probabilities = sorted_logits.softmax(-1, Float).cumsum(-1, Float);
+                let cumulative_probabilities = sorted_logits
+                    .softmax(-1, sorted_logits.kind())
+                    .cumsum(-1, sorted_logits.kind());
                 let mut sorted_indices_to_remove =
                     cumulative_probabilities.ge(top_p).to_kind(Int64);
                 if min_tokens_to_keep > 1 {
@@ -559,8 +563,8 @@ pub(crate) mod private_generation_utils {
         ) {
             let mask = scores.new_full(
                 scores.size().as_slice(),
-                f64::INFINITY,
-                (Kind::Float, scores.device()),
+                get_positive_infinity(scores.kind()).unwrap(),
+                (scores.kind(), scores.device()),
             );
             for idx in 0..scores.size()[0] {
                 let batch_id = idx / num_beams;
@@ -747,14 +751,7 @@ pub(crate) mod private_generation_utils {
             let mut past: Cache = Cache::None;
             let mut outputs: Tensor;
             let mut current_length = cur_len;
-            let mut scores_output = if output_scores {
-                Some(Tensor::zeros(
-                    &[batch_size],
-                    (Float, self.get_var_store().device()),
-                ))
-            } else {
-                None
-            };
+            let mut scores_output: Option<Tensor> = None;
 
             while current_length < gen_opt.max_length {
                 let prepared_input = self.prepare_inputs_for_generation(
@@ -779,6 +776,13 @@ pub(crate) mod private_generation_utils {
                     .unwrap();
                 outputs = temp.lm_logits;
                 past = temp.cache;
+
+                if scores_output.is_none() & output_scores {
+                    scores_output = Some(Tensor::zeros(
+                        &[batch_size],
+                        (outputs.kind(), self.get_var_store().device()),
+                    ))
+                }
 
                 let mut next_token_logits = outputs.select(1, -1);
                 // Reduce probability for repeated inputs
@@ -868,7 +872,7 @@ pub(crate) mod private_generation_utils {
                         gen_opt.top_p,
                         1,
                     );
-                    let probabilities = next_token_logits.softmax(-1, Float);
+                    let probabilities = next_token_logits.softmax(-1, next_token_logits.kind());
                     probabilities.multinomial(1, false).squeeze_dim(1)
                 } else {
                     next_token_logits.argmax(-1, false)
@@ -879,7 +883,7 @@ pub(crate) mod private_generation_utils {
                     scores_output = Some(
                         prev_scores
                             + (&next_token_logits
-                                .log_softmax(-1, Float)
+                                .log_softmax(-1, next_token_logits.kind())
                                 .gather(1, &next_token.reshape(&[-1, 1]), true)
                                 .squeeze()
                                 .masked_fill(&finished_mask, 0)),
@@ -927,7 +931,7 @@ pub(crate) mod private_generation_utils {
                 current_length += 1;
             }
             let scores_output = scores_output.map(|scores_tensor| {
-                (scores_tensor / sentence_lengths.pow(gen_opt.length_penalty))
+                (scores_tensor / sentence_lengths.pow_tensor_scalar(gen_opt.length_penalty))
                     .iter::<f64>()
                     .unwrap()
                     .collect::<Vec<f64>>()
@@ -1074,7 +1078,7 @@ pub(crate) mod private_generation_utils {
                         gen_opt.forced_bos_token_id,
                     );
 
-                    let mut scores = next_token_logits.log_softmax(-1, Float);
+                    let mut scores = next_token_logits.log_softmax(-1, next_token_logits.kind());
 
                     // Do not allow eos token if min length is not reached
                     if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
@@ -1167,7 +1171,7 @@ pub(crate) mod private_generation_utils {
                             .contiguous()
                             .view((batch_size, group_size * vocab_size));
 
-                        let probabilities = _scores.softmax(-1, Float);
+                        let probabilities = _scores.softmax(-1, _scores.kind());
                         let next_tokens = probabilities.multinomial(2 * group_size, false);
                         let _scores = _scores.gather(-1, &next_tokens, false);
                         let (_scores, next_scores_indices) = _scores.sort(1, true);
@@ -1578,7 +1582,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// };
     ///
     /// let output = gpt2_generator.generate(
-    ///     Some(vec![input_context, second_input_context]),
+    ///     Some(&[input_context, second_input_context]),
     ///     Some(generate_options),
     /// );
     /// # Ok(())
@@ -1597,13 +1601,13 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// ]
     /// # ;
     /// ```
-    fn generate<'a, S>(
+    fn generate<S>(
         &self,
-        prompt_texts: Option<S>,
+        prompt_texts: Option<&[S]>,
         generate_options: Option<GenerateOptions>,
     ) -> Vec<GeneratedTextOutput>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let indices_outputs = self.generate_indices(prompt_texts, generate_options);
         let mut output = Vec::with_capacity(indices_outputs.len());
@@ -1611,7 +1615,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             output.push(GeneratedTextOutput {
                 text: self
                     ._get_tokenizer()
-                    .decode(generated_sequence.indices, true, true),
+                    .decode(&generated_sequence.indices, true, true),
                 score: generated_sequence.score,
             });
         }
@@ -1685,19 +1689,19 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// };
     ///
     /// let output = gpt2_generator.generate_indices(
-    ///     Some(vec![input_context, second_input_context]),
+    ///     Some(&[input_context, second_input_context]),
     ///     Some(generate_options),
     /// );
     /// # Ok(())
     /// # }
     /// ```
-    fn generate_indices<'a, S>(
+    fn generate_indices<S>(
         &self,
-        prompt_texts: Option<S>,
+        prompt_texts: Option<&[S]>,
         generate_options: Option<GenerateOptions>,
     ) -> Vec<GeneratedIndicesOutput>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
 
@@ -2016,6 +2020,18 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// ```
     fn get_tokenizer(&self) -> &TokenizerOption {
         self._get_tokenizer()
+    }
+
+    fn half(&mut self) {
+        self.get_var_store_mut().half();
+    }
+
+    fn float(&mut self) {
+        self.get_var_store_mut().float();
+    }
+
+    fn set_device(&mut self, device: Device) {
+        self.get_var_store_mut().set_device(device);
     }
 }
 

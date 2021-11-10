@@ -80,10 +80,16 @@ impl PegasusEncoder {
         embeddings: &nn::Embedding,
         train: bool,
     ) -> PegasusEncoderOutput {
-        let attention_mask = attention_mask.map(|mask| _expand_mask(mask, None));
-
         let x = input_ids.apply(embeddings) * self.scale_embedding;
-        let x = x + &self.embed_positions.forward(input_ids, 0);
+        let positions = self.embed_positions.forward(input_ids, 0);
+        let x = if positions.kind() != x.kind() {
+            positions.to_kind(x.kind()) + x
+        } else {
+            positions + x
+        };
+
+        let attention_mask = attention_mask.map(|mask| _expand_mask(mask, None, x.kind()));
+
         let mut hidden_state = x.apply_t(&self.dropout, train);
 
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {

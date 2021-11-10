@@ -38,23 +38,25 @@ impl SinusoidalPositionalEmbedding {
         let mut local_varstore = nn::VarStore::new(device);
         let offset = 2;
 
-        let embedding = RwLock::new(embedding(
+        let mut embedding = embedding(
             local_varstore.root(),
             num_embeddings + offset,
             embedding_dim,
             Default::default(),
-        ));
-
-        embedding.write().unwrap().ws = SinusoidalPositionalEmbedding::build_positional_embeddings(
-            num_embeddings + offset,
-            embedding_dim,
-            padding_idx,
-            device,
         );
+
+        embedding
+            .ws
+            .set_data(&SinusoidalPositionalEmbedding::build_positional_embeddings(
+                num_embeddings + offset,
+                embedding_dim,
+                padding_idx,
+                device,
+            ));
 
         local_varstore.freeze();
         SinusoidalPositionalEmbedding {
-            embedding,
+            embedding: RwLock::new(embedding),
             embedding_dim,
             padding_idx,
             offset,
@@ -101,21 +103,28 @@ impl SinusoidalPositionalEmbedding {
         incremental_indices + self.padding_idx
     }
 
-    pub fn forward(&self, input_ids: &Tensor, past_key_values_length: i64) -> Tensor {
+    pub fn forward(&self, input_ids: &Tensor, past_key_values_length: i64, kind: Kind) -> Tensor {
         let position_ids =
             self.create_position_ids_from_input_ids(input_ids, past_key_values_length);
         let input_size = input_ids.size();
         let seq_length = input_size[1];
 
         let max_pos = self.padding_idx + 1 + seq_length;
-        if max_pos > self.embedding.read().unwrap().ws.size()[0] {
-            self.embedding.write().unwrap().ws =
-                SinusoidalPositionalEmbedding::build_positional_embeddings(
+        let current_size = self.embedding.read().unwrap().ws.size()[0];
+        if max_pos > current_size {
+            self.embedding.write().unwrap().ws.set_data(
+                &SinusoidalPositionalEmbedding::build_positional_embeddings(
                     max_pos + self.offset,
                     self.embedding_dim,
                     self.padding_idx,
                     input_ids.device(),
-                );
+                ),
+            );
+        }
+        let current_kind = self.embedding.read().unwrap().ws.kind();
+        if current_kind != kind {
+            let new_embeddings = &self.embedding.read().unwrap().ws.to_kind(kind);
+            self.embedding.write().unwrap().ws.set_data(new_embeddings);
         }
         position_ids.apply(self.embedding.read().unwrap().deref())
     }

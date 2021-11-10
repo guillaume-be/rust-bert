@@ -273,7 +273,7 @@ impl BartDecoder {
         );
 
         let encoder_attention_mask = encoder_attention_mask
-            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap())));
+            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap()), x.kind()));
 
         let x = if let Some(layer_norm_embedding) = &self.layer_norm_embedding {
             x.apply(layer_norm_embedding)

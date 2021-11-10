@@ -936,6 +936,9 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
     fn get_var_store(&self) -> &nn::VarStore {
         &self.var_store
     }
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
+    }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
@@ -1008,17 +1011,17 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
         }
     }
 
-    fn encode_prompt_text<'a, S>(
+    fn encode_prompt_text<S>(
         &self,
-        prompt_text: S,
+        prompt_text: &[S],
         max_len: i64,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let tokens = self._get_tokenizer().encode_list(
-            prompt_text.as_ref(),
+            prompt_text,
             max_len as usize,
             &TruncationStrategy::LongestFirst,
             0,

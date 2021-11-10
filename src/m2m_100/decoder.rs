@@ -102,11 +102,11 @@ impl M2M100Decoder {
         let input_shape = input_ids.size();
         let sequence_length = input_shape[1];
 
+        let x = input_ids.apply(embeddings) * self.scale_embedding;
         let positions = self
             .embed_positions
-            .forward(input_ids, past_key_values_length);
-
-        let x: Tensor = input_ids.apply(embeddings) * self.scale_embedding + positions;
+            .forward(input_ids, past_key_values_length, x.kind());
+        let x = x + positions;
 
         let causal_mask = if sequence_length > 1 {
             Some(_make_causal_mask(
@@ -121,14 +121,14 @@ impl M2M100Decoder {
 
         let decoder_attention_mask = decoder_attention_mask.map(|attention_mask| {
             if let Some(causal_mask) = causal_mask {
-                causal_mask + _expand_mask(attention_mask, Some(sequence_length))
+                causal_mask + _expand_mask(attention_mask, Some(sequence_length), x.kind())
             } else {
-                _expand_mask(attention_mask, Some(sequence_length))
+                _expand_mask(attention_mask, Some(sequence_length), x.kind())
             }
         });
 
         let encoder_attention_mask = encoder_attention_mask
-            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap())));
+            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap()), x.kind()));
 
         let mut hidden_state = x.apply_t(&self.dropout, train);
 

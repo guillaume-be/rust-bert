@@ -15,7 +15,6 @@ use crate::bert::bert_model::BertConfig;
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
-use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
 #[derive(Debug)]
@@ -124,7 +123,9 @@ impl BertSelfAttention {
             query_layer.matmul(&key_layer.transpose(-1, -2))
         };
 
-        let weights = scores.softmax(-1, Float).apply_t(&self.dropout, train);
+        let weights = scores
+            .softmax(-1, scores.kind())
+            .apply_t(&self.dropout, train);
         let context = self.flatten(weights.matmul(&value_layer), bs, self.attention_head_size);
 
         if !self.output_attentions {

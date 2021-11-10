@@ -416,22 +416,20 @@ impl Conversation {
     /// let _ = conversation_manager
     ///     .get(&conversation_1_id)
     ///     .unwrap()
-    ///     .load_from_history(history, encoded_history);
+    ///     .load_from_history(&history, &encoded_history);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn load_from_history<ST, SI, STR, SIN>(&mut self, texts: ST, ids: SI)
+    pub fn load_from_history<S, SI>(&mut self, texts: &[S], ids: &[SI])
     where
-        ST: AsRef<[STR]>,
-        SI: AsRef<[SIN]>,
-        STR: AsRef<str>,
-        SIN: AsRef<[i64]>,
+        S: AsRef<str>,
+        SI: AsRef<[i64]>,
     {
-        for (round_text, round_ids) in texts.as_ref().iter().zip(ids.as_ref().iter()) {
+        for (round_text, round_ids) in texts.iter().zip(ids.iter()) {
             self.append(round_text.as_ref(), round_ids.as_ref());
         }
 
-        if texts.as_ref().len() / 2 == 1 {
+        if texts.len() / 2 == 1 {
             self.history.pop();
         }
     }
@@ -830,11 +828,11 @@ impl ConversationModel {
                 let generated_response = &generated_sequence[input_length - removed_padding.0..];
                 conversation
                     .generated_responses
-                    .push(self.model.get_tokenizer().decode(
-                        generated_response.to_vec(),
-                        true,
-                        true,
-                    ));
+                    .push(
+                        self.model
+                            .get_tokenizer()
+                            .decode(generated_response, true, true),
+                    );
                 conversation.history.push(conversation_promp_ids);
                 conversation.history.push(generated_response.to_vec());
                 conversation.mark_processed();
