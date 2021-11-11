@@ -250,8 +250,12 @@ This may impact the results, it is recommended to submit prompts of similar leng
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";
 
-    let output = model.generate(Some(&[input_context_1, input_context_2]), 0, 30, true, false, 
-                                5, 1.2, 0, 0.9, 1.0, 1.0, 3, 3, None);
+    let generate_options = GenerateOptions {
+        max_length: 30,
+        ..Default::default()
+    };
+
+    let output = model.generate(Some(&[input_context_1, input_context_2]), generate_options);
 ```
 Example output:
 ```

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{Device, Tensor};
+use tch::Device;
 
 use crate::common::error::RustBertError;
 use crate::common::resources::Resource;
@@ -20,7 +20,7 @@ use crate::marian::MarianGenerator;
 use crate::mbart::MBartGenerator;
 use crate::pipelines::common::ModelType;
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::t5::T5Generator;
 use std::collections::HashSet;
 use std::fmt;
@@ -731,7 +731,6 @@ impl TranslationOption {
     pub fn generate<S>(
         &self,
         prompt_texts: Option<&[S]>,
-        attention_mask: Option<Tensor>,
         forced_bos_token_id: Option<i64>,
     ) -> Vec<String>
     where
@@ -739,65 +738,37 @@ impl TranslationOption {
     {
         match *self {
             Self::Marian(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::T5(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
-            Self::MBart(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
+            Self::MBart(ref model) => {
+                let generate_options = GenerateOptions {
                     forced_bos_token_id,
-                    None,
-                    None,
-                    false,
-                )
-                .into_iter()
-                .map(|output| output.text)
-                .collect(),
-            Self::M2M100(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
+                    ..Default::default()
+                };
+                model
+                    .generate(prompt_texts, Some(generate_options))
+                    .into_iter()
+                    .map(|output| output.text)
+                    .collect()
+            }
+            Self::M2M100(ref model) => {
+                let generate_options = GenerateOptions {
                     forced_bos_token_id,
-                    None,
-                    None,
-                    false,
-                )
-                .into_iter()
-                .map(|output| output.text)
-                .collect(),
+                    ..Default::default()
+                };
+                model
+                    .generate(prompt_texts, Some(generate_options))
+                    .into_iter()
+                    .map(|output| output.text)
+                    .collect()
+            }
         }
     }
 }
@@ -947,9 +918,9 @@ impl TranslationModel {
                     .iter()
                     .map(|v| format!("{}{}", value, v.as_ref()))
                     .collect::<Vec<String>>();
-                self.model.generate(Some(&texts), None, forced_bos_token_id)
+                self.model.generate(Some(&texts), forced_bos_token_id)
             }
-            None => self.model.generate(Some(texts), None, forced_bos_token_id),
+            None => self.model.generate(Some(texts), forced_bos_token_id),
         })
     }
 }
