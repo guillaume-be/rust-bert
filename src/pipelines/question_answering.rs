@@ -51,6 +51,7 @@ use crate::distilbert::{
     DistilBertConfigResources, DistilBertForQuestionAnswering, DistilBertModelResources,
     DistilBertVocabResources,
 };
+use crate::fnet::FNetForQuestionAnswering;
 use crate::longformer::LongformerForQuestionAnswering;
 use crate::mobilebert::MobileBertForQuestionAnswering;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
@@ -277,6 +278,8 @@ pub enum QuestionAnsweringOption {
     Reformer(ReformerForQuestionAnswering),
     /// Longformer for Question Answering
     Longformer(LongformerForQuestionAnswering),
+    /// FNet for Question Answering
+    FNet(FNetForQuestionAnswering),
 }
 
 impl QuestionAnsweringOption {
@@ -396,6 +399,17 @@ impl QuestionAnsweringOption {
                     ))
                 }
             }
+            ModelType::FNet => {
+                if let ConfigOption::FNet(config) = config {
+                    Ok(QuestionAnsweringOption::FNet(
+                        FNetForQuestionAnswering::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a FNetConfig for FNet!".to_string(),
+                    ))
+                }
+            }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "QuestionAnswering not implemented for {:?}!",
                 model_type
@@ -415,6 +429,7 @@ impl QuestionAnsweringOption {
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
             Self::Longformer(_) => ModelType::Longformer,
+            Self::FNet(_) => ModelType::FNet,
         }
     }
 
@@ -466,6 +481,12 @@ impl QuestionAnsweringOption {
                 let outputs = model
                     .forward_t(input_ids, mask, None, None, None, None, train)
                     .expect("Error in reformer forward pass");
+                (outputs.start_logits, outputs.end_logits)
+            }
+            Self::FNet(ref model) => {
+                let outputs = model
+                    .forward_t(input_ids, None, None, None, train)
+                    .expect("Error in fnet forward pass");
                 (outputs.start_logits, outputs.end_logits)
             }
         }

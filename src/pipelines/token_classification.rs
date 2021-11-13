@@ -118,6 +118,7 @@ use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::distilbert::DistilBertForTokenClassification;
 use crate::electra::ElectraForTokenClassification;
+use crate::fnet::FNetForTokenClassification;
 use crate::longformer::LongformerForTokenClassification;
 use crate::mobilebert::MobileBertForTokenClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
@@ -317,6 +318,8 @@ pub enum TokenClassificationOption {
     XLNet(XLNetForTokenClassification),
     /// Longformer for Token Classification
     Longformer(LongformerForTokenClassification),
+    /// FNet for Token Classification
+    FNet(FNetForTokenClassification),
 }
 
 impl TokenClassificationOption {
@@ -436,6 +439,17 @@ impl TokenClassificationOption {
                     ))
                 }
             }
+            ModelType::FNet => {
+                if let ConfigOption::FNet(config) = config {
+                    Ok(TokenClassificationOption::FNet(
+                        FNetForTokenClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an FNetConfig for FNet!".to_string(),
+                    ))
+                }
+            }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Token classification not implemented for {:?}!",
                 model_type
@@ -455,6 +469,7 @@ impl TokenClassificationOption {
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Longformer(_) => ModelType::Longformer,
+            Self::FNet(_) => ModelType::FNet,
         }
     }
 
@@ -554,6 +569,12 @@ impl TokenClassificationOption {
                         train,
                     )
                     .expect("Error in longformer forward_t")
+                    .logits
+            }
+            Self::FNet(ref model) => {
+                model
+                    .forward_t(input_ids, token_type_ids, position_ids, input_embeds, train)
+                    .expect("Error in fnet forward_t")
                     .logits
             }
         }

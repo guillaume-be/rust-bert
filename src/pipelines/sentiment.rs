@@ -75,7 +75,7 @@ pub struct Sentiment {
     pub score: f64,
 }
 
-type SentimentConfig = SequenceClassificationConfig;
+pub type SentimentConfig = SequenceClassificationConfig;
 
 /// # SentimentClassifier to perform sentiment analysis
 pub struct SentimentModel {

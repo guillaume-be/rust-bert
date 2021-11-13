@@ -38,6 +38,11 @@ impl FNetModelResources {
         "fnet-base/model",
         "https://huggingface.co/google/fnet-base/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/gchhablani/fnet-base-finetuned-sst2>. Modified with conversion to C-array format.
+    pub const BASE_SST2: (&'static str, &'static str) = (
+        "fnet-base-sst2/model",
+        "https://huggingface.co/gchhablani/fnet-base-finetuned-sst2/resolve/main/rust_model.ot",
+    );
 }
 
 impl FNetConfigResources {
@@ -46,12 +51,22 @@ impl FNetConfigResources {
         "fnet-base/config",
         "https://huggingface.co/google/fnet-base/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/gchhablani/fnet-base-finetuned-sst2>. Modified with conversion to C-array format.
+    pub const BASE_SST2: (&'static str, &'static str) = (
+        "fnet-base-sst2/config",
+        "https://huggingface.co/gchhablani/fnet-base-finetuned-sst2/resolve/main/config.json",
+    );
 }
 
 impl FNetVocabResources {
     /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/google-research/tree/master/f_net>. Modified with conversion to C-array format.
     pub const BASE: (&'static str, &'static str) = (
         "fnet-base/spiece",
+        "https://huggingface.co/google/fnet-base/resolve/main/spiece.model",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/gchhablani/fnet-base-finetuned-sst2>. Modified with conversion to C-array format.
+    pub const BASE_SST2: (&'static str, &'static str) = (
+        "fnet-base-sst2/spiece",
         "https://huggingface.co/google/fnet-base/resolve/main/spiece.model",
     );
 }
@@ -227,7 +242,7 @@ impl FNetModel {
             None
         };
         Ok(FNetModelOutput {
-            hidden_states,
+            hidden_states: encoder_output.hidden_states,
             pooled_output,
             all_hidden_states: encoder_output.all_hidden_states,
         })

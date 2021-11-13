@@ -22,6 +22,7 @@ use crate::bert::BertConfig;
 use crate::common::error::RustBertError;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
+use crate::fnet::FNetConfig;
 use crate::gpt2::Gpt2Config;
 use crate::gpt_neo::GptNeoConfig;
 use crate::longformer::LongformerConfig;
@@ -35,15 +36,15 @@ use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
 use crate::Config;
 use rust_tokenizers::tokenizer::{
-    AlbertTokenizer, BertTokenizer, Gpt2Tokenizer, M2M100Tokenizer, MBart50Tokenizer,
-    MarianTokenizer, MultiThreadedTokenizer, OpenAiGptTokenizer, PegasusTokenizer,
-    ProphetNetTokenizer, ReformerTokenizer, RobertaTokenizer, T5Tokenizer, Tokenizer,
-    TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
+    AlbertTokenizer, BertTokenizer, FNetTokenizer, Gpt2Tokenizer, M2M100Tokenizer,
+    MBart50Tokenizer, MarianTokenizer, MultiThreadedTokenizer, OpenAiGptTokenizer,
+    PegasusTokenizer, ProphetNetTokenizer, ReformerTokenizer, RobertaTokenizer, T5Tokenizer,
+    Tokenizer, TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
 };
 use rust_tokenizers::vocab::{
-    AlbertVocab, BertVocab, Gpt2Vocab, M2M100Vocab, MBart50Vocab, MarianVocab, OpenAiGptVocab,
-    PegasusVocab, ProphetNetVocab, ReformerVocab, RobertaVocab, T5Vocab, Vocab, XLMRobertaVocab,
-    XLNetVocab,
+    AlbertVocab, BertVocab, FNetVocab, Gpt2Vocab, M2M100Vocab, MBart50Vocab, MarianVocab,
+    OpenAiGptVocab, PegasusVocab, ProphetNetVocab, ReformerVocab, RobertaVocab, T5Vocab, Vocab,
+    XLMRobertaVocab, XLNetVocab,
 };
 use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
@@ -73,6 +74,7 @@ pub enum ModelType {
     GPTNeo,
     MBart,
     M2M100,
+    FNet,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -111,6 +113,8 @@ pub enum ConfigOption {
     MBart(MBartConfig),
     /// M2M100 configuration
     M2M100(M2M100Config),
+    /// FNet configuration
+    FNet(FNetConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -143,6 +147,8 @@ pub enum TokenizerOption {
     MBart50(MBart50Tokenizer),
     /// M2M100 Tokenizer
     M2M100(M2M100Tokenizer),
+    /// FNet Tokenizer
+    FNet(FNetTokenizer),
 }
 
 impl ConfigOption {
@@ -168,6 +174,7 @@ impl ConfigOption {
             ModelType::Pegasus => ConfigOption::Pegasus(PegasusConfig::from_file(path)),
             ModelType::MBart => ConfigOption::MBart(MBartConfig::from_file(path)),
             ModelType::M2M100 => ConfigOption::M2M100(M2M100Config::from_file(path)),
+            ModelType::FNet => ConfigOption::FNet(FNetConfig::from_file(path)),
         }
     }
 
@@ -225,6 +232,10 @@ impl ConfigOption {
                 .id2label
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::FNet(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
             Self::GPT2(_) => panic!("GPT2 does not use a label mapping"),
             Self::GPTNeo(_) => panic!("GPT-Neo does not use a label mapping"),
@@ -251,6 +262,7 @@ impl ConfigOption {
             Self::GPTNeo(config) => Some(config.max_position_embeddings),
             Self::MBart(config) => Some(config.max_position_embeddings),
             Self::M2M100(config) => Some(config.max_position_embeddings),
+            Self::FNet(config) => Some(config.max_position_embeddings),
         }
     }
 }
@@ -469,6 +481,11 @@ impl TokenizerOption {
                     lower_case,
                 )?)
             }
+            ModelType::FNet => TokenizerOption::FNet(FNetTokenizer::from_file(
+                vocab_path,
+                lower_case,
+                strip_accents.unwrap_or(false),
+            )?),
         };
         Ok(tokenizer)
     }
@@ -490,6 +507,7 @@ impl TokenizerOption {
             Self::Pegasus(_) => ModelType::Pegasus,
             Self::MBart50(_) => ModelType::MBart,
             Self::M2M100(_) => ModelType::M2M100,
+            Self::FNet(_) => ModelType::FNet,
         }
     }
 
@@ -597,6 +615,13 @@ impl TokenizerOption {
                 stride,
             ),
             Self::M2M100(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::FNet(ref tokenizer) => MultiThreadedTokenizer::encode_list(
                 tokenizer,
                 text_list,
                 max_len,
@@ -713,6 +738,13 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::FNet(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
         }
     }
 
@@ -768,6 +800,9 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => {
                 tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
+            Self::FNet(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
         }
     }
 
@@ -788,6 +823,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => tokenizer.tokenize(text),
             Self::MBart50(ref tokenizer) => tokenizer.tokenize(text),
             Self::M2M100(ref tokenizer) => tokenizer.tokenize(text),
+            Self::FNet(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
 
@@ -808,6 +844,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::MBart50(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::M2M100(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::FNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
         }
     }
 
@@ -837,6 +874,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::MBart50(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::M2M100(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::FNet(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
         }
     }
 
@@ -888,6 +926,9 @@ impl TokenizerOption {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
             Self::M2M100(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::FNet(ref tokenizer) => {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
         }
@@ -956,6 +997,10 @@ impl TokenizerOption {
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
             ),
+            Self::FNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
         };
         TokenizedInput {
             token_ids: token_ids_with_special_tokens.token_ids,
@@ -989,6 +1034,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::MBart50(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::M2M100(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::FNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
 
@@ -1050,6 +1096,10 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
                 .special_values
                 .get(M2M100Vocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::FNet(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(FNetVocab::unknown_value())
                 .expect("UNK token not found in vocabulary"),
         }
     }
@@ -1123,6 +1173,12 @@ impl TokenizerOption {
                     .get(M2M100Vocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
+            Self::FNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(FNetVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
             Self::Reformer(_) => None,
             Self::GPT2(_) => None,
             Self::OpenAiGpt(_) => None,
@@ -1178,6 +1234,12 @@ impl TokenizerOption {
                 *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(M2M100Vocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::FNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(FNetVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Marian(_) => None,
