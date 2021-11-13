@@ -13,7 +13,6 @@
 
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
-use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
 #[derive(Debug)]
@@ -164,7 +163,7 @@ impl BartAttention {
                 attention_weights.view([bs * self.num_heads, target_length, source_length]);
         };
 
-        attention_weights = attention_weights.softmax(-1, Float);
+        attention_weights = attention_weights.softmax(-1, attention_weights.kind());
 
         let saved_attention_weights = if self.output_attentions {
             Some(attention_weights.view((bs, self.num_heads, target_length, source_length)))

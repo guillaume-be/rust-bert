@@ -14,7 +14,7 @@ use crate::common::dropout::Dropout;
 use crate::mobilebert::mobilebert_model::{NormalizationLayer, NormalizationType};
 use crate::mobilebert::MobileBertConfig;
 use std::borrow::Borrow;
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Tensor};
 
 pub struct MobileBertSelfAttention {
     attention_head_size: i64,
@@ -105,7 +105,7 @@ impl MobileBertSelfAttention {
             attention_scores = attention_scores + attention_mask_value;
         }
         let attention_probs = attention_scores
-            .softmax(-1, Kind::Float)
+            .softmax(-1, attention_scores.kind())
             .apply_t(&self.dropout, train);
         let context = attention_probs.matmul(&value);
         let context = self.flatten(context, bs, self.attention_head_size);

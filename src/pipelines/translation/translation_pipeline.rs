@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{Device, Tensor};
+use tch::Device;
 
 use crate::common::error::RustBertError;
 use crate::common::resources::Resource;
@@ -20,7 +20,7 @@ use crate::marian::MarianGenerator;
 use crate::mbart::MBartGenerator;
 use crate::pipelines::common::ModelType;
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::t5::T5Generator;
 use std::collections::HashSet;
 use std::fmt;
@@ -586,8 +586,7 @@ impl TranslationOption {
             if !supported_source_languages.contains(source_language) {
                 return Err(RustBertError::ValueError(format!(
                     "{} not in list of supported languages: {:?}",
-                    source_language.to_string(),
-                    supported_source_languages
+                    source_language, supported_source_languages
                 )));
             }
         }
@@ -596,8 +595,7 @@ impl TranslationOption {
             if !supported_target_languages.contains(target_language) {
                 return Err(RustBertError::ValueError(format!(
                     "{} not in list of supported languages: {:?}",
-                    target_language.to_string(),
-                    supported_target_languages
+                    target_language, supported_target_languages
                 )));
             }
         }
@@ -630,7 +628,7 @@ impl TranslationOption {
                 Some(format!(
                     "translate {} to {}:",
                     match source_language {
-                        Some(value) => value.to_string(),
+                        Some(value) => value,
                         None => {
                             return Err(RustBertError::ValueError(
                                 "Missing source language for T5".to_string(),
@@ -638,7 +636,7 @@ impl TranslationOption {
                         }
                     },
                     match target_language {
-                        Some(value) => value.to_string(),
+                        Some(value) => value,
                         None => {
                             return Err(RustBertError::ValueError(
                                 "Missing target language for T5".to_string(),
@@ -665,7 +663,7 @@ impl TranslationOption {
                 )),
                 if let Some(target_language) = target_language {
                     Some(
-                        model._get_tokenizer().convert_tokens_to_ids([format!(
+                        model._get_tokenizer().convert_tokens_to_ids(&[format!(
                             ">>{}<<",
                             target_language.get_iso_639_1_code()
                         )])[0],
@@ -705,9 +703,8 @@ impl TranslationOption {
                 if let Some(target_language) = target_language {
                     let language_code = target_language.get_iso_639_1_code();
                     Some(
-                        model
-                            ._get_tokenizer()
-                            .convert_tokens_to_ids([match language_code.len() {
+                        model._get_tokenizer().convert_tokens_to_ids(&[
+                            match language_code.len() {
                                 2 => format!(">>{}.<<", language_code),
                                 3 => format!(">>{}<<", language_code),
                                 _ => {
@@ -715,7 +712,8 @@ impl TranslationOption {
                                         "Invalid ISO 639-3 code".to_string(),
                                     ));
                                 }
-                            }])[0],
+                            },
+                        ])[0],
                     )
                 } else {
                     return Err(RustBertError::ValueError(format!(
@@ -730,76 +728,47 @@ impl TranslationOption {
     }
 
     /// Interface method to generate() of the particular models.
-    pub fn generate<'a, S>(
+    pub fn generate<S>(
         &self,
-        prompt_texts: Option<S>,
-        attention_mask: Option<Tensor>,
+        prompt_texts: Option<&[S]>,
         forced_bos_token_id: Option<i64>,
     ) -> Vec<String>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         match *self {
             Self::Marian(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::T5(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
-            Self::MBart(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
+            Self::MBart(ref model) => {
+                let generate_options = GenerateOptions {
                     forced_bos_token_id,
-                    None,
-                    None,
-                    false,
-                )
-                .into_iter()
-                .map(|output| output.text)
-                .collect(),
-            Self::M2M100(ref model) => model
-                .generate(
-                    prompt_texts,
-                    attention_mask,
-                    None,
-                    None,
-                    None,
+                    ..Default::default()
+                };
+                model
+                    .generate(prompt_texts, Some(generate_options))
+                    .into_iter()
+                    .map(|output| output.text)
+                    .collect()
+            }
+            Self::M2M100(ref model) => {
+                let generate_options = GenerateOptions {
                     forced_bos_token_id,
-                    None,
-                    None,
-                    false,
-                )
-                .into_iter()
-                .map(|output| output.text)
-                .collect(),
+                    ..Default::default()
+                };
+                model
+                    .generate(prompt_texts, Some(generate_options))
+                    .into_iter()
+                    .map(|output| output.text)
+                    .collect()
+            }
         }
     }
 }
@@ -927,14 +896,14 @@ impl TranslationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn translate<'a, S>(
+    pub fn translate<S>(
         &self,
-        texts: S,
+        texts: &[S],
         source_language: impl Into<Option<Language>>,
         target_language: impl Into<Option<Language>>,
     ) -> Result<Vec<String>, RustBertError>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let (prefix, forced_bos_token_id) = self.model.validate_and_get_prefix_and_forced_bos_id(
             source_language.into().as_ref(),
@@ -946,17 +915,12 @@ impl TranslationModel {
         Ok(match prefix {
             Some(value) => {
                 let texts = texts
-                    .as_ref()
                     .iter()
-                    .map(|&v| format!("{}{}", value, v))
+                    .map(|v| format!("{}{}", value, v.as_ref()))
                     .collect::<Vec<String>>();
-                self.model.generate(
-                    Some(texts.iter().map(AsRef::as_ref).collect::<Vec<&str>>()),
-                    None,
-                    forced_bos_token_id,
-                )
+                self.model.generate(Some(&texts), forced_bos_token_id)
             }
-            None => self.model.generate(Some(texts), None, forced_bos_token_id),
+            None => self.model.generate(Some(texts), forced_bos_token_id),
         })
     }
 }

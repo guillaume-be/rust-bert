@@ -19,7 +19,7 @@ pub fn _mish(x: &Tensor) -> Tensor {
 }
 
 pub fn _gelu_new(x: &Tensor) -> Tensor {
-    x * 0.5 * (((x.pow(3.0f64) * 0.044715 + x) * ((2f64 / PI).sqrt())).tanh() + 1)
+    x * 0.5 * (((x.pow_tensor_scalar(3.0f64) * 0.044715 + x) * ((2f64 / PI).sqrt())).tanh() + 1)
 }
 
 pub fn _tanh(x: &Tensor) -> Tensor {

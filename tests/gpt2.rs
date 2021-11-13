@@ -7,7 +7,7 @@ use rust_bert::pipelines::conversation::{
     ConversationConfig, ConversationManager, ConversationModel,
 };
 use rust_bert::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LanguageGenerator,
+    Cache, GenerateConfig, GenerateOptions, LMHeadModel, LanguageGenerator,
 };
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, Resource};
@@ -82,7 +82,7 @@ fn gpt2_lm_model() -> anyhow::Result<()> {
         .get(-1)
         .argmax(-1, true)
         .int64_value(&[0]);
-    let next_word = tokenizer.decode(vec![next_word_id], true, true);
+    let next_word = tokenizer.decode(&[next_word_id], true, true);
 
     assert_eq!(model_output.lm_logits.size(), vec!(1, 4, 50257));
     match model_output.cache {
@@ -420,16 +420,16 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
 
     let input_context_1 = "Rust is a";
     let input_context_2 = "There was a ";
+
+    let generate_options = GenerateOptions {
+        prefix_allowed_tokens_fn: Some(&force_one_paragraph),
+        output_scores: true,
+        ..Default::default()
+    };
+
     let output = model.generate(
         Some(&[input_context_1, input_context_2]),
-        None,
-        None,
-        None,
-        None,
-        None,
-        Some(&force_one_paragraph),
-        None,
-        true,
+        Some(generate_options),
     );
 
     assert_eq!(output.len(), 2);
@@ -487,29 +487,19 @@ fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
 
     let input_context_1 = "Hello, my name is";
 
-    let baseline_output = model.generate(
-        Some(&[input_context_1]),
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        true,
-    );
+    let baseline_generate_options = GenerateOptions {
+        output_scores: true,
+        ..Default::default()
+    };
+    let test_generate_options = GenerateOptions {
+        bad_word_ids: Some(&bad_word_ids),
+        output_scores: true,
+        ..Default::default()
+    };
 
-    let output = model.generate(
-        Some(&[input_context_1]),
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        Some(&bad_word_ids),
-        true,
-    );
+    let baseline_output = model.generate(Some(&[input_context_1]), Some(baseline_generate_options));
+    let output = model.generate(Some(&[input_context_1]), Some(test_generate_options));
+
     assert_eq!(baseline_output.len(), 1);
     assert_eq!(
         baseline_output[0].text,
@@ -567,29 +557,19 @@ fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
 
     let input_context_1 = "Hello, my name is";
 
-    let baseline_output = model.generate(
-        Some(&[input_context_1]),
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        true,
-    );
+    let baseline_generate_options = GenerateOptions {
+        output_scores: true,
+        ..Default::default()
+    };
+    let test_generate_options = GenerateOptions {
+        bad_word_ids: Some(&bad_word_ids),
+        output_scores: true,
+        ..Default::default()
+    };
 
-    let output = model.generate(
-        Some(&[input_context_1]),
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        Some(&bad_word_ids),
-        true,
-    );
+    let baseline_output = model.generate(Some(&[input_context_1]), Some(baseline_generate_options));
+    let output = model.generate(Some(&[input_context_1]), Some(test_generate_options));
+
     assert_eq!(baseline_output.len(), 1);
     assert_eq!(
         baseline_output[0].text,
@@ -649,16 +629,16 @@ fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
 
     let input_context_1 = "Rust is a";
     let input_context_2 = "There was a ";
+
+    let generate_options = GenerateOptions {
+        prefix_allowed_tokens_fn: Some(&force_one_paragraph),
+        output_scores: true,
+        ..Default::default()
+    };
+
     let output = model.generate(
         Some(&[input_context_1, input_context_2]),
-        None,
-        None,
-        None,
-        None,
-        None,
-        Some(&force_one_paragraph),
-        None,
-        true,
+        Some(generate_options),
     );
 
     assert_eq!(output.len(), 2);

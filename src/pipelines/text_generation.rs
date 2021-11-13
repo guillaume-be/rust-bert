@@ -22,9 +22,16 @@
 //! - XLNet
 //! - Reformer
 //!
+//! Two APIs exist to build text generation models:
+//! - `TextGenerationModel` is a high-level module that exposes text generation capabilities with a set of reasonable defaults
+//! - the `LanguageGenerator` trait exposes lower-level text generation capabilities allowing the user to provide additional
+//! generation options when building the model (via `GenerateConfig`) and at each query (via `GenerateOptions`). Please check the
+//! [`generation_utils` module](../generation_utils/index.html) for more details
+//!
+//!
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
 //! The dependencies will be downloaded to the user's home directory, e.g. under ~/.cache/.rustbert/gpt2
-use tch::{Device, Tensor};
+use tch::Device;
 
 use crate::common::error::RustBertError;
 use crate::common::resources::RemoteResource;
@@ -35,7 +42,7 @@ use crate::gpt_neo::GptNeoGenerator;
 use crate::openai_gpt::OpenAIGenerator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::reformer::ReformerGenerator;
 use crate::resources::Resource;
 use crate::xlnet::XLNetGenerator;
@@ -238,92 +245,76 @@ impl TextGenerationOption {
     }
 
     /// Interface method to generate() of the particular models.
-    pub fn generate_indices<'a, S>(
+    pub fn generate_indices<S>(
         &self,
-        prompt_texts: Option<S>,
-        attention_mask: Option<Tensor>,
+        prompt_texts: Option<&[S]>,
         min_length: Option<i64>,
         max_length: Option<i64>,
     ) -> Vec<Vec<i64>>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
+        let generate_options = Some(GenerateOptions {
+            min_length,
+            max_length,
+            ..Default::default()
+        });
         match *self {
             Self::GPT(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    attention_mask,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::GPT2(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    attention_mask,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::GPTNeo(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    attention_mask,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::XLNet(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    attention_mask,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::Reformer(ref model) => model
-                .generate_indices(
-                    prompt_texts,
-                    attention_mask,
-                    min_length,
-                    max_length,
-                    None,
-                    None,
-                    None,
-                    None,
-                    false,
-                )
+                .generate_indices(prompt_texts, generate_options)
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
+        }
+    }
+
+    pub fn half(&mut self) {
+        match self {
+            Self::GPT(model_ref) => model_ref.half(),
+            Self::GPT2(model_ref) => model_ref.half(),
+            Self::GPTNeo(model_ref) => model_ref.half(),
+            Self::XLNet(model_ref) => model_ref.half(),
+            Self::Reformer(model_ref) => model_ref.half(),
+        }
+    }
+
+    pub fn float(&mut self) {
+        match self {
+            Self::GPT(model_ref) => model_ref.float(),
+            Self::GPT2(model_ref) => model_ref.float(),
+            Self::GPTNeo(model_ref) => model_ref.float(),
+            Self::XLNet(model_ref) => model_ref.float(),
+            Self::Reformer(model_ref) => model_ref.float(),
+        }
+    }
+
+    pub fn set_device(&mut self, device: Device) {
+        match self {
+            Self::GPT(model_ref) => model_ref.set_device(device),
+            Self::GPT2(model_ref) => model_ref.set_device(device),
+            Self::GPTNeo(model_ref) => model_ref.set_device(device),
+            Self::XLNet(model_ref) => model_ref.set_device(device),
+            Self::Reformer(model_ref) => model_ref.set_device(device),
         }
     }
 }
@@ -392,6 +383,18 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         })
     }
 
+    pub fn half(&mut self) {
+        self.model.half();
+    }
+
+    pub fn float(&mut self) {
+        self.model.float();
+    }
+
+    pub fn set_device(&mut self, device: Device) {
+        self.model.set_device(device);
+    }
+
     /// Generate texts from provided prompts
     ///
     /// # Arguments
@@ -418,9 +421,9 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
     /// # Ok(())
     /// # }
     /// ```
-    pub fn generate<'a, S>(&self, texts: S, prefix: impl Into<Option<&'a str>>) -> Vec<String>
+    pub fn generate<'a, S>(&self, texts: &[S], prefix: impl Into<Option<&'a str>>) -> Vec<String>
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let (prefix, prefix_length) = match (prefix.into(), &self.prefix) {
             (Some(query_prefix), _) => (
@@ -431,16 +434,15 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
             (None, None) => (None, None),
         };
         let generated_indices = match (prefix, prefix_length) {
-            (None, _) => self.model.generate_indices(Some(texts), None, None, None),
+            (None, _) => self.model.generate_indices(Some(texts), None, None),
             (Some(prefix), Some(prefix_length)) => {
                 let texts = texts
                     .as_ref()
                     .iter()
-                    .map(|text| format!("{} {}", prefix, text))
+                    .map(|text| format!("{} {}", prefix, text.as_ref()))
                     .collect::<Vec<String>>();
                 self.model.generate_indices(
-                    Some(texts.iter().map(|x| &**x).collect::<Vec<&str>>()),
-                    None,
+                    Some(&texts),
                     Some(self.min_length + prefix_length),
                     Some(self.max_length + prefix_length),
                 )
@@ -451,14 +453,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         let mut output = Vec::with_capacity(generated_indices.len());
         for generated_sequence in generated_indices {
             output.push(self.model.get_tokenizer().decode(
-                if prefix_length.is_some() {
-                    generated_sequence
-                        .into_iter()
-                        .skip(prefix_length.unwrap_or(0) as usize)
-                        .collect::<Vec<i64>>()
-                } else {
-                    generated_sequence
-                },
+                &generated_sequence[prefix_length.unwrap_or(0) as usize..],
                 true,
                 true,
             ));

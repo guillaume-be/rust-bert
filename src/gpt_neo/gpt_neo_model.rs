@@ -339,14 +339,6 @@ impl GptNeoModel {
 
         let position_ids = position_ids.unwrap_or_else(|| calc_position_ids.as_ref().unwrap());
 
-        let global_attention_mask = attention_mask.map(|attention_mask_value| {
-            let global_attention_mask = attention_mask_value
-                .view([batch_size, -1])
-                .unsqueeze(1)
-                .unsqueeze(1);
-            (1 - global_attention_mask) * -1e4
-        });
-
         let local_attention_mask = GptNeoModel::create_local_attention_mask(
             batch_size,
             full_sequence_length,
@@ -358,12 +350,20 @@ impl GptNeoModel {
         let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
         let position_embeds = position_ids.apply(&self.position_embeddings);
 
+        let global_attention_mask = attention_mask.map(|attention_mask_value| {
+            let global_attention_mask = attention_mask_value
+                .view([batch_size, -1])
+                .unsqueeze(1)
+                .unsqueeze(1);
+            let global_attention_mask = global_attention_mask.to_kind(position_embeds.kind());
+            (1 - global_attention_mask) * -1e4
+        });
+
         let mut hidden_state = input_embeds + position_embeds;
         if let Some(token_type_ids) = token_type_ids {
             hidden_state = hidden_state + token_type_ids.apply(&self.word_embeddings);
         };
         hidden_state = hidden_state.apply_t(&self.dropout, train);
-
         let mut output_shape = input_shape;
         output_shape.push(*hidden_state.size().last().unwrap());
 
@@ -710,6 +710,9 @@ impl PrivateLanguageGenerator<GptNeoForCausalLM, Gpt2Vocab, Gpt2Tokenizer> for G
     }
     fn get_var_store(&self) -> &nn::VarStore {
         &self.var_store
+    }
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config

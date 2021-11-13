@@ -16,6 +16,7 @@ use crate::bart::decoder::BartDecoder;
 use crate::bart::encoder::BartEncoder;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::kind::get_negative_infinity;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
@@ -33,7 +34,6 @@ use rust_tokenizers::vocab::{RobertaVocab, Vocab};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use tch::kind::Kind::Int64;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Device, Kind, Tensor};
 
@@ -235,7 +235,7 @@ pub(crate) fn _make_causal_mask(
 
     let mut mask = Tensor::full(
         &[target_length, target_length],
-        f64::NEG_INFINITY,
+        get_negative_infinity(dtype).unwrap(),
         (dtype, device),
     );
     let mask_cond = Tensor::arange(target_length, (dtype, device));
@@ -264,16 +264,19 @@ pub(crate) fn _make_causal_mask(
     )
 }
 
-pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>) -> Tensor {
+pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>, dtype: Kind) -> Tensor {
     let (batch_size, source_length) = mask.size2().unwrap();
     let target_length = target_length.unwrap_or(source_length);
     let expanded_mask = mask
         .unsqueeze(1)
         .unsqueeze(1)
         .expand(&[batch_size, 1, target_length, source_length], true)
-        .totype(Kind::Float);
+        .totype(dtype);
     let inverted_mask: Tensor = 1 - expanded_mask;
-    inverted_mask.masked_fill(&inverted_mask.to_kind(Kind::Bool), f64::NEG_INFINITY)
+    inverted_mask.masked_fill(
+        &inverted_mask.to_kind(Kind::Bool),
+        get_negative_infinity(dtype).unwrap(),
+    )
 }
 
 pub(crate) fn _prepare_decoder_attention_mask(
@@ -294,8 +297,12 @@ pub(crate) fn _prepare_decoder_attention_mask(
         None
     };
 
-    if let Some(attention_mask) = &attention_mask {
-        let expanded_attention_mask = _expand_mask(attention_mask, Some(last_input_shape_dim));
+    if let Some(attention_mask) = attention_mask {
+        let expanded_attention_mask = _expand_mask(
+            attention_mask,
+            Some(last_input_shape_dim),
+            input_embeds.kind(),
+        );
         combined_attention_mask = match combined_attention_mask {
             Some(value) => Some(value + expanded_attention_mask),
             None => Some(expanded_attention_mask),
@@ -308,9 +315,9 @@ pub(crate) fn _prepare_decoder_attention_mask(
 fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
     let index_eos: Tensor = input_ids
         .ne(pad_token_id)
-        .sum_dim_intlist(&[-1], true, Int64)
+        .sum_dim_intlist(&[-1], true, Kind::Int64)
         - 1;
-    let output = input_ids.empty_like().to_kind(Int64);
+    let output = input_ids.empty_like().to_kind(Kind::Int64);
     output
         .select(1, 0)
         .copy_(&input_ids.gather(1, &index_eos, true).squeeze());
@@ -812,7 +819,7 @@ impl BartForSequenceClassification {
             train,
         );
         let eos_mask = input_ids.eq(self.eos_token_id);
-        let reshape = eos_mask.sum_dim_intlist(&[1], true, Int64);
+        let reshape = eos_mask.sum_dim_intlist(&[1], true, input_ids.kind());
         let sentence_representation = base_model_output
             .decoder_output
             .permute(&[2, 0, 1])
@@ -1121,6 +1128,9 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     fn get_var_store(&self) -> &nn::VarStore {
         &self.var_store
     }
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
+    }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
@@ -1195,17 +1205,17 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         }
     }
 
-    fn encode_prompt_text<'a, S>(
+    fn encode_prompt_text<S>(
         &self,
-        prompt_text: S,
+        prompt_text: &[S],
         max_len: i64,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
-        S: AsRef<[&'a str]>,
+        S: AsRef<str> + Sync,
     {
         let tokens = self._get_tokenizer().encode_list(
-            prompt_text.as_ref(),
+            prompt_text,
             max_len as usize,
             &TruncationStrategy::LongestFirst,
             0,

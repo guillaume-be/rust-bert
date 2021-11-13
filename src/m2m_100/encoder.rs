@@ -84,10 +84,10 @@ impl M2M100Encoder {
         embeddings: &nn::Embedding,
         train: bool,
     ) -> M2M100EncoderOutput {
-        let attention_mask = attention_mask.map(|mask| _expand_mask(mask, None));
-
         let x = input_ids.apply(embeddings) * self.scale_embedding;
-        let x = x + &self.embed_positions.forward(input_ids, 0);
+        let x = &self.embed_positions.forward(input_ids, 0, x.kind()) + x;
+        let attention_mask = attention_mask.map(|mask| _expand_mask(mask, None, x.kind()));
+
         let mut hidden_state = x.apply_t(&self.dropout, train);
 
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {

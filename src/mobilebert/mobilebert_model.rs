@@ -457,7 +457,6 @@ impl MobileBertModel {
                 ));
             }
         };
-        let attention_mask: Tensor = (attention_mask.ones_like() - attention_mask) * -10000.0;
 
         let token_type_ids =
             token_type_ids.unwrap_or_else(|| calc_token_type_ids.as_ref().unwrap());
@@ -469,6 +468,9 @@ impl MobileBertModel {
             input_embeds,
             train,
         )?;
+
+        let attention_mask: Tensor = ((attention_mask.ones_like() - attention_mask) * -10000.0)
+            .to_kind(embedding_output.kind());
 
         let encoder_output =
             self.encoder

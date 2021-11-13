@@ -408,13 +408,15 @@ impl Gpt2Model {
             .unsqueeze(0),
         };
 
-        let attention_mask: Option<Tensor> = attention_mask.as_ref().map(|value| {
-            (value
+        let attention_mask: Option<Tensor> = attention_mask.map(|value| {
+            let attention_mask = value
                 .view((input_embeddings.size()[0], -1))
                 .unsqueeze(1)
                 .unsqueeze(2)
-                - 1.0)
-                * 10000.0
+                .to_kind(input_embeddings.kind());
+
+            let attention_mask: Tensor = (1.0 - attention_mask) * (-10000.0);
+            attention_mask.to_kind(input_embeddings.kind())
         });
 
         let position_embeds = position_ids.apply(&self.wpe);
@@ -734,6 +736,9 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     }
     fn get_var_store(&self) -> &nn::VarStore {
         &self.var_store
+    }
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config

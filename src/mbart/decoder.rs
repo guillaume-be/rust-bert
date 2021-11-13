@@ -260,7 +260,7 @@ impl MBartDecoder {
         );
 
         let encoder_attention_mask = encoder_attention_mask
-            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap())));
+            .map(|mask| _expand_mask(mask, Some(*input_ids.size().last().unwrap()), x.kind()));
 
         let mut hidden_state = x
             .apply(&self.layer_norm_embedding)
