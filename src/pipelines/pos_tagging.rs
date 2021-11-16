@@ -90,9 +90,10 @@ use crate::pipelines::token_classification::{
     LabelAggregationOption, TokenClassificationConfig, TokenClassificationModel,
 };
 use crate::resources::{RemoteResource, Resource};
+use serde::{Deserialize, Serialize};
 use tch::Device;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 /// # Part of Speech tag
 pub struct POSTag {
     /// String representation of the word

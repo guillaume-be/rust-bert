@@ -58,15 +58,16 @@ use crate::common::error::RustBertError;
 use crate::pipelines::sequence_classification::{
     SequenceClassificationConfig, SequenceClassificationModel,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 /// Enum with the possible sentiment polarities. Note that the pre-trained SST2 model does not include neutral sentiment.
 pub enum SentimentPolarity {
     Positive,
     Negative,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 /// Sentiment returned by the model.
 pub struct Sentiment {
     /// Polarity of the sentiment
