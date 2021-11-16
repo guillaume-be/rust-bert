@@ -41,6 +41,7 @@ The tasks currently supported include:
 :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
 DistilBERT|✅|✅|✅| | | |✅| 
 MobileBERT|✅|✅|✅| | | |✅| 
+FNet|✅|✅|✅| | | |✅| 
 BERT|✅|✅|✅| | | |✅| 
 RoBERTa|✅|✅|✅| | | |✅| 
 GPT| | | |✅ | | | | 

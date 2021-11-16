@@ -191,6 +191,12 @@ impl FNetLMPredictionHead {
     }
 }
 
+/// # FNet Base model
+/// Base architecture for FNet models. Task-specific models will be built from this common base model
+/// It is made of the following blocks:
+/// - `embeddings`: FNetEmbeddings combining word, position and segment embeddings
+/// - `encoder`: `FNetEncoder` made of a stack of `FNetLayer`
+/// - `pooler`: Optional `FNetPooler` taking the first sequence element hidden state for sequence-level tasks
 pub struct FNetModel {
     embeddings: FNetEmbeddings,
     encoder: FNetEncoder,
@@ -198,6 +204,29 @@ pub struct FNetModel {
 }
 
 impl FNetModel {
+    /// Build a new `FNetModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the FNet model
+    /// * `config` - `FNetConfig` object defining the model architecture
+    /// * `add_poling_layer` - boolean flag indicating if a pooling layer should be added after the encoder
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::fnet::{FNetConfig, FNetModel};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = FNetConfig::from_file(config_path);
+    /// let add_pooling_layer = true;
+    /// let fnet = FNetModel::new(&p.root() / "fnet", &config, add_pooling_layer);
+    /// ```
     pub fn new<'p, P>(p: P, config: &FNetConfig, add_pooling_layer: bool) -> FNetModel
     where
         P: Borrow<nn::Path<'p>>,
@@ -219,6 +248,55 @@ impl FNetModel {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `FNetModelOutput` containing:
+    ///   - `hidden_state` - `Tensor` of shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `pooled_output` - Optional `Tensor` of shape (*batch size*, *hidden_size*) if the model was created with an optional pooling layer
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::fnet::{FNetConfig, FNetModel};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = FNetConfig::from_file(config_path);
+    /// let add_pooling_layer = true;
+    /// let model = FNetModel::new(&vs.root(), &config, add_pooling_layer);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -249,12 +327,38 @@ impl FNetModel {
     }
 }
 
+/// # FNet for masked language model
+/// Base FNet model with a masked language model head to predict missing tokens, for example `"Looks like one [MASK] is missing" -> "person"`
+/// It is made of the following blocks:
+/// - `fnet`: Base FNet model
+/// - `lm_head`: FNet LM prediction head
 pub struct FNetForMaskedLM {
     fnet: FNetModel,
     lm_head: FNetLMPredictionHead,
 }
 
 impl FNetForMaskedLM {
+    /// Build a new `FNetForMaskedLM`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the FNet model
+    /// * `config` - `FNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::fnet::{FNetConfig, FNetForMaskedLM};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = FNetConfig::from_file(config_path);
+    /// let fnet = FNetForMaskedLM::new(&p.root() / "fnet", &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForMaskedLM
     where
         P: Borrow<nn::Path<'p>>,
@@ -267,6 +371,53 @@ impl FNetForMaskedLM {
         FNetForMaskedLM { fnet, lm_head }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `FNetMaskedLMOutput` containing:
+    ///   - `prediction_scores` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::fnet::{FNetConfig, FNetForMaskedLM};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = FNetConfig::from_file(config_path);
+    /// let model = FNetForMaskedLM::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -292,6 +443,12 @@ impl FNetForMaskedLM {
     }
 }
 
+/// # FNet for sequence classification
+/// Base FNet model with a classifier head to perform sentence or document-level classification
+/// It is made of the following blocks:
+/// - `fnet`: Base FNet model
+/// - `dropout`: Dropout layer before the last linear layer
+/// - `classifier`: linear layer mapping from hidden to the number of classes to predict
 pub struct FNetForSequenceClassification {
     fnet: FNetModel,
     dropout: Dropout,
@@ -299,6 +456,27 @@ pub struct FNetForSequenceClassification {
 }
 
 impl FNetForSequenceClassification {
+    /// Build a new `FNetForSequenceClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the FNet model
+    /// * `config` - `FNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::fnet::{FNetConfig, FNetForSequenceClassification};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = FNetConfig::from_file(config_path);
+    /// let fnet = FNetForSequenceClassification::new(&p.root() / "fnet", &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForSequenceClassification
     where
         P: Borrow<nn::Path<'p>>,
@@ -326,6 +504,53 @@ impl FNetForSequenceClassification {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `FNetSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *num_classes*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::fnet::{FNetConfig, FNetForSequenceClassification};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = FNetConfig::from_file(config_path);
+    /// let model = FNetForSequenceClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -355,6 +580,14 @@ impl FNetForSequenceClassification {
     }
 }
 
+/// # FNet for multiple choices
+/// Multiple choices model using a FNet base model and a linear classifier.
+/// Input should be in the form `[CLS] Context [SEP] Possible choice [SEP]`. The choice is made along the batch axis,
+/// assuming all elements of the batch are alternatives to be chosen from for a given context.
+/// It is made of the following blocks:
+/// - `fnet`: Base FNet model
+/// - `dropout`: Dropout layer before the last start/end logits prediction
+/// - `classifier`: Linear layer for multiple choices
 pub struct FNetForMultipleChoice {
     fnet: FNetModel,
     dropout: Dropout,
@@ -362,6 +595,27 @@ pub struct FNetForMultipleChoice {
 }
 
 impl FNetForMultipleChoice {
+    /// Build a new `FNetForMultipleChoice`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the FNet model
+    /// * `config` - `FNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::fnet::{FNetConfig, FNetForMultipleChoice};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = FNetConfig::from_file(config_path);
+    /// let fnet = FNetForMultipleChoice::new(&p.root() / "fnet", &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForMultipleChoice
     where
         P: Borrow<nn::Path<'p>>,
@@ -379,6 +633,53 @@ impl FNetForMultipleChoice {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `FNetSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*1*, *batch_size*) containing the logits for each of the alternatives given
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::fnet::{FNetConfig, FNetForMultipleChoice};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = FNetConfig::from_file(config_path);
+    /// let model = FNetForMultipleChoice::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -421,6 +722,13 @@ impl FNetForMultipleChoice {
     }
 }
 
+/// # FNet for token classification (e.g. NER, POS)
+/// Token-level classifier predicting a label for each token provided. Note that because of wordpiece tokenization, the labels predicted are
+/// not necessarily aligned with words in the sentence.
+/// It is made of the following blocks:
+/// - `fnet`: Base FNet
+/// - `dropout`: Dropout layer before the last token-level predictions layer
+/// - `classifier`: Linear layer for token classification
 pub struct FNetForTokenClassification {
     fnet: FNetModel,
     dropout: Dropout,
@@ -428,6 +736,27 @@ pub struct FNetForTokenClassification {
 }
 
 impl FNetForTokenClassification {
+    /// Build a new `FNetForTokenClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the FNet model
+    /// * `config` - `FNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::fnet::{FNetConfig, FNetForTokenClassification};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = FNetConfig::from_file(config_path);
+    /// let fnet = FNetForTokenClassification::new(&p.root() / "fnet", &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForTokenClassification
     where
         P: Borrow<nn::Path<'p>>,
@@ -455,6 +784,53 @@ impl FNetForTokenClassification {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `FNetTokenClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*) containing the logits for each of the input tokens and classes
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::fnet::{FNetConfig, FNetForTokenClassification};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = FNetConfig::from_file(config_path);
+    /// let model = FNetForTokenClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
@@ -483,12 +859,40 @@ impl FNetForTokenClassification {
     }
 }
 
+/// # FNet for question answering
+/// Extractive question-answering model based on a FNet language model. Identifies the segment of a context that answers a provided question.
+/// Please note that a significant amount of pre- and post-processing is required to perform end-to-end question answering.
+/// See the question answering pipeline (also provided in this crate) for more details.
+/// It is made of the following blocks:
+/// - `fnet`: Base FNet
+/// - `qa_outputs`: Linear layer for question answering
 pub struct FNetForQuestionAnswering {
     fnet: FNetModel,
     qa_outputs: nn::Linear,
 }
 
 impl FNetForQuestionAnswering {
+    /// Build a new `FNetForQuestionAnswering`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the FNet model
+    /// * `config` - `FNetConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::fnet::{FNetConfig, FNetForQuestionAnswering};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = FNetConfig::from_file(config_path);
+    /// let fnet = FNetForQuestionAnswering::new(&p.root() / "fnet", &config);
+    /// ```
     pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForQuestionAnswering
     where
         P: Borrow<nn::Path<'p>>,
@@ -501,6 +905,54 @@ impl FNetForQuestionAnswering {
         FNetForQuestionAnswering { fnet, qa_outputs }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `FNetQuestionAnsweringOutput` containing:
+    ///   - `start_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    ///   - `end_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// use rust_bert::fnet::{FNetConfig, FNetForTokenClassification};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = FNetConfig::from_file(config_path);
+    /// let model = FNetForTokenClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model
+    ///         .forward_t(
+    ///             Some(&input_tensor),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
+    ///             false,
+    ///         )
+    ///         .unwrap()
+    /// });
+    /// ```
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
