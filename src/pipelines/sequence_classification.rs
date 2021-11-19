@@ -66,6 +66,7 @@ use crate::distilbert::{
     DistilBertConfigResources, DistilBertModelClassifier, DistilBertModelResources,
     DistilBertVocabResources,
 };
+use crate::fnet::FNetForSequenceClassification;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
@@ -197,6 +198,8 @@ pub enum SequenceClassificationOption {
     Reformer(ReformerForSequenceClassification),
     /// Longformer for Sequence Classification
     Longformer(LongformerForSequenceClassification),
+    /// FNet for Sequence Classification
+    FNet(FNetForSequenceClassification),
 }
 
 impl SequenceClassificationOption {
@@ -327,6 +330,17 @@ impl SequenceClassificationOption {
                     ))
                 }
             }
+            ModelType::FNet => {
+                if let ConfigOption::FNet(config) = config {
+                    Ok(SequenceClassificationOption::FNet(
+                        FNetForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a FNetConfig for FNet!".to_string(),
+                    ))
+                }
+            }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Sequence Classification not implemented for {:?}!",
                 model_type
@@ -347,6 +361,7 @@ impl SequenceClassificationOption {
             Self::Bart(_) => ModelType::Bart,
             Self::Reformer(_) => ModelType::Reformer,
             Self::Longformer(_) => ModelType::Longformer,
+            Self::FNet(_) => ModelType::FNet,
         }
     }
 
@@ -453,6 +468,12 @@ impl SequenceClassificationOption {
                         train,
                     )
                     .expect("Error in Longformer forward pass.")
+                    .logits
+            }
+            Self::FNet(ref model) => {
+                model
+                    .forward_t(input_ids, token_type_ids, position_ids, input_embeds, train)
+                    .expect("Error in FNet forward pass.")
                     .logits
             }
         }

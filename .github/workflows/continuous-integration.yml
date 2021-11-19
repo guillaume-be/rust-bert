@@ -71,6 +71,7 @@ jobs:
             --test electra
             --test gpt2
             --test marian
+            --test fnet
 
   test-batch-1:
     name: Integration tests (batch 1)

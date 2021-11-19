@@ -51,6 +51,7 @@
 //! :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
 //! DistilBERT|✅|✅|✅| | | |✅|
 //! MobileBERT|✅|✅|✅| | | |✅|
+//! FNet|✅|✅|✅| | | |✅|
 //! BERT|✅|✅|✅| | | |✅|
 //! RoBERTa|✅|✅|✅| | | |✅|
 //! GPT| | | |✅ | | | |
@@ -583,6 +584,7 @@ pub mod bert;
 mod common;
 pub mod distilbert;
 pub mod electra;
+pub mod fnet;
 pub mod gpt2;
 pub mod gpt_neo;
 pub mod longformer;
