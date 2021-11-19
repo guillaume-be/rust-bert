@@ -59,6 +59,7 @@ use crate::reformer::ReformerForQuestionAnswering;
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
 use rust_tokenizers::{Offset, TokenIdsWithOffsets, TokenizedInput};
+use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::cmp::min;
 use std::collections::HashMap;
@@ -68,6 +69,7 @@ use tch::kind::Kind::Float;
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
 
+#[derive(Serialize, Deserialize)]
 /// # Input for Question Answering
 /// Includes a context (containing the answer) and question strings
 pub struct QaInput {
@@ -85,7 +87,7 @@ struct QaFeature {
     pub example_index: i64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// # Output for Question Answering
 pub struct Answer {
     /// Confidence score
