@@ -122,7 +122,9 @@
 //! Dutch| XLM_ROBERTA_NER_NL |
 
 use crate::common::error::RustBertError;
-use crate::pipelines::token_classification::{TokenClassificationConfig, TokenClassificationModel};
+use crate::pipelines::token_classification::{
+    Token, TokenClassificationConfig, TokenClassificationModel,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,17 +215,6 @@ impl NERModel {
             })
             .collect::<Vec<Vec<Entity>>>()
     }
-}
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    #[ignore] // no need to run, compilation is enough to verify it is Send
-    fn test() {
-        let config = NERConfig::default();
-        let _: Box<dyn Send> = Box::new(NERModel::new(config));
-    }
 
     /// Extract full entities from a text performing entity chunking. Follows the algorithm for entities
     /// chunking described in [Erik F. Tjong Kim Sang, Jorn Veenstra, Representing Text Chunks](https://www.aclweb.org/anthology/E99-1023/)
@@ -244,9 +235,7 @@ mod test {
     /// # use rust_bert::pipelines::ner::NERModel;
     ///
     /// let ner_model = NERModel::new(Default::default())?;
-    /// let input = [
-    ///     "Asked John Smith about Acme Corp",
-    /// ];
+    /// let input = ["Asked John Smith about Acme Corp"];
     /// let output = ner_model.predict_full_entities(&input);
     /// # Ok(())
     /// # }
@@ -259,7 +248,7 @@ mod test {
     /// # use rust_bert::pipelines::question_answering::Answer;
     /// # use rust_bert::pipelines::ner::Entity;
     /// # let output =
-    /// [
+    /// [[
     ///     Entity {
     ///         word: String::from("John Smith"),
     ///         score: 0.9747,
@@ -270,20 +259,28 @@ mod test {
     ///         score: 0.8847,
     ///         label: String::from("I-LOC"),
     ///     },
-    /// ]
+    /// ]]
     /// # ;
-    ///```
+    /// ```
     ///
-    ///
-    pub fn predict_full_entities(&self, input: &[&str]) -> Vec<Entity> {
-        let mut tokens = self.token_classification_model.predict(input, true, false);
+    pub fn predict_full_entities(&self, input: &[&str]) -> Vec<Vec<Entity>> {
+        let tokens = self.token_classification_model.predict(input, true, false);
+        let mut entities: Vec<Vec<Entity>> = Vec::new();
+
+        for mut sequence_tokens in tokens {
+            entities.push(Self::consolidate_entities(&mut sequence_tokens));
+        }
+        entities
+    }
+
+    fn consolidate_entities(tokens: &mut Vec<Token>) -> Vec<Entity> {
         let mut entities: Vec<Entity> = Vec::new();
 
-        let mut current_entity: Option<Entity> = None;
         let mut previous_tag = Tag::Outside;
         let mut previous_label = "";
         let mut current_tag: Tag;
         let mut current_label: &str;
+        let mut begin_offset = 0;
 
         tokens.push(Token {
             text: "X".into(),
@@ -297,7 +294,7 @@ mod test {
             mask: Default::default(),
         });
 
-        for token in tokens.iter() {
+        for (position, token) in tokens.iter().enumerate() {
             current_tag = token.get_tag();
             current_label = token.get_label();
 
@@ -314,15 +311,17 @@ mod test {
                 }
                 | ((previous_label != current_label) & (previous_tag != Tag::Outside))
             {
-                if let Some(entity) = current_entity {
-                    entities.push(entity.clone());
-                    current_entity = None;
-                };
-            } else if let Some(current_entity_value) = current_entity.borrow_mut() {
-                current_entity_value.word.push(' ');
-                current_entity_value.word.push_str(token.text.as_str());
-                current_entity_value.score *= token.score;
-            };
+                let entity_tokens = &tokens[begin_offset..position];
+                entities.push(Entity {
+                    word: entity_tokens
+                        .iter()
+                        .map(|token| token.text.as_str())
+                        .collect::<Vec<&str>>()
+                        .join(" "),
+                    score: entity_tokens.iter().map(|token| token.score).product(),
+                    label: previous_label.to_string(),
+                })
+            }
 
             if (current_tag == Tag::Begin)
                 | (current_tag == Tag::Single)
@@ -337,11 +336,7 @@ mod test {
                 }
                 | ((previous_label != current_label) & (previous_tag != Tag::Outside))
             {
-                current_entity = Some(Entity {
-                    word: token.text.clone(),
-                    score: token.score,
-                    label: current_label.to_string(),
-                });
+                begin_offset = position;
             };
             previous_tag = current_tag;
             previous_label = current_label;
@@ -378,5 +373,17 @@ impl Token {
         } else {
             ""
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = NERConfig::default();
+        let _: Box<dyn Send> = Box::new(NERModel::new(config));
     }
 }

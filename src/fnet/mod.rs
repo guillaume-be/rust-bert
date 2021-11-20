@@ -21,8 +21,8 @@
 //! #
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
-//! use rust_bert::resources::{LocalResource, RemoteResource, Resource};
 //! use rust_bert::fnet::{FNetConfig, FNetForMaskedLM};
+//! use rust_bert::resources::{LocalResource, RemoteResource, Resource};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::{BertTokenizer, FNetTokenizer};
 //!

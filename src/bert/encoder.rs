@@ -117,7 +117,10 @@ impl BertLayer {
     /// # let config = BertConfig::from_file(config_path);
     /// let layer: BertLayer = BertLayer::new(&vs.root(), &config);
     /// let (batch_size, sequence_length, hidden_size) = (64, 128, 512);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Kind::Float, device));
+    /// let input_tensor = Tensor::rand(
+    ///     &[batch_size, sequence_length, hidden_size],
+    ///     (Kind::Float, device),
+    /// );
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     ///
     /// let layer_output = no_grad(|| layer.forward_t(&input_tensor, Some(&mask), None, None, false));
@@ -242,7 +245,10 @@ impl BertEncoder {
     /// # let config = BertConfig::from_file(config_path);
     /// let encoder: BertEncoder = BertEncoder::new(&vs.root(), &config);
     /// let (batch_size, sequence_length, hidden_size) = (64, 128, 512);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Kind::Float, device));
+    /// let input_tensor = Tensor::rand(
+    ///     &[batch_size, sequence_length, hidden_size],
+    ///     (Kind::Float, device),
+    /// );
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int8, device));
     ///
     /// let encoder_output =
@@ -368,7 +374,10 @@ impl BertPooler {
     /// # let config = BertConfig::from_file(config_path);
     /// let pooler: BertPooler = BertPooler::new(&vs.root(), &config);
     /// let (batch_size, sequence_length, hidden_size) = (64, 128, 512);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length, hidden_size], (Kind::Float, device));
+    /// let input_tensor = Tensor::rand(
+    ///     &[batch_size, sequence_length, hidden_size],
+    ///     (Kind::Float, device),
+    /// );
     ///
     /// let pooler_output = no_grad(|| pooler.forward(&input_tensor));
     /// ```
