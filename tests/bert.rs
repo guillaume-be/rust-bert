@@ -13,7 +13,8 @@ use rust_bert::pipelines::question_answering::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{BertTokenizer, Tokenizer, TruncationStrategy, Vocab};
+use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
@@ -44,8 +45,7 @@ fn bert_masked_lm() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -65,20 +65,20 @@ fn bert_masked_lm() -> anyhow::Result<()> {
     tokenized_input[1][6] = 103;
     let tokenized_input = tokenized_input
         .iter()
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::of_slice(input))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
     let model_output = no_grad(|| {
         bert_model.forward_t(
-            Some(input_tensor),
+            Some(&input_tensor),
             None,
             None,
             None,
             None,
-            &None,
-            &None,
+            None,
+            None,
             false,
         )
     });
@@ -133,8 +133,7 @@ fn bert_for_sequence_classification() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -153,7 +152,7 @@ fn bert_for_sequence_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| bert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| bert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 3]);
     assert_eq!(
@@ -193,8 +192,7 @@ fn bert_for_multiple_choice() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -214,7 +212,7 @@ fn bert_for_multiple_choice() -> anyhow::Result<()> {
         .unsqueeze(0);
 
     //    Forward pass
-    let model_output = no_grad(|| bert_model.forward_t(input_tensor, None, None, None, false));
+    let model_output = no_grad(|| bert_model.forward_t(&input_tensor, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[1, 2]);
     assert_eq!(
@@ -260,8 +258,7 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -280,7 +277,7 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| bert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| bert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 11, 4]);
     assert_eq!(
@@ -320,8 +317,7 @@ fn bert_for_question_answering() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -340,7 +336,7 @@ fn bert_for_question_answering() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| bert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| bert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.start_logits.size(), &[2, 11]);
     assert_eq!(model_output.end_logits.size(), &[2, 11]);
@@ -370,23 +366,25 @@ fn bert_pre_trained_ner() -> anyhow::Result<()> {
     //    Run model
     let output = ner_model.predict(&input);
 
-    assert_eq!(output.len(), 4);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output[0].len(), 2);
+    assert_eq!(output[1].len(), 2);
 
-    assert_eq!(output[0].word, "Amy");
-    assert!((output[0].score - 0.9986).abs() < 1e-4);
-    assert_eq!(output[0].label, "I-PER");
+    assert_eq!(output[0][0].word, "Amy");
+    assert!((output[0][0].score - 0.9986).abs() < 1e-4);
+    assert_eq!(output[0][0].label, "I-PER");
 
-    assert_eq!(output[1].word, "Paris");
-    assert!((output[1].score - 0.9986).abs() < 1e-4);
-    assert_eq!(output[1].label, "I-LOC");
+    assert_eq!(output[0][1].word, "Paris");
+    assert!((output[0][1].score - 0.9986).abs() < 1e-4);
+    assert_eq!(output[0][1].label, "I-LOC");
 
-    assert_eq!(output[2].word, "Paris");
-    assert!((output[2].score - 0.9988).abs() < 1e-4);
-    assert_eq!(output[2].label, "I-LOC");
+    assert_eq!(output[1][0].word, "Paris");
+    assert!((output[1][0].score - 0.9981).abs() < 1e-4);
+    assert_eq!(output[1][0].label, "I-LOC");
 
-    assert_eq!(output[3].word, "France");
-    assert!((output[3].score - 0.9994).abs() < 1e-4);
-    assert_eq!(output[3].label, "I-LOC");
+    assert_eq!(output[1][1].word, "France");
+    assert!((output[1][1].score - 0.9984).abs() < 1e-4);
+    assert_eq!(output[1][1].label, "I-LOC");
 
     Ok(())
 }
@@ -426,8 +424,8 @@ fn bert_question_answering() -> anyhow::Result<()> {
         )),
         Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
         None, //merges resource only relevant with ModelType::Roberta
-        true,
-        true,
+        false,
+        false,
         None,
     );
 
@@ -440,11 +438,11 @@ fn bert_question_answering() -> anyhow::Result<()> {
 
     let answers = qa_model.predict(&[qa_input], 1, 32);
 
-    assert_eq!(answers.len(), 1 as usize);
-    assert_eq!(answers[0].len(), 1 as usize);
+    assert_eq!(answers.len(), 1usize);
+    assert_eq!(answers[0].len(), 1usize);
     assert_eq!(answers[0][0].start, 13);
-    assert_eq!(answers[0][0].end, 21);
-    assert!((answers[0][0].score - 0.8111).abs() < 1e-4);
+    assert_eq!(answers[0][0].end, 22);
+    assert!((answers[0][0].score - 0.9806).abs() < 1e-4);
     assert_eq!(answers[0][0].answer, "Amsterdam");
 
     Ok(())

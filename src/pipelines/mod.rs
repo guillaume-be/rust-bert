@@ -16,7 +16,7 @@
 //! let question = String::from("Where does Amy live ?");
 //! let context = String::from("Amy lives in Amsterdam");
 //!
-//! let answers = qa_model.predict(&vec![QaInput { question, context }], 1, 32);
+//! let answers = qa_model.predict(&[QaInput { question, context }], 1, 32);
 //! # Ok(())
 //! # }
 //! ```
@@ -44,21 +44,41 @@
 //! - English <-> Catalan
 //! - English <-> German
 //! - English <-> Russian
+//! - English <-> Chinese (Simplified)
+//! - English <-> Chinese (Traditional)
+//! - English <-> Dutch
+//! - English <-> Swedish
+//! - English <-> Arabic
+//! - English <-> Hebrew
+//! - English <-> Hindi
 //! - French <-> German
+//!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation::LanguageGenerator;
-//! use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
+//! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
+//! use rust_bert::pipelines::common::ModelType;
+//! use rust_bert::pipelines::translation::{
+//!     Language, TranslationConfig, TranslationModel, TranslationModelBuilder,
+//! };
 //! use tch::Device;
-//! let translation_config =
-//!     TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
-//! let mut model = TranslationModel::new(translation_config)?;
+//! let model = TranslationModelBuilder::new()
+//!     .with_device(Device::cuda_if_available())
+//!     .with_model_type(ModelType::Marian)
+//!     .with_source_languages(vec![Language::English])
+//!     .with_target_languages(vec![Language::French])
+//!     .create_model()?;
 //!
 //! let input = ["This is a sentence to be translated"];
 //!
-//! let output = model.translate(&input);
+//! let output = model.translate(&input, None, Language::French);
 //! # Ok(())
 //! # }
+//! ```
+//! Output: \
+//! ```no_run
+//! # let output =
+//! " Il s'agit d'une phrase à traduire"
+//! # ;
 //! ```
 //!
 //! Output: \
@@ -74,7 +94,7 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation::LanguageGenerator;
+//! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::summarization::SummarizationModel;
 //!
 //! let mut model = SummarizationModel::new(Default::default())?;
@@ -152,13 +172,16 @@
 //! This may impact the results and it is recommended to submit prompts of similar length for best results. Additional information on the input parameters for generation is provided in this module's documentation.
 //!
 //! ```no_run
-//! use rust_bert::pipelines::generation::GPT2Generator;
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation::LanguageGenerator;
-//! let mut model = GPT2Generator::new(Default::default())?;
+//! use rust_bert::pipelines::text_generation::TextGenerationModel;
+//! use rust_bert::pipelines::common::ModelType;
+//! let mut model = TextGenerationModel::new(Default::default())?;
 //! let input_context_1 = "The dog";
 //! let input_context_2 = "The cat was";
-//! let output = model.generate(Some(vec![input_context_1, input_context_2]), None);
+//!
+//! let prefix = None; // Optional prefix to append prompts with, will be excluded from the generated output
+//!
+//! let output = model.generate(&[input_context_1, input_context_2], prefix);
 //! # Ok(())
 //! # }
 //! ```
@@ -311,29 +334,72 @@
 //! ```
 //! Output: \
 //! ```no_run
-//! # use rust_bert::pipelines::question_answering::Answer;
 //! # use rust_bert::pipelines::ner::Entity;
 //! # let output =
 //! [
-//!     Entity {
-//!         word: String::from("Amy"),
-//!         score: 0.9986,
-//!         label: String::from("I-PER"),
+//!     [
+//!         Entity {
+//!             word: String::from("Amy"),
+//!             score: 0.9986,
+//!             label: String::from("I-PER"),
+//!         },
+//!         Entity {
+//!             word: String::from("Paris"),
+//!             score: 0.9985,
+//!             label: String::from("I-LOC"),
+//!         },
+//!     ],
+//!     [
+//!         Entity {
+//!             word: String::from("Paris"),
+//!             score: 0.9988,
+//!             label: String::from("I-LOC"),
+//!         },
+//!         Entity {
+//!             word: String::from("France"),
+//!             score: 0.9993,
+//!             label: String::from("I-LOC"),
+//!         },
+//!     ],
+//! ]
+//! # ;
+//! ```
+//!
+//! #### 9. Part of Speech tagging
+//! Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
+//! ```no_run
+//! use rust_bert::pipelines::pos_tagging::POSModel;
+//! # fn main() -> anyhow::Result<()> {
+//! let pos_model = POSModel::new(Default::default())?;
+//! let input = ["My name is Bob"];
+//! let output = pos_model.predict(&input);
+//! # Ok(())
+//! # }
+//! ```
+//! Output: \
+//! ```no_run
+//! # use rust_bert::pipelines::pos_tagging::POSTag;
+//! # let output =
+//! [
+//!     POSTag {
+//!         word: String::from("My"),
+//!         score: 0.1560,
+//!         label: String::from("PRP"),
 //!     },
-//!     Entity {
-//!         word: String::from("Paris"),
-//!         score: 0.9985,
-//!         label: String::from("I-LOC"),
+//!     POSTag {
+//!         word: String::from("name"),
+//!         score: 0.6565,
+//!         label: String::from("NN"),
 //!     },
-//!     Entity {
-//!         word: String::from("Paris"),
-//!         score: 0.9988,
-//!         label: String::from("I-LOC"),
+//!     POSTag {
+//!         word: String::from("is"),
+//!         score: 0.3697,
+//!         label: String::from("VBZ"),
 //!     },
-//!     Entity {
-//!         word: String::from("France"),
-//!         score: 0.9993,
-//!         label: String::from("I-LOC"),
+//!     POSTag {
+//!         word: String::from("Bob"),
+//!         score: 0.7460,
+//!         label: String::from("NNP"),
 //!     },
 //! ]
 //! # ;
@@ -341,12 +407,14 @@
 
 pub mod common;
 pub mod conversation;
-pub mod generation;
+pub mod generation_utils;
 pub mod ner;
+pub mod pos_tagging;
 pub mod question_answering;
 pub mod sentiment;
 pub mod sequence_classification;
 pub mod summarization;
+pub mod text_generation;
 pub mod token_classification;
 pub mod translation;
 pub mod zero_shot_classification;

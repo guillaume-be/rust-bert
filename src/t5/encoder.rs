@@ -11,13 +11,14 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::t5::attention::{LayerState, T5LayerCrossAttention, T5LayerSelfAttention};
 use crate::t5::layer_norm::T5LayerNorm;
 use crate::t5::T5Config;
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LinearConfig;
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Kind, Scalar, Tensor};
 
 pub struct T5DenseReluDense {
     wi: nn::Linear,
@@ -120,7 +121,7 @@ impl T5Block {
             Some(T5LayerCrossAttention::new(
                 &p / module_index,
                 config,
-                has_relative_attention_bias,
+                false,
                 is_decoder,
                 store_cache,
                 output_attentions,
@@ -139,6 +140,21 @@ impl T5Block {
         }
     }
 
+    fn clamp_hidden_states(hidden_states: Tensor) -> Tensor {
+        if (hidden_states.kind() != Kind::Float) & bool::from(hidden_states.isinf().any()) {
+            let clamp_value = match hidden_states.kind() {
+                Kind::Half => half::f16::MAX.to_f64() - 1000.,
+                Kind::BFloat16 => half::bf16::MAX.to_f64() - 1000.,
+                _ => {
+                    panic!("Type not supported: supported types are Float (single precision), Half and BFloat16 (half precision)");
+                }
+            };
+            hidden_states.clamp(Scalar::from(-clamp_value), Scalar::from(clamp_value))
+        } else {
+            hidden_states
+        }
+    }
+
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
@@ -151,7 +167,7 @@ impl T5Block {
         train: bool,
     ) -> T5BlockOutput {
         let (
-            hidden_states,
+            mut hidden_states,
             self_attention_weights,
             self_attention_position_bias,
             self_attention_layer_past,
@@ -163,16 +179,17 @@ impl T5Block {
             train,
         );
 
+        hidden_states = T5Block::clamp_hidden_states(hidden_states);
+
         let (
-            hidden_states,
+            mut hidden_states,
             cross_attention_weights,
             cross_attention_position_bias,
             cross_attention_layer_past,
         ) = if self.cross_attention.is_some() & encoder_hidden_states.is_some() {
-            let query_length = match &self_attention_layer_past {
-                Some(value) => Some(value.prev_key.size()[2]),
-                None => None,
-            };
+            let query_length = self_attention_layer_past
+                .as_ref()
+                .map(|value| value.prev_key.size()[2]);
             self.cross_attention.as_ref().unwrap().forward_t(
                 &hidden_states,
                 encoder_hidden_states,
@@ -186,8 +203,12 @@ impl T5Block {
             (hidden_states, None, None, None)
         };
 
+        hidden_states = T5Block::clamp_hidden_states(hidden_states);
+
         layer_states = (self_attention_layer_past, cross_attention_layer_past);
-        let hidden_states = self.ff_layer.forward_t(&hidden_states, train);
+        let mut hidden_states = self.ff_layer.forward_t(&hidden_states, train);
+
+        hidden_states = T5Block::clamp_hidden_states(hidden_states);
 
         T5BlockOutput {
             hidden_states,
@@ -261,32 +282,15 @@ impl T5Stack {
         attention_mask: Option<&Tensor>,
         encoder_hidden_states: Option<&Tensor>,
         encoder_attention_mask: Option<&Tensor>,
-        input_embeds: Option<Tensor>,
+        input_embeds: Option<&Tensor>,
         embeddings: &nn::Embedding,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
     ) -> Result<T5StackOutput, RustBertError> {
-        let (input_embeddings, input_shape) = match input_ids {
-            Some(input_ids_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (input_ids_value.apply(embeddings), input_ids_value.size()),
-            },
-            None => match input_embeds {
-                Some(embeds) => {
-                    let size = vec![embeds.size()[0], embeds.size()[1]];
-                    (embeds, size)
-                }
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (calc_input_embeddings, input_shape, _) =
+            process_ids_embeddings_pair(input_ids, input_embeds, embeddings)?;
+        let input_embeddings =
+            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
 
         let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
 
@@ -316,20 +320,22 @@ impl T5Stack {
         };
         let attention_mask = match attention_mask {
             Some(value) => value,
-            None => &calculated_attention_mask.as_ref().unwrap(),
+            None => calculated_attention_mask.as_ref().unwrap(),
         };
         let extended_attention_mask = match attention_mask.dim() {
             3 => attention_mask.unsqueeze(1),
             2 => {
                 if self.is_decoder {
-                    let seq_ids =
-                        Tensor::arange(input_shape[1], (Kind::Float, input_embeddings.device()));
+                    let seq_ids = Tensor::arange(
+                        input_shape[1],
+                        (input_embeddings.kind(), input_embeddings.device()),
+                    );
                     let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&[
                         input_shape[0],
                         input_shape[1],
                         1,
                     ]);
-                    let causal_mask = causal_mask.le1(&seq_ids.unsqueeze(0).unsqueeze(-1));
+                    let causal_mask = causal_mask.le_tensor(&seq_ids.unsqueeze(0).unsqueeze(-1));
                     causal_mask.unsqueeze(1) * attention_mask.unsqueeze(1).unsqueeze(1)
                 } else {
                     attention_mask.unsqueeze(1).unsqueeze(1)
@@ -342,8 +348,10 @@ impl T5Stack {
             }
         };
 
-        let extended_attention_mask: Option<Tensor> =
-            Some((extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0);
+        let extended_attention_mask: Option<Tensor> = Some(
+            ((extended_attention_mask.ones_like() - extended_attention_mask) * -1e4)
+                .to_kind(input_embeddings.kind()),
+        );
 
         let extended_encoder_attention_mask = if self.is_decoder & encoder_hidden_states.is_some() {
             let encoder_hidden_states = encoder_hidden_states.as_ref().unwrap();
@@ -355,7 +363,7 @@ impl T5Stack {
                         encoder_hidden_states_shape[0],
                         encoder_hidden_states_shape[1],
                     ],
-                    (Kind::Int64, input_embeddings.device()),
+                    (Kind::Int8, input_embeddings.device()),
                 ),
             };
             let encoder_mask = match encoder_mask.dim() {
@@ -367,7 +375,9 @@ impl T5Stack {
                     ));
                 }
             };
-            Some((encoder_mask.ones_like() - encoder_mask) * -1e9)
+            Some(
+                ((encoder_mask.ones_like() - encoder_mask) * -1e4).to_kind(input_embeddings.kind()),
+            )
         } else {
             None
         };

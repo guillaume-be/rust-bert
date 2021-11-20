@@ -11,10 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::albert::embeddings::AlbertEmbeddings;
 use crate::albert::encoder::AlbertTransformer;
-use crate::common::activations::{_gelu, _gelu_new, _mish, _relu, _tanh};
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
+use crate::{albert::embeddings::AlbertEmbeddings, common::activations::TensorFunction};
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap};
@@ -31,44 +32,30 @@ pub struct AlbertConfigResources;
 pub struct AlbertVocabResources;
 
 impl AlbertModelResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/ALBERT>. Modified with conversion to C-array format.
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
         "albert-base-v2/model",
-        "https://cdn.huggingface.co/albert-base-v2/rust_model.ot",
+        "https://huggingface.co/albert-base-v2/resolve/main/rust_model.ot",
     );
 }
 
 impl AlbertConfigResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/ALBERT>. Modified with conversion to C-array format.
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
         "albert-base-v2/config",
-        "https://cdn.huggingface.co/albert-base-v2-config.json",
+        "https://huggingface.co/albert-base-v2/resolve/main/config.json",
     );
 }
 
 impl AlbertVocabResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/ALBERT. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/ALBERT>. Modified with conversion to C-array format.
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
         "albert-base-v2/spiece",
-        "https://cdn.huggingface.co/albert-base-v2-spiece.model",
+        "https://huggingface.co/albert-base-v2/resolve/main/spiece.model",
     );
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-/// # Activation function used in the attention layer and masked language model head
-pub enum Activation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu_new,
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
-    /// Mish ([Misra, 2019](https://arxiv.org/abs/1908.08681))
-    mish,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # ALBERT model configuration
 /// Defines the ALBERT model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct AlbertConfig {
@@ -102,20 +89,20 @@ pub struct AlbertConfig {
     pub label2id: Option<HashMap<String, i64>>,
 }
 
-impl Config<AlbertConfig> for AlbertConfig {}
+impl Config for AlbertConfig {}
 
 /// # ALBERT Base model
 /// Base architecture for ALBERT models. Task-specific models will be built from this common base model
 /// It is made of the following blocks:
 /// - `embeddings`: `token`, `position` and `segment_id` embeddings
 /// - `encoder`: Encoder (transformer) made of a vector of layers. Each layer is made of a self-attention layer, an intermediate (linear) and output (linear + layer norm) layers. Note that the weights are shared across layers, allowing for a reduction in the model memory footprint.
-/// - `pooler`: linear layer applied to the first element of the sequence (*[MASK]* token)
+/// - `pooler`: linear layer applied to the first element of the sequence (*MASK* token)
 /// - `pooler_activation`: Tanh activation function for the pooling layer
 pub struct AlbertModel {
     embeddings: AlbertEmbeddings,
     encoder: AlbertTransformer,
     pooler: nn::Linear,
-    pooler_activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    pooler_activation: TensorFunction,
 }
 
 impl AlbertModel {
@@ -154,7 +141,7 @@ impl AlbertModel {
             config.hidden_size,
             Default::default(),
         );
-        let pooler_activation = Box::new(_tanh);
+        let pooler_activation = Activation::tanh.get_function();
 
         AlbertModel {
             embeddings,
@@ -170,7 +157,7 @@ impl AlbertModel {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -205,10 +192,10 @@ impl AlbertModel {
     /// let model_output = no_grad(|| {
     ///     albert_model
     ///         .forward_t(
-    ///             Some(input_tensor),
-    ///             Some(mask),
-    ///             Some(token_type_ids),
-    ///             Some(position_ids),
+    ///             Some(&input_tensor),
+    ///             Some(&mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
     ///             false,
     ///         )
@@ -217,53 +204,35 @@ impl AlbertModel {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<AlbertOutput, RustBertError> {
-        let (input_shape, device) = match &input_ids {
-            Some(input_value) => match &input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (input_value.size(), input_value.device()),
-            },
-            None => match &input_embeds {
-                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
+        let (input_shape, device) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
+
+        let calc_mask = if mask.is_none() {
+            Some(Tensor::ones(&input_shape, (Kind::Int64, device)))
+        } else {
+            None
         };
+        let mask = mask.unwrap_or_else(|| calc_mask.as_ref().unwrap());
 
-        let mask = match mask {
-            Some(value) => value,
-            None => Tensor::ones(&input_shape, (Kind::Int64, device)),
-        };
-
-        let extended_attention_mask = mask.unsqueeze(1).unsqueeze(2);
-        let extended_attention_mask: Tensor =
-            (extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0;
-
-        let embedding_output = match self.embeddings.forward_t(
+        let embedding_output = self.embeddings.forward_t(
             input_ids,
             token_type_ids,
             position_ids,
             input_embeds,
             train,
-        ) {
-            Ok(value) => value,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        )?;
+
+        let extended_attention_mask = mask.unsqueeze(1).unsqueeze(2);
+        let extended_attention_mask: Tensor =
+            ((extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0)
+                .to_kind(embedding_output.kind());
 
         let transformer_output =
             self.encoder
@@ -272,7 +241,7 @@ impl AlbertModel {
         let pooled_output = self
             .pooler
             .forward(&transformer_output.hidden_state.select(1, 0));
-        let pooled_output = (self.pooler_activation)(&pooled_output);
+        let pooled_output = (self.pooler_activation.get_fn())(&pooled_output);
 
         Ok(AlbertOutput {
             hidden_state: transformer_output.hidden_state,
@@ -287,7 +256,7 @@ pub struct AlbertMLMHead {
     layer_norm: nn::LayerNorm,
     dense: nn::Linear,
     decoder: nn::Linear,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 impl AlbertMLMHead {
@@ -297,10 +266,7 @@ impl AlbertMLMHead {
     {
         let p = p.borrow();
 
-        let layer_norm_eps = match config.layer_norm_eps {
-            Some(value) => value,
-            None => 1e-12,
-        };
+        let layer_norm_eps = config.layer_norm_eps.unwrap_or(1e-12);
         let layer_norm_config = nn::LayerNormConfig {
             eps: layer_norm_eps,
             ..Default::default()
@@ -323,12 +289,7 @@ impl AlbertMLMHead {
             Default::default(),
         );
 
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu_new => _gelu_new,
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
 
         AlbertMLMHead {
             layer_norm,
@@ -339,7 +300,7 @@ impl AlbertMLMHead {
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        let output: Tensor = (self.activation)(&hidden_states.apply(&self.dense));
+        let output: Tensor = (self.activation.get_fn())(&hidden_states.apply(&self.dense));
         output.apply(&self.layer_norm).apply(&self.decoder)
     }
 }
@@ -397,7 +358,7 @@ impl AlbertForMaskedLM {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -431,10 +392,10 @@ impl AlbertForMaskedLM {
     ///
     /// let masked_lm_output = no_grad(|| {
     ///     albert_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -442,11 +403,11 @@ impl AlbertForMaskedLM {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> AlbertMaskedLMOutput {
         let base_model_output = self
@@ -511,10 +472,7 @@ impl AlbertForSequenceClassification {
         let p = p.borrow();
 
         let albert = AlbertModel::new(p / "albert", config);
-        let classifier_dropout_prob = match config.classifier_dropout_prob {
-            Some(value) => value,
-            None => 0.1,
-        };
+        let classifier_dropout_prob = config.classifier_dropout_prob.unwrap_or(0.1);
         let dropout = Dropout::new(classifier_dropout_prob);
         let num_labels = config
             .id2label
@@ -541,7 +499,7 @@ impl AlbertForSequenceClassification {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -574,21 +532,21 @@ impl AlbertForSequenceClassification {
     ///
     ///  let classification_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> AlbertSequenceClassificationOutput {
         let base_model_output = self
@@ -683,7 +641,7 @@ impl AlbertForTokenClassification {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -716,21 +674,21 @@ impl AlbertForTokenClassification {
     ///
     ///  let model_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> AlbertTokenClassificationOutput {
         let base_model_output = self
@@ -814,7 +772,7 @@ impl AlbertForQuestionAnswering {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -848,21 +806,21 @@ impl AlbertForQuestionAnswering {
     ///
     ///  let model_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> AlbertQuestionAnsweringOutput {
         let base_model_output = self
@@ -881,8 +839,8 @@ impl AlbertForQuestionAnswering {
             .apply(&self.qa_outputs)
             .split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
-        let start_logits = start_logits.squeeze1(-1);
-        let end_logits = end_logits.squeeze1(-1);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
 
         AlbertQuestionAnsweringOutput {
             start_logits,
@@ -958,7 +916,7 @@ impl AlbertForMultipleChoice {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -991,21 +949,21 @@ impl AlbertForMultipleChoice {
     ///
     ///  let model_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false).unwrap()
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<AlbertSequenceClassificationOutput, RustBertError> {
         let (input_ids, input_embeds, num_choices) = match &input_ids {
@@ -1035,30 +993,20 @@ impl AlbertForMultipleChoice {
             },
         };
 
-        let mask = match mask {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let token_type_ids = match token_type_ids {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let position_ids = match position_ids {
-            Some(value) => Some(value.view((-1, *value.size().last().unwrap()))),
-            None => None,
-        };
+        let mask = mask.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let token_type_ids =
+            token_type_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let position_ids =
+            position_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
 
-        let base_model_output = self
-            .albert
-            .forward_t(
-                input_ids,
-                mask,
-                token_type_ids,
-                position_ids,
-                input_embeds,
-                train,
-            )
-            .unwrap();
+        let base_model_output = self.albert.forward_t(
+            input_ids.as_ref(),
+            mask.as_ref(),
+            token_type_ids.as_ref(),
+            position_ids.as_ref(),
+            input_embeds.as_ref(),
+            train,
+        )?;
         let logits = base_model_output
             .pooled_output
             .apply_t(&self.dropout, train)

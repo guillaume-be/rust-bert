@@ -12,7 +12,8 @@ use rust_bert::roberta::{
     RobertaModelResources, RobertaVocabResources,
 };
 use rust_bert::Config;
-use rust_tokenizers::{RobertaTokenizer, Tokenizer, TruncationStrategy, Vocab};
+use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
@@ -20,16 +21,16 @@ use tch::{nn, no_grad, Device, Tensor};
 fn roberta_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaConfigResources::ROBERTA,
+        RobertaConfigResources::DISTILROBERTA_BASE,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaVocabResources::ROBERTA,
+        RobertaVocabResources::DISTILROBERTA_BASE,
     ));
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaMergesResources::ROBERTA,
+        RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaModelResources::ROBERTA,
+        RobertaModelResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
@@ -54,8 +55,7 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
         "<pad> Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -75,20 +75,20 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
     tokenized_input[1][5] = 103;
     let tokenized_input = tokenized_input
         .iter()
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::of_slice(input))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
     let model_output = no_grad(|| {
         roberta_model.forward_t(
-            Some(input_tensor),
+            Some(&input_tensor),
             None,
             None,
             None,
             None,
-            &None,
-            &None,
+            None,
+            None,
             false,
         )
     });
@@ -108,7 +108,7 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
     let word_2 = tokenizer.vocab().id_to_token(&index_2.int64_value(&[]));
 
     assert_eq!("Ġsome", word_1); // Outputs "person" : "Looks like [some] thing is missing"
-    assert_eq!("Ġapples", word_2); // Outputs "pear" : "It\'s like comparing [apples] to apples"
+    assert_eq!("Ġsome", word_2); // Outputs "pear" : "It\'s like comparing [apples] to apples"
 
     Ok(())
 }
@@ -117,13 +117,13 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
 fn roberta_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaConfigResources::ROBERTA,
+        RobertaConfigResources::DISTILROBERTA_BASE,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaVocabResources::ROBERTA,
+        RobertaVocabResources::DISTILROBERTA_BASE,
     ));
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaMergesResources::ROBERTA,
+        RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
@@ -153,8 +153,7 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -173,7 +172,7 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| roberta_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| roberta_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 3]);
     assert_eq!(
@@ -192,13 +191,13 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
 fn roberta_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaConfigResources::ROBERTA,
+        RobertaConfigResources::DISTILROBERTA_BASE,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaVocabResources::ROBERTA,
+        RobertaVocabResources::DISTILROBERTA_BASE,
     ));
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaMergesResources::ROBERTA,
+        RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
@@ -223,8 +222,7 @@ fn roberta_for_multiple_choice() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -244,7 +242,7 @@ fn roberta_for_multiple_choice() -> anyhow::Result<()> {
         .unsqueeze(0);
 
     //    Forward pass
-    let model_output = no_grad(|| roberta_model.forward_t(input_tensor, None, None, None, false));
+    let model_output = no_grad(|| roberta_model.forward_t(&input_tensor, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[1, 2]);
     assert_eq!(
@@ -263,13 +261,13 @@ fn roberta_for_multiple_choice() -> anyhow::Result<()> {
 fn roberta_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaConfigResources::ROBERTA,
+        RobertaConfigResources::DISTILROBERTA_BASE,
     ));
     let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaVocabResources::ROBERTA,
+        RobertaVocabResources::DISTILROBERTA_BASE,
     ));
     let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        RobertaMergesResources::ROBERTA,
+        RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
@@ -300,8 +298,7 @@ fn roberta_for_token_classification() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -320,7 +317,7 @@ fn roberta_for_token_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| roberta_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| roberta_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 9, 4]);
     assert_eq!(
@@ -351,10 +348,10 @@ fn roberta_question_answering() -> anyhow::Result<()> {
         )),
         Some(Resource::Remote(RemoteResource::from_pretrained(
             RobertaMergesResources::ROBERTA_QA,
-        ))), //merges resource only relevant with ModelType::Roberta
-        true, //lowercase
+        ))),
+        false,
         None,
-        true,
+        false,
     );
 
     let qa_model = QuestionAnsweringModel::new(config)?;
@@ -366,12 +363,12 @@ fn roberta_question_answering() -> anyhow::Result<()> {
 
     let answers = qa_model.predict(&[qa_input], 1, 32);
 
-    assert_eq!(answers.len(), 1 as usize);
-    assert_eq!(answers[0].len(), 1 as usize);
-    assert_eq!(answers[0][0].start, 13);
-    assert_eq!(answers[0][0].end, 21);
-    assert!((answers[0][0].score - 0.7354).abs() < 1e-4);
-    assert_eq!(answers[0][0].answer, "Amsterdam");
+    assert_eq!(answers.len(), 1usize);
+    assert_eq!(answers[0].len(), 1usize);
+    assert_eq!(answers[0][0].start, 12);
+    assert_eq!(answers[0][0].end, 22);
+    assert!((answers[0][0].score - 0.9997).abs() < 1e-4);
+    assert_eq!(answers[0][0].answer, " Amsterdam");
 
     Ok(())
 }
@@ -405,23 +402,25 @@ fn xlm_roberta_german_ner() -> anyhow::Result<()> {
 
     let output = ner_model.predict(&input);
 
-    assert_eq!(output.len(), 4);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output[0].len(), 2);
+    assert_eq!(output[1].len(), 2);
 
-    assert_eq!(output[0].word, " Amélie");
-    assert!((output[0].score - 0.9983).abs() < 1e-4);
-    assert_eq!(output[0].label, "I-PER");
+    assert_eq!(output[0][0].word, " Amélie");
+    assert!((output[0][0].score - 0.9983).abs() < 1e-4);
+    assert_eq!(output[0][0].label, "I-PER");
 
-    assert_eq!(output[1].word, " Москва");
-    assert!((output[1].score - 0.9999).abs() < 1e-4);
-    assert_eq!(output[1].label, "I-LOC");
+    assert_eq!(output[0][1].word, " Москва");
+    assert!((output[0][1].score - 0.9999).abs() < 1e-4);
+    assert_eq!(output[0][1].label, "I-LOC");
 
-    assert_eq!(output[2].word, "Chongqing");
-    assert!((output[2].score - 0.9997).abs() < 1e-4);
-    assert_eq!(output[2].label, "I-LOC");
+    assert_eq!(output[1][0].word, "Chongqing");
+    assert!((output[1][0].score - 0.9997).abs() < 1e-4);
+    assert_eq!(output[1][0].label, "I-LOC");
 
-    assert_eq!(output[3].word, " China");
-    assert!((output[3].score - 0.9999).abs() < 1e-4);
-    assert_eq!(output[3].label, "I-LOC");
+    assert_eq!(output[1][1].word, " China");
+    assert!((output[1][1].score - 0.9999).abs() < 1e-4);
+    assert_eq!(output[1][1].label, "I-LOC");
 
     Ok(())
 }

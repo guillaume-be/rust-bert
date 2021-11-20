@@ -47,20 +47,21 @@
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
 use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
+    GPT2Generator, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
-use crate::pipelines::generation::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation::{GPT2Generator, GenerateConfig, LanguageGenerator};
-use itertools::Itertools;
-use rust_tokenizers::Tokenizer;
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
+use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use std::collections::HashMap;
-use tch::{Device, Tensor};
+use tch::{Device, Kind, Tensor};
 use uuid::Uuid;
 
 /// # Configuration for multi-turn classification
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
 /// different set of default parameters and sets the device to place the model on.
 pub struct ConversationConfig {
+    /// Model type
+    pub model_type: ModelType,
     /// Model weights resource (default: DialoGPT-medium)
     pub model_resource: Resource,
     /// Config resource (default: DialoGPT-medium)
@@ -95,6 +96,10 @@ pub struct ConversationConfig {
     pub no_repeat_ngram_size: i64,
     /// Number of sequences to return for each prompt text (default: 1)
     pub num_return_sequences: i64,
+    /// Number of beam groups for diverse beam generation. If provided and higher than 1, will split the beams into beam subgroups leading to more diverse generation.
+    pub num_beam_groups: Option<i64>,
+    /// Diversity penalty for diverse beam search. High values will enforce more difference between beam groups (default: 5.5)
+    pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
 }
@@ -102,6 +107,7 @@ pub struct ConversationConfig {
 impl Default for ConversationConfig {
     fn default() -> ConversationConfig {
         ConversationConfig {
+            model_type: ModelType::GPT2,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 Gpt2ModelResources::DIALOGPT_MEDIUM,
             )),
@@ -116,7 +122,7 @@ impl Default for ConversationConfig {
             )),
             min_length: 0,
             max_length: 1000,
-            min_length_for_response: 32,
+            min_length_for_response: 64,
             do_sample: true,
             early_stopping: false,
             num_beams: 1,
@@ -127,7 +133,35 @@ impl Default for ConversationConfig {
             length_penalty: 1.0,
             no_repeat_ngram_size: 0,
             num_return_sequences: 1,
+            num_beam_groups: None,
+            diversity_penalty: None,
             device: Device::cuda_if_available(),
+        }
+    }
+}
+
+impl From<ConversationConfig> for GenerateConfig {
+    fn from(config: ConversationConfig) -> GenerateConfig {
+        GenerateConfig {
+            model_resource: config.model_resource,
+            config_resource: config.config_resource,
+            merges_resource: config.merges_resource,
+            vocab_resource: config.vocab_resource,
+            min_length: config.min_length,
+            max_length: config.max_length,
+            do_sample: config.do_sample,
+            early_stopping: config.early_stopping,
+            num_beams: config.num_beams,
+            temperature: config.temperature,
+            top_k: config.top_k,
+            top_p: config.top_p,
+            repetition_penalty: config.repetition_penalty,
+            length_penalty: config.length_penalty,
+            no_repeat_ngram_size: config.no_repeat_ngram_size,
+            num_return_sequences: config.num_return_sequences,
+            num_beam_groups: config.num_beam_groups,
+            diversity_penalty: config.diversity_penalty,
+            device: config.device,
         }
     }
 }
@@ -144,7 +178,7 @@ pub struct Conversation {
     /// New user input that needs to be processed
     pub new_user_input: Option<String>,
     ///  History of the tokens passed as an input and generated so far used as context for next turn generation
-    pub history: Vec<i64>,
+    pub history: Vec<Vec<i64>>,
 }
 
 impl Conversation {
@@ -336,6 +370,69 @@ impl Conversation {
             None
         }
     }
+
+    fn append(&mut self, text: &str, ids: &[i64]) {
+        match &self.new_user_input {
+            Some(_) => {
+                self.mark_processed();
+                if self.past_user_inputs.len() >= self.generated_responses.len() {
+                    self.generated_responses.push(text.to_string());
+                } else {
+                    let _ = self.add_user_input(text);
+                }
+            }
+            None => {
+                let _ = self.add_user_input(text);
+            }
+        }
+        self.history.push(ids.to_vec());
+    }
+
+    /// Initializes a conversation form a prior state. It is assumed that a conversation always
+    /// start from a user interaction.
+    ///
+    /// # Arguments
+    /// - texts: sequence of strings, alternating between past user inputs and past generated responses.
+    /// - ids: sequence of sequence of ids, alternating between past user inputs and past generated responses.
+    /// These can be generated via a `ConversationModel`'s `encode_prompts`.
+    ///
+    /// # Example:
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
+    /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
+    /// let model = ConversationModel::new(Default::default())?;
+    ///
+    /// let mut conversation_manager = ConversationManager::new();
+    /// let history = [
+    ///     "Going to the movies tonight - any suggestions?",
+    ///     "The Big Lebowski",
+    ///     "Is it an action movie?",
+    /// ];
+    /// let encoded_history = model.encode_prompts(&history);
+    ///
+    /// let conversation_1_id = conversation_manager.create_empty();
+    /// let _ = conversation_manager
+    ///     .get(&conversation_1_id)
+    ///     .unwrap()
+    ///     .load_from_history(&history, &encoded_history);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn load_from_history<S, SI>(&mut self, texts: &[S], ids: &[SI])
+    where
+        S: AsRef<str>,
+        SI: AsRef<[i64]>,
+    {
+        for (round_text, round_ids) in texts.iter().zip(ids.iter()) {
+            self.append(round_text.as_ref(), round_ids.as_ref());
+        }
+
+        if texts.len() / 2 == 1 {
+            self.history.pop();
+        }
+    }
 }
 
 /// Data structure allowing the management of conversations and main input to the dialogue model.
@@ -523,7 +620,7 @@ impl ConversationManager {
     ///
     /// # Returns
     ///
-    /// * `Option<Conversation>` deregistered conversation
+    /// * `Option<Conversation>` de-registered conversation
     ///
     /// # Example
     ///
@@ -544,7 +641,7 @@ impl ConversationManager {
     ///
     /// # Returns
     ///
-    /// * `HashMap<Uuid, Conversation>` deregistered conversations
+    /// * `HashMap<Uuid, Conversation>` de-registered conversations
     ///
     /// # Example
     ///
@@ -572,12 +669,67 @@ impl Default for ConversationManager {
     }
 }
 
+/// # Abstraction that holds one particular conversation model, for any of the supported models
+pub enum ConversationOption {
+    /// Conversation based on GPT2 model
+    GPT2(GPT2Generator),
+}
+
+impl ConversationOption {
+    pub fn new(config: ConversationConfig) -> Result<Self, RustBertError> {
+        match config.model_type {
+            ModelType::GPT2 => Ok(ConversationOption::GPT2(GPT2Generator::new(config.into())?)),
+            _ => Err(RustBertError::InvalidConfigurationError(
+                "GPT2 is currently the only supported model for conversation generation"
+                    .to_string(),
+            )),
+        }
+    }
+
+    pub fn get_eos_id(&self) -> Result<i64, RustBertError> {
+        match self {
+            Self::GPT2(model_ref) => {
+                Ok(*model_ref.get_eos_ids().as_ref().unwrap().first().unwrap())
+            }
+        }
+    }
+
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        match self {
+            Self::GPT2(model_ref) => model_ref._get_tokenizer(),
+        }
+    }
+
+    /// Returns the `ModelType` for this ConversationOption
+    pub fn model_type(&self) -> ModelType {
+        match *self {
+            Self::GPT2(_) => ModelType::GPT2,
+        }
+    }
+
+    /// Interface method to generate_from_ids_and_past() of the particular models.
+    pub fn generate_from_ids_and_past(
+        &self,
+        input_ids: Tensor,
+        attention_mask: Option<Tensor>,
+    ) -> Vec<Vec<i64>> {
+        match *self {
+            Self::GPT2(ref model) => model
+                .generate_from_ids_and_past(input_ids, attention_mask, None)
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
+        }
+    }
+}
+
 /// # Conversation model
 /// Processes a ConversationManager and generate system responses for active conversations.
 pub struct ConversationModel {
-    model: GPT2Generator,
+    model: ConversationOption,
     eos_token_id: i64,
     max_allowed_context_length: i64,
+    device: Device,
 }
 
 impl ConversationModel {
@@ -600,34 +752,16 @@ impl ConversationModel {
     pub fn new(
         conversation_config: ConversationConfig,
     ) -> Result<ConversationModel, RustBertError> {
-        let generate_config = GenerateConfig {
-            model_resource: conversation_config.model_resource,
-            config_resource: conversation_config.config_resource,
-            merges_resource: conversation_config.merges_resource,
-            vocab_resource: conversation_config.vocab_resource,
-            min_length: conversation_config.min_length,
-            max_length: conversation_config.max_length,
-            do_sample: conversation_config.do_sample,
-            early_stopping: conversation_config.early_stopping,
-            num_beams: conversation_config.num_beams,
-            temperature: conversation_config.temperature,
-            top_k: conversation_config.top_k,
-            top_p: conversation_config.top_p,
-            repetition_penalty: conversation_config.repetition_penalty,
-            length_penalty: conversation_config.length_penalty,
-            no_repeat_ngram_size: conversation_config.no_repeat_ngram_size,
-            num_return_sequences: conversation_config.num_return_sequences,
-            device: conversation_config.device,
-        };
-
-        let model = GPT2Generator::new(generate_config)?;
-        let eos_token_id = *model.get_eos_ids().as_ref().unwrap().first().unwrap();
         let max_allowed_length =
             conversation_config.max_length - conversation_config.min_length_for_response;
+        let device = conversation_config.device;
+        let model = ConversationOption::new(conversation_config)?;
+        let eos_token_id = model.get_eos_id()?;
         Ok(ConversationModel {
             model,
             eos_token_id,
             max_allowed_context_length: max_allowed_length,
+            device,
         })
     }
 
@@ -645,7 +779,7 @@ impl ConversationModel {
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
-    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
     /// let model = ConversationModel::new(Default::default())?;
     ///
     /// let mut conversation_manager = ConversationManager::new();
@@ -664,36 +798,43 @@ impl ConversationModel {
             let texts = active_conversations
                 .iter()
                 .map(|c| c.new_user_input.as_ref().unwrap().as_str())
-                .collect_vec();
+                .collect::<Vec<&str>>();
 
             let history = active_conversations
                 .iter()
-                .map(|c| &c.history)
-                .collect_vec();
+                .map(|c| c.history.iter().flatten().copied().collect())
+                .collect::<Vec<Vec<i64>>>();
 
-            let prompt_ids = self.encode_prompts(texts.as_slice());
-            let input_tensor = self.concat_input_history(prompt_ids, history);
+            let prompt_ids = self.encode_prompts(texts.as_ref());
+            let (input_tensor, attention_mask) =
+                self.concat_input_history(prompt_ids.as_ref(), history);
             let input_length = *input_tensor.size().last().unwrap() as usize;
-            let mut generated = self.model.generate_from_ids_and_past(input_tensor, None);
+            let mut generated = self
+                .model
+                .generate_from_ids_and_past(input_tensor, Some(attention_mask));
             let removed_padding_quantities = self.clean_padding_indices(&mut generated);
 
             let mut output = HashMap::with_capacity(active_uuid.len());
 
-            for (((conversation, generated_sequence), uuid), removed_padding) in
-                active_conversations
-                    .into_iter()
-                    .zip(generated.into_iter())
-                    .zip(active_uuid.into_iter())
-                    .zip(removed_padding_quantities.into_iter())
+            for (
+                ((conversation, (generated_sequence, conversation_promp_ids)), uuid),
+                removed_padding,
+            ) in active_conversations
+                .into_iter()
+                .zip(generated.into_iter().zip(prompt_ids.into_iter()))
+                .zip(active_uuid.into_iter())
+                .zip(removed_padding_quantities.into_iter())
             {
+                let generated_response = &generated_sequence[input_length - removed_padding.0..];
                 conversation
                     .generated_responses
-                    .push(self.model.get_tokenizer().decode(
-                        generated_sequence[input_length - removed_padding.0..].to_vec(),
-                        true,
-                        true,
-                    ));
-                conversation.history = generated_sequence;
+                    .push(
+                        self.model
+                            .get_tokenizer()
+                            .decode(generated_response, true, true),
+                    );
+                conversation.history.push(conversation_promp_ids);
+                conversation.history.push(generated_response.to_vec());
                 conversation.mark_processed();
                 output.insert(uuid, conversation.get_last_response().unwrap());
             }
@@ -705,10 +846,11 @@ impl ConversationModel {
 
     fn clean_padding_indices(&self, model_output: &mut Vec<Vec<i64>>) -> Vec<(usize, usize)> {
         // In case inputs are sent as batch, this cleans the padding indices in the history for shorter outputs
-        let pad_token = match self.model.get_pad_id() {
-            Some(value) => *value,
-            None => self.eos_token_id,
-        };
+        let pad_token = self
+            .model
+            .get_tokenizer()
+            .get_pad_id()
+            .unwrap_or(self.eos_token_id);
         let mut removed_tokens = Vec::with_capacity(model_output.len());
         for sequence_history in model_output {
             let index_end = sequence_history
@@ -720,19 +862,26 @@ impl ConversationModel {
                 .iter()
                 .position(|&r| r != pad_token)
                 .unwrap();
-            sequence_history.drain(sequence_history.len() - index_end + 1..);
+            if index_end > 0 {
+                sequence_history.drain(sequence_history.len() - index_end + 1..);
+            }
             sequence_history.drain(..index_start);
             removed_tokens.push((index_start, index_end));
         }
         removed_tokens
     }
 
-    fn concat_input_history(&self, inputs: Vec<Vec<i64>>, history: Vec<&Vec<i64>>) -> Tensor {
+    fn concat_input_history(
+        &self,
+        inputs: &[Vec<i64>],
+        history: Vec<Vec<i64>>,
+    ) -> (Tensor, Tensor) {
         // Concatenates the history token indices with new user input
-        let pad_token = match self.model.get_pad_id() {
-            Some(value) => *value,
-            None => self.eos_token_id,
-        };
+        let pad_token = self
+            .model
+            .get_tokenizer()
+            .get_pad_id()
+            .unwrap_or(self.eos_token_id);
 
         assert_eq!(
             inputs.len(),
@@ -748,30 +897,49 @@ impl ConversationModel {
             concatenated_inputs.push(concatenated_element);
         }
 
-        let max_len = concatenated_inputs
+        let truncated_concatenated_inputs = concatenated_inputs
+            .iter()
+            .map(|input| {
+                if input.len() > self.max_allowed_context_length as usize {
+                    let start = self.get_truncated_input_index(
+                        input,
+                        self.max_allowed_context_length as usize,
+                        pad_token,
+                    );
+                    &input[start..]
+                } else {
+                    input.as_slice()
+                }
+            })
+            .collect::<Vec<&[i64]>>();
+
+        let max_len = truncated_concatenated_inputs
             .iter()
             .map(|input| input.len())
             .max()
-            .unwrap()
-            .min(self.max_allowed_context_length as usize);
+            .unwrap();
 
-        let concatenated_inputs = concatenated_inputs
+        let attention_mask = Tensor::ones(
+            &[inputs.len() as i64, max_len as i64],
+            (Kind::Int8, self.device),
+        );
+
+        let concatenated_inputs = truncated_concatenated_inputs
             .into_iter()
-            .map(|input| {
-                let (start, mut temp) = if input.len() > max_len {
-                    (
-                        self.get_truncated_input_index(&input, max_len, pad_token),
-                        vec![],
-                    )
-                } else {
-                    (0, vec![pad_token; max_len - input.len()])
-                };
-                temp.extend_from_slice(&input[start..]);
-                temp
+            .enumerate()
+            .map(|(input_idx, input)| {
+                let _ = attention_mask
+                    .get(input_idx as i64)
+                    .slice(0, 0, (max_len - input.len()) as i64, 1)
+                    .fill_(0);
+                let mut padded_input = vec![pad_token; max_len - input.len()];
+                padded_input.extend(input);
+                padded_input
             })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.model.get_var_store().device()))
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.device))
             .collect::<Vec<Tensor>>();
-        Tensor::stack(&concatenated_inputs, 0)
+
+        (Tensor::stack(&concatenated_inputs, 0), attention_mask)
     }
 
     fn get_truncated_input_index(
@@ -792,12 +960,33 @@ impl ConversationModel {
             .map(|(i, _)| i + 1)
             .collect();
 
-        *eos_indices.first().unwrap_or(&0usize)
+        // Return the position of the first EOS index that fits the max length requirement.
+        // If it does not exist, no solution exists and truncate text at a non-EOS position
+        *eos_indices.first().unwrap_or(&(start_length - max_length))
     }
 
-    fn encode_prompts(&self, texts: &[&str]) -> Vec<Vec<i64>> {
+    /// Encodes prompts into Vectors of indices to be processed by the model. This method may be used to
+    /// initialize the history of a conversation with a prior state.
+    ///
+    /// # Example:
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
+    /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
+    /// let model = ConversationModel::new(Default::default())?;
+    /// let history = [
+    ///     "Going to the movies tonight - any suggestions?",
+    ///     "The Big Lebowski",
+    ///     "Is it an action movie?",
+    /// ];
+    /// let encoded_history = model.encode_prompts(&history);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn encode_prompts(&self, texts: &[&str]) -> Vec<Vec<i64>> {
         // Encode the user prompt into token ids
-        let tokens = self.model.get_tokenizer().tokenize_list(texts.to_vec());
+        let tokens = self.model.get_tokenizer().tokenize_list(texts);
 
         tokens
             .into_iter()
@@ -807,9 +996,22 @@ impl ConversationModel {
                     .convert_tokens_to_ids(&prompt_tokens)
             })
             .map(|mut tokens| {
+                tokens.truncate(self.max_allowed_context_length as usize - 1);
                 tokens.push(self.eos_token_id);
                 tokens
             })
             .collect::<Vec<Vec<i64>>>()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = ConversationConfig::default();
+        let _: Box<dyn Send> = Box::new(ConversationModel::new(config));
     }
 }

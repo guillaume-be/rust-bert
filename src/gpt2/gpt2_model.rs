@@ -12,16 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
-use crate::common::linear::{linear_no_bias, LinearNoBias};
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::gpt2::transformer::Block;
-use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::{
+    PreparedInput, PrivateLanguageGenerator,
+};
+use crate::pipelines::generation_utils::{
+    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
+};
 use crate::{Config, RustBertError};
+use rust_tokenizers::tokenizer::Gpt2Tokenizer;
+use rust_tokenizers::vocab::Gpt2Vocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
-use tch::{nn, Tensor};
+use tch::{nn, Kind, Tensor};
 
 /// # GPT2 Pretrained model weight files
 pub struct Gpt2ModelResources;
@@ -36,144 +45,138 @@ pub struct Gpt2VocabResources;
 pub struct Gpt2MergesResources;
 
 impl Gpt2ModelResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2: (&'static str, &'static str) = (
         "gpt2/model",
-        "https://cdn.huggingface.co/gpt2-rust_model.ot",
+        "https://huggingface.co/gpt2/resolve/main/rust_model.ot",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/model",
-        "https://cdn.huggingface.co/gpt2-medium-rust_model.ot",
+        "https://huggingface.co/gpt2-medium/resolve/main/rust_model.ot",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_LARGE: (&'static str, &'static str) = (
         "gpt2-large/model",
-        "https://cdn.huggingface.co/gpt2-large-rust_model.ot",
+        "https://huggingface.co/gpt2-large/resolve/main/rust_model.ot",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_XL: (&'static str, &'static str) = (
         "gpt2-xl/model",
-        "https://cdn.huggingface.co/gpt2-xl-rust_model.ot",
+        "https://huggingface.co/gpt2-xl/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/model",
-        "https://cdn.huggingface.co/distilgpt2-rust_model.ot",
+        "https://huggingface.co/distilgpt2/resolve/main/rust_model.ot",
     );
-    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/model",
-        "https://cdn.huggingface.co/microsoft/DialoGPT-medium/rust_model.ot",
+        "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/rust_model.ot",
     );
 }
 
 impl Gpt2ConfigResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) =
-        ("gpt2/config", "https://cdn.huggingface.co/gpt2-config.json");
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/config",
+        "https://huggingface.co/gpt2/resolve/main/config.json",
+    );
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/config",
-        "https://cdn.huggingface.co/gpt2-medium-config.json",
+        "https://huggingface.co/gpt2-medium/resolve/main/config.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_LARGE: (&'static str, &'static str) = (
         "gpt2-large/config",
-        "https://cdn.huggingface.co/gpt2-large-config.json",
+        "https://huggingface.co/gpt2-large/resolve/main/config.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_XL: (&'static str, &'static str) = (
         "gpt2-xl/config",
-        "https://cdn.huggingface.co/gpt2-xl-config.json",
+        "https://huggingface.co/gpt2-xl/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/config",
-        "https://cdn.huggingface.co/distilgpt2-config.json",
+        "https://huggingface.co/distilgpt2/resolve/main/config.json",
     );
-    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/config",
-        "https://cdn.huggingface.co/microsoft/DialoGPT-medium/config.json",
+        "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/config.json",
     );
 }
 
 impl Gpt2VocabResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) =
-        ("gpt2/vocab", "https://cdn.huggingface.co/gpt2-vocab.json");
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/vocab",
+        "https://huggingface.co/gpt2/resolve/main/vocab.json",
+    );
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/vocab",
-        "https://cdn.huggingface.co/gpt2-medium-vocab.json",
+        "https://huggingface.co/gpt2-medium/resolve/main/vocab.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_LARGE: (&'static str, &'static str) = (
         "gpt2-large/vocab",
-        "https://cdn.huggingface.co/gpt2-large-vocab.json",
+        "https://huggingface.co/gpt2-large/resolve/main/vocab.json",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_XL: (&'static str, &'static str) = (
         "gpt2-xl/vocab",
-        "https://cdn.huggingface.co/gpt2-xl-vocab.json",
+        "https://huggingface.co/gpt2-xl/resolve/main/vocab.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/vocab",
-        "https://cdn.huggingface.co/distilgpt2-vocab.json",
+        "https://huggingface.co/distilgpt2/resolve/main/vocab.json",
     );
-    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/vocab",
-        "https://cdn.huggingface.co/microsoft/DialoGPT-medium/vocab.json",
+        "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/vocab.json",
     );
 }
 
 impl Gpt2MergesResources {
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
-    pub const GPT2: (&'static str, &'static str) =
-        ("gpt2/merges", "https://cdn.huggingface.co/gpt2-merges.txt");
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
+    pub const GPT2: (&'static str, &'static str) = (
+        "gpt2/merges",
+        "https://huggingface.co/gpt2/resolve/main/merges.txt",
+    );
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_MEDIUM: (&'static str, &'static str) = (
         "gpt2-medium/merges",
-        "https://cdn.huggingface.co/gpt2-medium-merges.txt",
+        "https://huggingface.co/gpt2-medium/resolve/main/merges.txt",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_LARGE: (&'static str, &'static str) = (
         "gpt2-large/merges",
-        "https://cdn.huggingface.co/gpt2-large-merges.txt",
+        "https://huggingface.co/gpt2-large/resolve/main/merges.txt",
     );
-    /// Shared under Modified MIT license by the OpenAI team at https://github.com/openai/gpt-2/blob/master/LICENSE. Modified with conversion to C-array format.
+    /// Shared under Modified MIT license by the OpenAI team at <https://github.com/openai/gpt-2/blob/master/LICENSE>. Modified with conversion to C-array format.
     pub const GPT2_XL: (&'static str, &'static str) = (
         "gpt2-xl/merges",
-        "https://cdn.huggingface.co/gpt2-xl-merges.txt",
+        "https://huggingface.co/gpt2-xl/resolve/main/merges.txt",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_GPT2: (&'static str, &'static str) = (
         "distilgpt2/merges",
-        "https://cdn.huggingface.co/distilgpt2-merges.txt",
+        "https://huggingface.co/distilgpt2/resolve/main/merges.txt",
     );
-    /// Shared under MIT license by the Microsoft team at https://huggingface.co/microsoft/DialoGPT-medium. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/merges",
-        "https://cdn.huggingface.co/microsoft/DialoGPT-medium/merges.txt",
+        "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/merges.txt",
     );
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Debug, Serialize, Deserialize)]
-/// # Activation function used in the fully connected layers of the transformer block
-pub enum GptActivation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
-    /// Swish: a Self-Gated Activation Function ([Ramachandran et al., 2017](https://arxiv.org/pdf/1710.05941v1.pdf))
-    swish,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # GPT2 model configuration
 /// Defines the GPT2 model architecture (e.g. number of layers, hidden layer size, vocab size...).
 /// Shared between GPT and GPT2 models
@@ -181,7 +184,7 @@ pub struct Gpt2Config {
     pub attn_pdrop: Option<f64>,
     pub embd_pdrop: Option<f64>,
     pub hidden_dropout_prob: Option<f64>,
-    pub afn: Option<GptActivation>,
+    pub afn: Option<Activation>,
     pub initializer_range: f64,
     pub layer_norm_epsilon: f64,
     pub n_ctx: i64,
@@ -197,7 +200,7 @@ pub struct Gpt2Config {
     pub vocab_size: i64,
 }
 
-impl Config<Gpt2Config> for Gpt2Config {}
+impl Config for Gpt2Config {}
 
 /// # GPT2 Base model
 /// Base architecture for GPT2 model. Usually complemented with a task-specific head, such as a language model head.
@@ -260,10 +263,7 @@ impl Gpt2Model {
             Default::default(),
         );
 
-        let embd_pdrop = match config.embd_pdrop {
-            Some(value) => value,
-            None => 0.1,
-        };
+        let embd_pdrop = config.embd_pdrop.unwrap_or(0.1);
         let drop = Dropout::new(embd_pdrop);
         let layer_norm_config = nn::LayerNormConfig {
             eps: config.layer_norm_epsilon,
@@ -275,18 +275,10 @@ impl Gpt2Model {
         for layer_index in 0..config.n_layer {
             h.push(Block::new(&h_path / layer_index, config, true));
         }
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let output_past = match config.output_past {
-            Some(value) => value,
-            None => true,
-        };
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_past = config.output_past.unwrap_or(true);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
+
         Gpt2Model {
             wte,
             wpe,
@@ -356,12 +348,12 @@ impl Gpt2Model {
     /// let model_output = no_grad(|| {
     ///     gpt2_model
     ///         .forward_t(
-    ///             &Some(input_tensor),
-    ///             &Some(past),
-    ///             &Some(attention_mask),
-    ///             &Some(token_type_ids),
-    ///             &Some(position_ids),
-    ///             &None,
+    ///             Some(&input_tensor),
+    ///             Some(&past),
+    ///             Some(&attention_mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
     ///             false,
     ///         )
     ///         .unwrap()
@@ -369,35 +361,20 @@ impl Gpt2Model {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
-        layer_past: &Option<Vec<Tensor>>,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        layer_past: Option<&Vec<Tensor>>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<Gpt2ModelOutput, RustBertError> {
-        let (input_embeddings, seq_length) = match input_ids {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (
-                    input_value.apply(&self.wte),
-                    *input_value.size().last().unwrap(),
-                ),
-            },
-            None => match input_embeds {
-                Some(embeds) => (embeds.copy(), embeds.size()[1]),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (calc_input_embeddings, input_size, _) =
+            process_ids_embeddings_pair(input_ids, input_embeds, &self.wte)?;
+        let input_embeddings =
+            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
+
+        let seq_length = input_size[1];
 
         let (layer_past, layer_past_length) = match layer_past {
             Some(value) => {
@@ -423,7 +400,7 @@ impl Gpt2Model {
 
         let position_ids = match position_ids {
             Some(value) => value.copy(),
-            None => Tensor::arange1(
+            None => Tensor::arange_start(
                 layer_past_length,
                 seq_length + layer_past_length,
                 (Int64, input_embeddings.device()),
@@ -431,17 +408,16 @@ impl Gpt2Model {
             .unsqueeze(0),
         };
 
-        let attention_mask: Option<Tensor> = match attention_mask {
-            Some(value) => Some(
-                (value
-                    .view((input_embeddings.size()[0], -1))
-                    .unsqueeze(1)
-                    .unsqueeze(2)
-                    - 1.0)
-                    * 10000.0,
-            ),
-            None => None,
-        };
+        let attention_mask: Option<Tensor> = attention_mask.map(|value| {
+            let attention_mask = value
+                .view((input_embeddings.size()[0], -1))
+                .unsqueeze(1)
+                .unsqueeze(2)
+                .to_kind(input_embeddings.kind());
+
+            let attention_mask: Tensor = (1.0 - attention_mask) * (-10000.0);
+            attention_mask.to_kind(input_embeddings.kind())
+        });
 
         let position_embeds = position_ids.apply(&self.wpe);
         let token_type_embeds = match token_type_ids {
@@ -466,17 +442,17 @@ impl Gpt2Model {
         let layer_iter = self.h.iter().zip(layer_past);
         for layer_values in layer_iter {
             let (layer, past) = layer_values;
-            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
-            };
-
-            let temp = layer.forward_t(&hidden_state, &past, &attention_mask, train);
+            let temp =
+                layer.forward_t(&hidden_state, past.as_ref(), attention_mask.as_ref(), train);
             hidden_state = temp.0;
             if let Some(presents) = all_presents.borrow_mut() {
                 presents.push(temp.1.as_ref().copy());
             };
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(temp.2.as_ref().unwrap().copy());
+            };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
             };
         }
 
@@ -493,10 +469,8 @@ impl Gpt2Model {
 /// GPT2 model with a decoding head (linear layer without bias). The weights of the linear layer are tied to the word embeddings
 /// It is made of the following blocks:
 /// - `transformer`: Base Gpt2Model
-/// - `lm_head`: Linear layer without bias tied to the weights of the token id embeddings
 pub struct GPT2LMHeadModel {
     transformer: Gpt2Model,
-    lm_head: LinearNoBias,
 }
 
 impl GPT2LMHeadModel {
@@ -528,16 +502,8 @@ impl GPT2LMHeadModel {
         let p = p.borrow();
 
         let transformer = Gpt2Model::new(p, config);
-        let lm_head = linear_no_bias(
-            p / "lm_head",
-            config.n_embd,
-            config.vocab_size,
-            Default::default(),
-        );
-        GPT2LMHeadModel {
-            transformer,
-            lm_head,
-        }
+
+        GPT2LMHeadModel { transformer }
     }
 }
 
@@ -562,9 +528,6 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// * `LMModelOutput` containing:
     ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
     ///   - `cache` - `Gpt2Cache` made of `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
-    ///   - `encoder_hidden_states` - None
-    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
-    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///
     /// # Example
     ///
@@ -574,7 +537,7 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::{GPT2LMHeadModel, Gpt2Config};
-    /// use rust_bert::pipelines::generation::{Cache, LMHeadModel};
+    /// use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
@@ -604,14 +567,14 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// let model_output = no_grad(|| {
     ///     gpt2_model
     ///         .forward_t(
-    ///             &Some(input_tensor),
+    ///             Some(&input_tensor),
     ///             Cache::GPT2Cache(Some(past)),
-    ///             &Some(attention_mask),
-    ///             &Some(token_type_ids),
-    ///             &Some(position_ids),
-    ///             &None,
+    ///             Some(&attention_mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
-    ///             &None,
+    ///             None,
+    ///             None,
     ///             false,
     ///         )
     ///         .unwrap()
@@ -619,20 +582,20 @@ impl LMHeadModel for GPT2LMHeadModel {
     /// ```
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         layer_past: Cache,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         _encoder_outputs: Option<&Tensor>,
-        _decoder_input_ids: &Option<Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match layer_past {
             Cache::GPT2Cache(layer_past) => self.transformer.forward_t(
                 input_ids,
-                &layer_past,
+                layer_past.as_ref(),
                 attention_mask,
                 token_type_ids,
                 position_ids,
@@ -641,7 +604,7 @@ impl LMHeadModel for GPT2LMHeadModel {
             ),
             Cache::None => self.transformer.forward_t(
                 input_ids,
-                &None,
+                None,
                 attention_mask,
                 token_type_ids,
                 position_ids,
@@ -655,13 +618,12 @@ impl LMHeadModel for GPT2LMHeadModel {
             }
         }?;
 
-        let lm_logits = base_model_output.output.apply(&self.lm_head);
+        let lm_logits = base_model_output
+            .output
+            .linear::<Tensor>(&self.transformer.wte.ws, None);
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: None,
             cache: Cache::GPT2Cache(base_model_output.cache),
-            all_hidden_states: base_model_output.all_hidden_states,
-            all_attentions: base_model_output.all_attentions,
         })
     }
 }
@@ -678,3 +640,197 @@ pub struct Gpt2ModelOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }
+
+/// # Language generation model based on the GPT2 architecture
+pub struct GPT2Generator {
+    model: GPT2LMHeadModel,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+    max_position_embeddings: i64,
+}
+
+impl GPT2Generator {
+    /// Build a new `GPT2Generator`
+    ///
+    /// # Arguments
+    ///
+    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::gpt2::GPT2Generator;
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    ///
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let gpt2_generator = GPT2Generator::new(generate_config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(generate_config: GenerateConfig) -> Result<GPT2Generator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::GPT2,
+            vocab_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
+            false,
+            None,
+            None,
+        )?;
+        let config = Gpt2Config::from_file(config_path);
+        let model = GPT2LMHeadModel::new(&var_store.root(), &config);
+        var_store.load(weights_path)?;
+
+        let bos_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::bos_value()])[0]);
+        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()]));
+        let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()])[0]);
+        let max_position_embeddings = config.n_positions;
+        let is_encoder_decoder = false;
+        let vocab_size = config.vocab_size;
+        let decoder_start_id = None;
+
+        Ok(GPT2Generator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+            max_position_embeddings,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {
+    fn get_model(&self) -> &GPT2LMHeadModel {
+        &self.model
+    }
+    fn _get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+    fn get_max_positions_embeddings(&self) -> i64 {
+        self.max_position_embeddings
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        _encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        attention_mask: Tensor,
+    ) -> PreparedInput<'a> {
+        let position_ids = (attention_mask.totype(Kind::Int64).cumsum(-1, Kind::Int64) - 1)
+            .masked_fill(&attention_mask.eq(0), 1);
+
+        match past {
+            Cache::GPT2Cache(past) => {
+                if past.is_some() {
+                    PreparedInput {
+                        prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
+                        prepared_attention_mask: Some(attention_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: None,
+                        prepared_position_ids: Some(position_ids.select(1, -1).unsqueeze(-1)),
+                        prepared_past: Cache::GPT2Cache(past),
+                    }
+                } else {
+                    PreparedInput {
+                        prepared_input: Some(input_ids),
+                        prepared_attention_mask: Some(attention_mask),
+                        prepared_encoder_output: None,
+                        prepared_decoder_input: None,
+                        prepared_position_ids: Some(position_ids),
+                        prepared_past: Cache::GPT2Cache(None),
+                    }
+                }
+            }
+            Cache::None => PreparedInput {
+                prepared_input: Some(input_ids),
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: None,
+                prepared_decoder_input: None,
+                prepared_position_ids: Some(position_ids),
+                prepared_past: Cache::GPT2Cache(None),
+            },
+            _ => panic!("Cache type incompatible with GPT2"),
+        }
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        _encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::GPT2Cache(cached_decoder_state) => match cached_decoder_state {
+                Some(value) => {
+                    for layer_past in value.iter_mut() {
+                        *layer_past = layer_past.index_select(1, beam_indices);
+                    }
+                    None
+                }
+                None => None,
+            },
+            Cache::None => None,
+            _ => {
+                panic!("Invalid cache for GPT2 model");
+            }
+        }
+    }
+}
+
+impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {}

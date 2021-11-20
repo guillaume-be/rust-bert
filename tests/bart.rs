@@ -8,21 +8,24 @@ use rust_bert::pipelines::zero_shot_classification::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{RobertaTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_lm_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
-    let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART));
-    let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART));
-    let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART));
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
@@ -38,13 +41,12 @@ fn bart_lm_model() -> anyhow::Result<()> {
         false,
     )?;
     let config = BartConfig::from_file(config_path);
-    let bart_model = BartModel::new(&vs.root(), &config, false);
+    let bart_model = BartModel::new(&vs.root() / "model", &config);
     vs.load(weights_path)?;
 
     //    Define input
     let input = ["One two three four"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -64,19 +66,38 @@ fn bart_lm_model() -> anyhow::Result<()> {
     //    Forward pass
     let model_output =
         bart_model.forward_t(Some(&input_tensor), None, None, None, None, None, false);
-
     assert_eq!(model_output.decoder_output.size(), vec!(1, 6, 1024));
-    assert_eq!(model_output.encoder_hidden_state.size(), vec!(1, 6, 1024));
-    assert!((model_output.decoder_output.double_value(&[0, 0, 0]) - 0.7877).abs() < 1e-4);
+    assert_eq!(
+        model_output.encoder_hidden_state.unwrap().size(),
+        vec!(1, 6, 1024)
+    );
+    assert!((model_output.decoder_output.double_value(&[0, 0, 0]) - 0.2610).abs() < 1e-4);
     Ok(())
 }
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_greedy() -> anyhow::Result<()> {
-    //    Set-up masked LM model
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
     let summarization_config = SummarizationConfig {
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
         num_beams: 1,
+        length_penalty: 1.0,
+        min_length: 56,
+        max_length: 142,
         device: Device::Cpu,
         ..Default::default()
     };
@@ -97,7 +118,7 @@ but previous discoveries were made on planets with high temperatures or other pr
 said UCL astronomer Angelos Tsiaras. \"It's the best candidate for habitability right now.\" \"It's a good sign\", \
 said Ryan Cloutier of the Harvard–Smithsonian Center for Astrophysics, who was not one of either study's authors. \
 \"Overall,\" he continued, \"the presence of water in its atmosphere certainly improves the prospect of K2-18b being \
-a potentially habitable planet, but further observations will be required to say for sure. \"
+a potentially habitable planet, but further observations will be required to say for sure. \" \
 K2-18b was first identified in 2015 by the Kepler space telescope. It is about 110 light-years from Earth and larger \
 but less dense. Its star, a red dwarf, is cooler than the Sun, but the planet's orbit is much closer, such that a year \
 on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optimistic that NASA's James Webb space \
@@ -108,19 +129,36 @@ about exoplanets like K2-18b."];
     let output = model.summarize(&input);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], "K2-18b is the first discovery of water on a planet in its star's habitable zone. \
-    Scientists found water vapour in the atmosphere of the planet. The planet is 110 light-years from Earth \
-    and is not too hot or cold for liquid water to exist.");
+    assert_eq!(output[0], " K2-18b is not too hot and not too cold for liquid water to exist. \
+    This is the first such discovery in a planet in its star's habitable zone. \
+    The presence of water vapour was confirmed in the atmosphere of K2, a planet circling a star in the constellation Leo.");
 
     Ok(())
 }
 
 #[test]
-#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_summarization_beam_search() -> anyhow::Result<()> {
-    //    Set-up masked LM model
+    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartConfigResources::DISTILBART_CNN_6_6,
+    ));
+    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartVocabResources::DISTILBART_CNN_6_6,
+    ));
+    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartMergesResources::DISTILBART_CNN_6_6,
+    ));
+    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        BartModelResources::DISTILBART_CNN_6_6,
+    ));
     let summarization_config = SummarizationConfig {
-        num_beams: 3,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        num_beams: 4,
+        min_length: 56,
+        max_length: 142,
+        length_penalty: 1.0,
         device: Device::Cpu,
         ..Default::default()
     };
@@ -152,10 +190,9 @@ about exoplanets like K2-18b."];
     let output = model.summarize(&input);
 
     assert_eq!(output.len(), 1);
-    assert_eq!(output[0], "K2-18b, a planet in its star's habitable zone, has water vapour in its atmosphere. \
-    This is the first such discovery in a planet not too hot and not too cold for liquid water to exist. The \
-    Montreal team used data from the NASA's Hubble telescope to assess changes in the light coming from the \
-    star as the planet passed between it and Earth.");
+    assert_eq!(output[0], " K2-18b, a planet circling a star in the constellation Leo, is not too hot and not too cold for liquid water to exist. \
+    This is the first such discovery in a planet in its star's habitable zone. \
+    It is not the first time scientists have found signs of water on an exoplanet.");
 
     Ok(())
 }
@@ -163,7 +200,7 @@ about exoplanets like K2-18b."];
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_zero_shot_classification() -> anyhow::Result<()> {
-    //    Set-up model model
+    //    Set-up model
     let zero_shot_config = ZeroShotClassificationConfig {
         device: Device::Cpu,
         ..Default::default()
@@ -196,7 +233,7 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
-    //    Set-up model model
+    // Set-up model
     let zero_shot_config = ZeroShotClassificationConfig {
         device: Device::Cpu,
         ..Default::default()

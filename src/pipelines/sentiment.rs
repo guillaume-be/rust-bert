@@ -58,15 +58,16 @@ use crate::common::error::RustBertError;
 use crate::pipelines::sequence_classification::{
     SequenceClassificationConfig, SequenceClassificationModel,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 /// Enum with the possible sentiment polarities. Note that the pre-trained SST2 model does not include neutral sentiment.
 pub enum SentimentPolarity {
     Positive,
     Negative,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 /// Sentiment returned by the model.
 pub struct Sentiment {
     /// Polarity of the sentiment
@@ -75,7 +76,7 @@ pub struct Sentiment {
     pub score: f64,
 }
 
-type SentimentConfig = SequenceClassificationConfig;
+pub type SentimentConfig = SequenceClassificationConfig;
 
 /// # SentimentClassifier to perform sentiment analysis
 pub struct SentimentModel {
@@ -133,7 +134,10 @@ impl SentimentModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(&self, input: &[&str]) -> Vec<Sentiment> {
+    pub fn predict<'a, S>(&self, input: S) -> Vec<Sentiment>
+    where
+        S: AsRef<[&'a str]>,
+    {
         let labels = self.sequence_classification_model.predict(input);
         let mut sentiments = Vec::with_capacity(labels.len());
         for label in labels {
@@ -148,5 +152,16 @@ impl SentimentModel {
             })
         }
         sentiments
+    }
+}
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = SentimentConfig::default();
+        let _: Box<dyn Send> = Box::new(SentimentModel::new(config));
     }
 }

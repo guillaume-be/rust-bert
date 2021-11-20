@@ -46,6 +46,7 @@ impl LayerState {
 #[derive(Debug)]
 pub struct T5Attention {
     is_decoder: bool,
+    is_bidirectional: bool,
     has_relative_attention_bias: bool,
     relative_attention_num_buckets: i64,
     d_model: i64,
@@ -67,6 +68,7 @@ impl T5Attention {
         p: P,
         config: &T5Config,
         is_decoder: bool,
+        is_bidirectional: bool,
         store_cache: bool,
         output_attentions: bool,
         has_relative_attention_bias: bool,
@@ -101,6 +103,7 @@ impl T5Attention {
 
         T5Attention {
             is_decoder,
+            is_bidirectional,
             has_relative_attention_bias,
             relative_attention_num_buckets: config.relative_attention_num_buckets,
             d_model: config.d_model,
@@ -131,7 +134,7 @@ impl T5Attention {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        kv: Option<&Tensor>,
+        key_value_states: Option<&Tensor>,
         position_bias: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
         mut layer_state: Option<LayerState>,
@@ -139,39 +142,39 @@ impl T5Attention {
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
         let input_size = hidden_states.size();
-        let (bs, q_len, _) = (input_size[0], input_size[1], input_size[2]);
+        let (bs, seq_length, _) = (input_size[0], input_size[1], input_size[2]);
 
-        let real_query_length = if layer_state.is_some() {
+        let real_seq_length = if layer_state.is_some() {
             match query_length {
                 Some(value) => value,
-                None => q_len + layer_state.as_ref().unwrap().prev_key.size()[2],
+                None => seq_length + layer_state.as_ref().unwrap().prev_key.size()[2],
             }
         } else {
-            q_len
+            seq_length
         };
 
-        let key_length = match kv {
+        let key_length = match key_value_states {
             Some(value) => value.size()[1],
-            None => real_query_length,
+            None => real_seq_length,
         };
 
         let q: Tensor = self.shape(hidden_states.as_ref().apply(&self.query), bs);
 
-        let (mut k, mut v) = if kv.is_none() {
+        let (mut k, mut v) = if key_value_states.is_none() {
             (
                 self.shape(hidden_states.apply(&self.key), bs),
                 self.shape(hidden_states.apply(&self.value), bs),
             )
         } else {
             (
-                self.shape(kv.as_ref().unwrap().apply(&self.key), bs),
-                self.shape(kv.as_ref().unwrap().apply(&self.value), bs),
+                self.shape(key_value_states.as_ref().unwrap().apply(&self.key), bs),
+                self.shape(key_value_states.as_ref().unwrap().apply(&self.value), bs),
             )
         };
 
         if layer_state.is_some() {
             let layer_state = layer_state.as_ref().unwrap();
-            if kv.is_none() {
+            if key_value_states.is_none() {
                 k = Tensor::cat(&[&layer_state.prev_key, &k], 2);
                 v = Tensor::cat(&[&layer_state.prev_value, &v], 2);
             } else {
@@ -192,11 +195,17 @@ impl T5Attention {
         let mut scores = Tensor::einsum("bnqd,bnkd->bnqk", &[q, k]);
 
         let calculated_position_bias = if position_bias.is_none() {
-            let mut temp_value =
-                self.compute_bias(real_query_length, key_length, hidden_states.device());
+            let mut temp_value = if self.has_relative_attention_bias {
+                self.compute_bias(real_seq_length, key_length, hidden_states.device())
+            } else {
+                Tensor::zeros(
+                    &[1, self.n_heads, real_seq_length, key_length],
+                    (scores.kind(), scores.device()),
+                )
+            };
             if layer_state.is_some() {
                 let length = temp_value.size()[2];
-                temp_value = temp_value.slice(2, length - 1, length, 1);
+                temp_value = temp_value.slice(2, length - seq_length, length, 1);
             };
             if let Some(attention_mask) = attention_mask {
                 temp_value = temp_value + attention_mask
@@ -215,7 +224,7 @@ impl T5Attention {
         scores += position_bias;
 
         let attention_weights = scores
-            .softmax(-1, Kind::Float)
+            .softmax(-1, scores.kind())
             .apply_t(&self.dropout, train);
         let context = self
             .unshape(attention_weights.matmul(&v), bs)
@@ -251,7 +260,7 @@ impl T5Attention {
             ret += n.lt(0).to_kind(Kind::Int64) * num_buckets;
             n.abs()
         } else {
-            n.max1(&n.zeros_like())
+            n.max_other(&n.zeros_like())
         };
 
         let max_exact = num_buckets / 2;
@@ -263,8 +272,8 @@ impl T5Attention {
             .to_kind(Kind::Int64)
             + max_exact;
 
-        let value_if_large = value_if_large.min1(&value_if_large.full_like(num_buckets - 1));
-        ret += n.where1(&is_small, &value_if_large);
+        let value_if_large = value_if_large.min_other(&value_if_large.full_like(num_buckets - 1));
+        ret += n.where_self(&is_small, &value_if_large);
         ret
     }
 
@@ -275,7 +284,7 @@ impl T5Attention {
 
         let rp_bucket = self.get_relative_position_bucket(
             &relative_position,
-            !self.is_decoder,
+            self.is_bidirectional,
             self.relative_attention_num_buckets,
             128,
         );
@@ -310,6 +319,7 @@ impl T5LayerSelfAttention {
             p / "SelfAttention",
             config,
             is_decoder,
+            !is_decoder,
             store_cache,
             output_attentions,
             has_relative_attention_bias,
@@ -375,6 +385,7 @@ impl T5LayerCrossAttention {
             p / "EncDecAttention",
             config,
             is_decoder,
+            true,
             store_cache,
             output_attentions,
             has_relative_attention_bias,

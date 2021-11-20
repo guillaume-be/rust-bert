@@ -14,7 +14,6 @@
 use crate::albert::AlbertConfig;
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
-use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
 #[derive(Debug)]
@@ -69,14 +68,8 @@ impl AlbertSelfAttention {
         );
         let dropout = Dropout::new(config.attention_probs_dropout_prob);
         let attention_head_size = config.hidden_size / config.num_attention_heads;
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let layer_norm_eps = match config.layer_norm_eps {
-            Some(value) => value,
-            None => 1e-12,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let layer_norm_eps = config.layer_norm_eps.unwrap_or(1e-12);
         let layer_norm_config = nn::LayerNormConfig {
             eps: layer_norm_eps,
             ..Default::default()
@@ -106,7 +99,7 @@ impl AlbertSelfAttention {
     pub fn forward_t(
         &self,
         input_ids: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let bs = *input_ids.size().first().unwrap();
@@ -125,7 +118,10 @@ impl AlbertSelfAttention {
             query_layer.matmul(&key_layer.transpose(-1, -2))
         };
 
-        let weights = scores.softmax(-1, Float).apply_t(&self.dropout, train);
+        let weights = scores
+            .softmax(-1, scores.kind())
+            .apply_t(&self.dropout, train);
+
         let context = weights.matmul(&value_layer).transpose(1, 2).contiguous();
 
         let w = self.dense.ws.transpose(0, 1).view((
@@ -134,7 +130,8 @@ impl AlbertSelfAttention {
             self.hidden_size,
         ));
 
-        let context: Tensor = Tensor::einsum("bfnd,ndh->bfh", &[context, w]) + &self.dense.bs;
+        let context: Tensor =
+            Tensor::einsum("bfnd,ndh->bfh", &[context, w]) + self.dense.bs.as_ref().unwrap();
         let context = (input_ids + context.apply_t(&self.dropout, train)).apply(&self.layer_norm);
 
         if !self.output_attentions {

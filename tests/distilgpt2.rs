@@ -2,10 +2,10 @@ use rust_bert::gpt2::{
     GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources,
     Gpt2VocabResources,
 };
-use rust_bert::pipelines::generation::{Cache, LMHeadModel};
+use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]
@@ -28,7 +28,7 @@ fn distilgpt2_lm_model() -> anyhow::Result<()> {
     let merges_path = merges_resource.get_local_path()?;
     let weights_path = weights_resource.get_local_path()?;
 
-    //    Set-up masked LM model
+    //    Set-up model
     let device = Device::Cpu;
     let mut vs = nn::VarStore::new(device);
     let tokenizer: Gpt2Tokenizer = Gpt2Tokenizer::from_file(
@@ -42,8 +42,7 @@ fn distilgpt2_lm_model() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["One two three four five six seven eight nine ten eleven"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -63,14 +62,14 @@ fn distilgpt2_lm_model() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = gpt2_model
         .forward_t(
-            &Some(input_tensor),
+            Some(&input_tensor),
             Cache::None,
-            &None,
-            &None,
-            &None,
-            &None,
             None,
-            &None,
+            None,
+            None,
+            None,
+            None,
+            None,
             false,
         )
         .unwrap();
@@ -81,7 +80,7 @@ fn distilgpt2_lm_model() -> anyhow::Result<()> {
         .get(-1)
         .argmax(-1, true)
         .int64_value(&[0]);
-    let next_word = tokenizer.decode(vec![next_word_id], true, true);
+    let next_word = tokenizer.decode(&[next_word_id], true, true);
 
     assert_eq!(model_output.lm_logits.size(), vec!(1, 11, 50257));
     match model_output.cache {

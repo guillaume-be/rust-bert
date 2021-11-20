@@ -3,12 +3,12 @@ use rust_bert::openai_gpt::{
     OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptMergesResources,
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
-use rust_bert::pipelines::generation::{
-    Cache, GenerateConfig, LMHeadModel, LanguageGenerator, OpenAIGenerator,
-};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
+use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
+use rust_tokenizers::tokenizer::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
 #[test]
@@ -45,8 +45,7 @@ fn openai_gpt_lm_model() -> anyhow::Result<()> {
 
     //    Define input
     let input = ["Wondering what the next word will"];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -66,14 +65,14 @@ fn openai_gpt_lm_model() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = openai_gpt
         .forward_t(
-            &Some(input_tensor),
+            Some(&input_tensor),
             Cache::None,
-            &None,
-            &None,
-            &None,
-            &None,
             None,
-            &None,
+            None,
+            None,
+            None,
+            None,
+            None,
             false,
         )
         .unwrap();
@@ -84,7 +83,7 @@ fn openai_gpt_lm_model() -> anyhow::Result<()> {
         .get(-1)
         .argmax(-1, true)
         .int64_value(&[0]);
-    let next_word = tokenizer.decode(vec![next_word_id], true, true);
+    let next_word = tokenizer.decode(&[next_word_id], true, true);
 
     assert_eq!(model_output.lm_logits.size(), vec!(1, 6, 40478));
     assert!(
@@ -118,8 +117,9 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
         OpenAiGptModelResources::GPT,
     ));
 
-    //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    //    Set-up model
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::OpenAiGpt,
         model_resource,
         config_resource,
         vocab_resource,
@@ -132,10 +132,10 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
         temperature: 1.1,
         ..Default::default()
     };
-    let model = OpenAIGenerator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "It was an intense machine dialogue. ";
-    let output = model.generate(Some(vec![input_context]), None);
+    let output = model.generate(&[input_context], None);
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], "it was an intense machine dialogue. \n \" i\'m sorry, but we have to go now! the police are on their way and they\'re going after you - or at least that\'s what my");
@@ -159,36 +159,38 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
         OpenAiGptModelResources::GPT,
     ));
 
-    //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    //    Set-up model
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::OpenAiGpt,
         model_resource,
         config_resource,
         vocab_resource,
         merges_resource,
         max_length: 20,
         do_sample: false,
+        early_stopping: true,
         num_beams: 5,
-        temperature: 2.0,
+        temperature: 1.0,
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = OpenAIGenerator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The dog is";
-    let output = model.generate(Some(vec![input_context]), None);
+    let output = model.generate(&[input_context], None);
 
     assert_eq!(output.len(), 3);
     assert_eq!(
         output[0],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be right"
+        "the dog is a good dog. \" \n \" he's a good dog, \" i agreed."
     );
     assert_eq!(
         output[1],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be back"
+        "the dog is a good dog. \" \n \" he\'s a good dog. \" \n \" he"
     );
     assert_eq!(
         output[2],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. \" \n \" i"
+        "the dog is a good dog. \" \n \" he\'s a good dog. \" \n \" i"
     );
 
     Ok(())
@@ -210,52 +212,54 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
         OpenAiGptModelResources::GPT,
     ));
 
-    //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    //    Set-up model
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::OpenAiGpt,
         model_resource,
         config_resource,
         vocab_resource,
         merges_resource,
         max_length: 20,
         do_sample: false,
+        early_stopping: true,
         num_beams: 5,
-        temperature: 2.0,
+        temperature: 1.0,
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = OpenAIGenerator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat";
-    let output = model.generate(Some(vec![input_context_1, input_context_2]), None);
+    let output = model.generate(&[input_context_1, input_context_2], None);
 
     assert_eq!(output.len(), 6);
 
-    //    Unpadded sequence (generation for `The dog is`) is identical to the
+    //    Un-padded sequence (generation for `The dog is`) is identical to the case with a unique input
     assert_eq!(
         output[0],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be right"
+        "the dog is a good dog. \" \n \" he's a good dog, \" i agreed."
     );
     assert_eq!(
         output[1],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. i \'ll be back"
+        "the dog is a good dog. \" \n \" he\'s a good dog. \" \n \" he"
     );
     assert_eq!(
         output[2],
-        "the dog isn\'t going anywhere. i\'m going to take care of him. \" \n \" i"
+        "the dog is a good dog. \" \n \" he\'s a good dog. \" \n \" i"
     );
 
     assert_eq!(
         output[3],
-        "the cat. \" \n \" i don\'t know what you\'re talking about. i don\'t"
+        "the cat. \" \n \" what? \" \n \" you heard me. \" \n \" i"
     );
     assert_eq!(
         output[4],
-        "the cat. \" \n \" i don\'t know what you\'re talking about. i\'m not"
+        "the cat. \" \n \" what? \" \n \" you heard me. \" \n \" no"
     );
     assert_eq!(
         output[5],
-        "the cat. \" \n \" i don\'t know what you\'re talking about. i do know"
+        "the cat. \" \n \" what? \" \n \" you heard me. \" \n \" oh"
     );
 
     Ok(())
@@ -277,8 +281,9 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
         OpenAiGptModelResources::GPT,
     ));
 
-    //    Set-up masked LM model
-    let generate_config = GenerateConfig {
+    //    Set-up model
+    let generate_config = TextGenerationConfig {
+        model_type: ModelType::OpenAiGpt,
         model_resource,
         config_resource,
         vocab_resource,
@@ -290,11 +295,11 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
         num_return_sequences: 3,
         ..Default::default()
     };
-    let model = OpenAIGenerator::new(generate_config)?;
+    let model = TextGenerationModel::new(generate_config)?;
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat was in";
-    let output = model.generate(Some(vec![input_context_1, input_context_2]), None);
+    let output = model.generate(&[input_context_1, input_context_2], None);
 
     assert_eq!(output.len(), 6);
     //    Left padding impacts the generated sentences output

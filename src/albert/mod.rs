@@ -2,16 +2,15 @@
 //!
 //! Implementation of the ALBERT language model ([https://arxiv.org/abs/1909.11942](https://arxiv.org/abs/1909.11942) Lan, Chen, Goodman, Gimpel, Sharma, Soricut, 2019).
 //! This model offers a greatly reduced memory footprint for similar effective size (number and size of layers). The computational cost remains however similar to the original BERT model.
-//! The base model is implemented in the `albert::AlbertModel` struct. Several language model heads have also been implemented, including:
-//! - Masked language model: `albert::AlbertForMaskedLM`
-//! - Multiple choices: `albert:AlbertForMultipleChoice`
-//! - Question answering: `albert::AlbertForQuestionAnswering`
-//! - Sequence classification: `albert::AlbertForSequenceClassification`
-//! - Token classification (e.g. NER, POS tagging): `albert::AlbertForTokenClassification`
+//! The base model is implemented in the `albert_model::AlbertModel` struct. Several language model heads have also been implemented, including:
+//! - Masked language model: `albert_model::AlbertForMaskedLM`
+//! - Multiple choices: `albert_model:AlbertForMultipleChoice`
+//! - Question answering: `albert_model::AlbertForQuestionAnswering`
+//! - Sequence classification: `albert_model::AlbertForSequenceClassification`
+//! - Token classification (e.g. NER, POS tagging): `albert_model::AlbertForTokenClassification`
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/albert`, run with `cargo run --example albert`.
 //! The example below illustrate a Masked language model example, the structure is similar for other models.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
@@ -22,12 +21,12 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! #
-//! use rust_tokenizers::AlbertTokenizer;
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::albert::{AlbertConfig, AlbertForMaskedLM};
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
+//! use rust_tokenizers::tokenizer::AlbertTokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),

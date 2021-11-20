@@ -7,9 +7,8 @@ use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 use rust_bert::pipelines::sentiment::{SentimentModel, SentimentPolarity};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::bert_tokenizer::BertTokenizer;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{Tokenizer, TruncationStrategy};
-use rust_tokenizers::preprocessing::vocab::base_vocab::Vocab;
+use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
@@ -29,7 +28,7 @@ fn distilbert_sentiment_classifier() -> anyhow::Result<()> {
 
     let output = sentiment_classifier.predict(&input);
 
-    assert_eq!(output.len(), 3 as usize);
+    assert_eq!(output.len(), 3usize);
     assert_eq!(output[0].polarity, SentimentPolarity::Positive);
     assert!((output[0].score - 0.9981).abs() < 1e-4);
     assert_eq!(output[1].polarity, SentimentPolarity::Negative);
@@ -70,8 +69,7 @@ fn distilbert_masked_lm() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -91,14 +89,14 @@ fn distilbert_masked_lm() -> anyhow::Result<()> {
     tokenized_input[1][6] = 103;
     let tokenized_input = tokenized_input
         .iter()
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::of_slice(input))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
     let model_output = no_grad(|| {
         distil_bert_model
-            .forward_t(Some(input_tensor), None, None, false)
+            .forward_t(Some(&input_tensor), None, None, false)
             .unwrap()
     });
 
@@ -149,8 +147,7 @@ fn distilbert_for_question_answering() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -170,7 +167,7 @@ fn distilbert_for_question_answering() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = no_grad(|| {
         distil_bert_model
-            .forward_t(Some(input_tensor), None, None, false)
+            .forward_t(Some(&input_tensor), None, None, false)
             .unwrap()
     });
 
@@ -221,8 +218,7 @@ fn distilbert_for_token_classification() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -242,7 +238,7 @@ fn distilbert_for_token_classification() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = no_grad(|| {
         distil_bert_model
-            .forward_t(Some(input_tensor), None, None, false)
+            .forward_t(Some(&input_tensor), None, None, false)
             .unwrap()
     });
 
@@ -271,11 +267,11 @@ fn distilbert_question_answering() -> anyhow::Result<()> {
 
     let answers = qa_model.predict(&[qa_input], 1, 32);
 
-    assert_eq!(answers.len(), 1 as usize);
-    assert_eq!(answers[0].len(), 1 as usize);
+    assert_eq!(answers.len(), 1usize);
+    assert_eq!(answers[0].len(), 1usize);
     assert_eq!(answers[0][0].start, 13);
-    assert_eq!(answers[0][0].end, 21);
-    assert!((answers[0][0].score - 0.9977).abs() < 1e-4);
+    assert_eq!(answers[0][0].end, 22);
+    assert!((answers[0][0].score - 0.9978).abs() < 1e-4);
     assert_eq!(answers[0][0].answer, "Amsterdam");
 
     Ok(())

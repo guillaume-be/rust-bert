@@ -12,9 +12,8 @@
 // limitations under the License.
 
 use std::borrow::Borrow;
-use tch::kind::Kind::Int64;
-use tch::nn::{embedding, EmbeddingConfig};
-use tch::{nn, Tensor};
+use tch::nn::embedding;
+use tch::{nn, Kind, Tensor};
 
 /// # Abstraction that holds a embeddings configuration
 pub enum EmbeddingOption {
@@ -25,13 +24,13 @@ pub enum EmbeddingOption {
 
 impl EmbeddingOption {
     /// Interface method to forward_t() of the particular models.
-    pub fn forward(&self, input: &Tensor, generation_mode: bool) -> Tensor {
+    pub fn forward(&self, input: &Tensor, past_key_values_length: i64) -> Tensor {
         match *self {
             Self::LearnedPositionalEmbedding(ref embeddings) => {
-                embeddings.forward(input, generation_mode)
+                embeddings.forward(input, past_key_values_length)
             }
             Self::SinusoidalPositionalEmbedding(ref embeddings) => {
-                embeddings.forward(input, generation_mode)
+                embeddings.forward(input, past_key_values_length)
             }
         }
     }
@@ -40,47 +39,36 @@ impl EmbeddingOption {
 #[derive(Debug)]
 pub struct LearnedPositionalEmbedding {
     embedding: nn::Embedding,
-    padding_index: i64,
+    offset: i64,
 }
 
 impl LearnedPositionalEmbedding {
-    pub fn new<'p, P>(
-        p: P,
-        num_embeddings: i64,
-        embedding_dim: i64,
-        padding_index: i64,
-    ) -> LearnedPositionalEmbedding
+    pub fn new<'p, P>(p: P, num_embeddings: i64, embedding_dim: i64) -> LearnedPositionalEmbedding
     where
         P: Borrow<nn::Path<'p>>,
     {
-        let embedding_config = EmbeddingConfig {
-            padding_idx: padding_index,
-            ..Default::default()
-        };
-        let num_embeddings = num_embeddings + padding_index + 1;
+        let offset = 2;
 
-        let embedding: nn::Embedding =
-            embedding(p.borrow(), num_embeddings, embedding_dim, embedding_config);
-        LearnedPositionalEmbedding {
-            embedding,
-            padding_index,
-        }
+        let num_embeddings = num_embeddings + offset;
+
+        let embedding: nn::Embedding = embedding(
+            p.borrow(),
+            num_embeddings,
+            embedding_dim,
+            Default::default(),
+        );
+        LearnedPositionalEmbedding { embedding, offset }
     }
 
-    pub fn forward(&self, input: &Tensor, generation_mode: bool) -> Tensor {
-        let positions = if generation_mode {
-            let positions = self.padding_index + input.size()[1];
-            input.new_full(&[1, 1], positions, (Int64, input.device()))
-        } else {
-            self.create_position_ids_from_input_ids(input, self.padding_index)
-        };
+    pub fn forward(&self, input: &Tensor, past_key_values_length: i64) -> Tensor {
+        let input_shape = input.size();
+        let (_, sequence_length) = (input_shape[0], input_shape[1]);
+        let positions = Tensor::arange_start(
+            past_key_values_length,
+            past_key_values_length + sequence_length,
+            (Kind::Int64, input.device()),
+        ) + self.offset;
         positions.apply(&self.embedding)
-    }
-
-    fn create_position_ids_from_input_ids(&self, input_ids: &Tensor, padding_index: i64) -> Tensor {
-        let mask = input_ids.ne(padding_index).to_kind(Int64);
-        let position_ids: Tensor = mask.cumsum(1, Int64) * mask + padding_index;
-        position_ids
     }
 }
 
@@ -107,12 +95,14 @@ impl SinusoidalPositionalEmbedding {
         SinusoidalPositionalEmbedding { embedding }
     }
 
-    pub fn forward(&self, input: &Tensor, generation_mode: bool) -> Tensor {
-        let positions = if generation_mode {
-            Tensor::full(&[1, 1], input.size()[1] - 1, (Int64, input.device()))
-        } else {
-            Tensor::arange(input.size()[1], (Int64, input.device()))
-        };
+    pub fn forward(&self, input: &Tensor, past_key_values_length: i64) -> Tensor {
+        let input_shape = input.size();
+        let (_, sequence_length) = (input_shape[0], input_shape[1]);
+        let positions = Tensor::arange_start(
+            past_key_values_length,
+            past_key_values_length + sequence_length,
+            (Kind::Int64, input.device()),
+        );
         positions.apply(&self.embedding)
     }
 }

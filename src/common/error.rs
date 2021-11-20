@@ -1,4 +1,4 @@
-use rust_tokenizers::preprocessing::error::TokenizerError;
+use rust_tokenizers::error::TokenizerError;
 use tch::TchError;
 use thiserror::Error;
 

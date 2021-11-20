@@ -13,7 +13,6 @@
 use crate::common::dropout::Dropout;
 use crate::distilbert::distilbert_model::DistilBertConfig;
 use std::borrow::Borrow;
-use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
 #[derive(Debug)]
@@ -40,11 +39,7 @@ impl MultiHeadSelfAttention {
         let out_lin = nn::linear(p / "out_lin", config.dim, config.dim, Default::default());
 
         let dropout = Dropout::new(config.attention_dropout);
-
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
 
         MultiHeadSelfAttention {
             n_heads: config.n_heads,
@@ -73,7 +68,7 @@ impl MultiHeadSelfAttention {
         query: &Tensor,
         key: &Tensor,
         value: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let bs = query.size()[0];
@@ -87,15 +82,17 @@ impl MultiHeadSelfAttention {
         let scores = if let Some(mask) = mask {
             let unmasked_scores = q.matmul(&k.transpose(2, 3));
             let mask = mask
-                .le1(&(mask.zeros_like() + 0.1))
+                .le_tensor(&(mask.zeros_like() + 0.1))
                 .view((bs, 1i64, 1i64, k_length))
                 .expand_as(&unmasked_scores);
-            unmasked_scores.masked_fill(&mask, std::f64::NEG_INFINITY)
+            unmasked_scores.masked_fill(&mask, f64::NEG_INFINITY)
         } else {
             q.matmul(&k.transpose(2, 3))
         };
 
-        let weights = scores.softmax(-1, Float).apply_t(&self.dropout, train);
+        let weights = scores
+            .softmax(-1, scores.kind())
+            .apply_t(&self.dropout, train);
         let context = self
             .flatten(weights.matmul(&v), bs, self.dim_per_head)
             .apply(&self.out_lin);

@@ -11,10 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::albert::albert_model::Activation;
-use crate::albert::attention::AlbertSelfAttention;
 use crate::albert::AlbertConfig;
-use crate::common::activations::{_gelu, _gelu_new, _mish, _relu};
+use crate::{albert::attention::AlbertSelfAttention, common::activations::TensorFunction};
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
 
@@ -23,7 +21,7 @@ pub struct AlbertLayer {
     full_layer_layer_norm: nn::LayerNorm,
     ffn: nn::Linear,
     ffn_output: nn::Linear,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 impl AlbertLayer {
@@ -33,12 +31,9 @@ impl AlbertLayer {
     {
         let p = p.borrow();
 
-        let attention = AlbertSelfAttention::new(p / "attention", &config);
+        let attention = AlbertSelfAttention::new(p / "attention", config);
 
-        let layer_norm_eps = match config.layer_norm_eps {
-            Some(value) => value,
-            None => 1e-12,
-        };
+        let layer_norm_eps = config.layer_norm_eps.unwrap_or(1e-12);
         let layer_norm_config = nn::LayerNormConfig {
             eps: layer_norm_eps,
             ..Default::default()
@@ -62,12 +57,7 @@ impl AlbertLayer {
             Default::default(),
         );
 
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu_new => _gelu_new,
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
 
         AlbertLayer {
             attention,
@@ -81,13 +71,13 @@ impl AlbertLayer {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let (attention_output, attention_weights) =
             self.attention.forward_t(hidden_states, mask, train);
         let ffn_output = attention_output.apply(&self.ffn);
-        let ffn_output: Tensor = (self.activation)(&ffn_output);
+        let ffn_output: Tensor = (self.activation.get_fn())(&ffn_output);
         let ffn_output = ffn_output.apply(&self.ffn_output);
         let ffn_output = (ffn_output + attention_output).apply(&self.full_layer_layer_norm);
 
@@ -108,15 +98,8 @@ impl AlbertLayerGroup {
     {
         let p = p.borrow() / "albert_layers";
 
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
 
         let mut layers: Vec<AlbertLayer> = vec![];
         for layer_index in 0..config.inner_group_num {
@@ -133,7 +116,7 @@ impl AlbertLayerGroup {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Vec<Tensor>>, Option<Vec<Tensor>>) {
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
@@ -151,15 +134,14 @@ impl AlbertLayerGroup {
         let mut attention_weights: Option<Tensor>;
 
         for layer in &self.layers {
-            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
-            };
-
-            let temp = layer.forward_t(&hidden_state, &mask, train);
+            let temp = layer.forward_t(&hidden_state, mask, train);
             hidden_state = temp.0;
             attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
+            };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
             };
         }
 
@@ -184,15 +166,8 @@ impl AlbertTransformer {
         let p = p.borrow();
         let p_layers = p / "albert_layer_groups";
 
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
 
         let embedding_hidden_mapping_in = nn::linear(
             p / "embedding_hidden_mapping_in",
@@ -243,7 +218,7 @@ impl AlbertTransformer {
                 hidden_states.push(hidden_state.as_ref().copy());
             };
 
-            let temp = layer.forward_t(&hidden_state, &mask, train);
+            let temp = layer.forward_t(&hidden_state, mask.as_ref(), train);
             hidden_state = temp.0;
             let attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {

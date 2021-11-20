@@ -11,11 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bert::bert_model::{Activation, BertConfig};
-use crate::common::activations::{_gelu, _mish, _relu};
+use crate::bert::bert_model::BertConfig;
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use std::borrow::Borrow;
-use tch::kind::Kind::Float;
 use tch::{nn, Tensor};
 
 #[derive(Debug)]
@@ -62,10 +61,7 @@ impl BertSelfAttention {
 
         let dropout = Dropout::new(config.attention_probs_dropout_prob);
         let attention_head_size = config.hidden_size / config.num_attention_heads;
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
 
         BertSelfAttention {
             num_attention_heads: config.num_attention_heads,
@@ -92,9 +88,9 @@ impl BertSelfAttention {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let (key_layer, value_layer, mask) = match encoder_hidden_states {
@@ -127,7 +123,9 @@ impl BertSelfAttention {
             query_layer.matmul(&key_layer.transpose(-1, -2))
         };
 
-        let weights = scores.softmax(-1, Float).apply_t(&self.dropout, train);
+        let weights = scores
+            .softmax(-1, scores.kind())
+            .apply_t(&self.dropout, train);
         let context = self.flatten(weights.matmul(&value_layer), bs, self.attention_head_size);
 
         if !self.output_attentions {
@@ -203,9 +201,9 @@ impl BertAttention {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        mask: &Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
         let (self_output, attention_weights) = self._self.forward_t(
@@ -223,7 +221,7 @@ impl BertAttention {
 
 pub struct BertIntermediate {
     lin: nn::Linear,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 impl BertIntermediate {
@@ -239,16 +237,12 @@ impl BertIntermediate {
             config.intermediate_size,
             Default::default(),
         );
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
         BertIntermediate { lin, activation }
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        (self.activation)(&hidden_states.apply(&self.lin))
+        (self.activation.get_fn())(&hidden_states.apply(&self.lin))
     }
 }
 

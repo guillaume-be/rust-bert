@@ -8,7 +8,8 @@ use rust_bert::albert::{
 };
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
-use rust_tokenizers::{AlbertTokenizer, Tokenizer, TruncationStrategy, Vocab};
+use rust_tokenizers::tokenizer::{AlbertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
@@ -42,8 +43,7 @@ fn albert_masked_lm() -> anyhow::Result<()> {
         "Looks like one [MASK] is missing",
         "It\'s like comparing [MASK] to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -62,7 +62,7 @@ fn albert_masked_lm() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| albert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| albert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     //    Print masked tokens
     let index_1 = model_output
@@ -116,8 +116,7 @@ fn albert_for_sequence_classification() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -136,7 +135,7 @@ fn albert_for_sequence_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| albert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| albert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 3]);
     assert_eq!(
@@ -178,8 +177,7 @@ fn albert_for_multiple_choice() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -201,7 +199,7 @@ fn albert_for_multiple_choice() -> anyhow::Result<()> {
     //    Forward pass
     let model_output = no_grad(|| {
         albert_model
-            .forward_t(Some(input_tensor), None, None, None, None, false)
+            .forward_t(Some(&input_tensor), None, None, None, None, false)
             .unwrap()
     });
 
@@ -244,15 +242,14 @@ fn albert_for_token_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = AlbertForTokenClassification::new(&vs.root(), &config);
+    let albert_model = AlbertForTokenClassification::new(&vs.root(), &config);
 
     //    Define input
     let input = [
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -271,7 +268,7 @@ fn albert_for_token_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| bert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| albert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.logits.size(), &[2, 12, 4]);
     assert_eq!(
@@ -313,8 +310,7 @@ fn albert_for_question_answering() -> anyhow::Result<()> {
         "Looks like one thing is missing",
         "It\'s like comparing oranges to apples",
     ];
-    let tokenized_input =
-        tokenizer.encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    let tokenized_input = tokenizer.encode_list(&input, 128, &TruncationStrategy::LongestFirst, 0);
     let max_len = tokenized_input
         .iter()
         .map(|input| input.token_ids.len())
@@ -333,7 +329,7 @@ fn albert_for_question_answering() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output =
-        no_grad(|| albert_model.forward_t(Some(input_tensor), None, None, None, None, false));
+        no_grad(|| albert_model.forward_t(Some(&input_tensor), None, None, None, None, false));
 
     assert_eq!(model_output.start_logits.size(), &[2, 12]);
     assert_eq!(model_output.end_logits.size(), &[2, 12]);

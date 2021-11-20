@@ -21,7 +21,7 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! # use rust_bert::pipelines::generation::LanguageGenerator;
+//! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::summarization::SummarizationModel;
 //! let mut model = SummarizationModel::new(Default::default())?;
 //!
@@ -62,18 +62,25 @@
 //! # ;
 //! ```
 
+use tch::Device;
+
 use crate::bart::{
-    BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
+    BartConfigResources, BartGenerator, BartMergesResources, BartModelResources, BartVocabResources,
 };
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
-use crate::pipelines::generation::{BartGenerator, GenerateConfig, LanguageGenerator};
-use tch::Device;
+use crate::pegasus::PegasusConditionalGenerator;
+use crate::pipelines::common::ModelType;
+use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::prophetnet::ProphetNetConditionalGenerator;
+use crate::t5::T5Generator;
 
 /// # Configuration for text summarization
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
 /// different set of default parameters and sets the device to place the model on.
 pub struct SummarizationConfig {
+    /// Model type
+    pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
     pub model_resource: Resource,
     /// Config resource (default: pretrained BART model on CNN-DM)
@@ -106,13 +113,47 @@ pub struct SummarizationConfig {
     pub no_repeat_ngram_size: i64,
     /// Number of sequences to return for each prompt text (default: 1)
     pub num_return_sequences: i64,
+    /// Number of beam groups for diverse beam generation. If provided and higher than 1, will split the beams into beam subgroups leading to more diverse generation.
+    pub num_beam_groups: Option<i64>,
+    /// Diversity penalty for diverse beam search. High values will enforce more difference between beam groups (default: 5.5)
+    pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+}
+
+impl SummarizationConfig {
+    /// Instantiate a new summarization configuration of the supplied type.
+    ///
+    /// # Arguments
+    ///
+    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
+    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - The `Resource`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
+    pub fn new(
+        model_type: ModelType,
+        model_resource: Resource,
+        config_resource: Resource,
+        vocab_resource: Resource,
+        merges_resource: Resource,
+    ) -> SummarizationConfig {
+        SummarizationConfig {
+            model_type,
+            model_resource,
+            config_resource,
+            vocab_resource,
+            merges_resource,
+            device: Device::cuda_if_available(),
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for SummarizationConfig {
     fn default() -> SummarizationConfig {
         SummarizationConfig {
+            model_type: ModelType::Bart,
             model_resource: Resource::Remote(RemoteResource::from_pretrained(
                 BartModelResources::BART_CNN,
             )),
@@ -128,7 +169,7 @@ impl Default for SummarizationConfig {
             min_length: 56,
             max_length: 142,
             do_sample: false,
-            early_stopping: false,
+            early_stopping: true,
             num_beams: 3,
             temperature: 1.0,
             top_k: 50,
@@ -137,14 +178,115 @@ impl Default for SummarizationConfig {
             length_penalty: 1.0,
             no_repeat_ngram_size: 3,
             num_return_sequences: 1,
+            num_beam_groups: None,
+            diversity_penalty: None,
             device: Device::cuda_if_available(),
+        }
+    }
+}
+
+impl From<SummarizationConfig> for GenerateConfig {
+    fn from(config: SummarizationConfig) -> GenerateConfig {
+        GenerateConfig {
+            model_resource: config.model_resource,
+            config_resource: config.config_resource,
+            merges_resource: config.merges_resource,
+            vocab_resource: config.vocab_resource,
+            min_length: config.min_length,
+            max_length: config.max_length,
+            do_sample: config.do_sample,
+            early_stopping: config.early_stopping,
+            num_beams: config.num_beams,
+            temperature: config.temperature,
+            top_k: config.top_k,
+            top_p: config.top_p,
+            repetition_penalty: config.repetition_penalty,
+            length_penalty: config.length_penalty,
+            no_repeat_ngram_size: config.no_repeat_ngram_size,
+            num_return_sequences: config.num_return_sequences,
+            num_beam_groups: config.num_beam_groups,
+            diversity_penalty: config.diversity_penalty,
+            device: config.device,
+        }
+    }
+}
+
+/// # Abstraction that holds one particular summarization model, for any of the supported models
+pub enum SummarizationOption {
+    /// Summarizer based on BART model
+    Bart(BartGenerator),
+    /// Summarizer based on T5 model
+    T5(T5Generator),
+    /// Summarizer based on ProphetNet model
+    ProphetNet(ProphetNetConditionalGenerator),
+    /// Summarizer based on Pegasus model
+    Pegasus(PegasusConditionalGenerator),
+}
+
+impl SummarizationOption {
+    pub fn new(config: SummarizationConfig) -> Result<Self, RustBertError> {
+        match config.model_type {
+            ModelType::Bart => Ok(SummarizationOption::Bart(BartGenerator::new(
+                config.into(),
+            )?)),
+            ModelType::T5 => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
+            ModelType::ProphetNet => Ok(SummarizationOption::ProphetNet(
+                ProphetNetConditionalGenerator::new(config.into())?,
+            )),
+            ModelType::Pegasus => Ok(SummarizationOption::Pegasus(
+                PegasusConditionalGenerator::new(config.into())?,
+            )),
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Summarization not implemented for {:?}!",
+                config.model_type
+            ))),
+        }
+    }
+
+    /// Returns the `ModelType` for this SummarizationOption
+    pub fn model_type(&self) -> ModelType {
+        match *self {
+            Self::Bart(_) => ModelType::Bart,
+            Self::T5(_) => ModelType::T5,
+            Self::ProphetNet(_) => ModelType::ProphetNet,
+            Self::Pegasus(_) => ModelType::Pegasus,
+        }
+    }
+
+    /// Interface method to generate() of the particular models.
+    pub fn generate<S>(&self, prompt_texts: Option<&[S]>) -> Vec<String>
+    where
+        S: AsRef<str> + Sync,
+    {
+        match *self {
+            Self::Bart(ref model) => model
+                .generate(prompt_texts, None)
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
+            Self::T5(ref model) => model
+                .generate(prompt_texts, None)
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
+            Self::ProphetNet(ref model) => model
+                .generate(prompt_texts, None)
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
+            Self::Pegasus(ref model) => model
+                .generate(prompt_texts, None)
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
         }
     }
 }
 
 /// # SummarizationModel to perform summarization
 pub struct SummarizationModel {
-    model: BartGenerator,
+    model: SummarizationOption,
+    prefix: Option<String>,
 }
 
 impl SummarizationModel {
@@ -167,29 +309,13 @@ impl SummarizationModel {
     pub fn new(
         summarization_config: SummarizationConfig,
     ) -> Result<SummarizationModel, RustBertError> {
-        let generate_config = GenerateConfig {
-            model_resource: summarization_config.model_resource,
-            config_resource: summarization_config.config_resource,
-            merges_resource: summarization_config.merges_resource,
-            vocab_resource: summarization_config.vocab_resource,
-            min_length: summarization_config.min_length,
-            max_length: summarization_config.max_length,
-            do_sample: summarization_config.do_sample,
-            early_stopping: summarization_config.early_stopping,
-            num_beams: summarization_config.num_beams,
-            temperature: summarization_config.temperature,
-            top_k: summarization_config.top_k,
-            top_p: summarization_config.top_p,
-            repetition_penalty: summarization_config.repetition_penalty,
-            length_penalty: summarization_config.length_penalty,
-            no_repeat_ngram_size: summarization_config.no_repeat_ngram_size,
-            num_return_sequences: summarization_config.num_return_sequences,
-            device: summarization_config.device,
+        let prefix = match summarization_config.model_type {
+            ModelType::T5 => Some("summarize: ".to_string()),
+            _ => None,
         };
+        let model = SummarizationOption::new(summarization_config)?;
 
-        let model = BartGenerator::new(generate_config)?;
-
-        Ok(SummarizationModel { model })
+        Ok(SummarizationModel { model, prefix })
     }
 
     /// Summarize texts provided
@@ -205,7 +331,7 @@ impl SummarizationModel {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::pipelines::generation::LanguageGenerator;
+    /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
     /// use rust_bert::pipelines::summarization::SummarizationModel;
     /// let model = SummarizationModel::new(Default::default())?;
     ///
@@ -236,7 +362,31 @@ impl SummarizationModel {
     /// # }
     /// ```
     /// (New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
-    pub fn summarize(&self, texts: &[&str]) -> Vec<String> {
-        self.model.generate(Some(texts.to_vec()), None)
+    pub fn summarize<S>(&self, texts: &[S]) -> Vec<String>
+    where
+        S: AsRef<str> + Sync,
+    {
+        match &self.prefix {
+            None => self.model.generate(Some(texts)),
+            Some(prefix) => {
+                let texts = texts
+                    .iter()
+                    .map(|text| format!("{}{}", prefix, text.as_ref()))
+                    .collect::<Vec<String>>();
+                self.model.generate(Some(&texts))
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = SummarizationConfig::default();
+        let _: Box<dyn Send> = Box::new(SummarizationModel::new(config));
     }
 }

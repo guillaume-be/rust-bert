@@ -22,26 +22,36 @@ use crate::bert::BertConfig;
 use crate::common::error::RustBertError;
 use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
+use crate::fnet::FNetConfig;
+use crate::gpt2::Gpt2Config;
+use crate::gpt_neo::GptNeoConfig;
+use crate::longformer::LongformerConfig;
+use crate::m2m_100::M2M100Config;
+use crate::mbart::MBartConfig;
+use crate::mobilebert::MobileBertConfig;
+use crate::pegasus::PegasusConfig;
+use crate::prophetnet::ProphetNetConfig;
+use crate::reformer::ReformerConfig;
 use crate::t5::T5Config;
+use crate::xlnet::XLNetConfig;
 use crate::Config;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
-    Mask, Offset, OffsetSize, Tokenizer,
+use rust_tokenizers::tokenizer::{
+    AlbertTokenizer, BertTokenizer, FNetTokenizer, Gpt2Tokenizer, M2M100Tokenizer,
+    MBart50Tokenizer, MarianTokenizer, MultiThreadedTokenizer, OpenAiGptTokenizer,
+    PegasusTokenizer, ProphetNetTokenizer, ReformerTokenizer, RobertaTokenizer, T5Tokenizer,
+    Tokenizer, TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
 };
-use rust_tokenizers::preprocessing::tokenizer::marian_tokenizer::MarianTokenizer;
-use rust_tokenizers::preprocessing::tokenizer::t5_tokenizer::T5Tokenizer;
-use rust_tokenizers::preprocessing::tokenizer::xlm_roberta_tokenizer::XLMRobertaTokenizer;
-use rust_tokenizers::preprocessing::vocab::albert_vocab::AlbertVocab;
-use rust_tokenizers::preprocessing::vocab::marian_vocab::MarianVocab;
-use rust_tokenizers::preprocessing::vocab::t5_vocab::T5Vocab;
-use rust_tokenizers::{
-    AlbertTokenizer, BertTokenizer, BertVocab, RobertaTokenizer, RobertaVocab, TokenizedInput,
-    TruncationStrategy, XLMRobertaVocab,
+use rust_tokenizers::vocab::{
+    AlbertVocab, BertVocab, FNetVocab, Gpt2Vocab, M2M100Vocab, MBart50Vocab, MarianVocab,
+    OpenAiGptVocab, PegasusVocab, ProphetNetVocab, ReformerVocab, RobertaVocab, T5Vocab, Vocab,
+    XLMRobertaVocab, XLNetVocab,
 };
+use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
-#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
 /// # Identifies the type of model
 pub enum ModelType {
     Bart,
@@ -51,8 +61,20 @@ pub enum ModelType {
     XLMRoberta,
     Electra,
     Marian,
+    MobileBert,
     T5,
     Albert,
+    XLNet,
+    GPT2,
+    OpenAiGpt,
+    Reformer,
+    ProphetNet,
+    Longformer,
+    Pegasus,
+    GPTNeo,
+    MBart,
+    M2M100,
+    FNet,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -67,10 +89,32 @@ pub enum ConfigOption {
     Electra(ElectraConfig),
     /// Marian configuration
     Marian(BartConfig),
+    /// MobileBert configuration
+    MobileBert(MobileBertConfig),
     /// T5 configuration
     T5(T5Config),
     /// Albert configuration
     Albert(AlbertConfig),
+    /// XLNet configuration
+    XLNet(XLNetConfig),
+    /// GPT2 configuration
+    GPT2(Gpt2Config),
+    /// Reformer configuration
+    Reformer(ReformerConfig),
+    /// ProphetNet configuration
+    ProphetNet(ProphetNetConfig),
+    /// Longformer configuration
+    Longformer(LongformerConfig),
+    /// Pegasus configuration
+    Pegasus(PegasusConfig),
+    /// GPT-Neo configuration
+    GPTNeo(GptNeoConfig),
+    /// MBart configuration
+    MBart(MBartConfig),
+    /// M2M100 configuration
+    M2M100(M2M100Config),
+    /// FNet configuration
+    FNet(FNetConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -79,7 +123,7 @@ pub enum TokenizerOption {
     Bert(BertTokenizer),
     /// Roberta Tokenizer
     Roberta(RobertaTokenizer),
-    /// Roberta Tokenizer
+    /// XLMRoberta Tokenizer
     XLMRoberta(XLMRobertaTokenizer),
     /// Marian Tokenizer
     Marian(MarianTokenizer),
@@ -87,6 +131,24 @@ pub enum TokenizerOption {
     T5(T5Tokenizer),
     /// Albert Tokenizer
     Albert(AlbertTokenizer),
+    /// XLNet Tokenizer
+    XLNet(XLNetTokenizer),
+    /// GPT2 Tokenizer
+    GPT2(Gpt2Tokenizer),
+    /// GPT Tokenizer
+    OpenAiGpt(OpenAiGptTokenizer),
+    /// Reformer Tokenizer
+    Reformer(ReformerTokenizer),
+    /// ProphetNet Tokenizer
+    ProphetNet(ProphetNetTokenizer),
+    /// Pegasus Tokenizer
+    Pegasus(PegasusTokenizer),
+    /// MBart50 Tokenizer
+    MBart50(MBart50Tokenizer),
+    /// M2M100 Tokenizer
+    M2M100(M2M100Tokenizer),
+    /// FNet Tokenizer
+    FNet(FNetTokenizer),
 }
 
 impl ConfigOption {
@@ -100,32 +162,107 @@ impl ConfigOption {
             ModelType::DistilBert => ConfigOption::DistilBert(DistilBertConfig::from_file(path)),
             ModelType::Electra => ConfigOption::Electra(ElectraConfig::from_file(path)),
             ModelType::Marian => ConfigOption::Marian(BartConfig::from_file(path)),
+            ModelType::MobileBert => ConfigOption::MobileBert(MobileBertConfig::from_file(path)),
             ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
             ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
+            ModelType::XLNet => ConfigOption::XLNet(XLNetConfig::from_file(path)),
+            ModelType::GPT2 | ModelType::GPTNeo => ConfigOption::GPT2(Gpt2Config::from_file(path)),
+            ModelType::OpenAiGpt => ConfigOption::GPT2(Gpt2Config::from_file(path)),
+            ModelType::Reformer => ConfigOption::Reformer(ReformerConfig::from_file(path)),
+            ModelType::ProphetNet => ConfigOption::ProphetNet(ProphetNetConfig::from_file(path)),
+            ModelType::Longformer => ConfigOption::Longformer(LongformerConfig::from_file(path)),
+            ModelType::Pegasus => ConfigOption::Pegasus(PegasusConfig::from_file(path)),
+            ModelType::MBart => ConfigOption::MBart(MBartConfig::from_file(path)),
+            ModelType::M2M100 => ConfigOption::M2M100(M2M100Config::from_file(path)),
+            ModelType::FNet => ConfigOption::FNet(FNetConfig::from_file(path)),
         }
     }
 
-    pub fn get_label_mapping(self) -> HashMap<i64, String> {
+    pub fn get_label_mapping(&self) -> &HashMap<i64, String> {
         match self {
             Self::Bart(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Bert(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::DistilBert(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Electra(config) => config
                 .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Marian(config) => config
                 .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::MobileBert(config) => config
+                .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::Albert(config) => config
                 .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::XLNet(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Reformer(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::ProphetNet(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Longformer(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::MBart(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::M2M100(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::FNet(config) => config
+                .id2label
+                .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
+            Self::GPT2(_) => panic!("GPT2 does not use a label mapping"),
+            Self::GPTNeo(_) => panic!("GPT-Neo does not use a label mapping"),
+            Self::Pegasus(_) => panic!("Pegasus does not use a label mapping"),
+        }
+    }
+
+    pub fn get_max_len(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => Some(config.max_position_embeddings),
+            Self::Bert(config) => Some(config.max_position_embeddings),
+            Self::DistilBert(config) => Some(config.max_position_embeddings),
+            Self::Electra(config) => Some(config.max_position_embeddings),
+            Self::Marian(config) => Some(config.max_position_embeddings),
+            Self::MobileBert(config) => Some(config.max_position_embeddings),
+            Self::T5(_) => None,
+            Self::Albert(config) => Some(config.max_position_embeddings),
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => Some(config.n_positions),
+            Self::Reformer(config) => Some(config.max_position_embeddings),
+            Self::ProphetNet(config) => Some(config.max_position_embeddings),
+            Self::Longformer(config) => Some(config.max_position_embeddings),
+            Self::Pegasus(config) => Some(config.max_position_embeddings),
+            Self::GPTNeo(config) => Some(config.max_position_embeddings),
+            Self::MBart(config) => Some(config.max_position_embeddings),
+            Self::M2M100(config) => Some(config.max_position_embeddings),
+            Self::FNet(config) => Some(config.max_position_embeddings),
         }
     }
 }
@@ -137,11 +274,17 @@ impl TokenizerOption {
         vocab_path: &str,
         merges_path: Option<&str>,
         lower_case: bool,
-        strip_accents: Option<bool>,
-        add_prefix_space: Option<bool>,
+        strip_accents: impl Into<Option<bool>>,
+        add_prefix_space: impl Into<Option<bool>>,
     ) -> Result<Self, RustBertError> {
+        let strip_accents = strip_accents.into();
+        let add_prefix_space = add_prefix_space.into();
+
         let tokenizer = match model_type {
-            ModelType::Bert | ModelType::DistilBert | ModelType::Electra => {
+            ModelType::Bert
+            | ModelType::DistilBert
+            | ModelType::Electra
+            | ModelType::MobileBert => {
                 if add_prefix_space.is_some() {
                     return Err(RustBertError::InvalidConfigurationError(
                         format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
@@ -154,7 +297,7 @@ impl TokenizerOption {
                     strip_accents.unwrap_or(lower_case),
                 )?)
             }
-            ModelType::Roberta | ModelType::Bart => {
+            ModelType::Roberta | ModelType::Bart | ModelType::Longformer => {
                 if strip_accents.is_some() {
                     return Err(RustBertError::InvalidConfigurationError(format!(
                         "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
@@ -235,6 +378,114 @@ impl TokenizerOption {
                     strip_accents.unwrap_or(lower_case),
                 )?)
             }
+            ModelType::XLNet => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::XLNet(XLNetTokenizer::from_file(
+                    vocab_path,
+                    lower_case,
+                    strip_accents.unwrap(),
+                )?)
+            }
+            ModelType::Reformer => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::Reformer(ReformerTokenizer::from_file(vocab_path, lower_case)?)
+            }
+            ModelType::GPT2 | ModelType::GPTNeo => TokenizerOption::GPT2(Gpt2Tokenizer::from_file(
+                vocab_path,
+                merges_path.expect("No merges specified!"),
+                lower_case,
+            )?),
+            ModelType::OpenAiGpt => TokenizerOption::OpenAiGpt(OpenAiGptTokenizer::from_file(
+                vocab_path,
+                merges_path.expect("No merges specified!"),
+                lower_case,
+            )?),
+            ModelType::ProphetNet => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                TokenizerOption::ProphetNet(ProphetNetTokenizer::from_file(
+                    vocab_path,
+                    lower_case,
+                    strip_accents.unwrap_or(lower_case),
+                )?)
+            }
+            ModelType::Pegasus => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::Pegasus(PegasusTokenizer::from_file(vocab_path, lower_case)?)
+            }
+            ModelType::MBart => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::MBart50(MBart50Tokenizer::from_file(vocab_path, lower_case)?)
+            }
+            ModelType::M2M100 => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::M2M100(M2M100Tokenizer::from_files(
+                    vocab_path,
+                    merges_path.expect("No merges specified!"),
+                    lower_case,
+                )?)
+            }
+            ModelType::FNet => TokenizerOption::FNet(FNetTokenizer::from_file(
+                vocab_path,
+                lower_case,
+                strip_accents.unwrap_or(false),
+            )?),
         };
         Ok(tokenizer)
     }
@@ -248,65 +499,309 @@ impl TokenizerOption {
             Self::Marian(_) => ModelType::Marian,
             Self::T5(_) => ModelType::T5,
             Self::Albert(_) => ModelType::Albert,
+            Self::XLNet(_) => ModelType::XLNet,
+            Self::GPT2(_) => ModelType::GPT2,
+            Self::OpenAiGpt(_) => ModelType::OpenAiGpt,
+            Self::Reformer(_) => ModelType::Reformer,
+            Self::ProphetNet(_) => ModelType::ProphetNet,
+            Self::Pegasus(_) => ModelType::Pegasus,
+            Self::MBart50(_) => ModelType::MBart,
+            Self::M2M100(_) => ModelType::M2M100,
+            Self::FNet(_) => ModelType::FNet,
         }
     }
 
     /// Interface method
-    pub fn encode_list(
+    pub fn encode_list<S>(
         &self,
-        text_list: Vec<&str>,
+        text_list: &[S],
         max_len: usize,
         truncation_strategy: &TruncationStrategy,
         stride: usize,
-    ) -> Vec<TokenizedInput> {
+    ) -> Vec<TokenizedInput>
+    where
+        S: AsRef<str> + Sync,
+    {
         match *self {
-            Self::Bert(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::Roberta(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::Marian(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::T5(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::XLMRoberta(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
-            Self::Albert(ref tokenizer) => {
-                tokenizer.encode_list(text_list, max_len, truncation_strategy, stride)
-            }
+            Self::Bert(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Marian(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::T5(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::XLMRoberta(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Albert(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::XLNet(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::GPT2(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::OpenAiGpt(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Reformer(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::ProphetNet(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Pegasus(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::MBart50(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::M2M100(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::FNet(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
         }
     }
 
     /// Interface method for pair encoding
     pub fn encode_pair_list(
         &self,
-        text_pair_list: Vec<(&str, &str)>,
+        text_pair_list: &[(&str, &str)],
         max_len: usize,
         truncation_strategy: &TruncationStrategy,
         stride: usize,
     ) -> Vec<TokenizedInput> {
         match *self {
+            Self::Bert(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Marian(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::T5(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::XLMRoberta(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Albert(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::XLNet(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::GPT2(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::OpenAiGpt(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Reformer(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::ProphetNet(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Pegasus(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::MBart50(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::M2M100(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::FNet(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+        }
+    }
+
+    /// Interface method for pair encoding (single input)
+    pub fn encode_pair(
+        &self,
+        text_1: &str,
+        text_2: Option<&str>,
+        max_len: usize,
+        truncation_strategy: &TruncationStrategy,
+        stride: usize,
+    ) -> TokenizedInput {
+        match *self {
             Self::Bert(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
             Self::Roberta(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
             Self::Marian(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
             Self::T5(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
             Self::XLMRoberta(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
             Self::Albert(ref tokenizer) => {
-                tokenizer.encode_pair_list(text_pair_list, max_len, truncation_strategy, stride)
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::XLNet(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::GPT2(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::OpenAiGpt(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Reformer(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::ProphetNet(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::Pegasus(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::MBart50(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::M2M100(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
+            Self::FNet(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
         }
     }
@@ -320,105 +815,292 @@ impl TokenizerOption {
             Self::T5(ref tokenizer) => tokenizer.tokenize(text),
             Self::XLMRoberta(ref tokenizer) => tokenizer.tokenize(text),
             Self::Albert(ref tokenizer) => tokenizer.tokenize(text),
+            Self::XLNet(ref tokenizer) => tokenizer.tokenize(text),
+            Self::GPT2(ref tokenizer) => tokenizer.tokenize(text),
+            Self::OpenAiGpt(ref tokenizer) => tokenizer.tokenize(text),
+            Self::Reformer(ref tokenizer) => tokenizer.tokenize(text),
+            Self::ProphetNet(ref tokenizer) => tokenizer.tokenize(text),
+            Self::Pegasus(ref tokenizer) => tokenizer.tokenize(text),
+            Self::MBart50(ref tokenizer) => tokenizer.tokenize(text),
+            Self::M2M100(ref tokenizer) => tokenizer.tokenize(text),
+            Self::FNet(ref tokenizer) => tokenizer.tokenize(text),
+        }
+    }
+
+    /// Interface method to tokenization
+    pub fn tokenize_with_offsets(&self, text: &str) -> TokensWithOffsets {
+        match *self {
+            Self::Bert(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Roberta(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Marian(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::T5(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Albert(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::XLNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::GPT2(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::OpenAiGpt(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Reformer(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::ProphetNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Pegasus(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::MBart50(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::M2M100(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::FNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+        }
+    }
+
+    /// Interface method to tokenization
+    pub fn tokenize_list<S>(&self, text: &[S]) -> Vec<Vec<String>>
+    where
+        S: AsRef<str> + Sync,
+    {
+        match *self {
+            Self::Bert(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::Marian(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::T5(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::XLMRoberta(ref tokenizer) => {
+                MultiThreadedTokenizer::tokenize_list(tokenizer, text)
+            }
+            Self::Albert(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::XLNet(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::GPT2(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::OpenAiGpt(ref tokenizer) => {
+                MultiThreadedTokenizer::tokenize_list(tokenizer, text)
+            }
+            Self::Reformer(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::ProphetNet(ref tokenizer) => {
+                MultiThreadedTokenizer::tokenize_list(tokenizer, text)
+            }
+            Self::Pegasus(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::MBart50(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::M2M100(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::FNet(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+        }
+    }
+
+    /// Interface method to decoding
+    pub fn decode(
+        &self,
+        token_ids: &[i64],
+        skip_special_tokens: bool,
+        clean_up_tokenization_spaces: bool,
+    ) -> String {
+        match *self {
+            Self::Bert(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::Roberta(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::Marian(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::T5(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::Albert(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::XLNet(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::GPT2(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::OpenAiGpt(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::Reformer(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::ProphetNet(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::Pegasus(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::MBart50(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::M2M100(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::FNet(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
         }
     }
 
     /// Interface method to build input with special tokens
     pub fn build_input_with_special_tokens(
         &self,
-        tokens_1: Vec<i64>,
-        tokens_2: Option<Vec<i64>>,
-        offsets_1: Vec<Option<Offset>>,
-        offsets_2: Option<Vec<Option<Offset>>>,
-        original_offsets_1: Vec<Vec<OffsetSize>>,
-        original_offsets_2: Option<Vec<Vec<OffsetSize>>>,
-        mask_1: Vec<Mask>,
-        mask_2: Option<Vec<Mask>>,
+        token_ids_with_offsets_1: TokenIdsWithOffsets,
+        token_ids_with_offsets_2: Option<TokenIdsWithOffsets>,
     ) -> TokenizedInput {
-        let (token_ids, segment_ids, special_tokens_mask, token_offsets, reference_offsets, mask) =
-            match *self {
-                Self::Bert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::XLMRoberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::Marian(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::T5(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-                Self::Albert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
-                    tokens_1,
-                    tokens_2,
-                    offsets_1,
-                    offsets_2,
-                    original_offsets_1,
-                    original_offsets_2,
-                    mask_1,
-                    mask_2,
-                ),
-            };
+        let token_ids_with_special_tokens = match *self {
+            Self::Bert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Marian(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::T5(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Albert(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::XLNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::GPT2(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::OpenAiGpt(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Reformer(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::ProphetNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Pegasus(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::MBart50(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::M2M100(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::FNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+        };
         TokenizedInput {
-            token_ids,
-            segment_ids,
-            special_tokens_mask,
+            token_ids: token_ids_with_special_tokens.token_ids,
+            segment_ids: token_ids_with_special_tokens.segment_ids,
+            special_tokens_mask: token_ids_with_special_tokens.special_tokens_mask,
             overflowing_tokens: vec![],
             num_truncated_tokens: 0,
-            token_offsets,
-            reference_offsets,
-            mask,
+            token_offsets: token_ids_with_special_tokens.token_offsets,
+            reference_offsets: token_ids_with_special_tokens.reference_offsets,
+            mask: token_ids_with_special_tokens.mask,
         }
     }
 
     /// Interface method to convert tokens to ids
-    pub fn convert_tokens_to_ids(&self, tokens: &[String]) -> Vec<i64> {
+    pub fn convert_tokens_to_ids<S>(&self, tokens: &[S]) -> Vec<i64>
+    where
+        S: AsRef<str>,
+    {
         match *self {
-            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
-            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(&tokens.into()),
+            Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Albert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::XLNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::GPT2(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::OpenAiGpt(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Reformer(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::ProphetNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Pegasus(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::MBart50(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::M2M100(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::FNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+        }
+    }
+
+    /// Interface method
+    pub fn get_unk_id(&self) -> i64 {
+        match *self {
+            Self::Bert(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(BertVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::Roberta(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(RobertaVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::XLMRoberta(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(XLMRobertaVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::Marian(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(MarianVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::T5(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(T5Vocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::Albert(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(AlbertVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::XLNet(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(XLNetVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::GPT2(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(Gpt2Vocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::OpenAiGpt(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(OpenAiGptVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::Reformer(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(ReformerVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::ProphetNet(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(ProphetNetVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::Pegasus(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(PegasusVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::MBart50(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(MBart50Vocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::M2M100(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(M2M100Vocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::FNet(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(FNetVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
         }
     }
 
@@ -426,47 +1108,80 @@ impl TokenizerOption {
     pub fn get_pad_id(&self) -> Option<i64> {
         match *self {
             Self::Bert(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(BertVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::Roberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(RobertaVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::XLMRoberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(XLMRobertaVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::Marian(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(MarianVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::T5(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(T5Vocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::Albert(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
-                    .get(T5Vocab::pad_value())
+                    .get(AlbertVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
+            Self::XLNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(XLNetVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::ProphetNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(ProphetNetVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::Pegasus(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(PegasusVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::MBart50(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(MBart50Vocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::M2M100(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(M2M100Vocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::FNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(FNetVocab::pad_value())
+                    .expect("PAD token not found in vocabulary"),
+            ),
+            Self::Reformer(_) => None,
+            Self::GPT2(_) => None,
+            Self::OpenAiGpt(_) => None,
         }
     }
 
@@ -474,35 +1189,65 @@ impl TokenizerOption {
     pub fn get_sep_id(&self) -> Option<i64> {
         match *self {
             Self::Bert(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(BertVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Roberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(RobertaVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::XLMRoberta(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(XLMRobertaVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Albert(ref tokenizer) => Some(
-                *tokenizer
-                    .vocab()
+                *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(AlbertVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
+            Self::XLNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(XLNetVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::ProphetNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(ProphetNetVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::MBart50(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(MBart50Vocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::M2M100(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(M2M100Vocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::FNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(FNetVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
             Self::Marian(_) => None,
             Self::T5(_) => None,
+            Self::GPT2(_) => None,
+            Self::OpenAiGpt(_) => None,
+            Self::Reformer(_) => None,
+            Self::Pegasus(_) => None,
         }
     }
 }

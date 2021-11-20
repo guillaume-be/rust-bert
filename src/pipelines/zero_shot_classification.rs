@@ -105,14 +105,18 @@ use crate::bart::{
 };
 use crate::bert::BertForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
+use crate::longformer::LongformerForSequenceClassification;
+use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::pipelines::sequence_classification::Label;
 use crate::resources::{RemoteResource, Resource};
 use crate::roberta::RobertaForSequenceClassification;
+use crate::xlnet::XLNetForSequenceClassification;
 use crate::RustBertError;
-use itertools::Itertools;
-use rust_tokenizers::{TokenizedInput, TruncationStrategy};
+use rust_tokenizers::tokenizer::TruncationStrategy;
+use rust_tokenizers::TokenizedInput;
 use std::borrow::Borrow;
+use std::ops::Deref;
 use tch::kind::Kind::{Bool, Float};
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
@@ -150,7 +154,7 @@ impl ZeroShotClassificationConfig {
     /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
         model_resource: Resource,
@@ -211,12 +215,18 @@ pub enum ZeroShotClassificationOption {
     Bert(BertForSequenceClassification),
     /// DistilBert for Sequence Classification
     DistilBert(DistilBertModelClassifier),
+    /// MobileBert for Sequence Classification
+    MobileBert(MobileBertForSequenceClassification),
     /// Roberta for Sequence Classification
     Roberta(RobertaForSequenceClassification),
     /// XLMRoberta for Sequence Classification
     XLMRoberta(RobertaForSequenceClassification),
     /// Albert for Sequence Classification
     Albert(AlbertForSequenceClassification),
+    /// XLNet for Sequence Classification
+    XLNet(XLNetForSequenceClassification),
+    /// Longformer for Sequence Classification
+    Longformer(LongformerForSequenceClassification),
 }
 
 impl ZeroShotClassificationOption {
@@ -228,74 +238,118 @@ impl ZeroShotClassificationOption {
     /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
     /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
     /// `model_type`)
-    pub fn new<'p, P>(model_type: ModelType, p: P, config: &ConfigOption) -> Self
+    pub fn new<'p, P>(
+        model_type: ModelType,
+        p: P,
+        config: &ConfigOption,
+    ) -> Result<Self, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         match model_type {
             ModelType::Bart => {
                 if let ConfigOption::Bart(config) = config {
-                    ZeroShotClassificationOption::Bart(BartForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::Bart(
+                        BartForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BartConfig for Bart!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BartConfig for Bart!".to_string(),
+                    ))
                 }
             }
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
-                    ZeroShotClassificationOption::Bert(BertForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::Bert(
+                        BertForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Bert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
                 }
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
-                    ZeroShotClassificationOption::DistilBert(DistilBertModelClassifier::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::DistilBert(
+                        DistilBertModelClassifier::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a DistilBertConfig for DistilBert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+                    ))
+                }
+            }
+            ModelType::MobileBert => {
+                if let ConfigOption::MobileBert(config) = config {
+                    Ok(ZeroShotClassificationOption::MobileBert(
+                        MobileBertForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a MobileBertConfig for MobileBert!".to_string(),
+                    ))
                 }
             }
             ModelType::Roberta => {
                 if let ConfigOption::Bert(config) = config {
-                    ZeroShotClassificationOption::Roberta(RobertaForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::Roberta(
+                        RobertaForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Bert(config) = config {
-                    ZeroShotClassificationOption::XLMRoberta(RobertaForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::XLMRoberta(
+                        RobertaForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
-                    ZeroShotClassificationOption::Albert(AlbertForSequenceClassification::new(
-                        p, config,
+                    Ok(ZeroShotClassificationOption::Albert(
+                        AlbertForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply an AlbertConfig for Albert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an AlbertConfig for Albert!".to_string(),
+                    ))
                 }
             }
-            ModelType::Electra => {
-                panic!("SequenceClassification not implemented for Electra!");
+            ModelType::XLNet => {
+                if let ConfigOption::XLNet(config) = config {
+                    Ok(ZeroShotClassificationOption::XLNet(
+                        XLNetForSequenceClassification::new(p, config).unwrap(),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an AlbertConfig for Albert!".to_string(),
+                    ))
+                }
             }
-            ModelType::Marian => {
-                panic!("SequenceClassification not implemented for Marian!");
+            ModelType::Longformer => {
+                if let ConfigOption::Longformer(config) = config {
+                    Ok(ZeroShotClassificationOption::Longformer(
+                        LongformerForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a LongformerConfig for Longformer!".to_string(),
+                    ))
+                }
             }
-            ModelType::T5 => {
-                panic!("SequenceClassification not implemented for T5!");
-            }
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Zero shot classification not implemented for {:?}!",
+                model_type
+            ))),
         }
     }
 
@@ -307,26 +361,29 @@ impl ZeroShotClassificationOption {
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
+            Self::MobileBert(_) => ModelType::MobileBert,
             Self::Albert(_) => ModelType::Albert,
+            Self::XLNet(_) => ModelType::XLNet,
+            Self::Longformer(_) => ModelType::Longformer,
         }
     }
 
     /// Interface method to forward_t() of the particular models.
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Tensor {
         match *self {
             Self::Bart(ref model) => {
                 model
                     .forward_t(
-                        &input_ids.expect("`input_ids` must be provided for BART models"),
-                        mask.as_ref(),
+                        input_ids.expect("`input_ids` must be provided for BART models"),
+                        mask,
                         None,
                         None,
                         None,
@@ -352,6 +409,12 @@ impl ZeroShotClassificationOption {
                     .expect("Error in distilbert forward_t")
                     .logits
             }
+            Self::MobileBert(ref model) => {
+                model
+                    .forward_t(input_ids, None, None, input_embeds, mask, train)
+                    .expect("Error in mobilebert forward_t")
+                    .logits
+            }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
                 model
                     .forward_t(
@@ -374,6 +437,34 @@ impl ZeroShotClassificationOption {
                         input_embeds,
                         train,
                     )
+                    .logits
+            }
+            Self::XLNet(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        None,
+                        None,
+                        None,
+                        token_type_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .logits
+            }
+            Self::Longformer(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        None,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .expect("Error in Longformer forward pass.")
                     .logits
             }
         }
@@ -428,7 +519,7 @@ impl ZeroShotClassificationModel {
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let zero_shot_classifier =
-            ZeroShotClassificationOption::new(config.model_type, &var_store.root(), &model_config);
+            ZeroShotClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
         var_store.load(weights_path)?;
         Ok(ZeroShotClassificationModel {
             tokenizer,
@@ -437,29 +528,42 @@ impl ZeroShotClassificationModel {
         })
     }
 
-    fn prepare_for_model(
+    fn prepare_for_model<'a, S, T>(
         &self,
-        inputs: &[&str],
-        labels: &[&str],
+        inputs: S,
+        labels: T,
         template: Option<Box<dyn Fn(&str) -> String>>,
         max_len: usize,
-    ) -> (Tensor, Tensor) {
+    ) -> (Tensor, Tensor)
+    where
+        S: AsRef<[&'a str]>,
+        T: AsRef<[&'a str]>,
+    {
         let label_sentences: Vec<String> = match template {
-            Some(function) => labels.iter().map(|label| function(label)).collect(),
+            Some(function) => labels
+                .as_ref()
+                .iter()
+                .map(|label| function(label))
+                .collect(),
             None => labels
+                .as_ref()
                 .iter()
                 .map(|label| format!("This example is about {}.", label))
                 .collect(),
         };
 
         let text_pair_list = inputs
+            .as_ref()
             .iter()
-            .cartesian_product(label_sentences.iter())
-            .map(|(&s, label)| (s, label.as_str()))
-            .collect();
+            .flat_map(|input| {
+                label_sentences
+                    .iter()
+                    .map(move |label_sentence| (input.deref(), label_sentence.as_str()))
+            })
+            .collect::<Vec<(&str, &str)>>();
 
         let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_pair_list(
-            text_pair_list,
+            text_pair_list.as_ref(),
             max_len,
             &TruncationStrategy::LongestFirst,
             0,
@@ -549,38 +653,43 @@ impl ZeroShotClassificationModel {
     /// ]
     /// .to_vec();
     /// ```
-    pub fn predict(
+    pub fn predict<'a, S, T>(
         &self,
-        inputs: &[&str],
-        labels: &[&str],
+        inputs: S,
+        labels: T,
         template: Option<Box<dyn Fn(&str) -> String>>,
         max_length: usize,
-    ) -> Vec<Label> {
-        let num_inputs = inputs.len();
-        let (input_tensor, mask) = self.prepare_for_model(inputs, labels, template, max_length);
+    ) -> Vec<Label>
+    where
+        S: AsRef<[&'a str]>,
+        T: AsRef<[&'a str]>,
+    {
+        let num_inputs = inputs.as_ref().len();
+        let (input_tensor, mask) =
+            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length);
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
-                Some(input_tensor),
-                Some(mask),
+                Some(&input_tensor),
+                Some(&mask),
                 None,
                 None,
                 None,
                 false,
             );
-            output.view((num_inputs as i64, labels.len() as i64, -1i64))
+            output.view((num_inputs as i64, labels.as_ref().len() as i64, -1i64))
         });
 
         let scores = output.softmax(1, Float).select(-1, -1);
-        let label_indices = scores.as_ref().argmax(-1, true).squeeze1(1);
+        let label_indices = scores.as_ref().argmax(-1, true).squeeze_dim(1);
         let scores = scores
             .gather(1, &label_indices.unsqueeze(-1), false)
-            .squeeze1(1);
+            .squeeze_dim(1);
         let label_indices = label_indices.iter::<i64>().unwrap().collect::<Vec<i64>>();
         let scores = scores.iter::<f64>().unwrap().collect::<Vec<f64>>();
 
         let mut output_labels: Vec<Label> = vec![];
         for sentence_idx in 0..label_indices.len() {
-            let label_string = labels[label_indices[sentence_idx] as usize].to_string();
+            let label_string = labels.as_ref()[label_indices[sentence_idx] as usize].to_string();
             let label = Label {
                 text: label_string,
                 score: scores[sentence_idx],
@@ -685,39 +794,44 @@ impl ZeroShotClassificationModel {
     /// ]
     /// .to_vec();
     /// ```
-    pub fn predict_multilabel(
+    pub fn predict_multilabel<'a, S, T>(
         &self,
-        inputs: &[&str],
-        labels: &[&str],
+        inputs: S,
+        labels: T,
         template: Option<Box<dyn Fn(&str) -> String>>,
         max_length: usize,
-    ) -> Vec<Vec<Label>> {
-        let num_inputs = inputs.len();
-        let (input_tensor, mask) = self.prepare_for_model(inputs, labels, template, max_length);
+    ) -> Vec<Vec<Label>>
+    where
+        S: AsRef<[&'a str]>,
+        T: AsRef<[&'a str]>,
+    {
+        let num_inputs = inputs.as_ref().len();
+        let (input_tensor, mask) =
+            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length);
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
-                Some(input_tensor),
-                Some(mask),
+                Some(&input_tensor),
+                Some(&mask),
                 None,
                 None,
                 None,
                 false,
             );
-            output.view((num_inputs as i64, labels.len() as i64, -1i64))
+            output.view((num_inputs as i64, labels.as_ref().len() as i64, -1i64))
         });
         let scores = output.slice(-1, 0, 3, 2).softmax(-1, Float).select(-1, -1);
 
         let mut output_labels = vec![];
         for sentence_idx in 0..num_inputs {
             let mut sentence_labels = vec![];
-            let sentence_scores = scores
+
+            for (label_index, score) in scores
                 .select(0, sentence_idx as i64)
                 .iter::<f64>()
                 .unwrap()
-                .collect::<Vec<f64>>();
-
-            for (label_index, score) in sentence_scores.into_iter().enumerate() {
-                let label_string = labels[label_index].to_string();
+                .enumerate()
+            {
+                let label_string = labels.as_ref()[label_index].to_string();
                 let label = Label {
                     text: label_string,
                     score,
@@ -729,5 +843,16 @@ impl ZeroShotClassificationModel {
             output_labels.push(sentence_labels);
         }
         output_labels
+    }
+}
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = ZeroShotClassificationConfig::default();
+        let _: Box<dyn Send> = Box::new(ZeroShotClassificationModel::new(config));
     }
 }

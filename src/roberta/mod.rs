@@ -1,16 +1,15 @@
 //! # RoBERTa: A Robustly Optimized BERT Pretraining Approach (Liu et al.)
 //!
 //! Implementation of the RoBERTa language model ([https://arxiv.org/abs/1907.11692](https://arxiv.org/abs/1907.11692) Liu, Ott, Goyal, Du, Joshi, Chen, Levy, Lewis, Zettlemoyer, Stoyanov, 2019).
-//! The base model is implemented in the `bert::BertModel` struct. Several language model heads have also been implemented, including:
-//! - Masked language model: `roberta::RobertaForMaskedLM`
-//! - Multiple choices: `roberta:RobertaForMultipleChoice`
-//! - Question answering: `roberta::RobertaForQuestionAnswering`
-//! - Sequence classification: `roberta::RobertaForSequenceClassification`
-//! - Token classification (e.g. NER, POS tagging): `roberta::RobertaForTokenClassification`
+//! The base model is implemented in the `bert_model::BertModel` struct. Several language model heads have also been implemented, including:
+//! - Masked language model: `roberta_model::RobertaForMaskedLM`
+//! - Multiple choices: `roberta_model:RobertaForMultipleChoice`
+//! - Question answering: `roberta_model::RobertaForQuestionAnswering`
+//! - Sequence classification: `roberta_model::RobertaForSequenceClassification`
+//! - Token classification (e.g. NER, POS tagging): `roberta_model::RobertaForTokenClassification`
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/roberta.rs`, run with `cargo run --example roberta`.
 //! The example below illustrate a Masked language model example, the structure is similar for other models.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
@@ -21,13 +20,13 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! #
-//! use rust_tokenizers::RobertaTokenizer;
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::bert::BertConfig;
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::roberta::RobertaForMaskedLM;
 //! use rust_bert::Config;
+//! use rust_tokenizers::tokenizer::RobertaTokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),

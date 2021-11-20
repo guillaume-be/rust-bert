@@ -103,8 +103,8 @@ impl RemoteResource {
     /// ```no_run
     /// use rust_bert::resources::{RemoteResource, Resource};
     /// let config_resource = Resource::Remote(RemoteResource::new(
-    ///     "http://config_json_location",
     ///     "configs",
+    ///     "http://config_json_location",
     /// ));
     /// ```
     pub fn new(url: &str, cache_subdir: &str) -> RemoteResource {
@@ -115,7 +115,7 @@ impl RemoteResource {
     }
 
     /// Creates a new RemoteResource from an URL and local name. Will define a local path pointing to
-    /// ~/.cache/.rusbert/model_name. Note that this does not download the resource (only declares
+    /// ~/.cache/.rustbert/model_name. Note that this does not download the resource (only declares
     /// the remote and local locations)
     ///
     /// # Arguments
@@ -132,16 +132,13 @@ impl RemoteResource {
     /// use rust_bert::resources::{RemoteResource, Resource};
     /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
     ///     "distilbert-sst2",
-    ///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
+    ///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
     /// )));
     /// ```
     pub fn from_pretrained(name_url_tuple: (&str, &str)) -> RemoteResource {
-        let name = name_url_tuple.0.to_string();
+        let cache_subdir = name_url_tuple.0.to_string();
         let url = name_url_tuple.1.to_string();
-        RemoteResource {
-            url,
-            cache_subdir: name,
-        }
+        RemoteResource { url, cache_subdir }
     }
 }
 
@@ -191,7 +188,7 @@ fn _get_cache_directory() -> PathBuf {
 /// use rust_bert::resources::{RemoteResource, Resource};
 /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
 ///     "distilbert-sst2/model.ot",
-///     "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
+///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
 /// )));
 /// let local_path = model_resource.get_local_path();
 /// ```

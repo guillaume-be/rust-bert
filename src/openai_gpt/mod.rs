@@ -1,12 +1,11 @@
 //! # GPT (Radford et al.)
 //!
 //! Implementation of the GPT2 language model ([Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) Radford, Narasimhan, Salimans, Sutskever 2018).
-//! The base model is implemented in the `openai_gpt::OpenAiGptModel` struct. The model also includes a language model head: `openai_gpt::OpenAIGPTLMHeadModel`
-//! implementing the common `generation::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! The base model is implemented in the `openai_gpt_model::OpenAiGptModel` struct. The model also includes a language model head: `openai_gpt_model::OpenAIGPTLMHeadModel`
+//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/openai_gpt`, run with `cargo run --example openai_gpt`.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
@@ -15,13 +14,13 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! use rust_tokenizers::OpenAiGptTokenizer;
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::gpt2::Gpt2Config;
 //! use rust_bert::openai_gpt::OpenAiGptModel;
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
+//! use rust_tokenizers::tokenizer::OpenAiGptTokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
@@ -59,6 +58,6 @@ mod openai_gpt_model;
 mod transformer;
 
 pub use openai_gpt_model::{
-    OpenAIGPTLMHeadModel, OpenAiGptConfigResources, OpenAiGptMergesResources, OpenAiGptModel,
-    OpenAiGptModelOutput, OpenAiGptModelResources, OpenAiGptVocabResources,
+    OpenAIGPTLMHeadModel, OpenAIGenerator, OpenAiGptConfigResources, OpenAiGptMergesResources,
+    OpenAiGptModel, OpenAiGptModelOutput, OpenAiGptModelResources, OpenAiGptVocabResources,
 };

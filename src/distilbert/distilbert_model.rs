@@ -13,6 +13,7 @@
 extern crate tch;
 
 use self::tch::{nn, Tensor};
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::distilbert::embeddings::DistilBertEmbedding;
 use crate::distilbert::transformer::{DistilBertTransformerOutput, Transformer};
@@ -30,70 +31,60 @@ pub struct DistilBertConfigResources;
 pub struct DistilBertVocabResources;
 
 impl DistilBertModelResources {
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SST2: (&'static str, &'static str) = (
         "distilbert-sst2/model",
-        "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-rust_model.ot",
+        "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT: (&'static str, &'static str) = (
         "distilbert/model",
-        "https://cdn.huggingface.co/distilbert-base-uncased-rust_model.ot",
+        "https://huggingface.co/distilbert-base-uncased/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
         "distilbert-qa/model",
-        "https://cdn.huggingface.co/distilbert-base-cased-distilled-squad-rust_model.ot",
+        "https://huggingface.co/distilbert-base-cased-distilled-squad/resolve/main/rust_model.ot",
     );
 }
 
 impl DistilBertConfigResources {
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SST2: (&'static str, &'static str) = (
         "distilbert-sst2/config",
-        "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-config.json",
+        "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT: (&'static str, &'static str) = (
         "distilbert/config",
-        "https://cdn.huggingface.co/distilbert-base-uncased-config.json",
+        "https://huggingface.co/distilbert-base-uncased/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
         "distilbert-qa/config",
-        "https://cdn.huggingface.co/distilbert-base-cased-distilled-squad-config.json",
+        "https://huggingface.co/distilbert-base-cased-distilled-squad/resolve/main/config.json",
     );
 }
 
 impl DistilBertVocabResources {
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SST2: (&'static str, &'static str) = (
         "distilbert-sst2/vocab",
-        "https://cdn.huggingface.co/distilbert-base-uncased-finetuned-sst-2-english-vocab.txt",
+        "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/vocab.txt",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT: (&'static str, &'static str) = (
         "distilbert/vocab",
-        "https://cdn.huggingface.co/bert-base-uncased-vocab.txt",
+        "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
         "distilbert-qa/vocab",
-        "https://cdn.huggingface.co/bert-large-cased-vocab.txt",
+        "https://huggingface.co/bert-large-cased/resolve/main/vocab.txt",
     );
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Debug, Serialize, Deserialize)]
-/// # Activation function used in the feed-forward layer in the transformer blocks
-pub enum Activation {
-    /// Gaussian Error Linear Unit ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
-    gelu,
-    /// Rectified Linear Unit
-    relu,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # DistilBERT model configuration
 /// Defines the DistilBERT model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct DistilBertConfig {
@@ -121,7 +112,7 @@ pub struct DistilBertConfig {
     pub vocab_size: i64,
 }
 
-impl Config<DistilBertConfig> for DistilBertConfig {}
+impl Config for DistilBertConfig {}
 
 /// # DistilBERT Base model
 /// Base architecture for DistilBERT models. Task-specific models will be built from this common base model
@@ -205,36 +196,18 @@ impl DistilBertModel {
     ///
     /// let model_output = no_grad(|| {
     ///     distilbert_model
-    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
     ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertTransformerOutput, RustBertError> {
-        let input_embeddings = match input {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => input_value.apply_t(&self.embeddings, train),
-            },
-            None => match input_embeds {
-                Some(embeds) => embeds,
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
-
+        let input_embeddings = self.embeddings.forward_t(input, input_embeds, train)?;
         let transformer_output = (&self.transformer).forward_t(&input_embeddings, mask, train);
         Ok(transformer_output)
     }
@@ -343,17 +316,17 @@ impl DistilBertModelClassifier {
     ///
     ///  let model_output = no_grad(|| {
     ///    distilbert_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
     ///                    None,
     ///                    false).unwrap()
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertSequenceClassificationOutput, RustBertError> {
         let base_model_output =
@@ -482,15 +455,15 @@ impl DistilBertModelMaskedLM {
     ///
     /// let model_output = no_grad(|| {
     ///     distilbert_model
-    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
     ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertMaskedLMOutput, RustBertError> {
         let base_model_output =
@@ -601,15 +574,15 @@ impl DistilBertForQuestionAnswering {
     ///
     /// let model_output = no_grad(|| {
     ///     distilbert_model
-    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
     ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertQuestionAnsweringOutput, RustBertError> {
         let base_model_output =
@@ -623,8 +596,8 @@ impl DistilBertForQuestionAnswering {
 
         let logits = output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
-        let start_logits = start_logits.squeeze1(-1);
-        let end_logits = end_logits.squeeze1(-1);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
 
         Ok(DistilBertQuestionAnsweringOutput {
             start_logits,
@@ -729,15 +702,15 @@ impl DistilBertForTokenClassification {
     ///
     /// let model_output = no_grad(|| {
     ///     distilbert_model
-    ///         .forward_t(Some(input_tensor), Some(mask), None, false)
+    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
     ///         .unwrap()
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input: Option<Tensor>,
-        mask: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<DistilBertTokenClassificationOutput, RustBertError> {
         let base_model_output =

@@ -13,11 +13,21 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
-use crate::gpt2::Gpt2Config;
+use crate::common::resources::{RemoteResource, Resource};
+use crate::gpt2::{
+    Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
+};
 use crate::openai_gpt::transformer::Block;
-use crate::pipelines::generation::{Cache, LMHeadModel, LMModelOutput};
-use crate::RustBertError;
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
+use crate::pipelines::generation_utils::{
+    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
+};
+use crate::{Config, RustBertError};
+use rust_tokenizers::tokenizer::OpenAiGptTokenizer;
+use rust_tokenizers::vocab::OpenAiGptVocab;
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
@@ -36,34 +46,34 @@ pub struct OpenAiGptVocabResources;
 pub struct OpenAiGptMergesResources;
 
 impl OpenAiGptModelResources {
-    /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
+    /// Shared under MIT license by the OpenAI team at <https://github.com/openai/finetune-transformer-lm>. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/model",
-        "https://cdn.huggingface.co/openai-gpt-rust_model.ot",
+        "https://huggingface.co/openai-gpt/resolve/main/rust_model.ot",
     );
 }
 
 impl OpenAiGptConfigResources {
-    /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
+    /// Shared under MIT license by the OpenAI team at <https://github.com/openai/finetune-transformer-lm>. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/config",
-        "https://cdn.huggingface.co/openai-gpt-config.json",
+        "https://huggingface.co/openai-gpt/resolve/main/config.json",
     );
 }
 
 impl OpenAiGptVocabResources {
-    /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
+    /// Shared under MIT license by the OpenAI team at <https://github.com/openai/finetune-transformer-lm>. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/vocab",
-        "https://cdn.huggingface.co/openai-gpt-vocab.json",
+        "https://huggingface.co/openai-gpt/resolve/main/vocab.json",
     );
 }
 
 impl OpenAiGptMergesResources {
-    /// Shared under MIT license by the OpenAI team at https://github.com/openai/finetune-transformer-lm. Modified with conversion to C-array format.
+    /// Shared under MIT license by the OpenAI team at <https://github.com/openai/finetune-transformer-lm>. Modified with conversion to C-array format.
     pub const GPT: (&'static str, &'static str) = (
         "openai-gpt/merges",
-        "https://cdn.huggingface.co/openai-gpt-merges.txt",
+        "https://huggingface.co/openai-gpt/resolve/main/merges.txt",
     );
 }
 
@@ -126,24 +136,15 @@ impl OpenAiGptModel {
             Default::default(),
         );
 
-        let embd_pdrop = match config.embd_pdrop {
-            Some(value) => value,
-            None => 0.1,
-        };
+        let embd_pdrop = config.embd_pdrop.unwrap_or(0.1);
         let drop = Dropout::new(embd_pdrop);
         let mut h: Vec<Block> = vec![];
         let h_path = p / "h";
         for layer_index in 0..config.n_layer {
             h.push(Block::new(&h_path / layer_index, config, true));
         }
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
         OpenAiGptModel {
             tokens_embed,
             positions_embed,
@@ -197,11 +198,11 @@ impl OpenAiGptModel {
     /// let model_output = no_grad(|| {
     ///     gpt_model
     ///         .forward_t(
-    ///             &Some(input_tensor),
-    ///             &Some(attention_mask),
-    ///             &Some(token_type_ids),
-    ///             &Some(position_ids),
-    ///             &None,
+    ///             Some(&input_tensor),
+    ///             Some(&attention_mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
+    ///             None,
     ///             false,
     ///         )
     ///         .unwrap()
@@ -209,51 +210,33 @@ impl OpenAiGptModel {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<OpenAiGptModelOutput, RustBertError> {
-        let (input_embeddings, seq_length) = match input_ids {
-            Some(input_value) => match input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (
-                    input_value.apply(&self.tokens_embed),
-                    *input_value.size().last().unwrap(),
-                ),
-            },
-            None => match input_embeds {
-                Some(embeds) => (embeds.copy(), embeds.size()[1]),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (calc_input_embeddings, input_shape, _) =
+            process_ids_embeddings_pair(input_ids, input_embeds, &self.tokens_embed)?;
+        let input_embeddings =
+            input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
+        let seq_length = input_shape[1];
 
         let position_ids = match position_ids {
             Some(value) => value.copy(),
             None => Tensor::arange(seq_length, (Int64, input_embeddings.device())).unsqueeze(0),
         };
 
-        let attention_mask: Option<Tensor> = match attention_mask {
-            Some(value) => Some(
-                (value
-                    .view((input_embeddings.size()[0], -1))
-                    .unsqueeze(1)
-                    .unsqueeze(2)
-                    - 1.0)
-                    * 10000.0,
-            ),
-            None => None,
-        };
+        let attention_mask = attention_mask.as_ref().map(|value| {
+            ((value
+                .view((input_embeddings.size()[0], -1))
+                .unsqueeze(1)
+                .unsqueeze(2)
+                - 1.0)
+                * 10000.0)
+                .to_kind(input_embeddings.kind())
+        });
 
         let position_embeds = position_ids.apply(&self.positions_embed);
         let token_type_embeds = match token_type_ids {
@@ -274,14 +257,13 @@ impl OpenAiGptModel {
         };
 
         for layer in &self.h {
-            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
-            };
-
-            let temp = layer.forward_t(&hidden_state, &attention_mask, train);
+            let temp = layer.forward_t(&hidden_state, attention_mask.as_ref(), train);
             hidden_state = temp.0;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(temp.1.as_ref().unwrap().copy());
+            };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy());
             };
         }
 
@@ -380,7 +362,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::Gpt2Config;
     /// use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
-    /// use rust_bert::pipelines::generation::{LMHeadModel, Cache};
+    /// use rust_bert::pipelines::generation_utils::{LMHeadModel, Cache};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
@@ -395,27 +377,27 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///
     ///  let model_output = no_grad(|| {
     ///    gpt_model
-    ///         .forward_t(&Some(input_tensor),
+    ///         .forward_t(Some(&input_tensor),
     ///                    Cache::None,
-    ///                    &Some(attention_mask),
-    ///                    &Some(token_type_ids),
-    ///                    &Some(position_ids),
-    ///                    &None,
+    ///                    Some(&attention_mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
-    ///                    &None,
+    ///                    None,
+    ///                    None,
     ///                    false).unwrap()
     ///    });
     /// ```
     fn forward_t(
         &self,
-        input_ids: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
         _layer_past: Cache,
-        attention_mask: &Option<Tensor>,
-        token_type_ids: &Option<Tensor>,
-        position_ids: &Option<Tensor>,
-        input_embeds: &Option<Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         _encoder_outputs: Option<&Tensor>,
-        _decoder_input_ids: &Option<Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = self.transformer.forward_t(
@@ -430,10 +412,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
         let lm_logits = base_model_output.hidden_state.apply(&self.lm_head);
         Ok(LMModelOutput {
             lm_logits,
-            encoder_hidden_state: None,
             cache: Cache::None,
-            all_hidden_states: base_model_output.all_hidden_states,
-            all_attentions: base_model_output.all_attentions,
         })
     }
 }
@@ -447,4 +426,177 @@ pub struct OpenAiGptModelOutput {
     pub all_hidden_states: Option<Vec<Tensor>>,
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
+}
+
+/// # Language generation model based on the GPT architecture
+pub struct OpenAIGenerator {
+    model: OpenAIGPTLMHeadModel,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+    max_position_embeddings: i64,
+}
+
+impl OpenAIGenerator {
+    /// Build a new `OpenAIGenerator`
+    ///
+    /// # Arguments
+    ///
+    /// * `generate_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::openai_gpt::OpenAIGenerator;
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    /// let generate_config = GenerateConfig {
+    ///     max_length: 30,
+    ///     do_sample: true,
+    ///     num_beams: 5,
+    ///     temperature: 1.1,
+    ///     num_return_sequences: 3,
+    ///     ..Default::default()
+    /// };
+    /// let gpt_generator = OpenAIGenerator::new(generate_config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(generate_config: GenerateConfig) -> Result<OpenAIGenerator, RustBertError> {
+        generate_config.validate();
+
+        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
+        let model_resource = if generate_config.model_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                OpenAiGptModelResources::GPT,
+            ))
+        } else {
+            generate_config.model_resource.clone()
+        };
+
+        let config_resource = if generate_config.config_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                OpenAiGptConfigResources::GPT,
+            ))
+        } else {
+            generate_config.config_resource.clone()
+        };
+
+        let vocab_resource = if generate_config.vocab_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                OpenAiGptVocabResources::GPT,
+            ))
+        } else {
+            generate_config.vocab_resource.clone()
+        };
+
+        let merges_resource = if generate_config.merges_resource
+            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
+        {
+            Resource::Remote(RemoteResource::from_pretrained(
+                OpenAiGptMergesResources::GPT,
+            ))
+        } else {
+            generate_config.merges_resource.clone()
+        };
+
+        let config_path = config_resource.get_local_path()?;
+        let vocab_path = vocab_resource.get_local_path()?;
+        let merges_path = merges_resource.get_local_path()?;
+        let weights_path = model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        let mut var_store = nn::VarStore::new(device);
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::OpenAiGpt,
+            vocab_path.to_str().unwrap(),
+            Some(merges_path.to_str().unwrap()),
+            true,
+            None,
+            None,
+        )?;
+        let config = Gpt2Config::from_file(config_path);
+        let model = OpenAIGPTLMHeadModel::new(&var_store.root(), &config);
+        var_store.load(weights_path)?;
+
+        let bos_token_id = None;
+        let eos_token_ids = None;
+        let pad_token_id = None;
+        let is_encoder_decoder = false;
+        let vocab_size = config.vocab_size;
+        let decoder_start_id = None;
+        let max_position_embeddings = config.n_positions;
+
+        Ok(OpenAIGenerator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+            max_position_embeddings,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
+    for OpenAIGenerator
+{
+    fn get_model(&self) -> &OpenAIGPTLMHeadModel {
+        &self.model
+    }
+    fn _get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> &Option<i64> {
+        &self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
+        &self.eos_token_ids
+    }
+    fn get_pad_id(&self) -> &Option<i64> {
+        &self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+    fn get_max_positions_embeddings(&self) -> i64 {
+        self.max_position_embeddings
+    }
+}
+
+impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
+    for OpenAIGenerator
+{
 }

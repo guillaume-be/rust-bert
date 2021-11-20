@@ -33,114 +33,134 @@ pub struct RobertaVocabResources;
 pub struct RobertaMergesResources;
 
 impl RobertaModelResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/model",
-        "https://cdn.huggingface.co/roberta-base-rust_model.ot",
+        "https://huggingface.co/roberta-base/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at <https://huggingface.co/distilroberta-base>. Modified with conversion to C-array format.
+    pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
+        "distilroberta-base/model",
+        "https://cdn.huggingface.co/distilroberta-base-rust_model.ot",
+    );
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at <https://huggingface.co/deepset/roberta-base-squad2>. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/model",
-        "https://cdn.huggingface.co/deepset/roberta-base-squad2/rust_model.ot",
+        "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/model",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-english-rust_model.ot",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/model",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-german-rust_model.ot",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/model",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-dutch-rust_model.ot",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/model",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-spanish-rust_model.ot",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/rust_model.ot",
     );
 }
 
 impl RobertaConfigResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/config",
-        "https://cdn.huggingface.co/roberta-base-config.json",
+        "https://huggingface.co/roberta-base/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at <https://huggingface.co/distilroberta-base>. Modified with conversion to C-array format.
+    pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
+        "distilroberta-base/config",
+        "https://cdn.huggingface.co/distilroberta-base-config.json",
+    );
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at <https://huggingface.co/deepset/roberta-base-squad2>. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/deepset/roberta-base-squad2/config.json",
+        "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll03-english-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll03-german-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll02-dutch-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/config",
-        "https://s3.amazonaws.com/models.huggingface.co/bert/xlm-roberta-large-finetuned-conll02-spanish-config.json",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/config.json",
     );
 }
 
 impl RobertaVocabResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/vocab",
-        "https://cdn.huggingface.co/roberta-base-vocab.json",
+        "https://huggingface.co/roberta-base/resolve/main/vocab.json",
     );
-    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at <https://huggingface.co/distilroberta-base>. Modified with conversion to C-array format.
+    pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
+        "distilroberta-base/vocab",
+        "https://cdn.huggingface.co/distilroberta-base-vocab.json",
+    );
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at <https://huggingface.co/deepset/roberta-base-squad2>. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/vocab",
-        "https://cdn.huggingface.co/deepset/roberta-base-squad2/vocab.json",
+        "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/vocab.json",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_EN: (&'static str, &'static str) = (
         "xlm-roberta-ner-en/spiece",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-english-sentencepiece.bpe.model",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-english/resolve/main/sentencepiece.bpe.model",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_DE: (&'static str, &'static str) = (
         "xlm-roberta-ner-de/spiece",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll03-german-sentencepiece.bpe.model",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll03-german/resolve/main/sentencepiece.bpe.model",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_NL: (&'static str, &'static str) = (
         "xlm-roberta-ner-nl/spiece",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-dutch-sentencepiece.bpe.model",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-dutch/resolve/main/sentencepiece.bpe.model",
     );
-    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at https://huggingface.co/models. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/models>. Modified with conversion to C-array format.
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/spiece",
-        "https://cdn.huggingface.co/xlm-roberta-large-finetuned-conll02-spanish-sentencepiece.bpe.model",
+        "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/sentencepiece.bpe.model",
     );
 }
 
 impl RobertaMergesResources {
-    /// Shared under MIT license by the Facebook AI Research Fairseq team at https://github.com/pytorch/fairseq. Modified with conversion to C-array format.
+    /// Shared under MIT license by the Facebook AI Research Fairseq team at <https://github.com/pytorch/fairseq>. Modified with conversion to C-array format.
     pub const ROBERTA: (&'static str, &'static str) = (
         "roberta/merges",
-        "https://cdn.huggingface.co/roberta-base-merges.txt",
+        "https://huggingface.co/roberta-base/resolve/main/merges.txt",
     );
-    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at https://huggingface.co/deepset/roberta-base-squad2. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Hugging Face Inc. team at <https://huggingface.co/distilroberta-base>. Modified with conversion to C-array format.
+    pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
+        "distilroberta-base/merges",
+        "https://cdn.huggingface.co/distilroberta-base-merges.txt",
+    );
+    /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at <https://huggingface.co/deepset/roberta-base-squad2>. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/merges",
-        "https://cdn.huggingface.co/deepset/roberta-base-squad2/merges.txt",
+        "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/merges.txt",
     );
 }
 
@@ -235,7 +255,8 @@ impl RobertaForMaskedLM {
     {
         let p = p.borrow();
 
-        let roberta = BertModel::<RobertaEmbeddings>::new(p / "roberta", config);
+        let roberta =
+            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
         let lm_head = RobertaLMHead::new(p / "lm_head", config);
 
         RobertaForMaskedLM { roberta, lm_head }
@@ -284,26 +305,26 @@ impl RobertaForMaskedLM {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
-    ///         &None,
-    ///         &None,
+    ///         None,
+    ///         None,
     ///         false,
     ///     )
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
-        encoder_hidden_states: &Option<Tensor>,
-        encoder_mask: &Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_mask: Option<&Tensor>,
         train: bool,
     ) -> RobertaMaskedLMOutput {
         let base_model_output = self
@@ -416,7 +437,8 @@ impl RobertaForSequenceClassification {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let roberta = BertModel::<RobertaEmbeddings>::new(p / "roberta", config);
+        let roberta =
+            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
         let classifier = RobertaClassificationHead::new(p / "classifier", config);
 
         RobertaForSequenceClassification {
@@ -467,10 +489,10 @@ impl RobertaForSequenceClassification {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -478,11 +500,11 @@ impl RobertaForSequenceClassification {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> RobertaSequenceClassificationOutput {
         let base_model_output = self
@@ -493,8 +515,8 @@ impl RobertaForSequenceClassification {
                 token_type_ids,
                 position_ids,
                 input_embeds,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
@@ -603,54 +625,48 @@ impl RobertaForMultipleChoice {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         input_tensor,
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         &input_tensor,
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         false,
     ///     )
     /// });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Tensor,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
+        input_ids: &Tensor,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
         train: bool,
     ) -> RobertaSequenceClassificationOutput {
         let num_choices = input_ids.size()[1];
 
-        let flat_input_ids = Some(input_ids.view((-1i64, *input_ids.size().last().unwrap())));
-        let flat_position_ids = match position_ids {
-            Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let flat_token_type_ids = match token_type_ids {
-            Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
-            None => None,
-        };
-        let flat_mask = match mask {
-            Some(value) => Some(value.view((-1i64, *value.size().last().unwrap()))),
-            None => None,
-        };
+        let input_ids = Some(input_ids.view((-1, *input_ids.size().last().unwrap())));
+        let mask = mask.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let token_type_ids =
+            token_type_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
+        let position_ids =
+            position_ids.map(|tensor| tensor.view((-1, *tensor.size().last().unwrap())));
 
         let base_model_output = self
             .roberta
             .forward_t(
-                flat_input_ids,
-                flat_mask,
-                flat_token_type_ids,
-                flat_position_ids,
+                input_ids.as_ref(),
+                mask.as_ref(),
+                token_type_ids.as_ref(),
+                position_ids.as_ref(),
                 None,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
 
         let logits = base_model_output
             .pooled_output
+            .unwrap()
             .apply_t(&self.dropout, train)
             .apply(&self.classifier)
             .view((-1, num_choices));
@@ -702,7 +718,8 @@ impl RobertaForTokenClassification {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let roberta = BertModel::<RobertaEmbeddings>::new(p / "roberta", config);
+        let roberta =
+            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config
             .id2label
@@ -765,10 +782,10 @@ impl RobertaForTokenClassification {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -776,11 +793,11 @@ impl RobertaForTokenClassification {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> RobertaTokenClassificationOutput {
         let base_model_output = self
@@ -791,8 +808,8 @@ impl RobertaForTokenClassification {
                 token_type_ids,
                 position_ids,
                 input_embeds,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
@@ -850,7 +867,8 @@ impl RobertaForQuestionAnswering {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let roberta = BertModel::<RobertaEmbeddings>::new(p / "roberta", config);
+        let roberta =
+            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
         let num_labels = 2;
         let qa_outputs = nn::linear(
             p / "qa_outputs",
@@ -908,10 +926,10 @@ impl RobertaForQuestionAnswering {
     ///
     /// let model_output = no_grad(|| {
     ///     roberta_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -919,11 +937,11 @@ impl RobertaForQuestionAnswering {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> RobertaQuestionAnsweringOutput {
         let base_model_output = self
@@ -934,8 +952,8 @@ impl RobertaForQuestionAnswering {
                 token_type_ids,
                 position_ids,
                 input_embeds,
-                &None,
-                &None,
+                None,
+                None,
                 train,
             )
             .unwrap();
@@ -943,8 +961,8 @@ impl RobertaForQuestionAnswering {
         let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
         let logits = sequence_output.split(1, -1);
         let (start_logits, end_logits) = (&logits[0], &logits[1]);
-        let start_logits = start_logits.squeeze1(-1);
-        let end_logits = end_logits.squeeze1(-1);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
 
         RobertaQuestionAnsweringOutput {
             start_logits,

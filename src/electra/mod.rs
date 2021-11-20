@@ -1,20 +1,19 @@
 //! # Electra: Pre-training Text Encoders as Discriminators Rather Than Generators (Clark et al.)
 //!
 //! Implementation of the Electra language model ([https://openreview.net/pdf?id=r1xMH1BtvB](https://openreview.net/pdf?id=r1xMH1BtvB) Clark, Luong, Le, Manning, 2020).
-//! The base model is implemented in the `electra::ElectraModel` struct. Both generator and discriminator are available via specialized heads:
-//! - Generator head: `electra::ElectraGeneratorHead`
-//! - Discriminator head: `electra::ElectraDiscriminatorHead`
+//! The base model is implemented in the `electra_model::ElectraModel` struct. Both generator and discriminator are available via specialized heads:
+//! - Generator head: `electra_model::ElectraGeneratorHead`
+//! - Discriminator head: `electra_model::ElectraDiscriminatorHead`
 //!
 //! The generator and discriminator models are built from these:
-//! - Generator (masked language model): `electra::ElectraForMaskedLM`
-//! - Discriminator: `electra::ElectraDiscriminator`
+//! - Generator (masked language model): `electra_model::ElectraForMaskedLM`
+//! - Discriminator: `electra_model::ElectraDiscriminator`
 //!
 //! An additional sequence token classification model is available for reference
-//! - Token classification (e.g. NER, POS tagging): `electra::ElectraForTokenClassification`
+//! - Token classification (e.g. NER, POS tagging): `electra_model::ElectraForTokenClassification`
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/electra_masked_lm.rs`, run with `cargo run --example electra_masked_lm`.
 //! The example below illustrate a Masked language model example, the structure is similar for other models (e.g. discriminator).
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
@@ -25,12 +24,12 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! #
-//! use rust_tokenizers::BertTokenizer;
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::electra::{ElectraConfig, ElectraForMaskedLM};
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
+//! use rust_tokenizers::tokenizer::BertTokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),

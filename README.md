@@ -1,37 +1,110 @@
 # rust-bert
 
-[![Build Status](https://travis-ci.com/guillaume-be/rust-bert.svg?branch=master)](https://travis-ci.com/guillaume-be/rust-bert)
+[![Build Status](https://github.com/guillaume-be/rust-bert/workflows/Build/badge.svg?event=push)](https://github.com/guillaume-be/rust-bert/actions)
 [![Latest version](https://img.shields.io/crates/v/rust_bert.svg)](https://crates.io/crates/rust_bert)
 [![Documentation](https://docs.rs/rust-bert/badge.svg)](https://docs.rs/rust-bert)
 ![License](https://img.shields.io/crates/l/rust_bert.svg)
 
-Rust native Transformer-based models implementation. Port of Huggingface's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers). Supports multithreaded tokenization and GPU inference.
-This repository exposes the model base architecture, task-specific heads (see below) and ready-to-use pipelines.
+Rust-native state-of-the-art Natural Language Processing models and pipelines. Port of Hugging Face's [Transformers library](https://github.com/huggingface/transformers), using the [tch-rs](https://github.com/LaurentMazare/tch-rs) crate and pre-processing from [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers). Supports multi-threaded tokenization and GPU inference.
+This repository exposes the model base architecture, task-specific heads (see below) and [ready-to-use pipelines](#ready-to-use-pipelines). [Benchmarks](#benchmarks) are available at the end of this document.
 
-The following models are currently implemented:
+Get started with tasks including question answering, named entity recognition, translation, summarization, text generation, conversational agents and more in just a few lines of code:
+```rust
+    let qa_model = QuestionAnsweringModel::new(Default::default())?;
+                                                        
+    let question = String::from("Where does Amy live ?");
+    let context = String::from("Amy lives in Amsterdam");
 
- | |**DistilBERT**|**BERT**|**RoBERTa**|**GPT**|**GPT2**|**BART**|**Electra**|**Marian**|**ALBERT**|**T5**|
-:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:|:----:|:----:
-Masked LM|✅ |✅ |✅ | | | |✅| |✅ | |
-Sequence classification|✅ |✅ |✅| | |✅ | | |✅ | |
-Token classification|✅ |✅ | ✅| | | |✅| |✅ | |
-Question answering|✅ |✅ |✅| | | | | |✅ | |
-Multiple choices| |✅ |✅| | | | | |✅ | |
-Next token prediction| | | |✅|✅|✅| | | | |
-Natural Language Generation| | | |✅|✅|✅| | | | |
-Summarization | | | | | |✅| | | | |
-Translation | | | | | |✅| |✅ | |✅|
+    let answers = qa_model.predict(&[QaInput { question, context }], 1, 32);
+```
+
+Output:
+```
+[Answer { score: 0.9976, start: 13, end: 21, answer: "Amsterdam" }]
+```
+
+The tasks currently supported include:
+  - Translation
+  - Summarization
+  - Multi-turn dialogue
+  - Zero-shot classification
+  - Sentiment Analysis
+  - Named Entity Recognition
+  - Part of Speech tagging
+  - Question-Answering
+  - Language Generation.
+
+<details>
+<summary> <b>Expand to display the supported models/tasks matrix </b> </summary>
+
+| |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|
+:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
+DistilBERT|✅|✅|✅| | | |✅| 
+MobileBERT|✅|✅|✅| | | |✅| 
+FNet|✅|✅|✅| | | |✅| 
+BERT|✅|✅|✅| | | |✅| 
+RoBERTa|✅|✅|✅| | | |✅| 
+GPT| | | |✅ | | | | 
+GPT2| | | |✅ | | | | 
+GPT-Neo| | | |✅ | | | | 
+BART|✅| | |✅ |✅| | |
+Marian| | | |  | |✅| | 
+MBart|✅| | |✅ | | | | 
+M2M100| | | |✅ | | | | 
+Electra | |✅| | | | |✅| 
+ALBERT |✅|✅|✅| | | |✅| 
+T5 | | | |✅ |✅|✅| | 
+XLNet|✅|✅|✅|✅ | | |✅| 
+Reformer|✅| |✅|✅ | | |✅| 
+ProphetNet| | | |✅ |✅ | | | 
+Longformer|✅|✅|✅| | | |✅| 
+Pegasus| | | | |✅| | | 
+</details>
+
+## Getting started
+
+This library relies on the [tch](https://github.com/LaurentMazare/tch-rs) crate for bindings to the C++ Libtorch API.
+The libtorch library is required can be downloaded either automatically or manually. The following provides a reference on how to set-up your environment
+to use these bindings, please refer to the [tch](https://github.com/LaurentMazare/tch-rs) for detailed information or support.
+
+Furthermore, this library relies on a cache folder for downloading pre-trained models. 
+This cache location defaults to `~/.cache/.rustbert`, but can be changed by setting the `RUSTBERT_CACHE` environment variable. Note that the language models used by this library are in the order of the 100s of MBs to GBs.
+
+### Manual installation (recommended)
+
+1. Download `libtorch` from https://pytorch.org/get-started/locally/. This package requires `v1.10.0`: if this version is no longer available on the "get started" page,
+the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu111/libtorch-shared-with-deps-1.10.0%2Bcu111.zip` for a Linux version with CUDA11.
+2. Extract the library to a location of your choice
+3. Set the following environment variables
+##### Linux:
+```bash
+export LIBTORCH=/path/to/libtorch
+export LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH
+```
+
+##### Windows
+```powershell
+$Env:LIBTORCH = "X:\path\to\libtorch"
+$Env:Path += ";X:\path\to\libtorch\lib"
+```
+
+### Automatic installation
+
+Alternatively, you can let the `build` script automatically download the `libtorch` library for you.
+The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu111`.
+Note that the libtorch library is large (order of several GBs for the CUDA-enabled version) and the first build may therefore take several minutes to complete.
 
 ## Ready-to-use pipelines
 	
-Based on Huggingface's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
+Based on Hugging Face's pipelines, ready to use end-to-end NLP pipelines are available as part of this crate. The following capabilities are currently available:
 
 **Disclaimer**
 The contributors of this repository are not responsible for any generation from the 3rd party utilization of the pretrained systems proposed herein.
 
+<details>
+<summary> <b>1. Question Answering</b> </summary>
 
-#### 1. Question Answering
-Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset)
+Extractive question answering from a given question and context. DistilBERT model fine-tuned on SQuAD (Stanford Question Answering Dataset)
 
 ```rust
     let qa_model = QuestionAnsweringModel::new(Default::default())?;
@@ -39,40 +112,66 @@ Extractive question answering from a given question and context. DistilBERT mode
     let question = String::from("Where does Amy live ?");
     let context = String::from("Amy lives in Amsterdam");
 
-    let answers = qa_model.predict(&vec!(QaInput { question, context }), 1, 32);
+    let answers = qa_model.predict(&[QaInput { question, context }], 1, 32);
 ```
 
 Output:
 ```
-[Answer { score: 0.9976814985275269, start: 13, end: 21, answer: "Amsterdam" }]
+[Answer { score: 0.9976, start: 13, end: 21, answer: "Amsterdam" }]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>2. Translation </b> </summary>
 
-#### 2. Translation
-Translation using the MarianMT architecture and pre-trained models from the Opus-MT team from Language Technology at the University of Helsinki.
- Currently supported languages are :
- - English <-> French
- - English <-> Spanish
- - English <-> Portuguese
- - English <-> Italian
- - English <-> Catalan
- - English <-> German
- - English <-> Russian
- - French <-> German
+Translation pipeline supporting a broad range of source and target languages. Leverages two main architectures for translation tasks:
+- Marian-based models, for specific source/target combinations
+- M2M100 models allowing for direct translation between 100 languages (at a higher computational cost and lower performance for some selected languages)
 
-```rust
-    let translation_config = TranslationConfig::new(Language::EnglishToFrench, Device::cuda_if_available());
-    let mut model = TranslationModel::new(translation_config)?;
-                                                        
-    let input = ["This is a sentence to be translated"];
-    let output = model.translate(&input);
-```
+Marian-based pretrained models for the following language pairs are readily available in the library - but the user can import any Pytorch-based
+model for predictions
+- English <-> French
+- English <-> Spanish
+- English <-> Portuguese
+- English <-> Italian
+- English <-> Catalan
+- English <-> German
+- English <-> Russian
+- English <-> Chinese
+- English <-> Dutch
+- English <-> Swedish
+- English <-> Arabic
+- English <-> Hebrew
+- English <-> Hindi
+- French <-> German
 
+For languages not supported by the proposed pretrained Marian models, the user can leverage a M2M100 model supporting direct translation between 100 languages (without intermediate English translation)
+The full list of supported languages is available in the [crate documentation](docs.rs/rust-bert/0.15.1/rust_bert/pipelines/translation/enum.Language.html)
+
+ ```rust
+ use rust_bert::pipelines::translation::{Language, TranslationModelBuilder};
+ fn main() -> anyhow::Result<()> {
+ let model = TranslationModelBuilder::new()
+         .with_source_languages(vec![Language::English])
+         .with_target_languages(vec![Language::Spanish, Language::French, Language::Italian])
+         .create_model()?;
+     let input_text = "This is a sentence to be translated";
+     let output = model.translate(&[input_text], None, Language::Spanish)?;
+     for sentence in output {
+         println!("{}", sentence);
+     }
+     Ok(())
+ }
+ ```
 Output:
 ```
 Il s'agit d'une phrase à traduire
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>3. Summarization </b> </summary>
 
-#### 3. Summarization
 Abstractive summarization using a pretrained BART model.
 
 ```rust
@@ -110,8 +209,11 @@ Output:
 This is the first such discovery in a planet in its star's habitable zone. 
 The planet is not too hot and not too cold for liquid water to exist."
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>4. Dialogue Model </b> </summary>
 
-#### 4. Dialogue Model
 Conversation model based on Microsoft's [DialoGPT](https://github.com/microsoft/DialoGPT).
 This pipeline allows the generation of single or multi-turn conversations between a human and a model.
 The DialoGPT's page states that
@@ -133,12 +235,15 @@ Example output:
 ```
 "The Big Lebowski."
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>5. Natural Language Generation </b> </summary>
 
-#### 5. Natural Language Generation
 Generate language based on a prompt. GPT2 and GPT available as base models.
 Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
-This may impact the results and it is recommended to submit prompts of similar length for best results
+This may impact the results, it is recommended to submit prompts of similar length for best results
 
 ```rust
     let model = GPT2Generator::new(Default::default())?;
@@ -146,8 +251,12 @@ This may impact the results and it is recommended to submit prompts of similar l
     let input_context_1 = "The dog";
     let input_context_2 = "The cat was";
 
-    let output = model.generate(Some(vec!(input_context_1, input_context_2)), 0, 30, true, false, 
-                                5, 1.2, 0, 0.9, 1.0, 1.0, 3, 3, None);
+    let generate_options = GenerateOptions {
+        max_length: 30,
+        ..Default::default()
+    };
+
+    let output = model.generate(Some(&[input_context_1, input_context_2]), generate_options);
 ```
 Example output:
 ```
@@ -160,8 +269,11 @@ Example output:
     "The cat was attacked by two stray dogs and was taken to a hospital. Two other cats were also injured in the attack and are being treated."
 ]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>6. Zero-shot classification </b> </summary>
 
-#### 6. Zero-shot classification
 Performs zero-shot classification on input sentences with provided labels using a model fine-tuned for Natural Language Inference.
 ```rust
     let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
@@ -185,9 +297,12 @@ Output:
   [ Label { "politics", score: 0.975 }, Label { "public health", score: 0.0818 }, Label {"economics", score: 0.852 }, Label {"sports", score: 0.001 } ],
 ]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>7. Sentiment analysis </b> </summary>
 
-#### 7. Sentiment analysis
-Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
+Predicts the binary sentiment for a sentence. DistilBERT model fine-tuned on SST-2.
 ```rust
     let sentiment_classifier = SentimentModel::new(Default::default())?;
                                                         
@@ -209,9 +324,12 @@ Output:
     Sentiment { polarity: Positive, score: 0.9997248985164333 }
 ]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>8. Named Entity Recognition </b> </summary>
 
-#### 8. Named Entity Recognition
-Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz).
+Extracts entities (Person, Location, Organization, Miscellaneous) from text. BERT cased large model fine-tuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz).
 Models are currently available for English, German, Spanish and Dutch.
 ```rust
     let ner_model = NERModel::new(default::default())?;
@@ -226,36 +344,72 @@ Models are currently available for English, German, Spanish and Dutch.
 Output:
 ```
 [
+  [
     Entity { word: "Amy", score: 0.9986, label: "I-PER" }
     Entity { word: "Paris", score: 0.9985, label: "I-LOC" }
+  ],
+  [
     Entity { word: "Paris", score: 0.9988, label: "I-LOC" }
     Entity { word: "France", score: 0.9993, label: "I-LOC" }
+  ]
 ]
 ```
+</details>
+&nbsp;  
+<details>
+<summary> <b>9. Part of Speech tagging </b> </summary>
 
-## Base models
+Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
+```rust
+    let pos_model = POSModel::new(default::default())?;
+
+    let input = ["My name is Bob"];
+    
+    let output = pos_model.predict(&input);
+```
+Output:
+```
+[
+    Entity { word: "My", score: 0.1560, label: "PRP" }
+    Entity { word: "name", score: 0.6565, label: "NN" }
+    Entity { word: "is", score: 0.3697, label: "VBZ" }
+    Entity { word: "Bob", score: 0.7460, label: "NNP" }
+]
+```
+</details>
+
+## Benchmarks
+
+For simple pipelines (sequence classification, tokens classification, question answering) the performance between Python and Rust is expected to be comparable. This is because the most expensive part of these pipeline is the language model itself, sharing a common implementation in the Torch backend. The [End-to-end NLP Pipelines in Rust](https://www.aclweb.org/anthology/2020.nlposs-1.4/) provides a benchmarks section covering all pipelines.
+
+For text generation tasks (summarization, translation, conversation, free text generation), significant benefits can be expected (up to 2 to 4 times faster processing depending on the input and application). The article [Accelerating text generation with Rust](https://guillaume-be.github.io/2020-11-21/generation_benchmarks) focuses on these text generation applications and provides more details on the performance comparison to Python.
+
+## Loading pretrained and custom model weights
 
 The base model and task-specific heads are also available for users looking to expose their own transformer based models.
 Examples on how to prepare the date using a native tokenizers Rust library are available in `./examples` for BERT, DistilBERT, RoBERTa, GPT, GPT2 and BART.
 Note that when importing models from Pytorch, the convention for parameters naming needs to be aligned with the Rust schema. Loading of the pre-trained weights will fail if any of the model parameters weights cannot be found in the weight files.
 If this quality check is to be skipped, an alternative method `load_partial` can be invoked from the variables store.
 
-## Setup
+Pretrained models are available on Hugging face's [model hub](https://huggingface.co/models?filter=rust) and can be loaded using `RemoteResources` defined in this library.
+A conversion utility script is included in `./utils` to convert Pytorch weights to a set of weights compatible with this library. This script requires Python and `torch` to be set-up, and can be used as follows:
+`python ./utils/convert_model.py path/to/pytorch_model.bin` where `path/to/pytorch_model.bin` is the location of the original Pytorch weights.
 
-A number of pretrained model configuration, weights and vocabulary are downloaded directly from [Huggingface's model repository](https://huggingface.co/models).
-The list of models available with Rust-compatible weights is available at [https://huggingface.co/models?filter=rust](https://huggingface.co/models?filter=rust).
-The models will be downloaded to the environment variable `RUSTBERT_CACHE` if it exists, otherwise to `~/.cache/.rustbert`.
-Additional models can be added if of interest, please raise an issue.
 
-In order to load custom weights to the library, these need to be converter to a binary format that can be read by Libtorch (the original `.bin` files are pickles and cannot be used directly).
-Several Python scripts to load Pytorch weights and convert them to the appropriate format are provided and can be adapted based on the model needs.
+## Citation
 
-1. Compile the package: `cargo build`
-2. Download the model files & perform necessary conversions
-   - Set-up a virtual environment and install dependencies
-   - run the conversion script `python /utils/download-dependencies_{MODEL_TO_DOWNLOAD}.py`. The dependencies will be downloaded to the user's home directory, under `~/rustbert/{}`.
-   Alternatively you may load local weight files and run the conversion directly.
-
+If you use `rust-bert` for your work, please cite [End-to-end NLP Pipelines in Rust](https://www.aclweb.org/anthology/2020.nlposs-1.4/):
+```bibtex
+@inproceedings{becquin-2020-end,
+    title = "End-to-end {NLP} Pipelines in Rust",
+    author = "Becquin, Guillaume",
+    booktitle = "Proceedings of Second Workshop for NLP Open Source Software (NLP-OSS)",
+    year = "2020",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/2020.nlposs-1.4",
+    pages = "20--25",
+}
+```
 
 ## Acknowledgements
 

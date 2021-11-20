@@ -66,11 +66,15 @@ use crate::distilbert::{
     DistilBertConfigResources, DistilBertModelClassifier, DistilBertModelResources,
     DistilBertVocabResources,
 };
+use crate::fnet::FNetForSequenceClassification;
+use crate::longformer::LongformerForSequenceClassification;
+use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::reformer::ReformerForSequenceClassification;
 use crate::roberta::RobertaForSequenceClassification;
-use rust_tokenizers::preprocessing::tokenizer::base_tokenizer::{
-    TokenizedInput, TruncationStrategy,
-};
+use crate::xlnet::XLNetForSequenceClassification;
+use rust_tokenizers::tokenizer::TruncationStrategy;
+use rust_tokenizers::TokenizedInput;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -124,7 +128,7 @@ impl SequenceClassificationConfig {
     /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokeniser should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
         model_resource: Resource,
@@ -178,14 +182,24 @@ pub enum SequenceClassificationOption {
     Bert(BertForSequenceClassification),
     /// DistilBert for Sequence Classification
     DistilBert(DistilBertModelClassifier),
+    /// MobileBert for Sequence Classification
+    MobileBert(MobileBertForSequenceClassification),
     /// Roberta for Sequence Classification
     Roberta(RobertaForSequenceClassification),
     /// XLMRoberta for Sequence Classification
     XLMRoberta(RobertaForSequenceClassification),
     /// Albert for Sequence Classification
     Albert(AlbertForSequenceClassification),
+    /// XLNet for Sequence Classification
+    XLNet(XLNetForSequenceClassification),
     /// Bart for Sequence Classification
     Bart(BartForSequenceClassification),
+    /// Reformer for Sequence Classification
+    Reformer(ReformerForSequenceClassification),
+    /// Longformer for Sequence Classification
+    Longformer(LongformerForSequenceClassification),
+    /// FNet for Sequence Classification
+    FNet(FNetForSequenceClassification),
 }
 
 impl SequenceClassificationOption {
@@ -197,74 +211,140 @@ impl SequenceClassificationOption {
     /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
     /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
     /// `model_type`)
-    pub fn new<'p, P>(model_type: ModelType, p: P, config: &ConfigOption) -> Self
+    pub fn new<'p, P>(
+        model_type: ModelType,
+        p: P,
+        config: &ConfigOption,
+    ) -> Result<Self, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         match model_type {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
-                    SequenceClassificationOption::Bert(BertForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::Bert(
+                        BertForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Bert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
                 }
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
-                    SequenceClassificationOption::DistilBert(DistilBertModelClassifier::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::DistilBert(
+                        DistilBertModelClassifier::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a DistilBertConfig for DistilBert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+                    ))
+                }
+            }
+            ModelType::MobileBert => {
+                if let ConfigOption::MobileBert(config) = config {
+                    Ok(SequenceClassificationOption::MobileBert(
+                        MobileBertForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a MobileBertConfig for MobileBert!".to_string(),
+                    ))
                 }
             }
             ModelType::Roberta => {
                 if let ConfigOption::Bert(config) = config {
-                    SequenceClassificationOption::Roberta(RobertaForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::Roberta(
+                        RobertaForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Bert(config) = config {
-                    SequenceClassificationOption::XLMRoberta(RobertaForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::XLMRoberta(
+                        RobertaForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Roberta!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Roberta!".to_string(),
+                    ))
                 }
             }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
-                    SequenceClassificationOption::Albert(AlbertForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::Albert(
+                        AlbertForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply an AlbertConfig for Albert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an AlbertConfig for Albert!".to_string(),
+                    ))
+                }
+            }
+            ModelType::XLNet => {
+                if let ConfigOption::XLNet(config) = config {
+                    Ok(SequenceClassificationOption::XLNet(
+                        XLNetForSequenceClassification::new(p, config).unwrap(),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply an XLNetConfig for XLNet!".to_string(),
+                    ))
                 }
             }
             ModelType::Bart => {
                 if let ConfigOption::Bart(config) = config {
-                    SequenceClassificationOption::Bart(BartForSequenceClassification::new(
-                        p, config,
+                    Ok(SequenceClassificationOption::Bart(
+                        BartForSequenceClassification::new(p, config),
                     ))
                 } else {
-                    panic!("You can only supply a BertConfig for Bert!");
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
                 }
             }
-            ModelType::Electra => {
-                panic!("SequenceClassification not implemented for Electra!");
+            ModelType::Reformer => {
+                if let ConfigOption::Reformer(config) = config {
+                    Ok(SequenceClassificationOption::Reformer(
+                        ReformerForSequenceClassification::new(p, config)?,
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a ReformerConfig for Reformer!".to_string(),
+                    ))
+                }
             }
-            ModelType::Marian => {
-                panic!("SequenceClassification not implemented for Marian!");
+            ModelType::Longformer => {
+                if let ConfigOption::Longformer(config) = config {
+                    Ok(SequenceClassificationOption::Longformer(
+                        LongformerForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a LongformerConfig for Longformer!".to_string(),
+                    ))
+                }
             }
-            ModelType::T5 => {
-                panic!("SequenceClassification not implemented for T5!");
+            ModelType::FNet => {
+                if let ConfigOption::FNet(config) = config {
+                    Ok(SequenceClassificationOption::FNet(
+                        FNetForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a FNetConfig for FNet!".to_string(),
+                    ))
+                }
             }
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Sequence Classification not implemented for {:?}!",
+                model_type
+            ))),
         }
     }
 
@@ -275,27 +355,32 @@ impl SequenceClassificationOption {
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
+            Self::MobileBert(_) => ModelType::MobileBert,
             Self::Albert(_) => ModelType::Albert,
+            Self::XLNet(_) => ModelType::XLNet,
             Self::Bart(_) => ModelType::Bart,
+            Self::Reformer(_) => ModelType::Reformer,
+            Self::Longformer(_) => ModelType::Longformer,
+            Self::FNet(_) => ModelType::FNet,
         }
     }
 
     /// Interface method to forward_t() of the particular models.
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Tensor {
         match *self {
             Self::Bart(ref model) => {
                 model
                     .forward_t(
-                        &input_ids.expect("`input_ids` must be provided for BART models"),
-                        mask.as_ref(),
+                        input_ids.expect("`input_ids` must be provided for BART models"),
+                        mask,
                         None,
                         None,
                         None,
@@ -319,6 +404,12 @@ impl SequenceClassificationOption {
                 model
                     .forward_t(input_ids, mask, input_embeds, train)
                     .expect("Error in distilbert forward_t")
+                    .logits
+            }
+            Self::MobileBert(ref model) => {
+                model
+                    .forward_t(input_ids, None, None, input_embeds, mask, train)
+                    .expect("Error in mobilebert forward_t")
                     .logits
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
@@ -345,6 +436,46 @@ impl SequenceClassificationOption {
                     )
                     .logits
             }
+            Self::XLNet(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        None,
+                        None,
+                        None,
+                        token_type_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .logits
+            }
+            Self::Reformer(ref model) => {
+                model
+                    .forward_t(input_ids, None, None, mask, None, train)
+                    .expect("Error in Reformer forward pass.")
+                    .logits
+            }
+            Self::Longformer(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        None,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .expect("Error in Longformer forward pass.")
+                    .logits
+            }
+            Self::FNet(ref model) => {
+                model
+                    .forward_t(input_ids, token_type_ids, position_ids, input_embeds, train)
+                    .expect("Error in FNet forward pass.")
+                    .logits
+            }
         }
     }
 }
@@ -355,6 +486,7 @@ pub struct SequenceClassificationModel {
     sequence_classifier: SequenceClassificationOption,
     label_mapping: HashMap<i64, String>,
     var_store: VarStore,
+    max_length: usize,
 }
 
 impl SequenceClassificationModel {
@@ -397,22 +529,33 @@ impl SequenceClassificationModel {
         )?;
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
+        let max_length = model_config
+            .get_max_len()
+            .map(|v| v as usize)
+            .unwrap_or(usize::MAX);
         let sequence_classifier =
-            SequenceClassificationOption::new(config.model_type, &var_store.root(), &model_config);
-        let label_mapping = model_config.get_label_mapping();
+            SequenceClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
+        let label_mapping = model_config.get_label_mapping().clone();
         var_store.load(weights_path)?;
         Ok(SequenceClassificationModel {
             tokenizer,
             sequence_classifier,
             label_mapping,
             var_store,
+            max_length,
         })
     }
 
-    fn prepare_for_model(&self, input: Vec<&str>) -> Tensor {
-        let tokenized_input: Vec<TokenizedInput> =
-            self.tokenizer
-                .encode_list(input.to_vec(), 128, &TruncationStrategy::LongestFirst, 0);
+    fn prepare_for_model<'a, S>(&self, input: S) -> Tensor
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_list(
+            input.as_ref(),
+            self.max_length,
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
         let max_len = tokenized_input
             .iter()
             .map(|input| input.token_ids.len())
@@ -461,11 +604,14 @@ impl SequenceClassificationModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict(&self, input: &[&str]) -> Vec<Label> {
-        let input_tensor = self.prepare_for_model(input.to_vec());
+    pub fn predict<'a, S>(&self, input: S) -> Vec<Label>
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let input_tensor = self.prepare_for_model(input.as_ref());
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
-                Some(input_tensor.copy()),
+                Some(&input_tensor),
                 None,
                 None,
                 None,
@@ -474,10 +620,10 @@ impl SequenceClassificationModel {
             );
             output.softmax(-1, Kind::Float).detach().to(Device::Cpu)
         });
-        let label_indices = output.as_ref().argmax(-1, true).squeeze1(1);
+        let label_indices = output.as_ref().argmax(-1, true).squeeze_dim(1);
         let scores = output
             .gather(1, &label_indices.unsqueeze(-1), false)
-            .squeeze1(1);
+            .squeeze_dim(1);
         let label_indices = label_indices.iter::<i64>().unwrap().collect::<Vec<i64>>();
         let scores = scores.iter::<f64>().unwrap().collect::<Vec<f64>>();
 
@@ -534,7 +680,7 @@ impl SequenceClassificationModel {
         let input_tensor = self.prepare_for_model(input.to_vec());
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
-                Some(input_tensor.copy()),
+                Some(&input_tensor),
                 None,
                 None,
                 None,
@@ -573,5 +719,17 @@ impl SequenceClassificationModel {
             labels.push(sequence_labels);
         }
         Ok(labels)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[ignore] // no need to run, compilation is enough to verify it is Send
+    fn test() {
+        let config = SequenceClassificationConfig::default();
+        let _: Box<dyn Send> = Box::new(SequenceClassificationModel::new(config));
     }
 }

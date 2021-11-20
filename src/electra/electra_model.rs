@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bert::encoder::BertEncoder;
-use crate::bert::{Activation, BertConfig};
-use crate::common::activations::{_gelu, _mish, _relu};
+use crate::bert::BertConfig;
+use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
+use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::electra::embeddings::ElectraEmbeddings;
+use crate::{bert::encoder::BertEncoder, common::activations::TensorFunction};
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, collections::HashMap};
@@ -32,45 +33,45 @@ pub struct ElectraConfigResources;
 pub struct ElectraVocabResources;
 
 impl ElectraModelResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/electra>. Modified with conversion to C-array format.
     pub const BASE_GENERATOR: (&'static str, &'static str) = (
         "electra-base-generator/model",
-        "https://cdn.huggingface.co/google/electra-base-generator/rust_model.ot",
+        "https://huggingface.co/google/electra-base-generator/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/electra>. Modified with conversion to C-array format.
     pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = (
         "electra-base-discriminator/model",
-        "https://cdn.huggingface.co/google/electra-base-discriminator/rust_model.ot",
+        "https://huggingface.co/google/electra-base-discriminator/resolve/main/rust_model.ot",
     );
 }
 
 impl ElectraConfigResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/electra>. Modified with conversion to C-array format.
     pub const BASE_GENERATOR: (&'static str, &'static str) = (
         "electra-base-generator/config",
-        "https://cdn.huggingface.co/google/electra-base-generator/config.json",
+        "https://huggingface.co/google/electra-base-generator/resolve/main/config.json",
     );
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/electra>. Modified with conversion to C-array format.
     pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = (
         "electra-base-discriminator/config",
-        "https://cdn.huggingface.co/google/electra-base-discriminator/config.json",
+        "https://huggingface.co/google/electra-base-discriminator/resolve/main/config.json",
     );
 }
 
 impl ElectraVocabResources {
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/electra>. Modified with conversion to C-array format.
     pub const BASE_GENERATOR: (&'static str, &'static str) = (
         "electra-base-generator/vocab",
-        "https://cdn.huggingface.co/google/electra-base-generator/vocab.txt",
+        "https://huggingface.co/google/electra-base-generator/resolve/main/vocab.txt",
     );
-    /// Shared under Apache 2.0 license by the Google team at https://github.com/google-research/electra. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/electra>. Modified with conversion to C-array format.
     pub const BASE_DISCRIMINATOR: (&'static str, &'static str) = (
         "electra-base-discriminator/vocab",
-        "https://cdn.huggingface.co/google/electra-base-discriminator/vocab.txt",
+        "https://huggingface.co/google/electra-base-discriminator/resolve/main/vocab.txt",
     );
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// # Electra model configuration
 /// Defines the Electra model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct ElectraConfig {
@@ -95,7 +96,7 @@ pub struct ElectraConfig {
     pub label2id: Option<HashMap<String, i64>>,
 }
 
-impl Config<ElectraConfig> for ElectraConfig {}
+impl Config for ElectraConfig {}
 
 /// # Electra Base model
 /// Base architecture for Electra models.
@@ -150,7 +151,7 @@ impl ElectraModel {
             None
         };
         let bert_config = BertConfig {
-            hidden_act: config.hidden_act.clone(),
+            hidden_act: config.hidden_act,
             attention_probs_dropout_prob: config.attention_probs_dropout_prob,
             hidden_dropout_prob: config.hidden_dropout_prob,
             hidden_size: config.hidden_size,
@@ -181,7 +182,7 @@ impl ElectraModel {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -216,10 +217,10 @@ impl ElectraModel {
     /// let model_output = no_grad(|| {
     ///     electra_model
     ///         .forward_t(
-    ///             Some(input_tensor),
-    ///             Some(mask),
-    ///             Some(token_type_ids),
-    ///             Some(position_ids),
+    ///             Some(&input_tensor),
+    ///             Some(&mask),
+    ///             Some(&token_type_ids),
+    ///             Some(&position_ids),
     ///             None,
     ///             false,
     ///         )
@@ -228,36 +229,22 @@ impl ElectraModel {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<ElectraModelOutput, RustBertError> {
-        let (input_shape, device) = match &input_ids {
-            Some(input_value) => match &input_embeds {
-                Some(_) => {
-                    return Err(RustBertError::ValueError(
-                        "Only one of input ids or input embeddings may be set".into(),
-                    ));
-                }
-                None => (input_value.size(), input_value.device()),
-            },
-            None => match &input_embeds {
-                Some(embeds) => (vec![embeds.size()[0], embeds.size()[1]], embeds.device()),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "At least one of input ids or input embeddings must be set".into(),
-                    ));
-                }
-            },
-        };
+        let (input_shape, device) =
+            get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
-        let mask = match mask {
-            Some(value) => value,
-            None => Tensor::ones(&input_shape, (Kind::Int64, device)),
+        let calc_mask = if mask.is_none() {
+            Some(Tensor::ones(&input_shape, (Kind::Int64, device)))
+        } else {
+            None
         };
+        let mask = mask.unwrap_or_else(|| calc_mask.as_ref().unwrap());
 
         let extended_attention_mask = match mask.dim() {
             3 => mask.unsqueeze(1),
@@ -269,36 +256,31 @@ impl ElectraModel {
             }
         };
 
-        let hidden_states = match self.embeddings.forward_t(
+        let hidden_states = self.embeddings.forward_t(
             input_ids,
             token_type_ids,
             position_ids,
             input_embeds,
             train,
-        ) {
-            Ok(value) => value,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        )?;
 
         let hidden_states = match &self.embeddings_project {
             Some(layer) => hidden_states.apply(layer),
             None => hidden_states,
         };
 
-        let (hidden_state, all_hidden_states, all_attentions) = self.encoder.forward_t(
+        let encoder_output = self.encoder.forward_t(
             &hidden_states,
-            &Some(extended_attention_mask),
-            &None,
-            &None,
+            Some(&extended_attention_mask),
+            None,
+            None,
             train,
         );
 
         Ok(ElectraModelOutput {
-            hidden_state,
-            all_hidden_states,
-            all_attentions,
+            hidden_state: encoder_output.hidden_state,
+            all_hidden_states: encoder_output.all_hidden_states,
+            all_attentions: encoder_output.all_attentions,
         })
     }
 }
@@ -312,7 +294,7 @@ impl ElectraModel {
 pub struct ElectraDiscriminatorHead {
     dense: nn::Linear,
     dense_prediction: nn::Linear,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 /// Defines the implementation of the ElectraDiscriminatorHead.
@@ -356,11 +338,7 @@ impl ElectraDiscriminatorHead {
             1,
             Default::default(),
         );
-        let activation = Box::new(match &config.hidden_act {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-            Activation::mish => _mish,
-        });
+        let activation = config.hidden_act.get_function();
         ElectraDiscriminatorHead {
             dense,
             dense_prediction,
@@ -401,7 +379,7 @@ impl ElectraDiscriminatorHead {
     /// ```
     pub fn forward(&self, encoder_hidden_states: &Tensor) -> Tensor {
         let output = encoder_hidden_states.apply(&self.dense);
-        let output = (self.activation)(&output);
+        let output = (self.activation.get_fn())(&output);
         output.apply(&self.dense_prediction).squeeze()
     }
 }
@@ -415,7 +393,7 @@ impl ElectraDiscriminatorHead {
 pub struct ElectraGeneratorHead {
     dense: nn::Linear,
     layer_norm: nn::LayerNorm,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 /// Defines the implementation of the ElectraGeneratorHead.
@@ -458,11 +436,11 @@ impl ElectraGeneratorHead {
             config.embedding_size,
             Default::default(),
         );
-        let activation = Box::new(_gelu);
+        let activation = Activation::gelu.get_function();
 
         ElectraGeneratorHead {
-            layer_norm,
             dense,
+            layer_norm,
             activation,
         }
     }
@@ -500,7 +478,7 @@ impl ElectraGeneratorHead {
     /// ```
     pub fn forward(&self, encoder_hidden_states: &Tensor) -> Tensor {
         let output = encoder_hidden_states.apply(&self.dense);
-        let output = (self.activation)(&output);
+        let output = (self.activation.get_fn())(&output);
         output.apply(&self.layer_norm)
     }
 }
@@ -568,7 +546,7 @@ impl ElectraForMaskedLM {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -602,10 +580,10 @@ impl ElectraForMaskedLM {
     ///
     /// let model_output = no_grad(|| {
     ///     electra_model.forward_t(
-    ///         Some(input_tensor),
-    ///         Some(mask),
-    ///         Some(token_type_ids),
-    ///         Some(position_ids),
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
     ///         None,
     ///         false,
     ///     )
@@ -613,11 +591,11 @@ impl ElectraForMaskedLM {
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> ElectraMaskedLMOutput {
         let base_model_output = self
@@ -696,7 +674,7 @@ impl ElectraDiscriminator {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -729,21 +707,21 @@ impl ElectraDiscriminator {
     ///
     ///  let model_output = no_grad(|| {
     ///    electra_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> ElectraDiscriminatorOutput {
         let base_model_output = self
@@ -837,7 +815,7 @@ impl ElectraForTokenClassification {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
     /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *[SEP]*) and 1 for the second sentence. If None set to 0.
+    /// * `token_type_ids` - Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -870,21 +848,21 @@ impl ElectraForTokenClassification {
     ///
     ///  let model_output = no_grad(|| {
     ///    electra_model
-    ///         .forward_t(Some(input_tensor),
-    ///                    Some(mask),
-    ///                    Some(token_type_ids),
-    ///                    Some(position_ids),
+    ///         .forward_t(Some(&input_tensor),
+    ///                    Some(&mask),
+    ///                    Some(&token_type_ids),
+    ///                    Some(&position_ids),
     ///                    None,
     ///                    false)
     ///    });
     /// ```
     pub fn forward_t(
         &self,
-        input_ids: Option<Tensor>,
-        mask: Option<Tensor>,
-        token_type_ids: Option<Tensor>,
-        position_ids: Option<Tensor>,
-        input_embeds: Option<Tensor>,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
         train: bool,
     ) -> ElectraTokenClassificationOutput {
         let base_model_output = self

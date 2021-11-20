@@ -1,12 +1,12 @@
 //! # GPT2 (Radford et al.)
 //!
 //! Implementation of the GPT2 language model ([Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf) Radford, Wu, Child, Luan, Amodei, Sutskever 2019).
-//! The base model is implemented in the `gpt2::Gpt2Model` struct. The model also includes a language model head: `gpt2::GPT2LMHeadModel`
-//! implementing the common `generation::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! The base model is implemented in the `gpt2_model::Gpt2Model` struct. The model also includes a language model head: `gpt2_model::GPT2LMHeadModel`
+//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!
-//! A full working example is provided in `examples/summarization.rs`, run with `cargo run --example gpt2`.
+//! A full working example is provided in `examples/generation_gpt2`, run with `cargo run --example generation_gpt2`.
 //! All models expect the following resources:
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
@@ -16,12 +16,12 @@
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! #
-//! use rust_tokenizers::Gpt2Tokenizer;
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::gpt2::{GPT2LMHeadModel, Gpt2Config};
 //! use rust_bert::resources::{LocalResource, Resource};
 //! use rust_bert::Config;
+//! use rust_tokenizers::tokenizer::Gpt2Tokenizer;
 //!
 //! let config_resource = Resource::Local(LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
@@ -60,6 +60,6 @@ mod gpt2_model;
 pub(crate) mod transformer;
 
 pub use gpt2_model::{
-    GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2Model,
-    Gpt2ModelOutput, Gpt2ModelResources, Gpt2VocabResources, GptActivation,
+    GPT2Generator, GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources,
+    Gpt2Model, Gpt2ModelOutput, Gpt2ModelResources, Gpt2VocabResources,
 };

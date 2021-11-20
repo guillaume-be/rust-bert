@@ -10,10 +10,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::activations::{_gelu, _relu};
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::distilbert::attention::MultiHeadSelfAttention;
-use crate::distilbert::distilbert_model::{Activation, DistilBertConfig};
+use crate::distilbert::distilbert_model::DistilBertConfig;
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LayerNorm;
 use tch::{nn, Tensor};
@@ -22,7 +22,7 @@ pub struct FeedForwardNetwork {
     lin1: nn::Linear,
     lin2: nn::Linear,
     dropout: Dropout,
-    activation: Box<dyn Fn(&Tensor) -> Tensor>,
+    activation: TensorFunction,
 }
 
 impl FeedForwardNetwork {
@@ -44,10 +44,7 @@ impl FeedForwardNetwork {
             Default::default(),
         );
         let dropout = Dropout::new(config.dropout);
-        let activation = Box::new(match &config.activation {
-            Activation::gelu => _gelu,
-            Activation::relu => _relu,
-        });
+        let activation = config.activation.get_function();
         FeedForwardNetwork {
             lin1,
             lin2,
@@ -57,7 +54,7 @@ impl FeedForwardNetwork {
     }
 
     pub fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
-        (self.activation)(&input.apply(&self.lin1))
+        (self.activation.get_fn())(&input.apply(&self.lin1))
             .apply(&self.lin2)
             .apply_t(&self.dropout, train)
     }
@@ -77,14 +74,14 @@ impl TransformerBlock {
     {
         let p = p.borrow();
 
-        let attention = MultiHeadSelfAttention::new(p / "attention", &config);
+        let attention = MultiHeadSelfAttention::new(p / "attention", config);
         let layer_norm_config = nn::LayerNormConfig {
             eps: 1e-12,
             ..Default::default()
         };
         let sa_layer_norm =
             nn::layer_norm(p / "sa_layer_norm", vec![config.dim], layer_norm_config);
-        let ffn = FeedForwardNetwork::new(p / "ffn", &config);
+        let ffn = FeedForwardNetwork::new(p / "ffn", config);
         let output_layer_norm =
             nn::layer_norm(p / "output_layer_norm", vec![config.dim], layer_norm_config);
 
@@ -99,12 +96,10 @@ impl TransformerBlock {
     pub fn forward_t(
         &self,
         input: &Tensor,
-        mask: &Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Option<Tensor>) {
-        let (output, sa_weights) = self
-            .attention
-            .forward_t(&input, &input, &input, mask, train);
+        let (output, sa_weights) = self.attention.forward_t(input, input, input, mask, train);
         let output = (input + &output).apply(&self.sa_layer_norm);
         let output = (&output + self.ffn.forward_t(&output, train)).apply(&self.output_layer_norm);
         (output, sa_weights)
@@ -123,14 +118,8 @@ impl Transformer {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow() / "layer";
-        let output_attentions = match config.output_attentions {
-            Some(value) => value,
-            None => false,
-        };
-        let output_hidden_states = match config.output_hidden_states {
-            Some(value) => value,
-            None => false,
-        };
+        let output_attentions = config.output_attentions.unwrap_or(false);
+        let output_hidden_states = config.output_hidden_states.unwrap_or(false);
 
         let mut layers: Vec<TransformerBlock> = vec![];
         for layer_index in 0..config.n_layers {
@@ -147,7 +136,7 @@ impl Transformer {
     pub fn forward_t(
         &self,
         input: &Tensor,
-        mask: Option<Tensor>,
+        mask: Option<&Tensor>,
         train: bool,
     ) -> DistilBertTransformerOutput {
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
@@ -161,24 +150,29 @@ impl Transformer {
             None
         };
 
-        let mut hidden_state = input.copy();
+        // let mut hidden_state = input.copy();
+        let mut hidden_state: Option<Tensor> = None;
         let mut attention_weights: Option<Tensor>;
 
         for layer in &self.layers {
-            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
+            let temp = if let Some(hidden_state) = &hidden_state {
+                layer.forward_t(hidden_state, mask, train)
+            } else {
+                layer.forward_t(input, mask, train)
             };
 
-            let temp = layer.forward_t(&hidden_state, &mask, train);
-            hidden_state = temp.0;
+            hidden_state = Some(temp.0);
             attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.as_ref().unwrap().copy());
             };
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().unwrap().copy());
+            };
         }
 
         DistilBertTransformerOutput {
-            hidden_state,
+            hidden_state: hidden_state.unwrap(),
             all_hidden_states,
             all_attentions,
         }
