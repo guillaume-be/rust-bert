@@ -300,15 +300,15 @@ impl NERModel {
 
             if (previous_tag == Tag::End)
                 | (previous_tag == Tag::Single)
-                | match (previous_tag, current_tag) {
-                    (Tag::Begin, Tag::Begin) => true,
-                    (Tag::Begin, Tag::Outside) => true,
-                    (Tag::Begin, Tag::Single) => true,
-                    (Tag::Inside, Tag::Begin) => true,
-                    (Tag::Inside, Tag::Outside) => true,
-                    (Tag::Inside, Tag::Single) => true,
-                    _ => false,
-                }
+                | matches!(
+                    (previous_tag, current_tag),
+                    (Tag::Begin, Tag::Begin)
+                        | (Tag::Begin, Tag::Outside)
+                        | (Tag::Begin, Tag::Single)
+                        | (Tag::Inside, Tag::Begin)
+                        | (Tag::Inside, Tag::Outside)
+                        | (Tag::Inside, Tag::Single)
+                )
                 | ((previous_label != current_label) & (previous_tag != Tag::Outside))
             {
                 let entity_tokens = &tokens[begin_offset..position];
@@ -325,15 +325,15 @@ impl NERModel {
 
             if (current_tag == Tag::Begin)
                 | (current_tag == Tag::Single)
-                | match (previous_tag, current_tag) {
-                    (Tag::End, Tag::End) => true,
-                    (Tag::Single, Tag::End) => true,
-                    (Tag::Outside, Tag::End) => true,
-                    (Tag::End, Tag::Inside) => true,
-                    (Tag::Single, Tag::Inside) => true,
-                    (Tag::Outside, Tag::Inside) => true,
-                    _ => false,
-                }
+                | matches!(
+                    (previous_tag, current_tag),
+                    (Tag::End, Tag::End)
+                        | (Tag::Single, Tag::End)
+                        | (Tag::Outside, Tag::End)
+                        | (Tag::End, Tag::Inside)
+                        | (Tag::Single, Tag::Inside)
+                        | (Tag::Outside, Tag::Inside)
+                )
                 | ((previous_label != current_label) & (previous_tag != Tag::Outside))
             {
                 begin_offset = position;
