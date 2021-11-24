@@ -390,6 +390,34 @@ fn bert_pre_trained_ner() -> anyhow::Result<()> {
 }
 
 #[test]
+fn bert_pre_trained_ner_full_entities() -> anyhow::Result<()> {
+    //    Set-up model
+    let ner_model = NERModel::new(Default::default())?;
+
+    //    Define input
+    let input = ["Asked John Smith about Acme Corp", "Let's go to New York!"];
+
+    //    Run model
+    let output = ner_model.predict_full_entities(&input);
+
+    assert_eq!(output.len(), 2);
+
+    assert_eq!(output[0][0].word, "John Smith");
+    assert!((output[0][0].score - 0.9872).abs() < 1e-4);
+    assert_eq!(output[0][0].label, "PER");
+
+    assert_eq!(output[0][1].word, "Acme Corp");
+    assert!((output[0][1].score - 0.9622).abs() < 1e-4);
+    assert_eq!(output[0][1].label, "ORG");
+
+    assert_eq!(output[1][0].word, "New York");
+    assert!((output[1][0].score - 0.9991).abs() < 1e-4);
+    assert_eq!(output[1][0].label, "LOC");
+
+    Ok(())
+}
+
+#[test]
 fn bert_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let config = QuestionAnsweringConfig::new(
