@@ -160,28 +160,47 @@ impl T5Attention {
 
         let q: Tensor = self.shape(hidden_states.as_ref().apply(&self.query), bs);
 
-        let (mut k, mut v) = if key_value_states.is_none() {
-            (
-                self.shape(hidden_states.apply(&self.key), bs),
-                self.shape(hidden_states.apply(&self.value), bs),
-            )
-        } else {
-            (
-                self.shape(key_value_states.as_ref().unwrap().apply(&self.key), bs),
-                self.shape(key_value_states.as_ref().unwrap().apply(&self.value), bs),
-            )
-        };
-
+	let k: Tensor;
+	let v: Tensor;
+	
+	// if it is none (which means the input is the first token), we push it into states;
         if layer_state.is_some() {
             let layer_state = layer_state.as_ref().unwrap();
-            if key_value_states.is_none() {
-                k = Tensor::cat(&[&layer_state.prev_key, &k], 2);
-                v = Tensor::cat(&[&layer_state.prev_value, &v], 2);
+            if key_value_states.is_none() { //self-attention
+
+		let _k_last = self.shape(hidden_states.
+			       slice(1,seq_length-1,seq_length,1).
+			       apply(&self.key),bs);
+
+		let _v_last = self.shape(hidden_states.
+			       slice(1,seq_length-1,seq_length,1).
+			       apply(&self.value),bs);
+		
+		// if we donnot have kv-state, then we construct it.
+                k = Tensor::cat(&[&layer_state.prev_key, &_k_last], 1);
+                v = Tensor::cat(&[&layer_state.prev_value, &_v_last], 1);
             } else {
-                k = layer_state.prev_key.copy();
-                v = layer_state.prev_value.copy();
+		// if we have, we copy it. 
+               k = layer_state.prev_key.copy();
+               v = layer_state.prev_value.copy();
             }
-        };
+        } else {
+	    // which means we have to calculate all key values.
+	    if key_value_states.is_none() {
+		(
+		    // key_value is None means: self-attention 
+		    k=self.shape(hidden_states.apply(&self.key), bs),
+		    v=self.shape(hidden_states.apply(&self.value), bs),
+		)
+	    } else {
+		(
+		    // if we have kv states, it means: cross-attention.
+		    k=self.shape(key_value_states.as_ref().unwrap().apply(&self.key), bs),
+		    v=self.shape(key_value_states.as_ref().unwrap().apply(&self.value), bs),
+		)
+	    }; 
+	};
+
 
         layer_state = if self.is_decoder & self.store_cache {
             Some(LayerState {
