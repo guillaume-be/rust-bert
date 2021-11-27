@@ -582,6 +582,7 @@ pub mod albert;
 pub mod bart;
 pub mod bert;
 mod common;
+pub mod deberta;
 pub mod distilbert;
 pub mod electra;
 pub mod fnet;
