@@ -10,12 +10,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::kind::get_negative_infinity;
 use crate::{Activation, Config, RustBertError};
 use serde::de::{SeqAccess, Visitor};
 use serde::{de, Deserialize, Deserializer, Serialize};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
+use tch::nn::{Init, Module};
+use tch::{nn, Kind, Tensor};
 
 /// # DeBERTa Pretrained model weight files
 pub struct DebertaModelResources;
@@ -180,3 +184,52 @@ where
 }
 
 impl Config for DebertaConfig {}
+
+fn x_softmax(input: &Tensor, mask: &Tensor, dim: i64) -> Tensor {
+    let inverse_mask = ((1 - mask) as Tensor).to_kind(Kind::Bool);
+    input
+        .masked_fill(&inverse_mask, get_negative_infinity(input.kind()).unwrap())
+        .softmax(dim, input.kind())
+        .masked_fill(&inverse_mask, 0.0)
+}
+
+#[derive(Debug)]
+struct DebertaLayerNorm {
+    weight: Tensor,
+    bias: Tensor,
+    variance_epsilon: f64,
+}
+
+impl DebertaLayerNorm {
+    pub fn new<'p, P>(p: P, size: i64, variance_epsilon: f64) -> DebertaLayerNorm
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let weight = p.var("weight", &[size], Init::Const(1.0));
+        let bias = p.var("bias", &[size], Init::Const(0.0));
+        DebertaLayerNorm {
+            weight,
+            bias,
+            variance_epsilon,
+        }
+    }
+}
+
+impl Module for DebertaLayerNorm {
+    fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        let input_type = hidden_states.kind();
+        let hidden_states = hidden_states.to_kind(Kind::Float);
+        let mean = hidden_states.mean_dim(&[-1], true, hidden_states.kind());
+        let variance = (&hidden_states - &mean).pow_tensor_scalar(2.0).mean_dim(
+            &[-1],
+            true,
+            hidden_states.kind(),
+        );
+        let hidden_states = (hidden_states - mean)
+            / (variance + self.variance_epsilon)
+                .sqrt()
+                .to_kind(input_type);
+        &self.weight * hidden_states + &self.bias
+    }
+}
