@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::dropout::XDropout;
 use crate::common::kind::get_negative_infinity;
 use crate::{Activation, Config, RustBertError};
 use serde::de::{SeqAccess, Visitor};
@@ -231,5 +232,46 @@ impl Module for DebertaLayerNorm {
                 .sqrt()
                 .to_kind(input_type);
         &self.weight * hidden_states + &self.bias
+    }
+}
+
+pub struct DebertaSelfOutput {
+    dense: nn::Linear,
+    layer_norm: DebertaLayerNorm,
+    dropout: XDropout,
+}
+
+impl DebertaSelfOutput {
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaSelfOutput
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let layer_norm = DebertaLayerNorm::new(
+            p / "LayerNorm",
+            config.hidden_size,
+            config.layer_norm_eps.unwrap_or(1e-7),
+        );
+        let dropout = XDropout::new(config.hidden_dropout_prob);
+        DebertaSelfOutput {
+            dense,
+            layer_norm,
+            dropout,
+        }
+    }
+
+    fn forward_t(&self, hidden_states: &Tensor, input_tensor: &Tensor, train: bool) -> Tensor {
+        self.layer_norm.forward(
+            &(hidden_states
+                .apply(&self.dense)
+                .apply_t(&self.dropout, train)
+                + input_tensor),
+        )
     }
 }

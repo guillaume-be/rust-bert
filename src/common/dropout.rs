@@ -35,8 +35,8 @@ pub struct XDropout {
 }
 
 impl XDropout {
-    pub fn new(p: f64) -> Dropout {
-        Dropout { dropout_prob: p }
+    pub fn new(p: f64) -> XDropout {
+        XDropout { dropout_prob: p }
     }
 }
 
