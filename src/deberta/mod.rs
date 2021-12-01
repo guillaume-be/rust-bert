@@ -1,3 +1,4 @@
+mod attention;
 mod deberta_model;
 
 pub use deberta_model::{

@@ -67,7 +67,7 @@ impl DebertaMergesResources {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq)]
 /// # Position attention type to use for the DeBERTa model.
 pub enum PositionAttentionType {
     p2c,
@@ -116,6 +116,14 @@ impl Default for PositionAttentionTypes {
     }
 }
 
+impl PositionAttentionTypes {
+    pub fn has_type(&self, attention_type: PositionAttentionType) -> bool {
+        self.types
+            .iter()
+            .any(|self_type| *self_type == attention_type)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 /// # DeBERTa model configuration
 /// Defines the DeBERTa model architecture (e.g. number of layers, hidden layer size, label mapping...)
@@ -131,7 +139,6 @@ pub struct DebertaConfig {
     pub num_hidden_layers: i64,
     pub type_vocab_size: i64,
     pub vocab_size: i64,
-    pub relative_attention: bool,
     pub position_biased_input: bool,
     #[serde(default, deserialize_with = "deserialize_attention_type")]
     pub pos_att_type: Option<PositionAttentionTypes>,
@@ -140,6 +147,9 @@ pub struct DebertaConfig {
     pub pooler_hidden_size: Option<i64>,
     pub layer_norm_eps: Option<f64>,
     pub pad_token_id: Option<i64>,
+    pub relative_attention: Option<bool>,
+    pub max_relative_positions: Option<i64>,
+    pub talking_head: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub classifier_activation: Option<bool>,
     pub is_decoder: Option<bool>,
