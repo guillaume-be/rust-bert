@@ -26,6 +26,7 @@ pub struct DisentangledSelfAttention {
     head_weights_proj: Option<nn::Linear>,
     pos_proj: Option<nn::Linear>,
     pos_q_proj: Option<nn::Linear>,
+    pos_att_type: PositionAttentionTypes,
     max_relative_positions: Option<i64>,
     pos_dropout: Option<XDropout>,
     dropout: XDropout,
@@ -131,9 +132,112 @@ impl DisentangledSelfAttention {
             head_weights_proj,
             pos_proj,
             pos_q_proj,
+            pos_att_type,
             max_relative_positions,
             pos_dropout,
             dropout,
+        }
+    }
+
+    fn transpose_for_scores(&self, x: &Tensor) -> Tensor {
+        let mut new_shape = x.size();
+        let _ = new_shape.pop();
+        new_shape.extend_from_slice(&[self.num_attention_heads, -1]);
+        x.view(&new_shape).permute(&[0, 2, 1, 3])
+    }
+
+    fn linear(&self, weights: &Tensor, bias: Option<&Tensor>, x: &Tensor) -> Tensor {
+        if let Some(bias) = bias {
+            x.matmul(&weights.tr()) + bias
+        } else {
+            x.matmul(&weights.tr())
+        }
+    }
+
+    fn disentangled_att_bias(
+        &self,
+        query_layer: &Tensor,
+        key_layer: &Tensor,
+        relative_pos: Option<&Tensor>,
+        relative_embeddings: &Tensor,
+        scale_factor: f64,
+    ) {
+        let calc_relative_pos = if relative_pos.is_none() {
+            let q = query_layer.size()[1];
+            //     ToDo
+        };
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        query_states: Option<&Tensor>,
+        relative_pos: Option<&Tensor>,
+        relative_embeddings: Option<&Tensor>,
+        train: bool,
+    ) {
+        let (query_layer, key_layer, value_layer) = if let Some(query_states) = query_states {
+            let ws = self.in_proj.ws.chunk(self.num_attention_heads * 3, 0);
+            let query_key_value_weights = (0..3_i64)
+                .map(|k| {
+                    Tensor::cat(
+                        &{
+                            (0..self.num_attention_heads)
+                                .map(|i| ws.get(i * 3 + k))
+                                .collect::<Vec<Tensor>>()
+                        },
+                        0,
+                    )
+                })
+                .collect::<Vec<Tensor>>();
+
+            let query_layer = self.transpose_for_scores(&self.linear(
+                &query_key_value_weights[0],
+                None,
+                query_states,
+            ));
+            let key_layer = self.transpose_for_scores(&self.linear(
+                &query_key_value_weights[1],
+                None,
+                hidden_states,
+            ));
+            let value_layer = self.transpose_for_scores(&self.linear(
+                &query_key_value_weights[2],
+                None,
+                hidden_states,
+            ));
+            (query_layer, key_layer, value_layer)
+        } else {
+            let qp = hidden_states.apply(&self.in_proj);
+            let mut layers = self.transpose_for_scores(&qp).chunk(3, -1);
+            (
+                layers.pop().unwrap(),
+                layers.pop().unwrap(),
+                layers.pop().unwrap(),
+            )
+        };
+
+        let query_layer =
+            query_layer + self.transpose_for_scores(&self.q_bias.unsqueeze(0).unsqueeze(0));
+        let value_layer =
+            value_layer + self.transpose_for_scores(&self.v_bias.unsqueeze(0).unsqueeze(0));
+
+        let scale_factor = 1.0 + self.pos_att_type.len() as f64;
+        let scale = (*query_layer.size().last().unwrap() as f64 * scale_factor).sqrt();
+        let query_layer = query_layer / scale;
+        let mut attention_scores = query_layer.matmul(&key_layer.transpose(-1, -2));
+
+        if let Some(relative_embeddings) = relative_embeddings {
+            let relative_embeddings = relative_embeddings.apply_t(&self.pos_dropout, train);
+            let relative_attention = self.disentangled_att_bias(
+                &query_layer,
+                &key_layer,
+                relative_pos,
+                &relative_embeddings,
+                scale_factor,
+            );
+            attention_scores = attention_scores + relative_attention;
         }
     }
 }

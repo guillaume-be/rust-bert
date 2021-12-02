@@ -122,6 +122,10 @@ impl PositionAttentionTypes {
             .iter()
             .any(|self_type| *self_type == attention_type)
     }
+
+    pub fn len(&self) -> usize {
+        self.types.len()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
