@@ -154,7 +154,7 @@ pub struct DebertaConfig {
     pub relative_attention: Option<bool>,
     pub max_relative_positions: Option<i64>,
     pub talking_head: Option<bool>,
-    pub output_hidden_states: Option<bool>,
+    pub output_attentions: Option<bool>,
     pub classifier_activation: Option<bool>,
     pub is_decoder: Option<bool>,
     pub id2label: Option<HashMap<i64, String>>,
@@ -200,7 +200,7 @@ where
 
 impl Config for DebertaConfig {}
 
-fn x_softmax(input: &Tensor, mask: &Tensor, dim: i64) -> Tensor {
+pub fn x_softmax(input: &Tensor, mask: &Tensor, dim: i64) -> Tensor {
     let inverse_mask = ((1 - mask) as Tensor).to_kind(Kind::Bool);
     input
         .masked_fill(&inverse_mask, get_negative_infinity(input.kind()).unwrap())

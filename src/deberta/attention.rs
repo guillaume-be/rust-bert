@@ -11,7 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::XDropout;
-use crate::deberta::deberta_model::{PositionAttentionType, PositionAttentionTypes};
+use crate::deberta::deberta_model::{x_softmax, PositionAttentionType, PositionAttentionTypes};
 use crate::deberta::DebertaConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -31,6 +31,7 @@ pub struct DisentangledSelfAttention {
     max_relative_positions: Option<i64>,
     pos_dropout: Option<XDropout>,
     dropout: XDropout,
+    output_attentions: bool,
 }
 
 impl DisentangledSelfAttention {
@@ -90,9 +91,7 @@ impl DisentangledSelfAttention {
                 max_relative_positions = config.max_position_embeddings;
             }
             let pos_dropout = Some(XDropout::new(config.hidden_dropout_prob));
-            let pos_proj = if pos_att_type.has_type(PositionAttentionType::c2p)
-                | pos_att_type.has_type(PositionAttentionType::p2p)
-            {
+            let pos_proj = if pos_att_type.has_type(PositionAttentionType::c2p) {
                 Some(nn::linear(
                     p / "pos_proj",
                     config.hidden_size,
@@ -102,9 +101,7 @@ impl DisentangledSelfAttention {
             } else {
                 None
             };
-            let pos_q_proj = if pos_att_type.has_type(PositionAttentionType::p2c)
-                | pos_att_type.has_type(PositionAttentionType::p2p)
-            {
+            let pos_q_proj = if pos_att_type.has_type(PositionAttentionType::p2c) {
                 Some(nn::linear(
                     p / "pos_q_proj",
                     config.hidden_size,
@@ -123,7 +120,11 @@ impl DisentangledSelfAttention {
         } else {
             (None, None, None, None)
         };
+
         let dropout = XDropout::new(config.attention_probs_dropout_prob);
+
+        let output_attentions = config.output_attentions.unwrap_or(false);
+
         DisentangledSelfAttention {
             in_proj,
             q_bias,
@@ -137,6 +138,7 @@ impl DisentangledSelfAttention {
             max_relative_positions,
             pos_dropout,
             dropout,
+            output_attentions,
         }
     }
 
@@ -271,21 +273,12 @@ impl DisentangledSelfAttention {
             )
             .unsqueeze(0);
 
-        let pos_key_layer = if let Some(pos_proj) = &self.pos_proj {
-            Some(self.transpose_for_scores(&relative_embeddings.apply(pos_proj)))
-        } else {
-            None
-        };
-        let pos_query_layer = if let Some(pos_q_proj) = &self.pos_q_proj {
-            Some(self.transpose_for_scores(&relative_embeddings.apply(pos_q_proj)))
-        } else {
-            None
-        };
-
         let mut score = Tensor::zeros(&[1], (query_layer.kind(), key_layer.device()));
 
-        if self.pos_att_type.has_type(PositionAttentionType::c2p) {
-            let c2p_att = query_layer.matmul(&pos_key_layer.unwrap().transpose(-1, -2));
+        // content -> position
+        if let Some(pos_proj) = &self.pos_proj {
+            let pos_key_layer = self.transpose_for_scores(&relative_embeddings.apply(pos_proj));
+            let c2p_att = query_layer.matmul(&pos_key_layer.transpose(-1, -2));
             let c2p_pos = (&relative_pos + attention_span).clamp(0, attention_span * 2 - 1);
             let c2p_att = c2p_att.gather(
                 -1,
@@ -295,10 +288,9 @@ impl DisentangledSelfAttention {
             score = score + c2p_att;
         }
 
-        // Modified from https://github.com/huggingface/transformers/blob/master/src/transformers/models/deberta/modeling_deberta.py
-        // Avoids calculation if "p2p" in `self.pos_att_type` as it is unused.
-        if self.pos_att_type.has_type(PositionAttentionType::p2c) {
-            let pos_query_layer = pos_query_layer.unwrap();
+        // position -> content
+        if let Some(pos_q_proj) = &self.pos_q_proj {
+            let pos_query_layer = self.transpose_for_scores(&relative_embeddings.apply(pos_q_proj));
             let pos_query_layer = &pos_query_layer
                 / (*pos_query_layer.size().last().unwrap() as f64 * scale_factor).sqrt();
             let r_pos = if query_layer_size[1] != key_layer_size[1] {
@@ -336,12 +328,12 @@ impl DisentangledSelfAttention {
     pub fn forward_t(
         &self,
         hidden_states: &Tensor,
-        attention_mask: Option<&Tensor>,
+        attention_mask: &Tensor,
         query_states: Option<&Tensor>,
         relative_pos: Option<&Tensor>,
         relative_embeddings: Option<&Tensor>,
         train: bool,
-    ) -> Result<Tensor, RustBertError> {
+    ) -> Result<(Tensor, Option<Tensor>), RustBertError> {
         let (query_layer, key_layer, value_layer) = if let Some(query_states) = query_states {
             let ws = self.in_proj.ws.chunk(self.num_attention_heads * 3, 0);
             let query_key_value_weights = (0..3)
@@ -406,6 +398,40 @@ impl DisentangledSelfAttention {
             attention_scores = attention_scores + relative_attention;
         }
 
-        Ok(Tensor::new())
+        if let Some(head_logits_proj) = &self.head_logits_proj {
+            attention_scores = attention_scores
+                .permute(&[0, 2, 3, 1])
+                .apply(head_logits_proj)
+                .permute(&[0, 3, 1, 2]);
+        }
+
+        let mut attention_probs =
+            x_softmax(&attention_scores, attention_mask, -1).apply_t(&self.dropout, train);
+
+        if let Some(head_weights_proj) = &self.head_weights_proj {
+            attention_probs = attention_probs
+                .permute(&[0, 2, 3, 1])
+                .apply(head_weights_proj)
+                .permute(&[0, 3, 1, 2]);
+        }
+
+        let context_layer = attention_probs
+            .matmul(&value_layer)
+            .permute(&[0, 2, 1, 3])
+            .contiguous();
+
+        let mut new_context_layer_shape = context_layer.size();
+        let _ = new_context_layer_shape.pop();
+        let _ = new_context_layer_shape.pop();
+        new_context_layer_shape.push(-1);
+        let context_layer = context_layer.view(new_context_layer_shape.as_slice());
+
+        let attention_probs = if self.output_attentions {
+            Some(attention_probs)
+        } else {
+            None
+        };
+
+        Ok((context_layer, attention_probs))
     }
 }
