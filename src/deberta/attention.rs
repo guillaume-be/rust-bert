@@ -11,7 +11,9 @@
 // limitations under the License.
 
 use crate::common::dropout::XDropout;
-use crate::deberta::deberta_model::{x_softmax, PositionAttentionType, PositionAttentionTypes};
+use crate::deberta::deberta_model::{
+    x_softmax, DebertaSelfOutput, PositionAttentionType, PositionAttentionTypes,
+};
 use crate::deberta::DebertaConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -433,5 +435,53 @@ impl DisentangledSelfAttention {
         };
 
         Ok((context_layer, attention_probs))
+    }
+}
+
+pub struct DebertaAttention {
+    self_attention: DisentangledSelfAttention,
+    self_output: DebertaSelfOutput,
+}
+
+impl DebertaAttention {
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let self_attention = DisentangledSelfAttention::new(p / "self", config);
+        let self_output = DebertaSelfOutput::new(p / "output", config);
+
+        DebertaAttention {
+            self_attention,
+            self_output,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: &Tensor,
+        query_states: Option<&Tensor>,
+        relative_pos: Option<&Tensor>,
+        relative_embeddings: Option<&Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>), RustBertError> {
+        let (self_output, attention_matrix) = self.self_attention.forward_t(
+            hidden_states,
+            attention_mask,
+            query_states,
+            relative_pos,
+            relative_embeddings,
+            train,
+        )?;
+
+        let query_states = query_states.unwrap_or(hidden_states);
+
+        Ok((
+            self.self_output
+                .forward_t(&self_output, query_states, train),
+            attention_matrix,
+        ))
     }
 }

@@ -209,7 +209,7 @@ pub fn x_softmax(input: &Tensor, mask: &Tensor, dim: i64) -> Tensor {
 }
 
 #[derive(Debug)]
-struct DebertaLayerNorm {
+pub struct DebertaLayerNorm {
     weight: Tensor,
     bias: Tensor,
     variance_epsilon: f64,
@@ -280,7 +280,7 @@ impl DebertaSelfOutput {
         }
     }
 
-    fn forward_t(&self, hidden_states: &Tensor, input_tensor: &Tensor, train: bool) -> Tensor {
+    pub fn forward_t(&self, hidden_states: &Tensor, input_tensor: &Tensor, train: bool) -> Tensor {
         self.layer_norm.forward(
             &(hidden_states
                 .apply(&self.dense)
