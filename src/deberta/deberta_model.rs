@@ -154,6 +154,7 @@ pub struct DebertaConfig {
     pub relative_attention: Option<bool>,
     pub max_relative_positions: Option<i64>,
     pub talking_head: Option<bool>,
+    pub output_hidden_states: Option<bool>,
     pub output_attentions: Option<bool>,
     pub classifier_activation: Option<bool>,
     pub is_decoder: Option<bool>,

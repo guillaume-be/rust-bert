@@ -20,6 +20,13 @@ use std::borrow::Borrow;
 use tch::nn::Init;
 use tch::{nn, Device, Kind, Tensor};
 
+pub fn build_relative_position(query_size: i64, key_size: i64, device: Device) -> Tensor {
+    let q_ids = Tensor::arange(query_size, (Kind::Int64, device));
+    let k_ids = Tensor::arange(key_size, (Kind::Int64, device));
+    let rel_pos_ids = q_ids.unsqueeze(-1) - k_ids.view([1, -1]).repeat(&[query_size, 1]);
+    rel_pos_ids.slice(0, 0, query_size, 1).unsqueeze(0)
+}
+
 pub struct DisentangledSelfAttention {
     in_proj: nn::Linear,
     q_bias: Tensor,
@@ -159,13 +166,6 @@ impl DisentangledSelfAttention {
         }
     }
 
-    fn build_relative_position(&self, query_size: i64, key_size: i64, device: Device) -> Tensor {
-        let q_ids = Tensor::arange(query_size, (Kind::Int64, device));
-        let k_ids = Tensor::arange(key_size, (Kind::Int64, device));
-        let rel_pos_ids = q_ids.unsqueeze(-1) - k_ids.view([1, -1]).repeat(&[query_size, 1]);
-        rel_pos_ids.slice(0, 0, query_size, 1).unsqueeze(0)
-    }
-
     fn c2p_dynamic_expand(
         &self,
         c2p_pos: &Tensor,
@@ -234,7 +234,7 @@ impl DisentangledSelfAttention {
         let mut query_layer_size = query_layer.size();
         query_layer_size.reverse();
         let calc_relative_pos = if relative_pos.is_none() {
-            Some(self.build_relative_position(
+            Some(build_relative_position(
                 query_layer_size[1],
                 key_layer_size[1],
                 query_layer.device(),
@@ -296,11 +296,7 @@ impl DisentangledSelfAttention {
             let pos_query_layer = &pos_query_layer
                 / (*pos_query_layer.size().last().unwrap() as f64 * scale_factor).sqrt();
             let r_pos = if query_layer_size[1] != key_layer_size[1] {
-                self.build_relative_position(
-                    key_layer_size[1],
-                    key_layer_size[1],
-                    query_layer.device(),
-                )
+                build_relative_position(key_layer_size[1], key_layer_size[1], query_layer.device())
             } else {
                 relative_pos.copy()
             };
