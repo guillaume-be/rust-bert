@@ -1,5 +1,6 @@
 mod attention;
 mod deberta_model;
+mod embeddings;
 mod encoder;
 
 pub use deberta_model::{

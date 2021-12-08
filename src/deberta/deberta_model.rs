@@ -143,7 +143,7 @@ pub struct DebertaConfig {
     pub num_hidden_layers: i64,
     pub type_vocab_size: i64,
     pub vocab_size: i64,
-    pub position_biased_input: bool,
+    pub position_biased_input: Option<bool>,
     #[serde(default, deserialize_with = "deserialize_attention_type")]
     pub pos_att_type: Option<PositionAttentionTypes>,
     pub pooler_dropout: Option<f64>,
@@ -153,6 +153,7 @@ pub struct DebertaConfig {
     pub pad_token_id: Option<i64>,
     pub relative_attention: Option<bool>,
     pub max_relative_positions: Option<i64>,
+    pub embedding_size: Option<i64>,
     pub talking_head: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub output_attentions: Option<bool>,
