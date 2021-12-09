@@ -13,7 +13,6 @@
 
 use crate::common::dropout::Dropout;
 use crate::common::embeddings::process_ids_embeddings_pair;
-use crate::reformer::attention_utils::get_least_common_mult_chunk_len;
 use crate::reformer::ReformerConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -25,7 +24,6 @@ use tch::{nn, Kind, Tensor};
 pub struct AxialPositionEmbeddings {
     weights: Vec<Tensor>,
     axial_pos_shape: Vec<i64>,
-    least_common_mult_chunk_length: i64,
     dropout_prob: f64,
 }
 
@@ -46,12 +44,6 @@ impl AxialPositionEmbeddings {
             )));
         };
 
-        let least_common_mult_chunk_length = get_least_common_mult_chunk_len(
-            &config.attn_layers,
-            config.lsh_attn_chunk_length,
-            config.local_attn_chunk_length,
-        );
-
         let mut weights: Vec<Tensor> = vec![];
         let p_weights = p / "weights";
         for (axis_index, axial_pos_embd_dim) in config.axial_pos_embds_dim.iter().enumerate() {
@@ -64,7 +56,6 @@ impl AxialPositionEmbeddings {
         Ok(AxialPositionEmbeddings {
             weights,
             axial_pos_shape,
-            least_common_mult_chunk_length,
             dropout_prob: config.hidden_dropout_prob,
         })
     }

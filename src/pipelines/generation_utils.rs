@@ -1427,7 +1427,7 @@ pub struct GeneratedIndicesOutput {
     pub score: Option<f64>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 /// # Generation options for text generation.
 /// When provided to a `generate` method, these options will take priority over the `GenerateConfig` used to create the
 /// `LanguageGenerator`. Some of these options may be left as `None`, options without a value will individually default
@@ -1476,32 +1476,6 @@ pub struct GenerateOptions<'a> {
     pub output_scores: bool,
 }
 
-impl Default for GenerateOptions<'_> {
-    fn default() -> Self {
-        GenerateOptions {
-            min_length: None,
-            max_length: None,
-            max_new_tokens: None,
-            early_stopping: None,
-            num_return_sequences: None,
-            num_beams: None,
-            num_beam_groups: None,
-            do_sample: None,
-            temperature: None,
-            top_k: None,
-            top_p: None,
-            repetition_penalty: None,
-            length_penalty: None,
-            no_repeat_ngram_size: None,
-            diversity_penalty: None,
-            decoder_start_token_id: None,
-            forced_bos_token_id: None,
-            prefix_allowed_tokens_fn: None,
-            bad_word_ids: None,
-            output_scores: false,
-        }
-    }
-}
 macro_rules! unpack_config {
     ($field_name:ident, $generate_options: ident, $generate_config: ident) => {
         $generate_options.map_or($generate_config.$field_name, |opts| {

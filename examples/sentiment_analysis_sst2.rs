@@ -22,7 +22,6 @@ use std::{env, fs};
 #[derive(Debug, Deserialize)]
 struct Record {
     sentence: String,
-    label: i8,
 }
 
 fn ss2_processor(file_path: PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
@@ -47,7 +46,7 @@ fn main() -> anyhow::Result<()> {
     let mut sst2_path = PathBuf::from(env::var("SST2_PATH")
         .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));
     sst2_path.push("train.tsv");
-    let inputs = ss2_processor(sst2_path).unwrap();
+    let inputs = &ss2_processor(sst2_path).unwrap()[..100];
 
     //    Run model
     let batch_size = 64;
