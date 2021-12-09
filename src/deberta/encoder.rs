@@ -205,7 +205,7 @@ impl DebertaEncoder {
         query_states: Option<&Tensor>,
         relative_pos: Option<&Tensor>,
     ) -> Option<Tensor> {
-        if &self.rel_embeddings.is_some() & relative_pos.is_none() {
+        if self.rel_embeddings.is_some() & relative_pos.is_none() {
             let mut query_size = query_states.unwrap_or(hidden_states).size();
             query_size.reverse();
             let query_size = query_size[1];

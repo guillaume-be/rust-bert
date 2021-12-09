@@ -67,10 +67,7 @@ impl DisentangledSelfAttention {
         );
         let q_bias = p.var("q_bias", &[all_head_size], Init::Const(0.0));
         let v_bias = p.var("v_bias", &[all_head_size], Init::Const(0.0));
-        let pos_att_type = config
-            .pos_att_type
-            .clone()
-            .unwrap_or(PositionAttentionTypes::default());
+        let pos_att_type = config.pos_att_type.clone().unwrap_or_default();
 
         let relative_attention = config.relative_attention.unwrap_or(false);
         let talking_head = config.talking_head.unwrap_or(false);

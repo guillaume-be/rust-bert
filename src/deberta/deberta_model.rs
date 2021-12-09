@@ -95,7 +95,7 @@ impl FromStr for PositionAttentionType {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct PositionAttentionTypes {
     types: Vec<PositionAttentionType>,
 }
@@ -107,15 +107,9 @@ impl FromStr for PositionAttentionTypes {
         let types = s
             .to_lowercase()
             .split('|')
-            .map(|s| PositionAttentionType::from_str(s))
+            .map(PositionAttentionType::from_str)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(PositionAttentionTypes { types })
-    }
-}
-
-impl Default for PositionAttentionTypes {
-    fn default() -> Self {
-        PositionAttentionTypes { types: vec![] }
     }
 }
 
