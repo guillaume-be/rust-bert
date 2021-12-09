@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::XDropout;
 use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::common::kind::get_negative_infinity;
@@ -424,5 +425,214 @@ impl DebertaModel {
     }
 }
 
+#[derive(Debug)]
+struct DebertaPredictionHeadTransform {
+    dense: nn::Linear,
+    activation: TensorFunction,
+    layer_norm: nn::LayerNorm,
+}
+
+impl DebertaPredictionHeadTransform {
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaPredictionHeadTransform
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            nn::LinearConfig {
+                bias: false,
+                ..Default::default()
+            },
+        );
+        let activation = config.hidden_act.get_function();
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: 1e-7,
+            ..Default::default()
+        };
+        let layer_norm =
+            nn::layer_norm(p / "LayerNorm", vec![config.hidden_size], layer_norm_config);
+
+        DebertaPredictionHeadTransform {
+            dense,
+            activation,
+            layer_norm,
+        }
+    }
+}
+
+impl Module for DebertaPredictionHeadTransform {
+    fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        self.activation.get_fn()(&hidden_states.apply(&self.dense)).apply(&self.layer_norm)
+    }
+}
+
+#[derive(Debug)]
+struct DebertaLMPredictionHead {
+    transform: DebertaPredictionHeadTransform,
+    decoder: nn::Linear,
+}
+
+impl DebertaLMPredictionHead {
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaLMPredictionHead
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let transform = DebertaPredictionHeadTransform::new(p / "transform", config);
+        let decoder = nn::linear(
+            p / "decoder",
+            config.hidden_size,
+            config.vocab_size,
+            Default::default(),
+        );
+
+        DebertaLMPredictionHead { transform, decoder }
+    }
+}
+
+impl Module for DebertaLMPredictionHead {
+    fn forward(&self, hidden_states: &Tensor) -> Tensor {
+        hidden_states.apply(&self.transform).apply(&self.decoder)
+    }
+}
+
+/// # DeBERTa for masked language model
+/// Base DeBERTa model with a masked language model head to predict missing tokens, for example `"Looks like one [MASK] is missing" -> "person"`
+/// It is made of the following blocks:
+/// - `deberta`: Base DeBERTa model
+/// - `cls`: LM prediction head
+pub struct DebertaForMaskedLM {
+    deberta: DebertaModel,
+    cls: DebertaLMPredictionHead,
+}
+
+impl DebertaForMaskedLM {
+    /// Build a new `DebertaForMaskedLM`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BertForMaskedLM model
+    /// * `config` - `DebertaConfig` object defining the model architecture and vocab size
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::deberta::{DebertaConfig, DebertaForMaskedLM};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = DebertaConfig::from_file(config_path);
+    /// let model = DebertaForMaskedLM::new(&p.root(), &config);
+    /// ```
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaForMaskedLM
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let deberta = DebertaModel::new(p / "deberta", config);
+        let cls = DebertaLMPredictionHead::new(p.sub("cls").sub("predictions"), config);
+
+        DebertaForMaskedLM { deberta, cls }
+    }
+
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see *input_embeds*)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see *input_ids*)
+    /// * `encoder_hidden_states` - Optional encoder hidden state of shape (*batch size*, *encoder_sequence_length*, *hidden_size*). If the model is defined as a decoder and the *encoder_hidden_states* is not None, used in the cross-attention layer as keys and values (query from the decoder).
+    /// * `encoder_mask` - Optional encoder attention mask of shape (*batch size*, *encoder_sequence_length*). If the model is defined as a decoder and the *encoder_hidden_states* is not None, used to mask encoder values. Positions with value 0 will be masked.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `BertMaskedLMOutput` containing:
+    ///   - `prediction_scores` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use rust_bert::bert::{BertForMaskedLM, BertConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let bert_model = BertForMaskedLM::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     bert_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<DebertaMaskedLMOutput, RustBertError> {
+        let model_outputs = self.deberta.forward_t(
+            input_ids,
+            attention_mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let logits = model_outputs.hidden_state.apply(&self.cls);
+        Ok(DebertaMaskedLMOutput {
+            logits,
+            all_hidden_states: model_outputs.all_hidden_states,
+            all_attentions: model_outputs.all_attentions,
+        })
+    }
+}
+
 /// Container for the DeBERTa model output.
 pub type DebertaModelOutput = DebertaEncoderOutput;
+
+/// Container for the DeBERTa masked LM model output.
+pub struct DebertaMaskedLMOutput {
+    /// Logits for the vocabulary items at each sequence position
+    pub logits: Tensor,
+    /// Hidden states for all intermediate layers
+    pub all_hidden_states: Option<Vec<Tensor>>,
+    /// Attention weights for all intermediate layers
+    pub all_attentions: Option<Vec<Tensor>>,
+}
