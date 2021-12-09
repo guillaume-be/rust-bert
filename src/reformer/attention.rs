@@ -936,10 +936,8 @@ pub struct LocalSelfAttention {
     num_chunks_after: i64,
     is_decoder: bool,
     dropout: Dropout,
-    pad_token_id: i64,
     num_attention_heads: i64,
     attention_head_size: i64,
-    hidden_size: i64,
     query: nn::Linear,
     key: nn::Linear,
     value: nn::Linear,
@@ -965,7 +963,6 @@ impl LocalSelfAttention {
         let num_chunks_before = config.local_num_chunks_before.unwrap_or(1);
         let num_chunks_after = config.local_num_chunks_after.unwrap_or(0);
         let is_decoder = config.is_decoder;
-        let pad_token_id = config.pad_token_id;
 
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
@@ -994,10 +991,8 @@ impl LocalSelfAttention {
             num_chunks_after,
             is_decoder,
             dropout,
-            pad_token_id,
             num_attention_heads,
             attention_head_size,
-            hidden_size,
             query,
             key,
             value,
