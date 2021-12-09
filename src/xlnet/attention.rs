@@ -42,9 +42,6 @@ impl LayerState {
 
 #[derive(Debug)]
 pub struct XLNetRelativeAttention {
-    num_attention_heads: i64,
-    attention_head_size: i64,
-    hidden_size: i64,
     dropout: Dropout,
     output_attentions: bool,
     query: Tensor,
@@ -135,9 +132,6 @@ impl XLNetRelativeAttention {
         let scale = 1f64 / ((config.d_head as f64).powf(0.5f64));
 
         XLNetRelativeAttention {
-            num_attention_heads: config.n_head,
-            attention_head_size: config.d_head,
-            hidden_size: config.d_model,
             dropout,
             output_attentions,
             query,

@@ -46,7 +46,6 @@ fn sst2_forward_pass(iters: u64, model: &SentimentModel, sst2_data: &[String]) -
 #[derive(Debug, Deserialize)]
 struct Record {
     sentence: String,
-    label: i8,
 }
 
 fn ss2_processor(file_path: PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
