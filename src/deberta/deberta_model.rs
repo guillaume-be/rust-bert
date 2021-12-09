@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::bert::BertSequenceClassificationOutput;
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::XDropout;
 use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
@@ -23,7 +24,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
-use tch::nn::{Init, Module};
+use tch::nn::{Init, Module, ModuleT};
 use tch::{nn, Kind, Tensor};
 
 /// # DeBERTa Pretrained model weight files
@@ -44,6 +45,11 @@ impl DebertaModelResources {
         "deberta-base/model",
         "https://huggingface.co/microsoft/deberta-base/resolve/main/rust_model.ot",
     );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/deberta-base-mnli>. Modified with conversion to C-array format.
+    pub const DEBERTA_BASE_MNLI: (&'static str, &'static str) = (
+        "deberta-base-mnli/model",
+        "https://huggingface.co/microsoft/deberta-base-mnli/resolve/main/rust_model.ot",
+    );
 }
 
 impl DebertaConfigResources {
@@ -51,6 +57,11 @@ impl DebertaConfigResources {
     pub const DEBERTA_BASE: (&'static str, &'static str) = (
         "deberta-base/config",
         "https://huggingface.co/microsoft/deberta-base/resolve/main/config.json",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/deberta-base-mnli>. Modified with conversion to C-array format.
+    pub const DEBERTA_BASE_MNLI: (&'static str, &'static str) = (
+        "deberta-base-mnli/config",
+        "https://huggingface.co/microsoft/deberta-base-mnli/resolve/main/config.json",
     );
 }
 
@@ -60,6 +71,11 @@ impl DebertaVocabResources {
         "deberta-base/vocab",
         "https://huggingface.co/microsoft/deberta-base/resolve/main/vocab.json",
     );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/deberta-base-mnli>. Modified with conversion to C-array format.
+    pub const DEBERTA_BASE_MNLI: (&'static str, &'static str) = (
+        "deberta-base-mnli/vocab",
+        "https://huggingface.co/microsoft/deberta-base-mnli/resolve/main/vocab.json",
+    );
 }
 
 impl DebertaMergesResources {
@@ -67,6 +83,11 @@ impl DebertaMergesResources {
     pub const DEBERTA_BASE: (&'static str, &'static str) = (
         "deberta-base/merges",
         "https://huggingface.co/microsoft/deberta-base/resolve/main/merges.txt",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/deberta-base-mnli>. Modified with conversion to C-array format.
+    pub const DEBERTA_BASE_MNLI: (&'static str, &'static str) = (
+        "deberta-base-mnli/merges",
+        "https://huggingface.co/microsoft/deberta-base-mnli/resolve/main/merges.txt",
     );
 }
 
@@ -145,7 +166,7 @@ pub struct DebertaConfig {
     #[serde(default, deserialize_with = "deserialize_attention_type")]
     pub pos_att_type: Option<PositionAttentionTypes>,
     pub pooler_dropout: Option<f64>,
-    pub pooler_hidden: Option<Activation>,
+    pub pooler_hidden_act: Option<Activation>,
     pub pooler_hidden_size: Option<i64>,
     pub layer_norm_eps: Option<f64>,
     pub pad_token_id: Option<i64>,
@@ -156,6 +177,7 @@ pub struct DebertaConfig {
     pub output_hidden_states: Option<bool>,
     pub output_attentions: Option<bool>,
     pub classifier_activation: Option<bool>,
+    pub classifier_dropout: Option<f64>,
     pub is_decoder: Option<bool>,
     pub id2label: Option<HashMap<i64, String>>,
     pub label2id: Option<HashMap<String, i64>>,
@@ -624,6 +646,203 @@ impl DebertaForMaskedLM {
     }
 }
 
+#[derive(Debug)]
+pub struct ContextPooler {
+    dense: nn::Linear,
+    dropout: XDropout,
+    activation: TensorFunction,
+    pub output_dim: i64,
+}
+
+impl ContextPooler {
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> ContextPooler
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let pooler_hidden_size = config.pooler_hidden_size.unwrap_or(config.hidden_size);
+
+        let dense = nn::linear(
+            p / "dense",
+            pooler_hidden_size,
+            pooler_hidden_size,
+            Default::default(),
+        );
+        let dropout = XDropout::new(config.pooler_dropout.unwrap_or(0.0));
+        let activation = config
+            .pooler_hidden_act
+            .unwrap_or(Activation::gelu)
+            .get_function();
+
+        ContextPooler {
+            dense,
+            dropout,
+            activation,
+            output_dim: pooler_hidden_size,
+        }
+    }
+}
+
+impl ModuleT for ContextPooler {
+    fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        self.activation.get_fn()(
+            &hidden_states
+                .select(1, 0)
+                .apply_t(&self.dropout, train)
+                .apply(&self.dense),
+        )
+    }
+}
+
+/// # DeBERTa for sequence classification
+/// Base DeBERTa model with a classifier head to perform sentence or document-level classification
+/// It is made of the following blocks:
+/// - `deberta`: Base BertModel
+/// - `classifier`: BERT linear layer for classification
+pub struct DebertaForSequenceClassification {
+    deberta: DebertaModel,
+    pooler: ContextPooler,
+    classifier: nn::Linear,
+    dropout: XDropout,
+}
+
+impl DebertaForSequenceClassification {
+    /// Build a new `DebertaForSequenceClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the DebertaForSequenceClassification model
+    /// * `config` - `DebertaConfig` object defining the model architecture and number of classes
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::deberta::{DebertaConfig, DebertaForSequenceClassification};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = DebertaConfig::from_file(config_path);
+    /// let model = DebertaForSequenceClassification::new(&p.root(), &config);
+    /// ```
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaForSequenceClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let deberta = DebertaModel::new(p / "deberta", config);
+        let pooler = ContextPooler::new(p / "pooler", config);
+        let dropout = XDropout::new(
+            config
+                .classifier_dropout
+                .unwrap_or(config.hidden_dropout_prob),
+        );
+
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+
+        let classifier = nn::linear(
+            p / "classifier",
+            pooler.output_dim,
+            num_labels,
+            Default::default(),
+        );
+
+        DebertaForSequenceClassification {
+            deberta,
+            pooler,
+            classifier,
+            dropout,
+        }
+    }
+
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `DebertaSequenceClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *num_labels*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use rust_bert::deberta::{DebertaForSequenceClassification, DebertaConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let model = DebertaForSequenceClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<DebertaSequenceClassificationOutput, RustBertError> {
+        let base_model_output = self.deberta.forward_t(
+            input_ids,
+            mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let logits = base_model_output
+            .hidden_state
+            .apply_t(&self.pooler, train)
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
+
+        Ok(DebertaSequenceClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
+    }
+}
+
 /// Container for the DeBERTa model output.
 pub type DebertaModelOutput = DebertaEncoderOutput;
 
@@ -636,3 +855,6 @@ pub struct DebertaMaskedLMOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }
+
+/// Container for the DeBERTa sequence classification model output.
+pub type DebertaSequenceClassificationOutput = BertSequenceClassificationOutput;

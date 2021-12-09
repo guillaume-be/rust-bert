@@ -4,6 +4,6 @@ mod embeddings;
 mod encoder;
 
 pub use deberta_model::{
-    DebertaConfig, DebertaConfigResources, DebertaForMaskedLM, DebertaMergesResources,
-    DebertaModel, DebertaModelResources, DebertaVocabResources,
+    DebertaConfig, DebertaConfigResources, DebertaForMaskedLM, DebertaForSequenceClassification,
+    DebertaMergesResources, DebertaModel, DebertaModelResources, DebertaVocabResources,
 };
