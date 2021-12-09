@@ -29,7 +29,7 @@ pub struct DebertaEmbeddings {
 }
 
 impl DebertaEmbeddings {
-    fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaEmbeddings
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaEmbeddings
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -101,12 +101,12 @@ impl DebertaEmbeddings {
         }
     }
 
-    fn forward_t(
+    pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
-        attention_mask: Option<&Tensor>,
+        attention_mask: &Tensor,
         input_embeds: Option<&Tensor>,
         train: bool,
     ) -> Result<Tensor, RustBertError> {
@@ -156,22 +156,20 @@ impl DebertaEmbeddings {
 
         input_embeddings = input_embeddings.apply(&self.layer_norm);
 
-        if let Some(attention_mask) = attention_mask {
-            let mask = if attention_mask.dim() != input_embeddings.dim() {
-                if attention_mask.dim() != 4 {
-                    attention_mask
-                        .squeeze_dim(1)
-                        .squeeze_dim(1)
-                        .unsqueeze(2)
-                        .to_kind(input_embeddings.kind())
-                } else {
-                    attention_mask.unsqueeze(2).to_kind(input_embeddings.kind())
-                }
+        let mask = if attention_mask.dim() != input_embeddings.dim() {
+            if attention_mask.dim() != 4 {
+                attention_mask
+                    .squeeze_dim(1)
+                    .squeeze_dim(1)
+                    .unsqueeze(2)
+                    .to_kind(input_embeddings.kind())
             } else {
-                attention_mask.to_kind(input_embeddings.kind())
-            };
-            input_embeddings = input_embeddings * mask
+                attention_mask.unsqueeze(2).to_kind(input_embeddings.kind())
+            }
+        } else {
+            attention_mask.to_kind(input_embeddings.kind())
         };
+        input_embeddings = input_embeddings * mask;
 
         Ok(input_embeddings.apply_t(&self.dropout, train))
     }
