@@ -47,6 +47,7 @@ use crate::albert::AlbertForQuestionAnswering;
 use crate::bert::BertForQuestionAnswering;
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
+use crate::deberta::DebertaForQuestionAnswering;
 use crate::distilbert::{
     DistilBertConfigResources, DistilBertForQuestionAnswering, DistilBertModelResources,
     DistilBertVocabResources,
@@ -264,6 +265,8 @@ impl Default for QuestionAnsweringConfig {
 pub enum QuestionAnsweringOption {
     /// Bert for Question Answering
     Bert(BertForQuestionAnswering),
+    /// DeBERTa for Question Answering
+    Deberta(DebertaForQuestionAnswering),
     /// DistilBert for Question Answering
     DistilBert(DistilBertForQuestionAnswering),
     /// MobileBert for Question Answering
@@ -310,6 +313,17 @@ impl QuestionAnsweringOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
+                }
+            }
+            ModelType::Deberta => {
+                if let ConfigOption::Deberta(config) = config {
+                    Ok(QuestionAnsweringOption::Deberta(
+                        DebertaForQuestionAnswering::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DebertaConfig for DeBERTa!".to_string(),
                     ))
                 }
             }
@@ -423,6 +437,7 @@ impl QuestionAnsweringOption {
     pub fn model_type(&self) -> ModelType {
         match *self {
             Self::Bert(_) => ModelType::Bert,
+            Self::Deberta(_) => ModelType::Deberta,
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::DistilBert(_) => ModelType::DistilBert,
@@ -446,6 +461,12 @@ impl QuestionAnsweringOption {
         match *self {
             Self::Bert(ref model) => {
                 let outputs = model.forward_t(input_ids, mask, None, None, input_embeds, train);
+                (outputs.start_logits, outputs.end_logits)
+            }
+            Self::Deberta(ref model) => {
+                let outputs = model
+                    .forward_t(input_ids, mask, None, None, input_embeds, train)
+                    .expect("Error in Deberta forward_t");
                 (outputs.start_logits, outputs.end_logits)
             }
             Self::DistilBert(ref model) => {

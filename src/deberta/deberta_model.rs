@@ -1092,7 +1092,7 @@ impl DebertaForQuestionAnswering {
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
-        mask: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
         input_embeds: Option<&Tensor>,
@@ -1100,7 +1100,7 @@ impl DebertaForQuestionAnswering {
     ) -> Result<DebertaQuestionAnsweringOutput, RustBertError> {
         let base_model_output = self.deberta.forward_t(
             input_ids,
-            mask,
+            attention_mask,
             token_type_ids,
             position_ids,
             input_embeds,
