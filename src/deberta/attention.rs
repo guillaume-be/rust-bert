@@ -363,11 +363,10 @@ impl DisentangledSelfAttention {
         } else {
             let qp = hidden_states.apply(&self.in_proj);
             let mut layers = self.transpose_for_scores(&qp).chunk(3, -1);
-            (
-                layers.pop().unwrap(),
-                layers.pop().unwrap(),
-                layers.pop().unwrap(),
-            )
+            let value_layer = layers.pop().unwrap();
+            let key_layer = layers.pop().unwrap();
+            let query_layer = layers.pop().unwrap();
+            (query_layer, key_layer, value_layer)
         };
 
         let query_layer =

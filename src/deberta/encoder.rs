@@ -151,13 +151,14 @@ impl DebertaEncoder {
     where
         P: Borrow<nn::Path<'p>>,
     {
-        let p = p.borrow() / "layer";
+        let p = p.borrow();
         let output_attentions = config.output_attentions.unwrap_or(false);
         let output_hidden_states = config.output_hidden_states.unwrap_or(false);
 
+        let p_layer = p / "layer";
         let mut layers: Vec<DebertaLayer> = vec![];
         for layer_index in 0..config.num_hidden_layers {
-            layers.push(DebertaLayer::new(&p / layer_index, config));
+            layers.push(DebertaLayer::new(&p_layer / layer_index, config));
         }
 
         let relative_attention = config.relative_attention.unwrap_or(false);
@@ -167,7 +168,7 @@ impl DebertaEncoder {
                 max_relative_positions = config.max_position_embeddings;
             }
             Some(nn::embedding(
-                &p / "rel_embeddings",
+                p / "rel_embeddings",
                 max_relative_positions * 2,
                 config.hidden_size,
                 Default::default(),
@@ -190,7 +191,7 @@ impl DebertaEncoder {
             &extended_attention_mask
                 * &extended_attention_mask
                     .squeeze_dim(-2)
-                    .squeeze_dim(-1)
+                    .unsqueeze(-1)
                     .internal_cast_byte(true)
         } else if attention_mask.dim() == 3 {
             attention_mask.unsqueeze(1)

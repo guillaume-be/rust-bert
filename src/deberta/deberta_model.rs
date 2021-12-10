@@ -10,9 +10,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::bert::BertSequenceClassificationOutput;
+use crate::bert::{
+    BertQuestionAnsweringOutput, BertSequenceClassificationOutput, BertTokenClassificationOutput,
+};
 use crate::common::activations::TensorFunction;
-use crate::common::dropout::XDropout;
+use crate::common::dropout::{Dropout, XDropout};
 use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
 use crate::common::kind::get_negative_infinity;
 use crate::deberta::embeddings::DebertaEmbeddings;
@@ -572,12 +574,10 @@ impl DebertaForMaskedLM {
     /// # Arguments
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see *input_embeds*)
-    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
     /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see *input_ids*)
-    /// * `encoder_hidden_states` - Optional encoder hidden state of shape (*batch size*, *encoder_sequence_length*, *hidden_size*). If the model is defined as a decoder and the *encoder_hidden_states* is not None, used in the cross-attention layer as keys and values (query from the decoder).
-    /// * `encoder_mask` - Optional encoder attention mask of shape (*batch size*, *encoder_sequence_length*). If the model is defined as a decoder and the *encoder_hidden_states* is not None, used to mask encoder values. Positions with value 0 will be masked.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
     ///
     /// # Returns
@@ -768,7 +768,7 @@ impl DebertaForSequenceClassification {
     /// # Arguments
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
-    /// * `mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
     /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
     /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
     /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
@@ -814,7 +814,7 @@ impl DebertaForSequenceClassification {
     pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
-        mask: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
         input_embeds: Option<&Tensor>,
@@ -822,7 +822,7 @@ impl DebertaForSequenceClassification {
     ) -> Result<DebertaSequenceClassificationOutput, RustBertError> {
         let base_model_output = self.deberta.forward_t(
             input_ids,
-            mask,
+            attention_mask,
             token_type_ids,
             position_ids,
             input_embeds,
@@ -837,6 +837,285 @@ impl DebertaForSequenceClassification {
 
         Ok(DebertaSequenceClassificationOutput {
             logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
+    }
+}
+
+/// # DeBERTa for token classification (e.g. NER, POS)
+/// Token-level classifier predicting a label for each token provided. Note that because of wordpiece tokenization, the labels predicted are
+/// not necessarily aligned with words in the sentence.
+/// It is made of the following blocks:
+/// - `deberta`: Base DeBERTa
+/// - `dropout`: Dropout layer before the last token-level predictions layer
+/// - `classifier`: Linear layer for token classification
+pub struct DebertaForTokenClassification {
+    deberta: DebertaModel,
+    dropout: Dropout,
+    classifier: nn::Linear,
+}
+
+impl DebertaForTokenClassification {
+    /// Build a new `DebertaForTokenClassification`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the FNet model
+    /// * `config` - `DebertaConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::deberta::{DebertaConfig, DebertaForTokenClassification};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = FNetConfig::from_file(config_path);
+    /// let model = DebertaForTokenClassification::new(&p.root(), &config);
+    /// ```
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaForTokenClassification
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let deberta = DebertaModel::new(p / "deberta", config);
+        let dropout = Dropout::new(config.hidden_dropout_prob);
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .expect("num_labels not provided in configuration")
+            .len() as i64;
+        let classifier = nn::linear(
+            p / "classifier",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
+
+        DebertaForTokenClassification {
+            deberta,
+            dropout,
+            classifier,
+        }
+    }
+
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `DebertaTokenClassificationOutput` containing:
+    ///   - `logits` - `Tensor` of shape (*batch size*, *sequence_length*, *num_labels*)
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use rust_bert::deberta::{DebertaForTokenClassification, DebertaConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let model = DebertaForTokenClassification::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<DebertaTokenClassificationOutput, RustBertError> {
+        let base_model_output = self.deberta.forward_t(
+            input_ids,
+            attention_mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let logits = base_model_output
+            .hidden_state
+            .apply_t(&self.dropout, train)
+            .apply(&self.classifier);
+
+        Ok(DebertaTokenClassificationOutput {
+            logits,
+            all_hidden_states: base_model_output.all_hidden_states,
+            all_attentions: base_model_output.all_attentions,
+        })
+    }
+}
+
+/// # DeBERTa for question answering
+/// Extractive question-answering model based on a DeBERTa language model. Identifies the segment of a context that answers a provided question.
+/// Please note that a significant amount of pre- and post-processing is required to perform end-to-end question answering.
+/// See the question answering pipeline (also provided in this crate) for more details.
+/// It is made of the following blocks:
+/// - `deberta`: Base DeBERTa model
+/// - `qa_outputs`: Linear layer for question answering
+pub struct DebertaForQuestionAnswering {
+    deberta: DebertaModel,
+    qa_outputs: nn::Linear,
+}
+
+impl DebertaForQuestionAnswering {
+    /// Build a new `DebertaForQuestionAnswering`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BertForQuestionAnswering model
+    /// * `config` - `DebertaConfig` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::deberta::{DebertaConfig, DebertaForQuestionAnswering};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = BertConfig::from_file(config_path);
+    /// let model = DebertaForQuestionAnswering::new(&p.root() / "bert", &config);
+    /// ```
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaForQuestionAnswering
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let deberta = DebertaModel::new(p / "deberta", config);
+        let num_labels = 2;
+        let qa_outputs = nn::linear(
+            p / "qa_outputs",
+            config.hidden_size,
+            num_labels,
+            Default::default(),
+        );
+
+        DebertaForQuestionAnswering {
+            deberta,
+            qa_outputs,
+        }
+    }
+
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `token_type_ids` -Optional segment id of shape (*batch size*, *sequence_length*). Convention is value of 0 for the first sentence (incl. *SEP*) and 1 for the second sentence. If None set to 0.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented from 0.
+    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `DebertaQuestionAnsweringOutput` containing:
+    ///   - `start_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for start of the answer
+    ///   - `end_logits` - `Tensor` of shape (*batch size*, *sequence_length*) containing the logits for end of the answer
+    ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///   - `all_attentions` - `Option<Vec<Vec<Tensor>>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use rust_bert::deberta::{DebertaForQuestionAnswering, DebertaConfig};
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::Int64;
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = BertConfig::from_file(config_path);
+    /// # let model = DebertaForQuestionAnswering::new(&vs.root(), &config);
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = no_grad(|| {
+    ///     model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&mask),
+    ///         Some(&token_type_ids),
+    ///         Some(&position_ids),
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        train: bool,
+    ) -> Result<DebertaQuestionAnsweringOutput, RustBertError> {
+        let base_model_output = self.deberta.forward_t(
+            input_ids,
+            mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
+
+        let sequence_output = base_model_output.hidden_state.apply(&self.qa_outputs);
+        let logits = sequence_output.split(1, -1);
+        let (start_logits, end_logits) = (&logits[0], &logits[1]);
+        let start_logits = start_logits.squeeze_dim(-1);
+        let end_logits = end_logits.squeeze_dim(-1);
+
+        Ok(DebertaQuestionAnsweringOutput {
+            start_logits,
+            end_logits,
             all_hidden_states: base_model_output.all_hidden_states,
             all_attentions: base_model_output.all_attentions,
         })
@@ -858,3 +1137,9 @@ pub struct DebertaMaskedLMOutput {
 
 /// Container for the DeBERTa sequence classification model output.
 pub type DebertaSequenceClassificationOutput = BertSequenceClassificationOutput;
+
+/// Container for the DeBERTa sequence classification model output.
+pub type DebertaTokenClassificationOutput = BertTokenClassificationOutput;
+
+/// Container for the DeBERTa question answering model output.
+pub type DebertaQuestionAnsweringOutput = BertQuestionAnsweringOutput;
