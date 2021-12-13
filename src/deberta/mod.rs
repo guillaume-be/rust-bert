@@ -19,10 +19,13 @@
 //! #
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
-//! use rust_tokenizers::tokenizer::DeBERTaTokenizer;
+//! use rust_bert::deberta::{
+//!     DebertaConfig, DebertaConfigResources, DebertaForSequenceClassification,
+//!     DebertaMergesResources, DebertaModelResources, DebertaVocabResources,
+//! };
 //! use rust_bert::resources::{RemoteResource, Resource};
 //! use rust_bert::Config;
-//! use rust_bert::deberta::{DebertaConfig, DebertaConfigResources, DebertaForSequenceClassification, DebertaMergesResources};
+//! use rust_tokenizers::tokenizer::DeBERTaTokenizer;
 //!
 //! let config_resource = Resource::Remote(RemoteResource::from_pretrained(
 //!     DebertaConfigResources::DEBERTA_BASE_MNLI,
@@ -42,7 +45,11 @@
 //! let weights_path = weights_resource.get_local_path()?;
 //! let device = Device::cuda_if_available();
 //! let mut vs = nn::VarStore::new(device);
-//! let tokenizer = DeBERTaTokenizer::from_file(vocab_path.to_str().unwrap(), merges_path.to_str().unwrap(), true)?;
+//! let tokenizer = DeBERTaTokenizer::from_file(
+//!     vocab_path.to_str().unwrap(),
+//!     merges_path.to_str().unwrap(),
+//!     true,
+//! )?;
 //! let config = DebertaConfig::from_file(config_path);
 //! let deberta_model = DebertaForSequenceClassification::new(&vs.root(), &config);
 //! vs.load(weights_path)?;

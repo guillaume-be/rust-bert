@@ -402,7 +402,7 @@ impl DebertaModel {
     ///     model
     ///         .forward_t(
     ///             Some(&input_tensor),
-    ///             Some(&mask),
+    ///             Some(&attention_mask),
     ///             Some(&token_type_ids),
     ///             Some(&position_ids),
     ///             None,
@@ -791,7 +791,7 @@ impl DebertaForSequenceClassification {
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = BertConfig::from_file(config_path);
+    /// # let config = DebertaConfig::from_file(config_path);
     /// # let model = DebertaForSequenceClassification::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
@@ -875,7 +875,7 @@ impl DebertaForTokenClassification {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = FNetConfig::from_file(config_path);
+    /// let config = DebertaConfig::from_file(config_path);
     /// let model = DebertaForTokenClassification::new(&p.root(), &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaForTokenClassification
@@ -933,7 +933,7 @@ impl DebertaForTokenClassification {
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = BertConfig::from_file(config_path);
+    /// # let config = DebertaConfig::from_file(config_path);
     /// # let model = DebertaForTokenClassification::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
@@ -1015,7 +1015,7 @@ impl DebertaForQuestionAnswering {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = BertConfig::from_file(config_path);
+    /// let config = DebertaConfig::from_file(config_path);
     /// let model = DebertaForQuestionAnswering::new(&p.root() / "bert", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaForQuestionAnswering
@@ -1069,7 +1069,7 @@ impl DebertaForQuestionAnswering {
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = BertConfig::from_file(config_path);
+    /// # let config = DebertaConfig::from_file(config_path);
     /// # let model = DebertaForQuestionAnswering::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));

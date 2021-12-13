@@ -3,12 +3,9 @@ use rust_bert::deberta::{
     DebertaForSequenceClassification, DebertaForTokenClassification, DebertaMergesResources,
     DebertaModelResources, DebertaVocabResources,
 };
-use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
-use rust_bert::pipelines::sentiment::{SentimentModel, SentimentPolarity};
 use rust_bert::resources::{RemoteResource, Resource};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{DeBERTaTokenizer, MultiThreadedTokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Kind, Tensor};
 
@@ -93,9 +90,9 @@ fn deberta_masked_lm() -> anyhow::Result<()> {
     let config_resource = Resource::Remote(RemoteResource::from_pretrained(
         DebertaConfigResources::DEBERTA_BASE_MNLI,
     ));
-    let config_path = config_resource.get_local_path();
+    let config_path = config_resource.get_local_path()?;
     let device = Device::cuda_if_available();
-    let mut vs = nn::VarStore::new(device);
+    let vs = nn::VarStore::new(device);
     let mut config = DebertaConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
@@ -132,7 +129,7 @@ fn deberta_masked_lm() -> anyhow::Result<()> {
     );
     assert_eq!(
         model_output.all_attentions.as_ref().unwrap()[0].size(),
-        vec!(32, 4, 128, 128)
+        vec!(32, 12, 128, 128)
     );
     assert_eq!(
         model_output.all_hidden_states.as_ref().unwrap()[0].size(),
@@ -258,7 +255,7 @@ fn deberta_for_question_answering() -> anyhow::Result<()> {
     let model_output =
         no_grad(|| model.forward_t(Some(input_tensor.as_ref()), None, None, None, None, false))?;
 
-    assert_eq!(model_output.start_logits.size(), &[1, 16]);
-    assert_eq!(model_output.end_logits.size(), &[1, 16]);
+    assert_eq!(model_output.start_logits.size(), &[1, 15]);
+    assert_eq!(model_output.end_logits.size(), &[1, 15]);
     Ok(())
 }
