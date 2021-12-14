@@ -77,9 +77,9 @@ fn deberta_natural_language_inference() -> anyhow::Result<()> {
     let output = model_output.logits.softmax(-1, Kind::Float);
 
     assert_eq!(output.size(), vec![1, 3]);
-    assert!((output.double_value(&[0, 0]) - 0.9981).abs() < 1e-4);
-    assert!((output.double_value(&[0, 1]) - 0.9927).abs() < 1e-4);
-    assert!((output.double_value(&[0, 2]) - 0.9997).abs() < 1e-4);
+    assert!((output.double_value(&[0, 0]) - 0.0002).abs() < 1e-4);
+    assert!((output.double_value(&[0, 1]) - 0.0241).abs() < 1e-4);
+    assert!((output.double_value(&[0, 2]) - 0.9757).abs() < 1e-4);
 
     Ok(())
 }
