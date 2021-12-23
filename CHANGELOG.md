@@ -2,8 +2,10 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.17.0] - 2021-12-19
 ## Changed
-- Updated to `tch` 1.6.0 (libtorch 1.10)
+- Updated to `tch` 0.6.1 (libtorch 1.10)
 - (BREAKING) Simplified the generics for multiple library traits taking as a rule `&[AsRef<str>]` or `&str` as inputs (no longer accepts owned types `Vec` and `String`)
 
 ## Added
