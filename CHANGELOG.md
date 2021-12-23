@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+- Addition of the DeBERTa language model and support for question answering, sequence and token classification
 
 ## [0.17.0] - 2021-12-19
 ## Changed
@@ -14,7 +15,6 @@ All notable changes to this project will be documented in this file. The format 
 - (BREAKING) Extension of the generation options that can be provided at runtime (after a model has been instantiated with a `GenerateConfig`), allowing to update the generation options from one text generation to another with the same model. This feature is implemented at the `LanguageGenerator` trait level, the high-level `TextGeneration` pipeline API remains unchanged.
 - Addition of the FNet language model and support for sequence, token and multiple choice classification, question answering
 - Addition of a full entities' prediction method supporting the IOBES scheme (merging entities token such as <New> + <York> -> <New York>)
-- Addition of the DeBERTa language model and support for question answering, sequence and token classification
 
 ## [0.16.0] - 2021-08-24
 ## Added
