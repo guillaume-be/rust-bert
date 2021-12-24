@@ -12,7 +12,7 @@
 
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
-use crate::gpt_neo::attention::{GptNeoAttention, LayerState};
+use crate::gpt_neo::attention::{GptNeoSelfAttention, LayerState};
 use crate::gpt_neo::GptNeoConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -72,7 +72,7 @@ impl ModuleT for GptNeoMLP {
 pub struct GptNeoBlock {
     ln_1: nn::LayerNorm,
     ln_2: nn::LayerNorm,
-    attention: GptNeoAttention,
+    attention: GptNeoSelfAttention,
     mlp: GptNeoMLP,
 }
 
@@ -90,7 +90,9 @@ impl GptNeoBlock {
 
         let ln_1 = nn::layer_norm(p / "ln_1", vec![config.hidden_size], layer_norm_config);
         let ln_2 = nn::layer_norm(p / "ln_2", vec![config.hidden_size], layer_norm_config);
-        let attention = GptNeoAttention::new(p / "attn", config, layer_id);
+        let attention_type = &config.attention_layers[layer_id];
+        let attention =
+            GptNeoSelfAttention::new(p.sub("attn").sub("attention"), config, attention_type);
 
         let inner_dim = config.intermediate_size.unwrap_or(4 * config.hidden_size);
 

@@ -231,31 +231,3 @@ impl GptNeoSelfAttention {
         (attention_output, attention_weights, layer_state)
     }
 }
-
-// ToDo: simplify and remove
-pub struct GptNeoAttention {
-    attention: GptNeoSelfAttention,
-}
-
-impl GptNeoAttention {
-    pub fn new<'p, P>(p: P, config: &GptNeoConfig, layer_id: usize) -> GptNeoAttention
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        let p = p.borrow();
-        let attention_type = &config.attention_layers[layer_id];
-        let attention = GptNeoSelfAttention::new(p / "attention", config, attention_type);
-        GptNeoAttention { attention }
-    }
-
-    pub fn forward_t(
-        &self,
-        hidden_states: &Tensor,
-        layer_state: Option<&LayerState>,
-        attention_mask: Option<&Tensor>,
-        train: bool,
-    ) -> (Tensor, Option<Tensor>, Option<LayerState>) {
-        self.attention
-            .forward_t(hidden_states, layer_state, attention_mask, train)
-    }
-}
