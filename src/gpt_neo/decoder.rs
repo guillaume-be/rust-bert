@@ -77,11 +77,7 @@ pub struct GptNeoBlock {
 }
 
 impl GptNeoBlock {
-    pub fn new<'p, P>(
-        p: P,
-        layer_id: usize,
-        config: &GptNeoConfig,
-    ) -> Result<GptNeoBlock, RustBertError>
+    pub fn new<'p, P>(p: P, layer_id: usize, config: &GptNeoConfig) -> GptNeoBlock
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -94,18 +90,18 @@ impl GptNeoBlock {
 
         let ln_1 = nn::layer_norm(p / "ln_1", vec![config.hidden_size], layer_norm_config);
         let ln_2 = nn::layer_norm(p / "ln_2", vec![config.hidden_size], layer_norm_config);
-        let attention = GptNeoAttention::new(p / "attn", config, layer_id)?;
+        let attention = GptNeoAttention::new(p / "attn", config, layer_id);
 
         let inner_dim = config.intermediate_size.unwrap_or(4 * config.hidden_size);
 
         let mlp = GptNeoMLP::new(p / "mlp", inner_dim, config);
 
-        Ok(GptNeoBlock {
+        GptNeoBlock {
             ln_1,
             ln_2,
             attention,
             mlp,
-        })
+        }
     }
 
     pub fn forward_t(
@@ -118,16 +114,12 @@ impl GptNeoBlock {
         let intermediate = hidden_states.apply(&self.ln_1);
         let (intermediate, attention_weights, layer_state) =
             self.attention
-                .forward_t(&intermediate, layer_state, attention_mask, train)?;
+                .forward_t(&intermediate, layer_state, attention_mask, train);
         let hidden_states = hidden_states + intermediate;
 
         let intermediate = hidden_states.apply(&self.ln_2).apply_t(&self.mlp, train);
         let output = hidden_states + intermediate;
 
         Ok((output, attention_weights, layer_state))
-    }
-
-    pub(crate) fn get_attention_type(&self) -> &GptNeoAttention {
-        &self.attention
     }
 }
