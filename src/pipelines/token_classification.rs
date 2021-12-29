@@ -116,6 +116,7 @@ use crate::bert::{
 };
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
+use crate::deberta::DebertaForTokenClassification;
 use crate::distilbert::DistilBertForTokenClassification;
 use crate::electra::ElectraForTokenClassification;
 use crate::fnet::FNetForTokenClassification;
@@ -302,6 +303,8 @@ impl Default for TokenClassificationConfig {
 pub enum TokenClassificationOption {
     /// Bert for Token Classification
     Bert(BertForTokenClassification),
+    /// DeBERTa for Token Classification
+    Deberta(DebertaForTokenClassification),
     /// DistilBert for Token Classification
     DistilBert(DistilBertForTokenClassification),
     /// MobileBert for Token Classification
@@ -461,6 +464,7 @@ impl TokenClassificationOption {
     pub fn model_type(&self) -> ModelType {
         match *self {
             Self::Bert(_) => ModelType::Bert,
+            Self::Deberta(_) => ModelType::Deberta,
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::DistilBert(_) => ModelType::DistilBert,
@@ -493,6 +497,19 @@ impl TokenClassificationOption {
                         input_embeds,
                         train,
                     )
+                    .logits
+            }
+            Self::Deberta(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .expect("Error in DeBERTa forward_t")
                     .logits
             }
             Self::DistilBert(ref model) => {

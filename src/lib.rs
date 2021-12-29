@@ -51,6 +51,7 @@
 //! :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
 //! DistilBERT|✅|✅|✅| | | |✅|
 //! MobileBERT|✅|✅|✅| | | |✅|
+//! DeBERTa|✅|✅|✅| | | |✅|
 //! FNet|✅|✅|✅| | | |✅|
 //! BERT|✅|✅|✅| | | |✅|
 //! RoBERTa|✅|✅|✅| | | |✅|
@@ -582,6 +583,7 @@ pub mod albert;
 pub mod bart;
 pub mod bert;
 mod common;
+pub mod deberta;
 pub mod distilbert;
 pub mod electra;
 pub mod fnet;

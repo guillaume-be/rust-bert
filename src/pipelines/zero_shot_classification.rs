@@ -104,6 +104,7 @@ use crate::bart::{
     BartVocabResources,
 };
 use crate::bert::BertForSequenceClassification;
+use crate::deberta::DebertaForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
@@ -211,6 +212,8 @@ impl Default for ZeroShotClassificationConfig {
 pub enum ZeroShotClassificationOption {
     /// Bart for Sequence Classification
     Bart(BartForSequenceClassification),
+    /// DeBERTa for Sequence Classification
+    Deberta(DebertaForSequenceClassification),
     /// Bert for Sequence Classification
     Bert(BertForSequenceClassification),
     /// DistilBert for Sequence Classification
@@ -255,6 +258,17 @@ impl ZeroShotClassificationOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a BartConfig for Bart!".to_string(),
+                    ))
+                }
+            }
+            ModelType::Deberta => {
+                if let ConfigOption::Deberta(config) = config {
+                    Ok(ZeroShotClassificationOption::Deberta(
+                        DebertaForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DebertaConfig for DeBERTa!".to_string(),
                     ))
                 }
             }
@@ -357,6 +371,7 @@ impl ZeroShotClassificationOption {
     pub fn model_type(&self) -> ModelType {
         match *self {
             Self::Bart(_) => ModelType::Bart,
+            Self::Deberta(_) => ModelType::Deberta,
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
@@ -401,6 +416,19 @@ impl ZeroShotClassificationOption {
                         input_embeds,
                         train,
                     )
+                    .logits
+            }
+            Self::Deberta(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .expect("Error in DeBERTa forward_t")
                     .logits
             }
             Self::DistilBert(ref model) => {

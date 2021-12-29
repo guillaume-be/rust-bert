@@ -62,6 +62,7 @@ use crate::bart::BartForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
 use crate::common::error::RustBertError;
 use crate::common::resources::{RemoteResource, Resource};
+use crate::deberta::DebertaForSequenceClassification;
 use crate::distilbert::{
     DistilBertConfigResources, DistilBertModelClassifier, DistilBertModelResources,
     DistilBertVocabResources,
@@ -180,6 +181,8 @@ impl Default for SequenceClassificationConfig {
 pub enum SequenceClassificationOption {
     /// Bert for Sequence Classification
     Bert(BertForSequenceClassification),
+    /// DeBERTa for Sequence Classification
+    Deberta(DebertaForSequenceClassification),
     /// DistilBert for Sequence Classification
     DistilBert(DistilBertModelClassifier),
     /// MobileBert for Sequence Classification
@@ -228,6 +231,17 @@ impl SequenceClassificationOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
+                }
+            }
+            ModelType::Deberta => {
+                if let ConfigOption::Deberta(config) = config {
+                    Ok(SequenceClassificationOption::Deberta(
+                        DebertaForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DebertaConfig for DeBERTa!".to_string(),
                     ))
                 }
             }
@@ -352,6 +366,7 @@ impl SequenceClassificationOption {
     pub fn model_type(&self) -> ModelType {
         match *self {
             Self::Bert(_) => ModelType::Bert,
+            Self::Deberta(_) => ModelType::Deberta,
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
@@ -398,6 +413,19 @@ impl SequenceClassificationOption {
                         input_embeds,
                         train,
                     )
+                    .logits
+            }
+            Self::Deberta(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .expect("Error in Deberta forward_t")
                     .logits
             }
             Self::DistilBert(ref model) => {
