@@ -12,7 +12,6 @@
 
 use crate::common::dropout::Dropout;
 use crate::common::embeddings::process_ids_embeddings_pair;
-use crate::gpt_neo::attention::{GptNeoAttention, GptNeoAttentionUtils};
 use crate::gpt_neo::decoder::GptNeoBlock;
 use crate::gpt_neo::LayerState;
 use crate::pipelines::common::{ModelType, TokenizerOption};
@@ -113,7 +112,7 @@ impl GptNeoMergesResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
 #[serde(rename_all = "camelCase")]
 /// #GPT-Neo attention layer type
 pub enum AttentionLayerType {
@@ -161,12 +160,9 @@ pub struct GptNeoModel {
     layers: Vec<GptNeoBlock>,
     dropout: Dropout,
     layer_norm: nn::LayerNorm,
-    window_size: i64,
     output_attentions: bool,
     output_hidden_states: bool,
 }
-
-impl GptNeoAttentionUtils for GptNeoModel {}
 
 impl GptNeoModel {
     /// Build a new `GptNeoModel`
@@ -226,10 +222,8 @@ impl GptNeoModel {
                 &p_layers / layer_index,
                 layer_index as usize,
                 config,
-            )?);
+            ));
         }
-
-        let window_size = config.window_size;
 
         let output_attentions = config.output_attentions.unwrap_or(false);
         let output_hidden_states = config.output_hidden_states.unwrap_or(false);
@@ -240,7 +234,6 @@ impl GptNeoModel {
             layers,
             dropout,
             layer_norm,
-            window_size,
             output_attentions,
             output_hidden_states,
         })
@@ -339,24 +332,16 @@ impl GptNeoModel {
 
         let position_ids = position_ids.unwrap_or_else(|| calc_position_ids.as_ref().unwrap());
 
-        let local_attention_mask = GptNeoModel::create_local_attention_mask(
-            batch_size,
-            full_sequence_length,
-            self.window_size,
-            device,
-            attention_mask,
-        )?;
-
         let input_embeds = input_embeds.unwrap_or_else(|| calc_input_embeddings.as_ref().unwrap());
         let position_embeds = position_ids.apply(&self.position_embeddings);
 
-        let global_attention_mask = attention_mask.map(|attention_mask_value| {
-            let global_attention_mask = attention_mask_value
+        let attention_mask = attention_mask.map(|attention_mask_value| {
+            let attention_mask = attention_mask_value
                 .view([batch_size, -1])
                 .unsqueeze(1)
                 .unsqueeze(1);
-            let global_attention_mask = global_attention_mask.to_kind(position_embeds.kind());
-            (1 - global_attention_mask) * -1e4
+            let attention_mask = attention_mask.to_kind(position_embeds.kind());
+            (1 - attention_mask) * -1e4
         });
 
         let mut hidden_state = input_embeds + position_embeds;
@@ -386,15 +371,20 @@ impl GptNeoModel {
         for ((layer_idx, layer), layer_state) in
             self.layers.iter().enumerate().zip(old_cache.into_iter())
         {
-            let attention_mask = match layer.get_attention_type() {
-                GptNeoAttention::SelfAttention(_) => global_attention_mask.as_ref(),
-                GptNeoAttention::LocalSelfAttention(_) => Some(&local_attention_mask),
-            };
-
             let temp = if let Some(x_value) = &x {
-                layer.forward_t(x_value, layer_state.as_ref(), attention_mask, train)?
+                layer.forward_t(
+                    x_value,
+                    layer_state.as_ref(),
+                    attention_mask.as_ref(),
+                    train,
+                )?
             } else {
-                layer.forward_t(&hidden_state, layer_state.as_ref(), attention_mask, train)?
+                layer.forward_t(
+                    &hidden_state,
+                    layer_state.as_ref(),
+                    attention_mask.as_ref(),
+                    train,
+                )?
             };
             x = Some(temp.0);
             attention_weights = temp.1;

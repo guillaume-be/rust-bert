@@ -94,7 +94,7 @@ fn gpt_neo_lm() -> anyhow::Result<()> {
     );
     assert_eq!(
         model_output.all_attentions.as_ref().unwrap()[1].size(),
-        vec![1, 1, 12, 4, 260]
+        vec![1, 12, 4, 4]
     );
 
     assert!(model_output.all_hidden_states.is_some());
