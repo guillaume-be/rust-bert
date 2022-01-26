@@ -147,7 +147,7 @@ model for predictions
 - French <-> German
 
 For languages not supported by the proposed pretrained Marian models, the user can leverage a M2M100 model supporting direct translation between 100 languages (without intermediate English translation)
-The full list of supported languages is available in the [crate documentation](docs.rs/rust-bert/0.15.1/rust_bert/pipelines/translation/enum.Language.html)
+The full list of supported languages is available in the [crate documentation](https://docs.rs/rust-bert/latest/rust_bert/pipelines/translation/enum.Language.html)
 
  ```rust
  use rust_bert::pipelines::translation::{Language, TranslationModelBuilder};
