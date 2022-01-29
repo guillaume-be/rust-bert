@@ -705,7 +705,7 @@ impl SequenceClassificationModel {
         input: &[&str],
         threshold: f64,
     ) -> Result<Vec<Vec<Label>>, RustBertError> {
-        let input_tensor = self.prepare_for_model(input.to_vec());
+        let input_tensor = self.prepare_for_model(input);
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
                 Some(&input_tensor),
