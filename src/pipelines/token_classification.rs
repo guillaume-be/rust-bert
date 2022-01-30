@@ -826,8 +826,7 @@ impl TokenClassificationModel {
         let mut features: Vec<InputFeature> = input
             .iter()
             .enumerate()
-            .map(|(example_index, example)| self.generate_features(example, example_index))
-            .flatten()
+            .flat_map(|(example_index, example)| self.generate_features(example, example_index))
             .collect();
 
         let mut example_tokens_map: HashMap<usize, Vec<Token>> = HashMap::new();

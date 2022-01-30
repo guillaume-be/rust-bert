@@ -663,7 +663,7 @@ impl QuestionAnsweringModel {
         let mut features: Vec<QaFeature> = qa_inputs
             .iter()
             .enumerate()
-            .map(|(example_index, qa_example)| {
+            .flat_map(|(example_index, qa_example)| {
                 self.generate_features(
                     qa_example,
                     self.max_seq_len,
@@ -672,7 +672,6 @@ impl QuestionAnsweringModel {
                     example_index as i64,
                 )
             })
-            .flatten()
             .collect();
 
         let mut example_top_k_answers_map: HashMap<usize, Vec<Answer>> = HashMap::new();

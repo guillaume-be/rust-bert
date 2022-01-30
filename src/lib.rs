@@ -559,6 +559,13 @@
 //! `python ./utils/convert_model.py path/to/pytorch_model.bin` where `path/to/pytorch_model.bin` is the location of the original Pytorch weights.
 //!
 //!
+//! ## Async execution
+//!
+//! Creating any of the models in async context will cause panics! Running extensive calculations like running predictions in a future should be avoided, too ([see here](https://docs.rs/tokio/latest/tokio/#cpu-bound-tasks-and-blocking-code)).
+//!
+//! It is recommended to spawn a separate thread for the models. The `async-sentiment` example displays a possible solution you could use to integrate models into async code.
+//!
+//!
 //! ## Citation
 //!
 //! If you use `rust-bert` for your work, please cite [End-to-end NLP Pipelines in Rust](https://www.aclweb.org/anthology/2020.nlposs-1.4/):
@@ -578,6 +585,9 @@
 //!
 //! Thank you to [Hugging Face](https://huggingface.co) for hosting a set of weights compatible with this Rust library.
 //! The list of ready-to-use pretrained models is listed at [https://huggingface.co/models?filter=rust](https://huggingface.co/models?filter=rust).
+
+// These are used abundantly in this code
+#![allow(clippy::assign_op_pattern, clippy::upper_case_acronyms)]
 
 pub mod albert;
 pub mod bart;
