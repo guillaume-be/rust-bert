@@ -185,7 +185,7 @@ pub struct DebertaConfig {
     pub label2id: Option<HashMap<String, i64>>,
 }
 
-fn deserialize_attention_type<'de, D>(
+pub fn deserialize_attention_type<'de, D>(
     deserializer: D,
 ) -> Result<Option<PositionAttentionTypes>, D::Error>
 where

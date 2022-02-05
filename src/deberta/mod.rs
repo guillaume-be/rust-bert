@@ -68,3 +68,7 @@ pub use deberta_model::{
     DebertaForSequenceClassification, DebertaForTokenClassification, DebertaMergesResources,
     DebertaModel, DebertaModelResources, DebertaVocabResources,
 };
+
+pub(crate) use deberta_model::{
+    deserialize_attention_type, PositionAttentionType, PositionAttentionTypes,
+};
