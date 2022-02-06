@@ -69,6 +69,4 @@ pub use deberta_model::{
     DebertaModel, DebertaModelResources, DebertaVocabResources,
 };
 
-pub(crate) use deberta_model::{
-    deserialize_attention_type, PositionAttentionType, PositionAttentionTypes,
-};
+pub(crate) use deberta_model::{deserialize_attention_type, PositionAttentionTypes};
