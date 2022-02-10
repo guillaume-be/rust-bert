@@ -390,6 +390,12 @@ impl TranslationModelBuilder {
                     ([Language::German], [Language::English]) => {
                         get_marian_resources!(GERMAN2ENGLISH)
                     }
+                    ([Language::German], [Language::French]) => {
+                        get_marian_resources!(GERMAN2FRENCH)
+                    }
+                    ([Language::French], [Language::German]) => {
+                        get_marian_resources!(FRENCH2GERMAN)
+                    }
                     ([Language::Russian], [Language::English]) => {
                         get_marian_resources!(RUSSIAN2ENGLISH)
                     }
