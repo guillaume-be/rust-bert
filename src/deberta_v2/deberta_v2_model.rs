@@ -19,7 +19,6 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
-use tch::vision::mobilenet::v2;
 
 /// # DeBERTaV2 Pretrained model weight files
 pub struct DebertaV2ModelResources;
@@ -67,7 +66,7 @@ pub struct DebertaV2Config {
     pub initializer_range: f64,
     pub intermediate_size: i64,
     pub max_position_embeddings: i64,
-    pub position_buckets: i64,
+    pub position_buckets: Option<i64>,
     pub num_attention_heads: i64,
     pub type_vocab_size: i64,
     pub position_biased_input: Option<bool>,
@@ -75,7 +74,7 @@ pub struct DebertaV2Config {
     pub pos_att_type: Option<PositionAttentionTypes>,
     #[serde(default, deserialize_with = "deserialize_norm_type")]
     pub norm_rel_ebd: Option<NormRelEmbedTypes>,
-    pub share_att_key: bool,
+    pub share_att_key: Option<bool>,
     pub conv_kernel_size: Option<i64>,
     pub conv_act: Option<Activation>,
     pub pooler_dropout: Option<f64>,

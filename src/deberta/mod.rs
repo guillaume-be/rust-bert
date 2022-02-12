@@ -70,7 +70,7 @@ pub use deberta_model::{
 };
 
 pub(crate) use deberta_model::{
-    deserialize_attention_type, DebertaSelfOutput, PositionAttentionTypes,
+    deserialize_attention_type, DebertaSelfOutput, PositionAttentionType, PositionAttentionTypes,
 };
 
 pub(crate) use encoder::{DebertaIntermediate, DebertaOutput};
