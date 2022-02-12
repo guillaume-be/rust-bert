@@ -10,7 +10,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::deberta::{deserialize_attention_type, DebertaConfig, PositionAttentionTypes};
+use crate::deberta::{
+    deserialize_attention_type, DebertaConfig, DebertaSelfOutput, PositionAttentionTypes,
+};
 use crate::{Activation, Config, RustBertError};
 use serde::de::{SeqAccess, Visitor};
 use serde::{de, Deserialize, Deserializer, Serialize};
@@ -216,3 +218,5 @@ impl From<DebertaV2Config> for DebertaConfig {
         }
     }
 }
+
+pub type DebertaV2SelfOutput = DebertaSelfOutput;
