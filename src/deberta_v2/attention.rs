@@ -13,8 +13,48 @@
 use crate::common::dropout::XDropout;
 use crate::deberta::{PositionAttentionType, PositionAttentionTypes};
 use crate::deberta_v2::DebertaV2Config;
+use crate::RustBertError;
 use std::borrow::Borrow;
-use tch::nn;
+use tch::{nn, Device, Kind, Tensor};
+
+pub fn make_log_bucket_position(
+    relative_pos: &Tensor,
+    bucket_size: i64,
+    max_position: i64,
+) -> Tensor {
+    let sign = relative_pos.sign();
+    let mid = bucket_size / 2;
+    let abs_pos = relative_pos.abs().where_scalarother(
+        &relative_pos
+            .lt(mid)
+            .logical_and(&relative_pos.gt(-mid))
+            .logical_not(),
+        mid - 1,
+    );
+    let log_pos = (((abs_pos / mid).log() / (((max_position - 1) / mid) as f64).ln()) * (mid - 1))
+        .ceil()
+        + mid;
+    let bucket_pos = relative_pos
+        .where_self(&abs_pos.less_equal(mid), &(log_pos * sign))
+        .to_kind(Kind::Int64);
+    bucket_pos
+}
+
+pub fn build_relative_position(
+    query_size: i64,
+    key_size: i64,
+    bucket_size: i64,
+    max_position: i64,
+    device: Device,
+) -> Tensor {
+    let q_ids = Tensor::arange(query_size, (Kind::Int64, device));
+    let k_ids = Tensor::arange(key_size, (Kind::Int64, device));
+    let mut rel_pos_ids = q_ids.unsqueeze(-1) - k_ids.tile(&[q_ids.size()[0], 1]);
+    if (bucket_size > 0) & (max_position > 0) {
+        rel_pos_ids = make_log_bucket_position(&rel_pos_ids, bucket_size, max_position);
+    }
+    rel_pos_ids.slice(0, 0, query_size, 1).unsqueeze(0)
+}
 
 pub struct DisentangledSelfAttention {
     query_proj: nn::Linear,
@@ -30,6 +70,7 @@ pub struct DisentangledSelfAttention {
     max_relative_positions: Option<i64>,
     pos_dropout: Option<XDropout>,
     output_attentions: bool,
+    share_attention_key: bool,
 }
 
 impl DisentangledSelfAttention {
@@ -141,6 +182,73 @@ impl DisentangledSelfAttention {
             pos_query_proj,
             position_buckets,
             pos_embed_size,
+            share_attention_key,
         }
+    }
+
+    fn transpose_for_scores(&self, x: &Tensor) -> Tensor {
+        let mut new_shape = x.size();
+        let _ = new_shape.pop();
+        new_shape.extend_from_slice(&[self.num_attention_heads, -1]);
+        let x = x.view(new_shape.as_slice());
+        x.permute(&[0, 2, 1, 3])
+            .contiguous()
+            .view([-1, x.size()[1], x.size().last().unwrap()])
+    }
+
+    fn disentangled_att_bias(
+        &self,
+        query_layer: &Tensor,
+        key_layer: &Tensor,
+        relative_pos: Option<&Tensor>,
+        relative_embeddings: &Tensor,
+        scale_factor: f64,
+    ) -> Result<Tensor, RustBertError> {
+        let mut key_layer_size = key_layer.size();
+        key_layer_size.reverse();
+        let mut query_layer_size = query_layer.size();
+        query_layer_size.reverse();
+
+        let calc_relative_pos = if relative_pos.is_none() {
+            Some(build_relative_position(
+                query_layer_size[1],
+                key_layer_size[1],
+                self.position_buckets.unwrap_or(-1),
+                self.max_relative_positions.unwrap_or(-1),
+                query_layer.device(),
+            ))
+        } else {
+            None
+        };
+        let relative_pos = relative_pos.unwrap_or_else(|| calc_relative_pos.as_ref().unwrap());
+        let relative_pos = match &relative_pos.dim() {
+            2 => relative_pos.unsqueeze(0).unsqueeze(0),
+            3 => relative_pos.unsqueeze(1),
+            4 => relative_pos.shallow_clone(),
+            _ => {
+                return Err(RustBertError::ValueError(format!(
+                    "Expected relative position of dimensions 2, 3 or 4, got {}",
+                    relative_pos.dim()
+                )))
+            }
+        };
+
+        // This method only gets called if relative attention is True
+        let att_span = self.pos_embed_size.unwrap();
+        let relative_embeddings = relative_embeddings
+            .slice(0, 0, 2 * att_span, 1)
+            .unsqueeze(0);
+
+        let key_proj = self.pos_key_proj.as_ref().unwrap_or(&self.key_proj);
+        let query_proj = self.pos_query_proj.as_ref().unwrap_or(&self.query_proj);
+
+        let pos_query_layer = self
+            .transpose_for_scores(&relative_embeddings.apply(query_proj))
+            .repeat(&[query_layer.size()[0] / self.num_attention_heads, 1, 1]);
+        let pos_key_layer = self
+            .transpose_for_scores(&relative_embeddings.apply(key_proj))
+            .repeat(&[query_layer.size()[0] / self.num_attention_heads, 1, 1]);
+
+        Ok(Tensor::new())
     }
 }
