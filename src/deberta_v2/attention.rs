@@ -31,7 +31,7 @@ pub fn make_log_bucket_position(
             .logical_not(),
         mid - 1,
     );
-    let log_pos = (((abs_pos / mid).log() / (((max_position - 1) / mid) as f64).ln()) * (mid - 1))
+    let log_pos = (((&abs_pos / mid).log() / (((max_position - 1) / mid) as f64).ln()) * (mid - 1))
         .ceil()
         + mid;
     let bucket_pos = relative_pos
@@ -193,7 +193,7 @@ impl DisentangledSelfAttention {
         let x = x.view(new_shape.as_slice());
         x.permute(&[0, 2, 1, 3])
             .contiguous()
-            .view([-1, x.size()[1], x.size().last().unwrap()])
+            .view([-1, x.size()[1], *x.size().last().unwrap()])
     }
 
     fn disentangled_att_bias(
@@ -248,6 +248,86 @@ impl DisentangledSelfAttention {
         let pos_key_layer = self
             .transpose_for_scores(&relative_embeddings.apply(key_proj))
             .repeat(&[query_layer.size()[0] / self.num_attention_heads, 1, 1]);
+
+        let mut score = Tensor::zeros(&[1], (query_layer.kind(), query_layer.device()));
+
+        let c2p_pos = if self.pos_att_type.has_type(PositionAttentionType::c2p) {
+            let scale = *pos_key_layer.size().last().unwrap() as f64 * scale_factor;
+            let c2p_att = query_layer.bmm(&pos_key_layer.transpose(-1, -2));
+            let c2p_pos = relative_pos.clamp(0, att_span * 2 - 1);
+            let c2p_att = c2p_att.gather(
+                -1,
+                &c2p_pos.squeeze_dim(0).expand(
+                    &[
+                        query_layer.size()[0],
+                        query_layer.size()[1],
+                        *relative_pos.size().last().unwrap(),
+                    ],
+                    true,
+                ),
+                true,
+            );
+            score = score + c2p_att / scale;
+            Some(c2p_pos)
+        } else {
+            None
+        };
+
+        if self.pos_att_type.has_type(PositionAttentionType::p2c)
+            | self.pos_att_type.has_type(PositionAttentionType::p2p)
+        {
+            let scale = *pos_query_layer.size().last().unwrap() as f64 * scale_factor;
+            let r_pos = if key_layer_size[1] != query_layer_size[1] {
+                build_relative_position(
+                    key_layer_size[1],
+                    key_layer_size[1],
+                    self.position_buckets.unwrap_or(-1),
+                    self.max_relative_positions.unwrap_or(-1),
+                    query_layer.device(),
+                )
+                .unsqueeze(0)
+            } else {
+                relative_pos.shallow_clone()
+            };
+
+            let p2c_pos = (-r_pos + att_span).clamp(0, 2 * att_span - 1);
+
+            if self.pos_att_type.has_type(PositionAttentionType::p2c) {
+                let p2c_att = key_layer
+                    .bmm(&pos_query_layer.transpose(-1, -2))
+                    .gather(
+                        -1,
+                        &p2c_pos.squeeze_dim(0).expand(
+                            &[query_layer.size()[0], key_layer_size[1], key_layer_size[1]],
+                            true,
+                        ),
+                        true,
+                    )
+                    .transpose(-1, -2);
+                score = score + p2c_att / scale;
+            }
+
+            if self.pos_att_type.has_type(PositionAttentionType::p2p) {
+                let pos_query = pos_query_layer.slice(2, att_span, None, 1);
+                let p2p_att = pos_query.matmul(&pos_key_layer.transpose(-1, -2));
+                let mut expand_size = query_layer.size()[..2].to_vec();
+                expand_size.append(&mut p2p_att.size().into_iter().skip(2).collect());
+                let p2p_att = p2p_att.gather(
+                    -1,
+                    &c2p_pos.unwrap().expand(
+                        &[
+                            query_layer.size()[0],
+                            query_layer.size()[1],
+                            query_layer.size()[2],
+                            *relative_pos.size().last().unwrap(),
+                        ],
+                        true,
+                    ),
+                    true,
+                );
+                score = score + p2p_att / scale;
+            }
+        }
 
         Ok(Tensor::new())
     }
