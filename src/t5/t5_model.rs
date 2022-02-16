@@ -28,6 +28,7 @@ use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
 use crate::pipelines::translation::Language;
+use crate::resources::LocalPathProvider;
 use crate::t5::attention::LayerState;
 use crate::t5::encoder::T5Stack;
 use crate::{Config, RustBertError};

@@ -25,6 +25,10 @@ use std::path::PathBuf;
 
 extern crate dirs;
 
+pub trait LocalPathProvider {
+    fn get_local_path(&self) -> Result<PathBuf, RustBertError>;
+}
+
 /// # Resource Enum pointing to model, configuration or vocabulary resources
 /// Can be of type:
 /// - LocalResource
@@ -35,7 +39,7 @@ pub enum Resource {
     Remote(RemoteResource),
 }
 
-impl Resource {
+impl LocalPathProvider for Resource {
     /// Gets the local path for a given resource.
     ///
     /// If the resource is a remote resource, it is downloaded and cached. Then the path
@@ -55,7 +59,7 @@ impl Resource {
     /// });
     /// let config_path = config_resource.get_local_path();
     /// ```
-    pub fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
+    fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
         match self {
             Resource::Local(resource) => Ok(resource.local_path.clone()),
             Resource::Remote(resource) => {
@@ -157,8 +161,7 @@ fn _get_cache_directory() -> PathBuf {
     match env::var("RUSTBERT_CACHE") {
         Ok(value) => PathBuf::from(value),
         Err(_) => {
-            let mut home = dirs::home_dir().unwrap();
-            home.push(".cache");
+            let mut home = dirs::cache_dir().unwrap();
             home.push(".rustbert");
             home
         }
@@ -192,6 +195,6 @@ fn _get_cache_directory() -> PathBuf {
 /// )));
 /// let local_path = model_resource.get_local_path();
 /// ```
-pub fn download_resource(resource: &Resource) -> Result<PathBuf, RustBertError> {
+pub fn download_resource(resource: &dyn LocalPathProvider) -> Result<PathBuf, RustBertError> {
     resource.get_local_path()
 }

@@ -25,6 +25,7 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
+use crate::resources::LocalPathProvider;
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{PegasusTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::PegasusVocab;

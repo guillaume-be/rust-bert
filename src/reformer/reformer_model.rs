@@ -36,6 +36,7 @@ use crate::reformer::attention::{AttentionType, LayerState};
 use crate::reformer::attention_utils::{get_least_common_mult_chunk_len, get_min_chunk_len};
 use crate::reformer::embeddings::ReformerEmbeddings;
 use crate::reformer::encoder::{ReformerEncoder, ReformerModelOutput};
+use crate::resources::LocalPathProvider;
 use crate::{Config, RustBertError};
 
 /// # Reformer Pretrained model weight files

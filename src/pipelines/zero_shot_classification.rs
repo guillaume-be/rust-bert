@@ -110,7 +110,7 @@ use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::pipelines::sequence_classification::Label;
-use crate::resources::{RemoteResource, Resource};
+use crate::resources::{LocalPathProvider, RemoteResource, Resource};
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use crate::RustBertError;

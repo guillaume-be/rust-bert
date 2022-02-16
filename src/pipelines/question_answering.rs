@@ -57,6 +57,7 @@ use crate::longformer::LongformerForQuestionAnswering;
 use crate::mobilebert::MobileBertForQuestionAnswering;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForQuestionAnswering;
+use crate::resources::LocalPathProvider;
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
 use rust_tokenizers::{Offset, TokenIdsWithOffsets, TokenizedInput};

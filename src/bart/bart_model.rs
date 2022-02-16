@@ -17,7 +17,7 @@ use crate::bart::encoder::BartEncoder;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::kind::get_negative_infinity;
-use crate::common::resources::{RemoteResource, Resource};
+use crate::common::resources::{LocalPathProvider, RemoteResource, Resource};
 use crate::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };

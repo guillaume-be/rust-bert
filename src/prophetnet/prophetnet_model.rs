@@ -30,6 +30,7 @@ use crate::pipelines::generation_utils::{
 use crate::prophetnet::attention::LayerState;
 use crate::prophetnet::decoder::ProphetNetDecoder;
 use crate::prophetnet::encoder::ProphetNetEncoder;
+use crate::resources::LocalPathProvider;
 use crate::{Activation, Config, RustBertError};
 
 /// # ProphetNet Pretrained model weight files

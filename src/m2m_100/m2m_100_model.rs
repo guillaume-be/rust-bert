@@ -25,7 +25,7 @@ use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
 use crate::pipelines::translation::Language;
-use crate::resources::{RemoteResource, Resource};
+use crate::resources::{LocalPathProvider, RemoteResource, Resource};
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{M2M100Tokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::{M2M100Vocab, Vocab};

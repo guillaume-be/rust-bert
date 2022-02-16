@@ -21,6 +21,7 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
+use crate::resources::LocalPathProvider;
 use crate::{Activation, Config, RustBertError};
 use rust_tokenizers::tokenizer::Gpt2Tokenizer;
 use rust_tokenizers::vocab::Gpt2Vocab;

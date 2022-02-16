@@ -20,6 +20,7 @@ use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
 use crate::pipelines::translation::Language;
+use crate::resources::LocalPathProvider;
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{MarianTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::MarianVocab;

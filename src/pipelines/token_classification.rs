@@ -115,7 +115,6 @@ use crate::bert::{
     BertConfigResources, BertForTokenClassification, BertModelResources, BertVocabResources,
 };
 use crate::common::error::RustBertError;
-use crate::common::resources::{RemoteResource, Resource};
 use crate::deberta::DebertaForTokenClassification;
 use crate::distilbert::DistilBertForTokenClassification;
 use crate::electra::ElectraForTokenClassification;
@@ -123,6 +122,7 @@ use crate::fnet::FNetForTokenClassification;
 use crate::longformer::LongformerForTokenClassification;
 use crate::mobilebert::MobileBertForTokenClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::resources::{LocalPathProvider, RemoteResource, Resource};
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
 use rust_tokenizers::tokenizer::Tokenizer;
