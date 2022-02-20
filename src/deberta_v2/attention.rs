@@ -11,7 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::XDropout;
-use crate::deberta::{PositionAttentionType, PositionAttentionTypes};
+use crate::deberta::{x_softmax, PositionAttentionType, PositionAttentionTypes};
 use crate::deberta_v2::DebertaV2Config;
 use crate::RustBertError;
 use std::borrow::Borrow;
@@ -324,9 +324,100 @@ impl DisentangledSelfAttention {
                 ),
                 true,
             );
-            score = score + p2p_att / scale;
+            score = score + p2p_att;
         }
 
-        Ok(Tensor::new())
+        Ok(score)
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: &Tensor,
+        query_states: Option<&Tensor>,
+        relative_pos: Option<&Tensor>,
+        relative_embeddings: Option<&Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>), RustBertError> {
+        let query_states = query_states.unwrap_or(hidden_states);
+
+        let query_layer = self.transpose_for_scores(&query_states.apply(&self.query_proj));
+        let key_layer = self.transpose_for_scores(&query_states.apply(&self.key_proj));
+        let value_layer = self.transpose_for_scores(&query_states.apply(&self.value_proj));
+
+        let mut scale_factor = 1;
+        if self.pos_att_type.has_type(PositionAttentionType::c2p) {
+            scale_factor += 1;
+        }
+        if self.pos_att_type.has_type(PositionAttentionType::p2c) {
+            scale_factor += 1;
+        }
+        if self.pos_att_type.has_type(PositionAttentionType::p2p) {
+            scale_factor += 1;
+        }
+        let scale = ((query_layer.size().last().unwrap() * scale_factor) as f64).sqrt();
+        let mut attention_scores = query_layer.bmm(&key_layer.transpose(-1, -2)) / scale;
+
+        if let (Some(pos_dropout), Some(rel_embeddings)) = (&self.pos_dropout, relative_embeddings)
+        {
+            let rel_embeddings = rel_embeddings.apply_t(pos_dropout, train);
+            let rel_att = self.disentangled_att_bias(
+                &query_layer,
+                &key_layer,
+                relative_pos,
+                &rel_embeddings,
+                scale_factor as f64,
+            )?;
+            attention_scores = attention_scores + rel_att;
+        }
+        let mut reverse_attention_scores_size = attention_scores.size();
+        reverse_attention_scores_size.reverse();
+        attention_scores = attention_scores.view([
+            -1,
+            self.num_attention_heads,
+            reverse_attention_scores_size[1],
+            reverse_attention_scores_size[0],
+        ]);
+
+        let attention_probs =
+            x_softmax(&attention_scores, attention_mask, -1).apply_t(&self.dropout, train);
+
+        let mut reverse_attention_probs_size = attention_probs.size();
+        reverse_attention_probs_size.reverse();
+        let context_layer = attention_probs
+            .view([
+                -1,
+                self.num_attention_heads,
+                reverse_attention_probs_size[1],
+                reverse_attention_probs_size[0],
+            ])
+            .bmm(&value_layer);
+
+        let mut reverse_context_layer_size = context_layer.size();
+        reverse_context_layer_size.reverse();
+        let context_layer = context_layer
+            .view([
+                -1,
+                self.num_attention_heads,
+                reverse_context_layer_size[1],
+                reverse_context_layer_size[0],
+            ])
+            .permute(&[0, 2, 1, 3])
+            .contiguous();
+
+        let mut new_context_layer_shape = context_layer.size();
+        let _ = new_context_layer_shape.pop();
+        let _ = new_context_layer_shape.pop();
+        new_context_layer_shape.push(-1);
+
+        let context_layer = context_layer.view(new_context_layer_shape.as_slice());
+
+        let attention_probs = if self.output_attentions {
+            Some(attention_probs)
+        } else {
+            None
+        };
+
+        Ok((context_layer, attention_probs))
     }
 }
