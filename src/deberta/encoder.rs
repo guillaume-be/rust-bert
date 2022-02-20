@@ -14,7 +14,7 @@ use crate::common::activations::TensorFunction;
 use crate::common::dropout::XDropout;
 use crate::deberta::attention::{build_relative_position, DebertaAttention};
 use crate::deberta::deberta_model::DebertaLayerNorm;
-use crate::deberta::DebertaConfig;
+use crate::deberta::{DebertaConfig, DebertaDisentangledSelfAttention, DisentangledSelfAttention};
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Tensor};
@@ -89,14 +89,14 @@ impl DebertaOutput {
     }
 }
 
-pub struct DebertaLayer {
-    attention: DebertaAttention,
+pub struct BaseDebertaLayer<T: DisentangledSelfAttention> {
+    attention: DebertaAttention<T>,
     intermediate: DebertaIntermediate,
     output: DebertaOutput,
 }
 
-impl DebertaLayer {
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaLayer
+impl<T: DisentangledSelfAttention> BaseDebertaLayer<T> {
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> BaseDebertaLayer<T>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -105,7 +105,7 @@ impl DebertaLayer {
         let intermediate = DebertaIntermediate::new(p / "intermediate", config);
         let output = DebertaOutput::new(p / "output", config);
 
-        DebertaLayer {
+        BaseDebertaLayer {
             attention,
             intermediate,
             output,
@@ -139,6 +139,8 @@ impl DebertaLayer {
     }
 }
 
+pub type DebertaLayer = BaseDebertaLayer<DebertaDisentangledSelfAttention>;
+
 pub struct DebertaEncoder {
     output_attentions: bool,
     output_hidden_states: bool,
@@ -158,7 +160,7 @@ impl DebertaEncoder {
         let p_layer = p / "layer";
         let mut layers: Vec<DebertaLayer> = vec![];
         for layer_index in 0..config.num_hidden_layers {
-            layers.push(DebertaLayer::new(&p_layer / layer_index, config));
+            layers.push(BaseDebertaLayer::new(&p_layer / layer_index, config));
         }
 
         let relative_attention = config.relative_attention.unwrap_or(false);

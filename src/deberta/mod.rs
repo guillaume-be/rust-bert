@@ -74,4 +74,7 @@ pub(crate) use deberta_model::{
     PositionAttentionTypes,
 };
 
-pub(crate) use encoder::{DebertaIntermediate, DebertaOutput};
+pub(crate) use attention::{
+    DebertaAttention, DebertaDisentangledSelfAttention, DisentangledSelfAttention,
+};
+pub(crate) use encoder::{BaseDebertaLayer, DebertaIntermediate, DebertaOutput};

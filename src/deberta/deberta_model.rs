@@ -183,6 +183,8 @@ pub struct DebertaConfig {
     pub is_decoder: Option<bool>,
     pub id2label: Option<HashMap<i64, String>>,
     pub label2id: Option<HashMap<String, i64>>,
+    pub share_att_key: Option<bool>,
+    pub position_buckets: Option<i64>,
 }
 
 pub fn deserialize_attention_type<'de, D>(

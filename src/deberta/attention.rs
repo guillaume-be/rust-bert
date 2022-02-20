@@ -20,6 +20,22 @@ use std::borrow::Borrow;
 use tch::nn::Init;
 use tch::{nn, Device, Kind, Tensor};
 
+pub trait DisentangledSelfAttention {
+    fn new<'p, P>(p: P, config: &DebertaConfig) -> Self
+    where
+        P: Borrow<nn::Path<'p>>;
+
+    fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: &Tensor,
+        query_states: Option<&Tensor>,
+        relative_pos: Option<&Tensor>,
+        relative_embeddings: Option<&Tensor>,
+        train: bool,
+    ) -> Result<(Tensor, Option<Tensor>), RustBertError>;
+}
+
 pub fn build_relative_position(query_size: i64, key_size: i64, device: Device) -> Tensor {
     let q_ids = Tensor::arange(query_size, (Kind::Int64, device));
     let k_ids = Tensor::arange(key_size, (Kind::Int64, device));
@@ -27,7 +43,7 @@ pub fn build_relative_position(query_size: i64, key_size: i64, device: Device) -
     rel_pos_ids.slice(0, 0, query_size, 1).unsqueeze(0)
 }
 
-pub struct DisentangledSelfAttention {
+pub struct DebertaDisentangledSelfAttention {
     in_proj: nn::Linear,
     q_bias: Tensor,
     v_bias: Tensor,
@@ -43,111 +59,7 @@ pub struct DisentangledSelfAttention {
     output_attentions: bool,
 }
 
-impl DisentangledSelfAttention {
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DisentangledSelfAttention
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        let p = p.borrow();
-
-        let num_attention_heads = config.num_attention_heads;
-        let attention_head_size = config.hidden_size / num_attention_heads;
-        let all_head_size = num_attention_heads * attention_head_size;
-
-        let linear_no_bias_config = nn::LinearConfig {
-            bias: false,
-            ..Default::default()
-        };
-
-        let in_proj = nn::linear(
-            p / "in_proj",
-            config.hidden_size,
-            all_head_size * 3,
-            linear_no_bias_config,
-        );
-        let q_bias = p.var("q_bias", &[all_head_size], Init::Const(0.0));
-        let v_bias = p.var("v_bias", &[all_head_size], Init::Const(0.0));
-        let pos_att_type = config.pos_att_type.clone().unwrap_or_default();
-
-        let relative_attention = config.relative_attention.unwrap_or(false);
-        let talking_head = config.talking_head.unwrap_or(false);
-
-        let (head_logits_proj, head_weights_proj) = if talking_head {
-            (
-                Some(nn::linear(
-                    p / "head_logits_proj",
-                    num_attention_heads,
-                    num_attention_heads,
-                    linear_no_bias_config,
-                )),
-                Some(nn::linear(
-                    p / "head_weights_proj",
-                    num_attention_heads,
-                    num_attention_heads,
-                    linear_no_bias_config,
-                )),
-            )
-        } else {
-            (None, None)
-        };
-
-        let (max_relative_positions, pos_dropout, pos_proj, pos_q_proj) = if relative_attention {
-            let mut max_relative_positions = config.max_relative_positions.unwrap_or(-1);
-            if max_relative_positions < 1 {
-                max_relative_positions = config.max_position_embeddings;
-            }
-            let pos_dropout = Some(XDropout::new(config.hidden_dropout_prob));
-            let pos_proj = if pos_att_type.has_type(PositionAttentionType::c2p) {
-                Some(nn::linear(
-                    p / "pos_proj",
-                    config.hidden_size,
-                    all_head_size,
-                    linear_no_bias_config,
-                ))
-            } else {
-                None
-            };
-            let pos_q_proj = if pos_att_type.has_type(PositionAttentionType::p2c) {
-                Some(nn::linear(
-                    p / "pos_q_proj",
-                    config.hidden_size,
-                    all_head_size,
-                    Default::default(),
-                ))
-            } else {
-                None
-            };
-            (
-                Some(max_relative_positions),
-                pos_dropout,
-                pos_proj,
-                pos_q_proj,
-            )
-        } else {
-            (None, None, None, None)
-        };
-
-        let dropout = XDropout::new(config.attention_probs_dropout_prob);
-
-        let output_attentions = config.output_attentions.unwrap_or(false);
-
-        DisentangledSelfAttention {
-            in_proj,
-            q_bias,
-            v_bias,
-            num_attention_heads,
-            head_logits_proj,
-            head_weights_proj,
-            pos_proj,
-            pos_q_proj,
-            pos_att_type,
-            max_relative_positions,
-            pos_dropout,
-            dropout,
-            output_attentions,
-        }
-    }
-
+impl DebertaDisentangledSelfAttention {
     fn transpose_for_scores(&self, x: &Tensor) -> Tensor {
         let mut new_shape = x.size();
         let _ = new_shape.pop();
@@ -319,8 +231,114 @@ impl DisentangledSelfAttention {
 
         Ok(score)
     }
+}
 
-    pub fn forward_t(
+impl DisentangledSelfAttention for DebertaDisentangledSelfAttention {
+    fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaDisentangledSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let num_attention_heads = config.num_attention_heads;
+        let attention_head_size = config.hidden_size / num_attention_heads;
+        let all_head_size = num_attention_heads * attention_head_size;
+
+        let linear_no_bias_config = nn::LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+
+        let in_proj = nn::linear(
+            p / "in_proj",
+            config.hidden_size,
+            all_head_size * 3,
+            linear_no_bias_config,
+        );
+        let q_bias = p.var("q_bias", &[all_head_size], Init::Const(0.0));
+        let v_bias = p.var("v_bias", &[all_head_size], Init::Const(0.0));
+        let pos_att_type = config.pos_att_type.clone().unwrap_or_default();
+
+        let relative_attention = config.relative_attention.unwrap_or(false);
+        let talking_head = config.talking_head.unwrap_or(false);
+
+        let (head_logits_proj, head_weights_proj) = if talking_head {
+            (
+                Some(nn::linear(
+                    p / "head_logits_proj",
+                    num_attention_heads,
+                    num_attention_heads,
+                    linear_no_bias_config,
+                )),
+                Some(nn::linear(
+                    p / "head_weights_proj",
+                    num_attention_heads,
+                    num_attention_heads,
+                    linear_no_bias_config,
+                )),
+            )
+        } else {
+            (None, None)
+        };
+
+        let (max_relative_positions, pos_dropout, pos_proj, pos_q_proj) = if relative_attention {
+            let mut max_relative_positions = config.max_relative_positions.unwrap_or(-1);
+            if max_relative_positions < 1 {
+                max_relative_positions = config.max_position_embeddings;
+            }
+            let pos_dropout = Some(XDropout::new(config.hidden_dropout_prob));
+            let pos_proj = if pos_att_type.has_type(PositionAttentionType::c2p) {
+                Some(nn::linear(
+                    p / "pos_proj",
+                    config.hidden_size,
+                    all_head_size,
+                    linear_no_bias_config,
+                ))
+            } else {
+                None
+            };
+            let pos_q_proj = if pos_att_type.has_type(PositionAttentionType::p2c) {
+                Some(nn::linear(
+                    p / "pos_q_proj",
+                    config.hidden_size,
+                    all_head_size,
+                    Default::default(),
+                ))
+            } else {
+                None
+            };
+            (
+                Some(max_relative_positions),
+                pos_dropout,
+                pos_proj,
+                pos_q_proj,
+            )
+        } else {
+            (None, None, None, None)
+        };
+
+        let dropout = XDropout::new(config.attention_probs_dropout_prob);
+
+        let output_attentions = config.output_attentions.unwrap_or(false);
+
+        DebertaDisentangledSelfAttention {
+            in_proj,
+            q_bias,
+            v_bias,
+            num_attention_heads,
+            head_logits_proj,
+            head_weights_proj,
+            pos_proj,
+            pos_q_proj,
+            pos_att_type,
+            max_relative_positions,
+            pos_dropout,
+            dropout,
+            output_attentions,
+        }
+    }
+
+    fn forward_t(
         &self,
         hidden_states: &Tensor,
         attention_mask: &Tensor,
@@ -430,18 +448,18 @@ impl DisentangledSelfAttention {
     }
 }
 
-pub struct DebertaAttention {
-    self_attention: DisentangledSelfAttention,
+pub struct DebertaAttention<T: DisentangledSelfAttention> {
+    self_attention: T,
     self_output: DebertaSelfOutput,
 }
 
-impl DebertaAttention {
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaAttention
+impl<T: DisentangledSelfAttention> DebertaAttention<T> {
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> Self
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let self_attention = DisentangledSelfAttention::new(p / "self", config);
+        let self_attention = T::new(p / "self", config);
         let self_output = DebertaSelfOutput::new(p / "output", config);
 
         DebertaAttention {

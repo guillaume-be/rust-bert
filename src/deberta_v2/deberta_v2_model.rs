@@ -214,6 +214,8 @@ impl From<DebertaV2Config> for DebertaConfig {
             is_decoder: v2_config.is_decoder,
             id2label: v2_config.id2label,
             label2id: v2_config.label2id,
+            share_att_key: v2_config.share_att_key,
+            position_buckets: v2_config.position_buckets,
         }
     }
 }

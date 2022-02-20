@@ -10,7 +10,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::deberta::{DebertaIntermediate, DebertaOutput};
+use crate::deberta::{BaseDebertaLayer, DebertaIntermediate, DebertaOutput};
+use crate::deberta_v2::attention::DebertaV2DisentangledSelfAttention;
 
 pub type DebertaV2Intermediate = DebertaIntermediate;
 pub type DebertaV2Output = DebertaOutput;
+pub type DebertaV2Layer = BaseDebertaLayer<DebertaV2DisentangledSelfAttention>;
