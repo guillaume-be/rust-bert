@@ -251,7 +251,9 @@ impl DisentangledSelfAttention {
 
         let mut score = Tensor::zeros(&[1], (query_layer.kind(), query_layer.device()));
 
-        let c2p_pos = if self.pos_att_type.has_type(PositionAttentionType::c2p) {
+        let c2p_pos = if self.pos_att_type.has_type(PositionAttentionType::c2p)
+            | self.pos_att_type.has_type(PositionAttentionType::p2p)
+        {
             let scale = *pos_key_layer.size().last().unwrap() as f64 * scale_factor;
             let c2p_att = query_layer.bmm(&pos_key_layer.transpose(-1, -2));
             let c2p_pos = relative_pos.clamp(0, att_span * 2 - 1);
@@ -273,9 +275,7 @@ impl DisentangledSelfAttention {
             None
         };
 
-        if self.pos_att_type.has_type(PositionAttentionType::p2c)
-            | self.pos_att_type.has_type(PositionAttentionType::p2p)
-        {
+        if self.pos_att_type.has_type(PositionAttentionType::p2c) {
             let scale = *pos_query_layer.size().last().unwrap() as f64 * scale_factor;
             let r_pos = if key_layer_size[1] != query_layer_size[1] {
                 build_relative_position(
@@ -292,41 +292,39 @@ impl DisentangledSelfAttention {
 
             let p2c_pos = (-r_pos + att_span).clamp(0, 2 * att_span - 1);
 
-            if self.pos_att_type.has_type(PositionAttentionType::p2c) {
-                let p2c_att = key_layer
-                    .bmm(&pos_query_layer.transpose(-1, -2))
-                    .gather(
-                        -1,
-                        &p2c_pos.squeeze_dim(0).expand(
-                            &[query_layer.size()[0], key_layer_size[1], key_layer_size[1]],
-                            true,
-                        ),
-                        true,
-                    )
-                    .transpose(-1, -2);
-                score = score + p2c_att / scale;
-            }
-
-            if self.pos_att_type.has_type(PositionAttentionType::p2p) {
-                let pos_query = pos_query_layer.slice(2, att_span, None, 1);
-                let p2p_att = pos_query.matmul(&pos_key_layer.transpose(-1, -2));
-                let mut expand_size = query_layer.size()[..2].to_vec();
-                expand_size.append(&mut p2p_att.size().into_iter().skip(2).collect());
-                let p2p_att = p2p_att.gather(
+            let p2c_att = key_layer
+                .bmm(&pos_query_layer.transpose(-1, -2))
+                .gather(
                     -1,
-                    &c2p_pos.unwrap().expand(
-                        &[
-                            query_layer.size()[0],
-                            query_layer.size()[1],
-                            query_layer.size()[2],
-                            *relative_pos.size().last().unwrap(),
-                        ],
+                    &p2c_pos.squeeze_dim(0).expand(
+                        &[query_layer.size()[0], key_layer_size[1], key_layer_size[1]],
                         true,
                     ),
                     true,
-                );
-                score = score + p2p_att / scale;
-            }
+                )
+                .transpose(-1, -2);
+            score = score + p2c_att / scale;
+        }
+
+        if self.pos_att_type.has_type(PositionAttentionType::p2p) {
+            let pos_query = pos_query_layer.slice(2, att_span, None, 1);
+            let p2p_att = pos_query.matmul(&pos_key_layer.transpose(-1, -2));
+            let mut expand_size = query_layer.size()[..2].to_vec();
+            expand_size.append(&mut p2p_att.size().into_iter().skip(2).collect());
+            let p2p_att = p2p_att.gather(
+                -1,
+                &c2p_pos.unwrap().expand(
+                    &[
+                        query_layer.size()[0],
+                        query_layer.size()[1],
+                        query_layer.size()[2],
+                        *relative_pos.size().last().unwrap(),
+                    ],
+                    true,
+                ),
+                true,
+            );
+            score = score + p2p_att / scale;
         }
 
         Ok(Tensor::new())
