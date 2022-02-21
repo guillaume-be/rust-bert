@@ -64,15 +64,13 @@
 
 use tch::Device;
 
-use crate::bart::{
-    BartConfigResources, BartGenerator, BartMergesResources, BartModelResources, BartVocabResources,
-};
+use crate::bart::BartGenerator;
 use crate::common::error::RustBertError;
-use crate::common::resources::{RemoteResource, Resource};
 use crate::pegasus::PegasusConditionalGenerator;
 use crate::pipelines::common::ModelType;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::prophetnet::ProphetNetConditionalGenerator;
+use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 
 /// # Configuration for text summarization
@@ -82,13 +80,13 @@ pub struct SummarizationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider>,
     /// Config resource (default: pretrained BART model on CNN-DM)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider>,
     /// Vocab resource (default: pretrained BART model on CNN-DM)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider>,
     /// Merges resource (default: pretrained BART model on CNN-DM)
-    pub merges_resource: Resource,
+    pub merges_resource: Box<dyn ResourceProvider>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
@@ -133,10 +131,10 @@ impl SummarizationConfig {
     /// * merges_resource - The `Resource`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
     pub fn new(
         model_type: ModelType,
-        model_resource: Resource,
-        config_resource: Resource,
-        vocab_resource: Resource,
-        merges_resource: Resource,
+        model_resource: Box<dyn ResourceProvider>,
+        config_resource: Box<dyn ResourceProvider>,
+        vocab_resource: Box<dyn ResourceProvider>,
+        merges_resource: Box<dyn ResourceProvider>,
     ) -> SummarizationConfig {
         SummarizationConfig {
             model_type,
@@ -144,28 +142,6 @@ impl SummarizationConfig {
             config_resource,
             vocab_resource,
             merges_resource,
-            device: Device::cuda_if_available(),
-            ..Default::default()
-        }
-    }
-}
-
-impl Default for SummarizationConfig {
-    fn default() -> SummarizationConfig {
-        SummarizationConfig {
-            model_type: ModelType::Bart,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BartModelResources::BART_CNN,
-            )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BartConfigResources::BART_CNN,
-            )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BartVocabResources::BART_CNN,
-            )),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BartMergesResources::BART_CNN,
-            )),
             min_length: 56,
             max_length: 142,
             do_sample: false,

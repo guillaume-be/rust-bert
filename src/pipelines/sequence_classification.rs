@@ -61,18 +61,14 @@ use crate::albert::AlbertForSequenceClassification;
 use crate::bart::BartForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
 use crate::common::error::RustBertError;
-use crate::common::resources::{RemoteResource, Resource};
 use crate::deberta::DebertaForSequenceClassification;
-use crate::distilbert::{
-    DistilBertConfigResources, DistilBertModelClassifier, DistilBertModelResources,
-    DistilBertVocabResources,
-};
+use crate::distilbert::DistilBertModelClassifier;
 use crate::fnet::FNetForSequenceClassification;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForSequenceClassification;
-use crate::resources::LocalPathProvider;
+use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use rust_tokenizers::tokenizer::TruncationStrategy;
@@ -103,13 +99,13 @@ pub struct SequenceClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider>,
     /// Config resource (default: pretrained BERT model on CoNLL)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider>,
     /// Merges resource (default: None)
-    pub merges_resource: Option<Resource>,
+    pub merges_resource: Option<Box<dyn ResourceProvider>>,
     /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
     /// Flag indicating if the tokenizer should strip accents (normalization). Only used for BERT / ALBERT models
@@ -126,17 +122,17 @@ impl SequenceClassificationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model - The `Resource` pointing to the model to load (e.g.  model.ot)
-    /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * model - The boxed `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config - The boxed `ResourceProvider' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab - The boxed `ResourceProvider' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * vocab - An optional, boxed `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
-        model_resource: Resource,
-        config_resource: Resource,
-        vocab_resource: Resource,
-        merges_resource: Option<Resource>,
+        model_resource: Box<dyn ResourceProvider>,
+        config_resource: Box<dyn ResourceProvider>,
+        vocab_resource: Box<dyn ResourceProvider>,
+        merges_resource: Option<Box<dyn ResourceProvider>>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
@@ -150,29 +146,6 @@ impl SequenceClassificationConfig {
             lower_case,
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
-            device: Device::cuda_if_available(),
-        }
-    }
-}
-
-impl Default for SequenceClassificationConfig {
-    /// Provides a defaultSST-2 sentiment analysis model (English)
-    fn default() -> SequenceClassificationConfig {
-        SequenceClassificationConfig {
-            model_type: ModelType::DistilBert,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                DistilBertModelResources::DISTIL_BERT_SST2,
-            )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                DistilBertConfigResources::DISTIL_BERT_SST2,
-            )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                DistilBertVocabResources::DISTIL_BERT_SST2,
-            )),
-            merges_resource: None,
-            lower_case: true,
-            strip_accents: None,
-            add_prefix_space: None,
             device: Device::cuda_if_available(),
         }
     }

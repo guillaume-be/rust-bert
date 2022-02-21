@@ -22,7 +22,6 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
-use crate::resources::LocalPathProvider;
 use crate::xlnet::attention::LayerState;
 use crate::xlnet::encoder::XLNetLayer;
 use crate::{Config, RustBertError};

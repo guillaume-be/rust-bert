@@ -111,9 +111,7 @@
 //! ```
 
 use crate::albert::AlbertForTokenClassification;
-use crate::bert::{
-    BertConfigResources, BertForTokenClassification, BertModelResources, BertVocabResources,
-};
+use crate::bert::BertForTokenClassification;
 use crate::common::error::RustBertError;
 use crate::deberta::DebertaForTokenClassification;
 use crate::distilbert::DistilBertForTokenClassification;
@@ -122,7 +120,7 @@ use crate::fnet::FNetForTokenClassification;
 use crate::longformer::LongformerForTokenClassification;
 use crate::mobilebert::MobileBertForTokenClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
-use crate::resources::{LocalPathProvider, RemoteResource, Resource};
+use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
 use rust_tokenizers::tokenizer::Tokenizer;
@@ -215,13 +213,13 @@ pub struct TokenClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider>,
     /// Config resource (default: pretrained BERT model on CoNLL)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider>,
     /// Merges resource (default: pretrained BERT model on CoNLL)
-    pub merges_resource: Option<Resource>,
+    pub merges_resource: Option<Box<dyn ResourceProvider>>,
     /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
     /// Flag indicating if the tokenizer should strip accents (normalization). Only used for BERT / ALBERT models
@@ -242,17 +240,17 @@ impl TokenClassificationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model - The `Resource` pointing to the model to load (e.g.  model.ot)
-    /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab - The `Resource' pointing to the tokenizers' vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizers' merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * model - The boxed `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config - The boxed `ResourceProvider' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab - The boxed `ResourceProvider' pointing to the tokenizers' vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * vocab - An optional, boxed `ResourceProvider` tuple (`Option<Resource>`) pointing to the tokenizers' merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
-        model_resource: Resource,
-        config_resource: Resource,
-        vocab_resource: Resource,
-        merges_resource: Option<Resource>,
+        model_resource: Box<dyn ResourceProvider>,
+        config_resource: Box<dyn ResourceProvider>,
+        vocab_resource: Box<dyn ResourceProvider>,
+        merges_resource: Option<Box<dyn ResourceProvider>>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
@@ -269,31 +267,6 @@ impl TokenClassificationConfig {
             add_prefix_space: add_prefix_space.into(),
             device: Device::cuda_if_available(),
             label_aggregation_function,
-            batch_size: 64,
-        }
-    }
-}
-
-impl Default for TokenClassificationConfig {
-    /// Provides a default CoNLL-2003 NER model (English)
-    fn default() -> TokenClassificationConfig {
-        TokenClassificationConfig {
-            model_type: ModelType::Bert,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BertModelResources::BERT_NER,
-            )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BertConfigResources::BERT_NER,
-            )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BertVocabResources::BERT_NER,
-            )),
-            merges_resource: None,
-            lower_case: false,
-            strip_accents: None,
-            add_prefix_space: None,
-            device: Device::cuda_if_available(),
-            label_aggregation_function: LabelAggregationOption::First,
             batch_size: 64,
         }
     }

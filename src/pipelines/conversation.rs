@@ -45,13 +45,11 @@
 //! The authors of this repository are not responsible for any generation
 //! from the 3rd party utilization of the pretrained system.
 use crate::common::error::RustBertError;
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{
-    GPT2Generator, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
-};
+use crate::gpt2::GPT2Generator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::resources::ResourceProvider;
 use std::collections::HashMap;
 use tch::{Device, Kind, Tensor};
 use uuid::Uuid;
@@ -63,13 +61,13 @@ pub struct ConversationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: DialoGPT-medium)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider>,
     /// Config resource (default: DialoGPT-medium)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider>,
     /// Vocab resource (default: DialoGPT-medium)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider>,
     /// Merges resource (default: DialoGPT-medium)
-    pub merges_resource: Resource,
+    pub merges_resource: Box<dyn ResourceProvider>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
@@ -102,42 +100,6 @@ pub struct ConversationConfig {
     pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
-}
-
-impl Default for ConversationConfig {
-    fn default() -> ConversationConfig {
-        ConversationConfig {
-            model_type: ModelType::GPT2,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2ModelResources::DIALOGPT_MEDIUM,
-            )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2ConfigResources::DIALOGPT_MEDIUM,
-            )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2VocabResources::DIALOGPT_MEDIUM,
-            )),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2MergesResources::DIALOGPT_MEDIUM,
-            )),
-            min_length: 0,
-            max_length: 1000,
-            min_length_for_response: 64,
-            do_sample: true,
-            early_stopping: false,
-            num_beams: 1,
-            temperature: 1.0,
-            top_k: 50,
-            top_p: 0.9,
-            repetition_penalty: 1.0,
-            length_penalty: 1.0,
-            no_repeat_ngram_size: 0,
-            num_return_sequences: 1,
-            num_beam_groups: None,
-            diversity_penalty: None,
-            device: Device::cuda_if_available(),
-        }
-    }
 }
 
 impl From<ConversationConfig> for GenerateConfig {

@@ -12,17 +12,17 @@ use crate::mbart::{
 };
 use crate::pipelines::common::ModelType;
 use crate::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-use crate::resources::{RemoteResource, Resource};
+use crate::resources::{RemoteResource, ResourceProvider};
 use crate::RustBertError;
 use std::fmt::Debug;
 use tch::Device;
 
 struct TranslationResources {
     model_type: ModelType,
-    model_resource: Resource,
-    config_resource: Resource,
-    vocab_resource: Resource,
-    merges_resource: Resource,
+    model_resource: Box<dyn ResourceProvider>,
+    config_resource: Box<dyn ResourceProvider>,
+    vocab_resource: Box<dyn ResourceProvider>,
+    merges_resource: Box<dyn ResourceProvider>,
     source_languages: Vec<Language>,
     target_languages: Vec<Language>,
 }
@@ -446,10 +446,10 @@ impl TranslationModelBuilder {
 
         Ok(TranslationResources {
             model_type: ModelType::Marian,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(resources.0)),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(resources.1)),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(resources.2)),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(resources.3)),
+            model_resource: Box::new(RemoteResource::from_pretrained(resources.0)),
+            config_resource: Box::new(RemoteResource::from_pretrained(resources.1)),
+            vocab_resource: Box::new(RemoteResource::from_pretrained(resources.2)),
+            merges_resource: Box::new(RemoteResource::from_pretrained(resources.3)),
             source_languages,
             target_languages,
         })
@@ -488,16 +488,16 @@ impl TranslationModelBuilder {
 
         Ok(TranslationResources {
             model_type: ModelType::MBart,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+            model_resource: Box::new(RemoteResource::from_pretrained(
                 MBartModelResources::MBART50_MANY_TO_MANY,
             )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+            config_resource: Box::new(RemoteResource::from_pretrained(
                 MBartConfigResources::MBART50_MANY_TO_MANY,
             )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+            vocab_resource: Box::new(RemoteResource::from_pretrained(
                 MBartVocabResources::MBART50_MANY_TO_MANY,
             )),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+            merges_resource: Box::new(RemoteResource::from_pretrained(
                 MBartVocabResources::MBART50_MANY_TO_MANY,
             )),
             source_languages: MBartSourceLanguages::MBART50_MANY_TO_MANY.to_vec(),
@@ -538,16 +538,16 @@ impl TranslationModelBuilder {
 
         Ok(TranslationResources {
             model_type: ModelType::M2M100,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+            model_resource: Box::new(RemoteResource::from_pretrained(
                 M2M100ModelResources::M2M100_418M,
             )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+            config_resource: Box::new(RemoteResource::from_pretrained(
                 M2M100ConfigResources::M2M100_418M,
             )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+            vocab_resource: Box::new(RemoteResource::from_pretrained(
                 M2M100VocabResources::M2M100_418M,
             )),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+            merges_resource: Box::new(RemoteResource::from_pretrained(
                 M2M100MergesResources::M2M100_418M,
             )),
             source_languages: M2M100SourceLanguages::M2M100_418M.to_vec(),
@@ -588,16 +588,16 @@ impl TranslationModelBuilder {
 
         Ok(TranslationResources {
             model_type: ModelType::M2M100,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+            model_resource: Box::new(RemoteResource::from_pretrained(
                 M2M100ModelResources::M2M100_1_2B,
             )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+            config_resource: Box::new(RemoteResource::from_pretrained(
                 M2M100ConfigResources::M2M100_1_2B,
             )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+            vocab_resource: Box::new(RemoteResource::from_pretrained(
                 M2M100VocabResources::M2M100_1_2B,
             )),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+            merges_resource: Box::new(RemoteResource::from_pretrained(
                 M2M100MergesResources::M2M100_1_2B,
             )),
             source_languages: M2M100SourceLanguages::M2M100_1_2B.to_vec(),

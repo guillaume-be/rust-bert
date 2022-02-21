@@ -46,18 +46,14 @@
 use crate::albert::AlbertForQuestionAnswering;
 use crate::bert::BertForQuestionAnswering;
 use crate::common::error::RustBertError;
-use crate::common::resources::{RemoteResource, Resource};
 use crate::deberta::DebertaForQuestionAnswering;
-use crate::distilbert::{
-    DistilBertConfigResources, DistilBertForQuestionAnswering, DistilBertModelResources,
-    DistilBertVocabResources,
-};
+use crate::distilbert::DistilBertForQuestionAnswering;
 use crate::fnet::FNetForQuestionAnswering;
 use crate::longformer::LongformerForQuestionAnswering;
 use crate::mobilebert::MobileBertForQuestionAnswering;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForQuestionAnswering;
-use crate::resources::LocalPathProvider;
+use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
 use rust_tokenizers::{Offset, TokenIdsWithOffsets, TokenizedInput};
@@ -125,13 +121,13 @@ fn remove_duplicates<T: PartialEq + Clone>(vector: &mut Vec<T>) -> &mut Vec<T> {
 /// Contains information regarding the model to load and device to place the model on.
 pub struct QuestionAnsweringConfig {
     /// Model weights resource (default: pretrained DistilBERT model on SQuAD)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider>,
     /// Config resource (default: pretrained DistilBERT model on SQuAD)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider>,
     /// Vocab resource (default: pretrained DistilBERT model on SQuAD)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider>,
     /// Merges resource (default: None)
-    pub merges_resource: Option<Resource>,
+    pub merges_resource: Option<Box<dyn ResourceProvider>>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
     /// Model type
@@ -158,17 +154,17 @@ impl QuestionAnsweringConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
-    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * merges_resource - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * model_resource - The boxed `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The boxed `ResourceProvider' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The boxed `ResourceProvider' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - An optional, boxed `ResourceProvider` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
-        model_resource: Resource,
-        config_resource: Resource,
-        vocab_resource: Resource,
-        merges_resource: Option<Resource>,
+        model_resource: Box<dyn ResourceProvider>,
+        config_resource: Box<dyn ResourceProvider>,
+        vocab_resource: Box<dyn ResourceProvider>,
+        merges_resource: Option<Box<dyn ResourceProvider>>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
@@ -195,10 +191,10 @@ impl QuestionAnsweringConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
-    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * merges_resource - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * model_resource - The boxed `Resource` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The boxed `Resource' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The boxed `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - An optional, boxed `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     /// * max_seq_length - Optional maximum sequence token length to limit memory footprint. If the context is too long, it will be processed with sliding windows. Defaults to 384.
     /// * max_query_length - Optional maximum question token length. Defaults to 64.
@@ -206,10 +202,10 @@ impl QuestionAnsweringConfig {
     /// * max_answer_length - Optional maximum token length for the extracted answer. Defaults to 15.
     pub fn custom_new(
         model_type: ModelType,
-        model_resource: Resource,
-        config_resource: Resource,
-        vocab_resource: Resource,
-        merges_resource: Option<Resource>,
+        model_resource: Box<dyn ResourceProvider>,
+        config_resource: Box<dyn ResourceProvider>,
+        vocab_resource: Box<dyn ResourceProvider>,
+        merges_resource: Option<Box<dyn ResourceProvider>>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
@@ -232,32 +228,6 @@ impl QuestionAnsweringConfig {
             doc_stride: doc_stride.into().unwrap_or(128),
             max_query_length: max_query_length.into().unwrap_or(64),
             max_answer_length: max_answer_length.into().unwrap_or(15),
-        }
-    }
-}
-
-impl Default for QuestionAnsweringConfig {
-    fn default() -> QuestionAnsweringConfig {
-        QuestionAnsweringConfig {
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                DistilBertModelResources::DISTIL_BERT_SQUAD,
-            )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                DistilBertConfigResources::DISTIL_BERT_SQUAD,
-            )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                DistilBertVocabResources::DISTIL_BERT_SQUAD,
-            )),
-            merges_resource: None,
-            device: Device::cuda_if_available(),
-            model_type: ModelType::DistilBert,
-            lower_case: false,
-            add_prefix_space: None,
-            strip_accents: None,
-            max_seq_length: 384,
-            doc_stride: 128,
-            max_query_length: 64,
-            max_answer_length: 15,
         }
     }
 }

@@ -25,21 +25,7 @@ use std::path::PathBuf;
 
 extern crate dirs;
 
-pub trait LocalPathProvider {
-    fn get_local_path(&self) -> Result<PathBuf, RustBertError>;
-}
-
-/// # Resource Enum pointing to model, configuration or vocabulary resources
-/// Can be of type:
-/// - LocalResource
-/// - RemoteResource
-#[derive(PartialEq, Clone)]
-pub enum Resource {
-    Local(LocalResource),
-    Remote(RemoteResource),
-}
-
-impl LocalPathProvider for Resource {
+pub trait ResourceProvider {
     /// Gets the local path for a given resource.
     ///
     /// If the resource is a remote resource, it is downloaded and cached. Then the path
@@ -59,17 +45,20 @@ impl LocalPathProvider for Resource {
     /// });
     /// let config_path = config_resource.get_local_path();
     /// ```
+    fn get_local_path(&self) -> Result<PathBuf, RustBertError>;
+}
+
+impl ResourceProvider for RemoteResource {
     fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
-        match self {
-            Resource::Local(resource) => Ok(resource.local_path.clone()),
-            Resource::Remote(resource) => {
-                let cached_path = CACHE.cached_path_with_options(
-                    &resource.url,
-                    &Options::default().subdir(&resource.cache_subdir),
-                )?;
-                Ok(cached_path)
-            }
-        }
+        let cached_path = CACHE
+            .cached_path_with_options(&self.url, &Options::default().subdir(&self.cache_subdir))?;
+        Ok(cached_path)
+    }
+}
+
+impl ResourceProvider for LocalResource {
+    fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
+        Ok(self.local_path.clone())
     }
 }
 
@@ -195,6 +184,6 @@ fn _get_cache_directory() -> PathBuf {
 /// )));
 /// let local_path = model_resource.get_local_path();
 /// ```
-pub fn download_resource(resource: &dyn LocalPathProvider) -> Result<PathBuf, RustBertError> {
+pub fn download_resource(resource: &dyn ResourceProvider) -> Result<PathBuf, RustBertError> {
     resource.get_local_path()
 }

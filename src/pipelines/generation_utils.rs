@@ -73,10 +73,7 @@ use tch::{no_grad, Device, Tensor};
 
 use crate::bart::LayerState as BartLayerState;
 use crate::common::error::RustBertError;
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
-};
+use crate::common::resources::ResourceProvider;
 use crate::gpt_neo::LayerState as GPTNeoLayerState;
 use crate::pipelines::generation_utils::private_generation_utils::{
     InternalGenerateOptions, PrivateLanguageGenerator,
@@ -94,13 +91,13 @@ extern crate ordered_float;
 /// # Configuration for text generation
 pub struct GenerateConfig {
     /// Model weights resource (default: pretrained GPT2 model)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider>,
     /// Config resource (default: pretrained GPT2 model)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider>,
     /// Vocab resource (default: pretrained GPT2 model)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider>,
     /// Merges resource (default: pretrained GPT2 model)
-    pub merges_resource: Resource,
+    pub merges_resource: Box<dyn ResourceProvider>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
@@ -131,40 +128,6 @@ pub struct GenerateConfig {
     pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
-}
-
-impl Default for GenerateConfig {
-    fn default() -> GenerateConfig {
-        GenerateConfig {
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2ModelResources::GPT2,
-            )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2ConfigResources::GPT2,
-            )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2VocabResources::GPT2,
-            )),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2MergesResources::GPT2,
-            )),
-            min_length: 0,
-            max_length: 20,
-            do_sample: true,
-            early_stopping: true,
-            num_beams: 5,
-            temperature: 1.0,
-            top_k: 0,
-            top_p: 0.9,
-            repetition_penalty: 1.0,
-            length_penalty: 1.0,
-            no_repeat_ngram_size: 3,
-            num_return_sequences: 1,
-            num_beam_groups: None,
-            diversity_penalty: None,
-            device: Device::cuda_if_available(),
-        }
-    }
 }
 
 impl GenerateConfig {

@@ -14,13 +14,13 @@
 use tch::Device;
 
 use crate::common::error::RustBertError;
-use crate::common::resources::Resource;
 use crate::m2m_100::M2M100Generator;
 use crate::marian::MarianGenerator;
 use crate::mbart::MBartGenerator;
 use crate::pipelines::common::ModelType;
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
+use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -374,13 +374,13 @@ pub struct TranslationConfig {
     /// Model type used for translation
     pub model_type: ModelType,
     /// Model weights resource
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider>,
     /// Config resource
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider>,
     /// Vocab resource
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider>,
     /// Merges resource
-    pub merges_resource: Resource,
+    pub merges_resource: Box<dyn ResourceProvider>,
     /// Supported source languages
     pub source_languages: HashSet<Language>,
     /// Supported target languages
@@ -435,16 +435,16 @@ impl TranslationConfig {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
-    /// use rust_bert::resources::{RemoteResource, Resource};
+    /// use rust_bert::resources::{RemoteResource, Box<dyn ResourceProvider>};
     /// use tch::Device;
     ///
-    /// let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let model_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ROMANCE2ENGLISH,
     /// ));
-    /// let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let config_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianConfigResources::ROMANCE2ENGLISH,
     /// ));
-    /// let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let vocab_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianVocabResources::ROMANCE2ENGLISH,
     /// ));
     ///
@@ -466,10 +466,10 @@ impl TranslationConfig {
     /// ```
     pub fn new<S, T>(
         model_type: ModelType,
-        model_resource: Resource,
-        config_resource: Resource,
-        vocab_resource: Resource,
-        merges_resource: Resource,
+        model_resource: Box<dyn ResourceProvider>,
+        config_resource: Box<dyn ResourceProvider>,
+        vocab_resource: Box<dyn ResourceProvider>,
+        merges_resource: Box<dyn ResourceProvider>,
         source_languages: S,
         target_languages: T,
         device: impl Into<Option<Device>>,
@@ -798,16 +798,16 @@ impl TranslationModel {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
-    /// use rust_bert::resources::{RemoteResource, Resource};
+    /// use rust_bert::resources::{RemoteResource};
     /// use tch::Device;
     ///
-    /// let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let model_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ROMANCE2ENGLISH,
     /// ));
-    /// let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let config_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianConfigResources::ROMANCE2ENGLISH,
     /// ));
-    /// let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let vocab_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianVocabResources::ROMANCE2ENGLISH,
     /// ));
     ///
@@ -859,19 +859,19 @@ impl TranslationModel {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-    /// use rust_bert::resources::{RemoteResource, Resource};
+    /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let model_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ENGLISH2ROMANCE,
     /// ));
-    /// let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let config_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianConfigResources::ENGLISH2ROMANCE,
     /// ));
-    /// let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let vocab_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianVocabResources::ENGLISH2ROMANCE,
     /// ));
-    /// let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    /// let merges_resource = Box::new(RemoteResource::from_pretrained(
     ///     MarianSpmResources::ENGLISH2ROMANCE,
     /// ));
     /// let source_languages = MarianSourceLanguages::ENGLISH2ROMANCE;

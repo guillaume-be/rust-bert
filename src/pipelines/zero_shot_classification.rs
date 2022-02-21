@@ -99,10 +99,7 @@
 //! ```
 
 use crate::albert::AlbertForSequenceClassification;
-use crate::bart::{
-    BartConfigResources, BartForSequenceClassification, BartMergesResources, BartModelResources,
-    BartVocabResources,
-};
+use crate::bart::BartForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
 use crate::deberta::DebertaForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
@@ -110,7 +107,7 @@ use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::pipelines::sequence_classification::Label;
-use crate::resources::{LocalPathProvider, RemoteResource, Resource};
+use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use crate::RustBertError;
@@ -128,13 +125,13 @@ pub struct ZeroShotClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider>,
     /// Config resource (default: pretrained BERT model on CoNLL)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider>,
     /// Merges resource (default: None)
-    pub merges_resource: Option<Resource>,
+    pub merges_resource: Option<Box<dyn ResourceProvider>>,
     /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
     /// Flag indicating if the tokenizer should strip accents (normalization). Only used for BERT / ALBERT models
@@ -158,10 +155,10 @@ impl ZeroShotClassificationConfig {
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
-        model_resource: Resource,
-        config_resource: Resource,
-        vocab_resource: Resource,
-        merges_resource: Option<Resource>,
+        model_resource: Box<dyn ResourceProvider>,
+        config_resource: Box<dyn ResourceProvider>,
+        vocab_resource: Box<dyn ResourceProvider>,
+        merges_resource: Option<Box<dyn ResourceProvider>>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
@@ -175,31 +172,6 @@ impl ZeroShotClassificationConfig {
             lower_case,
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
-            device: Device::cuda_if_available(),
-        }
-    }
-}
-
-impl Default for ZeroShotClassificationConfig {
-    /// Provides a defaultSST-2 sentiment analysis model (English)
-    fn default() -> ZeroShotClassificationConfig {
-        ZeroShotClassificationConfig {
-            model_type: ModelType::Bart,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BartModelResources::BART_MNLI,
-            )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BartConfigResources::BART_MNLI,
-            )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                BartVocabResources::BART_MNLI,
-            )),
-            merges_resource: Some(Resource::Remote(RemoteResource::from_pretrained(
-                BartMergesResources::BART_MNLI,
-            ))),
-            lower_case: false,
-            strip_accents: None,
-            add_prefix_space: None,
             device: Device::cuda_if_available(),
         }
     }
