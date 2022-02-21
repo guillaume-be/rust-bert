@@ -76,6 +76,7 @@ pub struct DebertaV2Config {
     pub norm_rel_ebd: Option<NormRelEmbedTypes>,
     pub share_att_key: Option<bool>,
     pub conv_kernel_size: Option<i64>,
+    pub conv_groups: Option<i64>,
     pub conv_act: Option<Activation>,
     pub pooler_dropout: Option<f64>,
     pub pooler_hidden_act: Option<Activation>,
