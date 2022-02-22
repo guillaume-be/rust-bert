@@ -1643,14 +1643,14 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
     }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
     }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
     }
     fn is_encoder_decoder(&self) -> bool {
         self.is_encoder_decoder

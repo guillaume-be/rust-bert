@@ -703,9 +703,9 @@ impl GPT2Generator {
         let model = GPT2LMHeadModel::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
-        let bos_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::bos_value()])[0]);
-        let eos_token_ids = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()]));
-        let pad_token_id = Some(tokenizer.convert_tokens_to_ids(&[Gpt2Vocab::eos_value()])[0]);
+        let bos_token_id = tokenizer.get_bos_id();
+        let eos_token_ids = tokenizer.get_eos_id().map(|id| vec![id]);
+        let pad_token_id = tokenizer.get_pad_id();
         let max_position_embeddings = config.n_positions;
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
@@ -743,14 +743,14 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
     }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
     }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
     }
     fn is_encoder_decoder(&self) -> bool {
         self.is_encoder_decoder

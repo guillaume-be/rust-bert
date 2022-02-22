@@ -531,9 +531,9 @@ impl OpenAIGenerator {
         let model = OpenAIGPTLMHeadModel::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
-        let bos_token_id = None;
-        let eos_token_ids = None;
-        let pad_token_id = None;
+        let bos_token_id = tokenizer.get_bos_id();
+        let eos_token_ids = tokenizer.get_eos_id().map(|id| vec![id]);
+        let pad_token_id = tokenizer.get_pad_id();
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
         let decoder_start_id = None;
@@ -573,14 +573,14 @@ impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTok
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
     }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
     }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
     }
     fn is_encoder_decoder(&self) -> bool {
         self.is_encoder_decoder

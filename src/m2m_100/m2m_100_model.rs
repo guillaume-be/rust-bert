@@ -679,7 +679,7 @@ impl M2M100Generator {
         let model = M2M100ForConditionalGeneration::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
-        let bos_token_id = Some(0);
+        let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
         let eos_token_ids = Some(match config.eos_token_id {
             Some(value) => vec![value],
             None => vec![2],
@@ -732,14 +732,14 @@ impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M10
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
     }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
     }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
     }
     fn is_encoder_decoder(&self) -> bool {
         self.is_encoder_decoder
