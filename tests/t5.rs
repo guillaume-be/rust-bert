@@ -1,20 +1,20 @@
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{remote::RemoteResource};
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 use tch::Device;
 
 #[test]
 fn test_translation_t5() -> anyhow::Result<()> {
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
+        Box::new(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
+        Box::new(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
+        Box::new(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
+        Box::new(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
 
     let source_languages = [
         Language::English,
@@ -70,16 +70,16 @@ fn test_summarization_t5() -> anyhow::Result<()> {
     //    Set-up translation model
     let summarization_config = SummarizationConfig {
         model_type: ModelType::T5,
-        model_resource: Resource::Remote(RemoteResource::from_pretrained(
+        model_resource: Box::new(RemoteResource::from_pretrained(
             T5ModelResources::T5_SMALL,
         )),
-        config_resource: Resource::Remote(RemoteResource::from_pretrained(
+        config_resource: Box::new(RemoteResource::from_pretrained(
             T5ConfigResources::T5_SMALL,
         )),
-        vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+        vocab_resource: Box::new(RemoteResource::from_pretrained(
             T5VocabResources::T5_SMALL,
         )),
-        merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+        merges_resource: Box::new(RemoteResource::from_pretrained(
             T5VocabResources::T5_SMALL,
         )),
         min_length: 30,

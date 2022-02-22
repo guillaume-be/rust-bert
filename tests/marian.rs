@@ -6,23 +6,23 @@ use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::translation::{
     Language, TranslationConfig, TranslationModel, TranslationModelBuilder,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{remote::RemoteResource};
 use tch::Device;
 
 #[test]
 // #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn test_translation() -> anyhow::Result<()> {
     //    Set-up translation model
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         MarianModelResources::ENGLISH2ROMANCE,
     ));
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         MarianConfigResources::ENGLISH2ROMANCE,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         MarianVocabResources::ENGLISH2ROMANCE,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         MarianSpmResources::ENGLISH2ROMANCE,
     ));
 

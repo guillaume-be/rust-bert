@@ -10,7 +10,7 @@ use rust_bert::pipelines::generation_utils::{
     Cache, GenerateConfig, GenerateOptions, LMHeadModel, LanguageGenerator,
 };
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
@@ -19,13 +19,13 @@ use tch::{nn, Device, Tensor};
 fn gpt2_lm_model() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
@@ -115,13 +115,13 @@ fn gpt2_lm_model() -> anyhow::Result<()> {
 fn gpt2_generation_greedy() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
@@ -151,13 +151,13 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
 fn gpt2_generation_beam_search() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
@@ -199,13 +199,13 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
 fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
@@ -260,13 +260,13 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
 fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
@@ -320,13 +320,13 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
 fn gpt2_diverse_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
@@ -382,13 +382,13 @@ fn gpt2_diverse_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()
 fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
         let paragraph_tokens = [198, 628];
@@ -451,13 +451,13 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
 fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = GenerateConfig {
         max_length: 36,
@@ -521,13 +521,13 @@ fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
 fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = GenerateConfig {
         max_length: 36,
@@ -591,13 +591,13 @@ fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
 fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
     //    Resources definition
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
     let merges_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
     let model_resource =
-        Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+        Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
         let paragraph_tokens = [198, 628];

@@ -4,7 +4,7 @@ use rust_bert::m2m_100::{
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{M2M100Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
@@ -12,16 +12,16 @@ use tch::{nn, Device, Tensor};
 #[test]
 fn m2m100_lm_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         M2M100ConfigResources::M2M100_418M,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         M2M100VocabResources::M2M100_418M,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         M2M100MergesResources::M2M100_418M,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         M2M100ModelResources::M2M100_418M,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -76,16 +76,16 @@ fn m2m100_lm_model() -> anyhow::Result<()> {
 
 #[test]
 fn m2m100_translation() -> anyhow::Result<()> {
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         M2M100ModelResources::M2M100_418M,
     ));
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         M2M100ConfigResources::M2M100_418M,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         M2M100VocabResources::M2M100_418M,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         M2M100MergesResources::M2M100_418M,
     ));
 

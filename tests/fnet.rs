@@ -7,7 +7,7 @@ use rust_bert::fnet::{
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::sentiment::{SentimentConfig, SentimentModel, SentimentPolarity};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{FNetTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
@@ -18,11 +18,11 @@ use tch::{nn, no_grad, Device, Tensor};
 fn fnet_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(FNetConfigResources::BASE));
+        Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(FNetVocabResources::BASE));
+        Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
     let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(FNetModelResources::BASE));
+        Box::new(RemoteResource::from_pretrained(FNetModelResources::BASE));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let weights_path = weights_resource.get_local_path()?;
@@ -85,13 +85,13 @@ fn fnet_masked_lm() -> anyhow::Result<()> {
 #[test]
 fn fnet_for_sequence_classification() -> anyhow::Result<()> {
     // Set up classifier
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         FNetConfigResources::BASE_SST2,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         FNetVocabResources::BASE_SST2,
     ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         FNetModelResources::BASE_SST2,
     ));
 
@@ -129,9 +129,9 @@ fn fnet_for_sequence_classification() -> anyhow::Result<()> {
 fn fnet_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(FNetConfigResources::BASE));
+        Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(FNetVocabResources::BASE));
+        Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 
@@ -189,9 +189,9 @@ fn fnet_for_multiple_choice() -> anyhow::Result<()> {
 fn fnet_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(FNetConfigResources::BASE));
+        Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(FNetVocabResources::BASE));
+        Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 
@@ -252,9 +252,9 @@ fn fnet_for_token_classification() -> anyhow::Result<()> {
 fn fnet_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(FNetConfigResources::BASE));
+        Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
     let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(FNetVocabResources::BASE));
+        Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 

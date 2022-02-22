@@ -5,7 +5,7 @@ use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
 use rust_bert::pipelines::token_classification::TokenClassificationConfig;
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
 use rust_bert::roberta::{
     RobertaConfigResources, RobertaForMaskedLM, RobertaForMultipleChoice,
     RobertaForSequenceClassification, RobertaForTokenClassification, RobertaMergesResources,
@@ -20,16 +20,16 @@ use tch::{nn, no_grad, Device, Tensor};
 #[test]
 fn roberta_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         RobertaConfigResources::DISTILROBERTA_BASE,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         RobertaVocabResources::DISTILROBERTA_BASE,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         RobertaMergesResources::DISTILROBERTA_BASE,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         RobertaModelResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -116,13 +116,13 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
 #[test]
 fn roberta_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         RobertaConfigResources::DISTILROBERTA_BASE,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         RobertaVocabResources::DISTILROBERTA_BASE,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -190,13 +190,13 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
 #[test]
 fn roberta_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         RobertaConfigResources::DISTILROBERTA_BASE,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         RobertaVocabResources::DISTILROBERTA_BASE,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -260,13 +260,13 @@ fn roberta_for_multiple_choice() -> anyhow::Result<()> {
 #[test]
 fn roberta_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         RobertaConfigResources::DISTILROBERTA_BASE,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         RobertaVocabResources::DISTILROBERTA_BASE,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         RobertaMergesResources::DISTILROBERTA_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -337,16 +337,16 @@ fn roberta_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Roberta,
-        Resource::Remote(RemoteResource::from_pretrained(
+        Box::new(RemoteResource::from_pretrained(
             RobertaModelResources::ROBERTA_QA,
         )),
-        Resource::Remote(RemoteResource::from_pretrained(
+        Box::new(RemoteResource::from_pretrained(
             RobertaConfigResources::ROBERTA_QA,
         )),
-        Resource::Remote(RemoteResource::from_pretrained(
+        Box::new(RemoteResource::from_pretrained(
             RobertaVocabResources::ROBERTA_QA,
         )),
-        Some(Resource::Remote(RemoteResource::from_pretrained(
+        Some(Box::new(RemoteResource::from_pretrained(
             RobertaMergesResources::ROBERTA_QA,
         ))),
         false,
@@ -378,13 +378,13 @@ fn xlm_roberta_german_ner() -> anyhow::Result<()> {
     //    Set-up question answering model
     let ner_config = TokenClassificationConfig {
         model_type: ModelType::XLMRoberta,
-        model_resource: Resource::Remote(RemoteResource::from_pretrained(
+        model_resource: Box::new(RemoteResource::from_pretrained(
             RobertaModelResources::XLM_ROBERTA_NER_DE,
         )),
-        config_resource: Resource::Remote(RemoteResource::from_pretrained(
+        config_resource: Box::new(RemoteResource::from_pretrained(
             RobertaConfigResources::XLM_ROBERTA_NER_DE,
         )),
-        vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+        vocab_resource: Box::new(RemoteResource::from_pretrained(
             RobertaVocabResources::XLM_ROBERTA_NER_DE,
         )),
         lower_case: false,
