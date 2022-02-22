@@ -44,6 +44,12 @@ use crate::reformer::ReformerGenerator;
 use crate::resources::ResourceProvider;
 use crate::xlnet::XLNetGenerator;
 
+#[cfg(feature = "remote")]
+use crate::{
+    gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
+    resources::remote::RemoteResource,
+};
+
 /// # Configuration for text generation
 /// Contains information regarding the model to load, mirrors the GenerateConfig, with a
 /// different set of default parameters and sets the device to place the model on.
@@ -129,6 +135,27 @@ impl TextGenerationConfig {
             diversity_penalty: None,
             device: Device::cuda_if_available(),
         }
+    }
+}
+
+#[cfg(feature = "remote")]
+impl Default for TextGenerationConfig {
+    fn default() -> TextGenerationConfig {
+        TextGenerationConfig::new(
+            ModelType::GPT2,
+            Box::new(RemoteResource::from_pretrained(
+                Gpt2ModelResources::GPT2_MEDIUM,
+            )),
+            Box::new(RemoteResource::from_pretrained(
+                Gpt2ConfigResources::GPT2_MEDIUM,
+            )),
+            Box::new(RemoteResource::from_pretrained(
+                Gpt2VocabResources::GPT2_MEDIUM,
+            )),
+            Box::new(RemoteResource::from_pretrained(
+                Gpt2MergesResources::GPT2_MEDIUM,
+            )),
+        )
     }
 }
 

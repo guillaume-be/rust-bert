@@ -16,19 +16,19 @@ use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::token_classification::{
     LabelAggregationOption, TokenClassificationConfig,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::remote::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     //    Load a configuration
     let config = TokenClassificationConfig::new(
         ModelType::Bert,
-        Resource::Remote(RemoteResource::from_pretrained(
+        Box::new(RemoteResource::from_pretrained(
             BertModelResources::BERT_NER,
         )),
-        Resource::Remote(RemoteResource::from_pretrained(
+        Box::new(RemoteResource::from_pretrained(
             BertConfigResources::BERT_NER,
         )),
-        Resource::Remote(RemoteResource::from_pretrained(
+        Box::new(RemoteResource::from_pretrained(
             BertVocabResources::BERT_NER,
         )),
         None,  //merges resource only relevant with ModelType::Roberta

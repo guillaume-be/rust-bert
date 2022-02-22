@@ -87,13 +87,13 @@
 //! # fn main() -> anyhow::Result<()> {
 //! let ner_config = TokenClassificationConfig {
 //!     model_type: ModelType::XLMRoberta,
-//!     model_resource: Resource::Remote(RemoteResource::from_pretrained(
+//!     model_resource: Box::new(RemoteResource::from_pretrained(
 //!         RobertaModelResources::XLM_ROBERTA_NER_DE,
 //!     )),
-//!     config_resource: Resource::Remote(RemoteResource::from_pretrained(
+//!     config_resource: Box::new(RemoteResource::from_pretrained(
 //!         RobertaConfigResources::XLM_ROBERTA_NER_DE,
 //!     )),
-//!     vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+//!     vocab_resource: Box::new(RemoteResource::from_pretrained(
 //!         RobertaVocabResources::XLM_ROBERTA_NER_DE,
 //!     )),
 //!     lower_case: false,

@@ -67,6 +67,12 @@ use tch::kind::Kind::Float;
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
 
+#[cfg(feature = "remote")]
+use crate::{
+    distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
+    resources::remote::RemoteResource,
+};
+
 #[derive(Serialize, Deserialize)]
 /// # Input for Question Answering
 /// Includes a context (containing the answer) and question strings
@@ -228,6 +234,33 @@ impl QuestionAnsweringConfig {
             doc_stride: doc_stride.into().unwrap_or(128),
             max_query_length: max_query_length.into().unwrap_or(64),
             max_answer_length: max_answer_length.into().unwrap_or(15),
+        }
+    }
+}
+
+#[cfg(feature = "remote")]
+impl Default for QuestionAnsweringConfig {
+    fn default() -> QuestionAnsweringConfig {
+        QuestionAnsweringConfig {
+            model_resource: Box::new(RemoteResource::from_pretrained(
+                DistilBertModelResources::DISTIL_BERT_SQUAD,
+            )),
+            config_resource: Box::new(RemoteResource::from_pretrained(
+                DistilBertConfigResources::DISTIL_BERT_SQUAD,
+            )),
+            vocab_resource: Box::new(RemoteResource::from_pretrained(
+                DistilBertVocabResources::DISTIL_BERT_SQUAD,
+            )),
+            merges_resource: None,
+            device: Device::cuda_if_available(),
+            model_type: ModelType::DistilBert,
+            lower_case: false,
+            add_prefix_space: None,
+            strip_accents: None,
+            max_seq_length: 384,
+            doc_stride: 128,
+            max_query_length: 64,
+            max_answer_length: 15,
         }
     }
 }

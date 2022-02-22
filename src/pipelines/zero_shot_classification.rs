@@ -119,6 +119,12 @@ use tch::kind::Kind::{Bool, Float};
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
 
+#[cfg(feature = "remote")]
+use crate::{
+    bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
+    resources::remote::RemoteResource,
+};
+
 /// # Configuration for ZeroShotClassificationModel
 /// Contains information regarding the model to load and device to place the model on.
 pub struct ZeroShotClassificationConfig {
@@ -172,6 +178,32 @@ impl ZeroShotClassificationConfig {
             lower_case,
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
+            device: Device::cuda_if_available(),
+        }
+    }
+}
+
+#[cfg(feature = "remote")]
+impl Default for ZeroShotClassificationConfig {
+    /// Provides a defaultSST-2 sentiment analysis model (English)
+    fn default() -> ZeroShotClassificationConfig {
+        ZeroShotClassificationConfig {
+            model_type: ModelType::Bart,
+            model_resource: Box::new(RemoteResource::from_pretrained(
+                BartModelResources::BART_MNLI,
+            )),
+            config_resource: Box::new(RemoteResource::from_pretrained(
+                BartConfigResources::BART_MNLI,
+            )),
+            vocab_resource: Box::new(RemoteResource::from_pretrained(
+                BartVocabResources::BART_MNLI,
+            )),
+            merges_resource: Some(Box::new(RemoteResource::from_pretrained(
+                BartMergesResources::BART_MNLI,
+            ))),
+            lower_case: false,
+            strip_accents: None,
+            add_prefix_space: None,
             device: Device::cuda_if_available(),
         }
     }

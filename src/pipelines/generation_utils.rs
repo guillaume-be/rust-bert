@@ -86,6 +86,12 @@ use crate::xlnet::LayerState as XLNetLayerState;
 use self::ordered_float::OrderedFloat;
 use crate::pipelines::common::TokenizerOption;
 
+#[cfg(feature = "remote")]
+use crate::{
+    gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
+    resources::remote::RemoteResource,
+};
+
 extern crate ordered_float;
 
 /// # Configuration for text generation
@@ -128,6 +134,33 @@ pub struct GenerateConfig {
     pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+}
+
+#[cfg(feature = "remote")]
+impl Default for GenerateConfig {
+    fn default() -> GenerateConfig {
+        GenerateConfig {
+            model_resource: Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)),
+            config_resource: Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)),
+            vocab_resource: Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)),
+            merges_resource: Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2)),
+            min_length: 0,
+            max_length: 20,
+            do_sample: true,
+            early_stopping: true,
+            num_beams: 5,
+            temperature: 1.0,
+            top_k: 0,
+            top_p: 0.9,
+            repetition_penalty: 1.0,
+            length_penalty: 1.0,
+            no_repeat_ngram_size: 3,
+            num_return_sequences: 1,
+            num_beam_groups: None,
+            diversity_penalty: None,
+            device: Device::cuda_if_available(),
+        }
+    }
 }
 
 impl GenerateConfig {

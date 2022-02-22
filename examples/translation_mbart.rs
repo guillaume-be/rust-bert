@@ -18,20 +18,20 @@ use rust_bert::mbart::{
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::remote::RemoteResource;
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         MBartModelResources::MBART50_MANY_TO_MANY,
     ));
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         MBartConfigResources::MBART50_MANY_TO_MANY,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         MBartVocabResources::MBART50_MANY_TO_MANY,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         MBartVocabResources::MBART50_MANY_TO_MANY,
     ));
 

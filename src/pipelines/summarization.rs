@@ -73,6 +73,12 @@ use crate::prophetnet::ProphetNetConditionalGenerator;
 use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 
+#[cfg(feature = "remote")]
+use crate::{
+    bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
+    resources::remote::RemoteResource,
+};
+
 /// # Configuration for text summarization
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
 /// different set of default parameters and sets the device to place the model on.
@@ -158,6 +164,27 @@ impl SummarizationConfig {
             diversity_penalty: None,
             device: Device::cuda_if_available(),
         }
+    }
+}
+
+#[cfg(feature = "remote")]
+impl Default for SummarizationConfig {
+    fn default() -> SummarizationConfig {
+        SummarizationConfig::new(
+            ModelType::Bart,
+            Box::new(RemoteResource::from_pretrained(
+                BartModelResources::BART_CNN,
+            )),
+            Box::new(RemoteResource::from_pretrained(
+                BartConfigResources::BART_CNN,
+            )),
+            Box::new(RemoteResource::from_pretrained(
+                BartVocabResources::BART_CNN,
+            )),
+            Box::new(RemoteResource::from_pretrained(
+                BartMergesResources::BART_CNN,
+            )),
+        )
     }
 }
 

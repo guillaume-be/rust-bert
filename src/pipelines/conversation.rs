@@ -54,6 +54,12 @@ use std::collections::HashMap;
 use tch::{Device, Kind, Tensor};
 use uuid::Uuid;
 
+#[cfg(feature = "remote")]
+use crate::{
+    gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
+    resources::remote::RemoteResource,
+};
+
 /// # Configuration for multi-turn classification
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
 /// different set of default parameters and sets the device to place the model on.
@@ -100,6 +106,43 @@ pub struct ConversationConfig {
     pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+}
+
+#[cfg(feature = "remote")]
+impl Default for ConversationConfig {
+    fn default() -> ConversationConfig {
+        ConversationConfig {
+            model_type: ModelType::GPT2,
+            model_resource: Box::new(RemoteResource::from_pretrained(
+                Gpt2ModelResources::DIALOGPT_MEDIUM,
+            )),
+            config_resource: Box::new(RemoteResource::from_pretrained(
+                Gpt2ConfigResources::DIALOGPT_MEDIUM,
+            )),
+            vocab_resource: Box::new(RemoteResource::from_pretrained(
+                Gpt2VocabResources::DIALOGPT_MEDIUM,
+            )),
+            merges_resource: Box::new(RemoteResource::from_pretrained(
+                Gpt2MergesResources::DIALOGPT_MEDIUM,
+            )),
+            min_length: 0,
+            max_length: 1000,
+            min_length_for_response: 64,
+            do_sample: true,
+            early_stopping: false,
+            num_beams: 1,
+            temperature: 1.0,
+            top_k: 50,
+            top_p: 0.9,
+            repetition_penalty: 1.0,
+            length_penalty: 1.0,
+            no_repeat_ngram_size: 0,
+            num_return_sequences: 1,
+            num_beam_groups: None,
+            diversity_penalty: None,
+            device: Device::cuda_if_available(),
+        }
+    }
 }
 
 impl From<ConversationConfig> for GenerateConfig {

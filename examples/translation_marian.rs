@@ -19,20 +19,20 @@ use rust_bert::marian::{
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::remote::RemoteResource;
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         MarianModelResources::ENGLISH2CHINESE,
     ));
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         MarianConfigResources::ENGLISH2CHINESE,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         MarianVocabResources::ENGLISH2CHINESE,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         MarianSpmResources::ENGLISH2CHINESE,
     ));
 

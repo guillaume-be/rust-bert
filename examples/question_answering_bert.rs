@@ -17,17 +17,17 @@ use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::remote::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,
-        Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
-        Resource::Remote(RemoteResource::from_pretrained(
+        Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
+        Box::new(RemoteResource::from_pretrained(
             BertConfigResources::BERT_QA,
         )),
-        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
+        Box::new(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
         None, //merges resource only relevant with ModelType::Roberta
         false,
         false,
