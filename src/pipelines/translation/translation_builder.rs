@@ -1,21 +1,26 @@
-use crate::m2m_100::{
-    M2M100ConfigResources, M2M100MergesResources, M2M100ModelResources, M2M100SourceLanguages,
-    M2M100TargetLanguages, M2M100VocabResources,
-};
-use crate::marian::{
-    MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
-    MarianTargetLanguages, MarianVocabResources,
-};
-use crate::mbart::{
-    MBartConfigResources, MBartModelResources, MBartSourceLanguages, MBartTargetLanguages,
-    MBartVocabResources,
-};
 use crate::pipelines::common::ModelType;
 use crate::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-use crate::resources::{RemoteResource, ResourceProvider};
+use crate::resources::ResourceProvider;
 use crate::RustBertError;
 use std::fmt::Debug;
 use tch::Device;
+
+#[cfg(feature = "remote")]
+use crate::{
+    m2m_100::{
+        M2M100ConfigResources, M2M100MergesResources, M2M100ModelResources, M2M100SourceLanguages,
+        M2M100TargetLanguages, M2M100VocabResources,
+    },
+    marian::{
+        MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+        MarianTargetLanguages, MarianVocabResources,
+    },
+    mbart::{
+        MBartConfigResources, MBartModelResources, MBartSourceLanguages, MBartTargetLanguages,
+        MBartVocabResources,
+    },
+    resources::remote::RemoteResource,
+};
 
 struct TranslationResources {
     model_type: ModelType,
@@ -335,6 +340,7 @@ impl TranslationModelBuilder {
         self
     }
 
+    #[cfg(feature = "remote")]
     fn get_default_model(
         &self,
         source_languages: Option<&Vec<Language>>,
@@ -353,6 +359,7 @@ impl TranslationModelBuilder {
         )
     }
 
+    #[cfg(feature = "remote")]
     fn get_marian_model(
         &self,
         source_languages: Option<&Vec<Language>>,
@@ -455,6 +462,7 @@ impl TranslationModelBuilder {
         })
     }
 
+    #[cfg(feature = "remote")]
     fn get_mbart50_resources(
         &self,
         source_languages: Option<&Vec<Language>>,
@@ -505,6 +513,7 @@ impl TranslationModelBuilder {
         })
     }
 
+    #[cfg(feature = "remote")]
     fn get_m2m100_large_resources(
         &self,
         source_languages: Option<&Vec<Language>>,
@@ -555,6 +564,7 @@ impl TranslationModelBuilder {
         })
     }
 
+    #[cfg(feature = "remote")]
     fn get_m2m100_xlarge_resources(
         &self,
         source_languages: Option<&Vec<Language>>,
@@ -626,6 +636,7 @@ impl TranslationModelBuilder {
     ///     Ok(())
     /// }
     /// ```
+    #[cfg(feature = "remote")]
     pub fn create_model(&self) -> Result<TranslationModel, RustBertError> {
         let device = self.device.unwrap_or_else(Device::cuda_if_available);
 

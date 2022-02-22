@@ -18,9 +18,6 @@
 //! pre-trained models in each model module.
 
 use crate::common::error::RustBertError;
-use cached_path::{Cache, Options, ProgressBar};
-use lazy_static::lazy_static;
-use std::env;
 use std::path::PathBuf;
 
 extern crate dirs;
@@ -48,12 +45,11 @@ pub trait ResourceProvider {
     fn get_local_path(&self) -> Result<PathBuf, RustBertError>;
 }
 
-impl ResourceProvider for RemoteResource {
-    fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
-        let cached_path = CACHE
-            .cached_path_with_options(&self.url, &Options::default().subdir(&self.cache_subdir))?;
-        Ok(cached_path)
-    }
+/// # Local resource
+#[derive(PartialEq, Clone)]
+pub struct LocalResource {
+    /// Local path for the resource
+    pub local_path: PathBuf,
 }
 
 impl ResourceProvider for LocalResource {
@@ -62,128 +58,140 @@ impl ResourceProvider for LocalResource {
     }
 }
 
-/// # Local resource
-#[derive(PartialEq, Clone)]
-pub struct LocalResource {
-    /// Local path for the resource
-    pub local_path: PathBuf,
-}
+#[cfg(feature = "remote")]
+pub mod remote {
+    use cached_path::{Cache, Options, ProgressBar};
+    use lazy_static::lazy_static;
 
-/// # Remote resource
-#[derive(PartialEq, Clone)]
-pub struct RemoteResource {
-    /// Remote path/url for the resource
-    pub url: String,
-    /// Local subdirectory of the cache root where this resource is saved
-    pub cache_subdir: String,
-}
+    use super::*;
 
-impl RemoteResource {
-    /// Creates a new RemoteResource from an URL and a custom local path. Note that this does not
-    /// download the resource (only declares the remote and local locations)
-    ///
-    /// # Arguments
-    ///
-    /// * `url` - `&str` Location of the remote resource
-    /// * `cache_subdir` - `&str` Local subdirectory of the cache root to save the resource to
-    ///
-    /// # Returns
-    ///
-    /// * `RemoteResource` RemoteResource object
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use rust_bert::resources::{RemoteResource, Resource};
-    /// let config_resource = Resource::Remote(RemoteResource::new(
-    ///     "configs",
-    ///     "http://config_json_location",
-    /// ));
-    /// ```
-    pub fn new(url: &str, cache_subdir: &str) -> RemoteResource {
-        RemoteResource {
-            url: url.to_string(),
-            cache_subdir: cache_subdir.to_string(),
+    /// # Remote resource
+    #[derive(PartialEq, Clone)]
+    pub struct RemoteResource {
+        /// Remote path/url for the resource
+        pub url: String,
+        /// Local subdirectory of the cache root where this resource is saved
+        pub cache_subdir: String,
+    }
+
+    impl RemoteResource {
+        /// Creates a new RemoteResource from an URL and a custom local path. Note that this does not
+        /// download the resource (only declares the remote and local locations)
+        ///
+        /// # Arguments
+        ///
+        /// * `url` - `&str` Location of the remote resource
+        /// * `cache_subdir` - `&str` Local subdirectory of the cache root to save the resource to
+        ///
+        /// # Returns
+        ///
+        /// * `RemoteResource` RemoteResource object
+        ///
+        /// # Example
+        ///
+        /// ```no_run
+        /// use rust_bert::resources::{RemoteResource, Resource};
+        /// let config_resource = Resource::Remote(RemoteResource::new(
+        ///     "configs",
+        ///     "http://config_json_location",
+        /// ));
+        /// ```
+        pub fn new(url: &str, cache_subdir: &str) -> RemoteResource {
+            RemoteResource {
+                url: url.to_string(),
+                cache_subdir: cache_subdir.to_string(),
+            }
+        }
+
+        /// Creates a new RemoteResource from an URL and local name. Will define a local path pointing to
+        /// ~/.cache/.rustbert/model_name. Note that this does not download the resource (only declares
+        /// the remote and local locations)
+        ///
+        /// # Arguments
+        ///
+        /// * `name_url_tuple` - `(&str, &str)` Location of the name of model and remote resource
+        ///
+        /// # Returns
+        ///
+        /// * `RemoteResource` RemoteResource object
+        ///
+        /// # Example
+        ///
+        /// ```no_run
+        /// use rust_bert::resources::{RemoteResource, Resource};
+        /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
+        ///     "distilbert-sst2",
+        ///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
+        /// )));
+        /// ```
+        pub fn from_pretrained(name_url_tuple: (&str, &str)) -> RemoteResource {
+            let cache_subdir = name_url_tuple.0.to_string();
+            let url = name_url_tuple.1.to_string();
+            RemoteResource { url, cache_subdir }
         }
     }
 
-    /// Creates a new RemoteResource from an URL and local name. Will define a local path pointing to
-    /// ~/.cache/.rustbert/model_name. Note that this does not download the resource (only declares
-    /// the remote and local locations)
+    impl ResourceProvider for RemoteResource {
+        fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
+            let cached_path = CACHE.cached_path_with_options(
+                &self.url,
+                &Options::default().subdir(&self.cache_subdir),
+            )?;
+            Ok(cached_path)
+        }
+    }
+
+    lazy_static! {
+        #[derive(Copy, Clone, Debug)]
+    /// # Global cache directory
+    /// If the environment variable `RUSTBERT_CACHE` is set, will save the cache model files at that
+    /// location. Otherwise defaults to `$XDG_CACHE_HOME/.rustbert`, or corresponding user cache for
+    /// the current system.
+        pub static ref CACHE: Cache = Cache::builder()
+            .dir(_get_cache_directory())
+            .progress_bar(Some(ProgressBar::Light))
+            .build().unwrap();
+    }
+
+    fn _get_cache_directory() -> PathBuf {
+        match std::env::var("RUSTBERT_CACHE") {
+            Ok(value) => PathBuf::from(value),
+            Err(_) => {
+                let mut home = dirs::cache_dir().unwrap();
+                home.push(".rustbert");
+                home
+            }
+        }
+    }
+
+    #[deprecated(
+        since = "0.9.1",
+        note = "Please use `Resource.get_local_path()` instead"
+    )]
+    /// # (Download) the resource and return a path to its local path
+    /// This function will download remote resource to their local path if they do not exist yet.
+    /// Then for both `LocalResource` and `RemoteResource`, it will the local path to the resource.
+    /// For `LocalResource` only the resource path is returned.
     ///
     /// # Arguments
     ///
-    /// * `name_url_tuple` - `(&str, &str)` Location of the name of model and remote resource
+    /// * `resource` - Pointer to the `&Resource` to optionally download and get the local path.
     ///
     /// # Returns
     ///
-    /// * `RemoteResource` RemoteResource object
+    /// * `&PathBuf` Local path for the resource
     ///
     /// # Example
     ///
     /// ```no_run
     /// use rust_bert::resources::{RemoteResource, Resource};
     /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
-    ///     "distilbert-sst2",
+    ///     "distilbert-sst2/model.ot",
     ///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
     /// )));
+    /// let local_path = model_resource.get_local_path();
     /// ```
-    pub fn from_pretrained(name_url_tuple: (&str, &str)) -> RemoteResource {
-        let cache_subdir = name_url_tuple.0.to_string();
-        let url = name_url_tuple.1.to_string();
-        RemoteResource { url, cache_subdir }
+    pub fn download_resource(resource: &dyn ResourceProvider) -> Result<PathBuf, RustBertError> {
+        resource.get_local_path()
     }
-}
-
-lazy_static! {
-    #[derive(Copy, Clone, Debug)]
-/// # Global cache directory
-/// If the environment variable `RUSTBERT_CACHE` is set, will save the cache model files at that
-/// location. Otherwise defaults to `~/.cache/.rustbert`.
-    pub static ref CACHE: Cache = Cache::builder()
-        .dir(_get_cache_directory())
-        .progress_bar(Some(ProgressBar::Light))
-        .build().unwrap();
-}
-
-fn _get_cache_directory() -> PathBuf {
-    match env::var("RUSTBERT_CACHE") {
-        Ok(value) => PathBuf::from(value),
-        Err(_) => {
-            let mut home = dirs::cache_dir().unwrap();
-            home.push(".rustbert");
-            home
-        }
-    }
-}
-
-#[deprecated(
-    since = "0.9.1",
-    note = "Please use `Resource.get_local_path()` instead"
-)]
-/// # (Download) the resource and return a path to its local path
-/// This function will download remote resource to their local path if they do not exist yet.
-/// Then for both `LocalResource` and `RemoteResource`, it will the local path to the resource.
-/// For `LocalResource` only the resource path is returned.
-///
-/// # Arguments
-///
-/// * `resource` - Pointer to the `&Resource` to optionally download and get the local path.
-///
-/// # Returns
-///
-/// * `&PathBuf` Local path for the resource
-///
-/// # Example
-///
-/// ```no_run
-/// use rust_bert::resources::{RemoteResource, Resource};
-/// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
-///     "distilbert-sst2/model.ot",
-///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
-/// )));
-/// let local_path = model_resource.get_local_path();
-/// ```
-pub fn download_resource(resource: &dyn ResourceProvider) -> Result<PathBuf, RustBertError> {
-    resource.get_local_path()
 }
