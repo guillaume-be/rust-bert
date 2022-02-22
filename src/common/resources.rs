@@ -20,8 +20,7 @@
 use crate::common::error::RustBertError;
 use std::path::PathBuf;
 
-extern crate dirs;
-
+/// # Resource Trait that can provide the location of the model, configuration or vocabulary resources
 pub trait ResourceProvider {
     /// Gets the local path for a given resource.
     ///
@@ -61,11 +60,12 @@ impl ResourceProvider for LocalResource {
 #[cfg(feature = "remote")]
 pub mod remote {
     use cached_path::{Cache, Options, ProgressBar};
+    use dirs::cache_dir;
     use lazy_static::lazy_static;
 
     use super::*;
 
-    /// # Remote resource
+    /// # Remote resource that will be downloaded and cached locally on demand
     #[derive(PartialEq, Clone)]
     pub struct RemoteResource {
         /// Remote path/url for the resource
@@ -157,7 +157,7 @@ pub mod remote {
         match std::env::var("RUSTBERT_CACHE") {
             Ok(value) => PathBuf::from(value),
             Err(_) => {
-                let mut home = dirs::cache_dir().unwrap();
+                let mut home = cache_dir().unwrap();
                 home.push(".rustbert");
                 home
             }

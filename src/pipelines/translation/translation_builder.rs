@@ -1,36 +1,14 @@
 use crate::pipelines::common::ModelType;
-use crate::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-use crate::resources::ResourceProvider;
-use crate::RustBertError;
+use crate::pipelines::translation::Language;
 use std::fmt::Debug;
 use tch::Device;
 
 #[cfg(feature = "remote")]
 use crate::{
-    m2m_100::{
-        M2M100ConfigResources, M2M100MergesResources, M2M100ModelResources, M2M100SourceLanguages,
-        M2M100TargetLanguages, M2M100VocabResources,
-    },
-    marian::{
-        MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
-        MarianTargetLanguages, MarianVocabResources,
-    },
-    mbart::{
-        MBartConfigResources, MBartModelResources, MBartSourceLanguages, MBartTargetLanguages,
-        MBartVocabResources,
-    },
-    resources::remote::RemoteResource,
+    pipelines::translation::{TranslationConfig, TranslationModel},
+    resources::ResourceProvider,
+    RustBertError,
 };
-
-struct TranslationResources {
-    model_type: ModelType,
-    model_resource: Box<dyn ResourceProvider>,
-    config_resource: Box<dyn ResourceProvider>,
-    vocab_resource: Box<dyn ResourceProvider>,
-    merges_resource: Box<dyn ResourceProvider>,
-    source_languages: Vec<Language>,
-    target_languages: Vec<Language>,
-}
 
 #[derive(Clone, Copy, PartialEq)]
 enum ModelSize {
@@ -89,21 +67,6 @@ pub struct TranslationModelBuilder {
     target_languages: Option<Vec<Language>>,
     device: Option<Device>,
     model_size: Option<ModelSize>,
-}
-
-macro_rules! get_marian_resources {
-    ($name:ident) => {
-        (
-            (
-                MarianModelResources::$name,
-                MarianConfigResources::$name,
-                MarianVocabResources::$name,
-                MarianSpmResources::$name,
-            ),
-            MarianSourceLanguages::$name.iter().cloned().collect(),
-            MarianTargetLanguages::$name.iter().cloned().collect(),
-        )
-    };
 }
 
 impl Default for TranslationModelBuilder {
@@ -340,28 +303,156 @@ impl TranslationModelBuilder {
         self
     }
 
+    /// Creates the translation model based on the specifications provided
+    ///
+    /// # Returns
+    /// * `TranslationModel` Generated translation model
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::pipelines::translation::Language;
+    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
+    /// fn main() -> anyhow::Result<()> {
+    ///     let model = TranslationModelBuilder::new()
+    ///         .with_target_languages([
+    ///             Language::Japanese,
+    ///             Language::Korean,
+    ///             Language::ChineseMandarin,
+    ///         ])
+    ///         .create_model();
+    ///     Ok(())
+    /// }
+    /// ```
     #[cfg(feature = "remote")]
-    fn get_default_model(
-        &self,
+    pub fn create_model(&self) -> Result<TranslationModel, RustBertError> {
+        let device = self.device.unwrap_or_else(Device::cuda_if_available);
+
+        let translation_resources = match (
+            &self.model_type,
+            &self.source_languages,
+            &self.target_languages,
+        ) {
+            (Some(ModelType::M2M100), source_languages, target_languages) => {
+                match self.model_size {
+                    Some(value) if value == ModelSize::XLarge => {
+                        model_fetchers::get_m2m100_xlarge_resources(
+                            source_languages.as_ref(),
+                            target_languages.as_ref(),
+                        )?
+                    }
+                    _ => model_fetchers::get_m2m100_large_resources(
+                        source_languages.as_ref(),
+                        target_languages.as_ref(),
+                    )?,
+                }
+            }
+            (Some(ModelType::MBart), source_languages, target_languages) => {
+                model_fetchers::get_mbart50_resources(
+                    source_languages.as_ref(),
+                    target_languages.as_ref(),
+                )?
+            }
+            (Some(ModelType::Marian), source_languages, target_languages) => {
+                model_fetchers::get_marian_model(
+                    source_languages.as_ref(),
+                    target_languages.as_ref(),
+                )?
+            }
+            (None, source_languages, target_languages) => model_fetchers::get_default_model(
+                &self.model_size,
+                source_languages.as_ref(),
+                target_languages.as_ref(),
+            )?,
+            (_, None, None) | (_, _, None) | (_, None, _) => {
+                return Err(RustBertError::InvalidConfigurationError(format!(
+                    "Source and target languages must be specified for {:?}",
+                    self.model_type.unwrap()
+                )));
+            }
+            (Some(model_type), _, _) => {
+                return Err(RustBertError::InvalidConfigurationError(format!(
+                    "Automated translation model builder not implemented for {:?}",
+                    model_type
+                )));
+            }
+        };
+
+        let translation_config = TranslationConfig::new(
+            translation_resources.model_type,
+            translation_resources.model_resource,
+            translation_resources.config_resource,
+            translation_resources.vocab_resource,
+            translation_resources.merges_resource,
+            translation_resources.source_languages,
+            translation_resources.target_languages,
+            device,
+        );
+        TranslationModel::new(translation_config)
+    }
+}
+
+#[cfg(feature = "remote")]
+mod model_fetchers {
+    use super::*;
+    use crate::{
+        m2m_100::{
+            M2M100ConfigResources, M2M100MergesResources, M2M100ModelResources,
+            M2M100SourceLanguages, M2M100TargetLanguages, M2M100VocabResources,
+        },
+        marian::{
+            MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+            MarianTargetLanguages, MarianVocabResources,
+        },
+        mbart::{
+            MBartConfigResources, MBartModelResources, MBartSourceLanguages, MBartTargetLanguages,
+            MBartVocabResources,
+        },
+        resources::remote::RemoteResource,
+    };
+
+    pub(super) struct TranslationResources {
+        pub(super) model_type: ModelType,
+        pub(super) model_resource: Box<dyn ResourceProvider>,
+        pub(super) config_resource: Box<dyn ResourceProvider>,
+        pub(super) vocab_resource: Box<dyn ResourceProvider>,
+        pub(super) merges_resource: Box<dyn ResourceProvider>,
+        pub(super) source_languages: Vec<Language>,
+        pub(super) target_languages: Vec<Language>,
+    }
+
+    macro_rules! get_marian_resources {
+        ($name:ident) => {
+            (
+                (
+                    MarianModelResources::$name,
+                    MarianConfigResources::$name,
+                    MarianVocabResources::$name,
+                    MarianSpmResources::$name,
+                ),
+                MarianSourceLanguages::$name.iter().cloned().collect(),
+                MarianTargetLanguages::$name.iter().cloned().collect(),
+            )
+        };
+    }
+
+    pub(super) fn get_default_model(
+        model_size: &Option<ModelSize>,
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
-        Ok(
-            match self.get_marian_model(source_languages, target_languages) {
-                Ok(marian_resources) => marian_resources,
-                Err(_) => match self.model_size {
-                    Some(value) if value == ModelSize::XLarge => {
-                        self.get_m2m100_xlarge_resources(source_languages, target_languages)?
-                    }
-                    _ => self.get_m2m100_large_resources(source_languages, target_languages)?,
-                },
+        Ok(match get_marian_model(source_languages, target_languages) {
+            Ok(marian_resources) => marian_resources,
+            Err(_) => match model_size {
+                Some(value) if value == &ModelSize::XLarge => {
+                    get_m2m100_xlarge_resources(source_languages, target_languages)?
+                }
+                _ => get_m2m100_large_resources(source_languages, target_languages)?,
             },
-        )
+        })
     }
 
-    #[cfg(feature = "remote")]
-    fn get_marian_model(
-        &self,
+    pub(super) fn get_marian_model(
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
@@ -462,9 +553,7 @@ impl TranslationModelBuilder {
         })
     }
 
-    #[cfg(feature = "remote")]
-    fn get_mbart50_resources(
-        &self,
+    pub(super) fn get_mbart50_resources(
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
@@ -513,9 +602,7 @@ impl TranslationModelBuilder {
         })
     }
 
-    #[cfg(feature = "remote")]
-    fn get_m2m100_large_resources(
-        &self,
+    pub(super) fn get_m2m100_large_resources(
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
@@ -564,9 +651,7 @@ impl TranslationModelBuilder {
         })
     }
 
-    #[cfg(feature = "remote")]
-    fn get_m2m100_xlarge_resources(
-        &self,
+    pub(super) fn get_m2m100_xlarge_resources(
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources, RustBertError> {
@@ -613,83 +698,5 @@ impl TranslationModelBuilder {
             source_languages: M2M100SourceLanguages::M2M100_1_2B.to_vec(),
             target_languages: M2M100TargetLanguages::M2M100_1_2B.to_vec(),
         })
-    }
-
-    /// Creates the translation model based on the specifications provided
-    ///
-    /// # Returns
-    /// * `TranslationModel` Generated translation model
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use rust_bert::pipelines::translation::Language;
-    /// use rust_bert::pipelines::translation::TranslationModelBuilder;
-    /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new()
-    ///         .with_target_languages([
-    ///             Language::Japanese,
-    ///             Language::Korean,
-    ///             Language::ChineseMandarin,
-    ///         ])
-    ///         .create_model();
-    ///     Ok(())
-    /// }
-    /// ```
-    #[cfg(feature = "remote")]
-    pub fn create_model(&self) -> Result<TranslationModel, RustBertError> {
-        let device = self.device.unwrap_or_else(Device::cuda_if_available);
-
-        let translation_resources = match (
-            &self.model_type,
-            &self.source_languages,
-            &self.target_languages,
-        ) {
-            (Some(ModelType::M2M100), source_languages, target_languages) => {
-                match self.model_size {
-                    Some(value) if value == ModelSize::XLarge => self.get_m2m100_xlarge_resources(
-                        source_languages.as_ref(),
-                        target_languages.as_ref(),
-                    )?,
-                    _ => self.get_m2m100_large_resources(
-                        source_languages.as_ref(),
-                        target_languages.as_ref(),
-                    )?,
-                }
-            }
-            (Some(ModelType::MBart), source_languages, target_languages) => {
-                self.get_mbart50_resources(source_languages.as_ref(), target_languages.as_ref())?
-            }
-            (Some(ModelType::Marian), source_languages, target_languages) => {
-                self.get_marian_model(source_languages.as_ref(), target_languages.as_ref())?
-            }
-            (None, source_languages, target_languages) => {
-                self.get_default_model(source_languages.as_ref(), target_languages.as_ref())?
-            }
-            (_, None, None) | (_, _, None) | (_, None, _) => {
-                return Err(RustBertError::InvalidConfigurationError(format!(
-                    "Source and target languages must be specified for {:?}",
-                    self.model_type.unwrap()
-                )));
-            }
-            (Some(model_type), _, _) => {
-                return Err(RustBertError::InvalidConfigurationError(format!(
-                    "Automated translation model builder not implemented for {:?}",
-                    model_type
-                )));
-            }
-        };
-
-        let translation_config = TranslationConfig::new(
-            translation_resources.model_type,
-            translation_resources.model_resource,
-            translation_resources.config_resource,
-            translation_resources.vocab_resource,
-            translation_resources.merges_resource,
-            translation_resources.source_languages,
-            translation_resources.target_languages,
-            device,
-        );
-        TranslationModel::new(translation_config)
     }
 }
