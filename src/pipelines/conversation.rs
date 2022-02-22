@@ -67,13 +67,13 @@ pub struct ConversationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: DialoGPT-medium)
-    pub model_resource: Box<dyn ResourceProvider>,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: DialoGPT-medium)
-    pub config_resource: Box<dyn ResourceProvider>,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: DialoGPT-medium)
-    pub vocab_resource: Box<dyn ResourceProvider>,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: DialoGPT-medium)
-    pub merges_resource: Box<dyn ResourceProvider>,
+    pub merges_resource: Box<dyn ResourceProvider + Send>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)

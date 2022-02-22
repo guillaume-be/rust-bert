@@ -1256,7 +1256,7 @@ mod test {
     use tch::Device;
 
     use crate::{
-        resources::{RemoteResource, Resource},
+        resources::{remote::RemoteResource, ResourceProvider},
         Config,
     };
 
@@ -1265,8 +1265,7 @@ mod test {
     #[test]
     #[ignore] // compilation is enough, no need to run
     fn bart_model_send() {
-        let config_resource =
-            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+        let config_resource = Box::new(RemoteResource::from_pretrained(BartConfigResources::BART));
         let config_path = config_resource.get_local_path().expect("");
 
         //    Set-up masked LM model

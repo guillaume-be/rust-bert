@@ -105,13 +105,13 @@ pub struct SequenceClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Box<dyn ResourceProvider>,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: pretrained BERT model on CoNLL)
-    pub config_resource: Box<dyn ResourceProvider>,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
-    pub vocab_resource: Box<dyn ResourceProvider>,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: None)
-    pub merges_resource: Option<Box<dyn ResourceProvider>>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
     /// Flag indicating if the tokenizer should strip accents (normalization). Only used for BERT / ALBERT models
@@ -135,10 +135,10 @@ impl SequenceClassificationConfig {
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider>,
-        config_resource: Box<dyn ResourceProvider>,
-        vocab_resource: Box<dyn ResourceProvider>,
-        merges_resource: Option<Box<dyn ResourceProvider>>,
+        model_resource: Box<dyn ResourceProvider + Send>,
+        config_resource: Box<dyn ResourceProvider + Send>,
+        vocab_resource: Box<dyn ResourceProvider + Send>,
+        merges_resource: Option<Box<dyn ResourceProvider + Send>>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,

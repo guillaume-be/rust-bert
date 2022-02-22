@@ -97,13 +97,13 @@ extern crate ordered_float;
 /// # Configuration for text generation
 pub struct GenerateConfig {
     /// Model weights resource (default: pretrained GPT2 model)
-    pub model_resource: Box<dyn ResourceProvider>,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: pretrained GPT2 model)
-    pub config_resource: Box<dyn ResourceProvider>,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained GPT2 model)
-    pub vocab_resource: Box<dyn ResourceProvider>,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: pretrained GPT2 model)
-    pub merges_resource: Box<dyn ResourceProvider>,
+    pub merges_resource: Box<dyn ResourceProvider + Send>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)

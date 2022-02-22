@@ -127,13 +127,13 @@ fn remove_duplicates<T: PartialEq + Clone>(vector: &mut Vec<T>) -> &mut Vec<T> {
 /// Contains information regarding the model to load and device to place the model on.
 pub struct QuestionAnsweringConfig {
     /// Model weights resource (default: pretrained DistilBERT model on SQuAD)
-    pub model_resource: Box<dyn ResourceProvider>,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: pretrained DistilBERT model on SQuAD)
-    pub config_resource: Box<dyn ResourceProvider>,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained DistilBERT model on SQuAD)
-    pub vocab_resource: Box<dyn ResourceProvider>,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: None)
-    pub merges_resource: Option<Box<dyn ResourceProvider>>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
     /// Model type
@@ -167,10 +167,10 @@ impl QuestionAnsweringConfig {
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider>,
-        config_resource: Box<dyn ResourceProvider>,
-        vocab_resource: Box<dyn ResourceProvider>,
-        merges_resource: Option<Box<dyn ResourceProvider>>,
+        model_resource: Box<dyn ResourceProvider + Send>,
+        config_resource: Box<dyn ResourceProvider + Send>,
+        vocab_resource: Box<dyn ResourceProvider + Send>,
+        merges_resource: Option<Box<dyn ResourceProvider + Send>>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
@@ -208,10 +208,10 @@ impl QuestionAnsweringConfig {
     /// * max_answer_length - Optional maximum token length for the extracted answer. Defaults to 15.
     pub fn custom_new(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider>,
-        config_resource: Box<dyn ResourceProvider>,
-        vocab_resource: Box<dyn ResourceProvider>,
-        merges_resource: Option<Box<dyn ResourceProvider>>,
+        model_resource: Box<dyn ResourceProvider + Send>,
+        config_resource: Box<dyn ResourceProvider + Send>,
+        vocab_resource: Box<dyn ResourceProvider + Send>,
+        merges_resource: Option<Box<dyn ResourceProvider + Send>>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,

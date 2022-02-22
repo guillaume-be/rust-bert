@@ -86,13 +86,13 @@ pub struct SummarizationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
-    pub model_resource: Box<dyn ResourceProvider>,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: pretrained BART model on CNN-DM)
-    pub config_resource: Box<dyn ResourceProvider>,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BART model on CNN-DM)
-    pub vocab_resource: Box<dyn ResourceProvider>,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: pretrained BART model on CNN-DM)
-    pub merges_resource: Box<dyn ResourceProvider>,
+    pub merges_resource: Box<dyn ResourceProvider + Send>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
@@ -137,10 +137,10 @@ impl SummarizationConfig {
     /// * merges_resource - The `Resource`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
     pub fn new(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider>,
-        config_resource: Box<dyn ResourceProvider>,
-        vocab_resource: Box<dyn ResourceProvider>,
-        merges_resource: Box<dyn ResourceProvider>,
+        model_resource: Box<dyn ResourceProvider + Send>,
+        config_resource: Box<dyn ResourceProvider + Send>,
+        vocab_resource: Box<dyn ResourceProvider + Send>,
+        merges_resource: Box<dyn ResourceProvider + Send>,
     ) -> SummarizationConfig {
         SummarizationConfig {
             model_type,

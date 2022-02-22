@@ -374,13 +374,13 @@ pub struct TranslationConfig {
     /// Model type used for translation
     pub model_type: ModelType,
     /// Model weights resource
-    pub model_resource: Box<dyn ResourceProvider>,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource
-    pub config_resource: Box<dyn ResourceProvider>,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource
-    pub vocab_resource: Box<dyn ResourceProvider>,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource
-    pub merges_resource: Box<dyn ResourceProvider>,
+    pub merges_resource: Box<dyn ResourceProvider + Send>,
     /// Supported source languages
     pub source_languages: HashSet<Language>,
     /// Supported target languages
@@ -435,7 +435,7 @@ impl TranslationConfig {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
-    /// use rust_bert::resources::{RemoteResource, Box<dyn ResourceProvider>};
+    /// use rust_bert::resources::{RemoteResource, Box<dyn ResourceProvider + Send>};
     /// use tch::Device;
     ///
     /// let model_resource = Box::new(RemoteResource::from_pretrained(
@@ -466,10 +466,10 @@ impl TranslationConfig {
     /// ```
     pub fn new<S, T>(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider>,
-        config_resource: Box<dyn ResourceProvider>,
-        vocab_resource: Box<dyn ResourceProvider>,
-        merges_resource: Box<dyn ResourceProvider>,
+        model_resource: Box<dyn ResourceProvider + Send>,
+        config_resource: Box<dyn ResourceProvider + Send>,
+        vocab_resource: Box<dyn ResourceProvider + Send>,
+        merges_resource: Box<dyn ResourceProvider + Send>,
         source_languages: S,
         target_languages: T,
         device: impl Into<Option<Device>>,
@@ -933,18 +933,18 @@ mod test {
         MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianTargetLanguages,
         MarianVocabResources,
     };
-    use crate::resources::RemoteResource;
+    use crate::resources::remote::RemoteResource;
 
     #[test]
     #[ignore] // no need to run, compilation is enough to verify it is Send
     fn test() {
-        let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+        let model_resource = Box::new(RemoteResource::from_pretrained(
             MarianModelResources::ROMANCE2ENGLISH,
         ));
-        let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        let config_resource = Box::new(RemoteResource::from_pretrained(
             MarianConfigResources::ROMANCE2ENGLISH,
         ));
-        let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+        let vocab_resource = Box::new(RemoteResource::from_pretrained(
             MarianVocabResources::ROMANCE2ENGLISH,
         ));
 

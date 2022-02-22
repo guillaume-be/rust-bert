@@ -413,10 +413,10 @@ mod model_fetchers {
 
     pub(super) struct TranslationResources {
         pub(super) model_type: ModelType,
-        pub(super) model_resource: Box<dyn ResourceProvider>,
-        pub(super) config_resource: Box<dyn ResourceProvider>,
-        pub(super) vocab_resource: Box<dyn ResourceProvider>,
-        pub(super) merges_resource: Box<dyn ResourceProvider>,
+        pub(super) model_resource: Box<dyn ResourceProvider + Send>,
+        pub(super) config_resource: Box<dyn ResourceProvider + Send>,
+        pub(super) vocab_resource: Box<dyn ResourceProvider + Send>,
+        pub(super) merges_resource: Box<dyn ResourceProvider + Send>,
         pub(super) source_languages: Vec<Language>,
         pub(super) target_languages: Vec<Language>,
     }
