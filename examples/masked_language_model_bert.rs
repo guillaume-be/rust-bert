@@ -23,9 +23,9 @@ use tch::{nn, no_grad, Device, Tensor};
 
 fn main() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Box::new(RemoteResource::from_pretrained(BertConfigResources::BERT));
-    let vocab_resource = Box::new(RemoteResource::from_pretrained(BertVocabResources::BERT));
-    let weights_resource = Box::new(RemoteResource::from_pretrained(BertModelResources::BERT));
+    let config_resource = RemoteResource::from_pretrained(BertConfigResources::BERT);
+    let vocab_resource = RemoteResource::from_pretrained(BertVocabResources::BERT);
+    let weights_resource = RemoteResource::from_pretrained(BertModelResources::BERT);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let weights_path = weights_resource.get_local_path()?;

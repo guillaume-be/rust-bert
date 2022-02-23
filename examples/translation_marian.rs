@@ -23,18 +23,10 @@ use rust_bert::resources::remote::RemoteResource;
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    let model_resource = Box::new(RemoteResource::from_pretrained(
-        MarianModelResources::ENGLISH2CHINESE,
-    ));
-    let config_resource = Box::new(RemoteResource::from_pretrained(
-        MarianConfigResources::ENGLISH2CHINESE,
-    ));
-    let vocab_resource = Box::new(RemoteResource::from_pretrained(
-        MarianVocabResources::ENGLISH2CHINESE,
-    ));
-    let merges_resource = Box::new(RemoteResource::from_pretrained(
-        MarianSpmResources::ENGLISH2CHINESE,
-    ));
+    let model_resource = RemoteResource::from_pretrained(MarianModelResources::ENGLISH2CHINESE);
+    let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ENGLISH2CHINESE);
+    let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ENGLISH2CHINESE);
+    let merges_resource = RemoteResource::from_pretrained(MarianSpmResources::ENGLISH2CHINESE);
 
     let source_languages = MarianSourceLanguages::ENGLISH2CHINESE;
     let target_languages = MarianTargetLanguages::ENGLISH2CHINESE;

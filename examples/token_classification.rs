@@ -22,15 +22,9 @@ fn main() -> anyhow::Result<()> {
     //    Load a configuration
     let config = TokenClassificationConfig::new(
         ModelType::Bert,
-        Box::new(RemoteResource::from_pretrained(
-            BertModelResources::BERT_NER,
-        )),
-        Box::new(RemoteResource::from_pretrained(
-            BertConfigResources::BERT_NER,
-        )),
-        Box::new(RemoteResource::from_pretrained(
-            BertVocabResources::BERT_NER,
-        )),
+        RemoteResource::from_pretrained(BertModelResources::BERT_NER),
+        RemoteResource::from_pretrained(BertConfigResources::BERT_NER),
+        RemoteResource::from_pretrained(BertVocabResources::BERT_NER),
         None,  //merges resource only relevant with ModelType::Roberta
         false, //lowercase
         false,

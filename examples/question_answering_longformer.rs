@@ -26,18 +26,12 @@ fn main() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Longformer,
-        Box::new(RemoteResource::from_pretrained(
-            LongformerModelResources::LONGFORMER_BASE_SQUAD1,
-        )),
-        Box::new(RemoteResource::from_pretrained(
-            LongformerConfigResources::LONGFORMER_BASE_SQUAD1,
-        )),
-        Box::new(RemoteResource::from_pretrained(
-            LongformerVocabResources::LONGFORMER_BASE_SQUAD1,
-        )),
-        Some(Box::new(RemoteResource::from_pretrained(
+        RemoteResource::from_pretrained(LongformerModelResources::LONGFORMER_BASE_SQUAD1),
+        RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_SQUAD1),
+        RemoteResource::from_pretrained(LongformerVocabResources::LONGFORMER_BASE_SQUAD1),
+        Some(RemoteResource::from_pretrained(
             LongformerMergesResources::LONGFORMER_BASE_SQUAD1,
-        ))),
+        )),
         false,
         None,
         false,

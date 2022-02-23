@@ -18,9 +18,9 @@ use rust_bert::resources::remote::RemoteResource;
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 
 fn main() -> anyhow::Result<()> {
-    let config_resource = Box::new(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
-    let vocab_resource = Box::new(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
-    let weights_resource = Box::new(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
+    let config_resource = RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL);
+    let vocab_resource = RemoteResource::from_pretrained(T5VocabResources::T5_SMALL);
+    let weights_resource = RemoteResource::from_pretrained(T5ModelResources::T5_SMALL);
 
     let summarization_config = SummarizationConfig::new(
         ModelType::T5,

@@ -19,10 +19,10 @@ use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    let model_resource = Box::new(RemoteResource::from_pretrained(T5ModelResources::T5_BASE));
-    let config_resource = Box::new(RemoteResource::from_pretrained(T5ConfigResources::T5_BASE));
-    let vocab_resource = Box::new(RemoteResource::from_pretrained(T5VocabResources::T5_BASE));
-    let merges_resource = Box::new(RemoteResource::from_pretrained(T5VocabResources::T5_BASE));
+    let model_resource = RemoteResource::from_pretrained(T5ModelResources::T5_BASE);
+    let config_resource = RemoteResource::from_pretrained(T5ConfigResources::T5_BASE);
+    let vocab_resource = RemoteResource::from_pretrained(T5VocabResources::T5_BASE);
+    let merges_resource = RemoteResource::from_pretrained(T5VocabResources::T5_BASE);
 
     let source_languages = [
         Language::English,
