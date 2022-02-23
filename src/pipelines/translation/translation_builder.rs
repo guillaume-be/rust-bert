@@ -411,12 +411,15 @@ mod model_fetchers {
         resources::remote::RemoteResource,
     };
 
-    pub(super) struct TranslationResources {
+    pub(super) struct TranslationResources<R>
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         pub(super) model_type: ModelType,
-        pub(super) model_resource: Box<dyn ResourceProvider + Send>,
-        pub(super) config_resource: Box<dyn ResourceProvider + Send>,
-        pub(super) vocab_resource: Box<dyn ResourceProvider + Send>,
-        pub(super) merges_resource: Box<dyn ResourceProvider + Send>,
+        pub(super) model_resource: R,
+        pub(super) config_resource: R,
+        pub(super) vocab_resource: R,
+        pub(super) merges_resource: R,
         pub(super) source_languages: Vec<Language>,
         pub(super) target_languages: Vec<Language>,
     }
@@ -440,7 +443,7 @@ mod model_fetchers {
         model_size: &Option<ModelSize>,
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
-    ) -> Result<TranslationResources, RustBertError> {
+    ) -> Result<TranslationResources<RemoteResource>, RustBertError> {
         Ok(match get_marian_model(source_languages, target_languages) {
             Ok(marian_resources) => marian_resources,
             Err(_) => match model_size {
@@ -455,7 +458,7 @@ mod model_fetchers {
     pub(super) fn get_marian_model(
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
-    ) -> Result<TranslationResources, RustBertError> {
+    ) -> Result<TranslationResources<RemoteResource>, RustBertError> {
         let (resources, source_languages, target_languages) =
             if let (Some(source_languages), Some(target_languages)) =
                 (source_languages, target_languages)
@@ -544,10 +547,10 @@ mod model_fetchers {
 
         Ok(TranslationResources {
             model_type: ModelType::Marian,
-            model_resource: Box::new(RemoteResource::from_pretrained(resources.0)),
-            config_resource: Box::new(RemoteResource::from_pretrained(resources.1)),
-            vocab_resource: Box::new(RemoteResource::from_pretrained(resources.2)),
-            merges_resource: Box::new(RemoteResource::from_pretrained(resources.3)),
+            model_resource: RemoteResource::from_pretrained(resources.0),
+            config_resource: RemoteResource::from_pretrained(resources.1),
+            vocab_resource: RemoteResource::from_pretrained(resources.2),
+            merges_resource: RemoteResource::from_pretrained(resources.3),
             source_languages,
             target_languages,
         })
@@ -556,7 +559,7 @@ mod model_fetchers {
     pub(super) fn get_mbart50_resources(
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
-    ) -> Result<TranslationResources, RustBertError> {
+    ) -> Result<TranslationResources<RemoteResource>, RustBertError> {
         if let Some(source_languages) = source_languages {
             if !source_languages
                 .iter()
@@ -585,18 +588,18 @@ mod model_fetchers {
 
         Ok(TranslationResources {
             model_type: ModelType::MBart,
-            model_resource: Box::new(RemoteResource::from_pretrained(
+            model_resource: RemoteResource::from_pretrained(
                 MBartModelResources::MBART50_MANY_TO_MANY,
-            )),
-            config_resource: Box::new(RemoteResource::from_pretrained(
+            ),
+            config_resource: RemoteResource::from_pretrained(
                 MBartConfigResources::MBART50_MANY_TO_MANY,
-            )),
-            vocab_resource: Box::new(RemoteResource::from_pretrained(
+            ),
+            vocab_resource: RemoteResource::from_pretrained(
                 MBartVocabResources::MBART50_MANY_TO_MANY,
-            )),
-            merges_resource: Box::new(RemoteResource::from_pretrained(
+            ),
+            merges_resource: RemoteResource::from_pretrained(
                 MBartVocabResources::MBART50_MANY_TO_MANY,
-            )),
+            ),
             source_languages: MBartSourceLanguages::MBART50_MANY_TO_MANY.to_vec(),
             target_languages: MBartTargetLanguages::MBART50_MANY_TO_MANY.to_vec(),
         })
@@ -605,7 +608,7 @@ mod model_fetchers {
     pub(super) fn get_m2m100_large_resources(
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
-    ) -> Result<TranslationResources, RustBertError> {
+    ) -> Result<TranslationResources<RemoteResource>, RustBertError> {
         if let Some(source_languages) = source_languages {
             if !source_languages
                 .iter()
@@ -634,18 +637,10 @@ mod model_fetchers {
 
         Ok(TranslationResources {
             model_type: ModelType::M2M100,
-            model_resource: Box::new(RemoteResource::from_pretrained(
-                M2M100ModelResources::M2M100_418M,
-            )),
-            config_resource: Box::new(RemoteResource::from_pretrained(
-                M2M100ConfigResources::M2M100_418M,
-            )),
-            vocab_resource: Box::new(RemoteResource::from_pretrained(
-                M2M100VocabResources::M2M100_418M,
-            )),
-            merges_resource: Box::new(RemoteResource::from_pretrained(
-                M2M100MergesResources::M2M100_418M,
-            )),
+            model_resource: RemoteResource::from_pretrained(M2M100ModelResources::M2M100_418M),
+            config_resource: RemoteResource::from_pretrained(M2M100ConfigResources::M2M100_418M),
+            vocab_resource: RemoteResource::from_pretrained(M2M100VocabResources::M2M100_418M),
+            merges_resource: RemoteResource::from_pretrained(M2M100MergesResources::M2M100_418M),
             source_languages: M2M100SourceLanguages::M2M100_418M.to_vec(),
             target_languages: M2M100TargetLanguages::M2M100_418M.to_vec(),
         })
@@ -654,7 +649,7 @@ mod model_fetchers {
     pub(super) fn get_m2m100_xlarge_resources(
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
-    ) -> Result<TranslationResources, RustBertError> {
+    ) -> Result<TranslationResources<RemoteResource>, RustBertError> {
         if let Some(source_languages) = source_languages {
             if !source_languages
                 .iter()
@@ -683,18 +678,10 @@ mod model_fetchers {
 
         Ok(TranslationResources {
             model_type: ModelType::M2M100,
-            model_resource: Box::new(RemoteResource::from_pretrained(
-                M2M100ModelResources::M2M100_1_2B,
-            )),
-            config_resource: Box::new(RemoteResource::from_pretrained(
-                M2M100ConfigResources::M2M100_1_2B,
-            )),
-            vocab_resource: Box::new(RemoteResource::from_pretrained(
-                M2M100VocabResources::M2M100_1_2B,
-            )),
-            merges_resource: Box::new(RemoteResource::from_pretrained(
-                M2M100MergesResources::M2M100_1_2B,
-            )),
+            model_resource: RemoteResource::from_pretrained(M2M100ModelResources::M2M100_1_2B),
+            config_resource: RemoteResource::from_pretrained(M2M100ConfigResources::M2M100_1_2B),
+            vocab_resource: RemoteResource::from_pretrained(M2M100VocabResources::M2M100_1_2B),
+            merges_resource: RemoteResource::from_pretrained(M2M100MergesResources::M2M100_1_2B),
             source_languages: M2M100SourceLanguages::M2M100_1_2B.to_vec(),
             target_languages: M2M100TargetLanguages::M2M100_1_2B.to_vec(),
         })

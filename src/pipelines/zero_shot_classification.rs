@@ -159,22 +159,25 @@ impl ZeroShotClassificationConfig {
     /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new(
+    pub fn new<R>(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider + Send>,
-        config_resource: Box<dyn ResourceProvider + Send>,
-        vocab_resource: Box<dyn ResourceProvider + Send>,
-        merges_resource: Option<Box<dyn ResourceProvider + Send>>,
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: Option<R>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
-    ) -> ZeroShotClassificationConfig {
+    ) -> ZeroShotClassificationConfig
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         ZeroShotClassificationConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             lower_case,
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),

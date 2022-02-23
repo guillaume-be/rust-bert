@@ -106,19 +106,22 @@ impl TextGenerationConfig {
     /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - The `Resource`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
-    pub fn new(
+    pub fn new<R>(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider + Send>,
-        config_resource: Box<dyn ResourceProvider + Send>,
-        vocab_resource: Box<dyn ResourceProvider + Send>,
-        merges_resource: Box<dyn ResourceProvider + Send>,
-    ) -> TextGenerationConfig {
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: R,
+    ) -> TextGenerationConfig
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         TextGenerationConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: Box::new(merges_resource),
             min_length: 0,
             max_length: 20,
             do_sample: true,
@@ -143,18 +146,10 @@ impl Default for TextGenerationConfig {
     fn default() -> TextGenerationConfig {
         TextGenerationConfig::new(
             ModelType::GPT2,
-            Box::new(RemoteResource::from_pretrained(
-                Gpt2ModelResources::GPT2_MEDIUM,
-            )),
-            Box::new(RemoteResource::from_pretrained(
-                Gpt2ConfigResources::GPT2_MEDIUM,
-            )),
-            Box::new(RemoteResource::from_pretrained(
-                Gpt2VocabResources::GPT2_MEDIUM,
-            )),
-            Box::new(RemoteResource::from_pretrained(
-                Gpt2MergesResources::GPT2_MEDIUM,
-            )),
+            RemoteResource::from_pretrained(Gpt2ModelResources::GPT2_MEDIUM),
+            RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2_MEDIUM),
+            RemoteResource::from_pretrained(Gpt2VocabResources::GPT2_MEDIUM),
+            RemoteResource::from_pretrained(Gpt2MergesResources::GPT2_MEDIUM),
         )
     }
 }

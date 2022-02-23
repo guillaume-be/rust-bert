@@ -133,22 +133,25 @@ impl SequenceClassificationConfig {
     /// * vocab - The boxed `ResourceProvider' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional, boxed `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new(
+    pub fn new<R>(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider + Send>,
-        config_resource: Box<dyn ResourceProvider + Send>,
-        vocab_resource: Box<dyn ResourceProvider + Send>,
-        merges_resource: Option<Box<dyn ResourceProvider + Send>>,
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: Option<R>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
-    ) -> SequenceClassificationConfig {
+    ) -> SequenceClassificationConfig
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         SequenceClassificationConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             lower_case,
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
@@ -161,23 +164,16 @@ impl SequenceClassificationConfig {
 impl Default for SequenceClassificationConfig {
     /// Provides a defaultSST-2 sentiment analysis model (English)
     fn default() -> SequenceClassificationConfig {
-        SequenceClassificationConfig {
-            model_type: ModelType::DistilBert,
-            model_resource: Box::new(RemoteResource::from_pretrained(
-                DistilBertModelResources::DISTIL_BERT_SST2,
-            )),
-            config_resource: Box::new(RemoteResource::from_pretrained(
-                DistilBertConfigResources::DISTIL_BERT_SST2,
-            )),
-            vocab_resource: Box::new(RemoteResource::from_pretrained(
-                DistilBertVocabResources::DISTIL_BERT_SST2,
-            )),
-            merges_resource: None,
-            lower_case: true,
-            strip_accents: None,
-            add_prefix_space: None,
-            device: Device::cuda_if_available(),
-        }
+        SequenceClassificationConfig::new(
+            ModelType::DistilBert,
+            RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2),
+            RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
+            RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
+            None,
+            true,
+            None,
+            None,
+        )
     }
 }
 

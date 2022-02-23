@@ -251,23 +251,26 @@ impl TokenClassificationConfig {
     /// * vocab - The boxed `ResourceProvider' pointing to the tokenizers' vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional, boxed `ResourceProvider` tuple (`Option<Resource>`) pointing to the tokenizers' merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new(
+    pub fn new<R>(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider + Send>,
-        config_resource: Box<dyn ResourceProvider + Send>,
-        vocab_resource: Box<dyn ResourceProvider + Send>,
-        merges_resource: Option<Box<dyn ResourceProvider + Send>>,
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: Option<R>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
         label_aggregation_function: LabelAggregationOption,
-    ) -> TokenClassificationConfig {
+    ) -> TokenClassificationConfig
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         TokenClassificationConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             lower_case,
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
@@ -282,25 +285,17 @@ impl TokenClassificationConfig {
 impl Default for TokenClassificationConfig {
     /// Provides a default CoNLL-2003 NER model (English)
     fn default() -> TokenClassificationConfig {
-        TokenClassificationConfig {
-            model_type: ModelType::Bert,
-            model_resource: Box::new(RemoteResource::from_pretrained(
-                BertModelResources::BERT_NER,
-            )),
-            config_resource: Box::new(RemoteResource::from_pretrained(
-                BertConfigResources::BERT_NER,
-            )),
-            vocab_resource: Box::new(RemoteResource::from_pretrained(
-                BertVocabResources::BERT_NER,
-            )),
-            merges_resource: None,
-            lower_case: false,
-            strip_accents: None,
-            add_prefix_space: None,
-            device: Device::cuda_if_available(),
-            label_aggregation_function: LabelAggregationOption::First,
-            batch_size: 64,
-        }
+        TokenClassificationConfig::new(
+            ModelType::Bert,
+            RemoteResource::from_pretrained(BertModelResources::BERT_NER),
+            RemoteResource::from_pretrained(BertConfigResources::BERT_NER),
+            RemoteResource::from_pretrained(BertVocabResources::BERT_NER),
+            None,
+            false,
+            None,
+            None,
+            LabelAggregationOption::First,
+        )
     }
 }
 

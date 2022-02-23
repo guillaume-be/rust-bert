@@ -464,17 +464,18 @@ impl TranslationConfig {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new<S, T>(
+    pub fn new<R, S, T>(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider + Send>,
-        config_resource: Box<dyn ResourceProvider + Send>,
-        vocab_resource: Box<dyn ResourceProvider + Send>,
-        merges_resource: Box<dyn ResourceProvider + Send>,
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: R,
         source_languages: S,
         target_languages: T,
         device: impl Into<Option<Device>>,
     ) -> TranslationConfig
     where
+        R: ResourceProvider + Send + 'static,
         S: AsRef<[Language]>,
         T: AsRef<[Language]>,
     {
@@ -482,10 +483,10 @@ impl TranslationConfig {
 
         TranslationConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: Box::new(merges_resource),
             source_languages: source_languages.as_ref().iter().cloned().collect(),
             target_languages: target_languages.as_ref().iter().cloned().collect(),
             device,

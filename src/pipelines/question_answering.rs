@@ -165,22 +165,25 @@ impl QuestionAnsweringConfig {
     /// * vocab_resource - The boxed `ResourceProvider' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - An optional, boxed `ResourceProvider` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new(
+    pub fn new<R>(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider + Send>,
-        config_resource: Box<dyn ResourceProvider + Send>,
-        vocab_resource: Box<dyn ResourceProvider + Send>,
-        merges_resource: Option<Box<dyn ResourceProvider + Send>>,
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: Option<R>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
-    ) -> QuestionAnsweringConfig {
+    ) -> QuestionAnsweringConfig
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         QuestionAnsweringConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             lower_case,
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
@@ -206,12 +209,12 @@ impl QuestionAnsweringConfig {
     /// * max_query_length - Optional maximum question token length. Defaults to 64.
     /// * doc_stride - Optional stride to apply if a sliding window is required to process the input context. Represents the number of overlapping tokens between sliding windows. This should be lower than the max_seq_length minus max_query_length (otherwise there is a risk for the sliding window not to progress). Defaults to 128.
     /// * max_answer_length - Optional maximum token length for the extracted answer. Defaults to 15.
-    pub fn custom_new(
+    pub fn custom_new<R>(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider + Send>,
-        config_resource: Box<dyn ResourceProvider + Send>,
-        vocab_resource: Box<dyn ResourceProvider + Send>,
-        merges_resource: Option<Box<dyn ResourceProvider + Send>>,
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: Option<R>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
@@ -219,13 +222,16 @@ impl QuestionAnsweringConfig {
         doc_stride: impl Into<Option<usize>>,
         max_query_length: impl Into<Option<usize>>,
         max_answer_length: impl Into<Option<usize>>,
-    ) -> QuestionAnsweringConfig {
+    ) -> QuestionAnsweringConfig
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         QuestionAnsweringConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             lower_case,
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),

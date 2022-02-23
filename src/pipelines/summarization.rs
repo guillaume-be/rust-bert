@@ -135,19 +135,22 @@ impl SummarizationConfig {
     /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - The `Resource`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
-    pub fn new(
+    pub fn new<R>(
         model_type: ModelType,
-        model_resource: Box<dyn ResourceProvider + Send>,
-        config_resource: Box<dyn ResourceProvider + Send>,
-        vocab_resource: Box<dyn ResourceProvider + Send>,
-        merges_resource: Box<dyn ResourceProvider + Send>,
-    ) -> SummarizationConfig {
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: R,
+    ) -> SummarizationConfig
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         SummarizationConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: Box::new(merges_resource),
             min_length: 56,
             max_length: 142,
             do_sample: false,
@@ -172,18 +175,10 @@ impl Default for SummarizationConfig {
     fn default() -> SummarizationConfig {
         SummarizationConfig::new(
             ModelType::Bart,
-            Box::new(RemoteResource::from_pretrained(
-                BartModelResources::BART_CNN,
-            )),
-            Box::new(RemoteResource::from_pretrained(
-                BartConfigResources::BART_CNN,
-            )),
-            Box::new(RemoteResource::from_pretrained(
-                BartVocabResources::BART_CNN,
-            )),
-            Box::new(RemoteResource::from_pretrained(
-                BartMergesResources::BART_CNN,
-            )),
+            RemoteResource::from_pretrained(BartModelResources::BART_CNN),
+            RemoteResource::from_pretrained(BartConfigResources::BART_CNN),
+            RemoteResource::from_pretrained(BartVocabResources::BART_CNN),
+            RemoteResource::from_pretrained(BartMergesResources::BART_CNN),
         )
     }
 }
