@@ -1677,12 +1677,12 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     where
         S: AsRef<str> + Sync,
     {
-        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
+        let eos_token_ids = self.get_eos_ids().clone();
 
-        let config = PrivateLanguageGenerator::get_config(self);
+        let config = self.get_config();
         let max_length = unpack_config!(max_length, generate_options, config);
         let encoding_max_len = if self.is_encoder_decoder() {
-            PrivateLanguageGenerator::get_max_positions_embeddings(self)
+            self.get_max_positions_embeddings()
         } else {
             max_length
         };
@@ -1814,7 +1814,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
 
         let attention_mask = match attention_mask {
             Some(value) => value,
-            None => match self.get_pad_id() {
+            None => match pad_token_id {
                 Some(pad_id) => input_ids.ne(pad_id).to_kind(Int64),
                 None => input_ids.ones_like().to_kind(Int64),
             },
