@@ -102,10 +102,10 @@ impl TextGenerationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
-    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * merges_resource - The `Resource`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
+    /// * model_resource - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
     pub fn new<R>(
         model_type: ModelType,
         model_resource: R,

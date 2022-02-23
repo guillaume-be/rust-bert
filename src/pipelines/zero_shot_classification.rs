@@ -154,11 +154,11 @@ impl ZeroShotClassificationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model - The `Resource` pointing to the model to load (e.g.  model.ot)
-    /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * merges - An optional `Resource` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
+    /// * model - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
+    /// * vocab - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new<R>(
         model_type: ModelType,
         model_resource: R,

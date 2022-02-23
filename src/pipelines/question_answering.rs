@@ -160,11 +160,11 @@ impl QuestionAnsweringConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The boxed `ResourceProvider` pointing to the model to load (e.g.  model.ot)
-    /// * config_resource - The boxed `ResourceProvider' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab_resource - The boxed `ResourceProvider' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * merges_resource - An optional, boxed `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
+    /// * model_resource - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new<R>(
         model_type: ModelType,
         model_resource: R,
@@ -200,11 +200,11 @@ impl QuestionAnsweringConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The boxed `Resource` pointing to the model to load (e.g.  model.ot)
-    /// * config_resource - The boxed `Resource' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab_resource - The boxed `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * merges_resource - An optional, boxed `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
+    /// * model_resource - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     /// * max_seq_length - Optional maximum sequence token length to limit memory footprint. If the context is too long, it will be processed with sliding windows. Defaults to 384.
     /// * max_query_length - Optional maximum question token length. Defaults to 64.
     /// * doc_stride - Optional stride to apply if a sliding window is required to process the input context. Represents the number of overlapping tokens between sliding windows. This should be lower than the max_seq_length minus max_query_length (otherwise there is a risk for the sliding window not to progress). Defaults to 128.

@@ -248,10 +248,10 @@ impl TokenClassificationConfig {
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
     /// * model - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
-    /// * config - The `ResourceProvider' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab - The `ResourceProvider' pointing to the tokenizers' vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * config - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
+    /// * vocab - The `ResourceProvider` pointing to the tokenizers' vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `ResourceProvider` pointing to the tokenizers' merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
+    /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new<R>(
         model_type: ModelType,
         model_resource: R,
