@@ -939,15 +939,10 @@ mod test {
     #[test]
     #[ignore] // no need to run, compilation is enough to verify it is Send
     fn test() {
-        let model_resource = Box::new(RemoteResource::from_pretrained(
-            MarianModelResources::ROMANCE2ENGLISH,
-        ));
-        let config_resource = Box::new(RemoteResource::from_pretrained(
-            MarianConfigResources::ROMANCE2ENGLISH,
-        ));
-        let vocab_resource = Box::new(RemoteResource::from_pretrained(
-            MarianVocabResources::ROMANCE2ENGLISH,
-        ));
+        let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
+        let config_resource =
+            RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
+        let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
 
         let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
         let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;

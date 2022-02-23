@@ -17,11 +17,9 @@ static BATCH_SIZE: usize = 64;
 fn create_qa_model() -> QuestionAnsweringModel {
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,
-        Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
-        Box::new(RemoteResource::from_pretrained(
-            BertConfigResources::BERT_QA,
-        )),
-        Box::new(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
+        RemoteResource::from_pretrained(BertModelResources::BERT_QA),
+        RemoteResource::from_pretrained(BertConfigResources::BERT_QA),
+        RemoteResource::from_pretrained(BertVocabResources::BERT_QA),
         None,  //merges resource only relevant with ModelType::Roberta
         false, //lowercase
         false,
@@ -54,11 +52,9 @@ fn qa_load_model(iters: u64) -> Duration {
         let start = Instant::now();
         let config = QuestionAnsweringConfig::new(
             ModelType::Bert,
-            Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
-            Box::new(RemoteResource::from_pretrained(
-                BertConfigResources::BERT_QA,
-            )),
-            Box::new(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
+            RemoteResource::from_pretrained(BertModelResources::BERT_QA),
+            RemoteResource::from_pretrained(BertConfigResources::BERT_QA),
+            RemoteResource::from_pretrained(BertVocabResources::BERT_QA),
             None,  //merges resource only relevant with ModelType::Roberta
             false, //lowercase
             false,

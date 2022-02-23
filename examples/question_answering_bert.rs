@@ -23,11 +23,9 @@ fn main() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,
-        Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
-        Box::new(RemoteResource::from_pretrained(
-            BertConfigResources::BERT_QA,
-        )),
-        Box::new(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
+        RemoteResource::from_pretrained(BertModelResources::BERT_QA),
+        RemoteResource::from_pretrained(BertConfigResources::BERT_QA),
+        RemoteResource::from_pretrained(BertVocabResources::BERT_QA),
         None, //merges resource only relevant with ModelType::Roberta
         false,
         false,
