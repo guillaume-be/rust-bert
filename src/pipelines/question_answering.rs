@@ -163,7 +163,7 @@ impl QuestionAnsweringConfig {
     /// * model_resource - The boxed `ResourceProvider` pointing to the model to load (e.g.  model.ot)
     /// * config_resource - The boxed `ResourceProvider' pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The boxed `ResourceProvider' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * merges_resource - An optional, boxed `ResourceProvider` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * merges_resource - An optional, boxed `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new<R>(
         model_type: ModelType,

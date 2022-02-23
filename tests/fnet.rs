@@ -17,12 +17,9 @@ use tch::{nn, no_grad, Device, Tensor};
 #[test]
 fn fnet_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
-    let vocab_resource =
-        Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
-    let weights_resource =
-        Box::new(RemoteResource::from_pretrained(FNetModelResources::BASE));
+    let config_resource = Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
+    let weights_resource = Box::new(RemoteResource::from_pretrained(FNetModelResources::BASE));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let weights_path = weights_resource.get_local_path()?;
@@ -128,10 +125,8 @@ fn fnet_for_sequence_classification() -> anyhow::Result<()> {
 #[test]
 fn fnet_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
-    let vocab_resource =
-        Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
+    let config_resource = Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 
@@ -188,10 +183,8 @@ fn fnet_for_multiple_choice() -> anyhow::Result<()> {
 #[test]
 fn fnet_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
-    let vocab_resource =
-        Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
+    let config_resource = Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 
@@ -251,10 +244,8 @@ fn fnet_for_token_classification() -> anyhow::Result<()> {
 #[test]
 fn fnet_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
-    let vocab_resource =
-        Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
+    let config_resource = Box::new(RemoteResource::from_pretrained(FNetConfigResources::BASE));
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(FNetVocabResources::BASE));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 

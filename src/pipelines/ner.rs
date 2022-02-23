@@ -78,7 +78,7 @@
 //! use rust_bert::pipelines::common::ModelType;
 //! use rust_bert::pipelines::ner::NERModel;
 //! use rust_bert::pipelines::token_classification::TokenClassificationConfig;
-//! use rust_bert::resources::{RemoteResource, Resource};
+//! use rust_bert::resources::remote::RemoteResource;
 //! use rust_bert::roberta::{
 //!     RobertaConfigResources, RobertaModelResources, RobertaVocabResources,
 //! };

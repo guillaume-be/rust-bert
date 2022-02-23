@@ -16,17 +16,18 @@
 //!
 //! ```no_run
 //! use rust_bert::pipelines::token_classification::{TokenClassificationModel,TokenClassificationConfig};
-//! use rust_bert::resources::{Resource,RemoteResource};
+//! use rust_bert::resources::remote::RemoteResource;
 //! use rust_bert::bert::{BertModelResources, BertVocabResources, BertConfigResources};
 //! use rust_bert::pipelines::common::ModelType;
 //! # fn main() -> anyhow::Result<()> {
 //!
 //! //Load a configuration
 //! use rust_bert::pipelines::token_classification::LabelAggregationOption;
-//! let config = TokenClassificationConfig::new(ModelType::Bert,
-//!    Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_NER)),
-//!    Box::new(RemoteResource::from_pretrained(BertVocabResources::BERT_NER)),
-//!    Box::new(RemoteResource::from_pretrained(BertConfigResources::BERT_NER)),
+//! let config = TokenClassificationConfig::new(
+//!    ModelType::Bert,
+//!    RemoteResource::from_pretrained(BertModelResources::BERT_NER),
+//!    RemoteResource::from_pretrained(BertVocabResources::BERT_NER),
+//!    RemoteResource::from_pretrained(BertConfigResources::BERT_NER),
 //!    None, //merges resource only relevant with ModelType::Roberta
 //!    false, //lowercase
 //!    None, //strip_accents
@@ -246,10 +247,10 @@ impl TokenClassificationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model - The boxed `ResourceProvider` pointing to the model to load (e.g.  model.ot)
-    /// * config - The boxed `ResourceProvider' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab - The boxed `ResourceProvider' pointing to the tokenizers' vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * vocab - An optional, boxed `ResourceProvider` tuple (`Option<Resource>`) pointing to the tokenizers' merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * model - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config - The `ResourceProvider' pointing to the model configuration to load (e.g. config.json)
+    /// * vocab - The `ResourceProvider' pointing to the tokenizers' vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * vocab - An optional `ResourceProvider` pointing to the tokenizers' merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new<R>(
         model_type: ModelType,

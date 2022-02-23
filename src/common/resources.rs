@@ -8,11 +8,11 @@
 //! - (optional) merges files for BPE-based tokenizers
 //!
 //! These are expected in the pipelines configurations or are used as utilities to reference to the
-//! resource location. Two types of resources exist:
+//! resource location. Two types of resources are pre-defined:
 //! - LocalResource: points to a local file
-//! - RemoteResource: points to a remote file via a URL and a local cached file
+//! - RemoteResource: points to a remote file via a URL
 //!
-//! For both types of resources, the local location of teh file can be retrieved using
+//! For both types of resources, the local location of the file can be retrieved using
 //! `get_local_path`, allowing to reference the resource file location regardless if it is a remote
 //! or local resource. Default implementations for a number of `RemoteResources` are available as
 //! pre-trained models in each model module.
@@ -22,10 +22,7 @@ use std::path::PathBuf;
 
 /// # Resource Trait that can provide the location of the model, configuration or vocabulary resources
 pub trait ResourceProvider {
-    /// Gets the local path for a given resource.
-    ///
-    /// If the resource is a remote resource, it is downloaded and cached. Then the path
-    /// to the local cache is returned.
+    /// Provides the local path for a resource.
     ///
     /// # Returns
     ///
@@ -34,11 +31,11 @@ pub trait ResourceProvider {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::resources::{LocalResource, Resource};
+    /// use rust_bert::resources::{LocalResource, ResourceProvider};
     /// use std::path::PathBuf;
-    /// let config_resource = Resource::Local(LocalResource {
+    /// let config_resource = LocalResource {
     ///     local_path: PathBuf::from("path/to/config.json"),
-    /// });
+    /// };
     /// let config_path = config_resource.get_local_path();
     /// ```
     fn get_local_path(&self) -> Result<PathBuf, RustBertError>;
@@ -52,6 +49,22 @@ pub struct LocalResource {
 }
 
 impl ResourceProvider for LocalResource {
+    /// Gets the path for a local resource.
+    ///
+    /// # Returns
+    ///
+    /// * `PathBuf` pointing to the resource file
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::resources::{LocalResource, ResourceProvider};
+    /// use std::path::PathBuf;
+    /// let config_resource = LocalResource {
+    ///     local_path: PathBuf::from("path/to/config.json"),
+    /// };
+    /// let config_path = config_resource.get_local_path();
+    /// ```
     fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
         Ok(self.local_path.clone())
     }
@@ -90,11 +103,11 @@ pub mod remote {
         /// # Example
         ///
         /// ```no_run
-        /// use rust_bert::resources::{RemoteResource, Resource};
-        /// let config_resource = Resource::Remote(RemoteResource::new(
+        /// use rust_bert::resources::remote::RemoteResource;
+        /// let config_resource = RemoteResource::new(
         ///     "configs",
         ///     "http://config_json_location",
-        /// ));
+        /// );
         /// ```
         pub fn new(url: &str, cache_subdir: &str) -> RemoteResource {
             RemoteResource {
@@ -118,11 +131,11 @@ pub mod remote {
         /// # Example
         ///
         /// ```no_run
-        /// use rust_bert::resources::{RemoteResource, Resource};
-        /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
+        /// use rust_bert::resources::remote::RemoteResource;
+        /// let model_resource = RemoteResource::from_pretrained((
         ///     "distilbert-sst2",
         ///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
-        /// )));
+        /// ));
         /// ```
         pub fn from_pretrained(name_url_tuple: (&str, &str)) -> RemoteResource {
             let cache_subdir = name_url_tuple.0.to_string();
@@ -132,6 +145,25 @@ pub mod remote {
     }
 
     impl ResourceProvider for RemoteResource {
+        /// Gets the local path for a remote resource.
+        ///
+        /// The remote resource is downloaded and cached. Then the path
+        /// to the local cache is returned.
+        ///
+        /// # Returns
+        ///
+        /// * `PathBuf` pointing to the resource file
+        ///
+        /// # Example
+        ///
+        /// ```no_run
+        /// use rust_bert::resources::{LocalResource, ResourceProvider};
+        /// use std::path::PathBuf;
+        /// let config_resource = LocalResource {
+        ///     local_path: PathBuf::from("path/to/config.json"),
+        /// };
+        /// let config_path = config_resource.get_local_path();
+        /// ```
         fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
             let cached_path = CACHE.cached_path_with_options(
                 &self.url,
@@ -184,11 +216,11 @@ pub mod remote {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::resources::{RemoteResource, Resource};
-    /// let model_resource = Resource::Remote(RemoteResource::from_pretrained((
+    /// use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+    /// let model_resource = RemoteResource::from_pretrained((
     ///     "distilbert-sst2/model.ot",
     ///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
-    /// )));
+    /// ));
     /// let local_path = model_resource.get_local_path();
     /// ```
     pub fn download_resource(resource: &dyn ResourceProvider) -> Result<PathBuf, RustBertError> {

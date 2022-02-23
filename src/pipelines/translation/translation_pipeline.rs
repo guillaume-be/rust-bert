@@ -435,18 +435,18 @@ impl TranslationConfig {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
-    /// use rust_bert::resources::{RemoteResource, Box<dyn ResourceProvider + Send>};
+    /// use rust_bert::resources::remote::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = RemoteResource::from_pretrained(
     ///     MarianModelResources::ROMANCE2ENGLISH,
-    /// ));
-    /// let config_resource = Box::new(RemoteResource::from_pretrained(
+    /// );
+    /// let config_resource = RemoteResource::from_pretrained(
     ///     MarianConfigResources::ROMANCE2ENGLISH,
-    /// ));
-    /// let vocab_resource = Box::new(RemoteResource::from_pretrained(
+    /// );
+    /// let vocab_resource = RemoteResource::from_pretrained(
     ///     MarianVocabResources::ROMANCE2ENGLISH,
-    /// ));
+    /// );
     ///
     /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
     /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -799,18 +799,18 @@ impl TranslationModel {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
-    /// use rust_bert::resources::{RemoteResource};
+    /// use rust_bert::resources::remote::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = RemoteResource::from_pretrained(
     ///     MarianModelResources::ROMANCE2ENGLISH,
-    /// ));
-    /// let config_resource = Box::new(RemoteResource::from_pretrained(
+    /// );
+    /// let config_resource = RemoteResource::from_pretrained(
     ///     MarianConfigResources::ROMANCE2ENGLISH,
-    /// ));
-    /// let vocab_resource = Box::new(RemoteResource::from_pretrained(
+    /// );
+    /// let vocab_resource = RemoteResource::from_pretrained(
     ///     MarianVocabResources::ROMANCE2ENGLISH,
-    /// ));
+    /// );
     ///
     /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
     /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -860,21 +860,21 @@ impl TranslationModel {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-    /// use rust_bert::resources::RemoteResource;
+    /// use rust_bert::resources::remote::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = RemoteResource::from_pretrained(
     ///     MarianModelResources::ENGLISH2ROMANCE,
-    /// ));
-    /// let config_resource = Box::new(RemoteResource::from_pretrained(
+    /// );
+    /// let config_resource = RemoteResource::from_pretrained(
     ///     MarianConfigResources::ENGLISH2ROMANCE,
-    /// ));
-    /// let vocab_resource = Box::new(RemoteResource::from_pretrained(
+    /// );
+    /// let vocab_resource = RemoteResource::from_pretrained(
     ///     MarianVocabResources::ENGLISH2ROMANCE,
-    /// ));
-    /// let merges_resource = Box::new(RemoteResource::from_pretrained(
+    /// );
+    /// let merges_resource = RemoteResource::from_pretrained(
     ///     MarianSpmResources::ENGLISH2ROMANCE,
-    /// ));
+    /// );
     /// let source_languages = MarianSourceLanguages::ENGLISH2ROMANCE;
     /// let target_languages = MarianTargetLanguages::ENGLISH2ROMANCE;
     ///

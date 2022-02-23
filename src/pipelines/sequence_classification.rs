@@ -15,7 +15,7 @@
 //!
 //! ```no_run
 //! use rust_bert::pipelines::sequence_classification::SequenceClassificationConfig;
-//! use rust_bert::resources::{RemoteResource, Resource};
+//! use rust_bert::resources::{remote::RemoteResource};
 //! use rust_bert::distilbert::{DistilBertModelResources, DistilBertVocabResources, DistilBertConfigResources};
 //! use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
 //! use rust_bert::pipelines::common::ModelType;
@@ -23,9 +23,9 @@
 //!
 //! //Load a configuration
 //! let config = SequenceClassificationConfig::new(ModelType::DistilBert,
-//!    Box::new(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2)),
-//!    Box::new(RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2)),
-//!    Box::new(RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2)),
+//!    RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2),
+//!    RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
+//!    RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
 //!    None, //merges resource only relevant with ModelType::Roberta
 //!    true, //lowercase
 //!    None, //strip_accents
