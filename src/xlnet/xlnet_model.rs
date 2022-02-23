@@ -1582,13 +1582,8 @@ impl XLNetGenerator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<XLNetGenerator, RustBertError> {
-        let config_path = generate_config.config_resource.get_local_path()?;
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
-        let device = generate_config.device;
 
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
             ModelType::XLNet,
             vocab_path.to_str().unwrap(),
@@ -1597,6 +1592,20 @@ impl XLNetGenerator {
             true,
             None,
         )?;
+
+        Self::new_with_tokenizer(generate_config, tokenizer)
+    }
+
+    pub fn new_with_tokenizer(
+        generate_config: GenerateConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<XLNetGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
 
         let config = XLNetConfig::from_file(config_path);
         let model = XLNetLMHeadModel::new(&var_store.root(), &config);

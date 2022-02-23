@@ -12,7 +12,6 @@
 
 use crate::bart::BartModelOutput;
 use crate::common::dropout::Dropout;
-use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
 use crate::mbart::decoder::MBartDecoder;
 use crate::mbart::encoder::MBartEncoder;
 use crate::mbart::LayerState;
@@ -24,7 +23,6 @@ use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
 use crate::pipelines::translation::Language;
-use crate::resources::{RemoteResource, Resource};
 use crate::{Activation, Config, RustBertError};
 use rust_tokenizers::tokenizer::{MBart50Tokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::{MBart50Vocab, Vocab};
@@ -839,44 +837,8 @@ impl MBartGenerator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<MBartGenerator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                MBartModelResources::MBART50_MANY_TO_MANY,
-            ))
-        } else {
-            generate_config.model_resource.clone()
-        };
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
 
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                MBartConfigResources::MBART50_MANY_TO_MANY,
-            ))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                MBartVocabResources::MBART50_MANY_TO_MANY,
-            ))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
             ModelType::MBart,
             vocab_path.to_str().unwrap(),
@@ -885,6 +847,21 @@ impl MBartGenerator {
             None,
             None,
         )?;
+
+        Self::new_with_tokenizer(generate_config, tokenizer)
+    }
+
+    pub fn new_with_tokenizer(
+        generate_config: GenerateConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<MBartGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+
         let config = MBartConfig::from_file(config_path);
         let model = MBartForConditionalGeneration::new(&var_store.root(), &config);
         var_store.load(weights_path)?;

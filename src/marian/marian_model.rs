@@ -833,14 +833,9 @@ impl MarianGenerator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<MarianGenerator, RustBertError> {
-        let config_path = generate_config.config_resource.get_local_path()?;
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
         let sentence_piece_path = generate_config.merges_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
-        let device = generate_config.device;
 
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
             ModelType::Marian,
             vocab_path.to_str().unwrap(),
@@ -849,6 +844,20 @@ impl MarianGenerator {
             None,
             None,
         )?;
+
+        Self::new_with_tokenizer(generate_config, tokenizer)
+    }
+
+    pub fn new_with_tokenizer(
+        generate_config: GenerateConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<MarianGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
 
         let config = BartConfig::from_file(config_path);
         let model = MarianForConditionalGeneration::new(&var_store.root(), &config);

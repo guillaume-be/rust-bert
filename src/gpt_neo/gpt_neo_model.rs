@@ -647,14 +647,9 @@ impl GptNeoGenerator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<GptNeoGenerator, RustBertError> {
-        let config_path = generate_config.config_resource.get_local_path()?;
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
         let merges_path = generate_config.merges_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
-        let device = generate_config.device;
 
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
             ModelType::GPTNeo,
             vocab_path.to_str().unwrap(),
@@ -663,6 +658,20 @@ impl GptNeoGenerator {
             None,
             None,
         )?;
+
+        Self::new_with_tokenizer(generate_config, tokenizer)
+    }
+
+    pub fn new_with_tokenizer(
+        generate_config: GenerateConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<GptNeoGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
         let config = GptNeoConfig::from_file(config_path);
         let model = GptNeoForCausalLM::new(&var_store.root(), &config)?;
         var_store.load(weights_path)?;
