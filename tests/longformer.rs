@@ -21,18 +21,14 @@ use tch::{nn, no_grad, Device, Tensor};
 #[test]
 fn longformer_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerConfigResources::LONGFORMER_BASE_4096,
-    ));
-    let vocab_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerVocabResources::LONGFORMER_BASE_4096,
-    ));
-    let merges_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerMergesResources::LONGFORMER_BASE_4096,
-    ));
-    let weights_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerModelResources::LONGFORMER_BASE_4096,
-    ));
+    let config_resource =
+        RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_4096);
+    let vocab_resource =
+        RemoteResource::from_pretrained(LongformerVocabResources::LONGFORMER_BASE_4096);
+    let merges_resource =
+        RemoteResource::from_pretrained(LongformerMergesResources::LONGFORMER_BASE_4096);
+    let weights_resource =
+        RemoteResource::from_pretrained(LongformerModelResources::LONGFORMER_BASE_4096);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
@@ -176,15 +172,12 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
 #[test]
 fn longformer_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerConfigResources::LONGFORMER_BASE_4096,
-    ));
-    let vocab_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerVocabResources::LONGFORMER_BASE_4096,
-    ));
-    let merges_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerMergesResources::LONGFORMER_BASE_4096,
-    ));
+    let config_resource =
+        RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_4096);
+    let vocab_resource =
+        RemoteResource::from_pretrained(LongformerVocabResources::LONGFORMER_BASE_4096);
+    let merges_resource =
+        RemoteResource::from_pretrained(LongformerMergesResources::LONGFORMER_BASE_4096);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
@@ -245,15 +238,12 @@ fn longformer_for_sequence_classification() -> anyhow::Result<()> {
 #[test]
 fn longformer_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerConfigResources::LONGFORMER_BASE_4096,
-    ));
-    let vocab_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerVocabResources::LONGFORMER_BASE_4096,
-    ));
-    let merges_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerMergesResources::LONGFORMER_BASE_4096,
-    ));
+    let config_resource =
+        RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_4096);
+    let vocab_resource =
+        RemoteResource::from_pretrained(LongformerVocabResources::LONGFORMER_BASE_4096);
+    let merges_resource =
+        RemoteResource::from_pretrained(LongformerMergesResources::LONGFORMER_BASE_4096);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
@@ -321,15 +311,12 @@ fn longformer_for_multiple_choice() -> anyhow::Result<()> {
 #[test]
 fn mobilebert_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerConfigResources::LONGFORMER_BASE_4096,
-    ));
-    let vocab_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerVocabResources::LONGFORMER_BASE_4096,
-    ));
-    let merges_resource = Box::new(RemoteResource::from_pretrained(
-        LongformerMergesResources::LONGFORMER_BASE_4096,
-    ));
+    let config_resource =
+        RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_4096);
+    let vocab_resource =
+        RemoteResource::from_pretrained(LongformerVocabResources::LONGFORMER_BASE_4096);
+    let merges_resource =
+        RemoteResource::from_pretrained(LongformerMergesResources::LONGFORMER_BASE_4096);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
@@ -394,18 +381,12 @@ fn longformer_for_question_answering() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Longformer,
-        Box::new(RemoteResource::from_pretrained(
-            LongformerModelResources::LONGFORMER_BASE_SQUAD1,
-        )),
-        Box::new(RemoteResource::from_pretrained(
-            LongformerConfigResources::LONGFORMER_BASE_SQUAD1,
-        )),
-        Box::new(RemoteResource::from_pretrained(
-            LongformerVocabResources::LONGFORMER_BASE_SQUAD1,
-        )),
-        Some(Box::new(RemoteResource::from_pretrained(
+        RemoteResource::from_pretrained(LongformerModelResources::LONGFORMER_BASE_SQUAD1),
+        RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_SQUAD1),
+        RemoteResource::from_pretrained(LongformerVocabResources::LONGFORMER_BASE_SQUAD1),
+        Some(RemoteResource::from_pretrained(
             LongformerMergesResources::LONGFORMER_BASE_SQUAD1,
-        ))),
+        )),
         false,
         None,
         false,
