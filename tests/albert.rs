@@ -6,7 +6,7 @@ use rust_bert::albert::{
     AlbertForQuestionAnswering, AlbertForSequenceClassification, AlbertForTokenClassification,
     AlbertModelResources, AlbertVocabResources,
 };
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{AlbertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;

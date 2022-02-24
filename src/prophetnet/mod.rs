@@ -20,7 +20,7 @@
 //! use rust_bert::prophetnet::{
 //!     ProphetNetConfigResources, ProphetNetModelResources, ProphetNetVocabResources,
 //! };
-//! use rust_bert::resources::remote::RemoteResource;
+//! use rust_bert::resources::RemoteResource;
 //! use tch::Device;
 //!
 //! fn main() -> anyhow::Result<()> {

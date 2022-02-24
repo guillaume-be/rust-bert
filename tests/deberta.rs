@@ -3,7 +3,7 @@ use rust_bert::deberta::{
     DebertaForSequenceClassification, DebertaForTokenClassification, DebertaMergesResources,
     DebertaModelResources, DebertaVocabResources,
 };
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{DeBERTaTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use std::collections::HashMap;

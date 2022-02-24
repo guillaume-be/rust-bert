@@ -1215,7 +1215,7 @@ mod test {
     use tch::Device;
 
     use crate::{
-        resources::{remote::RemoteResource, ResourceProvider},
+        resources::{RemoteResource, ResourceProvider},
         Config,
     };
 

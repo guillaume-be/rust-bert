@@ -7,7 +7,7 @@ use rust_bert::fnet::{
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::sentiment::{SentimentConfig, SentimentModel, SentimentPolarity};
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{FNetTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;

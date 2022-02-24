@@ -1,6 +1,6 @@
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::xlnet::{
     XLNetConfig, XLNetConfigResources, XLNetForMultipleChoice, XLNetForQuestionAnswering,
     XLNetForSequenceClassification, XLNetForTokenClassification, XLNetLMHeadModel, XLNetModel,

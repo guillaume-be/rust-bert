@@ -6,7 +6,7 @@ use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationMode
 use rust_bert::pipelines::zero_shot_classification::{
     ZeroShotClassificationConfig, ZeroShotClassificationModel,
 };
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};

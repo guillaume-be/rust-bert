@@ -16,7 +16,7 @@ use rust_bert::bart::{
     BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
 };
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
-use rust_bert::resources::remote::RemoteResource;
+use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {

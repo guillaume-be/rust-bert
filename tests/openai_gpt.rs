@@ -6,7 +6,7 @@ use rust_bert::openai_gpt::{
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{OpenAiGptTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};

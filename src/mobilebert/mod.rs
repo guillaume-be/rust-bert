@@ -24,7 +24,7 @@
 //!     MobileBertConfig, MobileBertConfigResources, MobileBertForMaskedLM,
 //!     MobileBertModelResources, MobileBertVocabResources,
 //! };
-//! use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+//! use rust_bert::resources::{RemoteResource, ResourceProvider};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::BertTokenizer;
 //!

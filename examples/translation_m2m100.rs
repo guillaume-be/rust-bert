@@ -18,7 +18,7 @@ use rust_bert::m2m_100::{
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-use rust_bert::resources::remote::RemoteResource;
+use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {

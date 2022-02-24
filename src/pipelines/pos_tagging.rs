@@ -92,7 +92,7 @@ use {
             MobileBertConfigResources, MobileBertModelResources, MobileBertVocabResources,
         },
         pipelines::{common::ModelType, token_classification::LabelAggregationOption},
-        resources::remote::RemoteResource,
+        resources::RemoteResource,
     },
     tch::Device,
 };

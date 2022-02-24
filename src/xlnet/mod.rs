@@ -22,7 +22,7 @@
 //! use rust_bert::pipelines::common::ModelType;
 //! use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
-//! use rust_bert::resources::remote::RemoteResource;
+//! use rust_bert::resources::RemoteResource;
 //! use rust_bert::xlnet::{XLNetConfigResources, XLNetModelResources, XLNetVocabResources};
 //! let config_resource = Box::new(RemoteResource::from_pretrained(
 //!     XLNetConfigResources::XLNET_BASE_CASED,

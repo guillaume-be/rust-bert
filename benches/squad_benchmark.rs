@@ -7,7 +7,7 @@ use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::question_answering::{
     squad_processor, QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
-use rust_bert::resources::remote::RemoteResource;
+use rust_bert::resources::RemoteResource;
 use std::env;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};

@@ -15,7 +15,7 @@
 //!
 //! ```no_run
 //! use rust_bert::pipelines::sequence_classification::SequenceClassificationConfig;
-//! use rust_bert::resources::{remote::RemoteResource};
+//! use rust_bert::resources::{RemoteResource};
 //! use rust_bert::distilbert::{DistilBertModelResources, DistilBertVocabResources, DistilBertConfigResources};
 //! use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
 //! use rust_bert::pipelines::common::ModelType;
@@ -82,7 +82,7 @@ use tch::{nn, no_grad, Device, Kind, Tensor};
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
-    resources::remote::RemoteResource,
+    resources::RemoteResource,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

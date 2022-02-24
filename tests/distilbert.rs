@@ -5,7 +5,7 @@ use rust_bert::distilbert::{
 };
 use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 use rust_bert::pipelines::sentiment::{SentimentModel, SentimentPolarity};
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;

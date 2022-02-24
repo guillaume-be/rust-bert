@@ -16,7 +16,7 @@ use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::token_classification::{
     LabelAggregationOption, TokenClassificationConfig,
 };
-use rust_bert::resources::remote::RemoteResource;
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     //    Load a configuration

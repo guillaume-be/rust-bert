@@ -435,7 +435,7 @@ impl TranslationConfig {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
-    /// use rust_bert::resources::remote::RemoteResource;
+    /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
     /// let model_resource = RemoteResource::from_pretrained(
@@ -799,7 +799,7 @@ impl TranslationModel {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
-    /// use rust_bert::resources::remote::RemoteResource;
+    /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
     /// let model_resource = RemoteResource::from_pretrained(
@@ -860,7 +860,7 @@ impl TranslationModel {
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-    /// use rust_bert::resources::remote::RemoteResource;
+    /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
     /// let model_resource = RemoteResource::from_pretrained(
@@ -934,7 +934,7 @@ mod test {
         MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianTargetLanguages,
         MarianVocabResources,
     };
-    use crate::resources::remote::RemoteResource;
+    use crate::resources::RemoteResource;
 
     #[test]
     #[ignore] // no need to run, compilation is enough to verify it is Send

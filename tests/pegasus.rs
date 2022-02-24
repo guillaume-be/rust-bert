@@ -2,7 +2,7 @@ use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationMode
 
 use rust_bert::pegasus::{PegasusConfigResources, PegasusModelResources, PegasusVocabResources};
 use rust_bert::pipelines::common::ModelType;
-use rust_bert::resources::remote::RemoteResource;
+use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 #[test]

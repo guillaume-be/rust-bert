@@ -4,7 +4,7 @@ use rust_bert::pipelines::common::ModelType;
 use rust_bert::prophetnet::{
     ProphetNetConfigResources, ProphetNetModelResources, ProphetNetVocabResources,
 };
-use rust_bert::resources::remote::RemoteResource;
+use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 #[test]

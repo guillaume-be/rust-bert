@@ -408,7 +408,7 @@ mod model_fetchers {
             MBartConfigResources, MBartModelResources, MBartSourceLanguages, MBartTargetLanguages,
             MBartVocabResources,
         },
-        resources::remote::RemoteResource,
+        resources::RemoteResource,
     };
 
     pub(super) struct TranslationResources<R>

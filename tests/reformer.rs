@@ -4,7 +4,7 @@ use rust_bert::reformer::{
     ReformerConfig, ReformerConfigResources, ReformerForQuestionAnswering,
     ReformerForSequenceClassification, ReformerModelResources, ReformerVocabResources,
 };
-use rust_bert::resources::{remote::RemoteResource, LocalResource, ResourceProvider};
+use rust_bert::resources::{LocalResource, RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{MultiThreadedTokenizer, ReformerTokenizer, TruncationStrategy};
 use std::collections::HashMap;

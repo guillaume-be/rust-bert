@@ -6,7 +6,7 @@ use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::translation::{
     Language, TranslationConfig, TranslationModel, TranslationModelBuilder,
 };
-use rust_bert::resources::remote::RemoteResource;
+use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 #[test]
