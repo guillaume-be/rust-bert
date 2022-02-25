@@ -76,7 +76,7 @@ use crate::t5::T5Generator;
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
-    resources::remote::RemoteResource,
+    resources::RemoteResource,
 };
 
 /// # Configuration for text summarization

@@ -57,7 +57,7 @@ use uuid::Uuid;
 #[cfg(feature = "remote")]
 use crate::{
     gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
-    resources::remote::RemoteResource,
+    resources::RemoteResource,
 };
 
 /// # Configuration for multi-turn classification

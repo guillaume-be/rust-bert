@@ -70,7 +70,7 @@ use tch::{nn, no_grad, Device, Tensor};
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
-    resources::remote::RemoteResource,
+    resources::RemoteResource,
 };
 
 #[derive(Serialize, Deserialize)]

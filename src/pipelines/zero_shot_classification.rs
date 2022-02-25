@@ -122,7 +122,7 @@ use tch::{nn, no_grad, Device, Tensor};
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
-    resources::remote::RemoteResource,
+    resources::RemoteResource,
 };
 
 /// # Configuration for ZeroShotClassificationModel

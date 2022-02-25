@@ -19,7 +19,7 @@ use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGeneration
 use rust_bert::reformer::{
     ReformerConfigResources, ReformerModelResources, ReformerVocabResources,
 };
-use rust_bert::resources::remote::RemoteResource;
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     //    Set-up model

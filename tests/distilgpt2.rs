@@ -3,7 +3,7 @@ use rust_bert::gpt2::{
     Gpt2VocabResources,
 };
 use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};

@@ -4,7 +4,7 @@ use rust_bert::deberta::{
     DebertaConfig, DebertaConfigResources, DebertaForSequenceClassification,
     DebertaMergesResources, DebertaModelResources, DebertaVocabResources,
 };
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{DeBERTaTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use tch::{nn, no_grad, Device, Kind, Tensor};

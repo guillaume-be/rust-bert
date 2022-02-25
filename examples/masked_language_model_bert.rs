@@ -15,7 +15,7 @@ extern crate anyhow;
 use rust_bert::bert::{
     BertConfig, BertConfigResources, BertForMaskedLM, BertModelResources, BertVocabResources,
 };
-use rust_bert::resources::{remote::RemoteResource, ResourceProvider};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;

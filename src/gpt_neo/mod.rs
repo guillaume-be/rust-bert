@@ -22,7 +22,7 @@
 //! };
 //! use rust_bert::pipelines::common::ModelType;
 //! use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
-//! use rust_bert::resources::remote::RemoteResource;
+//! use rust_bert::resources::RemoteResource;
 //! use tch::Device;
 //!
 //! fn main() -> anyhow::Result<()> {

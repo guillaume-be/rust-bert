@@ -15,7 +15,7 @@ extern crate anyhow;
 use rust_bert::fnet::{FNetConfigResources, FNetModelResources, FNetVocabResources};
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::sentiment::{SentimentConfig, SentimentModel};
-use rust_bert::resources::remote::RemoteResource;
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     //    Set-up classifier

@@ -16,7 +16,7 @@
 //!
 //! ```no_run
 //! use rust_bert::pipelines::token_classification::{TokenClassificationModel,TokenClassificationConfig};
-//! use rust_bert::resources::remote::RemoteResource;
+//! use rust_bert::resources::RemoteResource;
 //! use rust_bert::bert::{BertModelResources, BertVocabResources, BertConfigResources};
 //! use rust_bert::pipelines::common::ModelType;
 //! # fn main() -> anyhow::Result<()> {
@@ -139,7 +139,7 @@ use tch::{nn, no_grad, Device, Kind, Tensor};
 #[cfg(feature = "remote")]
 use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
-    resources::remote::RemoteResource,
+    resources::RemoteResource,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
