@@ -10,9 +10,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
-};
 use crate::m2m_100::decoder::M2M100Decoder;
 use crate::m2m_100::encoder::M2M100Encoder;
 use crate::m2m_100::LayerState;
@@ -25,7 +22,6 @@ use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
 use crate::pipelines::translation::Language;
-use crate::resources::{RemoteResource, Resource};
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{M2M100Tokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::{M2M100Vocab, Vocab};
@@ -618,51 +614,10 @@ impl M2M100Generator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<M2M100Generator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                M2M100ModelResources::M2M100_418M,
-            ))
-        } else {
-            generate_config.model_resource.clone()
-        };
-
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                M2M100ConfigResources::M2M100_418M,
-            ))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                M2M100VocabResources::M2M100_418M,
-            ))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let merges_resource = if generate_config.merges_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                M2M100MergesResources::M2M100_418M,
-            ))
-        } else {
-            generate_config.merges_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let merges_path = merges_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();
@@ -889,7 +844,7 @@ mod test {
     use tch::Device;
 
     use crate::{
-        resources::{RemoteResource, Resource},
+        resources::{RemoteResource, ResourceProvider},
         Config,
     };
 
@@ -898,7 +853,7 @@ mod test {
     #[test]
     #[ignore] // compilation is enough, no need to run
     fn mbart_model_send() {
-        let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        let config_resource = Box::new(RemoteResource::from_pretrained(
             M2M100ConfigResources::M2M100_418M,
         ));
         let config_path = config_resource.get_local_path().expect("");

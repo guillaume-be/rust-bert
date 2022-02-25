@@ -15,17 +15,17 @@ extern crate anyhow;
 use rust_bert::fnet::{FNetConfigResources, FNetModelResources, FNetVocabResources};
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::sentiment::{SentimentConfig, SentimentModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     //    Set-up classifier
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         FNetConfigResources::BASE_SST2,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         FNetVocabResources::BASE_SST2,
     ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         FNetModelResources::BASE_SST2,
     ));
 

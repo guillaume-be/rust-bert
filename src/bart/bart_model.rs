@@ -17,10 +17,6 @@ use crate::bart::encoder::BartEncoder;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::kind::get_negative_infinity;
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
-};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
@@ -1028,43 +1024,10 @@ impl BartGenerator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<BartGenerator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART))
-        } else {
-            generate_config.model_resource.clone()
-        };
-
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let merges_resource = if generate_config.merges_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART))
-        } else {
-            generate_config.merges_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let merges_path = merges_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();
@@ -1293,7 +1256,7 @@ mod test {
     use tch::Device;
 
     use crate::{
-        resources::{RemoteResource, Resource},
+        resources::{RemoteResource, ResourceProvider},
         Config,
     };
 
@@ -1302,8 +1265,7 @@ mod test {
     #[test]
     #[ignore] // compilation is enough, no need to run
     fn bart_model_send() {
-        let config_resource =
-            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+        let config_resource = Box::new(RemoteResource::from_pretrained(BartConfigResources::BART));
         let config_path = config_resource.get_local_path().expect("");
 
         //    Set-up masked LM model

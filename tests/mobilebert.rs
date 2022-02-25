@@ -5,7 +5,7 @@ use rust_bert::mobilebert::{
     MobileBertModelResources, MobileBertVocabResources,
 };
 use rust_bert::pipelines::pos_tagging::POSModel;
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
@@ -15,13 +15,13 @@ use tch::{nn, no_grad, Device, Tensor};
 #[test]
 fn mobilebert_masked_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertConfigResources::MOBILEBERT_UNCASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertVocabResources::MOBILEBERT_UNCASED,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertModelResources::MOBILEBERT_UNCASED,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -111,10 +111,10 @@ fn mobilebert_masked_model() -> anyhow::Result<()> {
 #[test]
 fn mobilebert_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertConfigResources::MOBILEBERT_UNCASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertVocabResources::MOBILEBERT_UNCASED,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -162,10 +162,10 @@ fn mobilebert_for_sequence_classification() -> anyhow::Result<()> {
 #[test]
 fn mobilebert_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertConfigResources::MOBILEBERT_UNCASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertVocabResources::MOBILEBERT_UNCASED,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -220,10 +220,10 @@ fn mobilebert_for_multiple_choice() -> anyhow::Result<()> {
 #[test]
 fn mobilebert_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertConfigResources::MOBILEBERT_UNCASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertVocabResources::MOBILEBERT_UNCASED,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -273,10 +273,10 @@ fn mobilebert_for_token_classification() -> anyhow::Result<()> {
 #[test]
 fn mobilebert_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertConfigResources::MOBILEBERT_UNCASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         MobileBertVocabResources::MOBILEBERT_UNCASED,
     ));
     let config_path = config_resource.get_local_path()?;

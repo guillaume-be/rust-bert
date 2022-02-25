@@ -19,19 +19,19 @@
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::reformer::{ReformerConfig, ReformerModel};
-//! use rust_bert::resources::{LocalResource, Resource};
+//! use rust_bert::resources::{LocalResource, ResourceProvider};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::ReformerTokenizer;
 //!
-//! let config_resource = Resource::Local(LocalResource {
+//! let config_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
-//! });
-//! let weights_resource = Resource::Local(LocalResource {
+//! };
+//! let weights_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/weights.ot"),
-//! });
-//! let vocab_resource = Resource::Local(LocalResource {
+//! };
+//! let vocab_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/spiece.model"),
-//! });
+//! };
 //! let config_path = config_resource.get_local_path()?;
 //! let weights_path = weights_resource.get_local_path()?;
 //! let vocab_path = vocab_resource.get_local_path()?;

@@ -15,10 +15,7 @@
 use crate::common::dropout::Dropout;
 use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{
-    Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
-};
+use crate::gpt2::Gpt2Config;
 use crate::openai_gpt::transformer::Block;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
@@ -471,51 +468,10 @@ impl OpenAIGenerator {
     pub fn new(generate_config: GenerateConfig) -> Result<OpenAIGenerator, RustBertError> {
         generate_config.validate();
 
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                OpenAiGptModelResources::GPT,
-            ))
-        } else {
-            generate_config.model_resource.clone()
-        };
-
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                OpenAiGptConfigResources::GPT,
-            ))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                OpenAiGptVocabResources::GPT,
-            ))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let merges_resource = if generate_config.merges_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                OpenAiGptMergesResources::GPT,
-            ))
-        } else {
-            generate_config.merges_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let merges_path = merges_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
 
         let mut var_store = nn::VarStore::new(device);

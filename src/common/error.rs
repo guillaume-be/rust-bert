@@ -4,8 +4,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum RustBertError {
+    #[cfg(feature = "remote")]
     #[error("Endpoint not available error: {0}")]
-    FileDownloadError(String),
+    FileDownloadError(#[from] cached_path::Error),
 
     #[error("IO error: {0}")]
     IOError(String),
@@ -21,12 +22,6 @@ pub enum RustBertError {
 
     #[error("Value error: {0}")]
     ValueError(String),
-}
-
-impl From<cached_path::Error> for RustBertError {
-    fn from(error: cached_path::Error) -> Self {
-        RustBertError::FileDownloadError(error.to_string())
-    }
 }
 
 impl From<std::io::Error> for RustBertError {

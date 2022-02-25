@@ -34,18 +34,21 @@
 use tch::Device;
 
 use crate::common::error::RustBertError;
-use crate::common::resources::RemoteResource;
-use crate::gpt2::{
-    GPT2Generator, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
-};
+use crate::gpt2::GPT2Generator;
 use crate::gpt_neo::GptNeoGenerator;
 use crate::openai_gpt::OpenAIGenerator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::reformer::ReformerGenerator;
-use crate::resources::Resource;
+use crate::resources::ResourceProvider;
 use crate::xlnet::XLNetGenerator;
+
+#[cfg(feature = "remote")]
+use crate::{
+    gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
+    resources::RemoteResource,
+};
 
 /// # Configuration for text generation
 /// Contains information regarding the model to load, mirrors the GenerateConfig, with a
@@ -54,13 +57,13 @@ pub struct TextGenerationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: pretrained BART model on CNN-DM)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BART model on CNN-DM)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: pretrained BART model on CNN-DM)
-    pub merges_resource: Resource,
+    pub merges_resource: Box<dyn ResourceProvider + Send>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
@@ -99,45 +102,26 @@ impl TextGenerationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The `Resource` pointing to the model to load (e.g.  model.ot)
-    /// * config_resource - The `Resource' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab_resource - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * merges_resource - The `Resource`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
-    pub fn new(
+    /// * model_resource - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
+    /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
+    pub fn new<R>(
         model_type: ModelType,
-        model_resource: Resource,
-        config_resource: Resource,
-        vocab_resource: Resource,
-        merges_resource: Resource,
-    ) -> TextGenerationConfig {
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: R,
+    ) -> TextGenerationConfig
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         TextGenerationConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
-            device: Device::cuda_if_available(),
-            ..Default::default()
-        }
-    }
-}
-
-impl Default for TextGenerationConfig {
-    fn default() -> TextGenerationConfig {
-        TextGenerationConfig {
-            model_type: ModelType::GPT2,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2ModelResources::GPT2_MEDIUM,
-            )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2ConfigResources::GPT2_MEDIUM,
-            )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2VocabResources::GPT2_MEDIUM,
-            )),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2MergesResources::GPT2_MEDIUM,
-            )),
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: Box::new(merges_resource),
             min_length: 0,
             max_length: 20,
             do_sample: true,
@@ -154,6 +138,19 @@ impl Default for TextGenerationConfig {
             diversity_penalty: None,
             device: Device::cuda_if_available(),
         }
+    }
+}
+
+#[cfg(feature = "remote")]
+impl Default for TextGenerationConfig {
+    fn default() -> TextGenerationConfig {
+        TextGenerationConfig::new(
+            ModelType::GPT2,
+            RemoteResource::from_pretrained(Gpt2ModelResources::GPT2_MEDIUM),
+            RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2_MEDIUM),
+            RemoteResource::from_pretrained(Gpt2VocabResources::GPT2_MEDIUM),
+            RemoteResource::from_pretrained(Gpt2MergesResources::GPT2_MEDIUM),
+        )
     }
 }
 

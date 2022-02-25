@@ -1,6 +1,6 @@
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::xlnet::{
     XLNetConfig, XLNetConfigResources, XLNetForMultipleChoice, XLNetForQuestionAnswering,
     XLNetForSequenceClassification, XLNetForTokenClassification, XLNetLMHeadModel, XLNetModel,
@@ -15,13 +15,13 @@ use tch::{nn, no_grad, Device, Kind, Tensor};
 #[test]
 fn xlnet_base_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         XLNetVocabResources::XLNET_BASE_CASED,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         XLNetModelResources::XLNET_BASE_CASED,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -122,13 +122,13 @@ fn xlnet_base_model() -> anyhow::Result<()> {
 #[test]
 fn xlnet_lm_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         XLNetVocabResources::XLNET_BASE_CASED,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         XLNetModelResources::XLNET_BASE_CASED,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -196,16 +196,16 @@ fn xlnet_lm_model() -> anyhow::Result<()> {
 #[test]
 fn xlnet_generation_beam_search() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         XLNetVocabResources::XLNET_BASE_CASED,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         XLNetVocabResources::XLNET_BASE_CASED,
     ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         XLNetModelResources::XLNET_BASE_CASED,
     ));
 
@@ -239,10 +239,10 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
 #[test]
 fn xlnet_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         XLNetVocabResources::XLNET_BASE_CASED,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -311,10 +311,10 @@ fn xlnet_for_sequence_classification() -> anyhow::Result<()> {
 #[test]
 fn xlnet_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         XLNetVocabResources::XLNET_BASE_CASED,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -379,10 +379,10 @@ fn xlnet_for_multiple_choice() -> anyhow::Result<()> {
 #[test]
 fn xlnet_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         XLNetVocabResources::XLNET_BASE_CASED,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -442,10 +442,10 @@ fn xlnet_for_token_classification() -> anyhow::Result<()> {
 #[test]
 fn xlnet_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         XLNetConfigResources::XLNET_BASE_CASED,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         XLNetVocabResources::XLNET_BASE_CASED,
     ));
     let config_path = config_resource.get_local_path()?;
