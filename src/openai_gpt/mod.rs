@@ -18,22 +18,22 @@
 //! # use std::path::PathBuf;
 //! use rust_bert::gpt2::Gpt2Config;
 //! use rust_bert::openai_gpt::OpenAiGptModel;
-//! use rust_bert::resources::{LocalResource, Resource};
+//! use rust_bert::resources::{LocalResource, ResourceProvider};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::OpenAiGptTokenizer;
 //!
-//! let config_resource = Resource::Local(LocalResource {
+//! let config_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
-//! });
-//! let vocab_resource = Resource::Local(LocalResource {
+//! };
+//! let vocab_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/vocab.txt"),
-//! });
-//! let merges_resource = Resource::Local(LocalResource {
+//! };
+//! let merges_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/vocab.txt"),
-//! });
-//! let weights_resource = Resource::Local(LocalResource {
+//! };
+//! let weights_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/model.ot"),
-//! });
+//! };
 //! let config_path = config_resource.get_local_path()?;
 //! let vocab_path = vocab_resource.get_local_path()?;
 //! let merges_path = merges_resource.get_local_path()?;

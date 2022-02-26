@@ -20,24 +20,18 @@ use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Longformer,
-        Resource::Remote(RemoteResource::from_pretrained(
-            LongformerModelResources::LONGFORMER_BASE_SQUAD1,
-        )),
-        Resource::Remote(RemoteResource::from_pretrained(
-            LongformerConfigResources::LONGFORMER_BASE_SQUAD1,
-        )),
-        Resource::Remote(RemoteResource::from_pretrained(
-            LongformerVocabResources::LONGFORMER_BASE_SQUAD1,
-        )),
-        Some(Resource::Remote(RemoteResource::from_pretrained(
+        RemoteResource::from_pretrained(LongformerModelResources::LONGFORMER_BASE_SQUAD1),
+        RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_SQUAD1),
+        RemoteResource::from_pretrained(LongformerVocabResources::LONGFORMER_BASE_SQUAD1),
+        Some(RemoteResource::from_pretrained(
             LongformerMergesResources::LONGFORMER_BASE_SQUAD1,
-        ))),
+        )),
         false,
         None,
         false,

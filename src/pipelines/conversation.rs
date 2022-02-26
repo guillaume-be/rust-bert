@@ -45,16 +45,20 @@
 //! The authors of this repository are not responsible for any generation
 //! from the 3rd party utilization of the pretrained system.
 use crate::common::error::RustBertError;
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{
-    GPT2Generator, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
-};
+use crate::gpt2::GPT2Generator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
+use crate::resources::ResourceProvider;
 use std::collections::HashMap;
 use tch::{Device, Kind, Tensor};
 use uuid::Uuid;
+
+#[cfg(feature = "remote")]
+use crate::{
+    gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
+    resources::RemoteResource,
+};
 
 /// # Configuration for multi-turn classification
 /// Contains information regarding the model to load, mirrors the GenerationConfig, with a
@@ -63,13 +67,13 @@ pub struct ConversationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: DialoGPT-medium)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: DialoGPT-medium)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: DialoGPT-medium)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: DialoGPT-medium)
-    pub merges_resource: Resource,
+    pub merges_resource: Box<dyn ResourceProvider + Send>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
@@ -104,20 +108,21 @@ pub struct ConversationConfig {
     pub device: Device,
 }
 
+#[cfg(feature = "remote")]
 impl Default for ConversationConfig {
     fn default() -> ConversationConfig {
         ConversationConfig {
             model_type: ModelType::GPT2,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+            model_resource: Box::new(RemoteResource::from_pretrained(
                 Gpt2ModelResources::DIALOGPT_MEDIUM,
             )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+            config_resource: Box::new(RemoteResource::from_pretrained(
                 Gpt2ConfigResources::DIALOGPT_MEDIUM,
             )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+            vocab_resource: Box::new(RemoteResource::from_pretrained(
                 Gpt2VocabResources::DIALOGPT_MEDIUM,
             )),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
+            merges_resource: Box::new(RemoteResource::from_pretrained(
                 Gpt2MergesResources::DIALOGPT_MEDIUM,
             )),
             min_length: 0,

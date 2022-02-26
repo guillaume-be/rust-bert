@@ -854,7 +854,7 @@ mod test {
     use tch::Device;
 
     use crate::{
-        resources::{RemoteResource, Resource},
+        resources::{RemoteResource, ResourceProvider},
         Config,
     };
 
@@ -863,7 +863,7 @@ mod test {
     #[test]
     #[ignore] // compilation is enough, no need to run
     fn mbart_model_send() {
-        let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+        let config_resource = Box::new(RemoteResource::from_pretrained(
             M2M100ConfigResources::M2M100_418M,
         ));
         let config_path = config_resource.get_local_path().expect("");

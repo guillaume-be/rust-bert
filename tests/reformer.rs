@@ -4,7 +4,7 @@ use rust_bert::reformer::{
     ReformerConfig, ReformerConfigResources, ReformerForQuestionAnswering,
     ReformerForSequenceClassification, ReformerModelResources, ReformerVocabResources,
 };
-use rust_bert::resources::{LocalResource, RemoteResource, Resource};
+use rust_bert::resources::{LocalResource, RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{MultiThreadedTokenizer, ReformerTokenizer, TruncationStrategy};
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ use tch::{nn, no_grad, Device, Tensor};
 fn test_generation_reformer() -> anyhow::Result<()> {
     // ===================================================
     //    Modify resource to enforce seed
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         ReformerConfigResources::CRIME_AND_PUNISHMENT,
     ));
 
@@ -31,18 +31,18 @@ fn test_generation_reformer() -> anyhow::Result<()> {
     let _ = updated_config_file.write_all(serde_json::to_string(&config).unwrap().as_bytes());
     let updated_config_path = updated_config_file.into_temp_path();
 
-    let config_resource = Resource::Local(LocalResource {
+    let config_resource = Box::new(LocalResource {
         local_path: updated_config_path.to_path_buf(),
     });
     // ===================================================
 
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         ReformerVocabResources::CRIME_AND_PUNISHMENT,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         ReformerVocabResources::CRIME_AND_PUNISHMENT,
     ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         ReformerModelResources::CRIME_AND_PUNISHMENT,
     ));
     //    Set-up translation model
@@ -79,10 +79,10 @@ fn test_generation_reformer() -> anyhow::Result<()> {
 #[test]
 fn reformer_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         ReformerConfigResources::CRIME_AND_PUNISHMENT,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         ReformerVocabResources::CRIME_AND_PUNISHMENT,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -145,10 +145,10 @@ fn reformer_for_sequence_classification() -> anyhow::Result<()> {
 #[test]
 fn reformer_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         ReformerConfigResources::CRIME_AND_PUNISHMENT,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         ReformerVocabResources::CRIME_AND_PUNISHMENT,
     ));
     let config_path = config_resource.get_local_path()?;

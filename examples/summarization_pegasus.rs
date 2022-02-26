@@ -15,17 +15,17 @@ extern crate anyhow;
 use rust_bert::pegasus::{PegasusConfigResources, PegasusModelResources, PegasusVocabResources};
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 fn main() -> anyhow::Result<()> {
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         PegasusConfigResources::CNN_DAILYMAIL,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         PegasusVocabResources::CNN_DAILYMAIL,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         PegasusModelResources::CNN_DAILYMAIL,
     ));
 

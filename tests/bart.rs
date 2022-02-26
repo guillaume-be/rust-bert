@@ -6,7 +6,7 @@ use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationMode
 use rust_bert::pipelines::zero_shot_classification::{
     ZeroShotClassificationConfig, ZeroShotClassificationModel,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
@@ -14,16 +14,16 @@ use tch::{nn, Device, Tensor};
 #[test]
 fn bart_lm_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         BartConfigResources::DISTILBART_CNN_6_6,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         BartVocabResources::DISTILBART_CNN_6_6,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         BartMergesResources::DISTILBART_CNN_6_6,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         BartModelResources::DISTILBART_CNN_6_6,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -77,16 +77,16 @@ fn bart_lm_model() -> anyhow::Result<()> {
 
 #[test]
 fn bart_summarization_greedy() -> anyhow::Result<()> {
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         BartConfigResources::DISTILBART_CNN_6_6,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         BartVocabResources::DISTILBART_CNN_6_6,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         BartMergesResources::DISTILBART_CNN_6_6,
     ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         BartModelResources::DISTILBART_CNN_6_6,
     ));
     let summarization_config = SummarizationConfig {
@@ -138,16 +138,16 @@ about exoplanets like K2-18b."];
 
 #[test]
 fn bart_summarization_beam_search() -> anyhow::Result<()> {
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         BartConfigResources::DISTILBART_CNN_6_6,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         BartVocabResources::DISTILBART_CNN_6_6,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         BartMergesResources::DISTILBART_CNN_6_6,
     ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         BartModelResources::DISTILBART_CNN_6_6,
     ));
     let summarization_config = SummarizationConfig {

@@ -2,19 +2,19 @@ use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationMode
 
 use rust_bert::pegasus::{PegasusConfigResources, PegasusModelResources, PegasusVocabResources};
 use rust_bert::pipelines::common::ModelType;
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 #[test]
 fn pegasus_summarization_greedy() -> anyhow::Result<()> {
     //    Set-up model
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         PegasusConfigResources::CNN_DAILYMAIL,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         PegasusVocabResources::CNN_DAILYMAIL,
     ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         PegasusModelResources::CNN_DAILYMAIL,
     ));
 

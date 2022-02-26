@@ -24,19 +24,19 @@
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
 //! use rust_bert::bert::{BertConfig, BertForMaskedLM};
-//! use rust_bert::resources::{LocalResource, Resource};
+//! use rust_bert::resources::{LocalResource, ResourceProvider};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::BertTokenizer;
 //!
-//! let config_resource = Resource::Local(LocalResource {
+//! let config_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
-//! });
-//! let vocab_resource = Resource::Local(LocalResource {
+//! };
+//! let vocab_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/vocab.txt"),
-//! });
-//! let weights_resource = Resource::Local(LocalResource {
+//! };
+//! let weights_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/model.ot"),
-//! });
+//! };
 //! let config_path = config_resource.get_local_path()?;
 //! let vocab_path = vocab_resource.get_local_path()?;
 //! let weights_path = weights_resource.get_local_path()?;

@@ -19,20 +19,20 @@
 //! #
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
-//! use rust_bert::resources::{LocalResource, Resource};
+//! use rust_bert::resources::{LocalResource, ResourceProvider};
 //! use rust_bert::t5::{T5Config, T5ForConditionalGeneration};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::T5Tokenizer;
 //!
-//! let config_resource = Resource::Local(LocalResource {
+//! let config_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
-//! });
-//! let sentence_piece_resource = Resource::Local(LocalResource {
+//! };
+//! let sentence_piece_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/spiece.model"),
-//! });
-//! let weights_resource = Resource::Local(LocalResource {
+//! };
+//! let weights_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/model.ot"),
-//! });
+//! };
 //! let config_path = config_resource.get_local_path()?;
 //! let spiece_path = sentence_piece_resource.get_local_path()?;
 //! let weights_path = weights_resource.get_local_path()?;

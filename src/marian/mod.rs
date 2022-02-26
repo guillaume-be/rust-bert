@@ -21,22 +21,22 @@
 //! # use std::path::PathBuf;
 //! use rust_bert::bart::{BartConfig, BartModel};
 //! use rust_bert::marian::MarianForConditionalGeneration;
-//! use rust_bert::resources::{LocalResource, Resource};
+//! use rust_bert::resources::{LocalResource, ResourceProvider};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::MarianTokenizer;
 //!
-//! let config_resource = Resource::Local(LocalResource {
+//! let config_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/config.json"),
-//! });
-//! let vocab_resource = Resource::Local(LocalResource {
+//! };
+//! let vocab_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/vocab.json"),
-//! });
-//! let sentence_piece_resource = Resource::Local(LocalResource {
+//! };
+//! let sentence_piece_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/spiece.model"),
-//! });
-//! let weights_resource = Resource::Local(LocalResource {
+//! };
+//! let weights_resource = LocalResource {
 //!     local_path: PathBuf::from("path/to/model.ot"),
-//! });
+//! };
 //! let config_path = config_resource.get_local_path()?;
 //! let vocab_path = vocab_resource.get_local_path()?;
 //! let spiece_path = sentence_piece_resource.get_local_path()?;
