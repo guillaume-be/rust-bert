@@ -2,7 +2,7 @@ use rust_bert::electra::{
     ElectraConfig, ElectraConfigResources, ElectraDiscriminator, ElectraForMaskedLM,
     ElectraModelResources, ElectraVocabResources,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
@@ -11,13 +11,13 @@ use tch::{nn, no_grad, Device, Tensor};
 #[test]
 fn electra_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         ElectraConfigResources::BASE_GENERATOR,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         ElectraVocabResources::BASE_GENERATOR,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         ElectraModelResources::BASE_GENERATOR,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -95,13 +95,13 @@ fn electra_masked_lm() -> anyhow::Result<()> {
 #[test]
 fn electra_discriminator() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         ElectraConfigResources::BASE_DISCRIMINATOR,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         ElectraVocabResources::BASE_DISCRIMINATOR,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         ElectraModelResources::BASE_DISCRIMINATOR,
     ));
     let config_path = config_resource.get_local_path()?;

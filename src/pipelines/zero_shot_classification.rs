@@ -99,10 +99,7 @@
 //! ```
 
 use crate::albert::AlbertForSequenceClassification;
-use crate::bart::{
-    BartConfigResources, BartForSequenceClassification, BartMergesResources, BartModelResources,
-    BartVocabResources,
-};
+use crate::bart::BartForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
 use crate::deberta::DebertaForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
@@ -110,7 +107,7 @@ use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::pipelines::sequence_classification::Label;
-use crate::resources::{RemoteResource, Resource};
+use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use crate::RustBertError;
@@ -122,19 +119,25 @@ use tch::kind::Kind::{Bool, Float};
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
 
+#[cfg(feature = "remote")]
+use crate::{
+    bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
+    resources::RemoteResource,
+};
+
 /// # Configuration for ZeroShotClassificationModel
 /// Contains information regarding the model to load and device to place the model on.
 pub struct ZeroShotClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: pretrained BERT model on CoNLL)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: None)
-    pub merges_resource: Option<Resource>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Automatically lower case all input upon tokenization (assumes a lower-cased model)
     pub lower_case: bool,
     /// Flag indicating if the tokenizer should strip accents (normalization). Only used for BERT / ALBERT models
@@ -151,27 +154,30 @@ impl ZeroShotClassificationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model - The `Resource` pointing to the model to load (e.g.  model.ot)
-    /// * config - The `Resource' pointing to the model configuration to load (e.g. config.json)
-    /// * vocab - The `Resource' pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
-    /// * vocab - An optional `Resource` tuple (`Option<Resource>`) pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
-    /// * lower_case - A `bool' indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new(
+    /// * model - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * config - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
+    /// * vocab - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
+    /// * merges - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
+    /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
+    pub fn new<R>(
         model_type: ModelType,
-        model_resource: Resource,
-        config_resource: Resource,
-        vocab_resource: Resource,
-        merges_resource: Option<Resource>,
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: Option<R>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
-    ) -> ZeroShotClassificationConfig {
+    ) -> ZeroShotClassificationConfig
+    where
+        R: ResourceProvider + Send + 'static,
+    {
         ZeroShotClassificationConfig {
             model_type,
-            model_resource,
-            config_resource,
-            vocab_resource,
-            merges_resource,
+            model_resource: Box::new(model_resource),
+            config_resource: Box::new(config_resource),
+            vocab_resource: Box::new(vocab_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             lower_case,
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
@@ -180,21 +186,22 @@ impl ZeroShotClassificationConfig {
     }
 }
 
+#[cfg(feature = "remote")]
 impl Default for ZeroShotClassificationConfig {
     /// Provides a defaultSST-2 sentiment analysis model (English)
     fn default() -> ZeroShotClassificationConfig {
         ZeroShotClassificationConfig {
             model_type: ModelType::Bart,
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
+            model_resource: Box::new(RemoteResource::from_pretrained(
                 BartModelResources::BART_MNLI,
             )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
+            config_resource: Box::new(RemoteResource::from_pretrained(
                 BartConfigResources::BART_MNLI,
             )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
+            vocab_resource: Box::new(RemoteResource::from_pretrained(
                 BartVocabResources::BART_MNLI,
             )),
-            merges_resource: Some(Resource::Remote(RemoteResource::from_pretrained(
+            merges_resource: Some(Box::new(RemoteResource::from_pretrained(
                 BartMergesResources::BART_MNLI,
             ))),
             lower_case: false,

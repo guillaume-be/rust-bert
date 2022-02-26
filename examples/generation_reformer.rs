@@ -19,21 +19,21 @@ use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGeneration
 use rust_bert::reformer::{
     ReformerConfigResources, ReformerModelResources, ReformerVocabResources,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     //    Set-up model
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         ReformerConfigResources::CRIME_AND_PUNISHMENT,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         ReformerVocabResources::CRIME_AND_PUNISHMENT,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         ReformerVocabResources::CRIME_AND_PUNISHMENT,
     ));
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let model_resource = Box::new(RemoteResource::from_pretrained(
         ReformerModelResources::CRIME_AND_PUNISHMENT,
     ));
     let generate_config = TextGenerationConfig {

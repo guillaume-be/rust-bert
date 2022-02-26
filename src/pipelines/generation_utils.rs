@@ -73,10 +73,7 @@ use tch::{no_grad, Device, Tensor};
 
 use crate::bart::LayerState as BartLayerState;
 use crate::common::error::RustBertError;
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
-};
+use crate::common::resources::ResourceProvider;
 use crate::gpt_neo::LayerState as GPTNeoLayerState;
 use crate::pipelines::generation_utils::private_generation_utils::{
     InternalGenerateOptions, PrivateLanguageGenerator,
@@ -89,18 +86,24 @@ use crate::xlnet::LayerState as XLNetLayerState;
 use self::ordered_float::OrderedFloat;
 use crate::pipelines::common::TokenizerOption;
 
+#[cfg(feature = "remote")]
+use crate::{
+    gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
+    resources::RemoteResource,
+};
+
 extern crate ordered_float;
 
 /// # Configuration for text generation
 pub struct GenerateConfig {
     /// Model weights resource (default: pretrained GPT2 model)
-    pub model_resource: Resource,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: pretrained GPT2 model)
-    pub config_resource: Resource,
+    pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained GPT2 model)
-    pub vocab_resource: Resource,
+    pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: pretrained GPT2 model)
-    pub merges_resource: Resource,
+    pub merges_resource: Box<dyn ResourceProvider + Send>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
@@ -133,21 +136,14 @@ pub struct GenerateConfig {
     pub device: Device,
 }
 
+#[cfg(feature = "remote")]
 impl Default for GenerateConfig {
     fn default() -> GenerateConfig {
         GenerateConfig {
-            model_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2ModelResources::GPT2,
-            )),
-            config_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2ConfigResources::GPT2,
-            )),
-            vocab_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2VocabResources::GPT2,
-            )),
-            merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-                Gpt2MergesResources::GPT2,
-            )),
+            model_resource: Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)),
+            config_resource: Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)),
+            vocab_resource: Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)),
+            merges_resource: Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2)),
             min_length: 0,
             max_length: 20,
             do_sample: true,

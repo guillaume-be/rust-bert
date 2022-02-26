@@ -18,8 +18,6 @@ use serde::{Deserialize, Serialize};
 use tch::nn::embedding;
 use tch::{nn, Tensor};
 
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
@@ -715,34 +713,9 @@ pub struct T5Generator {
 
 impl T5Generator {
     pub fn new(generate_config: GenerateConfig) -> Result<T5Generator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL))
-        } else {
-            generate_config.model_resource.clone()
-        };
-
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();

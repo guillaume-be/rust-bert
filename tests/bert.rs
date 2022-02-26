@@ -11,7 +11,7 @@ use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
@@ -21,12 +21,9 @@ use tch::{nn, no_grad, Device, Tensor};
 #[test]
 fn bert_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
-    let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
-    let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT));
+    let config_resource = RemoteResource::from_pretrained(BertConfigResources::BERT);
+    let vocab_resource = RemoteResource::from_pretrained(BertVocabResources::BERT);
+    let weights_resource = RemoteResource::from_pretrained(BertModelResources::BERT);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let weights_path = weights_resource.get_local_path()?;
@@ -106,10 +103,8 @@ fn bert_masked_lm() -> anyhow::Result<()> {
 #[test]
 fn bert_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
-    let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let config_resource = RemoteResource::from_pretrained(BertConfigResources::BERT);
+    let vocab_resource = RemoteResource::from_pretrained(BertVocabResources::BERT);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 
@@ -170,10 +165,8 @@ fn bert_for_sequence_classification() -> anyhow::Result<()> {
 #[test]
 fn bert_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
-    let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let config_resource = RemoteResource::from_pretrained(BertConfigResources::BERT);
+    let vocab_resource = RemoteResource::from_pretrained(BertVocabResources::BERT);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 
@@ -230,10 +223,8 @@ fn bert_for_multiple_choice() -> anyhow::Result<()> {
 #[test]
 fn bert_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
-    let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let config_resource = RemoteResource::from_pretrained(BertConfigResources::BERT);
+    let vocab_resource = RemoteResource::from_pretrained(BertVocabResources::BERT);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 
@@ -295,10 +286,8 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
 #[test]
 fn bert_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertConfigResources::BERT));
-    let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT));
+    let config_resource = RemoteResource::from_pretrained(BertConfigResources::BERT);
+    let vocab_resource = RemoteResource::from_pretrained(BertVocabResources::BERT);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
 
@@ -422,11 +411,9 @@ fn bert_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,
-        Resource::Remote(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
-        Resource::Remote(RemoteResource::from_pretrained(
-            BertConfigResources::BERT_QA,
-        )),
-        Resource::Remote(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
+        RemoteResource::from_pretrained(BertModelResources::BERT_QA),
+        RemoteResource::from_pretrained(BertConfigResources::BERT_QA),
+        RemoteResource::from_pretrained(BertVocabResources::BERT_QA),
         None, //merges resource only relevant with ModelType::Roberta
         false,
         false,
