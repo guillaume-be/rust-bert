@@ -1673,7 +1673,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     where
         S: AsRef<str> + Sync,
     {
-        let eos_token_ids = self.get_eos_ids().clone();
+        let eos_token_ids = self.get_eos_ids();
 
         let config = self.get_config();
         let max_length = unpack_config!(max_length, generate_options, config);
@@ -1757,7 +1757,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         attention_mask: Option<Tensor>,
         generate_options: Option<GenerateOptions>,
     ) -> Vec<GeneratedIndicesOutput> {
-        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).map(|vec| vec.clone());
+        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).cloned();
 
         let config = PrivateLanguageGenerator::get_config(self);
 
