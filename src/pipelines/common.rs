@@ -43,9 +43,9 @@ use rust_tokenizers::tokenizer::{
     Tokenizer, TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
 };
 use rust_tokenizers::vocab::{
-    AlbertVocab, BertVocab, FNetVocab, Gpt2Vocab, M2M100Vocab, MBart50Vocab, MarianVocab,
-    OpenAiGptVocab, PegasusVocab, ProphetNetVocab, ReformerVocab, RobertaVocab, T5Vocab, Vocab,
-    XLMRobertaVocab, XLNetVocab,
+    AlbertVocab, BertVocab, DeBERTaVocab, FNetVocab, Gpt2Vocab, M2M100Vocab, MBart50Vocab,
+    MarianVocab, OpenAiGptVocab, PegasusVocab, ProphetNetVocab, ReformerVocab, RobertaVocab,
+    T5Vocab, Vocab, XLMRobertaVocab, XLNetVocab,
 };
 use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
@@ -155,6 +155,8 @@ pub enum TokenizerOption {
     M2M100(M2M100Tokenizer),
     /// FNet Tokenizer
     FNet(FNetTokenizer),
+    /// Bart Tokenizer
+    Bart(RobertaTokenizer),
 }
 
 impl ConfigOption {
@@ -329,7 +331,7 @@ impl TokenizerOption {
                     lower_case,
                 )?)
             }
-            ModelType::Roberta | ModelType::Bart | ModelType::Longformer => {
+            ModelType::Roberta | ModelType::Longformer => {
                 if strip_accents.is_some() {
                     return Err(RustBertError::InvalidConfigurationError(format!(
                         "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
@@ -338,6 +340,21 @@ impl TokenizerOption {
                     )));
                 }
                 TokenizerOption::Roberta(RobertaTokenizer::from_file(
+                    vocab_path,
+                    merges_path.expect("No merges specified!"),
+                    lower_case,
+                    add_prefix_space.unwrap_or(false),
+                )?)
+            }
+            ModelType::Bart => {
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::Bart(RobertaTokenizer::from_file(
                     vocab_path,
                     merges_path.expect("No merges specified!"),
                     lower_case,
@@ -528,6 +545,7 @@ impl TokenizerOption {
             Self::Bert(_) => ModelType::Bert,
             Self::Deberta(_) => ModelType::Deberta,
             Self::Roberta(_) => ModelType::Roberta,
+            Self::Bart(_) => ModelType::Bart,
             Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::Marian(_) => ModelType::Marian,
             Self::T5(_) => ModelType::T5,
@@ -571,6 +589,13 @@ impl TokenizerOption {
                 stride,
             ),
             Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            Self::Bart(ref tokenizer) => MultiThreadedTokenizer::encode_list(
                 tokenizer,
                 text_list,
                 max_len,
@@ -701,6 +726,13 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::Bart(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
             Self::Marian(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
                 tokenizer,
                 text_pair_list,
@@ -814,6 +846,9 @@ impl TokenizerOption {
             Self::Roberta(ref tokenizer) => {
                 tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
+            Self::Bart(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
             Self::Marian(ref tokenizer) => {
                 tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
@@ -862,6 +897,7 @@ impl TokenizerOption {
             Self::Bert(ref tokenizer) => tokenizer.tokenize(text),
             Self::Deberta(ref tokenizer) => tokenizer.tokenize(text),
             Self::Roberta(ref tokenizer) => tokenizer.tokenize(text),
+            Self::Bart(ref tokenizer) => tokenizer.tokenize(text),
             Self::Marian(ref tokenizer) => tokenizer.tokenize(text),
             Self::T5(ref tokenizer) => tokenizer.tokenize(text),
             Self::XLMRoberta(ref tokenizer) => tokenizer.tokenize(text),
@@ -884,6 +920,7 @@ impl TokenizerOption {
             Self::Bert(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::Deberta(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::Roberta(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::Bart(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::Marian(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::T5(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::XLMRoberta(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
@@ -909,6 +946,7 @@ impl TokenizerOption {
             Self::Bert(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::Deberta(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::Roberta(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::Bart(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::Marian(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::T5(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::XLMRoberta(ref tokenizer) => {
@@ -946,6 +984,9 @@ impl TokenizerOption {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
             Self::Roberta(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::Bart(ref tokenizer) => {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
             Self::Marian(ref tokenizer) => {
@@ -1006,6 +1047,10 @@ impl TokenizerOption {
                 token_ids_with_offsets_2,
             ),
             Self::Roberta(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
+            Self::Bart(ref tokenizer) => tokenizer.build_input_with_special_tokens(
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
             ),
@@ -1083,6 +1128,7 @@ impl TokenizerOption {
             Self::Bert(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::Deberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::Roberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::Bart(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::Marian(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::T5(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::XLMRoberta(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
@@ -1108,9 +1154,13 @@ impl TokenizerOption {
                 .expect("UNK token not found in vocabulary"),
             Self::Deberta(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
                 .special_values
-                .get(BertVocab::unknown_value())
+                .get(DeBERTaVocab::unknown_value())
                 .expect("UNK token not found in vocabulary"),
             Self::Roberta(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
+                .special_values
+                .get(RobertaVocab::unknown_value())
+                .expect("UNK token not found in vocabulary"),
+            Self::Bart(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
                 .special_values
                 .get(RobertaVocab::unknown_value())
                 .expect("UNK token not found in vocabulary"),
@@ -1181,7 +1231,7 @@ impl TokenizerOption {
             Self::Deberta(ref tokenizer) => Some(
                 *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
-                    .get(BertVocab::pad_value())
+                    .get(DeBERTaVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
             ),
             Self::Roberta(ref tokenizer) => Some(
@@ -1189,6 +1239,12 @@ impl TokenizerOption {
                     .special_values
                     .get(RobertaVocab::pad_value())
                     .expect("PAD token not found in vocabulary"),
+            ),
+            Self::Bart(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(RobertaVocab::pad_value())
+                    .unwrap_or(&1),
             ),
             Self::XLMRoberta(ref tokenizer) => Some(
                 *MultiThreadedTokenizer::vocab(tokenizer)
@@ -1230,7 +1286,7 @@ impl TokenizerOption {
                 *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(PegasusVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
+                    .unwrap_or(&0),
             ),
             Self::MBart50(ref tokenizer) => Some(
                 *MultiThreadedTokenizer::vocab(tokenizer)
@@ -1242,7 +1298,7 @@ impl TokenizerOption {
                 *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(M2M100Vocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
+                    .unwrap_or(&1),
             ),
             Self::FNet(ref tokenizer) => Some(
                 *MultiThreadedTokenizer::vocab(tokenizer)
@@ -1268,10 +1324,16 @@ impl TokenizerOption {
             Self::Deberta(ref tokenizer) => Some(
                 *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
-                    .get(BertVocab::sep_value())
+                    .get(DeBERTaVocab::sep_value())
                     .expect("SEP token not found in vocabulary"),
             ),
             Self::Roberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(RobertaVocab::sep_value())
+                    .expect("SEP token not found in vocabulary"),
+            ),
+            Self::Bart(ref tokenizer) => Some(
                 *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(RobertaVocab::sep_value())
@@ -1305,7 +1367,7 @@ impl TokenizerOption {
                 *MultiThreadedTokenizer::vocab(tokenizer)
                     .special_values
                     .get(MBart50Vocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
+                    .unwrap_or(&1),
             ),
             Self::M2M100(ref tokenizer) => Some(
                 *MultiThreadedTokenizer::vocab(tokenizer)
@@ -1325,6 +1387,157 @@ impl TokenizerOption {
             Self::OpenAiGpt(_) => None,
             Self::Reformer(_) => None,
             Self::Pegasus(_) => None,
+        }
+    }
+
+    /// Interface method
+    pub fn get_bos_id(&self) -> Option<i64> {
+        match *self {
+            Self::Roberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(RobertaVocab::bos_value())
+                    .expect("BOS token not found in vocabulary"),
+            ),
+            Self::Bart(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(RobertaVocab::bos_value())
+                    .unwrap_or(&0),
+            ),
+            Self::XLMRoberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(XLMRobertaVocab::bos_value())
+                    .expect("BOS token not found in vocabulary"),
+            ),
+            Self::Albert(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(AlbertVocab::bos_value())
+                    .expect("BOS token not found in vocabulary"),
+            ),
+            Self::XLNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(XLNetVocab::bos_value())
+                    .expect("BOS token not found in vocabulary"),
+            ),
+            Self::M2M100(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(M2M100Vocab::bos_value())
+                    .unwrap_or(&0),
+            ),
+            Self::GPT2(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(Gpt2Vocab::bos_value())
+                    .expect("BOS token not found in vocabulary"),
+            ),
+            Self::Deberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(DeBERTaVocab::bos_value())
+                    .expect("BOS token not found in vocabulary"),
+            ),
+            Self::MBart50(_) => Some(0),
+            Self::FNet(_) => None,
+            Self::Bert(_) => None,
+            Self::Marian(_) => Some(0),
+            Self::T5(_) => None,
+            Self::ProphetNet(_) => None,
+            Self::OpenAiGpt(_) => None,
+            Self::Reformer(_) => None,
+            Self::Pegasus(_) => Some(0),
+        }
+    }
+
+    /// Interface method
+    pub fn get_eos_id(&self) -> Option<i64> {
+        match *self {
+            Self::Roberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(RobertaVocab::eos_value())
+                    .expect("EOS token not found in vocabulary"),
+            ),
+            Self::Bart(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(RobertaVocab::eos_value())
+                    .unwrap_or(&2),
+            ),
+            Self::XLMRoberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(XLMRobertaVocab::eos_value())
+                    .expect("EOS token not found in vocabulary"),
+            ),
+            Self::Albert(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(AlbertVocab::eos_value())
+                    .expect("EOS token not found in vocabulary"),
+            ),
+            Self::XLNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(XLNetVocab::eos_value())
+                    .expect("EOS token not found in vocabulary"),
+            ),
+            Self::MBart50(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(MBart50Vocab::eos_value())
+                    .unwrap_or(&2),
+            ),
+            Self::M2M100(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(M2M100Vocab::eos_value())
+                    .expect("EOS token not found in vocabulary"),
+            ),
+            Self::GPT2(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(Gpt2Vocab::eos_value())
+                    .unwrap_or(&2),
+            ),
+            Self::Deberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(DeBERTaVocab::eos_value())
+                    .expect("EOS token not found in vocabulary"),
+            ),
+            Self::Marian(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(MarianVocab::eos_value())
+                    .expect("EOS token not found in vocabulary"),
+            ),
+            Self::T5(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(T5Vocab::eos_value())
+                    .expect("EOS token not found in vocabulary"),
+            ),
+            Self::Reformer(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(ReformerVocab::eos_value())
+                    .expect("EOS token not found in vocabulary"),
+            ),
+            Self::Pegasus(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(PegasusVocab::eos_value())
+                    .unwrap_or(&1),
+            ),
+            Self::FNet(_) => None,
+            Self::Bert(_) => None,
+            Self::ProphetNet(_) => None,
+            Self::OpenAiGpt(_) => None,
         }
     }
 }

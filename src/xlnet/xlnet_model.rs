@@ -1582,13 +1582,8 @@ impl XLNetGenerator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<XLNetGenerator, RustBertError> {
-        let config_path = generate_config.config_resource.get_local_path()?;
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
-        let device = generate_config.device;
 
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
             ModelType::XLNet,
             vocab_path.to_str().unwrap(),
@@ -1597,6 +1592,20 @@ impl XLNetGenerator {
             true,
             None,
         )?;
+
+        Self::new_with_tokenizer(generate_config, tokenizer)
+    }
+
+    pub fn new_with_tokenizer(
+        generate_config: GenerateConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<XLNetGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
 
         let config = XLNetConfig::from_file(config_path);
         let model = XLNetLMHeadModel::new(&var_store.root(), &config);
@@ -1643,14 +1652,14 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
     }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
     }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
     }
     fn is_encoder_decoder(&self) -> bool {
         self.is_encoder_decoder
