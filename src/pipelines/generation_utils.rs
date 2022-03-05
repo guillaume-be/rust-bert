@@ -276,9 +276,9 @@ pub(crate) mod private_generation_utils {
         fn get_var_store(&self) -> &nn::VarStore;
         fn get_var_store_mut(&mut self) -> &mut nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
-        fn get_bos_id(&self) -> &Option<i64>;
-        fn get_eos_ids(&self) -> &Option<Vec<i64>>;
-        fn get_pad_id(&self) -> &Option<i64>;
+        fn get_bos_id(&self) -> Option<i64>;
+        fn get_eos_ids(&self) -> Option<&Vec<i64>>;
+        fn get_pad_id(&self) -> Option<i64>;
         fn is_encoder_decoder(&self) -> bool;
         fn get_vocab_size(&self) -> i64;
         fn get_decoder_start_id(&self) -> Option<i64>;
@@ -1673,17 +1673,17 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     where
         S: AsRef<str> + Sync,
     {
-        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
+        let eos_token_ids = self.get_eos_ids();
 
-        let config = PrivateLanguageGenerator::get_config(self);
+        let config = self.get_config();
         let max_length = unpack_config!(max_length, generate_options, config);
         let encoding_max_len = if self.is_encoder_decoder() {
-            PrivateLanguageGenerator::get_max_positions_embeddings(self)
+            self.get_max_positions_embeddings()
         } else {
             max_length
         };
         let pad_token_id = match self.get_pad_id() {
-            Some(value) => Some(*value),
+            Some(value) => Some(value),
             None => eos_token_ids.as_ref().map(|eos_ids| eos_ids[0]),
         };
 
@@ -1691,7 +1691,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             Some(text) => self.encode_prompt_text(text, encoding_max_len, pad_token_id),
             None => match self.get_bos_id() {
                 Some(bos_id) => {
-                    Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * *bos_id
+                    Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * bos_id
                 }
                 None => panic!(
                     "A model with a BOS token must be used to start generation with an empty input"
@@ -1757,7 +1757,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         attention_mask: Option<Tensor>,
         generate_options: Option<GenerateOptions>,
     ) -> Vec<GeneratedIndicesOutput> {
-        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).clone();
+        let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).cloned();
 
         let config = PrivateLanguageGenerator::get_config(self);
 
@@ -1788,7 +1788,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let output_scores = generate_options.map_or(false, |opts| opts.output_scores);
 
         let pad_token_id = match self.get_pad_id() {
-            Some(value) => Some(*value),
+            Some(value) => Some(value),
             None => eos_token_ids.as_ref().map(|eos_ids| eos_ids[0]),
         };
 
@@ -1810,8 +1810,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
 
         let attention_mask = match attention_mask {
             Some(value) => value,
-            None => match self.get_pad_id() {
-                Some(pad_id) => input_ids.ne(*pad_id).to_kind(Int64),
+            None => match pad_token_id {
+                Some(pad_id) => input_ids.ne(pad_id).to_kind(Int64),
                 None => input_ids.ones_like().to_kind(Int64),
             },
         };
