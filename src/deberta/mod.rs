@@ -70,11 +70,10 @@ pub use deberta_model::{
 };
 
 pub(crate) use deberta_model::{
-    deserialize_attention_type, x_softmax, DebertaSelfOutput, PositionAttentionType,
+    deserialize_attention_type, x_softmax, BaseDebertaLayerNorm, PositionAttentionType,
     PositionAttentionTypes,
 };
 
-pub(crate) use attention::{
-    DebertaAttention, DebertaDisentangledSelfAttention, DisentangledSelfAttention,
-};
-pub(crate) use encoder::{BaseDebertaLayer, DebertaIntermediate, DebertaOutput};
+pub(crate) use attention::{DebertaDisentangledSelfAttention, DisentangledSelfAttention};
+pub(crate) use embeddings::DebertaEmbeddings;
+pub(crate) use encoder::BaseDebertaLayer;

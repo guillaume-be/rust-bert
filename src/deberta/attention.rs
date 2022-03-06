@@ -11,13 +11,11 @@
 // limitations under the License.
 
 use crate::common::dropout::XDropout;
-use crate::deberta::deberta_model::{
-    x_softmax, DebertaSelfOutput, PositionAttentionType, PositionAttentionTypes,
-};
-use crate::deberta::DebertaConfig;
+use crate::deberta::deberta_model::{x_softmax, PositionAttentionType, PositionAttentionTypes};
+use crate::deberta::{BaseDebertaLayerNorm, DebertaConfig};
 use crate::RustBertError;
 use std::borrow::Borrow;
-use tch::nn::Init;
+use tch::nn::{Init, Module};
 use tch::{nn, Device, Kind, Tensor};
 
 pub trait DisentangledSelfAttention {
@@ -448,18 +446,67 @@ impl DisentangledSelfAttention for DebertaDisentangledSelfAttention {
     }
 }
 
-pub struct DebertaAttention<T: DisentangledSelfAttention> {
-    self_attention: T,
-    self_output: DebertaSelfOutput,
+pub struct DebertaSelfOutput<LN: BaseDebertaLayerNorm + Module> {
+    dense: nn::Linear,
+    layer_norm: LN,
+    dropout: XDropout,
 }
 
-impl<T: DisentangledSelfAttention> DebertaAttention<T> {
+impl<LN: BaseDebertaLayerNorm + Module> DebertaSelfOutput<LN> {
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaSelfOutput<LN>
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let dense = nn::linear(
+            p / "dense",
+            config.hidden_size,
+            config.hidden_size,
+            Default::default(),
+        );
+        let layer_norm = LN::new(
+            p / "LayerNorm",
+            config.hidden_size,
+            config.layer_norm_eps.unwrap_or(1e-7),
+        );
+        let dropout = XDropout::new(config.hidden_dropout_prob);
+        DebertaSelfOutput {
+            dense,
+            layer_norm,
+            dropout,
+        }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, input_tensor: &Tensor, train: bool) -> Tensor {
+        self.layer_norm.forward(
+            &(hidden_states
+                .apply(&self.dense)
+                .apply_t(&self.dropout, train)
+                + input_tensor),
+        )
+    }
+}
+
+pub struct DebertaAttention<SA, LN>
+where
+    SA: DisentangledSelfAttention,
+    LN: BaseDebertaLayerNorm + Module,
+{
+    self_attention: SA,
+    self_output: DebertaSelfOutput<LN>,
+}
+
+impl<SA, LN> DebertaAttention<SA, LN>
+where
+    SA: DisentangledSelfAttention,
+    LN: BaseDebertaLayerNorm + Module,
+{
     pub fn new<'p, P>(p: P, config: &DebertaConfig) -> Self
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
-        let self_attention = T::new(p / "self", config);
+        let self_attention = SA::new(p / "self", config);
         let self_output = DebertaSelfOutput::new(p / "output", config);
 
         DebertaAttention {

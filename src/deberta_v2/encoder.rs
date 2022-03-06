@@ -12,17 +12,15 @@
 
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::XDropout;
-use crate::deberta::{BaseDebertaLayer, DebertaIntermediate, DebertaOutput};
+use crate::deberta::{BaseDebertaLayer, BaseDebertaLayerNorm};
 use crate::deberta_v2::attention::DebertaV2DisentangledSelfAttention;
 use crate::deberta_v2::DebertaV2Config;
 use crate::Activation;
 use std::borrow::Borrow;
 use tch::nn;
-use tch::nn::{ConvConfig, LayerNormConfig};
+use tch::nn::{ConvConfig, LayerNorm, LayerNormConfig, Path};
 
-pub type DebertaV2Intermediate = DebertaIntermediate;
-pub type DebertaV2Output = DebertaOutput;
-pub type DebertaV2Layer = BaseDebertaLayer<DebertaV2DisentangledSelfAttention>;
+pub type DebertaV2Layer = BaseDebertaLayer<DebertaV2DisentangledSelfAttention, LayerNorm>;
 
 pub struct ConvLayer {
     conv: nn::Conv1D,
@@ -69,5 +67,19 @@ impl ConvLayer {
             dropout,
             conv_act,
         }
+    }
+}
+
+impl BaseDebertaLayerNorm for LayerNorm {
+    fn new<'p, P>(p: P, size: i64, variance_epsilon: f64) -> Self
+    where
+        P: Borrow<Path<'p>>,
+    {
+        let layer_norm_config = nn::LayerNormConfig {
+            eps: variance_epsilon,
+            ..Default::default()
+        };
+
+        nn::layer_norm(p, vec![size], layer_norm_config)
     }
 }

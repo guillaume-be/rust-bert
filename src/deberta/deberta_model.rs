@@ -234,6 +234,12 @@ pub fn x_softmax(input: &Tensor, mask: &Tensor, dim: i64) -> Tensor {
         .masked_fill(&inverse_mask, 0.0)
 }
 
+pub trait BaseDebertaLayerNorm {
+    fn new<'p, P>(p: P, size: i64, variance_epsilon: f64) -> Self
+    where
+        P: Borrow<nn::Path<'p>>;
+}
+
 #[derive(Debug)]
 pub struct DebertaLayerNorm {
     weight: Tensor,
@@ -241,8 +247,8 @@ pub struct DebertaLayerNorm {
     variance_epsilon: f64,
 }
 
-impl DebertaLayerNorm {
-    pub fn new<'p, P>(p: P, size: i64, variance_epsilon: f64) -> DebertaLayerNorm
+impl BaseDebertaLayerNorm for DebertaLayerNorm {
+    fn new<'p, P>(p: P, size: i64, variance_epsilon: f64) -> DebertaLayerNorm
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -272,47 +278,6 @@ impl Module for DebertaLayerNorm {
                 .sqrt()
                 .to_kind(input_type);
         &self.weight * hidden_states + &self.bias
-    }
-}
-
-pub struct DebertaSelfOutput {
-    dense: nn::Linear,
-    layer_norm: DebertaLayerNorm,
-    dropout: XDropout,
-}
-
-impl DebertaSelfOutput {
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaSelfOutput
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        let p = p.borrow();
-        let dense = nn::linear(
-            p / "dense",
-            config.hidden_size,
-            config.hidden_size,
-            Default::default(),
-        );
-        let layer_norm = DebertaLayerNorm::new(
-            p / "LayerNorm",
-            config.hidden_size,
-            config.layer_norm_eps.unwrap_or(1e-7),
-        );
-        let dropout = XDropout::new(config.hidden_dropout_prob);
-        DebertaSelfOutput {
-            dense,
-            layer_norm,
-            dropout,
-        }
-    }
-
-    pub fn forward_t(&self, hidden_states: &Tensor, input_tensor: &Tensor, train: bool) -> Tensor {
-        self.layer_norm.forward(
-            &(hidden_states
-                .apply(&self.dense)
-                .apply_t(&self.dropout, train)
-                + input_tensor),
-        )
     }
 }
 

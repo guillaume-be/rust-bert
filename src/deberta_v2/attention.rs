@@ -12,7 +12,7 @@
 
 use crate::common::dropout::XDropout;
 use crate::deberta::{
-    x_softmax, DebertaAttention, DebertaConfig, DisentangledSelfAttention, PositionAttentionType,
+    x_softmax, DebertaConfig, DisentangledSelfAttention, PositionAttentionType,
     PositionAttentionTypes,
 };
 use crate::RustBertError;
@@ -422,5 +422,3 @@ impl DisentangledSelfAttention for DebertaV2DisentangledSelfAttention {
         Ok((context_layer, attention_probs))
     }
 }
-
-pub type DebertaV2Attention<T> = DebertaAttention<T>;

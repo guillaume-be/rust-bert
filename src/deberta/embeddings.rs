@@ -13,7 +13,7 @@
 use crate::common::dropout::XDropout;
 use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::deberta::deberta_model::DebertaLayerNorm;
-use crate::deberta::DebertaConfig;
+use crate::deberta::{BaseDebertaLayerNorm, DebertaConfig};
 use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::EmbeddingConfig;
