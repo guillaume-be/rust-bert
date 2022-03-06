@@ -16,7 +16,7 @@ use crate::distilbert::distilbert_model::DistilBertConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::kind::Kind::Float;
-use tch::nn::{embedding, EmbeddingConfig};
+use tch::nn::{embedding, EmbeddingConfig, Init, VarStore};
 use tch::{nn, Device, Kind, Tensor};
 
 fn create_sinusoidal_embeddings<'p, P>(
@@ -49,18 +49,28 @@ where
         .to_kind(Float)
         .to_device(device);
 
+    let p = p.borrow();
+    let mut updated_weights = p.var(
+        "weight",
+        &[config.max_position_embeddings, config.dim],
+        Init::Const(0.),
+    );
+    tch::no_grad(|| {
+        updated_weights.copy_(&sinusoidal_embedding);
+    });
+
     let embedding_config = EmbeddingConfig {
         padding_idx: 0,
         ..Default::default()
     };
     let mut embeddings = embedding(
-        p.borrow(),
+        VarStore::new(Device::Cpu).root(),
         config.max_position_embeddings,
         config.dim,
         embedding_config,
     );
 
-    embeddings.ws = sinusoidal_embedding;
+    embeddings.ws = updated_weights;
     embeddings
 }
 

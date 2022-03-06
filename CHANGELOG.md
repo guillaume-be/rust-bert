@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file. The format 
 ## Changed
 - (BREAKING) Updated `Resources`, moving `RemoteResource` and associated download utilities/dependencies behind a feature gate (enabled by default). Reworked the API for building and using resources. 
 
+## Fixed
+- Fixed sinusoidal embeddings not being updated when loading a state dictionary (DistilBERT)
+
 ## [0.17.0] - 2021-12-19
 ## Changed
 - Updated to `tch` 0.6.1 (libtorch 1.10)
