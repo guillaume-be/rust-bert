@@ -16,20 +16,26 @@ use crate::deberta::deberta_model::DebertaLayerNorm;
 use crate::deberta::{BaseDebertaLayerNorm, DebertaConfig};
 use crate::RustBertError;
 use std::borrow::Borrow;
-use tch::nn::EmbeddingConfig;
+use tch::nn::{EmbeddingConfig, Module};
 use tch::{nn, Kind, Tensor};
 
-pub struct DebertaEmbeddings {
+pub struct BaseDebertaEmbeddings<LN>
+where
+    LN: BaseDebertaLayerNorm + Module,
+{
     word_embeddings: nn::Embedding,
     position_embeddings: Option<nn::Embedding>,
     token_type_embeddings: Option<nn::Embedding>,
     embed_proj: Option<nn::Linear>,
-    layer_norm: DebertaLayerNorm,
+    layer_norm: LN,
     dropout: XDropout,
 }
 
-impl DebertaEmbeddings {
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaEmbeddings
+impl<LN> BaseDebertaEmbeddings<LN>
+where
+    LN: BaseDebertaLayerNorm + Module,
+{
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> BaseDebertaEmbeddings<LN>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -85,13 +91,13 @@ impl DebertaEmbeddings {
             None
         };
 
-        let layer_norm = DebertaLayerNorm::new(
+        let layer_norm = LN::new(
             p / "LayerNorm",
             embedding_size,
             config.layer_norm_eps.unwrap_or(1e-7),
         );
         let dropout = XDropout::new(config.hidden_dropout_prob);
-        DebertaEmbeddings {
+        BaseDebertaEmbeddings {
             word_embeddings,
             position_embeddings,
             token_type_embeddings,
@@ -174,3 +180,5 @@ impl DebertaEmbeddings {
         Ok(input_embeddings.apply_t(&self.dropout, train))
     }
 }
+
+pub type DebertaEmbeddings = BaseDebertaEmbeddings<DebertaLayerNorm>;
