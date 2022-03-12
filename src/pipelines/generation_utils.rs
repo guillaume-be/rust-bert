@@ -747,7 +747,8 @@ pub(crate) mod private_generation_utils {
             let mut past: Cache = Cache::None;
             let mut outputs: Tensor;
             let mut current_length = cur_len;
-            let mut scores_output: Option<Tensor> = None;
+            let mut token_scores_output: Option<Vec<Tensor>> =
+                if output_scores { Some(vec![]) } else { None };
 
             while current_length < gen_opt.max_length {
                 let prepared_input = self.prepare_inputs_for_generation(
@@ -772,13 +773,6 @@ pub(crate) mod private_generation_utils {
                     .unwrap();
                 outputs = temp.lm_logits;
                 past = temp.cache;
-
-                if scores_output.is_none() & output_scores {
-                    scores_output = Some(Tensor::zeros(
-                        &[batch_size],
-                        (outputs.kind(), self.get_var_store().device()),
-                    ))
-                }
 
                 let mut next_token_logits = outputs.select(1, -1);
                 // Reduce probability for repeated inputs
@@ -874,17 +868,17 @@ pub(crate) mod private_generation_utils {
                     next_token_logits.argmax(-1, false)
                 };
 
-                if let Some(prev_scores) = scores_output {
+                token_scores_output.as_mut().map(|prev_scores| {
                     let finished_mask = unfinished_sentences.eq(0);
-                    scores_output = Some(
-                        prev_scores
-                            + (&next_token_logits
-                                .log_softmax(-1, next_token_logits.kind())
-                                .gather(1, &next_token.reshape(&[-1, 1]), true)
-                                .squeeze()
-                                .masked_fill(&finished_mask, 0)),
+                    prev_scores.push(
+                        next_token_logits
+                            .log_softmax(-1, next_token_logits.kind())
+                            .gather(1, &next_token.reshape(&[-1, 1]), true)
+                            .squeeze()
+                            .masked_fill(&finished_mask, 0),
                     );
-                }
+                });
+
                 // Add tokens to unfinished sentences
                 let tokens_to_add = match &gen_opt.eos_token_ids {
                     Some(_) => {
@@ -926,11 +920,12 @@ pub(crate) mod private_generation_utils {
                 }
                 current_length += 1;
             }
-            let scores_output = scores_output.map(|scores_tensor| {
-                (scores_tensor / sentence_lengths.pow_tensor_scalar(gen_opt.length_penalty))
-                    .iter::<f64>()
-                    .unwrap()
-                    .collect::<Vec<f64>>()
+            let scores_output = token_scores_output.map(|scores_tensor| {
+                (Tensor::stack(&scores_tensor, 1).sum_dim_intlist(&[1], false, Kind::Float)
+                    / sentence_lengths.pow_tensor_scalar(gen_opt.length_penalty))
+                .iter::<f64>()
+                .unwrap()
+                .collect::<Vec<f64>>()
             });
 
             (input_ids, scores_output)
@@ -1417,10 +1412,11 @@ pub struct GeneratedTextOutput {
 
 #[derive(Debug, Clone)]
 /// # Generated indices output
-/// Contains generated indices and an optional log-likelihood score for the generated sequence
+/// Contains generated indices and an optional log-likelihood score for the generated sequence and individual tokens
 pub struct GeneratedIndicesOutput {
     pub indices: Vec<i64>,
     pub score: Option<f64>,
+    pub token_scores: Option<Vec<f64>>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -1947,7 +1943,11 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             let score = scores
                 .as_ref()
                 .map(|scores_value| scores_value[sequence_index as usize]);
-            output.push(GeneratedIndicesOutput { indices, score });
+            output.push(GeneratedIndicesOutput {
+                indices,
+                score,
+                token_scores: None,
+            });
         }
         output
     }
