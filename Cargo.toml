@@ -60,23 +60,23 @@ features = ["doc-only"]
 
 [dependencies]
 rust_tokenizers = "~7.0.1"
-tch = "~0.6.1"
-serde_json = "1.0.73"
-serde = { version = "1.0.132", features = ["derive"] }
-ordered-float = "2.8.0"
+tch = "~0.7.0"
+serde_json = "1.0.79"
+serde = { version = "1.0.136", features = ["derive"] }
+ordered-float = "2.10.0"
 uuid = { version = "0.8.2", features = ["v4"] }
 thiserror = "1.0.30"
 half = "1.8.2"
 
-cached-path = { version = "0.5.1", optional = true }
+cached-path = { version = "0.5.3", optional = true }
 dirs = { version = "4.0.0", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.51"
+anyhow = "1.0.56"
 csv = "1.1.6"
 criterion = "0.3.5"
-tokio = { version = "1.16.1", features = ["sync", "rt-multi-thread", "macros"] }
-torch-sys =  "~0.6.1"
-tempfile = "3.2.0"
+tokio = { version = "1.17.0", features = ["sync", "rt-multi-thread", "macros"] }
+torch-sys =  "~0.7.0"
+tempfile = "3.3.0"
 itertools = "0.10.3"
