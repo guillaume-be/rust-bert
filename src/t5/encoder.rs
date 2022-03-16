@@ -10,11 +10,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::common::activations::TensorFunction;
 use crate::common::dropout::Dropout;
 use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::t5::attention::{LayerState, T5LayerCrossAttention, T5LayerSelfAttention};
 use crate::t5::layer_norm::T5LayerNorm;
+use crate::t5::t5_model::FeedForwardProj;
 use crate::t5::T5Config;
+use crate::Activation::gelu_new;
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LinearConfig;
@@ -52,8 +55,82 @@ impl T5DenseReluDense {
     }
 }
 
+pub struct T5DenseGatedGeluDense {
+    wi_0: nn::Linear,
+    wi_1: nn::Linear,
+    wo: nn::Linear,
+    dropout: Dropout,
+    activation: TensorFunction,
+}
+
+impl T5DenseGatedGeluDense {
+    pub fn new<'p, P>(p: P, config: &T5Config) -> T5DenseGatedGeluDense
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+        let linear_config = LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+        let wi_0 = nn::linear(p / "wi_0", config.d_model, config.d_ff, linear_config);
+        let wi_1 = nn::linear(p / "wi_1", config.d_model, config.d_ff, linear_config);
+        let wo = nn::linear(p / "wo", config.d_ff, config.d_model, linear_config);
+        let dropout = Dropout::new(config.dropout_rate);
+        let activation = gelu_new.get_function();
+
+        T5DenseGatedGeluDense {
+            wi_0,
+            wi_1,
+            wo,
+            dropout,
+            activation,
+        }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        let hidden_gelu = self.activation.get_fn()(&hidden_states.apply(&self.wi_0));
+        let hidden_linear = hidden_states.apply(&self.wi_1);
+        (hidden_gelu * hidden_linear)
+            .apply_t(&self.dropout, train)
+            .apply(&self.wo)
+    }
+}
+
+pub enum T5FeedForwardLayer {
+    T5DenseReluDense(T5DenseReluDense),
+    T5DenseGatedGeluDense(T5DenseGatedGeluDense),
+}
+
+impl T5FeedForwardLayer {
+    pub fn new<'p, P>(p: P, config: &T5Config) -> T5FeedForwardLayer
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        match config.feed_forward_proj.unwrap_or(FeedForwardProj::Relu) {
+            FeedForwardProj::Relu => {
+                T5FeedForwardLayer::T5DenseReluDense(T5DenseReluDense::new(p, config))
+            }
+            FeedForwardProj::GatedGelu => {
+                T5FeedForwardLayer::T5DenseGatedGeluDense(T5DenseGatedGeluDense::new(p, config))
+            }
+        }
+    }
+
+    pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
+        match self {
+            T5FeedForwardLayer::T5DenseReluDense(ref model) => {
+                model.forward_t(hidden_states, train)
+            }
+            T5FeedForwardLayer::T5DenseGatedGeluDense(ref model) => {
+                model.forward_t(hidden_states, train)
+            }
+        }
+    }
+}
+
 pub struct T5LayerFF {
-    dense_relu_dense: T5DenseReluDense,
+    forward_layer: T5FeedForwardLayer,
     layer_norm: T5LayerNorm,
     dropout: Dropout,
 }
@@ -65,13 +142,13 @@ impl T5LayerFF {
     {
         let p = p.borrow();
 
-        let dense_relu_dense = T5DenseReluDense::new(p / "DenseReluDense", config);
+        let forward_layer = T5FeedForwardLayer::new(p / "DenseReluDense", config);
         let layer_norm =
             T5LayerNorm::new(p / "layer_norm", config.d_model, config.layer_norm_epsilon);
         let dropout = Dropout::new(config.dropout_rate);
 
         T5LayerFF {
-            dense_relu_dense,
+            forward_layer,
             layer_norm,
             dropout,
         }
@@ -79,7 +156,7 @@ impl T5LayerFF {
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
         let y = &self
-            .dense_relu_dense
+            .forward_layer
             .forward_t(&hidden_states.apply(&self.layer_norm), train);
 
         hidden_states + y.apply_t(&self.dropout, train)
