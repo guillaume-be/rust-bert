@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file. The format 
 ## Added
 - Addition of the DeBERTa language model and support for question answering, sequence and token classification
 - Addition of a `new_with_tokenizer` method allowing building language model generator with a custom tokenizer (or pairing a tokenizer that was not originally designed with the model, e.g. T5 tokenizer with GPT2 model).
+- (BREAKING) Addition of support for mT5 model, addition of new optional fields to T5Config
 
 ## Changed
 - (BREAKING) Updated `Resources`, moving `RemoteResource` and associated download utilities/dependencies behind a feature gate (enabled by default). Reworked the API for building and using resources. 
+- Upgraded to `torch` 1.11 (via `tch` 0.7.0)
 
 ## Fixed
 - Fixed sinusoidal embeddings not being updated when loading a state dictionary (DistilBERT)
