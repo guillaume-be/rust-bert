@@ -2134,7 +2134,7 @@ impl BeamHypotheses {
                 scores_tensor.squeeze_dim(0).diff::<Tensor>(
                     1,
                     0,
-                    Some(Tensor::empty(
+                    Some(Tensor::zeros(
                         &[1],
                         (scores_tensor.kind(), scores_tensor.device()),
                     )),
