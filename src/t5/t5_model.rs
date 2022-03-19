@@ -15,7 +15,7 @@ use std::borrow::Borrow;
 use rust_tokenizers::tokenizer::{T5Tokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::T5Vocab;
 use serde::{Deserialize, Serialize};
-use tch::nn::embedding;
+use tch::nn::{embedding, LinearConfig};
 use tch::{nn, Tensor};
 
 use crate::pipelines::common::{ModelType, TokenizerOption};
@@ -99,6 +99,16 @@ impl T5Prefix {
     pub const ENGLISH2GERMAN: Option<&'static str> = Some("translate English to German:");
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
+#[serde(rename_all = "kebab-case")]
+/// # Options for T5 Feed-forward projection layer
+pub enum FeedForwardProj {
+    /// ReLU
+    Relu,
+    /// Gated geLU
+    GatedGelu,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 /// # T5 model configuration
 /// Defines the T5 model architecture (e.g. number of layers, hidden layer size, label mapping...)
@@ -119,7 +129,9 @@ pub struct T5Config {
     pub pad_token_id: Option<i64>,
     pub relative_attention_num_buckets: i64,
     pub vocab_size: i64,
-    task_specific_params: TaskSpecificParams,
+    pub feed_forward_proj: Option<FeedForwardProj>,
+    pub tie_word_embeddings: Option<bool>,
+    task_specific_params: Option<TaskSpecificParams>,
 }
 
 /// # T5 task-specific configurations
@@ -399,6 +411,8 @@ impl T5Model {
 pub struct T5ForConditionalGeneration {
     base_model: T5Model,
     model_dim: f64,
+    tie_word_embeddings: bool,
+    lm_head: Option<nn::Linear>,
 }
 
 impl T5ForConditionalGeneration {
@@ -444,10 +458,27 @@ impl T5ForConditionalGeneration {
         let p = p.borrow();
 
         let base_model = T5Model::new(p, config, output_attentions, output_hidden_states);
+        let tie_word_embeddings = config.tie_word_embeddings.unwrap_or(true);
+
+        let lm_head = if !tie_word_embeddings {
+            Some(nn::linear(
+                p / "lm_head",
+                config.d_model,
+                config.vocab_size,
+                LinearConfig {
+                    bias: false,
+                    ..Default::default()
+                },
+            ))
+        } else {
+            None
+        };
 
         T5ForConditionalGeneration {
             base_model,
             model_dim: config.d_model as f64,
+            tie_word_embeddings,
+            lm_head,
         }
     }
 
@@ -536,10 +567,17 @@ impl T5ForConditionalGeneration {
             old_layer_states,
             train,
         );
-        let lm_logits = base_model_output
-            .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
-            * (self.model_dim.powf(-0.5));
+
+        let lm_logits = if self.tie_word_embeddings {
+            base_model_output
+                .decoder_output
+                .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+                * (self.model_dim.powf(-0.5))
+        } else {
+            base_model_output
+                .decoder_output
+                .apply(self.lm_head.as_ref().unwrap())
+        };
 
         T5ModelOutput {
             decoder_output: lm_logits,
@@ -665,10 +703,16 @@ impl LMHeadModel for T5ForConditionalGeneration {
             }
         };
 
-        let lm_logits = base_model_output
-            .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
-            * (self.model_dim.powf(-0.5));
+        let lm_logits = if self.tie_word_embeddings {
+            base_model_output
+                .decoder_output
+                .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+                * (self.model_dim.powf(-0.5))
+        } else {
+            base_model_output
+                .decoder_output
+                .apply(self.lm_head.as_ref().unwrap())
+        };
 
         Ok(LMModelOutput {
             lm_logits,
