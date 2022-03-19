@@ -68,7 +68,6 @@
 
 use rust_tokenizers::tokenizer::Tokenizer;
 use rust_tokenizers::vocab::Vocab;
-use std::mem;
 use tch::kind::Kind::Int64;
 use tch::{no_grad, Device, Tensor};
 
@@ -270,6 +269,12 @@ pub(crate) mod private_generation_utils {
         pub prepared_decoder_input: Option<Tensor>,
         pub prepared_position_ids: Option<Tensor>,
         pub prepared_past: Cache,
+    }
+
+    pub struct GeneratedOutputWithScores {
+        pub indices: Tensor,
+        pub scores: Option<Vec<f64>>,
+        pub token_scores: Option<Vec<Vec<f64>>>,
     }
 
     pub trait PrivateLanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>> {
@@ -735,7 +740,7 @@ pub(crate) mod private_generation_utils {
             gen_opt: InternalGenerateOptions,
             prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
             output_scores: bool,
-        ) -> (Tensor, Option<Vec<f64>>, Option<Vec<Vec<f64>>>) {
+        ) -> GeneratedOutputWithScores {
             let mut unfinished_sentences =
                 Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()));
             let mut sentence_lengths: Tensor =
@@ -870,7 +875,7 @@ pub(crate) mod private_generation_utils {
                     next_token_logits.argmax(-1, false)
                 };
 
-                token_scores_output.as_mut().map(|prev_scores| {
+                if let Some(prev_scores) = token_scores_output.as_mut() {
                     let finished_mask = unfinished_sentences.eq(0);
                     prev_scores.push(
                         next_token_logits
@@ -879,7 +884,7 @@ pub(crate) mod private_generation_utils {
                             .squeeze()
                             .masked_fill(&finished_mask, 0),
                     );
-                });
+                };
 
                 // Add tokens to unfinished sentences
                 let tokens_to_add = match &gen_opt.eos_token_ids {
@@ -923,7 +928,7 @@ pub(crate) mod private_generation_utils {
                 current_length += 1;
             }
             let scores_output = token_scores_output.as_ref().map(|scores_tensor| {
-                (Tensor::stack(&scores_tensor, 1).sum_dim_intlist(&[1], false, Kind::Float)
+                (Tensor::stack(scores_tensor, 1).sum_dim_intlist(&[1], false, Kind::Float)
                     / sentence_lengths.pow_tensor_scalar(gen_opt.length_penalty))
                 .iter::<f64>()
                 .unwrap()
@@ -942,8 +947,11 @@ pub(crate) mod private_generation_utils {
                     })
                     .collect()
             });
-
-            (input_ids, scores_output, token_scores_output)
+            GeneratedOutputWithScores {
+                indices: input_ids,
+                scores: scores_output,
+                token_scores: token_scores_output,
+            }
         }
 
         fn generate_beam_search(
@@ -956,7 +964,7 @@ pub(crate) mod private_generation_utils {
             gen_opt: InternalGenerateOptions,
             prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
             output_scores: bool,
-        ) -> (Tensor, Option<Vec<f64>>, Option<Vec<Vec<f64>>>) {
+        ) -> GeneratedOutputWithScores {
             let num_beam_groups = gen_opt.num_beam_groups.unwrap_or(1);
             let num_sub_beams = gen_opt.num_beams / num_beam_groups;
             let diversity_penalty = gen_opt.diversity_penalty.unwrap_or(5.5);
@@ -1230,7 +1238,7 @@ pub(crate) mod private_generation_utils {
                                 next_scores.double_value(&[batch_index, beam_index_pos]);
                             let saved_beam_scores =
                                 saved_beam_scores.as_ref().map(|step_wise_scores| {
-                                    Tensor::stack(&step_wise_scores, 1)
+                                    Tensor::stack(step_wise_scores, 1)
                                         .get(effective_beam_id)
                                         .copy()
                                 });
@@ -1438,7 +1446,11 @@ pub(crate) mod private_generation_utils {
                     );
                 }
             }
-            (decoded, scores_output, token_scores_output)
+            GeneratedOutputWithScores {
+                indices: decoded,
+                scores: scores_output,
+                token_scores: token_scores_output,
+            }
         }
 
         fn reorder_cache(
@@ -1961,7 +1973,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             bad_word_ids,
         };
 
-        let (decoded, scores, mut token_scores) = no_grad(|| {
+        let generated_output_with_scores = no_grad(|| {
             if num_beams > 1 {
                 self.generate_beam_search(
                     input_ids,
@@ -1986,6 +1998,11 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 )
             }
         });
+        let (decoded, scores, mut token_scores) = (
+            generated_output_with_scores.indices,
+            generated_output_with_scores.scores,
+            generated_output_with_scores.token_scores,
+        );
         let num_sequences = *decoded.size().first().unwrap();
         let mut output = Vec::with_capacity(num_sequences as usize);
         for sequence_index in 0..num_sequences {
@@ -1999,9 +2016,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 .as_ref()
                 .map(|scores_value| scores_value[sequence_index as usize]);
 
-            let token_scores = token_scores.as_mut().map(|token_scores| {
-                mem::replace(&mut token_scores[sequence_index as usize], vec![])
-            });
+            let token_scores = token_scores
+                .as_mut()
+                .map(|token_scores| std::mem::take(&mut token_scores[sequence_index as usize]));
 
             output.push(GeneratedIndicesOutput {
                 indices,
