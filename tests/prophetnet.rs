@@ -4,19 +4,19 @@ use rust_bert::pipelines::common::ModelType;
 use rust_bert::prophetnet::{
     ProphetNetConfigResources, ProphetNetModelResources, ProphetNetVocabResources,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 #[test]
 fn prophetnet_summarization_greedy() -> anyhow::Result<()> {
     //    Set-up model
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         ProphetNetConfigResources::PROPHETNET_LARGE_CNN_DM,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         ProphetNetVocabResources::PROPHETNET_LARGE_CNN_DM,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         ProphetNetModelResources::PROPHETNET_LARGE_CNN_DM,
     ));
 

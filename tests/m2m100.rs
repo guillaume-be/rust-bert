@@ -4,7 +4,7 @@ use rust_bert::m2m_100::{
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{M2M100Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
@@ -12,18 +12,10 @@ use tch::{nn, Device, Tensor};
 #[test]
 fn m2m100_lm_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        M2M100ConfigResources::M2M100_418M,
-    ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        M2M100VocabResources::M2M100_418M,
-    ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        M2M100MergesResources::M2M100_418M,
-    ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
-        M2M100ModelResources::M2M100_418M,
-    ));
+    let config_resource = RemoteResource::from_pretrained(M2M100ConfigResources::M2M100_418M);
+    let vocab_resource = RemoteResource::from_pretrained(M2M100VocabResources::M2M100_418M);
+    let merges_resource = RemoteResource::from_pretrained(M2M100MergesResources::M2M100_418M);
+    let weights_resource = RemoteResource::from_pretrained(M2M100ModelResources::M2M100_418M);
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
@@ -76,18 +68,10 @@ fn m2m100_lm_model() -> anyhow::Result<()> {
 
 #[test]
 fn m2m100_translation() -> anyhow::Result<()> {
-    let model_resource = Resource::Remote(RemoteResource::from_pretrained(
-        M2M100ModelResources::M2M100_418M,
-    ));
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
-        M2M100ConfigResources::M2M100_418M,
-    ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
-        M2M100VocabResources::M2M100_418M,
-    ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
-        M2M100MergesResources::M2M100_418M,
-    ));
+    let model_resource = RemoteResource::from_pretrained(M2M100ModelResources::M2M100_418M);
+    let config_resource = RemoteResource::from_pretrained(M2M100ConfigResources::M2M100_418M);
+    let vocab_resource = RemoteResource::from_pretrained(M2M100VocabResources::M2M100_418M);
+    let merges_resource = RemoteResource::from_pretrained(M2M100MergesResources::M2M100_418M);
 
     let source_languages = M2M100SourceLanguages::M2M100_418M;
     let target_languages = M2M100TargetLanguages::M2M100_418M;

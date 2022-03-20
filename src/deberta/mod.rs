@@ -23,22 +23,22 @@
 //!     DebertaConfig, DebertaConfigResources, DebertaForSequenceClassification,
 //!     DebertaMergesResources, DebertaModelResources, DebertaVocabResources,
 //! };
-//! use rust_bert::resources::{RemoteResource, Resource};
+//! use rust_bert::resources::{RemoteResource, ResourceProvider};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::DeBERTaTokenizer;
 //!
-//! let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+//! let config_resource = RemoteResource::from_pretrained(
 //!     DebertaConfigResources::DEBERTA_BASE_MNLI,
-//! ));
-//! let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+//! );
+//! let vocab_resource = RemoteResource::from_pretrained(
 //!     DebertaVocabResources::DEBERTA_BASE_MNLI,
-//! ));
-//! let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+//! );
+//! let merges_resource = RemoteResource::from_pretrained(
 //!     DebertaMergesResources::DEBERTA_BASE_MNLI,
-//! ));
-//! let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+//! );
+//! let weights_resource = RemoteResource::from_pretrained(
 //!     DebertaModelResources::DEBERTA_BASE_MNLI,
-//! ));
+//! );
 //! let config_path = config_resource.get_local_path()?;
 //! let vocab_path = vocab_resource.get_local_path()?;
 //! let merges_path = merges_resource.get_local_path()?;

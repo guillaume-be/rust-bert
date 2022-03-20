@@ -15,11 +15,9 @@ use std::borrow::Borrow;
 use rust_tokenizers::tokenizer::{T5Tokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::T5Vocab;
 use serde::{Deserialize, Serialize};
-use tch::nn::embedding;
+use tch::nn::{embedding, LinearConfig};
 use tch::{nn, Tensor};
 
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
@@ -101,6 +99,16 @@ impl T5Prefix {
     pub const ENGLISH2GERMAN: Option<&'static str> = Some("translate English to German:");
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
+#[serde(rename_all = "kebab-case")]
+/// # Options for T5 Feed-forward projection layer
+pub enum FeedForwardProj {
+    /// ReLU
+    Relu,
+    /// Gated geLU
+    GatedGelu,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 /// # T5 model configuration
 /// Defines the T5 model architecture (e.g. number of layers, hidden layer size, label mapping...)
@@ -110,6 +118,7 @@ pub struct T5Config {
     pub d_ff: i64,
     pub d_kv: i64,
     pub decoder_start_token_id: Option<i64>,
+    pub bos_token_id: Option<i64>,
     pub eos_token_id: Option<i64>,
     pub initializer_factor: f64,
     pub is_encoder_decoder: Option<bool>,
@@ -120,7 +129,9 @@ pub struct T5Config {
     pub pad_token_id: Option<i64>,
     pub relative_attention_num_buckets: i64,
     pub vocab_size: i64,
-    task_specific_params: TaskSpecificParams,
+    pub feed_forward_proj: Option<FeedForwardProj>,
+    pub tie_word_embeddings: Option<bool>,
+    task_specific_params: Option<TaskSpecificParams>,
 }
 
 /// # T5 task-specific configurations
@@ -400,6 +411,8 @@ impl T5Model {
 pub struct T5ForConditionalGeneration {
     base_model: T5Model,
     model_dim: f64,
+    tie_word_embeddings: bool,
+    lm_head: Option<nn::Linear>,
 }
 
 impl T5ForConditionalGeneration {
@@ -445,10 +458,27 @@ impl T5ForConditionalGeneration {
         let p = p.borrow();
 
         let base_model = T5Model::new(p, config, output_attentions, output_hidden_states);
+        let tie_word_embeddings = config.tie_word_embeddings.unwrap_or(true);
+
+        let lm_head = if !tie_word_embeddings {
+            Some(nn::linear(
+                p / "lm_head",
+                config.d_model,
+                config.vocab_size,
+                LinearConfig {
+                    bias: false,
+                    ..Default::default()
+                },
+            ))
+        } else {
+            None
+        };
 
         T5ForConditionalGeneration {
             base_model,
             model_dim: config.d_model as f64,
+            tie_word_embeddings,
+            lm_head,
         }
     }
 
@@ -537,10 +567,17 @@ impl T5ForConditionalGeneration {
             old_layer_states,
             train,
         );
-        let lm_logits = base_model_output
-            .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
-            * (self.model_dim.powf(-0.5));
+
+        let lm_logits = if self.tie_word_embeddings {
+            base_model_output
+                .decoder_output
+                .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+                * (self.model_dim.powf(-0.5))
+        } else {
+            base_model_output
+                .decoder_output
+                .apply(self.lm_head.as_ref().unwrap())
+        };
 
         T5ModelOutput {
             decoder_output: lm_logits,
@@ -666,10 +703,16 @@ impl LMHeadModel for T5ForConditionalGeneration {
             }
         };
 
-        let lm_logits = base_model_output
-            .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
-            * (self.model_dim.powf(-0.5));
+        let lm_logits = if self.tie_word_embeddings {
+            base_model_output
+                .decoder_output
+                .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+                * (self.model_dim.powf(-0.5))
+        } else {
+            base_model_output
+                .decoder_output
+                .apply(self.lm_head.as_ref().unwrap())
+        };
 
         Ok(LMModelOutput {
             lm_logits,
@@ -715,38 +758,8 @@ pub struct T5Generator {
 
 impl T5Generator {
     pub fn new(generate_config: GenerateConfig) -> Result<T5Generator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL))
-        } else {
-            generate_config.model_resource.clone()
-        };
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
 
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
             ModelType::T5,
             vocab_path.to_str().unwrap(),
@@ -756,11 +769,25 @@ impl T5Generator {
             None,
         )?;
 
+        Self::new_with_tokenizer(generate_config, tokenizer)
+    }
+
+    pub fn new_with_tokenizer(
+        generate_config: GenerateConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<T5Generator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+
         let config = T5Config::from_file(config_path);
         let model = T5ForConditionalGeneration::new(&var_store.root(), &config, false, false);
         var_store.load(weights_path)?;
 
-        let bos_token_id = Some(-1);
+        let bos_token_id = Some(config.bos_token_id.unwrap_or(-1));
         let eos_token_ids = Some(match config.eos_token_id {
             Some(value) => vec![value],
             None => vec![1],
@@ -804,14 +831,14 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
     }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
     }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
     }
     fn is_encoder_decoder(&self) -> bool {
         self.is_encoder_decoder

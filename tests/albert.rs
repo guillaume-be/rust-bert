@@ -6,7 +6,7 @@ use rust_bert::albert::{
     AlbertForQuestionAnswering, AlbertForSequenceClassification, AlbertForTokenClassification,
     AlbertModelResources, AlbertVocabResources,
 };
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{AlbertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
@@ -16,13 +16,13 @@ use tch::{nn, no_grad, Device, Tensor};
 #[test]
 fn albert_masked_lm() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         AlbertVocabResources::ALBERT_BASE_V2,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         AlbertModelResources::ALBERT_BASE_V2,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -87,10 +87,10 @@ fn albert_masked_lm() -> anyhow::Result<()> {
 #[test]
 fn albert_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         AlbertVocabResources::ALBERT_BASE_V2,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -153,10 +153,10 @@ fn albert_for_sequence_classification() -> anyhow::Result<()> {
 #[test]
 fn albert_for_multiple_choice() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         AlbertVocabResources::ALBERT_BASE_V2,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -219,10 +219,10 @@ fn albert_for_multiple_choice() -> anyhow::Result<()> {
 #[test]
 fn albert_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         AlbertVocabResources::ALBERT_BASE_V2,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -286,10 +286,10 @@ fn albert_for_token_classification() -> anyhow::Result<()> {
 #[test]
 fn albert_for_question_answering() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         AlbertConfigResources::ALBERT_BASE_V2,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         AlbertVocabResources::ALBERT_BASE_V2,
     ));
     let config_path = config_resource.get_local_path()?;

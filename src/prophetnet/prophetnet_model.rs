@@ -18,8 +18,6 @@ use rust_tokenizers::vocab::{ProphetNetVocab, Vocab};
 use serde::{Deserialize, Serialize};
 use tch::{nn, Kind, Tensor};
 
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{Gpt2ConfigResources, Gpt2ModelResources, Gpt2VocabResources};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
@@ -909,44 +907,8 @@ impl ProphetNetConditionalGenerator {
     pub fn new(
         generate_config: GenerateConfig,
     ) -> Result<ProphetNetConditionalGenerator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                ProphetNetModelResources::PROPHETNET_LARGE_CNN_DM,
-            ))
-        } else {
-            generate_config.model_resource.clone()
-        };
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
 
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                ProphetNetConfigResources::PROPHETNET_LARGE_CNN_DM,
-            ))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(
-                ProphetNetVocabResources::PROPHETNET_LARGE_CNN_DM,
-            ))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
             ModelType::ProphetNet,
             vocab_path.to_str().unwrap(),
@@ -955,6 +917,20 @@ impl ProphetNetConditionalGenerator {
             true,
             None,
         )?;
+
+        Self::new_with_tokenizer(generate_config, tokenizer)
+    }
+
+    pub fn new_with_tokenizer(
+        generate_config: GenerateConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<ProphetNetConditionalGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
         let config = ProphetNetConfig::from_file(config_path);
         let model = ProphetNetForConditionalGeneration::new(&var_store.root(), &config)?;
         var_store.load(weights_path)?;
@@ -1005,14 +981,14 @@ impl
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
     }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
     }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
     }
     fn is_encoder_decoder(&self) -> bool {
         self.is_encoder_decoder

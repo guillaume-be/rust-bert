@@ -3,7 +3,7 @@ use rust_bert::gpt2::{
     Gpt2VocabResources,
 };
 use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
@@ -11,16 +11,16 @@ use tch::{nn, Device, Tensor};
 #[test]
 fn distilgpt2_lm_model() -> anyhow::Result<()> {
     //    Resources paths
-    let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let config_resource = Box::new(RemoteResource::from_pretrained(
         Gpt2ConfigResources::DISTIL_GPT2,
     ));
-    let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(
         Gpt2VocabResources::DISTIL_GPT2,
     ));
-    let merges_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let merges_resource = Box::new(RemoteResource::from_pretrained(
         Gpt2MergesResources::DISTIL_GPT2,
     ));
-    let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         Gpt2ModelResources::DISTIL_GPT2,
     ));
     let config_path = config_resource.get_local_path()?;

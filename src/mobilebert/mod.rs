@@ -24,19 +24,19 @@
 //!     MobileBertConfig, MobileBertConfigResources, MobileBertForMaskedLM,
 //!     MobileBertModelResources, MobileBertVocabResources,
 //! };
-//! use rust_bert::resources::{RemoteResource, Resource};
+//! use rust_bert::resources::{RemoteResource, ResourceProvider};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::BertTokenizer;
 //!
-//! let config_resource = Resource::Remote(RemoteResource::from_pretrained(
+//! let config_resource = RemoteResource::from_pretrained(
 //!     MobileBertConfigResources::MOBILEBERT_UNCASED,
-//! ));
-//! let vocab_resource = Resource::Remote(RemoteResource::from_pretrained(
+//! );
+//! let vocab_resource = RemoteResource::from_pretrained(
 //!     MobileBertVocabResources::MOBILEBERT_UNCASED,
-//! ));
-//! let weights_resource = Resource::Remote(RemoteResource::from_pretrained(
+//! );
+//! let weights_resource = RemoteResource::from_pretrained(
 //!     MobileBertModelResources::MOBILEBERT_UNCASED,
-//! ));
+//! );
 //! let config_path = config_resource.get_local_path()?;
 //! let vocab_path = vocab_resource.get_local_path()?;
 //! let weights_path = weights_resource.get_local_path()?;

@@ -7,21 +7,17 @@ use rust_bert::gpt2::{
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::RemoteResource;
 use std::time::{Duration, Instant};
 use tch::Device;
 
 fn create_text_generation_model() -> TextGenerationModel {
     let config = TextGenerationConfig {
         model_type: ModelType::GPT2,
-        model_resource: Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)),
-        config_resource: Resource::Remote(RemoteResource::from_pretrained(
-            Gpt2ConfigResources::GPT2,
-        )),
-        vocab_resource: Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)),
-        merges_resource: Resource::Remote(RemoteResource::from_pretrained(
-            Gpt2MergesResources::GPT2,
-        )),
+        model_resource: Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)),
+        config_resource: Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)),
+        vocab_resource: Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)),
+        merges_resource: Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2)),
         min_length: 0,
         max_length: 30,
         do_sample: true,

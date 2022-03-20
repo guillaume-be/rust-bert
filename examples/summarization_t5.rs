@@ -14,16 +14,14 @@ extern crate anyhow;
 
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
-use rust_bert::resources::{RemoteResource, Resource};
+use rust_bert::resources::RemoteResource;
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
 
 fn main() -> anyhow::Result<()> {
-    let config_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL));
-    let vocab_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL));
-    let weights_resource =
-        Resource::Remote(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL));
+    let config_resource = RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL);
+    let vocab_resource = RemoteResource::from_pretrained(T5VocabResources::T5_SMALL);
+    let weights_resource = RemoteResource::from_pretrained(T5ModelResources::T5_SMALL);
+
     let summarization_config = SummarizationConfig::new(
         ModelType::T5,
         weights_resource,

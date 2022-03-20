@@ -17,10 +17,6 @@ use crate::bart::encoder::BartEncoder;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::kind::get_negative_infinity;
-use crate::common::resources::{RemoteResource, Resource};
-use crate::gpt2::{
-    Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
-};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
@@ -1028,47 +1024,9 @@ impl BartGenerator {
     /// # }
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<BartGenerator, RustBertError> {
-        //        The following allow keeping the same GenerationConfig Default for GPT, GPT2 and BART models
-        let model_resource = if generate_config.model_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartModelResources::BART))
-        } else {
-            generate_config.model_resource.clone()
-        };
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let merges_path = generate_config.merges_resource.get_local_path()?;
 
-        let config_resource = if generate_config.config_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART))
-        } else {
-            generate_config.config_resource.clone()
-        };
-
-        let vocab_resource = if generate_config.vocab_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartVocabResources::BART))
-        } else {
-            generate_config.vocab_resource.clone()
-        };
-
-        let merges_resource = if generate_config.merges_resource
-            == Resource::Remote(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2))
-        {
-            Resource::Remote(RemoteResource::from_pretrained(BartMergesResources::BART))
-        } else {
-            generate_config.merges_resource.clone()
-        };
-
-        let config_path = config_resource.get_local_path()?;
-        let vocab_path = vocab_resource.get_local_path()?;
-        let merges_path = merges_resource.get_local_path()?;
-        let weights_path = model_resource.get_local_path()?;
-        let device = generate_config.device;
-
-        generate_config.validate();
-        let mut var_store = nn::VarStore::new(device);
         let tokenizer = TokenizerOption::from_file(
             ModelType::Bart,
             vocab_path.to_str().unwrap(),
@@ -1077,11 +1035,25 @@ impl BartGenerator {
             None,
             false,
         )?;
+
+        Self::new_with_tokenizer(generate_config, tokenizer)
+    }
+
+    pub fn new_with_tokenizer(
+        generate_config: GenerateConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<BartGenerator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
         let config = BartConfig::from_file(config_path);
         let model = BartForConditionalGeneration::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
-        let bos_token_id = Some(0);
+        let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
         let eos_token_ids = Some(match config.eos_token_id {
             Some(value) => vec![value],
             None => vec![2],
@@ -1134,14 +1106,14 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
     }
-    fn get_bos_id(&self) -> &Option<i64> {
-        &self.bos_token_id
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
     }
-    fn get_eos_ids(&self) -> &Option<Vec<i64>> {
-        &self.eos_token_ids
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
     }
-    fn get_pad_id(&self) -> &Option<i64> {
-        &self.pad_token_id
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
     }
     fn is_encoder_decoder(&self) -> bool {
         self.is_encoder_decoder
@@ -1293,7 +1265,7 @@ mod test {
     use tch::Device;
 
     use crate::{
-        resources::{RemoteResource, Resource},
+        resources::{RemoteResource, ResourceProvider},
         Config,
     };
 
@@ -1302,8 +1274,7 @@ mod test {
     #[test]
     #[ignore] // compilation is enough, no need to run
     fn bart_model_send() {
-        let config_resource =
-            Resource::Remote(RemoteResource::from_pretrained(BartConfigResources::BART));
+        let config_resource = Box::new(RemoteResource::from_pretrained(BartConfigResources::BART));
         let config_path = config_resource.get_local_path().expect("");
 
         //    Set-up masked LM model
