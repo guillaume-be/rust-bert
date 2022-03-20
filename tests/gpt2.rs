@@ -617,6 +617,118 @@ fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
 }
 
 #[test]
+fn gpt2_greedy_token_scores() -> anyhow::Result<()> {
+    //    Resources definition
+    let config_resource = Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource = Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource = Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+
+    let generate_config = GenerateConfig {
+        max_length: 16,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        do_sample: false,
+        num_beams: 1,
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(generate_config)?;
+
+    let input_context_1 = "Hello, my name is";
+    let input_context_2 = "It is a beautiful";
+
+    let generate_options = GenerateOptions {
+        output_scores: true,
+        ..Default::default()
+    };
+
+    let output = model.generate_indices(
+        Some(&[input_context_1, input_context_2]),
+        Some(generate_options),
+    );
+
+    assert_eq!(output.len(), 2);
+    assert_eq!(
+        output[0].indices,
+        vec![15496, 11, 616, 1438, 318, 1757, 13, 314, 1101, 257, 6260, 11, 290, 314, 1101, 3597,]
+    );
+    assert!((output[0].score.unwrap() - (-1.3794)).abs() < 1e-4);
+    assert!((output[0].token_scores.as_ref().unwrap()[0] - (-4.6114)).abs() < 1e-4);
+    assert!((output[0].token_scores.as_ref().unwrap()[1] - (-2.1742)).abs() < 1e-4);
+    assert!((output[0].token_scores.as_ref().unwrap()[2] - (-0.7571)).abs() < 1e-4);
+
+    assert_eq!(
+        output[1].indices,
+        vec![50256, 1026, 318, 257, 4950, 1517, 284, 766, 13, 632, 318, 257, 845, 4950, 1517, 13]
+    );
+    assert!((output[1].score.unwrap() - (-1.0609)).abs() < 1e-4);
+    assert!((output[1].token_scores.as_ref().unwrap()[0] - (-2.6287)).abs() < 1e-4);
+    assert!((output[1].token_scores.as_ref().unwrap()[1] - (-1.3033)).abs() < 1e-4);
+    assert!((output[1].token_scores.as_ref().unwrap()[2] - (-0.6780)).abs() < 1e-4);
+
+    Ok(())
+}
+
+#[test]
+fn gpt2_beam_search_token_scores() -> anyhow::Result<()> {
+    //    Resources definition
+    let config_resource = Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2));
+    let vocab_resource = Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2));
+    let merges_resource = Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2));
+    let model_resource = Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
+
+    let generate_config = GenerateConfig {
+        max_length: 16,
+        model_resource,
+        config_resource,
+        vocab_resource,
+        merges_resource,
+        do_sample: false,
+        num_beams: 2,
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let model = GPT2Generator::new(generate_config)?;
+
+    let input_context_1 = "Hello, my name is";
+    let input_context_2 = "It is a beautiful";
+
+    let generate_options = GenerateOptions {
+        output_scores: true,
+        ..Default::default()
+    };
+
+    let output = model.generate_indices(
+        Some(&[input_context_1, input_context_2]),
+        Some(generate_options),
+    );
+
+    assert_eq!(output.len(), 2);
+    assert_eq!(
+        output[0].indices,
+        vec![15496, 11, 616, 1438, 318, 1757, 11, 290, 314, 716, 257, 2888, 286, 262, 1578, 1829,]
+    );
+    assert!((output[0].score.unwrap() - (-1.1913)).abs() < 1e-4);
+    assert!((output[0].token_scores.as_ref().unwrap()[0] - (-4.6114)).abs() < 1e-4);
+    assert!((output[0].token_scores.as_ref().unwrap()[1] - (-2.1742)).abs() < 1e-4);
+    assert!((output[0].token_scores.as_ref().unwrap()[2] - (-0.7571)).abs() < 1e-4);
+
+    assert_eq!(
+        output[1].indices,
+        vec![50256, 1026, 318, 257, 4950, 1517, 284, 766, 13, 632, 318, 257, 845, 4950, 1517, 13]
+    );
+    assert!((output[1].score.unwrap() - (-1.1160)).abs() < 1e-4);
+    assert!((output[1].token_scores.as_ref().unwrap()[0] - (-2.6287)).abs() < 1e-4);
+    assert!((output[1].token_scores.as_ref().unwrap()[1] - (-1.3033)).abs() < 1e-4);
+    assert!((output[1].token_scores.as_ref().unwrap()[2] - (-0.6780)).abs() < 1e-4);
+
+    Ok(())
+}
+
+#[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn dialogpt_single_multi_turn_conversation() -> anyhow::Result<()> {
     //    Set-up conversation model
