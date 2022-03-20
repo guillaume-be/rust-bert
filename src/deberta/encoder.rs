@@ -169,7 +169,7 @@ impl DebertaEncoder {
         let p_layer = p / "layer";
         let mut layers: Vec<DebertaLayer> = vec![];
         for layer_index in 0..config.num_hidden_layers {
-            layers.push(BaseDebertaLayer::new(&p_layer / layer_index, config));
+            layers.push(DebertaLayer::new(&p_layer / layer_index, config));
         }
 
         let relative_attention = config.relative_attention.unwrap_or(false);

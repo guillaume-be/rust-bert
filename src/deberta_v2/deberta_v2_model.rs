@@ -218,3 +218,41 @@ impl From<DebertaV2Config> for DebertaConfig {
         }
     }
 }
+
+impl From<&DebertaV2Config> for DebertaConfig {
+    fn from(v2_config: &DebertaV2Config) -> Self {
+        DebertaConfig {
+            hidden_act: v2_config.hidden_act,
+            attention_probs_dropout_prob: v2_config.attention_probs_dropout_prob,
+            hidden_dropout_prob: v2_config.hidden_dropout_prob,
+            hidden_size: v2_config.hidden_size,
+            initializer_range: v2_config.initializer_range,
+            intermediate_size: v2_config.intermediate_size,
+            max_position_embeddings: v2_config.max_position_embeddings,
+            num_attention_heads: v2_config.num_attention_heads,
+            num_hidden_layers: v2_config.num_hidden_layers,
+            type_vocab_size: v2_config.type_vocab_size,
+            vocab_size: v2_config.vocab_size,
+            position_biased_input: v2_config.position_biased_input,
+            pos_att_type: v2_config.pos_att_type.clone(),
+            pooler_dropout: v2_config.pooler_dropout,
+            pooler_hidden_act: v2_config.pooler_hidden_act,
+            pooler_hidden_size: v2_config.pooler_hidden_size,
+            layer_norm_eps: v2_config.layer_norm_eps,
+            pad_token_id: v2_config.pad_token_id,
+            relative_attention: v2_config.relative_attention,
+            max_relative_positions: v2_config.max_relative_positions,
+            embedding_size: v2_config.embedding_size,
+            talking_head: v2_config.talking_head,
+            output_hidden_states: v2_config.output_hidden_states,
+            output_attentions: v2_config.output_attentions,
+            classifier_activation: v2_config.classifier_activation,
+            classifier_dropout: v2_config.classifier_dropout,
+            is_decoder: v2_config.is_decoder,
+            id2label: v2_config.id2label.clone(),
+            label2id: v2_config.label2id.clone(),
+            share_att_key: v2_config.share_att_key,
+            position_buckets: v2_config.position_buckets,
+        }
+    }
+}

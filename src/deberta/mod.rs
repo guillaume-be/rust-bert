@@ -76,4 +76,4 @@ pub(crate) use deberta_model::{
 
 pub(crate) use attention::{DebertaDisentangledSelfAttention, DisentangledSelfAttention};
 pub(crate) use embeddings::BaseDebertaEmbeddings;
-pub(crate) use encoder::BaseDebertaLayer;
+pub(crate) use encoder::{BaseDebertaLayer, DebertaEncoderOutput};
