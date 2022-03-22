@@ -17,7 +17,7 @@ use crate::deberta_v2::attention::{build_relative_position, DebertaV2Disentangle
 use crate::deberta_v2::deberta_v2_model::NormRelEmbedType;
 use crate::deberta_v2::DebertaV2Config;
 use crate::{Activation, RustBertError};
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use tch::nn::{ConvConfig, LayerNorm, LayerNormConfig, Path};
 use tch::{nn, Kind, Tensor};
 
@@ -68,6 +68,44 @@ impl ConvLayer {
             dropout,
             conv_act,
         }
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        residual_states: &Tensor,
+        input_mask: &Tensor,
+        train: bool,
+    ) -> Tensor {
+        let out = hidden_states
+            .permute(&[0, 2, 1])
+            .contiguous()
+            .apply(&self.conv)
+            .permute(&[0, 2, 1])
+            .contiguous();
+        let reverse_mask: Tensor = 1 - input_mask;
+        let out = out.masked_fill(
+            &reverse_mask
+                .to_kind(Kind::Bool)
+                .unsqueeze(-1)
+                .expand(out.size().as_slice(), true),
+            0,
+        );
+        let out = self.conv_act.get_fn()(&out.apply_t(&self.dropout, train));
+
+        let layer_norm_input = residual_states + out;
+        let output = layer_norm_input.apply(&self.layer_norm);
+        let new_input_mask = if input_mask.dim() != layer_norm_input.dim() {
+            if input_mask.dim() == 4 {
+                input_mask.squeeze_dim(1).squeeze_dim(1).unsqueeze(2)
+            } else {
+                input_mask.unsqueeze(2)
+            }
+            .to_kind(output.kind())
+        } else {
+            input_mask.to_kind(output.kind())
+        };
+        output * new_input_mask
     }
 }
 
@@ -238,6 +276,17 @@ impl DebertaV2Encoder {
         relative_pos: Option<&Tensor>,
         train: bool,
     ) -> Result<DebertaV2EncoderOutput, RustBertError> {
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(vec![])
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(vec![])
+        } else {
+            None
+        };
+
         let input_mask = if attention_mask.dim() <= 2 {
             attention_mask.shallow_clone()
         } else {
@@ -265,7 +314,7 @@ impl DebertaV2Encoder {
                 )?
             } else {
                 layer.forward_t(
-                    input,
+                    hidden_states,
                     &attention_mask,
                     query_states,
                     relative_pos.as_ref(),
@@ -278,7 +327,7 @@ impl DebertaV2Encoder {
             if layer_index == 0 {
                 if let Some(conv) = &self.conv {
                     output_states = output_states.map(|output_states| {
-                        conv.forward(&hidden_states, &output_states, input_mask.as_ref())
+                        conv.forward_t(&hidden_states, &output_states, &input_mask, train)
                     })
                 }
             }
@@ -292,7 +341,7 @@ impl DebertaV2Encoder {
         }
 
         Ok(DebertaEncoderOutput {
-            hidden_state: hidden_state.unwrap(),
+            hidden_state: output_states.unwrap(),
             all_hidden_states,
             all_attentions,
         })
