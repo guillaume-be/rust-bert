@@ -36,10 +36,10 @@ pub fn make_log_bucket_position(
     let log_pos = (((&abs_pos / mid).log() / (((max_position - 1) / mid) as f64).ln()) * (mid - 1))
         .ceil()
         + mid;
-    let bucket_pos = relative_pos
-        .where_self(&abs_pos.less_equal(mid), &(log_pos * sign))
-        .to_kind(Kind::Int64);
-    bucket_pos
+    relative_pos.where_self(
+        &abs_pos.less_equal(mid),
+        &(log_pos * sign).to_kind(Kind::Int64),
+    )
 }
 
 pub fn build_relative_position(
@@ -388,7 +388,6 @@ impl DisentangledSelfAttention for DebertaV2DisentangledSelfAttention {
         let context_layer = attention_probs
             .view([
                 -1,
-                self.num_attention_heads,
                 reverse_attention_probs_size[1],
                 reverse_attention_probs_size[0],
             ])

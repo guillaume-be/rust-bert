@@ -66,12 +66,13 @@ mod encoder;
 pub use deberta_model::{
     DebertaConfig, DebertaConfigResources, DebertaForMaskedLM, DebertaForQuestionAnswering,
     DebertaForSequenceClassification, DebertaForTokenClassification, DebertaMaskedLMOutput,
-    DebertaMergesResources, DebertaModel, DebertaModelResources, DebertaVocabResources,
+    DebertaMergesResources, DebertaModel, DebertaModelResources, DebertaQuestionAnsweringOutput,
+    DebertaSequenceClassificationOutput, DebertaTokenClassificationOutput, DebertaVocabResources,
 };
 
 pub(crate) use deberta_model::{
-    deserialize_attention_type, x_softmax, BaseDebertaLayerNorm, DebertaLMPredictionHead,
-    DebertaModelOutput, PositionAttentionType, PositionAttentionTypes,
+    deserialize_attention_type, x_softmax, BaseDebertaLayerNorm, ContextPooler,
+    DebertaLMPredictionHead, DebertaModelOutput, PositionAttentionType, PositionAttentionTypes,
 };
 
 pub(crate) use attention::{DebertaDisentangledSelfAttention, DisentangledSelfAttention};

@@ -831,7 +831,7 @@ impl DebertaForTokenClassification {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the FNet model
+    /// * `p` - Variable store path for the root of the Deberta model
     /// * `config` - `DebertaConfig` object defining the model architecture
     ///
     /// # Example
@@ -986,7 +986,7 @@ impl DebertaForQuestionAnswering {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DebertaConfig::from_file(config_path);
-    /// let model = DebertaForQuestionAnswering::new(&p.root() / "bert", &config);
+    /// let model = DebertaForQuestionAnswering::new(&p.root(), &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaForQuestionAnswering
     where
@@ -1108,7 +1108,7 @@ pub struct DebertaMaskedLMOutput {
 /// Container for the DeBERTa sequence classification model output.
 pub type DebertaSequenceClassificationOutput = BertSequenceClassificationOutput;
 
-/// Container for the DeBERTa sequence classification model output.
+/// Container for the DeBERTa token classification model output.
 pub type DebertaTokenClassificationOutput = BertTokenClassificationOutput;
 
 /// Container for the DeBERTa question answering model output.
