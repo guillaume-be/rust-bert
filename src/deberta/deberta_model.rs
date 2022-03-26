@@ -424,7 +424,11 @@ struct DebertaPredictionHeadTransform {
 }
 
 impl DebertaPredictionHeadTransform {
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaPredictionHeadTransform
+    pub fn new<'p, P>(
+        p: P,
+        config: &DebertaConfig,
+        transform_bias: bool,
+    ) -> DebertaPredictionHeadTransform
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -435,7 +439,7 @@ impl DebertaPredictionHeadTransform {
             config.hidden_size,
             config.hidden_size,
             nn::LinearConfig {
-                bias: false,
+                bias: transform_bias,
                 ..Default::default()
             },
         );
@@ -462,19 +466,20 @@ impl Module for DebertaPredictionHeadTransform {
 }
 
 #[derive(Debug)]
-struct DebertaLMPredictionHead {
+pub(crate) struct DebertaLMPredictionHead {
     transform: DebertaPredictionHeadTransform,
     decoder: nn::Linear,
 }
 
 impl DebertaLMPredictionHead {
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaLMPredictionHead
+    pub fn new<'p, P>(p: P, config: &DebertaConfig, transform_bias: bool) -> DebertaLMPredictionHead
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
-        let transform = DebertaPredictionHeadTransform::new(p / "transform", config);
+        let transform =
+            DebertaPredictionHeadTransform::new(p / "transform", config, transform_bias);
         let decoder = nn::linear(
             p / "decoder",
             config.hidden_size,
@@ -531,7 +536,7 @@ impl DebertaForMaskedLM {
         let p = p.borrow();
 
         let deberta = DebertaModel::new(p / "deberta", config);
-        let cls = DebertaLMPredictionHead::new(p.sub("cls").sub("predictions"), config);
+        let cls = DebertaLMPredictionHead::new(p.sub("cls").sub("predictions"), config, false);
 
         DebertaForMaskedLM { deberta, cls }
     }
@@ -549,7 +554,7 @@ impl DebertaForMaskedLM {
     ///
     /// # Returns
     ///
-    /// * `BertMaskedLMOutput` containing:
+    /// * `DebertaMaskedLMOutput` containing:
     ///   - `prediction_scores` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*)
     ///   - `all_hidden_states` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
     ///   - `all_attentions` - `Option<Vec<Tensor>>` of length *num_hidden_layers* with shape (*batch size*, *sequence_length*, *hidden_size*)
@@ -557,15 +562,15 @@ impl DebertaForMaskedLM {
     /// # Example
     ///
     /// ```no_run
-    /// # use rust_bert::bert::{BertForMaskedLM, BertConfig};
+    /// # use rust_bert::deberta::{DebertaForMaskedLM, DebertaConfig};
     /// # use tch::{nn, Device, Tensor, no_grad, Kind};
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = BertConfig::from_file(config_path);
-    /// # let bert_model = BertForMaskedLM::new(&vs.root(), &config);
+    /// # let config = DebertaConfig::from_file(config_path);
+    /// # let model = DebertaForMaskedLM::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
@@ -574,13 +579,11 @@ impl DebertaForMaskedLM {
     ///     .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     bert_model.forward_t(
+    ///     model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&mask),
     ///         Some(&token_type_ids),
     ///         Some(&position_ids),
-    ///         None,
-    ///         None,
     ///         None,
     ///         false,
     ///     )

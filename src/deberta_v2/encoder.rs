@@ -348,4 +348,5 @@ impl DebertaV2Encoder {
     }
 }
 
+/// Container for the DeBERTa V2 encoder output.
 pub type DebertaV2EncoderOutput = DebertaEncoderOutput;
