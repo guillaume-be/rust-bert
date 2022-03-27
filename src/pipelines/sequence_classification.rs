@@ -26,7 +26,7 @@
 //!    RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2),
 //!    RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
 //!    RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
-//!    None, //merges resource only relevant with ModelType::Roberta
+//!    None, // Merge resources
 //!    true, //lowercase
 //!    None, //strip_accents
 //!    None, //add_prefix_space
@@ -79,6 +79,7 @@ use std::collections::HashMap;
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Kind, Tensor};
 
+use crate::deberta_v2::DebertaV2ForSequenceClassification;
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
@@ -183,6 +184,8 @@ pub enum SequenceClassificationOption {
     Bert(BertForSequenceClassification),
     /// DeBERTa for Sequence Classification
     Deberta(DebertaForSequenceClassification),
+    /// DeBERTa V2 for Sequence Classification
+    DebertaV2(DebertaV2ForSequenceClassification),
     /// DistilBert for Sequence Classification
     DistilBert(DistilBertModelClassifier),
     /// MobileBert for Sequence Classification
@@ -242,6 +245,17 @@ impl SequenceClassificationOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a DebertaConfig for DeBERTa!".to_string(),
+                    ))
+                }
+            }
+            ModelType::DebertaV2 => {
+                if let ConfigOption::DebertaV2(config) = config {
+                    Ok(SequenceClassificationOption::DebertaV2(
+                        DebertaV2ForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DebertaV2Config for DeBERTa V2!".to_string(),
                     ))
                 }
             }
@@ -367,6 +381,7 @@ impl SequenceClassificationOption {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Deberta(_) => ModelType::Deberta,
+            Self::DebertaV2(_) => ModelType::DebertaV2,
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
@@ -426,6 +441,19 @@ impl SequenceClassificationOption {
                         train,
                     )
                     .expect("Error in Deberta forward_t")
+                    .logits
+            }
+            Self::DebertaV2(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .expect("Error in Deberta V2 forward_t")
                     .logits
             }
             Self::DistilBert(ref model) => {
