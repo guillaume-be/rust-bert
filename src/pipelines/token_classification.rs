@@ -301,6 +301,7 @@ impl Default for TokenClassificationConfig {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 /// # Abstraction that holds one particular token sequence classifier model, for any of the supported models
 pub enum TokenClassificationOption {
     /// Bert for Token Classification

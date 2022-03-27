@@ -27,18 +27,13 @@
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::DeBERTaTokenizer;
 //!
-//! let config_resource = RemoteResource::from_pretrained(
-//!     DebertaConfigResources::DEBERTA_BASE_MNLI,
-//! );
-//! let vocab_resource = RemoteResource::from_pretrained(
-//!     DebertaVocabResources::DEBERTA_BASE_MNLI,
-//! );
-//! let merges_resource = RemoteResource::from_pretrained(
-//!     DebertaMergesResources::DEBERTA_BASE_MNLI,
-//! );
-//! let weights_resource = RemoteResource::from_pretrained(
-//!     DebertaModelResources::DEBERTA_BASE_MNLI,
-//! );
+//! let config_resource =
+//!     RemoteResource::from_pretrained(DebertaConfigResources::DEBERTA_BASE_MNLI);
+//! let vocab_resource = RemoteResource::from_pretrained(DebertaVocabResources::DEBERTA_BASE_MNLI);
+//! let merges_resource =
+//!     RemoteResource::from_pretrained(DebertaMergesResources::DEBERTA_BASE_MNLI);
+//! let weights_resource =
+//!     RemoteResource::from_pretrained(DebertaModelResources::DEBERTA_BASE_MNLI);
 //! let config_path = config_resource.get_local_path()?;
 //! let vocab_path = vocab_resource.get_local_path()?;
 //! let merges_path = merges_resource.get_local_path()?;

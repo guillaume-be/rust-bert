@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 ## Added
 - Addition of the DeBERTa language model and support for question answering, sequence and token classification
+- Addition of the DeBERTa v2/v3 language model and support for question answering, sequence and token classification
 - Addition of a `new_with_tokenizer` method allowing building language model generator with a custom tokenizer (or pairing a tokenizer that was not originally designed with the model, e.g. T5 tokenizer with GPT2 model).
 - (BREAKING) Addition of support for mT5 model, addition of new optional fields to T5Config
 - Addition of `token_scores` field when `output_scores` is set to `true` for generation, returning the score for each token generated

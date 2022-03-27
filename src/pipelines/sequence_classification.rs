@@ -178,6 +178,7 @@ impl Default for SequenceClassificationConfig {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 /// # Abstraction that holds one particular sequence classification model, for any of the supported models
 pub enum SequenceClassificationOption {
     /// Bert for Sequence Classification

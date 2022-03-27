@@ -272,6 +272,7 @@ impl Default for QuestionAnsweringConfig {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 /// # Abstraction that holds one particular question answering model, for any of the supported models
 pub enum QuestionAnsweringOption {
     /// Bert for Question Answering

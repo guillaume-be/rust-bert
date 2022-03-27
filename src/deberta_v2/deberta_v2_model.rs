@@ -545,7 +545,7 @@ impl DebertaV2ForSequenceClassification {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::deberta::{DebertaConfig, DebertaV2ForSequenceClassification};
+    /// use rust_bert::deberta_v2::{DebertaV2Config, DebertaV2ForSequenceClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -553,7 +553,7 @@ impl DebertaV2ForSequenceClassification {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = DebertaConfig::from_file(config_path);
+    /// let config = DebertaV2Config::from_file(config_path);
     /// let model = DebertaV2ForSequenceClassification::new(&p.root(), &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &DebertaV2Config) -> DebertaV2ForSequenceClassification
@@ -620,7 +620,7 @@ impl DebertaV2ForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = DebertaV2Config::from_file(config_path);
-    /// # let model = DebertaV2SequenceClassificationOutput::new(&vs.root(), &config);
+    /// # let model = DebertaV2ForSequenceClassification::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
@@ -762,7 +762,7 @@ impl DebertaV2ForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = DebertaV2Config::from_file(config_path);
-    /// # let model = DebertaV2TokenClassificationOutput::new(&vs.root(), &config);
+    /// # let model = DebertaV2ForTokenClassification::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));

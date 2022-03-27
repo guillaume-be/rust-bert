@@ -41,7 +41,7 @@ impl ConvLayer {
         let groups = config.conv_groups.unwrap_or(1);
 
         let conv_config = ConvConfig {
-            padding: kernel_size - 1 / 2,
+            padding: (kernel_size - 1) / 2,
             groups,
             ..Default::default()
         };
@@ -254,7 +254,7 @@ impl DebertaV2Encoder {
         if self.rel_embeddings.is_some() & relative_pos.is_none() {
             let q = query_states
                 .map(|query_states| DebertaV2Encoder::reverse_vec(query_states.size())[1])
-                .unwrap_or(DebertaV2Encoder::reverse_vec(hidden_states.size())[1]);
+                .unwrap_or_else(|| DebertaV2Encoder::reverse_vec(hidden_states.size())[1]);
 
             Some(build_relative_position(
                 q,
@@ -327,7 +327,7 @@ impl DebertaV2Encoder {
             if layer_index == 0 {
                 if let Some(conv) = &self.conv {
                     output_states = output_states.map(|output_states| {
-                        conv.forward_t(&hidden_states, &output_states, &input_mask, train)
+                        conv.forward_t(hidden_states, &output_states, &input_mask, train)
                     })
                 }
             }
