@@ -11,6 +11,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("source_file", help="Absolute path to the Pytorch weights file to convert")
     parser.add_argument("--skip_embeddings", action="store_true", help="Skip shared embeddings / language model head")
+    parser.add_argument("--prefix", help="Add a prefix on weight names")
+    parser.add_argument("--suffix", action="store_true", help="Split weight names on '.' and keep only last part")
     args = parser.parse_args()
 
     source_file = Path(args.source_file)
@@ -24,6 +26,10 @@ if __name__ == "__main__":
         if args.skip_embeddings:
             if k in {"lm_head.weight", "model.encoder.embed_tokens.weight", "model.decoder.embed_tokens.weight"}:
                 continue
+        if args.prefix:
+            k = args.prefix + k
+        if args.suffix:
+            k = k.split('.')[-1]
         if isinstance(v, Tensor):
             nps[k] = np.ascontiguousarray(v.cpu().numpy().astype(np.float32))
             print(f'converted {k} - {str(sys.getsizeof(nps[k]))} bytes')

@@ -132,7 +132,7 @@ pub struct T5Config {
     pub vocab_size: i64,
     pub feed_forward_proj: Option<FeedForwardProj>,
     pub tie_word_embeddings: Option<bool>,
-    task_specific_params: Option<TaskSpecificParams>,
+    pub(crate) task_specific_params: Option<TaskSpecificParams>,
 }
 
 /// # T5 task-specific configurations

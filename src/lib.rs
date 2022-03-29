@@ -146,7 +146,7 @@
 //! ```
 //!
 //! </details>
-//! &nbsp;  
+//! &nbsp;
 //! <details>
 //! <summary> <b>2. Translation </b> </summary>
 //!
@@ -198,7 +198,7 @@
 //! ```
 //!
 //! </details>
-//! &nbsp;  
+//! &nbsp;
 //! <details>
 //! <summary> <b>3. Summarization </b> </summary>
 //!
@@ -249,7 +249,7 @@
 //! ```
 //!
 //! </details>
-//! &nbsp;  
+//! &nbsp;
 //! <details>
 //! <summary> <b>4. Dialogue Model </b> </summary>
 //!
@@ -281,7 +281,7 @@
 //! ```
 //!
 //! </details>
-//! &nbsp;  
+//! &nbsp;
 //! <details>
 //! <summary> <b>5. Natural Language Generation </b> </summary>
 //!
@@ -319,7 +319,7 @@
 //! ```
 //!
 //! </details>
-//! &nbsp;  
+//! &nbsp;
 //! <details>
 //! <summary> <b>6. Zero-shot classification </b> </summary>
 //!
@@ -402,7 +402,7 @@
 //! ```
 //!
 //! </details>
-//! &nbsp;  
+//! &nbsp;
 //! <details>
 //! <summary> <b>7. Sentiment analysis </b> </summary>
 //!
@@ -445,7 +445,7 @@
 //! ```
 //!
 //! </details>
-//! &nbsp;  
+//! &nbsp;
 //! <details>
 //! <summary> <b>8. Named Entity Recognition </b> </summary>
 //!
@@ -497,7 +497,7 @@
 //! ```
 //!
 //! </details>
-//! &nbsp;  
+//! &nbsp;
 //! <details>
 //! <summary> <b>9. Part of Speech tagging </b> </summary>
 //!
@@ -612,6 +612,7 @@ pub mod pipelines;
 pub mod prophetnet;
 pub mod reformer;
 pub mod roberta;
+pub mod sbert;
 pub mod t5;
 pub mod xlnet;
 
