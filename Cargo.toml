@@ -59,7 +59,7 @@ remote = [ "cached-path", "dirs", "lazy_static" ]
 features = ["doc-only"]
 
 [dependencies]
-rust_tokenizers = "~7.0.1"
+rust_tokenizers = "~7.0.2"
 tch = "~0.7.0"
 serde_json = "1.0.79"
 serde = { version = "1.0.136", features = ["derive"] }
