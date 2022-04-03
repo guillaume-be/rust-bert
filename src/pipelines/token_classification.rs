@@ -136,6 +136,7 @@ use std::collections::HashMap;
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Kind, Tensor};
 
+use crate::deberta_v2::DebertaV2ForTokenClassification;
 #[cfg(feature = "remote")]
 use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
@@ -300,12 +301,15 @@ impl Default for TokenClassificationConfig {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 /// # Abstraction that holds one particular token sequence classifier model, for any of the supported models
 pub enum TokenClassificationOption {
     /// Bert for Token Classification
     Bert(BertForTokenClassification),
     /// DeBERTa for Token Classification
     Deberta(DebertaForTokenClassification),
+    /// DeBERTa V2 for Token Classification
+    DebertaV2(DebertaV2ForTokenClassification),
     /// DistilBert for Token Classification
     DistilBert(DistilBertForTokenClassification),
     /// MobileBert for Token Classification
@@ -352,6 +356,28 @@ impl TokenClassificationOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a BertConfig for Bert!".to_string(),
+                    ))
+                }
+            }
+            ModelType::Deberta => {
+                if let ConfigOption::Deberta(config) = config {
+                    Ok(TokenClassificationOption::Deberta(
+                        DebertaForTokenClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DebertaConfig for DeBERTa!".to_string(),
+                    ))
+                }
+            }
+            ModelType::DebertaV2 => {
+                if let ConfigOption::DebertaV2(config) = config {
+                    Ok(TokenClassificationOption::DebertaV2(
+                        DebertaV2ForTokenClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DebertaConfig for DeBERTa V2!".to_string(),
                     ))
                 }
             }
@@ -466,6 +492,7 @@ impl TokenClassificationOption {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Deberta(_) => ModelType::Deberta,
+            Self::DebertaV2(_) => ModelType::DebertaV2,
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::DistilBert(_) => ModelType::DistilBert,
@@ -511,6 +538,19 @@ impl TokenClassificationOption {
                         train,
                     )
                     .expect("Error in DeBERTa forward_t")
+                    .logits
+            }
+            Self::DebertaV2(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .expect("Error in DeBERTa V2 forward_t")
                     .logits
             }
             Self::DistilBert(ref model) => {

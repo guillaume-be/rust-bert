@@ -67,6 +67,7 @@ use tch::kind::Kind::Float;
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
 
+use crate::deberta_v2::DebertaV2ForQuestionAnswering;
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
@@ -271,12 +272,15 @@ impl Default for QuestionAnsweringConfig {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 /// # Abstraction that holds one particular question answering model, for any of the supported models
 pub enum QuestionAnsweringOption {
     /// Bert for Question Answering
     Bert(BertForQuestionAnswering),
     /// DeBERTa for Question Answering
     Deberta(DebertaForQuestionAnswering),
+    /// DeBERTa V2 for Question Answering
+    DebertaV2(DebertaV2ForQuestionAnswering),
     /// DistilBert for Question Answering
     DistilBert(DistilBertForQuestionAnswering),
     /// MobileBert for Question Answering
@@ -334,6 +338,17 @@ impl QuestionAnsweringOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a DebertaConfig for DeBERTa!".to_string(),
+                    ))
+                }
+            }
+            ModelType::DebertaV2 => {
+                if let ConfigOption::DebertaV2(config) = config {
+                    Ok(QuestionAnsweringOption::DebertaV2(
+                        DebertaV2ForQuestionAnswering::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DebertaV2Config for DeBERTa V2!".to_string(),
                     ))
                 }
             }
@@ -448,6 +463,7 @@ impl QuestionAnsweringOption {
         match *self {
             Self::Bert(_) => ModelType::Bert,
             Self::Deberta(_) => ModelType::Deberta,
+            Self::DebertaV2(_) => ModelType::DebertaV2,
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::XLMRoberta,
             Self::DistilBert(_) => ModelType::DistilBert,
@@ -477,6 +493,12 @@ impl QuestionAnsweringOption {
                 let outputs = model
                     .forward_t(input_ids, mask, None, None, input_embeds, train)
                     .expect("Error in Deberta forward_t");
+                (outputs.start_logits, outputs.end_logits)
+            }
+            Self::DebertaV2(ref model) => {
+                let outputs = model
+                    .forward_t(input_ids, mask, None, None, input_embeds, train)
+                    .expect("Error in Deberta V2 forward_t");
                 (outputs.start_logits, outputs.end_logits)
             }
             Self::DistilBert(ref model) => {

@@ -13,10 +13,11 @@
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::XDropout;
 use crate::deberta::attention::{build_relative_position, DebertaAttention};
-use crate::deberta::deberta_model::DebertaLayerNorm;
-use crate::deberta::DebertaConfig;
+use crate::deberta::deberta_model::{BaseDebertaLayerNorm, DebertaLayerNorm};
+use crate::deberta::{DebertaConfig, DebertaDisentangledSelfAttention, DisentangledSelfAttention};
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
+use tch::nn::Module;
 use tch::{nn, Tensor};
 
 pub struct DebertaIntermediate {
@@ -46,14 +47,14 @@ impl DebertaIntermediate {
     }
 }
 
-pub struct DebertaOutput {
+pub struct DebertaOutput<LN: BaseDebertaLayerNorm + Module> {
     dense: nn::Linear,
-    layer_norm: DebertaLayerNorm,
+    layer_norm: LN,
     dropout: XDropout,
 }
 
-impl DebertaOutput {
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaOutput
+impl<LN: BaseDebertaLayerNorm + Module> DebertaOutput<LN> {
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaOutput<LN>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -66,7 +67,7 @@ impl DebertaOutput {
             Default::default(),
         );
 
-        let layer_norm = DebertaLayerNorm::new(
+        let layer_norm = LN::new(
             p / "LayerNorm",
             config.hidden_size,
             config.layer_norm_eps.unwrap_or(1e-7),
@@ -89,14 +90,22 @@ impl DebertaOutput {
     }
 }
 
-pub struct DebertaLayer {
-    attention: DebertaAttention,
+pub struct BaseDebertaLayer<SA, LN>
+where
+    SA: DisentangledSelfAttention,
+    LN: BaseDebertaLayerNorm + Module,
+{
+    attention: DebertaAttention<SA, LN>,
     intermediate: DebertaIntermediate,
-    output: DebertaOutput,
+    output: DebertaOutput<LN>,
 }
 
-impl DebertaLayer {
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaLayer
+impl<SA, LN> BaseDebertaLayer<SA, LN>
+where
+    SA: DisentangledSelfAttention,
+    LN: BaseDebertaLayerNorm + Module,
+{
+    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> BaseDebertaLayer<SA, LN>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -105,7 +114,7 @@ impl DebertaLayer {
         let intermediate = DebertaIntermediate::new(p / "intermediate", config);
         let output = DebertaOutput::new(p / "output", config);
 
-        DebertaLayer {
+        BaseDebertaLayer {
             attention,
             intermediate,
             output,
@@ -138,6 +147,8 @@ impl DebertaLayer {
         Ok((layer_output, attention_matrix))
     }
 }
+
+pub type DebertaLayer = BaseDebertaLayer<DebertaDisentangledSelfAttention, DebertaLayerNorm>;
 
 pub struct DebertaEncoder {
     output_attentions: bool,
