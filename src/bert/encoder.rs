@@ -292,10 +292,10 @@ impl BertEncoder {
             hidden_state = Some(layer_output.hidden_state);
             attention_weights = layer_output.attention_weights;
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().copy());
+                attentions.push(attention_weights.as_ref().unwrap().shallow_clone());
             };
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().unwrap().copy());
+                hidden_states.push(hidden_state.as_ref().unwrap().shallow_clone());
             };
         }
 

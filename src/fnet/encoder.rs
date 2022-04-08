@@ -61,7 +61,7 @@ impl FNetEncoder {
             x = Some(temp);
 
             if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
-                all_hidden_states.push(x.as_ref().unwrap().copy());
+                all_hidden_states.push(x.as_ref().unwrap().shallow_clone());
             };
         }
 

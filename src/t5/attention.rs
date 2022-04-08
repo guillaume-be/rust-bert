@@ -30,8 +30,8 @@ pub struct LayerState {
 impl Clone for LayerState {
     fn clone(&self) -> Self {
         LayerState {
-            prev_key: self.prev_key.copy(),
-            prev_value: self.prev_value.copy(),
+            prev_key: self.prev_key.shallow_clone(),
+            prev_value: self.prev_value.shallow_clone(),
         }
     }
 }
@@ -176,15 +176,15 @@ impl T5Attention {
                 k = Tensor::cat(&[&layer_state.prev_key, &k], 2);
                 v = Tensor::cat(&[&layer_state.prev_value, &v], 2);
             } else {
-                k = layer_state.prev_key.copy();
-                v = layer_state.prev_value.copy();
+                k = layer_state.prev_key.shallow_clone();
+                v = layer_state.prev_value.shallow_clone();
             }
         };
 
         layer_state = if self.is_decoder & self.store_cache {
             Some(LayerState {
-                prev_key: k.copy(),
-                prev_value: v.copy(),
+                prev_key: k.shallow_clone(),
+                prev_value: v.shallow_clone(),
             })
         } else {
             None

@@ -516,9 +516,9 @@ impl XLNetModel {
                     &[m_len, batch_size],
                     (Kind::Int64, token_type_ids_value.device()),
                 );
-                Tensor::cat(&[mem_pad, token_type_ids_value.copy()], 0)
+                Tensor::cat(&[mem_pad, token_type_ids_value.shallow_clone()], 0)
             } else {
-                token_type_ids_value.copy()
+                token_type_ids_value.shallow_clone()
             };
             let seg_mat = token_type_ids_value
                 .unsqueeze(-1)
@@ -586,8 +586,8 @@ impl XLNetModel {
             let attention_probas_g = temp.3;
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
                 hidden_states.push((
-                    output_h.copy(),
-                    output_g.as_ref().map(|output| output.copy()),
+                    output_h.shallow_clone(),
+                    output_g.as_ref().map(|output| output.shallow_clone()),
                 ));
             };
             if let Some(attentions) = all_attentions.borrow_mut() {

@@ -221,7 +221,7 @@ impl OpenAiGptModel {
         let seq_length = input_shape[1];
 
         let position_ids = match position_ids {
-            Some(value) => value.copy(),
+            Some(value) => value.shallow_clone(),
             None => Tensor::arange(seq_length, (Int64, input_embeddings.device())).unsqueeze(0),
         };
 
@@ -257,10 +257,10 @@ impl OpenAiGptModel {
             let temp = layer.forward_t(&hidden_state, attention_mask.as_ref(), train);
             hidden_state = temp.0;
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(temp.1.as_ref().unwrap().copy());
+                attentions.push(temp.1.as_ref().unwrap().shallow_clone());
             };
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
+                hidden_states.push(hidden_state.as_ref().shallow_clone());
             };
         }
 

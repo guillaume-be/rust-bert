@@ -107,7 +107,7 @@ impl MBartEncoderLayer {
                 .forward_t(&output, None, encoder_attention_mask, None, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
 
-        let residual = output.copy();
+        let residual = output.shallow_clone();
         let output = output.apply(&self.final_layer_norm);
         let output = (self.activation.get_fn())(&output.apply(&self.fc1));
         let output = output
@@ -217,10 +217,10 @@ impl MBartEncoder {
             hidden_state = temp.0;
             attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().copy());
+                attentions.push(attention_weights.as_ref().unwrap().shallow_clone());
             };
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
+                hidden_states.push(hidden_state.as_ref().shallow_clone());
             };
         }
 

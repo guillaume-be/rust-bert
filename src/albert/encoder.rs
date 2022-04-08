@@ -130,7 +130,7 @@ impl AlbertLayerGroup {
             None
         };
 
-        let mut hidden_state = hidden_states.copy();
+        let mut hidden_state = hidden_states.shallow_clone();
         let mut attention_weights: Option<Tensor>;
 
         for layer in &self.layers {
@@ -138,10 +138,10 @@ impl AlbertLayerGroup {
             hidden_state = temp.0;
             attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().copy());
+                attentions.push(attention_weights.as_ref().unwrap().shallow_clone());
             };
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
+                hidden_states.push(hidden_state.as_ref().shallow_clone());
             };
         }
 
@@ -215,7 +215,7 @@ impl AlbertTransformer {
             let layer = &self.layers[group_idx as usize];
 
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
+                hidden_states.push(hidden_state.as_ref().shallow_clone());
             };
 
             let temp = layer.forward_t(&hidden_state, mask.as_ref(), train);
