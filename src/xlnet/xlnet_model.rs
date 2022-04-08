@@ -586,8 +586,8 @@ impl XLNetModel {
             let attention_probas_g = temp.3;
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
                 hidden_states.push((
-                    output_h.shallow_clone(),
-                    output_g.as_ref().map(|output| output.shallow_clone()),
+                    output_h.copy(),
+                    output_g.as_ref().map(|output| output.copy()),
                 ));
             };
             if let Some(attentions) = all_attentions.borrow_mut() {

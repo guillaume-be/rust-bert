@@ -506,10 +506,10 @@ impl T5Stack {
             hidden_state = block_output.hidden_states;
             attention_weights = block_output.cross_attention_weights;
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().shallow_clone().transpose(0, 1));
+                hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
             };
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().shallow_clone());
+                attentions.push(attention_weights.as_ref().unwrap().copy());
             };
             if let Some(value) = &mut next_cache {
                 value[layer_idx] = block_output.cache

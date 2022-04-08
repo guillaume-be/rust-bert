@@ -346,7 +346,7 @@ impl LongformerEncoder {
                 global_attentions.push(global_attention_weights.as_ref().unwrap().transpose(2, 3));
             };
             if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
-                all_hidden_states.push(x.as_ref().unwrap().shallow_clone());
+                all_hidden_states.push(x.as_ref().unwrap().copy());
             };
         }
 

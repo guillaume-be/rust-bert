@@ -321,7 +321,7 @@ impl ReformerEncoder {
             hidden_state = temp.hidden_states;
 
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.shallow_clone());
+                hidden_states.push(hidden_state.copy());
             };
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(temp.attention_probs.unwrap());
