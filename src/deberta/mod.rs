@@ -27,18 +27,13 @@
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::DeBERTaTokenizer;
 //!
-//! let config_resource = RemoteResource::from_pretrained(
-//!     DebertaConfigResources::DEBERTA_BASE_MNLI,
-//! );
-//! let vocab_resource = RemoteResource::from_pretrained(
-//!     DebertaVocabResources::DEBERTA_BASE_MNLI,
-//! );
-//! let merges_resource = RemoteResource::from_pretrained(
-//!     DebertaMergesResources::DEBERTA_BASE_MNLI,
-//! );
-//! let weights_resource = RemoteResource::from_pretrained(
-//!     DebertaModelResources::DEBERTA_BASE_MNLI,
-//! );
+//! let config_resource =
+//!     RemoteResource::from_pretrained(DebertaConfigResources::DEBERTA_BASE_MNLI);
+//! let vocab_resource = RemoteResource::from_pretrained(DebertaVocabResources::DEBERTA_BASE_MNLI);
+//! let merges_resource =
+//!     RemoteResource::from_pretrained(DebertaMergesResources::DEBERTA_BASE_MNLI);
+//! let weights_resource =
+//!     RemoteResource::from_pretrained(DebertaModelResources::DEBERTA_BASE_MNLI);
 //! let config_path = config_resource.get_local_path()?;
 //! let vocab_path = vocab_resource.get_local_path()?;
 //! let merges_path = merges_resource.get_local_path()?;
@@ -65,6 +60,16 @@ mod encoder;
 
 pub use deberta_model::{
     DebertaConfig, DebertaConfigResources, DebertaForMaskedLM, DebertaForQuestionAnswering,
-    DebertaForSequenceClassification, DebertaForTokenClassification, DebertaMergesResources,
-    DebertaModel, DebertaModelResources, DebertaVocabResources,
+    DebertaForSequenceClassification, DebertaForTokenClassification, DebertaMaskedLMOutput,
+    DebertaMergesResources, DebertaModel, DebertaModelResources, DebertaQuestionAnsweringOutput,
+    DebertaSequenceClassificationOutput, DebertaTokenClassificationOutput, DebertaVocabResources,
 };
+
+pub(crate) use deberta_model::{
+    deserialize_attention_type, x_softmax, BaseDebertaLayerNorm, ContextPooler,
+    DebertaLMPredictionHead, DebertaModelOutput, PositionAttentionType, PositionAttentionTypes,
+};
+
+pub(crate) use attention::{DebertaDisentangledSelfAttention, DisentangledSelfAttention};
+pub(crate) use embeddings::BaseDebertaEmbeddings;
+pub(crate) use encoder::{BaseDebertaLayer, DebertaEncoderOutput};

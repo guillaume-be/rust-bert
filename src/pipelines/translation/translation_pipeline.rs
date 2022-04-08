@@ -438,15 +438,9 @@ impl TranslationConfig {
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = RemoteResource::from_pretrained(
-    ///     MarianModelResources::ROMANCE2ENGLISH,
-    /// );
-    /// let config_resource = RemoteResource::from_pretrained(
-    ///     MarianConfigResources::ROMANCE2ENGLISH,
-    /// );
-    /// let vocab_resource = RemoteResource::from_pretrained(
-    ///     MarianVocabResources::ROMANCE2ENGLISH,
-    /// );
+    /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
+    /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
+    /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
     ///
     /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
     /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -802,15 +796,9 @@ impl TranslationModel {
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = RemoteResource::from_pretrained(
-    ///     MarianModelResources::ROMANCE2ENGLISH,
-    /// );
-    /// let config_resource = RemoteResource::from_pretrained(
-    ///     MarianConfigResources::ROMANCE2ENGLISH,
-    /// );
-    /// let vocab_resource = RemoteResource::from_pretrained(
-    ///     MarianVocabResources::ROMANCE2ENGLISH,
-    /// );
+    /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
+    /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
+    /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
     ///
     /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
     /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -863,18 +851,10 @@ impl TranslationModel {
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = RemoteResource::from_pretrained(
-    ///     MarianModelResources::ENGLISH2ROMANCE,
-    /// );
-    /// let config_resource = RemoteResource::from_pretrained(
-    ///     MarianConfigResources::ENGLISH2ROMANCE,
-    /// );
-    /// let vocab_resource = RemoteResource::from_pretrained(
-    ///     MarianVocabResources::ENGLISH2ROMANCE,
-    /// );
-    /// let merges_resource = RemoteResource::from_pretrained(
-    ///     MarianSpmResources::ENGLISH2ROMANCE,
-    /// );
+    /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ENGLISH2ROMANCE);
+    /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ENGLISH2ROMANCE);
+    /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ENGLISH2ROMANCE);
+    /// let merges_resource = RemoteResource::from_pretrained(MarianSpmResources::ENGLISH2ROMANCE);
     /// let source_languages = MarianSourceLanguages::ENGLISH2ROMANCE;
     /// let target_languages = MarianTargetLanguages::ENGLISH2ROMANCE;
     ///

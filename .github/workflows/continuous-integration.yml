@@ -72,6 +72,8 @@ jobs:
             --test gpt2
             --test marian
             --test fnet
+            --test deberta
+            --test deberta_v2
 
   test-batch-1:
     name: Integration tests (batch 1)

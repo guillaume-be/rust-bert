@@ -31,10 +31,7 @@ impl RemoteResource {
     ///
     /// ```no_run
     /// use rust_bert::resources::RemoteResource;
-    /// let config_resource = RemoteResource::new(
-    ///     "configs",
-    ///     "http://config_json_location",
-    /// );
+    /// let config_resource = RemoteResource::new("configs", "http://config_json_location");
     /// ```
     pub fn new(url: &str, cache_subdir: &str) -> RemoteResource {
         RemoteResource {
