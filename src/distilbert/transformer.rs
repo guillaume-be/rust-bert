@@ -150,7 +150,6 @@ impl Transformer {
             None
         };
 
-        // let mut hidden_state = input.copy();
         let mut hidden_state: Option<Tensor> = None;
         let mut attention_weights: Option<Tensor>;
 

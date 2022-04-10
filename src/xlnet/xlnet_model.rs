@@ -516,9 +516,9 @@ impl XLNetModel {
                     &[m_len, batch_size],
                     (Kind::Int64, token_type_ids_value.device()),
                 );
-                Tensor::cat(&[mem_pad, token_type_ids_value.copy()], 0)
+                Tensor::cat(&[mem_pad, token_type_ids_value.shallow_clone()], 0)
             } else {
-                token_type_ids_value.copy()
+                token_type_ids_value.shallow_clone()
             };
             let seg_mat = token_type_ids_value
                 .unsqueeze(-1)
