@@ -337,7 +337,7 @@ impl<T: BertEmbedding> BertModel<T> {
                 let encoder_hidden_states = encoder_hidden_states.as_ref().unwrap();
                 let encoder_hidden_states_shape = encoder_hidden_states.size();
                 let encoder_mask = match encoder_mask {
-                    Some(value) => value.shallow_clone(),
+                    Some(value) => value.copy(),
                     None => Tensor::ones(
                         &[
                             encoder_hidden_states_shape[0],
@@ -416,7 +416,7 @@ impl BertPredictionHeadTransform {
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        (self.activation.get_fn()(&hidden_states.apply(&self.dense))).apply(&self.layer_norm)
+        ((&self.activation.get_fn())(&hidden_states.apply(&self.dense))).apply(&self.layer_norm)
     }
 }
 

@@ -333,10 +333,10 @@ impl DebertaV2Encoder {
             }
             attention_weights = layer_output.1;
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().shallow_clone());
+                attentions.push(attention_weights.as_ref().unwrap().copy());
             };
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(output_states.as_ref().unwrap().shallow_clone());
+                hidden_states.push(output_states.as_ref().unwrap().copy());
             };
         }
 

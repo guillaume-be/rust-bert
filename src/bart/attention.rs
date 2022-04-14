@@ -28,8 +28,8 @@ pub struct LayerState {
 impl Clone for LayerState {
     fn clone(&self) -> Self {
         LayerState {
-            prev_key: self.prev_key.shallow_clone(),
-            prev_value: self.prev_value.shallow_clone(),
+            prev_key: self.prev_key.copy(),
+            prev_value: self.prev_value.copy(),
         }
     }
 }
@@ -138,8 +138,8 @@ impl BartAttention {
 
         let new_layer_state = if self.store_cache {
             Some(LayerState {
-                prev_key: key_states.shallow_clone(),
-                prev_value: value_states.shallow_clone(),
+                prev_key: key_states.copy(),
+                prev_value: value_states.copy(),
             })
         } else {
             None

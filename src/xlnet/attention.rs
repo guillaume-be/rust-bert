@@ -29,7 +29,7 @@ pub struct LayerState {
 impl Clone for LayerState {
     fn clone(&self) -> Self {
         LayerState {
-            prev_content: self.prev_content.shallow_clone(),
+            prev_content: self.prev_content.copy(),
         }
     }
 }
