@@ -67,7 +67,7 @@ impl XLNetFeedForward {
 
     pub fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
         let output = input.apply(&self.layer_1);
-        let output: Tensor = (&self.activation.get_fn())(&output);
+        let output: Tensor = self.activation.get_fn()(&output);
         let output = output
             .apply_t(&self.dropout, train)
             .apply(&self.layer_2)
