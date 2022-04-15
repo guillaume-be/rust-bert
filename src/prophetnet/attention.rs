@@ -31,8 +31,8 @@ pub struct LayerState {
 impl Clone for LayerState {
     fn clone(&self) -> Self {
         LayerState {
-            prev_key: self.prev_key.shallow_clone(),
-            prev_value: self.prev_value.shallow_clone(),
+            prev_key: self.prev_key.copy(),
+            prev_value: self.prev_value.copy(),
         }
     }
 }

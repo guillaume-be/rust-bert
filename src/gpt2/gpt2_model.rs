@@ -386,7 +386,7 @@ impl Gpt2Model {
                 (
                     value
                         .iter()
-                        .map(|v| Some(v.shallow_clone()))
+                        .map(|v| Some(v.copy()))
                         .collect::<Vec<Option<Tensor>>>(),
                     value[0].size()[3],
                 )
@@ -399,7 +399,7 @@ impl Gpt2Model {
         };
 
         let position_ids = match position_ids {
-            Some(value) => value.shallow_clone(),
+            Some(value) => value.copy(),
             None => Tensor::arange_start(
                 layer_past_length,
                 seq_length + layer_past_length,

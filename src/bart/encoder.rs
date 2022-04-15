@@ -109,7 +109,7 @@ impl EncoderLayer {
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
         let output = output.apply(&self.self_attention_layer_norm);
 
-        let residual = output.shallow_clone();
+        let residual = output.copy();
         let output = (self.activation.get_fn())(&output.apply(&self.fc1));
         let output = output
             .apply_t(&self.activation_dropout, train)

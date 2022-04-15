@@ -29,8 +29,8 @@ pub struct LayerState {
 impl Clone for LayerState {
     fn clone(&self) -> Self {
         LayerState {
-            prev_key: self.prev_key.shallow_clone(),
-            prev_value: self.prev_value.as_ref().map(|value| value.shallow_clone()),
+            prev_key: self.prev_key.copy(),
+            prev_value: self.prev_value.as_ref().map(|value| value.copy()),
         }
     }
 }
@@ -211,8 +211,8 @@ impl GptNeoSelfAttention {
         };
 
         let layer_state = Some(LayerState {
-            prev_key: key.shallow_clone(),
-            prev_value: Some(value.shallow_clone()),
+            prev_key: key.copy(),
+            prev_value: Some(value.copy()),
         });
 
         let (attention_output, attention_weights) =

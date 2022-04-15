@@ -221,7 +221,7 @@ impl OpenAiGptModel {
         let seq_length = input_shape[1];
 
         let position_ids = match position_ids {
-            Some(value) => value.shallow_clone(),
+            Some(value) => value.copy(),
             None => Tensor::arange(seq_length, (Int64, input_embeddings.device())).unsqueeze(0),
         };
 

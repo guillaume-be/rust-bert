@@ -40,10 +40,10 @@ impl Clone for LayerState {
         let prev_buckets = self
             .prev_buckets
             .as_ref()
-            .map(|prev_buckets| prev_buckets.shallow_clone());
+            .map(|prev_buckets| prev_buckets.copy());
         LayerState {
             prev_buckets,
-            prev_states: self.prev_states.shallow_clone(),
+            prev_states: self.prev_states.copy(),
         }
     }
 }
@@ -417,7 +417,7 @@ impl LSHSelfAttention {
                 None,
             )?;
             let key_value_bucket_idx = look_adjacent(
-                query_bucket_idx.shallow_clone(),
+                query_bucket_idx.copy(),
                 self.num_chunks_before,
                 self.num_chunks_after,
             );
@@ -446,7 +446,7 @@ impl LSHSelfAttention {
             (query_bucket_idx, key_value_bucket_idx)
         } else {
             (
-                sorted_bucket_indices_per_hash.shallow_clone(),
+                sorted_bucket_indices_per_hash.copy(),
                 sorted_bucket_indices_per_hash,
             )
         };
@@ -849,7 +849,7 @@ impl LSHSelfAttention {
                 false
             }
         } {
-            (sorted_bucket_idx.unwrap().shallow_clone(), None)
+            (sorted_bucket_idx.unwrap().copy(), None)
         } else {
             (
                 Tensor::arange(sequence_length, (Kind::Int64, query_key_vectors.device()))
@@ -1121,7 +1121,7 @@ impl LocalSelfAttention {
                 self.num_attention_heads,
                 None,
             )?;
-            let key_indices = query_indices.shallow_clone();
+            let key_indices = query_indices.copy();
 
             key_vectors = look_adjacent(key_vectors, self.num_chunks_before, self.num_chunks_after);
             value_vectors =
@@ -1130,7 +1130,7 @@ impl LocalSelfAttention {
                 look_adjacent(key_indices, self.num_chunks_before, self.num_chunks_after);
             (query_indices, key_indices)
         } else {
-            (indices.shallow_clone(), indices.shallow_clone())
+            (indices.copy(), indices.copy())
         };
 
         let mut query_key_dots = query_vectors.matmul(&key_vectors.transpose(-1, -2));
@@ -1356,7 +1356,7 @@ impl ReformerAttention {
                     if original_sequence_length > 1 {
                         Some(buckets_value.slice(3, 0, original_sequence_length, 1))
                     } else {
-                        Some(buckets_value.shallow_clone())
+                        Some(buckets_value.copy())
                     }
                 } else {
                     Some(Tensor::cat(

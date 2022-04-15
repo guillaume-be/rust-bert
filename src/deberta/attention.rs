@@ -205,7 +205,7 @@ impl DebertaDisentangledSelfAttention {
             let r_pos = if query_layer_size[1] != key_layer_size[1] {
                 build_relative_position(key_layer_size[1], key_layer_size[1], query_layer.device())
             } else {
-                relative_pos.shallow_clone()
+                relative_pos.copy()
             };
             let p2c_pos = (-r_pos + attention_span).clamp(0, attention_span * 2 - 1);
             let mut p2c_att = key_layer

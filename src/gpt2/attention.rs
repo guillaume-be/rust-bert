@@ -175,7 +175,7 @@ impl Attention {
             }
             None => (key, value),
         };
-        let present = Tensor::stack(&[key.transpose(-2, -1), value.shallow_clone()], 0);
+        let present = Tensor::stack(&[key.transpose(-2, -1), value.copy()], 0);
         let (a, attentions) = self.attention(&query, &key, &value, attention_mask, train);
 
         let a = self
