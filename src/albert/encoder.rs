@@ -130,7 +130,7 @@ impl AlbertLayerGroup {
             None
         };
 
-        let mut hidden_state = hidden_states.shallow_clone();
+        let mut hidden_state = hidden_states.copy();
         let mut attention_weights: Option<Tensor>;
 
         for layer in &self.layers {

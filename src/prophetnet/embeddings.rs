@@ -68,7 +68,7 @@ impl ProphetNetPositionalEmbeddings {
                     attention_mask.cumsum(1, Kind::Int64) * attention_mask + self.padding_idx
                 }
             }
-            Some(value) => value.shallow_clone(),
+            Some(value) => value.copy(),
         };
 
         (calc_position_ids.apply(&self.embeddings), calc_position_ids)

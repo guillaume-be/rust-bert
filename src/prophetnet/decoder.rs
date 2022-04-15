@@ -27,7 +27,7 @@ use tch::{nn, Device, Kind, Tensor};
 fn ngram_attention_bias(sequence_length: i64, ngram: i64, device: Device, kind: Kind) -> Tensor {
     let left_block = Tensor::ones(&[ngram, sequence_length, sequence_length], (kind, device))
         * get_negative_infinity(kind).unwrap();
-    let right_block = left_block.shallow_clone();
+    let right_block = left_block.copy();
     for stream_idx in 0..ngram {
         let _ = right_block.get(stream_idx).fill_diagonal_(0, false);
         let _ = left_block.get(stream_idx).triu_(-stream_idx + 1);

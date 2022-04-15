@@ -291,8 +291,8 @@ impl ReformerEncoder {
         original_sequence_length: i64,
         train: bool,
     ) -> Result<ReformerModelOutput, RustBertError> {
-        let mut hidden_state = hidden_states.shallow_clone();
-        let mut attention_output = hidden_states.shallow_clone();
+        let mut hidden_state = hidden_states.copy();
+        let mut attention_output = hidden_states.copy();
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
             Some(Vec::with_capacity(self.layers.len()))
         } else {

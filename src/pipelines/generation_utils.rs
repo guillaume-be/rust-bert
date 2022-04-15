@@ -507,7 +507,7 @@ pub(crate) mod private_generation_utils {
                     &Tensor::arange_start(1, vocab_size, (Int64, logits.device())),
                     &sorted_indices_to_remove
                         .slice(1, 0, vocab_size - 1, 1)
-                        .shallow_clone(),
+                        .copy(),
                 );
                 let _ = sorted_indices_to_remove.index_fill_(
                     1,
@@ -749,8 +749,8 @@ pub(crate) mod private_generation_utils {
             let (bad_word_ids_length_1, bad_word_ids_length_greater_than_1) =
                 self.split_bad_word_ids(gen_opt.bad_word_ids);
             let mut static_bad_words_mask: Option<Tensor> = None;
-            let mut attention_mask = attention_mask.shallow_clone();
-            let mut input_ids = input_ids.shallow_clone();
+            let mut attention_mask = attention_mask.copy();
+            let mut input_ids = input_ids.copy();
             let mut past: Cache = Cache::None;
             let mut outputs: Tensor;
             let mut current_length = cur_len;
@@ -759,10 +759,10 @@ pub(crate) mod private_generation_utils {
 
             while current_length < gen_opt.max_length {
                 let prepared_input = self.prepare_inputs_for_generation(
-                    input_ids.shallow_clone(),
+                    input_ids.copy(),
                     encoder_outputs.as_ref(),
                     past,
-                    attention_mask.shallow_clone(),
+                    attention_mask.copy(),
                 );
                 let temp = self
                     .get_model()
@@ -1020,10 +1020,10 @@ pub(crate) mod private_generation_utils {
                     );
                 }
                 let prepared_input = self.prepare_inputs_for_generation(
-                    input_ids.shallow_clone(),
+                    input_ids.copy(),
                     encoder_outputs.as_ref(),
                     past,
-                    attention_mask.shallow_clone(),
+                    attention_mask.copy(),
                 );
                 let temp = self
                     .get_model()
@@ -1240,10 +1240,10 @@ pub(crate) mod private_generation_utils {
                                 saved_beam_scores.as_ref().map(|step_wise_scores| {
                                     Tensor::stack(step_wise_scores, 1)
                                         .get(effective_beam_id)
-                                        .shallow_clone()
+                                        .copy()
                                 });
                             hypotheses[batch_index as usize].add(
-                                input_ids.get(effective_beam_id).shallow_clone(),
+                                input_ids.get(effective_beam_id).copy(),
                                 beam_token_score,
                                 saved_beam_scores,
                             );
@@ -1301,7 +1301,7 @@ pub(crate) mod private_generation_utils {
                 }
 
                 if let Some(scores_output) = saved_beam_scores.as_mut() {
-                    scores_output.push(beam_scores.shallow_clone());
+                    scores_output.push(beam_scores.copy());
                 }
                 if done.iter().all(|&x| x) {
                     break;
@@ -2105,10 +2105,10 @@ impl Clone for BeamHypotheses {
                 .map(|(score, tensor, scores_tensor)| {
                     (
                         *score,
-                        tensor.shallow_clone(),
+                        tensor.copy(),
                         scores_tensor
                             .as_ref()
-                            .map(|scores_tensor| scores_tensor.shallow_clone()),
+                            .map(|scores_tensor| scores_tensor.copy()),
                     )
                 })
                 .collect::<Vec<(f64, Tensor, Option<Tensor>)>>(),

@@ -434,7 +434,7 @@ impl T5Stack {
             let encoder_hidden_states = encoder_hidden_states.as_ref().unwrap();
             let encoder_hidden_states_shape = encoder_hidden_states.size();
             let encoder_mask = match encoder_attention_mask {
-                Some(value) => value.shallow_clone(),
+                Some(value) => value.copy(),
                 None => Tensor::ones(
                     &[
                         encoder_hidden_states_shape[0],

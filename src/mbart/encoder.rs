@@ -107,7 +107,7 @@ impl MBartEncoderLayer {
                 .forward_t(&output, None, encoder_attention_mask, None, train);
         let output: Tensor = output.apply_t(&self.dropout, train) + x;
 
-        let residual = output.shallow_clone();
+        let residual = output.copy();
         let output = output.apply(&self.final_layer_norm);
         let output = (self.activation.get_fn())(&output.apply(&self.fc1));
         let output = output
