@@ -220,7 +220,7 @@ impl AlbertTransformer {
 
             let temp = layer.forward_t(&hidden_state, mask.as_ref(), train);
             hidden_state = temp.0;
-            let attention_weights = temp.1;
+            let attention_weights = temp.2;
             if let Some(attentions) = all_attentions.borrow_mut() {
                 attentions.push(attention_weights.unwrap());
             };
