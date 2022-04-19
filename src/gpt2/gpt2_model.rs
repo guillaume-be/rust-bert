@@ -202,6 +202,30 @@ pub struct Gpt2Config {
 
 impl Config for Gpt2Config {}
 
+impl Default for Gpt2Config {
+    fn default() -> Self {
+        Gpt2Config {
+            attn_pdrop: Some(0.1),
+            embd_pdrop: Some(0.1),
+            hidden_dropout_prob: None,
+            afn: Some(Activation::gelu_new),
+            initializer_range: 0.02,
+            layer_norm_epsilon: 1e-5,
+            n_ctx: 1024,
+            n_embd: 768,
+            n_head: 12,
+            n_layer: 12,
+            n_positions: 0,
+            num_labels: None,
+            output_past: None,
+            output_attentions: None,
+            output_hidden_states: None,
+            resid_pdrop: Some(0.1),
+            vocab_size: 50257,
+        }
+    }
+}
+
 /// # GPT2 Base model
 /// Base architecture for GPT2 model. Usually complemented with a task-specific head, such as a language model head.
 /// It is made of the following blocks:

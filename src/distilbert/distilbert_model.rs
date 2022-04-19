@@ -107,12 +107,37 @@ pub struct DistilBertConfig {
     pub seq_classif_dropout: f64,
     pub sinusoidal_pos_embds: bool,
     pub tie_weights_: bool,
-    pub torchscript: Option<bool>,
-    pub use_bfloat16: Option<bool>,
     pub vocab_size: i64,
 }
 
 impl Config for DistilBertConfig {}
+
+impl Default for DistilBertConfig {
+    fn default() -> Self {
+        DistilBertConfig {
+            activation: Activation::gelu,
+            attention_dropout: 0.1,
+            dim: 768,
+            dropout: 0.1,
+            hidden_dim: 3072,
+            id2label: None,
+            initializer_range: 0.02,
+            is_decoder: None,
+            label2id: None,
+            max_position_embeddings: 512,
+            n_heads: 12,
+            n_layers: 6,
+            output_attentions: None,
+            output_hidden_states: None,
+            output_past: None,
+            qa_dropout: 0.1,
+            seq_classif_dropout: 0.2,
+            sinusoidal_pos_embds: false,
+            tie_weights_: false,
+            vocab_size: 30522,
+        }
+    }
+}
 
 /// # DistilBERT Base model
 /// Base architecture for DistilBERT models. Task-specific models will be built from this common base model

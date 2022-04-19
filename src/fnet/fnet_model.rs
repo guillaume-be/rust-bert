@@ -96,6 +96,30 @@ pub struct FNetConfig {
 
 impl Config for FNetConfig {}
 
+impl Default for FNetConfig {
+    fn default() -> Self {
+        FNetConfig {
+            vocab_size: 32000,
+            hidden_size: 768,
+            num_hidden_layers: 12,
+            intermediate_size: 3072,
+            hidden_act: Activation::gelu_new,
+            hidden_dropout_prob: 0.1,
+            max_position_embeddings: 512,
+            type_vocab_size: 4,
+            initializer_range: 0.02,
+            layer_norm_eps: Some(1e-12),
+            pad_token_id: Some(3),
+            bos_token_id: Some(1),
+            eos_token_id: Some(2),
+            id2label: None,
+            label2id: None,
+            output_attentions: None,
+            output_hidden_states: None,
+        }
+    }
+}
+
 struct FNetPooler {
     dense: nn::Linear,
     activation: TensorFunction,
