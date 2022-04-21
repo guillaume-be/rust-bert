@@ -320,7 +320,7 @@ impl MobileBertModel {
     ///
     /// * `p` - Variable store path for the root of the MobileBERT model
     /// * `config` - `MobileBertConfig` object defining the model architecture and decoder status
-    /// * `add_poling_layer` - boolean flag indicating if a pooling layer should be added after the encoder
+    /// * `add_pooling_layer` - boolean flag indicating if a pooling layer should be added after the encoder
     ///
     /// # Example
     ///
