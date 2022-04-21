@@ -138,13 +138,7 @@ impl<T: SBertTransformer> SBertModel<T> {
                 Tensor::of_slice(
                     &input
                         .iter()
-                        .map(|&e| {
-                            if e == pad_token_id {
-                                0 as i64
-                            } else {
-                                1 as i64
-                            }
-                        })
+                        .map(|&e| if e == pad_token_id { 0_i64 } else { 1_i64 })
                         .collect::<Vec<_>>(),
                 )
             })
@@ -165,7 +159,7 @@ impl<T: SBertTransformer> SBertModel<T> {
         let SBertTokenizerOuput {
             tokens_ids,
             tokens_masks,
-        } = self.tokenize(&inputs);
+        } = self.tokenize(inputs);
         let tokens_ids = Tensor::stack(&tokens_ids, 0).to(self.var_store.device());
         let tokens_masks = Tensor::stack(&tokens_masks, 0).to(self.var_store.device());
 
@@ -215,9 +209,9 @@ impl<T: SBertTransformer> SBertModel<T> {
         } = self.forward(inputs)?;
 
         let embeddings = Vec::from(embeddings);
-        let all_attentions = all_attentions.ok_or(RustBertError::InvalidConfigurationError(
-            "No attention outputted".into(),
-        ))?;
+        let all_attentions = all_attentions.ok_or_else(|| {
+            RustBertError::InvalidConfigurationError("No attention outputted".into())
+        })?;
 
         let attention_outputs = (0..inputs.len() as i64)
             .map(|i| {
