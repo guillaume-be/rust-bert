@@ -112,54 +112,54 @@ impl Config for SBertModelConfig {}
 
 impl SBertModelConfig {
     pub fn pad_token_id(&self) -> i64 {
-        match self {
-            &Self::DistillBert { pad_token_id, .. } => pad_token_id,
-            &Self::Bert { pad_token_id, .. } => pad_token_id,
-            &Self::Albert { pad_token_id, .. } => pad_token_id,
-            &Self::T5 { pad_token_id, .. } => pad_token_id.unwrap_or(0),
+        match *self {
+            Self::DistillBert { pad_token_id, .. } => pad_token_id,
+            Self::Bert { pad_token_id, .. } => pad_token_id,
+            Self::Albert { pad_token_id, .. } => pad_token_id,
+            Self::T5 { pad_token_id, .. } => pad_token_id.unwrap_or(0),
         }
     }
 
     pub fn nb_layers(&self) -> usize {
-        match self {
-            &Self::DistillBert { n_layers, .. } => n_layers as usize,
-            &Self::Bert {
+        match *self {
+            Self::DistillBert { n_layers, .. } => n_layers as usize,
+            Self::Bert {
                 num_hidden_layers, ..
             } => num_hidden_layers as usize,
-            &Self::Albert {
+            Self::Albert {
                 num_hidden_layers, ..
             } => num_hidden_layers as usize,
-            &Self::T5 { num_layers, .. } => num_layers as usize,
+            Self::T5 { num_layers, .. } => num_layers as usize,
         }
     }
 
     pub fn nb_heads(&self) -> usize {
-        match self {
-            &Self::DistillBert { n_heads, .. } => n_heads as usize,
-            &Self::Bert {
+        match *self {
+            Self::DistillBert { n_heads, .. } => n_heads as usize,
+            Self::Bert {
                 num_attention_heads,
                 ..
             } => num_attention_heads as usize,
-            &Self::Albert {
+            Self::Albert {
                 num_attention_heads,
                 ..
             } => num_attention_heads as usize,
-            &Self::T5 { num_heads, .. } => num_heads as usize,
+            Self::T5 { num_heads, .. } => num_heads as usize,
         }
     }
 
     pub fn output_attentions(&self) -> bool {
-        match self {
-            &Self::DistillBert {
+        match *self {
+            Self::DistillBert {
                 output_attentions, ..
             } => output_attentions.unwrap_or(false),
-            &Self::Bert {
+            Self::Bert {
                 output_attentions, ..
             } => output_attentions.unwrap_or(false),
-            &Self::Albert {
+            Self::Albert {
                 output_attentions, ..
             } => output_attentions.unwrap_or(false),
-            &Self::T5 {
+            Self::T5 {
                 output_attentions, ..
             } => output_attentions.unwrap_or(false),
         }
