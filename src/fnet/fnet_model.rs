@@ -210,7 +210,7 @@ impl FNetModel {
     ///
     /// * `p` - Variable store path for the root of the FNet model
     /// * `config` - `FNetConfig` object defining the model architecture
-    /// * `add_poling_layer` - boolean flag indicating if a pooling layer should be added after the encoder
+    /// * `add_pooling_layer` - boolean flag indicating if a pooling layer should be added after the encoder
     ///
     /// # Example
     ///
