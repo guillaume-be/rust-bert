@@ -16,6 +16,7 @@ use crate::common::activations::_gelu;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::roberta::embeddings::RobertaEmbeddings;
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::Init;
 use tch::{nn, Tensor};
@@ -969,6 +970,42 @@ impl RobertaForQuestionAnswering {
             all_hidden_states: base_model_output.all_hidden_states,
             all_attentions: base_model_output.all_attentions,
         }
+    }
+}
+
+pub struct RobertaForSentenceEmbeddings {
+    transformer: BertModel<RobertaEmbeddings>,
+}
+
+impl RobertaForSentenceEmbeddings {
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> Self
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let transformer =
+            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p, config, false);
+        RobertaForSentenceEmbeddings { transformer }
+    }
+
+    pub fn forward(
+        &self,
+        input_ids: &Tensor,
+        mask: &Tensor,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
+        let transformer_output = self.transformer.forward_t(
+            Some(input_ids),
+            Some(mask),
+            None,
+            None,
+            None,
+            None,
+            None,
+            false,
+        )?;
+        Ok((
+            transformer_output.hidden_state,
+            transformer_output.all_attentions,
+        ))
     }
 }
 

@@ -755,6 +755,34 @@ impl DistilBertForTokenClassification {
     }
 }
 
+pub struct DistilBertForSentenceEmbeddings {
+    transformer: DistilBertModel,
+}
+
+impl DistilBertForSentenceEmbeddings {
+    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> Self
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let transformer = DistilBertModel::new(p, config);
+        Self { transformer }
+    }
+
+    pub fn forward(
+        &self,
+        input_ids: &Tensor,
+        mask: &Tensor,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
+        let transformer_output =
+            self.transformer
+                .forward_t(Some(input_ids), Some(mask), None, false)?;
+        Ok((
+            transformer_output.hidden_state,
+            transformer_output.all_attentions,
+        ))
+    }
+}
+
 /// Container for the DistilBERT masked LM model output.
 pub struct DistilBertMaskedLMOutput {
     /// Logits for the vocabulary items at each sequence position
