@@ -74,7 +74,6 @@ impl ReformerVocabResources {
 /// Defines the Reformer model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub struct ReformerConfig {
     pub attention_head_size: i64,
-    pub attention_probs_dropout_prob: f64,
     pub attn_layers: Vec<AttentionType>,
     pub axial_norm_std: f64,
     pub axial_pos_embds: bool,
@@ -90,7 +89,6 @@ pub struct ReformerConfig {
     pub hidden_dropout_prob: f64,
     pub hidden_size: i64,
     pub initializer_range: Option<f64>,
-    pub intermediate_size: i64,
     pub is_decoder: bool,
     pub layer_norm_eps: Option<f64>,
     pub max_position_embeddings: i64,
@@ -115,6 +113,57 @@ pub struct ReformerConfig {
 }
 
 impl Config for ReformerConfig {}
+
+impl Default for ReformerConfig {
+    fn default() -> Self {
+        ReformerConfig {
+            attention_head_size: 64,
+            attn_layers: vec![
+                AttentionType::local,
+                AttentionType::lsh,
+                AttentionType::local,
+                AttentionType::lsh,
+                AttentionType::local,
+                AttentionType::lsh,
+            ],
+            axial_norm_std: 1.0,
+            axial_pos_embds: true,
+            axial_pos_embds_dim: vec![64, 64],
+            axial_pos_shape: vec![64, 192],
+            chunk_size_lm_head: 0,
+            chunk_size_feed_forward: None,
+            eos_token_id: 2,
+            pad_token_id: 0,
+            feed_forward_size: 512,
+            hash_seed: None,
+            hidden_act: Activation::gelu,
+            hidden_dropout_prob: 0.05,
+            hidden_size: 256,
+            initializer_range: Some(0.02),
+            is_decoder: false,
+            layer_norm_eps: Some(1e-12),
+            max_position_embeddings: 4096,
+            vocab_size: 320,
+            num_attention_heads: 12,
+            num_buckets: Default::default(),
+            local_attn_chunk_length: Some(64),
+            local_num_chunks_after: Some(0),
+            local_num_chunks_before: Some(1),
+            local_attention_probs_dropout_prob: Some(0.05),
+            lsh_attn_chunk_length: Some(64),
+            lsh_num_chunks_after: Some(0),
+            lsh_num_chunks_before: Some(1),
+            lsh_attention_probs_dropout_prob: Some(0.0),
+            num_hashes: 1,
+            num_hidden_layers: 6,
+            use_cache: None,
+            id2label: None,
+            label2id: None,
+            output_attentions: None,
+            output_hidden_states: None,
+        }
+    }
+}
 
 pub struct ReformerLMHead {
     decoder: nn::Linear,
