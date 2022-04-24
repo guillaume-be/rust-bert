@@ -30,3 +30,15 @@ impl ResourceProvider for LocalResource {
         Ok(self.local_path.clone())
     }
 }
+
+impl From<PathBuf> for LocalResource {
+    fn from(local_path: PathBuf) -> Self {
+        Self { local_path }
+    }
+}
+
+impl From<PathBuf> for Box<dyn ResourceProvider + Send> {
+    fn from(local_path: PathBuf) -> Self {
+        Box::new(LocalResource { local_path })
+    }
+}

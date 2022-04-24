@@ -132,7 +132,7 @@ pub struct T5Config {
     pub vocab_size: i64,
     pub feed_forward_proj: Option<FeedForwardProj>,
     pub tie_word_embeddings: Option<bool>,
-    pub(crate) task_specific_params: Option<TaskSpecificParams>,
+    task_specific_params: Option<TaskSpecificParams>,
 }
 
 /// # T5 task-specific configurations
@@ -746,6 +746,67 @@ impl LMHeadModel for T5ForConditionalGeneration {
             lm_logits,
             cache: Cache::T5Cache(base_model_output.next_cache),
         })
+    }
+}
+
+pub struct T5ForSentenceEmbeddings {
+    embeddings: nn::Embedding,
+    encoder: T5Stack,
+}
+
+impl T5ForSentenceEmbeddings {
+    pub fn new<'p, P>(
+        p: P,
+        config: &T5Config,
+        output_attentions: bool,
+        output_hidden_states: bool,
+    ) -> Self
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let embeddings: nn::Embedding = embedding(
+            p / "shared",
+            config.vocab_size,
+            config.d_model,
+            Default::default(),
+        );
+
+        let encoder = T5Stack::new(
+            p / "encoder",
+            config,
+            false,
+            false,
+            output_attentions,
+            output_hidden_states,
+        );
+
+        Self {
+            embeddings,
+            encoder,
+        }
+    }
+
+    pub fn forward(
+        &self,
+        input_ids: &Tensor,
+        mask: &Tensor,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
+        let transformer_output = self.encoder.forward_t(
+            Some(input_ids),
+            Some(mask),
+            None,
+            None,
+            None,
+            &self.embeddings,
+            None,
+            false,
+        )?;
+        Ok((
+            transformer_output.hidden_state,
+            transformer_output.all_attentions,
+        ))
     }
 }
 

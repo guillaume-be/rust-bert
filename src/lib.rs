@@ -617,7 +617,6 @@ pub mod pipelines;
 pub mod prophetnet;
 pub mod reformer;
 pub mod roberta;
-pub mod sbert;
 pub mod t5;
 pub mod xlnet;
 

@@ -1,6 +1,4 @@
-use rust_bert::sbert::{
-    SBertModel, UsingAlbert, UsingBert, UsingDistilBert, UsingRoberta, UsingT5,
-};
+use rust_bert::pipelines::sentence_embeddings::SentenceEmbeddingsBuilder;
 
 /// Download model:
 ///   ```sh
@@ -17,12 +15,12 @@ use rust_bert::sbert::{
 #[test]
 #[ignore]
 fn sbert_distilbert() -> anyhow::Result<()> {
-    let device = tch::Device::cuda_if_available();
-    let sbert =
-        SBertModel::<UsingDistilBert>::new("resources/distiluse-base-multilingual-cased", device)?;
+    let model = SentenceEmbeddingsBuilder::local("resources/distiluse-base-multilingual-cased")
+        .with_device(tch::Device::cuda_if_available())
+        .create_model()?;
 
     let sentences = ["This is an example sentence", "Each sentence is converted"];
-    let embeddings = sbert.encode(&sentences)?;
+    let embeddings = model.encode(&sentences)?;
 
     assert!((embeddings[0][0] as f64 - -0.03479306).abs() < 1e-4);
     assert!((embeddings[0][1] as f64 - 0.02635195).abs() < 1e-4);
@@ -55,13 +53,14 @@ fn sbert_distilbert() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_bert() -> anyhow::Result<()> {
-    let device = tch::Device::cuda_if_available();
-    let sbert = SBertModel::<UsingBert>::new("resources/msmarco-bert-base-dot-v5", device)?;
+    let model = SentenceEmbeddingsBuilder::local("resources/msmarco-bert-base-dot-v5")
+        .with_device(tch::Device::cuda_if_available())
+        .create_model()?;
 
     // Note that sentences are lowercased here as it seems required in sbert example
     // even though sentence_bert_config.json has `"do_lower_case":false`
     let sentences = ["this is an example sentence", "each sentence is converted"];
-    let embeddings = sbert.encode(&sentences)?;
+    let embeddings = model.encode(&sentences)?;
 
     assert!((embeddings[0][0] as f64 - -0.153149).abs() < 1e-4);
     assert!((embeddings[0][1] as f64 - 0.12944254).abs() < 1e-4);
@@ -94,13 +93,14 @@ fn sbert_bert() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_bert_small() -> anyhow::Result<()> {
-    let device = tch::Device::cuda_if_available();
-    let sbert = SBertModel::<UsingBert>::new("resources/all-MiniLM-L12-v2", device)?;
+    let model = SentenceEmbeddingsBuilder::local("resources/all-MiniLM-L12-v2")
+        .with_device(tch::Device::cuda_if_available())
+        .create_model()?;
 
     // Note that sentences are lowercased here as it seems required in sbert example
     // even though sentence_bert_config.json has `"do_lower_case":false`
     let sentences = ["this is an example sentence", "each sentence is converted"];
-    let embeddings = sbert.encode(&sentences)?;
+    let embeddings = model.encode(&sentences)?;
 
     assert!((embeddings[0][0] as f64 - -2.02682902e-04).abs() < 1e-4);
     assert!((embeddings[0][1] as f64 - 8.14802647e-02).abs() < 1e-4);
@@ -133,11 +133,12 @@ fn sbert_bert_small() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_distilroberta() -> anyhow::Result<()> {
-    let device = tch::Device::cuda_if_available();
-    let sbert = SBertModel::<UsingRoberta>::new("resources/all-distilroberta-v1", device)?;
+    let model = SentenceEmbeddingsBuilder::local("resources/all-distilroberta-v1")
+        .with_device(tch::Device::cuda_if_available())
+        .create_model()?;
 
     let sentences = ["This is an example sentence", "Each sentence is converted"];
-    let embeddings = sbert.encode(&sentences)?;
+    let embeddings = model.encode(&sentences)?;
 
     assert!((embeddings[0][0] as f64 - -0.03375624).abs() < 1e-4);
     assert!((embeddings[0][1] as f64 - -0.06316338).abs() < 1e-4);
@@ -170,13 +171,14 @@ fn sbert_distilroberta() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_albert() -> anyhow::Result<()> {
-    let device = tch::Device::cuda_if_available();
-    let sbert = SBertModel::<UsingAlbert>::new("resources/paraphrase-albert-small-v2", device)?;
+    let model = SentenceEmbeddingsBuilder::local("resources/paraphrase-albert-small-v2")
+        .with_device(tch::Device::cuda_if_available())
+        .create_model()?;
 
     // Note that sentences are lowercased here as it seems required in sbert example
     // even though sentence_bert_config.json has `"do_lower_case":false`
     let sentences = ["this is an example sentence", "each sentence is converted"];
-    let embeddings = sbert.encode(&sentences)?;
+    let embeddings = model.encode(&sentences)?;
 
     assert!((embeddings[0][0] as f64 - 0.20412037).abs() < 1e-4);
     assert!((embeddings[0][1] as f64 - 0.48823047).abs() < 1e-4);
@@ -210,11 +212,12 @@ fn sbert_albert() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_t5() -> anyhow::Result<()> {
-    let device = tch::Device::cuda_if_available();
-    let sbert = SBertModel::<UsingT5>::new("resources/sentence-t5-base", device)?;
+    let model = SentenceEmbeddingsBuilder::local("resources/sentence-t5-base")
+        .with_device(tch::Device::cuda_if_available())
+        .create_model()?;
 
     let sentences = ["This is an example sentence", "Each sentence is converted"];
-    let embeddings = sbert.encode(&sentences)?;
+    let embeddings = model.encode(&sentences)?;
 
     assert!((embeddings[0][0] as f64 - -0.00904849).abs() < 1e-4);
     assert!((embeddings[0][1] as f64 - 0.0191336).abs() < 1e-4);

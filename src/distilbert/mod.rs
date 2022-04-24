@@ -60,8 +60,8 @@ mod transformer;
 
 pub use distilbert_model::{
     DistilBertConfig, DistilBertConfigResources, DistilBertForQuestionAnswering,
-    DistilBertForTokenClassification, DistilBertMaskedLMOutput, DistilBertModel,
-    DistilBertModelClassifier, DistilBertModelMaskedLM, DistilBertModelResources,
+    DistilBertForSentenceEmbeddings, DistilBertForTokenClassification, DistilBertMaskedLMOutput,
+    DistilBertModel, DistilBertModelClassifier, DistilBertModelMaskedLM, DistilBertModelResources,
     DistilBertQuestionAnsweringOutput, DistilBertSequenceClassificationOutput,
     DistilBertTokenClassificationOutput, DistilBertVocabResources,
 };

@@ -67,6 +67,7 @@ mod roberta_model;
 pub use embeddings::RobertaEmbeddings;
 pub use roberta_model::{
     RobertaConfig, RobertaConfigResources, RobertaForMaskedLM, RobertaForMultipleChoice,
-    RobertaForQuestionAnswering, RobertaForSequenceClassification, RobertaForTokenClassification,
-    RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
+    RobertaForQuestionAnswering, RobertaForSentenceEmbeddings, RobertaForSequenceClassification,
+    RobertaForTokenClassification, RobertaMergesResources, RobertaModelResources,
+    RobertaVocabResources,
 };

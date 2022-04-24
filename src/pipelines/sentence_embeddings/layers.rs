@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use serde::{de, Deserialize, Deserializer};
 use tch::{nn, Device, Kind, Tensor};
@@ -22,12 +22,7 @@ pub struct Pooling {
 }
 
 impl Pooling {
-    pub fn new<P: Into<PathBuf>>(pooling_dir: P) -> Pooling {
-        let pooling_dir = pooling_dir.into();
-
-        let config_file = pooling_dir.join("config.json");
-        let conf = PoolingConfig::from_file(&config_file);
-
+    pub fn new(conf: PoolingConfig) -> Pooling {
         Pooling { conf }
     }
 
@@ -102,12 +97,11 @@ pub struct Dense {
 }
 
 impl Dense {
-    pub fn new<P: Into<PathBuf>>(dense_dir: P, device: Device) -> Result<Dense, RustBertError> {
-        let dense_dir = dense_dir.into();
-
-        let dense_conf_file = dense_dir.join("config.json");
-        let dense_conf = DenseConfig::from_file(&dense_conf_file);
-
+    pub fn new<P: AsRef<Path>>(
+        dense_conf: DenseConfig,
+        dense_weights: P,
+        device: Device,
+    ) -> Result<Dense, RustBertError> {
         let mut vs_dense = nn::VarStore::new(device);
 
         let linear_conf = nn::LinearConfig {
@@ -124,8 +118,7 @@ impl Dense {
 
         let activation = dense_conf.activation_function.get_function();
 
-        let weights_file = dense_dir.join("rust_model.ot");
-        vs_dense.load(weights_file)?;
+        vs_dense.load(dense_weights)?;
 
         Ok(Dense {
             linear,
