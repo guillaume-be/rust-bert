@@ -1,4 +1,3 @@
-use rust_bert::bert::BertConfig;
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::question_answering::{
@@ -7,7 +6,7 @@ use rust_bert::pipelines::question_answering::{
 use rust_bert::pipelines::token_classification::TokenClassificationConfig;
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::roberta::{
-    RobertaConfigResources, RobertaForMaskedLM, RobertaForMultipleChoice,
+    RobertaConfig, RobertaConfigResources, RobertaForMaskedLM, RobertaForMultipleChoice,
     RobertaForSequenceClassification, RobertaForTokenClassification, RobertaMergesResources,
     RobertaModelResources, RobertaVocabResources,
 };
@@ -41,7 +40,7 @@ fn roberta_masked_lm() -> anyhow::Result<()> {
         true,
         false,
     )?;
-    let config = BertConfig::from_file(config_path);
+    let config = RobertaConfig::from_file(config_path);
     let roberta_model = RobertaForMaskedLM::new(&vs.root(), &config);
     vs.load(weights_path)?;
 
@@ -129,7 +128,7 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
         true,
         false,
     )?;
-    let mut config = BertConfig::from_file(config_path);
+    let mut config = RobertaConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
     dummy_label_mapping.insert(0, String::from("Positive"));
     dummy_label_mapping.insert(1, String::from("Negative"));
@@ -199,7 +198,7 @@ fn roberta_for_multiple_choice() -> anyhow::Result<()> {
         true,
         false,
     )?;
-    let mut config = BertConfig::from_file(config_path);
+    let mut config = RobertaConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
     let roberta_model = RobertaForMultipleChoice::new(&vs.root(), &config);
@@ -265,7 +264,7 @@ fn roberta_for_token_classification() -> anyhow::Result<()> {
         true,
         false,
     )?;
-    let mut config = BertConfig::from_file(config_path);
+    let mut config = RobertaConfig::from_file(config_path);
     let mut dummy_label_mapping = HashMap::new();
     dummy_label_mapping.insert(0, String::from("O"));
     dummy_label_mapping.insert(1, String::from("LOC"));

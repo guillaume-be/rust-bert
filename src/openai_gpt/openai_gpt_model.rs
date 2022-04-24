@@ -106,7 +106,7 @@ impl OpenAiGptModel {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::openai_gpt::{OpenAiGptModel, OpenAiGptConfig};
+    /// use rust_bert::openai_gpt::{OpenAiGptConfig, OpenAiGptModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};

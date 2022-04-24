@@ -29,11 +29,14 @@ use crate::gpt2::Gpt2Config;
 use crate::gpt_neo::GptNeoConfig;
 use crate::longformer::LongformerConfig;
 use crate::m2m_100::M2M100Config;
+use crate::marian::MarianConfig;
 use crate::mbart::MBartConfig;
 use crate::mobilebert::MobileBertConfig;
+use crate::openai_gpt::OpenAiGptConfig;
 use crate::pegasus::PegasusConfig;
 use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
+use crate::roberta::RobertaConfig;
 use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
 use crate::Config;
@@ -96,9 +99,11 @@ pub enum ConfigOption {
     /// Electra configuration
     Electra(ElectraConfig),
     /// Marian configuration
-    Marian(BartConfig),
+    Marian(MarianConfig),
     /// MobileBert configuration
     MobileBert(MobileBertConfig),
+    /// OpenAI GPT configuration
+    OpenAiGpt(OpenAiGptConfig),
     /// T5 configuration
     T5(T5Config),
     /// Albert configuration
@@ -109,6 +114,8 @@ pub enum ConfigOption {
     GPT2(Gpt2Config),
     /// Reformer configuration
     Reformer(ReformerConfig),
+    /// RoBERTa configuration
+    Roberta(RobertaConfig),
     /// ProphetNet configuration
     ProphetNet(ProphetNetConfig),
     /// Longformer configuration
@@ -170,24 +177,26 @@ impl ConfigOption {
     pub fn from_file<P: AsRef<Path>>(model_type: ModelType, path: P) -> Self {
         match model_type {
             ModelType::Bart => ConfigOption::Bart(BartConfig::from_file(path)),
-            ModelType::Bert | ModelType::Roberta | ModelType::XLMRoberta => {
-                ConfigOption::Bert(BertConfig::from_file(path))
-            }
+            ModelType::Bert => ConfigOption::Bert(BertConfig::from_file(path)),
             ModelType::Deberta => ConfigOption::Deberta(DebertaConfig::from_file(path)),
             ModelType::DebertaV2 => ConfigOption::DebertaV2(DebertaV2Config::from_file(path)),
             ModelType::DistilBert => ConfigOption::DistilBert(DistilBertConfig::from_file(path)),
             ModelType::Electra => ConfigOption::Electra(ElectraConfig::from_file(path)),
-            ModelType::Marian => ConfigOption::Marian(BartConfig::from_file(path)),
+            ModelType::Marian => ConfigOption::Marian(MarianConfig::from_file(path)),
             ModelType::MobileBert => ConfigOption::MobileBert(MobileBertConfig::from_file(path)),
             ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
             ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
             ModelType::XLNet => ConfigOption::XLNet(XLNetConfig::from_file(path)),
-            ModelType::GPT2 | ModelType::GPTNeo => ConfigOption::GPT2(Gpt2Config::from_file(path)),
-            ModelType::OpenAiGpt => ConfigOption::GPT2(Gpt2Config::from_file(path)),
+            ModelType::GPT2 => ConfigOption::GPT2(Gpt2Config::from_file(path)),
+            ModelType::GPTNeo => ConfigOption::GPTNeo(GptNeoConfig::from_file(path)),
+            ModelType::OpenAiGpt => ConfigOption::OpenAiGpt(OpenAiGptConfig::from_file(path)),
             ModelType::Reformer => ConfigOption::Reformer(ReformerConfig::from_file(path)),
             ModelType::ProphetNet => ConfigOption::ProphetNet(ProphetNetConfig::from_file(path)),
             ModelType::Longformer => ConfigOption::Longformer(LongformerConfig::from_file(path)),
             ModelType::Pegasus => ConfigOption::Pegasus(PegasusConfig::from_file(path)),
+            ModelType::Roberta | ModelType::XLMRoberta => {
+                ConfigOption::Roberta(RobertaConfig::from_file(path))
+            }
             ModelType::MBart => ConfigOption::MBart(MBartConfig::from_file(path)),
             ModelType::M2M100 => ConfigOption::M2M100(M2M100Config::from_file(path)),
             ModelType::FNet => ConfigOption::FNet(FNetConfig::from_file(path)),
@@ -260,7 +269,12 @@ impl ConfigOption {
                 .id2label
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::Roberta(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
+            Self::OpenAiGpt(_) => panic!("OpenAI GPT does not use a label mapping"),
             Self::GPT2(_) => panic!("GPT2 does not use a label mapping"),
             Self::GPTNeo(_) => panic!("GPT-Neo does not use a label mapping"),
             Self::Pegasus(_) => panic!("Pegasus does not use a label mapping"),
@@ -285,10 +299,12 @@ impl ConfigOption {
             Self::ProphetNet(config) => Some(config.max_position_embeddings),
             Self::Longformer(config) => Some(config.max_position_embeddings),
             Self::Pegasus(config) => Some(config.max_position_embeddings),
+            Self::OpenAiGpt(config) => Some(config.n_positions),
             Self::GPTNeo(config) => Some(config.max_position_embeddings),
             Self::MBart(config) => Some(config.max_position_embeddings),
             Self::M2M100(config) => Some(config.max_position_embeddings),
             Self::FNet(config) => Some(config.max_position_embeddings),
+            Self::Roberta(config) => Some(config.max_position_embeddings),
         }
     }
 }

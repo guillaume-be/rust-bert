@@ -106,7 +106,7 @@ impl T5Attention {
             is_bidirectional,
             has_relative_attention_bias,
             relative_attention_num_buckets: config.relative_attention_num_buckets,
-            relative_attention_max_distance: config.relative_attention_max_distance,
+            relative_attention_max_distance: config.relative_attention_max_distance.unwrap_or(128),
             d_kv: config.d_kv,
             n_heads: config.num_heads,
             dropout,

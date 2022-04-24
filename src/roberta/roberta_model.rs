@@ -241,7 +241,7 @@ impl RobertaForMaskedLM {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::roberta::{RobertaForMaskedLM, RobertaConfig};
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForMaskedLM};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -423,7 +423,7 @@ impl RobertaForSequenceClassification {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::roberta::{RobertaForSequenceClassification, RobertaConfig};
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForSequenceClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -558,7 +558,7 @@ impl RobertaForMultipleChoice {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::roberta::{RobertaForMultipleChoice, RobertaConfig};
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForMultipleChoice};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -702,7 +702,7 @@ impl RobertaForTokenClassification {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::roberta::{RobertaForMultipleChoice, RobertaConfig};
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForMultipleChoice};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -850,7 +850,7 @@ impl RobertaForQuestionAnswering {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::roberta::{RobertaForQuestionAnswering, RobertaConfig};
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForQuestionAnswering};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
