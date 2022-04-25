@@ -98,6 +98,32 @@ pub struct ElectraConfig {
 
 impl Config for ElectraConfig {}
 
+impl Default for ElectraConfig {
+    fn default() -> Self {
+        ElectraConfig {
+            hidden_act: Activation::gelu,
+            attention_probs_dropout_prob: 0.1,
+            embedding_size: 128,
+            hidden_dropout_prob: 0.1,
+            hidden_size: 256,
+            initializer_range: 0.02,
+            layer_norm_eps: Some(1e-12),
+            intermediate_size: 1024,
+            max_position_embeddings: 512,
+            num_attention_heads: 4,
+            num_hidden_layers: 12,
+            type_vocab_size: 2,
+            vocab_size: 30522,
+            pad_token_id: 0,
+            output_past: None,
+            output_attentions: None,
+            output_hidden_states: None,
+            id2label: None,
+            label2id: None,
+        }
+    }
+}
+
 /// # Electra Base model
 /// Base architecture for Electra models.
 /// It is made of the following blocks:

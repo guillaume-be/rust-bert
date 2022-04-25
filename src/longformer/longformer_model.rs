@@ -123,6 +123,34 @@ pub struct LongformerConfig {
 
 impl Config for LongformerConfig {}
 
+impl Default for LongformerConfig {
+    fn default() -> Self {
+        LongformerConfig {
+            hidden_act: Activation::gelu,
+            attention_window: vec![512],
+            attention_probs_dropout_prob: 0.1,
+            hidden_dropout_prob: 0.1,
+            hidden_size: 768,
+            initializer_range: 0.02,
+            intermediate_size: 3072,
+            max_position_embeddings: 512,
+            num_attention_heads: 12,
+            num_hidden_layers: 12,
+            type_vocab_size: 2,
+            vocab_size: 30522,
+            sep_token_id: 2,
+            pad_token_id: None,
+            layer_norm_eps: None,
+            output_attentions: None,
+            output_hidden_states: None,
+            position_embedding_type: None,
+            is_decoder: None,
+            id2label: None,
+            label2id: None,
+        }
+    }
+}
+
 fn get_question_end_index(input_ids: &Tensor, sep_token_id: i64) -> Tensor {
     input_ids
         .eq(sep_token_id)

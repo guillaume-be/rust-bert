@@ -110,14 +110,51 @@ pub struct MBartConfig {
     pub min_length: Option<i64>,
     pub no_repeat_ngram_size: Option<i64>,
     pub normalize_embedding: Option<bool>,
-    pub num_hidden_layers: i64,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub output_past: Option<bool>,
-    pub static_position_embeddings: Option<bool>,
 }
 
 impl Config for MBartConfig {}
+
+impl Default for MBartConfig {
+    fn default() -> Self {
+        MBartConfig {
+            vocab_size: 50265,
+            max_position_embeddings: 1024,
+            encoder_layers: 12,
+            encoder_attention_heads: 16,
+            encoder_ffn_dim: 4096,
+            encoder_layerdrop: 0.0,
+            decoder_layers: 12,
+            decoder_ffn_dim: 4096,
+            decoder_attention_heads: 16,
+            decoder_layerdrop: 0.0,
+            is_encoder_decoder: Some(true),
+            activation_function: Some(Activation::gelu),
+            d_model: 1024,
+            dropout: 0.1,
+            activation_dropout: 0.0,
+            attention_dropout: 0.0,
+            classifier_dropout: None,
+            scale_embedding: Some(false),
+            bos_token_id: Some(0),
+            eos_token_id: Some(2),
+            pad_token_id: Some(1),
+            forced_eos_token_id: Some(2),
+            decoder_start_token_id: None,
+            id2label: None,
+            label2id: None,
+            init_std: 0.02,
+            min_length: None,
+            no_repeat_ngram_size: None,
+            normalize_embedding: None,
+            output_attentions: None,
+            output_hidden_states: None,
+            output_past: None,
+        }
+    }
+}
 
 fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
     let output = input_ids.masked_fill(&input_ids.eq(-100), pad_token_id);

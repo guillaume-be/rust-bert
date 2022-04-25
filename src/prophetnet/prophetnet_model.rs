@@ -86,14 +86,10 @@ pub struct ProphetNetConfig {
     pub activation_dropout: f64,
     pub attention_dropout: f64,
     pub decoder_ffn_dim: i64,
-    pub decoder_layerdrop: f64,
-    pub decoder_max_position_embeddings: i64,
     pub decoder_start_token_id: i64,
     pub disable_ngram_loss: bool,
     pub dropout: f64,
     pub encoder_ffn_dim: i64,
-    pub encoder_layerdrop: f64,
-    pub encoder_max_position_embeddings: i64,
     pub eps: f64,
     pub hidden_size: i64,
     pub init_std: f64,
@@ -119,6 +115,43 @@ pub struct ProphetNetConfig {
 }
 
 impl Config for ProphetNetConfig {}
+
+impl Default for ProphetNetConfig {
+    fn default() -> Self {
+        ProphetNetConfig {
+            activation_function: Activation::gelu,
+            activation_dropout: 0.1,
+            attention_dropout: 0.1,
+            decoder_ffn_dim: 4096,
+            decoder_start_token_id: 0,
+            disable_ngram_loss: false,
+            dropout: 0.1,
+            encoder_ffn_dim: 4096,
+            eps: 0.0,
+            hidden_size: 1024,
+            init_std: 0.02,
+            is_encoder_decoder: false,
+            max_position_embeddings: 512,
+            bos_token_id: 1,
+            eos_token_id: 2,
+            ngram: 2,
+            id2label: None,
+            label2id: None,
+            num_buckets: 32,
+            num_decoder_attention_heads: 16,
+            num_decoder_layers: 12,
+            num_encoder_attention_heads: 16,
+            num_encoder_layers: 12,
+            output_past: None,
+            pad_token_id: 0,
+            relative_max_distance: 128,
+            vocab_size: 30522,
+            output_attentions: None,
+            output_hidden_states: None,
+            add_cross_attention: Some(true),
+        }
+    }
+}
 
 /// # ProphetNet Base model
 /// Base architecture for ProphetNet models. Task-specific models will be built from this common base model

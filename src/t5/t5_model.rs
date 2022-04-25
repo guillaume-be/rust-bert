@@ -128,6 +128,7 @@ pub struct T5Config {
     pub output_past: Option<bool>,
     pub pad_token_id: Option<i64>,
     pub relative_attention_num_buckets: i64,
+    pub relative_attention_max_distance: Option<i64>,
     pub vocab_size: i64,
     pub feed_forward_proj: Option<FeedForwardProj>,
     pub tie_word_embeddings: Option<bool>,
@@ -184,6 +185,33 @@ pub struct TranslationEnToRo {
 }
 
 impl Config for T5Config {}
+
+impl Default for T5Config {
+    fn default() -> Self {
+        T5Config {
+            dropout_rate: 0.1,
+            d_model: 512,
+            d_ff: 2048,
+            d_kv: 64,
+            decoder_start_token_id: None,
+            bos_token_id: None,
+            eos_token_id: Some(1),
+            initializer_factor: 1.0,
+            is_encoder_decoder: None,
+            layer_norm_epsilon: 1e-6,
+            num_heads: 8,
+            num_layers: 6,
+            output_past: None,
+            pad_token_id: Some(0),
+            relative_attention_num_buckets: 32,
+            relative_attention_max_distance: Some(128),
+            vocab_size: 32128,
+            feed_forward_proj: Some(FeedForwardProj::Relu),
+            tie_word_embeddings: None,
+            task_specific_params: None,
+        }
+    }
+}
 
 /// # T5 Base model
 /// Base architecture for T5 model. Usually complemented with a task-specific head, such as a language model head.

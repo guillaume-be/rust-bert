@@ -375,13 +375,13 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Bert(config) = config {
+                if let ConfigOption::Roberta(config) = config {
                     Ok(QuestionAnsweringOption::Roberta(
                         RobertaForQuestionAnswering::new(p, config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
-                        "You can only supply a BertConfig for Roberta!".to_string(),
+                        "You can only supply a RobertaConfig for Roberta!".to_string(),
                     ))
                 }
             }

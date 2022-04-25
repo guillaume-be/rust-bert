@@ -118,6 +118,47 @@ pub struct XLNetConfig {
 
 impl Config for XLNetConfig {}
 
+impl Default for XLNetConfig {
+    fn default() -> Self {
+        XLNetConfig {
+            vocab_size: 32000,
+            d_model: 1024,
+            n_layer: 24,
+            d_head: 64,
+            n_head: 16,
+            d_inner: 4096,
+            ff_activation: Activation::gelu,
+            untie_r: true,
+            attn_type: AttentionType::bi,
+            initializer_range: 0.02,
+            layer_norm_eps: Some(1e-12),
+            dropout: 0.1,
+            mem_len: Some(512),
+            reuse_len: None,
+            clamp_len: Some(-1),
+            bi_data: false,
+            same_length: false,
+            summary_type: Some(SummaryType::last),
+            summary_use_proj: Some(true),
+            summary_activation: Some(Activation::tanh),
+            summary_proj_to_labels: Some(true),
+            summary_first_dropout: Some(0.1),
+            summary_last_dropout: Some(0.1),
+            start_n_top: Some(5),
+            end_n_top: Some(5),
+            use_cache: None,
+            bos_token_id: 1,
+            eos_token_id: 2,
+            pad_token_id: 5,
+            id2label: None,
+            label2id: None,
+            output_attentions: None,
+            output_hidden_states: None,
+            chunk_size_feed_forward: None,
+        }
+    }
+}
+
 /// # XLNet Base model
 /// Base architecture for XLNet models. Task-specific models will be built from this common base model
 /// It is made of the following blocks:

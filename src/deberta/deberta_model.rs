@@ -178,13 +178,49 @@ pub struct DebertaConfig {
     pub talking_head: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub output_attentions: Option<bool>,
-    pub classifier_activation: Option<bool>,
     pub classifier_dropout: Option<f64>,
     pub is_decoder: Option<bool>,
     pub id2label: Option<HashMap<i64, String>>,
     pub label2id: Option<HashMap<String, i64>>,
     pub share_att_key: Option<bool>,
     pub position_buckets: Option<i64>,
+}
+
+impl Default for DebertaConfig {
+    fn default() -> Self {
+        DebertaConfig {
+            hidden_act: Activation::gelu,
+            attention_probs_dropout_prob: 0.1,
+            hidden_dropout_prob: 0.1,
+            hidden_size: 768,
+            initializer_range: 0.02,
+            intermediate_size: 3072,
+            max_position_embeddings: 512,
+            num_attention_heads: 12,
+            num_hidden_layers: 12,
+            type_vocab_size: 0,
+            vocab_size: 50265,
+            position_biased_input: Some(true),
+            pos_att_type: None,
+            pooler_dropout: Some(0.0),
+            pooler_hidden_act: Some(Activation::gelu),
+            pooler_hidden_size: Some(768),
+            layer_norm_eps: Some(1e-7),
+            pad_token_id: Some(0),
+            relative_attention: Some(false),
+            max_relative_positions: Some(-1),
+            embedding_size: None,
+            talking_head: None,
+            output_hidden_states: None,
+            output_attentions: None,
+            classifier_dropout: None,
+            is_decoder: None,
+            id2label: None,
+            label2id: None,
+            share_att_key: None,
+            position_buckets: None,
+        }
+    }
 }
 
 pub fn deserialize_attention_type<'de, D>(

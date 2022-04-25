@@ -74,6 +74,10 @@ impl OpenAiGptMergesResources {
     );
 }
 
+/// # OpenAI GPT model configuration
+/// Defines the OpenAI GPT model architecture (e.g. number of layers, hidden layer size, label mapping...)
+pub type OpenAiGptConfig = Gpt2Config;
+
 /// # GPT Base model
 /// Base architecture for GPT model. Usually complemented with a task-specific head, such as a language model head. As opposed to GPT2, GPT does not give the possibility to re-use past activations as an input.
 /// It is made of the following blocks:
@@ -97,13 +101,12 @@ impl OpenAiGptModel {
     /// # Arguments
     ///
     /// * `p` - Variable store path for the root of the GPT model
-    /// * `config` - `Gpt2Config` object defining the model architecture
+    /// * `config` - `OpenAiGptConfig` object defining the model architecture
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::gpt2::Gpt2Config;
-    /// use rust_bert::openai_gpt::OpenAiGptModel;
+    /// use rust_bert::openai_gpt::{OpenAiGptConfig, OpenAiGptModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -111,7 +114,7 @@ impl OpenAiGptModel {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = Gpt2Config::from_file(config_path);
+    /// let config = OpenAiGptConfig::from_file(config_path);
     /// let gpt2: OpenAiGptModel = OpenAiGptModel::new(&p.root() / "gpt", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &Gpt2Config) -> OpenAiGptModel
