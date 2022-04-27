@@ -133,6 +133,8 @@ pub struct T5Config {
     pub feed_forward_proj: Option<FeedForwardProj>,
     pub tie_word_embeddings: Option<bool>,
     task_specific_params: Option<TaskSpecificParams>,
+    pub output_attentions: Option<bool>,
+    pub output_hidden_states: Option<bool>,
 }
 
 /// # T5 task-specific configurations
@@ -209,6 +211,8 @@ impl Default for T5Config {
             feed_forward_proj: Some(FeedForwardProj::Relu),
             tie_word_embeddings: None,
             task_specific_params: None,
+            output_attentions: None,
+            output_hidden_states: None,
         }
     }
 }
@@ -257,12 +261,7 @@ impl T5Model {
     ///     output_hidden_states,
     /// );
     /// ```
-    pub fn new<'p, P>(
-        p: P,
-        config: &T5Config,
-        output_attentions: bool,
-        output_hidden_states: bool,
-    ) -> T5Model
+    pub fn new<'p, P>(p: P, config: &T5Config) -> T5Model
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -280,16 +279,16 @@ impl T5Model {
             config,
             false,
             false,
-            output_attentions,
-            output_hidden_states,
+            config.output_attentions.unwrap_or(false),
+            config.output_hidden_states.unwrap_or(false),
         );
         let decoder = T5Stack::new(
             p / "decoder",
             config,
             true,
             true,
-            output_attentions,
-            output_hidden_states,
+            config.output_attentions.unwrap_or(false),
+            config.output_hidden_states.unwrap_or(false),
         );
 
         T5Model {
@@ -474,18 +473,13 @@ impl T5ForConditionalGeneration {
     ///     output_hidden_states,
     /// );
     /// ```
-    pub fn new<'p, P>(
-        p: P,
-        config: &T5Config,
-        output_attentions: bool,
-        output_hidden_states: bool,
-    ) -> T5ForConditionalGeneration
+    pub fn new<'p, P>(p: P, config: &T5Config) -> T5ForConditionalGeneration
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
-        let base_model = T5Model::new(p, config, output_attentions, output_hidden_states);
+        let base_model = T5Model::new(p, config);
         let tie_word_embeddings = config.tie_word_embeddings.unwrap_or(true);
 
         let lm_head = if !tie_word_embeddings {
@@ -755,12 +749,7 @@ pub struct T5ForSentenceEmbeddings {
 }
 
 impl T5ForSentenceEmbeddings {
-    pub fn new<'p, P>(
-        p: P,
-        config: &T5Config,
-        output_attentions: bool,
-        output_hidden_states: bool,
-    ) -> Self
+    pub fn new<'p, P>(p: P, config: &T5Config) -> Self
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -778,8 +767,8 @@ impl T5ForSentenceEmbeddings {
             config,
             false,
             false,
-            output_attentions,
-            output_hidden_states,
+            config.output_attentions.unwrap_or(false),
+            config.output_hidden_states.unwrap_or(false),
         );
 
         Self {
@@ -873,7 +862,7 @@ impl T5Generator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = T5Config::from_file(config_path);
-        let model = T5ForConditionalGeneration::new(&var_store.root(), &config, false, false);
+        let model = T5ForConditionalGeneration::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(-1));

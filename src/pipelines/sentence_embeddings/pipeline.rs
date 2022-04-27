@@ -52,12 +52,7 @@ impl SentenceEmbeddingsOption {
                 Roberta(RobertaForSentenceEmbeddings::new(p, &(config.try_into()?)))
             }
             ModelType::Albert => Albert(AlbertForSentenceEmbeddings::new(p, &(config.try_into()?))),
-            ModelType::T5 => T5(T5ForSentenceEmbeddings::new(
-                p,
-                &(config.try_into()?),
-                false, // TODO: find a way to configure this
-                false,
-            )),
+            ModelType::T5 => T5(T5ForSentenceEmbeddings::new(p, &(config.try_into()?))),
             _ => {
                 return Err(RustBertError::InvalidConfigurationError(format!(
                     "Unsupported transformer model {:?} for Sentence Embeddings",
