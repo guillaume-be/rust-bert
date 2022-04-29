@@ -148,6 +148,41 @@ pub struct GptNeoConfig {
 
 impl Config for GptNeoConfig {}
 
+impl Default for GptNeoConfig {
+    fn default() -> Self {
+        GptNeoConfig {
+            activation_function: Activation::gelu_new,
+            attention_dropout: 0.0,
+            attention_layers: vec![AttentionLayerType::Global, AttentionLayerType::Local]
+                .iter()
+                .cycle()
+                .take(24)
+                .map(|layer_type| layer_type.to_owned())
+                .collect::<Vec<AttentionLayerType>>(),
+            attention_types: vec![(
+                vec![AttentionLayerType::Global, AttentionLayerType::Local],
+                12,
+            )],
+            intermediate_size: None,
+            bos_token_id: 50256,
+            eos_token_id: 50256,
+            vocab_size: 50257,
+            num_layers: 24,
+            num_heads: 16,
+            hidden_size: 2048,
+            window_size: 256,
+            embed_dropout: 0.0,
+            initializer_range: 0.02,
+            layer_norm_epsilon: 1e-5,
+            max_position_embeddings: 2048,
+            output_past: None,
+            output_attentions: None,
+            output_hidden_states: None,
+            resid_dropout: 0.0,
+        }
+    }
+}
+
 /// # GPT-Neo Base model
 /// Base architecture for GPT-Neo models. Task-specific models will be built from this common base model
 /// It is made of the following blocks:

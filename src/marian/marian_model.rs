@@ -522,6 +522,10 @@ impl MarianTargetLanguages {
     pub const GERMAN2FRENCH: [Language; 1] = [Language::French];
 }
 
+/// # Marian model configuration
+/// Defines the Marian model architecture (e.g. number of layers, hidden layer size, label mapping...)
+pub type MarianConfig = BartConfig;
+
 /// # Marian Model for conditional generation
 /// Marian model with a vocabulary decoding head
 /// It is made of the following blocks:
@@ -538,13 +542,13 @@ impl MarianForConditionalGeneration {
     /// # Arguments
     ///
     /// * `p` - Variable store path for the root of the BART model
-    /// * `config` - `BartConfig` object defining the model architecture
+    /// * `config` - `MarianConfig` object defining the model architecture
     /// * `generation_mode` - flag indicating if the model should run in generation mode (a decoder start token must then be provided)
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::bart::{BartConfig, BartForConditionalGeneration};
+    /// use rust_bert::marian::{MarianConfig, MarianForConditionalGeneration};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -552,11 +556,10 @@ impl MarianForConditionalGeneration {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = BartConfig::from_file(config_path);
-    /// let bart: BartForConditionalGeneration =
-    ///     BartForConditionalGeneration::new(&p.root() / "bart", &config);
+    /// let config = MarianConfig::from_file(config_path);
+    /// let model = MarianForConditionalGeneration::new(&p.root(), &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> MarianForConditionalGeneration
+    pub fn new<'p, P>(p: P, config: &MarianConfig) -> MarianForConditionalGeneration
     where
         P: Borrow<nn::Path<'p>>,
     {

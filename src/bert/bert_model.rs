@@ -114,6 +114,29 @@ pub struct BertConfig {
 
 impl Config for BertConfig {}
 
+impl Default for BertConfig {
+    fn default() -> Self {
+        BertConfig {
+            hidden_act: Activation::gelu,
+            attention_probs_dropout_prob: 0.1,
+            hidden_dropout_prob: 0.1,
+            hidden_size: 768,
+            initializer_range: 0.02,
+            intermediate_size: 3072,
+            max_position_embeddings: 512,
+            num_attention_heads: 12,
+            num_hidden_layers: 12,
+            type_vocab_size: 2,
+            vocab_size: 30522,
+            output_attentions: None,
+            output_hidden_states: None,
+            is_decoder: None,
+            id2label: None,
+            label2id: None,
+        }
+    }
+}
+
 /// # BERT Base model
 /// Base architecture for BERT models. Task-specific models will be built from this common base model
 /// It is made of the following blocks:

@@ -191,6 +191,48 @@ where
 
 impl Config for DebertaV2Config {}
 
+impl Default for DebertaV2Config {
+    fn default() -> Self {
+        DebertaV2Config {
+            vocab_size: 128100,
+            hidden_size: 1536,
+            num_hidden_layers: 24,
+            hidden_act: Activation::gelu,
+            attention_probs_dropout_prob: 0.1,
+            hidden_dropout_prob: 0.1,
+            initializer_range: 0.02,
+            intermediate_size: 6144,
+            max_position_embeddings: 512,
+            position_buckets: None,
+            num_attention_heads: 24,
+            type_vocab_size: 0,
+            position_biased_input: Some(true),
+            pos_att_type: None,
+            norm_rel_ebd: None,
+            share_att_key: None,
+            conv_kernel_size: None,
+            conv_groups: None,
+            conv_act: None,
+            pooler_dropout: Some(0.0),
+            pooler_hidden_act: Some(Activation::gelu),
+            pooler_hidden_size: None,
+            layer_norm_eps: Some(1e-7),
+            pad_token_id: Some(0),
+            relative_attention: None,
+            max_relative_positions: None,
+            embedding_size: None,
+            talking_head: None,
+            output_hidden_states: None,
+            output_attentions: None,
+            classifier_activation: None,
+            classifier_dropout: None,
+            is_decoder: None,
+            id2label: None,
+            label2id: None,
+        }
+    }
+}
+
 impl From<DebertaV2Config> for DebertaConfig {
     fn from(v2_config: DebertaV2Config) -> Self {
         DebertaConfig {
@@ -218,7 +260,6 @@ impl From<DebertaV2Config> for DebertaConfig {
             talking_head: v2_config.talking_head,
             output_hidden_states: v2_config.output_hidden_states,
             output_attentions: v2_config.output_attentions,
-            classifier_activation: v2_config.classifier_activation,
             classifier_dropout: v2_config.classifier_dropout,
             is_decoder: v2_config.is_decoder,
             id2label: v2_config.id2label,
@@ -256,7 +297,6 @@ impl From<&DebertaV2Config> for DebertaConfig {
             talking_head: v2_config.talking_head,
             output_hidden_states: v2_config.output_hidden_states,
             output_attentions: v2_config.output_attentions,
-            classifier_activation: v2_config.classifier_activation,
             classifier_dropout: v2_config.classifier_dropout,
             is_decoder: v2_config.is_decoder,
             id2label: v2_config.id2label.clone(),

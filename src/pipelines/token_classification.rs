@@ -404,24 +404,24 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Bert(config) = config {
+                if let ConfigOption::Roberta(config) = config {
                     Ok(TokenClassificationOption::Roberta(
                         RobertaForTokenClassification::new(p, config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
-                        "You can only supply a BertConfig for Roberta!".to_string(),
+                        "You can only supply a RobertaConfig for Roberta!".to_string(),
                     ))
                 }
             }
             ModelType::XLMRoberta => {
-                if let ConfigOption::Bert(config) = config {
+                if let ConfigOption::Roberta(config) = config {
                     Ok(TokenClassificationOption::XLMRoberta(
                         RobertaForTokenClassification::new(p, config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
-                        "You can only supply a BertConfig for XLMRoberta!".to_string(),
+                        "You can only supply a RobertaConfig for XLMRoberta!".to_string(),
                     ))
                 }
             }

@@ -105,6 +105,8 @@ impl M2M100SourceLanguages {
     pub const M2M100_1_2B: [Language; 100] = M2M100SourceLanguages::M2M100_418M;
 }
 
+/// # M2M100 model configuration
+/// Defines the M2M100 model architecture (e.g. number of layers, hidden layer size, label mapping...)
 pub type M2M100Config = MBartConfig;
 
 fn _shift_tokens_right(

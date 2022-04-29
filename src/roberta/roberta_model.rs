@@ -216,6 +216,10 @@ impl RobertaLMHead {
     }
 }
 
+/// # RoBERTa model configuration
+/// Defines the RoBERTa model architecture (e.g. number of layers, hidden layer size, label mapping...)
+pub type RobertaConfig = BertConfig;
+
 /// # RoBERTa for masked language model
 /// Base RoBERTa model with a RoBERTa masked language model head to predict missing tokens, for example `"Looks like one [MASK] is missing" -> "person"`
 /// It is made of the following blocks:
@@ -232,13 +236,12 @@ impl RobertaForMaskedLM {
     /// # Arguments
     ///
     /// * `p` - Variable store path for the root of the RobertaForMaskedLM model
-    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    /// * `config` - `RobertaConfig` object defining the model architecture and vocab size
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::bert::BertConfig;
-    /// use rust_bert::roberta::RobertaForMaskedLM;
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForMaskedLM};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -246,7 +249,7 @@ impl RobertaForMaskedLM {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = BertConfig::from_file(config_path);
+    /// let config = RobertaConfig::from_file(config_path);
     /// let roberta = RobertaForMaskedLM::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForMaskedLM
@@ -414,14 +417,13 @@ impl RobertaForSequenceClassification {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the RobertaForSequenceClassification model
-    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    /// * `p` - Variable store path for the root of the RobertaForMaskedLM model
+    /// * `config` - `RobertaConfig` object defining the model architecture and vocab size
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::bert::BertConfig;
-    /// use rust_bert::roberta::RobertaForSequenceClassification;
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForSequenceClassification};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -429,7 +431,7 @@ impl RobertaForSequenceClassification {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = BertConfig::from_file(config_path);
+    /// let config = RobertaConfig::from_file(config_path);
     /// let roberta = RobertaForSequenceClassification::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForSequenceClassification
@@ -550,14 +552,13 @@ impl RobertaForMultipleChoice {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the RobertaForMultipleChoice model
-    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    /// * `p` - Variable store path for the root of the RobertaForMaskedLM model
+    /// * `config` - `RobertaConfig` object defining the model architecture and vocab size
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::bert::BertConfig;
-    /// use rust_bert::roberta::RobertaForMultipleChoice;
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForMultipleChoice};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -565,7 +566,7 @@ impl RobertaForMultipleChoice {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = BertConfig::from_file(config_path);
+    /// let config = RobertaConfig::from_file(config_path);
     /// let roberta = RobertaForMultipleChoice::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForMultipleChoice
@@ -695,14 +696,13 @@ impl RobertaForTokenClassification {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the RobertaForTokenClassification model
-    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    /// * `p` - Variable store path for the root of the RobertaForMaskedLM model
+    /// * `config` - `RobertaConfig` object defining the model architecture and vocab size
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::bert::BertConfig;
-    /// use rust_bert::roberta::RobertaForTokenClassification;
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForMultipleChoice};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -710,8 +710,8 @@ impl RobertaForTokenClassification {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = BertConfig::from_file(config_path);
-    /// let roberta = RobertaForTokenClassification::new(&p.root() / "roberta", &config);
+    /// let config = RobertaConfig::from_file(config_path);
+    /// let roberta = RobertaForMultipleChoice::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForTokenClassification
     where
@@ -844,14 +844,13 @@ impl RobertaForQuestionAnswering {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the RobertaForQuestionAnswering model
-    /// * `config` - `BertConfig` object defining the model architecture and vocab size
+    /// * `p` - Variable store path for the root of the RobertaForMaskedLM model
+    /// * `config` - `RobertaConfig` object defining the model architecture and vocab size
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::bert::BertConfig;
-    /// use rust_bert::roberta::RobertaForQuestionAnswering;
+    /// use rust_bert::roberta::{RobertaConfig, RobertaForQuestionAnswering};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -859,7 +858,7 @@ impl RobertaForQuestionAnswering {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = BertConfig::from_file(config_path);
+    /// let config = RobertaConfig::from_file(config_path);
     /// let roberta = RobertaForQuestionAnswering::new(&p.root() / "roberta", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForQuestionAnswering

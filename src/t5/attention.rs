@@ -49,6 +49,7 @@ pub struct T5Attention {
     is_bidirectional: bool,
     has_relative_attention_bias: bool,
     relative_attention_num_buckets: i64,
+    relative_attention_max_distance: i64,
     d_kv: i64,
     n_heads: i64,
     dropout: Dropout,
@@ -105,6 +106,7 @@ impl T5Attention {
             is_bidirectional,
             has_relative_attention_bias,
             relative_attention_num_buckets: config.relative_attention_num_buckets,
+            relative_attention_max_distance: config.relative_attention_max_distance.unwrap_or(128),
             d_kv: config.d_kv,
             n_heads: config.num_heads,
             dropout,
@@ -284,7 +286,7 @@ impl T5Attention {
             &relative_position,
             self.is_bidirectional,
             self.relative_attention_num_buckets,
-            128,
+            self.relative_attention_max_distance,
         );
         rp_bucket
             .apply(self.relative_attention_bias.as_ref().unwrap())
