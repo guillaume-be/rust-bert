@@ -1048,41 +1048,7 @@ impl AlbertForMultipleChoice {
     }
 }
 
-pub struct AlbertForSentenceEmbeddings {
-    transformer: AlbertModel,
-}
-
-impl AlbertForSentenceEmbeddings {
-    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> Self
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        let transformer = AlbertModel::new(p, config);
-        AlbertForSentenceEmbeddings { transformer }
-    }
-
-    pub fn forward(
-        &self,
-        input_ids: &Tensor,
-        mask: &Tensor,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
-        let transformer_output =
-            self.transformer
-                .forward_t(Some(input_ids), Some(mask), None, None, None, false)?;
-        Ok((
-            transformer_output.hidden_state,
-            transformer_output.all_attentions.map(|attentions| {
-                attentions
-                    .into_iter()
-                    .map(|tensors| {
-                        let num_inner_groups = tensors.len() as f64;
-                        tensors.into_iter().sum::<Tensor>() / num_inner_groups
-                    })
-                    .collect()
-            }),
-        ))
-    }
-}
+pub type AlbertForSentenceEmbeddings = AlbertModel;
 
 /// Container for the ALBERT model output.
 pub struct AlbertOutput {

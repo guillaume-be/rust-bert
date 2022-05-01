@@ -20,34 +20,34 @@ pub struct SentenceEmbeddingsConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SentenceEmbeddingsModules(pub Vec<SentenceEmbeddingsModule>);
+pub struct SentenceEmbeddingsModulesConfig(pub Vec<SentenceEmbeddingsModuleConfig>);
 
-impl std::ops::Deref for SentenceEmbeddingsModules {
-    type Target = Vec<SentenceEmbeddingsModule>;
+impl std::ops::Deref for SentenceEmbeddingsModulesConfig {
+    type Target = Vec<SentenceEmbeddingsModuleConfig>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl std::ops::DerefMut for SentenceEmbeddingsModules {
+impl std::ops::DerefMut for SentenceEmbeddingsModulesConfig {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl From<Vec<SentenceEmbeddingsModule>> for SentenceEmbeddingsModules {
-    fn from(source: Vec<SentenceEmbeddingsModule>) -> Self {
+impl From<Vec<SentenceEmbeddingsModuleConfig>> for SentenceEmbeddingsModulesConfig {
+    fn from(source: Vec<SentenceEmbeddingsModuleConfig>) -> Self {
         Self(source)
     }
 }
 
-impl Config for SentenceEmbeddingsModules {}
+impl Config for SentenceEmbeddingsModulesConfig {}
 
-impl SentenceEmbeddingsModules {
+impl SentenceEmbeddingsModulesConfig {
     pub fn validate(self) -> Result<Self, RustBertError> {
         match self.get(0) {
-            Some(SentenceEmbeddingsModule {
+            Some(SentenceEmbeddingsModuleConfig {
                 module_type: SentenceEmbeddingsModuleType::Transformer,
                 ..
             }) => (),
@@ -64,7 +64,7 @@ impl SentenceEmbeddingsModules {
         }
 
         match self.get(1) {
-            Some(SentenceEmbeddingsModule {
+            Some(SentenceEmbeddingsModuleConfig {
                 module_type: SentenceEmbeddingsModuleType::Pooling,
                 ..
             }) => (),
@@ -83,17 +83,17 @@ impl SentenceEmbeddingsModules {
         Ok(self)
     }
 
-    pub fn transformer_module(&self) -> &SentenceEmbeddingsModule {
+    pub fn transformer_module(&self) -> &SentenceEmbeddingsModuleConfig {
         self.get(0).as_ref().unwrap()
     }
 
-    pub fn pooling_module(&self) -> &SentenceEmbeddingsModule {
+    pub fn pooling_module(&self) -> &SentenceEmbeddingsModuleConfig {
         self.get(1).as_ref().unwrap()
     }
 
-    pub fn dense_module(&self) -> Option<&SentenceEmbeddingsModule> {
+    pub fn dense_module(&self) -> Option<&SentenceEmbeddingsModuleConfig> {
         for i in 2..=3 {
-            if let Some(SentenceEmbeddingsModule {
+            if let Some(SentenceEmbeddingsModuleConfig {
                 module_type: SentenceEmbeddingsModuleType::Dense,
                 ..
             }) = self.get(i)
@@ -106,7 +106,7 @@ impl SentenceEmbeddingsModules {
 
     pub fn has_normalization(&self) -> bool {
         for i in 2..=3 {
-            if let Some(SentenceEmbeddingsModule {
+            if let Some(SentenceEmbeddingsModuleConfig {
                 module_type: SentenceEmbeddingsModuleType::Normalize,
                 ..
             }) = self.get(i)
@@ -119,7 +119,7 @@ impl SentenceEmbeddingsModules {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SentenceEmbeddingsModule {
+pub struct SentenceEmbeddingsModuleConfig {
     pub idx: usize,
     pub name: String,
     pub path: String,

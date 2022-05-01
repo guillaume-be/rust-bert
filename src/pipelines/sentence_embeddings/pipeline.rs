@@ -11,7 +11,7 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::pipelines::sentence_embeddings::layers::{Dense, DenseConfig, Pooling, PoolingConfig};
 use crate::pipelines::sentence_embeddings::{
     AttentionHead, AttentionLayer, AttentionOutput, Embedding, SentenceEmbeddingsConfig,
-    SentenceEmbeddingsModules, SentenceEmbeddingsTokenizerConfig,
+    SentenceEmbeddingsModulesConfig, SentenceEmbeddingsTokenizerConfig,
 };
 use crate::roberta::RobertaForSentenceEmbeddings;
 use crate::t5::T5ForSentenceEmbeddings;
@@ -48,9 +48,11 @@ impl SentenceEmbeddingsOption {
                 p,
                 &(config.try_into()?),
             )),
-            ModelType::Roberta => {
-                Roberta(RobertaForSentenceEmbeddings::new(p, &(config.try_into()?)))
-            }
+            ModelType::Roberta => Roberta(RobertaForSentenceEmbeddings::new_with_optional_pooler(
+                p,
+                &(config.try_into()?),
+                false,
+            )),
             ModelType::Albert => Albert(AlbertForSentenceEmbeddings::new(p, &(config.try_into()?))),
             ModelType::T5 => T5(T5ForSentenceEmbeddings::new(p, &(config.try_into()?))),
             _ => {
@@ -70,11 +72,72 @@ impl SentenceEmbeddingsOption {
         tokens_masks: &Tensor,
     ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
         match self {
-            Self::Bert(model) => model.forward(tokens_ids, tokens_masks),
-            Self::DistilBert(model) => model.forward(tokens_ids, tokens_masks),
-            Self::Roberta(model) => model.forward(tokens_ids, tokens_masks),
-            Self::Albert(model) => model.forward(tokens_ids, tokens_masks),
-            Self::T5(model) => model.forward(tokens_ids, tokens_masks),
+            Self::Bert(transformer) => transformer
+                .forward_t(
+                    Some(tokens_ids),
+                    Some(tokens_masks),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .map(|transformer_output| {
+                    (
+                        transformer_output.hidden_state,
+                        transformer_output.all_attentions,
+                    )
+                }),
+            Self::DistilBert(transformer) => transformer
+                .forward_t(Some(tokens_ids), Some(tokens_masks), None, false)
+                .map(|transformer_output| {
+                    (
+                        transformer_output.hidden_state,
+                        transformer_output.all_attentions,
+                    )
+                }),
+            Self::Roberta(transformer) => transformer
+                .forward_t(
+                    Some(tokens_ids),
+                    Some(tokens_masks),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .map(|transformer_output| {
+                    (
+                        transformer_output.hidden_state,
+                        transformer_output.all_attentions,
+                    )
+                }),
+            Self::Albert(transformer) => transformer
+                .forward_t(
+                    Some(tokens_ids),
+                    Some(tokens_masks),
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .map(|transformer_output| {
+                    (
+                        transformer_output.hidden_state,
+                        transformer_output.all_attentions.map(|attentions| {
+                            attentions
+                                .into_iter()
+                                .map(|tensors| {
+                                    let num_inner_groups = tensors.len() as f64;
+                                    tensors.into_iter().sum::<Tensor>() / num_inner_groups
+                                })
+                                .collect()
+                        }),
+                    )
+                }),
+            Self::T5(transformer) => transformer.forward(tokens_ids, tokens_masks),
         }
     }
 }
@@ -110,7 +173,7 @@ impl SentenceEmbeddingsModel {
         } = config;
 
         let modules =
-            SentenceEmbeddingsModules::from_file(modules_config_resource.get_local_path()?)
+            SentenceEmbeddingsModulesConfig::from_file(modules_config_resource.get_local_path()?)
                 .validate()?;
 
         // Setup transformer
@@ -163,16 +226,17 @@ impl SentenceEmbeddingsModel {
 
         // Setup dense layer
 
-        let mut dense_layer = None;
-        if modules.dense_module().is_some() {
+        let dense_layer = if modules.dense_module().is_some() {
             let dense_config =
                 DenseConfig::from_file(dense_config_resource.unwrap().get_local_path()?);
-            dense_layer = Some(Dense::new(
+            Some(Dense::new(
                 dense_config,
                 dense_weights_resource.unwrap().get_local_path()?,
                 device,
-            )?);
-        }
+            )?)
+        } else {
+            None
+        };
 
         let normalize_embeddings = modules.has_normalization();
 

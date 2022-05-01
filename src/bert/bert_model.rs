@@ -1179,40 +1179,7 @@ impl BertForQuestionAnswering {
     }
 }
 
-pub struct BertForSentenceEmbeddings {
-    transformer: BertModel<BertEmbeddings>,
-}
-
-impl BertForSentenceEmbeddings {
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> Self
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        let transformer = BertModel::new(p, config);
-        Self { transformer }
-    }
-
-    pub fn forward(
-        &self,
-        input_ids: &Tensor,
-        mask: &Tensor,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
-        let transformer_output = self.transformer.forward_t(
-            Some(input_ids),
-            Some(mask),
-            None,
-            None,
-            None,
-            None,
-            None,
-            false,
-        )?;
-        Ok((
-            transformer_output.hidden_state,
-            transformer_output.all_attentions,
-        ))
-    }
-}
+pub type BertForSentenceEmbeddings = BertModel<BertEmbeddings>;
 
 /// Container for the BERT model output.
 pub struct BertModelOutput {

@@ -5,7 +5,7 @@ use tch::Device;
 
 use crate::pipelines::common::ModelType;
 use crate::pipelines::sentence_embeddings::{
-    SentenceEmbeddingsConfig, SentenceEmbeddingsModel, SentenceEmbeddingsModules,
+    SentenceEmbeddingsConfig, SentenceEmbeddingsModel, SentenceEmbeddingsModulesConfig,
 };
 use crate::{Config, RustBertError};
 
@@ -35,7 +35,7 @@ impl SentenceEmbeddingsBuilder<Local> {
         let model_dir = self.inner.model_dir;
 
         let modules_config = model_dir.join("modules.json");
-        let modules = SentenceEmbeddingsModules::from_file(&modules_config).validate()?;
+        let modules = SentenceEmbeddingsModulesConfig::from_file(&modules_config).validate()?;
 
         let transformer_config = model_dir.join("config.json");
         let transformer_type = ModelConfig::from_file(&transformer_config).model_type;
