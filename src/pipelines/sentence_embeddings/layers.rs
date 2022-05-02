@@ -93,7 +93,6 @@ pub struct Dense {
     linear: nn::Linear,
     activation: TensorFunction,
     _var_store: nn::VarStore,
-    _conf: DenseConfig,
 }
 
 impl Dense {
@@ -124,7 +123,6 @@ impl Dense {
             linear,
             activation,
             _var_store: vs_dense,
-            _conf: dense_conf,
         })
     }
 
