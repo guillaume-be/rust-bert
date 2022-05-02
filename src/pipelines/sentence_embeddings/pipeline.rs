@@ -11,7 +11,8 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::pipelines::sentence_embeddings::layers::{Dense, DenseConfig, Pooling, PoolingConfig};
 use crate::pipelines::sentence_embeddings::{
     AttentionHead, AttentionLayer, AttentionOutput, Embedding, SentenceEmbeddingsConfig,
-    SentenceEmbeddingsModulesConfig, SentenceEmbeddingsTokenizerConfig,
+    SentenceEmbeddingsModulesConfig, SentenceEmbeddingsSentenceBertConfig,
+    SentenceEmbeddingsTokenizerConfig,
 };
 use crate::roberta::RobertaForSentenceEmbeddings;
 use crate::t5::T5ForSentenceEmbeddings;
@@ -144,8 +145,8 @@ impl SentenceEmbeddingsOption {
 
 /// # SentenceEmbeddingsModel to perform sentence embeddings
 pub struct SentenceEmbeddingsModel {
+    sentence_bert_config: SentenceEmbeddingsSentenceBertConfig,
     tokenizer: TokenizerOption,
-    tokenizer_config: SentenceEmbeddingsTokenizerConfig,
     tokenizer_truncation_strategy: TruncationStrategy,
     var_store: nn::VarStore,
     transformer: SentenceEmbeddingsOption,
@@ -159,6 +160,7 @@ impl SentenceEmbeddingsModel {
     pub fn new(config: SentenceEmbeddingsConfig) -> Result<Self, RustBertError> {
         let SentenceEmbeddingsConfig {
             modules_config_resource,
+            sentence_bert_config_resource,
             tokenizer_config_resource,
             tokenizer_vocab_resource,
             tokenizer_merges_resource,
@@ -176,6 +178,31 @@ impl SentenceEmbeddingsModel {
             SentenceEmbeddingsModulesConfig::from_file(modules_config_resource.get_local_path()?)
                 .validate()?;
 
+        // Setup tokenizer
+
+        let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
+            tokenizer_config_resource.get_local_path()?,
+        );
+        let sentence_bert_config = SentenceEmbeddingsSentenceBertConfig::from_file(
+            sentence_bert_config_resource.get_local_path()?,
+        );
+        let tokenizer = TokenizerOption::from_file(
+            transformer_type,
+            tokenizer_vocab_resource
+                .get_local_path()?
+                .to_string_lossy()
+                .as_ref(),
+            tokenizer_merges_resource
+                .as_ref()
+                .map(|resource| resource.get_local_path())
+                .transpose()?
+                .map(|path| path.to_string_lossy().into_owned())
+                .as_deref(),
+            sentence_bert_config.do_lower_case,
+            tokenizer_config.strip_accents,
+            tokenizer_config.add_prefix_space,
+        )?;
+
         // Setup transformer
 
         let mut var_store = nn::VarStore::new(device);
@@ -189,35 +216,6 @@ impl SentenceEmbeddingsModel {
             &transformer_config,
         )?;
         var_store.load(transformer_weights_resource.get_local_path()?)?;
-
-        // Setup tokenizer
-
-        let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
-            tokenizer_config_resource.get_local_path()?,
-        );
-        let strip_accents = match transformer {
-            SentenceEmbeddingsOption::Roberta(_)
-            | SentenceEmbeddingsOption::Albert(_)
-            | SentenceEmbeddingsOption::T5(_) => None,
-            _ => Some(false),
-        };
-        let add_prefix_space = None;
-        let tokenizer = TokenizerOption::from_file(
-            transformer_type,
-            tokenizer_vocab_resource
-                .get_local_path()?
-                .to_string_lossy()
-                .as_ref(),
-            tokenizer_merges_resource
-                .as_ref()
-                .map(|resource| resource.get_local_path())
-                .transpose()?
-                .map(|path| path.to_string_lossy().into_owned())
-                .as_deref(),
-            tokenizer_config.do_lower_case,
-            strip_accents,
-            add_prefix_space,
-        )?;
 
         // Setup pooling layer
 
@@ -242,7 +240,7 @@ impl SentenceEmbeddingsModel {
 
         Ok(Self {
             tokenizer,
-            tokenizer_config,
+            sentence_bert_config,
             tokenizer_truncation_strategy: TruncationStrategy::LongestFirst,
             var_store,
             transformer,
@@ -263,7 +261,7 @@ impl SentenceEmbeddingsModel {
     {
         let tokenized_input = self.tokenizer.encode_list(
             inputs,
-            self.tokenizer_config.max_seq_length,
+            self.sentence_bert_config.max_seq_length,
             &self.tokenizer_truncation_strategy,
             0,
         );

@@ -55,7 +55,8 @@ impl SentenceEmbeddingsBuilder<Local> {
             })
             .unwrap_or((None, None));
 
-        let tokenizer_config = model_dir.join("sentence_bert_config.json");
+        let tokenizer_config = model_dir.join("tokenizer_config.json");
+        let sentence_bert_config = model_dir.join("sentence_bert_config.json");
         let (tokenizer_vocab, tokenizer_merges) = match transformer_type {
             ModelType::Bert | ModelType::DistilBert => (model_dir.join("vocab.txt"), None),
             ModelType::Roberta => (
@@ -84,6 +85,7 @@ impl SentenceEmbeddingsBuilder<Local> {
             pooling_config_resource: pooling_config.into(),
             dense_config_resource: dense_config.map(|r| r.into()),
             dense_weights_resource: dense_weights.map(|r| r.into()),
+            sentence_bert_config_resource: sentence_bert_config.into(),
             tokenizer_config_resource: tokenizer_config.into(),
             tokenizer_vocab_resource: tokenizer_vocab.into(),
             tokenizer_merges_resource: tokenizer_merges.map(|r| r.into()),

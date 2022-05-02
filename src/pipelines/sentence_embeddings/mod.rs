@@ -6,7 +6,8 @@ mod pipeline;
 pub use builder::SentenceEmbeddingsBuilder;
 pub use config::{
     SentenceEmbeddingsConfig, SentenceEmbeddingsModuleConfig, SentenceEmbeddingsModuleType,
-    SentenceEmbeddingsModulesConfig, SentenceEmbeddingsTokenizerConfig,
+    SentenceEmbeddingsModulesConfig, SentenceEmbeddingsSentenceBertConfig,
+    SentenceEmbeddingsTokenizerConfig,
 };
 pub use pipeline::{
     SentenceEmbeddingsModel, SentenceEmbeddingsModelOuput, SentenceEmbeddingsOption,

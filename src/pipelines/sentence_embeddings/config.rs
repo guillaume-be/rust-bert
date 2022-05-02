@@ -13,6 +13,7 @@ pub struct SentenceEmbeddingsConfig {
     pub pooling_config_resource: Box<dyn ResourceProvider + Send>,
     pub dense_config_resource: Option<Box<dyn ResourceProvider + Send>>,
     pub dense_weights_resource: Option<Box<dyn ResourceProvider + Send>>,
+    pub sentence_bert_config_resource: Box<dyn ResourceProvider + Send>,
     pub tokenizer_config_resource: Box<dyn ResourceProvider + Send>,
     pub tokenizer_vocab_resource: Box<dyn ResourceProvider + Send>,
     pub tokenizer_merges_resource: Option<Box<dyn ResourceProvider + Send>>,
@@ -179,9 +180,17 @@ mod serde_sentence_embeddings_module_type {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SentenceEmbeddingsTokenizerConfig {
+pub struct SentenceEmbeddingsSentenceBertConfig {
     pub max_seq_length: usize,
     pub do_lower_case: bool,
+}
+
+impl Config for SentenceEmbeddingsSentenceBertConfig {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SentenceEmbeddingsTokenizerConfig {
+    pub add_prefix_space: Option<bool>,
+    pub strip_accents: Option<bool>,
 }
 
 impl Config for SentenceEmbeddingsTokenizerConfig {}
