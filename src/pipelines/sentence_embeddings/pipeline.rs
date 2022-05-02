@@ -305,7 +305,10 @@ impl SentenceEmbeddingsModel {
         }
     }
 
-    pub fn forward<S>(&self, inputs: &[S]) -> Result<SentenceEmbeddingsModelOuput, RustBertError>
+    pub fn encode_as_tensor<S>(
+        &self,
+        inputs: &[S],
+    ) -> Result<SentenceEmbeddingsModelOuput, RustBertError>
     where
         S: AsRef<str> + Sync,
     {
@@ -345,7 +348,7 @@ impl SentenceEmbeddingsModel {
     where
         S: AsRef<str> + Sync,
     {
-        let SentenceEmbeddingsModelOuput { embeddings, .. } = self.forward(inputs)?;
+        let SentenceEmbeddingsModelOuput { embeddings, .. } = self.encode_as_tensor(inputs)?;
         Ok(Vec::from(embeddings))
     }
 
@@ -391,7 +394,7 @@ impl SentenceEmbeddingsModel {
         let SentenceEmbeddingsModelOuput {
             embeddings,
             all_attentions,
-        } = self.forward(inputs)?;
+        } = self.encode_as_tensor(inputs)?;
 
         let embeddings = Vec::from(embeddings);
         let all_attentions = all_attentions.ok_or_else(|| {
