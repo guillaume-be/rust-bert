@@ -972,6 +972,8 @@ impl RobertaForQuestionAnswering {
     }
 }
 
+/// # RoBERTa for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
 pub type RobertaForSentenceEmbeddings = BertModel<RobertaEmbeddings>;
 
 /// Container for the RoBERTa masked LM model output.

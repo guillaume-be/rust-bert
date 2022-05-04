@@ -755,6 +755,8 @@ impl DistilBertForTokenClassification {
     }
 }
 
+/// # DistilBERT for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
 pub type DistilBertForSentenceEmbeddings = DistilBertModel;
 
 /// Container for the DistilBERT masked LM model output.

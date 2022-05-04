@@ -33,6 +33,13 @@ pub enum SentenceEmbeddingsOption {
 }
 
 impl SentenceEmbeddingsOption {
+    /// Instantiate a new sentence embeddings transformer of the supplied type.
+    ///
+    /// # Arguments
+    ///
+    /// * `transformer_type` - `ModelType` indicating the transformer model type to load (must match with the actual data to be loaded)
+    /// * `p` - `tch::nn::Path` path to the model file to load (e.g. rust_model.ot)
+    /// * `config` - A configuration (the transformer model type of the configuration must be compatible with the value for `transformer_type`)
     pub fn new<'p, P>(
         transformer_type: ModelType,
         p: P,
@@ -67,6 +74,7 @@ impl SentenceEmbeddingsOption {
         Ok(option)
     }
 
+    /// Interface method to forward() of the particular transformer models.
     pub fn forward(
         &self,
         tokens_ids: &Tensor,
@@ -144,6 +152,12 @@ impl SentenceEmbeddingsOption {
 }
 
 /// # SentenceEmbeddingsModel to perform sentence embeddings
+///
+/// It is made of the following blocks:
+/// - `transformer`: Base transformer model
+/// - `pooling`: Pooling layer
+/// - `dense` _(optional)_: Linear (feed forward) layer
+/// - `normalization` _(optional)_: Embeddings normalization
 pub struct SentenceEmbeddingsModel {
     sentence_bert_config: SentenceEmbeddingsSentenceBertConfig,
     tokenizer: TokenizerOption,
@@ -157,6 +171,11 @@ pub struct SentenceEmbeddingsModel {
 }
 
 impl SentenceEmbeddingsModel {
+    /// Build a new `SentenceEmbeddingsModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - `SentenceEmbeddingsConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
     pub fn new(config: SentenceEmbeddingsConfig) -> Result<Self, RustBertError> {
         let SentenceEmbeddingsConfig {
             modules_config_resource,
@@ -171,7 +190,6 @@ impl SentenceEmbeddingsModel {
             dense_config_resource,
             dense_weights_resource,
             device,
-            ..
         } = config;
 
         let modules =
@@ -251,10 +269,12 @@ impl SentenceEmbeddingsModel {
         })
     }
 
+    /// Sets the tokenizer's truncation strategy
     pub fn set_tokenizer_truncation(&mut self, truncation_strategy: TruncationStrategy) {
         self.tokenizer_truncation_strategy = truncation_strategy;
     }
 
+    /// Tokenizes the inputs
     pub fn tokenize<S>(&self, inputs: &[S]) -> SentenceEmbeddingsTokenizerOuput
     where
         S: AsRef<str> + Sync,
@@ -305,6 +325,7 @@ impl SentenceEmbeddingsModel {
         }
     }
 
+    /// Computes sentence embeddings, outputs `Tensor`.
     pub fn encode_as_tensor<S>(
         &self,
         inputs: &[S],
@@ -344,6 +365,7 @@ impl SentenceEmbeddingsModel {
         })
     }
 
+    /// Computes sentence embeddings.
     pub fn encode<S>(&self, inputs: &[S]) -> Result<Vec<Embedding>, RustBertError>
     where
         S: AsRef<str> + Sync,
@@ -384,6 +406,7 @@ impl SentenceEmbeddingsModel {
         }
     }
 
+    /// Computes sentence embeddings, also outputs `AttentionOutput`s.
     pub fn encode_with_attention<S>(
         &self,
         inputs: &[S],
@@ -424,11 +447,13 @@ impl SentenceEmbeddingsModel {
     }
 }
 
+/// Container for the SentenceEmbeddings tokenizer output.
 pub struct SentenceEmbeddingsTokenizerOuput {
     pub tokens_ids: Vec<Tensor>,
     pub tokens_masks: Vec<Tensor>,
 }
 
+/// Container for the SentenceEmbeddings model output.
 pub struct SentenceEmbeddingsModelOuput {
     pub embeddings: Tensor,
     pub all_attentions: Option<Vec<Tensor>>,

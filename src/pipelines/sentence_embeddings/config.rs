@@ -5,21 +5,38 @@ use crate::pipelines::common::ModelType;
 use crate::resources::ResourceProvider;
 use crate::{Config, RustBertError};
 
+/// # Configuration for sentence embeddings
+///
+/// Contains information regarding the transformer model to load, the optional extra
+/// layers, and device to place the model on.
 pub struct SentenceEmbeddingsConfig {
+    /// Modules configuration resource, contains layers definition
     pub modules_config_resource: Box<dyn ResourceProvider + Send>,
+    /// Transformer model type
     pub transformer_type: ModelType,
+    /// Transformer model configuration resource
     pub transformer_config_resource: Box<dyn ResourceProvider + Send>,
+    /// Transformer weights resource
     pub transformer_weights_resource: Box<dyn ResourceProvider + Send>,
+    /// Pooling layer configuration resource
     pub pooling_config_resource: Box<dyn ResourceProvider + Send>,
+    /// Optional dense layer configuration resource
     pub dense_config_resource: Option<Box<dyn ResourceProvider + Send>>,
+    /// Optional dense layer weights resource
     pub dense_weights_resource: Option<Box<dyn ResourceProvider + Send>>,
+    /// Sentence BERT specific configuration resource
     pub sentence_bert_config_resource: Box<dyn ResourceProvider + Send>,
+    /// Transformer's tokenizer configuration resource
     pub tokenizer_config_resource: Box<dyn ResourceProvider + Send>,
+    /// Transformer's tokenizer vocab resource
     pub tokenizer_vocab_resource: Box<dyn ResourceProvider + Send>,
+    /// Optional transformer's tokenizer merges resource
     pub tokenizer_merges_resource: Option<Box<dyn ResourceProvider + Send>>,
+    /// Device to place the transformer model on
     pub device: Device,
 }
 
+/// Configuration for the modules that define the model's layers
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SentenceEmbeddingsModulesConfig(pub Vec<SentenceEmbeddingsModuleConfig>);
 
@@ -119,6 +136,7 @@ impl SentenceEmbeddingsModulesConfig {
     }
 }
 
+/// Configuration defining a single module (model's layer)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SentenceEmbeddingsModuleConfig {
     pub idx: usize,
@@ -129,6 +147,7 @@ pub struct SentenceEmbeddingsModuleConfig {
     pub module_type: SentenceEmbeddingsModuleType,
 }
 
+/// Available module types, based on Sentence-Transformers
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SentenceEmbeddingsModuleType {
     Transformer,
@@ -179,6 +198,7 @@ mod serde_sentence_embeddings_module_type {
     }
 }
 
+/// Configuration for Sentence-Transformers specific parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SentenceEmbeddingsSentenceBertConfig {
     pub max_seq_length: usize,
@@ -187,6 +207,7 @@ pub struct SentenceEmbeddingsSentenceBertConfig {
 
 impl Config for SentenceEmbeddingsSentenceBertConfig {}
 
+/// Configuration for transformer's tokenizer
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SentenceEmbeddingsTokenizerConfig {
     pub add_prefix_space: Option<bool>,

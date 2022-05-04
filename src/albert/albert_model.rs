@@ -1048,6 +1048,8 @@ impl AlbertForMultipleChoice {
     }
 }
 
+/// # ALBERT for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
 pub type AlbertForSentenceEmbeddings = AlbertModel;
 
 /// Container for the ALBERT model output.

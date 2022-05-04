@@ -1179,6 +1179,8 @@ impl BertForQuestionAnswering {
     }
 }
 
+/// # BERT for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
 pub type BertForSentenceEmbeddings = BertModel<BertEmbeddings>;
 
 /// Container for the BERT model output.

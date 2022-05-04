@@ -9,14 +9,18 @@ use crate::pipelines::sentence_embeddings::{
 };
 use crate::{Config, RustBertError};
 
+/// # SentenceEmbeddings Model Builder
+///
+/// Allows the user to build a model from standard Sentence-Transformer files
+/// (configuration and weights).
 pub struct SentenceEmbeddingsBuilder<T> {
-    device: Option<Device>,
+    device: Device,
     inner: T,
 }
 
 impl<T> SentenceEmbeddingsBuilder<T> {
     pub fn with_device(mut self, device: Device) -> Self {
-        self.device = Some(device);
+        self.device = device;
         self
     }
 }
@@ -24,7 +28,7 @@ impl<T> SentenceEmbeddingsBuilder<T> {
 impl SentenceEmbeddingsBuilder<Local> {
     pub fn local<P: Into<PathBuf>>(model_dir: P) -> Self {
         Self {
-            device: None,
+            device: Device::cuda_if_available(),
             inner: Local {
                 model_dir: model_dir.into(),
             },
@@ -73,10 +77,6 @@ impl SentenceEmbeddingsBuilder<Local> {
             }
         };
 
-        let device = self.device.ok_or_else(|| {
-            RustBertError::InvalidConfigurationError("Missing device configuration".into())
-        })?;
-
         let config = SentenceEmbeddingsConfig {
             modules_config_resource: modules_config.into(),
             transformer_type,
@@ -89,7 +89,7 @@ impl SentenceEmbeddingsBuilder<Local> {
             tokenizer_config_resource: tokenizer_config.into(),
             tokenizer_vocab_resource: tokenizer_vocab.into(),
             tokenizer_merges_resource: tokenizer_merges.map(|r| r.into()),
-            device,
+            device: self.device,
         };
 
         SentenceEmbeddingsModel::new(config)
