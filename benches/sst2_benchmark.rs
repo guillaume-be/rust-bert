@@ -83,8 +83,9 @@ fn bench_sst2(c: &mut Criterion) {
         torch_sys::dummy_cuda_dependency();
     }
     //    Define input
-    let mut sst2_path = PathBuf::from(env::var("SST2_PATH")
-        .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));
+    let mut sst2_path = PathBuf::from(env::var("SST2_PATH").expect(
+        "Please set the \"SST2_PATH\" environment variable pointing to the SST2 dataset folder",
+    ));
     sst2_path.push("train.tsv");
     let mut inputs = ss2_processor(sst2_path).unwrap();
     inputs.truncate(2000);
