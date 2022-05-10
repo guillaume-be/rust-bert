@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Changed
 - (BREAKING) Updated `Resources`, moving `RemoteResource` and associated download utilities/dependencies behind a feature gate (enabled by default). Reworked the API for building and using resources. 
 - Upgraded to `torch` 1.11 (via `tch` 0.7.0)
+- Simplified token classification pipeline and mode aggregation now deterministic (fall back to the highest score for equally common labels)
 
 ## Fixed
 - Fixed sinusoidal embeddings not being updated when loading a state dictionary (DistilBERT)

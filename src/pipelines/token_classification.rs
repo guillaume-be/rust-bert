@@ -124,6 +124,7 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
+use ordered_float::OrderedFloat;
 use rust_tokenizers::tokenizer::Tokenizer;
 use rust_tokenizers::{
     ConsolidatableTokens, ConsolidatedTokenIterator, Mask, Offset, TokenIdsWithOffsets, TokenTrait,
@@ -1129,12 +1130,18 @@ impl TokenClassificationModel {
             }
             LabelAggregationOption::Mode => {
                 let counts = tokens.iter().fold(HashMap::new(), |mut m, c| {
-                    *m.entry((c.label_index, c.label.as_str())).or_insert(0) += 1;
+                    let entry = m
+                        .entry((c.label_index, c.label.as_str()))
+                        .or_insert((0, 0.));
+                    *entry = (
+                        entry.0 + 1,
+                        if c.score > entry.1 { c.score } else { entry.1 },
+                    );
                     m
                 });
                 counts
                     .into_iter()
-                    .max_by(|a, b| a.1.cmp(&b.1))
+                    .max_by_key(|item| (item.1 .0, OrderedFloat(item.1 .1)))
                     .map(|((label_index, label), _)| (label_index, label.to_owned()))
                     .unwrap()
             }
