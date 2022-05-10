@@ -409,16 +409,19 @@ fn bert_pre_trained_ner_full_entities() -> anyhow::Result<()> {
 #[test]
 fn bert_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
-    let config = QuestionAnsweringConfig::new(
-        ModelType::Bert,
-        RemoteResource::from_pretrained(BertModelResources::BERT_QA),
-        RemoteResource::from_pretrained(BertConfigResources::BERT_QA),
-        RemoteResource::from_pretrained(BertVocabResources::BERT_QA),
-        None, //merges resource only relevant with ModelType::Roberta
-        false,
-        false,
-        None,
-    );
+    let config = QuestionAnsweringConfig {
+        model_type: ModelType::Bert,
+        model_resource: Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
+        config_resource: Box::new(RemoteResource::from_pretrained(
+            BertConfigResources::BERT_QA,
+        )),
+        vocab_resource: Box::new(RemoteResource::from_pretrained(BertVocabResources::BERT_QA)),
+        lower_case: false,
+        strip_accents: Some(false),
+        add_prefix_space: None,
+        device: Device::Cpu,
+        ..Default::default()
+    };
 
     let qa_model = QuestionAnsweringModel::new(config)?;
 
