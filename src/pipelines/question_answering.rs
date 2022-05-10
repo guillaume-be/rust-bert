@@ -903,6 +903,8 @@ impl QuestionAnsweringModel {
         spans
     }
 
+    /// Pads the passed features to the length of the longest feature. Masks are generated so the
+    /// non-padding data can be re-extracted.
     fn pad_features(&self, features: &mut [QaFeature]) -> (Tensor, Tensor) {
         let max_len = features
             .iter()
@@ -914,23 +916,18 @@ impl QuestionAnsweringModel {
             .iter()
             .map(|feature| &feature.input_ids)
             .map(|input| {
-                let mut attention_mask = vec![1; input.len()];
-                attention_mask.append(&mut vec![0; max_len - attention_mask.len()]);
+                let mut attention_mask = Vec::with_capacity(max_len);
+                attention_mask.resize(input.len(), 1);
+                attention_mask.resize(max_len, 0);
                 attention_mask
             })
             .map(|input| Tensor::of_slice(&(input)))
             .collect::<Vec<_>>();
 
         for feature in features.iter_mut() {
-            feature
-                .offsets
-                .append(&mut vec![None; max_len - feature.input_ids.len()]);
-            feature
-                .p_mask
-                .append(&mut vec![1; max_len - feature.input_ids.len()]);
-            feature
-                .input_ids
-                .append(&mut vec![self.pad_idx; max_len - feature.input_ids.len()]);
+            feature.offsets.resize(max_len, None);
+            feature.p_mask.resize(max_len, 1);
+            feature.input_ids.resize(max_len, self.pad_idx);
         }
 
         let padded_input_ids = features

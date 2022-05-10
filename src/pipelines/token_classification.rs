@@ -939,6 +939,8 @@ impl TokenClassificationModel {
         tokens
     }
 
+    /// Pads the passed features to the length of the longest feature. Masks are generated so the
+    /// non-padding data can be re-extracted.
     fn pad_features(&self, features: &mut [InputFeature]) -> (Tensor, Tensor) {
         let max_len = features
             .iter()
@@ -950,26 +952,21 @@ impl TokenClassificationModel {
             .iter()
             .map(|feature| &feature.input_ids)
             .map(|input| {
-                let mut attention_mask = vec![1; input.len()];
-                attention_mask.append(&mut vec![0; max_len - attention_mask.len()]);
+                let mut attention_mask = Vec::with_capacity(max_len);
+                attention_mask.resize(input.len(), 1);
+                attention_mask.resize(max_len, 0);
                 attention_mask
             })
             .map(|input| Tensor::of_slice(&(input)))
             .collect::<Vec<_>>();
 
         for feature in features.iter_mut() {
-            feature
-                .offsets
-                .append(&mut vec![None; max_len - feature.input_ids.len()]);
-            feature.input_ids.append(&mut vec![
-                self.tokenizer.get_pad_id().expect(
-                    "Only tokenizers with a padding index can be used for token classification"
-                );
-                max_len - feature.input_ids.len()
-            ]);
-            feature
-                .reference_feature
-                .append(&mut vec![false; max_len - feature.input_ids.len()]);
+            let padding_index = self.tokenizer.get_pad_id().expect(
+                "Only tokenizers with a padding index can be used for token classification",
+            );
+            feature.input_ids.resize(max_len, padding_index);
+            feature.offsets.resize(max_len, None);
+            feature.reference_feature.resize(max_len, false);
         }
 
         let padded_input_ids = features
