@@ -870,10 +870,7 @@ impl TokenClassificationModel {
             .flat_map(|(example_index, example)| self.generate_features(example, example_index))
             .collect();
 
-        let mut example_tokens_map: HashMap<usize, Vec<Token>> = HashMap::new();
-        for example_idx in 0..input.len() {
-            example_tokens_map.insert(example_idx, Vec::new());
-        }
+        let mut example_tokens_map: Vec<Vec<Token>> = vec![Vec::new(); input.len()];
         let mut start = 0usize;
         let len_features = features.len();
 
@@ -927,23 +924,13 @@ impl TokenClassificationModel {
                                 word_idx,
                             )
                         };
-                        example_tokens_map
-                            .get_mut(&(feature.example_index))
-                            .unwrap()
-                            .push(token);
+                        example_tokens_map[feature.example_index].push(token);
                     }
                 }
             });
             start = end;
         }
-        let mut tokens = example_tokens_map
-            .into_iter()
-            .collect::<Vec<(usize, Vec<Token>)>>();
-        tokens.sort_by_key(|kv| kv.0);
-        let mut tokens = tokens
-            .into_iter()
-            .map(|(_, v)| v)
-            .collect::<Vec<Vec<Token>>>();
+        let mut tokens = example_tokens_map;
 
         if consolidate_sub_tokens {
             self.consolidate_tokens(&mut tokens, &self.label_aggregation_function);

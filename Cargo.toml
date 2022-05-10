@@ -46,6 +46,10 @@ harness = false
 name = "tensor_operations_benchmark"
 harness = false
 
+[[bench]]
+name = "token_classification_benchmark"
+harness = false
+
 [profile.bench]
 opt-level = 3
 
