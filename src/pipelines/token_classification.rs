@@ -1130,13 +1130,11 @@ impl TokenClassificationModel {
             }
             LabelAggregationOption::Mode => {
                 let counts = tokens.iter().fold(HashMap::new(), |mut m, c| {
-                    let entry = m
+                    let (ref mut count, ref mut score) = m
                         .entry((c.label_index, c.label.as_str()))
-                        .or_insert((0, 0.));
-                    *entry = (
-                        entry.0 + 1,
-                        if c.score > entry.1 { c.score } else { entry.1 },
-                    );
+                        .or_insert((0, 0.0_f64));
+                    *count += 1;
+                    *score = score.max(c.score);
                     m
                 });
                 counts
