@@ -1141,7 +1141,7 @@ impl TokenClassificationModel {
                 });
                 counts
                     .into_iter()
-                    .max_by_key(|item| (item.1 .0, OrderedFloat(item.1 .1)))
+                    .max_by_key(|&(_, (count, score))| (count, OrderedFloat(score)))
                     .map(|((label_index, label), _)| (label_index, label.to_owned()))
                     .unwrap()
             }
