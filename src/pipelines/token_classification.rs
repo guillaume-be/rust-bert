@@ -960,10 +960,11 @@ impl TokenClassificationModel {
             .map(|input| Tensor::of_slice(&(input)))
             .collect::<Vec<_>>();
 
+        let padding_index = self
+            .tokenizer
+            .get_pad_id()
+            .expect("Only tokenizers with a padding index can be used for token classification");
         for feature in features.iter_mut() {
-            let padding_index = self.tokenizer.get_pad_id().expect(
-                "Only tokenizers with a padding index can be used for token classification",
-            );
             feature.input_ids.resize(max_len, padding_index);
             feature.offsets.resize(max_len, None);
             feature.reference_feature.resize(max_len, false);
