@@ -903,8 +903,6 @@ impl QuestionAnsweringModel {
         spans
     }
 
-    /// Pads the passed features to the length of the longest feature. Masks are generated so the
-    /// non-padding data can be re-extracted.
     fn pad_features(&self, features: &mut [QaFeature]) -> (Tensor, Tensor) {
         let max_len = features
             .iter()
