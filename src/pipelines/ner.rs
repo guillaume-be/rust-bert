@@ -359,8 +359,8 @@ impl<'a> EntityBuilder<'a> {
                 score: entity_tokens.iter().map(|token| token.score).product(),
                 label: label.to_string(),
                 offset: Offset {
-                    begin: entity_tokens.first()?.offset.unwrap().begin,
-                    end: entity_tokens.last()?.offset.unwrap().end,
+                    begin: entity_tokens.first()?.offset?.begin,
+                    end: entity_tokens.last()?.offset?.end,
                 },
             })
         } else {
