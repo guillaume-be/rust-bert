@@ -618,19 +618,16 @@ impl SequenceClassificationModel {
             .map(|input| input.token_ids.len())
             .max()
             .unwrap();
+        let pad_id = self
+            .tokenizer
+            .get_pad_id()
+            .expect("The Tokenizer used for sequence classification should contain a PAD id");
         let tokenized_input_tensors: Vec<tch::Tensor> = tokenized_input
-            .iter()
-            .map(|input| input.token_ids.clone())
+            .into_iter()
             .map(|mut input| {
-                input.extend(vec![
-                    self.tokenizer.get_pad_id().expect(
-                        "The Tokenizer used for sequence classification should contain a PAD id"
-                    );
-                    max_len - input.len()
-                ]);
-                input
+                input.token_ids.resize(max_len, pad_id);
+                Tensor::of_slice(&(input.token_ids))
             })
-            .map(|input| Tensor::of_slice(&(input)))
             .collect::<Vec<_>>();
         Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())
     }

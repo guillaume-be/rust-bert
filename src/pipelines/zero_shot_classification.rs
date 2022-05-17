@@ -608,18 +608,17 @@ impl ZeroShotClassificationModel {
             .map(|input| input.token_ids.len())
             .max()
             .unwrap();
-        let tokenized_input_tensors: Vec<tch::Tensor> =
-            tokenized_input
-                .iter()
-                .map(|input| input.token_ids.clone())
-                .map(|mut input| {
-                    input.extend(vec![self.tokenizer.get_pad_id().expect(
-                        "The Tokenizer used for zero shot classification should contain a PAD id"
-                    ); max_len - input.len()]);
-                    input
-                })
-                .map(|input| Tensor::of_slice(&(input)))
-                .collect::<Vec<_>>();
+        let pad_id = self
+            .tokenizer
+            .get_pad_id()
+            .expect("The Tokenizer used for sequence classification should contain a PAD id");
+        let tokenized_input_tensors = tokenized_input
+            .into_iter()
+            .map(|mut input| {
+                input.token_ids.resize(max_len, pad_id);
+                Tensor::of_slice(&(input.token_ids))
+            })
+            .collect::<Vec<_>>();
 
         let tokenized_input_tensors =
             Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device());
