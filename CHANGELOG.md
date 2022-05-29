@@ -2,16 +2,19 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [0.18.0] - 2022-05-29
 ## Added
 - Addition of the DeBERTa language model and support for question answering, sequence and token classification
 - Addition of the DeBERTa v2/v3 language model and support for question answering, sequence and token classification
 - Addition of a `new_with_tokenizer` method allowing building language model generator with a custom tokenizer (or pairing a tokenizer that was not originally designed with the model, e.g. T5 tokenizer with GPT2 model).
 - (BREAKING) Addition of support for mT5 model, addition of new optional fields to T5Config
 - Addition of `token_scores` field when `output_scores` is set to `true` for generation, returning the score for each token generated
+- Addition of `offsets` to entities generated in the `NER` pipeline
 
 ## Changed
 - (BREAKING) Updated `Resources`, moving `RemoteResource` and associated download utilities/dependencies behind a feature gate (enabled by default). Reworked the API for building and using resources. 
-- Upgraded to `torch` 1.11 (via `tch` 0.7.0)
+- Upgraded to `torch` 1.11 (via `tch` 0.7.2)
 - Simplified token classification pipeline and mode aggregation now deterministic (fall back to the highest score for equally common labels)
 
 ## Fixed
