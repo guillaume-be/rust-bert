@@ -59,6 +59,11 @@ impl T5ModelResources {
         "t5-base/model",
         "https://huggingface.co/t5-base/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
+    pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
+        "sentence-t5-base/model",
+        "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/rust_model.ot",
+    );
 }
 
 impl T5ConfigResources {
@@ -72,6 +77,11 @@ impl T5ConfigResources {
         "t5-base/config",
         "https://huggingface.co/t5-base/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
+    pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
+        "sentence-t5-base/config",
+        "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/config.json",
+    );
 }
 
 impl T5VocabResources {
@@ -84,6 +94,11 @@ impl T5VocabResources {
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/spiece",
         "https://huggingface.co/t5-base/resolve/main/spiece.model",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
+    pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
+        "sentence-t5-base/spiece",
+        "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/spiece.model",
     );
 }
 

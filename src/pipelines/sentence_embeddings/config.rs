@@ -1,8 +1,13 @@
 use serde::{Deserialize, Serialize};
 use tch::Device;
 
+use crate::bert::{BertConfigResources, BertModelResources, BertVocabResources};
 use crate::pipelines::common::ModelType;
-use crate::resources::ResourceProvider;
+use crate::pipelines::sentence_embeddings::{
+    SentenceEmbeddingsModulesConfigResources, SentenceEmbeddingsPoolingConfigResources,
+    SentenceEmbeddingsTokenizerConfigResources,
+};
+use crate::resources::{RemoteResource, ResourceProvider};
 use crate::{Config, RustBertError};
 
 pub struct SentenceEmbeddingsConfig {
@@ -17,6 +22,36 @@ pub struct SentenceEmbeddingsConfig {
     pub tokenizer_vocab_resource: Box<dyn ResourceProvider + Send>,
     pub tokenizer_merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     pub device: Device,
+}
+
+impl Default for SentenceEmbeddingsConfig {
+    fn default() -> Self {
+        SentenceEmbeddingsConfig {
+            modules_config_resource: Box::new(RemoteResource::from_pretrained(
+                SentenceEmbeddingsModulesConfigResources::ALL_MINI_LM_L12_V2,
+            )),
+            transformer_type: ModelType::Bert,
+            transformer_config_resource: Box::new(RemoteResource::from_pretrained(
+                BertConfigResources::ALL_MINI_LM_L12_V2,
+            )),
+            transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
+                BertModelResources::ALL_MINI_LM_L12_V2,
+            )),
+            pooling_config_resource: Box::new(RemoteResource::from_pretrained(
+                SentenceEmbeddingsPoolingConfigResources::ALL_MINI_LM_L12_V2,
+            )),
+            dense_config_resource: None,
+            dense_weights_resource: None,
+            tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
+                SentenceEmbeddingsTokenizerConfigResources::ALL_MINI_LM_L12_V2,
+            )),
+            tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
+                BertVocabResources::ALL_MINI_LM_L12_V2,
+            )),
+            tokenizer_merges_resource: None,
+            device: Device::cuda_if_available(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

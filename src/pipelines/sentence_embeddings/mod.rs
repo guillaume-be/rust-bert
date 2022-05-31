@@ -2,6 +2,7 @@ pub mod builder;
 mod config;
 pub mod layers;
 mod pipeline;
+mod resources;
 
 pub use builder::SentenceEmbeddingsBuilder;
 pub use config::{
@@ -11,6 +12,12 @@ pub use config::{
 pub use pipeline::{
     SentenceEmbeddingsModel, SentenceEmbeddingsModelOuput, SentenceEmbeddingsOption,
     SentenceEmbeddingsTokenizerOuput,
+};
+
+pub use resources::{
+    SentenceEmbeddingsDenseConfigResources, SentenceEmbeddingsDenseResources,
+    SentenceEmbeddingsModulesConfigResources, SentenceEmbeddingsPoolingConfigResources,
+    SentenceEmbeddingsTokenizerConfigResources,
 };
 
 pub type Attention = Vec<f32>; // Length = sequence length

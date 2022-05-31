@@ -69,6 +69,11 @@ impl RobertaModelResources {
         "xlm-roberta-ner-es/model",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 licenseat <https://huggingface.co/sentence-transformers/all-distilroberta-v1>. Modified with conversion to C-array format.
+    pub const ALL_DISTILROBERTA_V1: (&'static str, &'static str) = (
+        "all-distilroberta-v1/model",
+        "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/rust_model.ot",
+    );
 }
 
 impl RobertaConfigResources {
@@ -106,6 +111,11 @@ impl RobertaConfigResources {
     pub const XLM_ROBERTA_NER_ES: (&'static str, &'static str) = (
         "xlm-roberta-ner-es/config",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/config.json",
+    );
+    /// Shared under Apache 2.0 licenseat <https://huggingface.co/sentence-transformers/all-distilroberta-v1>. Modified with conversion to C-array format.
+    pub const ALL_DISTILROBERTA_V1: (&'static str, &'static str) = (
+        "all-distilroberta-v1/config",
+        "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/config.json",
     );
 }
 
@@ -145,6 +155,11 @@ impl RobertaVocabResources {
         "xlm-roberta-ner-es/spiece",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/sentencepiece.bpe.model",
     );
+    /// Shared under Apache 2.0 licenseat <https://huggingface.co/sentence-transformers/all-distilroberta-v1>. Modified with conversion to C-array format.
+    pub const ALL_DISTILROBERTA_V1: (&'static str, &'static str) = (
+        "all-distilroberta-v1/vocab",
+        "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/vocab.json",
+    );
 }
 
 impl RobertaMergesResources {
@@ -162,6 +177,11 @@ impl RobertaMergesResources {
     pub const ROBERTA_QA: (&'static str, &'static str) = (
         "roberta-qa/merges",
         "https://huggingface.co/deepset/roberta-base-squad2/resolve/main/merges.txt",
+    );
+    /// Shared under Apache 2.0 licenseat <https://huggingface.co/sentence-transformers/all-distilroberta-v1>. Modified with conversion to C-array format.
+    pub const ALL_DISTILROBERTA_V1: (&'static str, &'static str) = (
+        "all-distilroberta-v1/merges",
+        "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/merges.txt",
     );
 }
 
