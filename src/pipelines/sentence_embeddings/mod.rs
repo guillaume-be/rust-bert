@@ -45,9 +45,9 @@ pub use pipeline::{
 };
 
 pub use resources::{
-    SentenceEmbeddingsDenseConfigResources, SentenceEmbeddingsDenseResources,
-    SentenceEmbeddingsModulesConfigResources, SentenceEmbeddingsPoolingConfigResources,
-    SentenceEmbeddingsTokenizerConfigResources,
+    SentenceEmbeddingsConfigResources, SentenceEmbeddingsDenseConfigResources,
+    SentenceEmbeddingsDenseResources, SentenceEmbeddingsModulesConfigResources,
+    SentenceEmbeddingsPoolingConfigResources, SentenceEmbeddingsTokenizerConfigResources,
 };
 
 /// Length = sequence length

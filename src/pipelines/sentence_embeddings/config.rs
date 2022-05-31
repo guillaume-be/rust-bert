@@ -1,13 +1,18 @@
 use serde::{Deserialize, Serialize};
 use tch::Device;
 
-use crate::bert::{BertConfigResources, BertModelResources, BertVocabResources};
 use crate::pipelines::common::ModelType;
-use crate::pipelines::sentence_embeddings::resources::{
-    SentenceEmbeddingsModulesConfigResources, SentenceEmbeddingsPoolingConfigResources,
-    SentenceEmbeddingsTokenizerConfigResources,
+use crate::resources::ResourceProvider;
+
+#[cfg(feature = "remote")]
+use crate::{
+    bert::{BertConfigResources, BertModelResources, BertVocabResources},
+    pipelines::sentence_embeddings::resources::{
+        SentenceEmbeddingsConfigResources, SentenceEmbeddingsModulesConfigResources,
+        SentenceEmbeddingsPoolingConfigResources, SentenceEmbeddingsTokenizerConfigResources,
+    },
+    resources::RemoteResource,
 };
-use crate::resources::{RemoteResource, ResourceProvider};
 use crate::{Config, RustBertError};
 
 /// # Configuration for sentence embeddings
@@ -41,6 +46,7 @@ pub struct SentenceEmbeddingsConfig {
     pub device: Device,
 }
 
+#[cfg(feature = "remote")]
 impl Default for SentenceEmbeddingsConfig {
     fn default() -> SentenceEmbeddingsConfig {
         SentenceEmbeddingsConfig {
@@ -59,6 +65,9 @@ impl Default for SentenceEmbeddingsConfig {
             )),
             dense_config_resource: None,
             dense_weights_resource: None,
+            sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+                SentenceEmbeddingsConfigResources::ALL_MINI_LM_L12_V2,
+            )),
             tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
                 SentenceEmbeddingsTokenizerConfigResources::ALL_MINI_LM_L12_V2,
             )),

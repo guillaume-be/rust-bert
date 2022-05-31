@@ -5,10 +5,10 @@ use rust_bert::distilbert::{
 };
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::sentence_embeddings::{
-    SentenceEmbeddingsConfig, SentenceEmbeddingsDenseConfigResources,
-    SentenceEmbeddingsDenseResources, SentenceEmbeddingsModel,
-    SentenceEmbeddingsModulesConfigResources, SentenceEmbeddingsPoolingConfigResources,
-    SentenceEmbeddingsTokenizerConfigResources,
+    SentenceEmbeddingsConfig, SentenceEmbeddingsConfigResources,
+    SentenceEmbeddingsDenseConfigResources, SentenceEmbeddingsDenseResources,
+    SentenceEmbeddingsModel, SentenceEmbeddingsModulesConfigResources,
+    SentenceEmbeddingsPoolingConfigResources, SentenceEmbeddingsTokenizerConfigResources,
 };
 use rust_bert::resources::RemoteResource;
 use rust_bert::roberta::{
@@ -40,6 +40,9 @@ fn sbert_distilbert() -> anyhow::Result<()> {
         dense_weights_resource: Some(Box::new(RemoteResource::from_pretrained(
             SentenceEmbeddingsDenseResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
         ))),
+        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+            SentenceEmbeddingsConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+        )),
         tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
             SentenceEmbeddingsTokenizerConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
         )),
@@ -91,6 +94,9 @@ fn sbert_bert() -> anyhow::Result<()> {
         )),
         dense_config_resource: None,
         dense_weights_resource: None,
+        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+            SentenceEmbeddingsConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
+        )),
         tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
             SentenceEmbeddingsTokenizerConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
         )),
@@ -142,6 +148,9 @@ fn sbert_bert_small() -> anyhow::Result<()> {
         )),
         dense_config_resource: None,
         dense_weights_resource: None,
+        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+            SentenceEmbeddingsConfigResources::ALL_MINI_LM_L12_V2,
+        )),
         tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
             SentenceEmbeddingsTokenizerConfigResources::ALL_MINI_LM_L12_V2,
         )),
@@ -192,6 +201,9 @@ fn sbert_distilroberta() -> anyhow::Result<()> {
         )),
         dense_config_resource: None,
         dense_weights_resource: None,
+        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+            SentenceEmbeddingsConfigResources::ALL_DISTILROBERTA_V1,
+        )),
         tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
             SentenceEmbeddingsTokenizerConfigResources::ALL_DISTILROBERTA_V1,
         )),
@@ -245,6 +257,9 @@ fn sbert_albert() -> anyhow::Result<()> {
         )),
         dense_config_resource: None,
         dense_weights_resource: None,
+        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+            SentenceEmbeddingsConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
+        )),
         tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
             SentenceEmbeddingsTokenizerConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
         )),
@@ -300,6 +315,9 @@ fn sbert_t5() -> anyhow::Result<()> {
         dense_weights_resource: Some(Box::new(RemoteResource::from_pretrained(
             SentenceEmbeddingsDenseResources::SENTENCE_T5_BASE,
         ))),
+        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+            SentenceEmbeddingsConfigResources::SENTENCE_T5_BASE,
+        )),
         tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
             SentenceEmbeddingsTokenizerConfigResources::SENTENCE_T5_BASE,
         )),

@@ -16,7 +16,6 @@ use crate::common::activations::_gelu;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::roberta::embeddings::RobertaEmbeddings;
-use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::Init;
 use tch::{nn, Tensor};

@@ -41,7 +41,7 @@
 //! let mut vs = nn::VarStore::new(device);
 //! let tokenizer = T5Tokenizer::from_file(spiece_path.to_str().unwrap(), true);
 //! let config = T5Config::from_file(config_path);
-//! let t5_model = T5ForConditionalGeneration::new(&vs.root(), &config, false, false);
+//! let t5_model = T5ForConditionalGeneration::new(&vs.root(), &config);
 //! vs.load(weights_path)?;
 //!
 //! # Ok(())
