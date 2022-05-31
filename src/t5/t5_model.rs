@@ -252,8 +252,6 @@ impl T5Model {
     ///
     /// * `p` - Variable store path for the root of the BART model
     /// * `config` - `T5Config` object defining the model architecture
-    /// * `output_attention` - flag indicating if the model should output the attention weights of intermediate layers
-    /// * `output_hidden_states` - flag indicating if the model should output the hidden states weights of intermediate layers
     ///
     /// # Example
     ///
@@ -267,13 +265,9 @@ impl T5Model {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = T5Config::from_file(config_path);
-    /// let output_attentions = true;
-    /// let output_hidden_states = true;
     /// let t5: T5Model = T5Model::new(
     ///     &p.root() / "t5",
     ///     &config,
-    ///     output_attentions,
-    ///     output_hidden_states,
     /// );
     /// ```
     pub fn new<'p, P>(p: P, config: &T5Config) -> T5Model
@@ -464,8 +458,6 @@ impl T5ForConditionalGeneration {
     ///
     /// * `p` - Variable store path for the root of the BART model
     /// * `config` - `T5Config` object defining the model architecture
-    /// * `output_attention` - flag indicating if the model should output the attention weights of intermediate layers
-    /// * `output_hidden_states` - flag indicating if the model should output the hidden states weights of intermediate layers
     ///
     /// # Example
     ///
@@ -479,13 +471,9 @@ impl T5ForConditionalGeneration {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = T5Config::from_file(config_path);
-    /// let output_attentions = true;
-    /// let output_hidden_states = true;
     /// let t5 = T5ForConditionalGeneration::new(
     ///     &p.root() / "t5",
     ///     &config,
-    ///     output_attentions,
-    ///     output_hidden_states,
     /// );
     /// ```
     pub fn new<'p, P>(p: P, config: &T5Config) -> T5ForConditionalGeneration
@@ -758,12 +746,22 @@ impl LMHeadModel for T5ForConditionalGeneration {
     }
 }
 
+/// # T5 for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
 pub struct T5ForSentenceEmbeddings {
     embeddings: nn::Embedding,
     encoder: T5Stack,
 }
 
 impl T5ForSentenceEmbeddings {
+    /// Build a new `T5ForSentenceEmbeddings`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BART model
+    /// * `config` - `T5Config` object defining the model architecture
+    ///
+    /// It consists of only an encoder (there is no decoder).
     pub fn new<'p, P>(p: P, config: &T5Config) -> Self
     where
         P: Borrow<nn::Path<'p>>,
@@ -792,6 +790,18 @@ impl T5ForSentenceEmbeddings {
         }
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Input of shape (*batch size*, *source_sequence_length*).
+    /// * `mask` - Attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    ///
+    /// # Returns
+    ///
+    /// * Tuple containing:
+    ///   - `Tensor` of shape (*batch size*, *target_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
+    ///   - `Option<Vec<Tensor>>` of length *num_encoder_layers* of shape (*batch size*, *target_sequence_length*, *hidden_size*)  representing attention weights for all layers of the encoder
     pub fn forward(
         &self,
         input_ids: &Tensor,

@@ -993,41 +993,9 @@ impl RobertaForQuestionAnswering {
     }
 }
 
-pub struct RobertaForSentenceEmbeddings {
-    transformer: BertModel<RobertaEmbeddings>,
-}
-
-impl RobertaForSentenceEmbeddings {
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> Self
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        let transformer =
-            BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p, config, false);
-        RobertaForSentenceEmbeddings { transformer }
-    }
-
-    pub fn forward(
-        &self,
-        input_ids: &Tensor,
-        mask: &Tensor,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
-        let transformer_output = self.transformer.forward_t(
-            Some(input_ids),
-            Some(mask),
-            None,
-            None,
-            None,
-            None,
-            None,
-            false,
-        )?;
-        Ok((
-            transformer_output.hidden_state,
-            transformer_output.all_attentions,
-        ))
-    }
-}
+/// # RoBERTa for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
+pub type RobertaForSentenceEmbeddings = BertModel<RobertaEmbeddings>;
 
 /// Container for the RoBERTa masked LM model output.
 pub struct RobertaMaskedLMOutput {

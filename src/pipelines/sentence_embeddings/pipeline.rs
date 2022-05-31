@@ -11,7 +11,8 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::pipelines::sentence_embeddings::layers::{Dense, DenseConfig, Pooling, PoolingConfig};
 use crate::pipelines::sentence_embeddings::{
     AttentionHead, AttentionLayer, AttentionOutput, Embedding, SentenceEmbeddingsConfig,
-    SentenceEmbeddingsModules, SentenceEmbeddingsTokenizerConfig,
+    SentenceEmbeddingsModulesConfig, SentenceEmbeddingsSentenceBertConfig,
+    SentenceEmbeddingsTokenizerConfig,
 };
 use crate::roberta::RobertaForSentenceEmbeddings;
 use crate::t5::T5ForSentenceEmbeddings;
@@ -32,6 +33,13 @@ pub enum SentenceEmbeddingsOption {
 }
 
 impl SentenceEmbeddingsOption {
+    /// Instantiate a new sentence embeddings transformer of the supplied type.
+    ///
+    /// # Arguments
+    ///
+    /// * `transformer_type` - `ModelType` indicating the transformer model type to load (must match with the actual data to be loaded)
+    /// * `p` - `tch::nn::Path` path to the model file to load (e.g. rust_model.ot)
+    /// * `config` - A configuration (the transformer model type of the configuration must be compatible with the value for `transformer_type`)
     pub fn new<'p, P>(
         transformer_type: ModelType,
         p: P,
@@ -48,9 +56,11 @@ impl SentenceEmbeddingsOption {
                 p,
                 &(config.try_into()?),
             )),
-            ModelType::Roberta => {
-                Roberta(RobertaForSentenceEmbeddings::new(p, &(config.try_into()?)))
-            }
+            ModelType::Roberta => Roberta(RobertaForSentenceEmbeddings::new_with_optional_pooler(
+                p,
+                &(config.try_into()?),
+                false,
+            )),
             ModelType::Albert => Albert(AlbertForSentenceEmbeddings::new(p, &(config.try_into()?))),
             ModelType::T5 => T5(T5ForSentenceEmbeddings::new(p, &(config.try_into()?))),
             _ => {
@@ -64,25 +74,93 @@ impl SentenceEmbeddingsOption {
         Ok(option)
     }
 
+    /// Interface method to forward() of the particular transformer models.
     pub fn forward(
         &self,
         tokens_ids: &Tensor,
         tokens_masks: &Tensor,
     ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
         match self {
-            Self::Bert(model) => model.forward(tokens_ids, tokens_masks),
-            Self::DistilBert(model) => model.forward(tokens_ids, tokens_masks),
-            Self::Roberta(model) => model.forward(tokens_ids, tokens_masks),
-            Self::Albert(model) => model.forward(tokens_ids, tokens_masks),
-            Self::T5(model) => model.forward(tokens_ids, tokens_masks),
+            Self::Bert(transformer) => transformer
+                .forward_t(
+                    Some(tokens_ids),
+                    Some(tokens_masks),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .map(|transformer_output| {
+                    (
+                        transformer_output.hidden_state,
+                        transformer_output.all_attentions,
+                    )
+                }),
+            Self::DistilBert(transformer) => transformer
+                .forward_t(Some(tokens_ids), Some(tokens_masks), None, false)
+                .map(|transformer_output| {
+                    (
+                        transformer_output.hidden_state,
+                        transformer_output.all_attentions,
+                    )
+                }),
+            Self::Roberta(transformer) => transformer
+                .forward_t(
+                    Some(tokens_ids),
+                    Some(tokens_masks),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .map(|transformer_output| {
+                    (
+                        transformer_output.hidden_state,
+                        transformer_output.all_attentions,
+                    )
+                }),
+            Self::Albert(transformer) => transformer
+                .forward_t(
+                    Some(tokens_ids),
+                    Some(tokens_masks),
+                    None,
+                    None,
+                    None,
+                    false,
+                )
+                .map(|transformer_output| {
+                    (
+                        transformer_output.hidden_state,
+                        transformer_output.all_attentions.map(|attentions| {
+                            attentions
+                                .into_iter()
+                                .map(|tensors| {
+                                    let num_inner_groups = tensors.len() as f64;
+                                    tensors.into_iter().sum::<Tensor>() / num_inner_groups
+                                })
+                                .collect()
+                        }),
+                    )
+                }),
+            Self::T5(transformer) => transformer.forward(tokens_ids, tokens_masks),
         }
     }
 }
 
 /// # SentenceEmbeddingsModel to perform sentence embeddings
+///
+/// It is made of the following blocks:
+/// - `transformer`: Base transformer model
+/// - `pooling`: Pooling layer
+/// - `dense` _(optional)_: Linear (feed forward) layer
+/// - `normalization` _(optional)_: Embeddings normalization
 pub struct SentenceEmbeddingsModel {
+    sentence_bert_config: SentenceEmbeddingsSentenceBertConfig,
     tokenizer: TokenizerOption,
-    tokenizer_config: SentenceEmbeddingsTokenizerConfig,
     tokenizer_truncation_strategy: TruncationStrategy,
     var_store: nn::VarStore,
     transformer: SentenceEmbeddingsOption,
@@ -93,9 +171,15 @@ pub struct SentenceEmbeddingsModel {
 }
 
 impl SentenceEmbeddingsModel {
+    /// Build a new `SentenceEmbeddingsModel`
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - `SentenceEmbeddingsConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
     pub fn new(config: SentenceEmbeddingsConfig) -> Result<Self, RustBertError> {
         let SentenceEmbeddingsConfig {
             modules_config_resource,
+            sentence_bert_config_resource,
             tokenizer_config_resource,
             tokenizer_vocab_resource,
             tokenizer_merges_resource,
@@ -106,12 +190,36 @@ impl SentenceEmbeddingsModel {
             dense_config_resource,
             dense_weights_resource,
             device,
-            ..
         } = config;
 
         let modules =
-            SentenceEmbeddingsModules::from_file(modules_config_resource.get_local_path()?)
+            SentenceEmbeddingsModulesConfig::from_file(modules_config_resource.get_local_path()?)
                 .validate()?;
+
+        // Setup tokenizer
+
+        let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
+            tokenizer_config_resource.get_local_path()?,
+        );
+        let sentence_bert_config = SentenceEmbeddingsSentenceBertConfig::from_file(
+            sentence_bert_config_resource.get_local_path()?,
+        );
+        let tokenizer = TokenizerOption::from_file(
+            transformer_type,
+            tokenizer_vocab_resource
+                .get_local_path()?
+                .to_string_lossy()
+                .as_ref(),
+            tokenizer_merges_resource
+                .as_ref()
+                .map(|resource| resource.get_local_path())
+                .transpose()?
+                .map(|path| path.to_string_lossy().into_owned())
+                .as_deref(),
+            sentence_bert_config.do_lower_case,
+            tokenizer_config.strip_accents,
+            tokenizer_config.add_prefix_space,
+        )?;
 
         // Setup transformer
 
@@ -127,35 +235,6 @@ impl SentenceEmbeddingsModel {
         )?;
         var_store.load(transformer_weights_resource.get_local_path()?)?;
 
-        // Setup tokenizer
-
-        let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
-            tokenizer_config_resource.get_local_path()?,
-        );
-        let strip_accents = match transformer {
-            SentenceEmbeddingsOption::Roberta(_)
-            | SentenceEmbeddingsOption::Albert(_)
-            | SentenceEmbeddingsOption::T5(_) => None,
-            _ => Some(false),
-        };
-        let add_prefix_space = None;
-        let tokenizer = TokenizerOption::from_file(
-            transformer_type,
-            tokenizer_vocab_resource
-                .get_local_path()?
-                .to_string_lossy()
-                .as_ref(),
-            tokenizer_merges_resource
-                .as_ref()
-                .map(|resource| resource.get_local_path())
-                .transpose()?
-                .map(|path| path.to_string_lossy().into_owned())
-                .as_deref(),
-            tokenizer_config.do_lower_case,
-            strip_accents,
-            add_prefix_space,
-        )?;
-
         // Setup pooling layer
 
         let pooling_config = PoolingConfig::from_file(pooling_config_resource.get_local_path()?);
@@ -163,22 +242,23 @@ impl SentenceEmbeddingsModel {
 
         // Setup dense layer
 
-        let mut dense_layer = None;
-        if modules.dense_module().is_some() {
+        let dense_layer = if modules.dense_module().is_some() {
             let dense_config =
                 DenseConfig::from_file(dense_config_resource.unwrap().get_local_path()?);
-            dense_layer = Some(Dense::new(
+            Some(Dense::new(
                 dense_config,
                 dense_weights_resource.unwrap().get_local_path()?,
                 device,
-            )?);
-        }
+            )?)
+        } else {
+            None
+        };
 
         let normalize_embeddings = modules.has_normalization();
 
         Ok(Self {
             tokenizer,
-            tokenizer_config,
+            sentence_bert_config,
             tokenizer_truncation_strategy: TruncationStrategy::LongestFirst,
             var_store,
             transformer,
@@ -189,17 +269,19 @@ impl SentenceEmbeddingsModel {
         })
     }
 
+    /// Sets the tokenizer's truncation strategy
     pub fn set_tokenizer_truncation(&mut self, truncation_strategy: TruncationStrategy) {
         self.tokenizer_truncation_strategy = truncation_strategy;
     }
 
+    /// Tokenizes the inputs
     pub fn tokenize<S>(&self, inputs: &[S]) -> SentenceEmbeddingsTokenizerOuput
     where
         S: AsRef<str> + Sync,
     {
         let tokenized_input = self.tokenizer.encode_list(
             inputs,
-            self.tokenizer_config.max_seq_length,
+            self.sentence_bert_config.max_seq_length,
             &self.tokenizer_truncation_strategy,
             0,
         );
@@ -243,7 +325,11 @@ impl SentenceEmbeddingsModel {
         }
     }
 
-    pub fn forward<S>(&self, inputs: &[S]) -> Result<SentenceEmbeddingsModelOuput, RustBertError>
+    /// Computes sentence embeddings, outputs `Tensor`.
+    pub fn encode_as_tensor<S>(
+        &self,
+        inputs: &[S],
+    ) -> Result<SentenceEmbeddingsModelOuput, RustBertError>
     where
         S: AsRef<str> + Sync,
     {
@@ -279,11 +365,12 @@ impl SentenceEmbeddingsModel {
         })
     }
 
+    /// Computes sentence embeddings.
     pub fn encode<S>(&self, inputs: &[S]) -> Result<Vec<Embedding>, RustBertError>
     where
         S: AsRef<str> + Sync,
     {
-        let SentenceEmbeddingsModelOuput { embeddings, .. } = self.forward(inputs)?;
+        let SentenceEmbeddingsModelOuput { embeddings, .. } = self.encode_as_tensor(inputs)?;
         Ok(Vec::from(embeddings))
     }
 
@@ -319,6 +406,7 @@ impl SentenceEmbeddingsModel {
         }
     }
 
+    /// Computes sentence embeddings, also outputs `AttentionOutput`s.
     pub fn encode_with_attention<S>(
         &self,
         inputs: &[S],
@@ -329,7 +417,7 @@ impl SentenceEmbeddingsModel {
         let SentenceEmbeddingsModelOuput {
             embeddings,
             all_attentions,
-        } = self.forward(inputs)?;
+        } = self.encode_as_tensor(inputs)?;
 
         let embeddings = Vec::from(embeddings);
         let all_attentions = all_attentions.ok_or_else(|| {
@@ -359,11 +447,13 @@ impl SentenceEmbeddingsModel {
     }
 }
 
+/// Container for the SentenceEmbeddings tokenizer output.
 pub struct SentenceEmbeddingsTokenizerOuput {
     pub tokens_ids: Vec<Tensor>,
     pub tokens_masks: Vec<Tensor>,
 }
 
+/// Container for the SentenceEmbeddings model output.
 pub struct SentenceEmbeddingsModelOuput {
     pub embeddings: Tensor,
     pub all_attentions: Option<Vec<Tensor>>,

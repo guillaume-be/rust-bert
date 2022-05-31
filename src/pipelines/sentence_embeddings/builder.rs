@@ -5,18 +5,22 @@ use tch::Device;
 
 use crate::pipelines::common::ModelType;
 use crate::pipelines::sentence_embeddings::{
-    SentenceEmbeddingsConfig, SentenceEmbeddingsModel, SentenceEmbeddingsModules,
+    SentenceEmbeddingsConfig, SentenceEmbeddingsModel, SentenceEmbeddingsModulesConfig,
 };
 use crate::{Config, RustBertError};
 
+/// # SentenceEmbeddings Model Builder
+///
+/// Allows the user to build a model from standard Sentence-Transformer files
+/// (configuration and weights).
 pub struct SentenceEmbeddingsBuilder<T> {
-    device: Option<Device>,
+    device: Device,
     inner: T,
 }
 
 impl<T> SentenceEmbeddingsBuilder<T> {
     pub fn with_device(mut self, device: Device) -> Self {
-        self.device = Some(device);
+        self.device = device;
         self
     }
 }
@@ -24,7 +28,7 @@ impl<T> SentenceEmbeddingsBuilder<T> {
 impl SentenceEmbeddingsBuilder<Local> {
     pub fn local<P: Into<PathBuf>>(model_dir: P) -> Self {
         Self {
-            device: None,
+            device: Device::cuda_if_available(),
             inner: Local {
                 model_dir: model_dir.into(),
             },
@@ -35,7 +39,7 @@ impl SentenceEmbeddingsBuilder<Local> {
         let model_dir = self.inner.model_dir;
 
         let modules_config = model_dir.join("modules.json");
-        let modules = SentenceEmbeddingsModules::from_file(&modules_config).validate()?;
+        let modules = SentenceEmbeddingsModulesConfig::from_file(&modules_config).validate()?;
 
         let transformer_config = model_dir.join("config.json");
         let transformer_type = ModelConfig::from_file(&transformer_config).model_type;
@@ -55,7 +59,8 @@ impl SentenceEmbeddingsBuilder<Local> {
             })
             .unwrap_or((None, None));
 
-        let tokenizer_config = model_dir.join("sentence_bert_config.json");
+        let tokenizer_config = model_dir.join("tokenizer_config.json");
+        let sentence_bert_config = model_dir.join("sentence_bert_config.json");
         let (tokenizer_vocab, tokenizer_merges) = match transformer_type {
             ModelType::Bert | ModelType::DistilBert => (model_dir.join("vocab.txt"), None),
             ModelType::Roberta => (
@@ -72,10 +77,6 @@ impl SentenceEmbeddingsBuilder<Local> {
             }
         };
 
-        let device = self.device.ok_or_else(|| {
-            RustBertError::InvalidConfigurationError("Missing device configuration".into())
-        })?;
-
         let config = SentenceEmbeddingsConfig {
             modules_config_resource: modules_config.into(),
             transformer_type,
@@ -84,10 +85,11 @@ impl SentenceEmbeddingsBuilder<Local> {
             pooling_config_resource: pooling_config.into(),
             dense_config_resource: dense_config.map(|r| r.into()),
             dense_weights_resource: dense_weights.map(|r| r.into()),
+            sentence_bert_config_resource: sentence_bert_config.into(),
             tokenizer_config_resource: tokenizer_config.into(),
             tokenizer_vocab_resource: tokenizer_vocab.into(),
             tokenizer_merges_resource: tokenizer_merges.map(|r| r.into()),
-            device,
+            device: self.device,
         };
 
         SentenceEmbeddingsModel::new(config)

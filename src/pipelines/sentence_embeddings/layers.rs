@@ -6,17 +6,27 @@ use tch::{nn, Device, Kind, Tensor};
 use crate::common::activations::{Activation, TensorFunction};
 use crate::{Config, RustBertError};
 
+/// Configuration for [`Pooling`](Pooling) layer.
 #[derive(Debug, Deserialize)]
 pub struct PoolingConfig {
+    /// Dimensions for the word embeddings
     pub word_embedding_dimension: i64,
+    /// Use the first token (CLS token) as text representations
     pub pooling_mode_cls_token: bool,
+    /// Use max in each dimension over all tokens
     pub pooling_mode_max_tokens: bool,
+    /// Perform mean-pooling
     pub pooling_mode_mean_tokens: bool,
+    /// Perform mean-pooling, but devide by sqrt(input_length)
     pub pooling_mode_mean_sqrt_len_tokens: bool,
 }
 
 impl Config for PoolingConfig {}
 
+/// Performs pooling (max or mean) on the token embeddings.
+///
+/// Using pooling, it generates from a variable sized sentence a fixed sized sentence
+/// embedding. You can concatenate multiple poolings together.
 pub struct Pooling {
     conf: PoolingConfig,
 }
@@ -62,11 +72,16 @@ impl Pooling {
     }
 }
 
+/// Configuration for [`Dense`](Dense) layer.
 #[derive(Debug, Deserialize)]
 pub struct DenseConfig {
+    /// Size of the input dimension
     pub in_features: i64,
+    /// Output size
     pub out_features: i64,
+    /// Add a bias vector
     pub bias: bool,
+    /// Activation function applied on output
     #[serde(deserialize_with = "last_part")]
     pub activation_function: Activation,
 }
@@ -89,11 +104,14 @@ where
         .map_err(de::Error::custom)
 }
 
+/// Feed-forward function with activiation function.
+///
+/// This layer takes a fixed-sized sentence embedding and passes it through a
+/// feed-forward layer. Can be used to generate deep averaging networs (DAN).
 pub struct Dense {
     linear: nn::Linear,
     activation: TensorFunction,
     _var_store: nn::VarStore,
-    _conf: DenseConfig,
 }
 
 impl Dense {
@@ -124,7 +142,6 @@ impl Dense {
             linear,
             activation,
             _var_store: vs_dense,
-            _conf: dense_conf,
         })
     }
 

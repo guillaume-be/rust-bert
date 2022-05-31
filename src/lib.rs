@@ -466,6 +466,7 @@
 //! Output: \
 //! ```no_run
 //! # use rust_bert::pipelines::ner::Entity;
+//! # use rust_tokenizers::Offset;
 //! # let output =
 //! [
 //!     [
@@ -473,11 +474,13 @@
 //!             word: String::from("Amy"),
 //!             score: 0.9986,
 //!             label: String::from("I-PER"),
+//!             offset: Offset { begin: 11, end: 14 },
 //!         },
 //!         Entity {
 //!             word: String::from("Paris"),
 //!             score: 0.9985,
 //!             label: String::from("I-LOC"),
+//!             offset: Offset { begin: 26, end: 31 },
 //!         },
 //!     ],
 //!     [
@@ -485,11 +488,13 @@
 //!             word: String::from("Paris"),
 //!             score: 0.9988,
 //!             label: String::from("I-LOC"),
+//!             offset: Offset { begin: 0, end: 5 },
 //!         },
 //!         Entity {
 //!             word: String::from("France"),
 //!             score: 0.9993,
 //!             label: String::from("I-LOC"),
+//!             offset: Offset { begin: 19, end: 25 },
 //!         },
 //!     ],
 //! ]

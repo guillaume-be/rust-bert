@@ -124,6 +124,7 @@ use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
+use ordered_float::OrderedFloat;
 use rust_tokenizers::tokenizer::Tokenizer;
 use rust_tokenizers::{
     ConsolidatableTokens, ConsolidatedTokenIterator, Mask, Offset, TokenIdsWithOffsets, TokenTrait,
@@ -870,10 +871,7 @@ impl TokenClassificationModel {
             .flat_map(|(example_index, example)| self.generate_features(example, example_index))
             .collect();
 
-        let mut example_tokens_map: HashMap<usize, Vec<Token>> = HashMap::new();
-        for example_idx in 0..input.len() {
-            example_tokens_map.insert(example_idx, Vec::new());
-        }
+        let mut example_tokens_map: Vec<Vec<Token>> = vec![Vec::new(); input.len()];
         let mut start = 0usize;
         let len_features = features.len();
 
@@ -927,23 +925,13 @@ impl TokenClassificationModel {
                                 word_idx,
                             )
                         };
-                        example_tokens_map
-                            .get_mut(&(feature.example_index))
-                            .unwrap()
-                            .push(token);
+                        example_tokens_map[feature.example_index].push(token);
                     }
                 }
             });
             start = end;
         }
-        let mut tokens = example_tokens_map
-            .into_iter()
-            .collect::<Vec<(usize, Vec<Token>)>>();
-        tokens.sort_by_key(|kv| kv.0);
-        let mut tokens = tokens
-            .into_iter()
-            .map(|(_, v)| v)
-            .collect::<Vec<Vec<Token>>>();
+        let mut tokens = example_tokens_map;
 
         if consolidate_sub_tokens {
             self.consolidate_tokens(&mut tokens, &self.label_aggregation_function);
@@ -962,26 +950,22 @@ impl TokenClassificationModel {
             .iter()
             .map(|feature| &feature.input_ids)
             .map(|input| {
-                let mut attention_mask = vec![1; input.len()];
-                attention_mask.append(&mut vec![0; max_len - attention_mask.len()]);
+                let mut attention_mask = Vec::with_capacity(max_len);
+                attention_mask.resize(input.len(), 1);
+                attention_mask.resize(max_len, 0);
                 attention_mask
             })
             .map(|input| Tensor::of_slice(&(input)))
             .collect::<Vec<_>>();
 
+        let padding_index = self
+            .tokenizer
+            .get_pad_id()
+            .expect("Only tokenizers with a padding index can be used for token classification");
         for feature in features.iter_mut() {
-            feature
-                .offsets
-                .append(&mut vec![None; max_len - feature.input_ids.len()]);
-            feature.input_ids.append(&mut vec![
-                self.tokenizer.get_pad_id().expect(
-                    "Only tokenizers with a padding index can be used for token classification"
-                );
-                max_len - feature.input_ids.len()
-            ]);
-            feature
-                .reference_feature
-                .append(&mut vec![false; max_len - feature.input_ids.len()]);
+            feature.input_ids.resize(max_len, padding_index);
+            feature.offsets.resize(max_len, None);
+            feature.reference_feature.resize(max_len, false);
         }
 
         let padded_input_ids = features
@@ -1142,12 +1126,16 @@ impl TokenClassificationModel {
             }
             LabelAggregationOption::Mode => {
                 let counts = tokens.iter().fold(HashMap::new(), |mut m, c| {
-                    *m.entry((c.label_index, c.label.as_str())).or_insert(0) += 1;
+                    let (ref mut count, ref mut score) = m
+                        .entry((c.label_index, c.label.as_str()))
+                        .or_insert((0, 0.0_f64));
+                    *count += 1;
+                    *score = score.max(c.score);
                     m
                 });
                 counts
                     .into_iter()
-                    .max_by(|a, b| a.1.cmp(&b.1))
+                    .max_by_key(|&(_, (count, score))| (count, OrderedFloat(score)))
                     .map(|((label_index, label), _)| (label_index, label.to_owned()))
                     .unwrap()
             }
