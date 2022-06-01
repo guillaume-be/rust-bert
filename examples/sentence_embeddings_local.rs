@@ -1,5 +1,3 @@
-extern crate anyhow;
-
 use rust_bert::pipelines::sentence_embeddings::SentenceEmbeddingsBuilder;
 
 /// Download model:
@@ -11,8 +9,6 @@ use rust_bert::pipelines::sentence_embeddings::SentenceEmbeddingsBuilder;
 ///   ```sh
 ///   python ./utils/convert_model.py resources/all-MiniLM-L12-v2/pytorch_model.bin
 ///   ```
-/// Test results based on:
-///   https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2
 fn main() -> anyhow::Result<()> {
     // Set-up sentence embeddings model
     let model = SentenceEmbeddingsBuilder::local("resources/all-MiniLM-L12-v2")

@@ -3,17 +3,28 @@ use tch::Device;
 
 use crate::pipelines::common::ModelType;
 use crate::resources::ResourceProvider;
+use crate::{Config, RustBertError};
 
 #[cfg(feature = "remote")]
 use crate::{
+    albert::{AlbertConfigResources, AlbertModelResources, AlbertVocabResources},
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
+    distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
     pipelines::sentence_embeddings::resources::{
-        SentenceEmbeddingsConfigResources, SentenceEmbeddingsModulesConfigResources,
-        SentenceEmbeddingsPoolingConfigResources, SentenceEmbeddingsTokenizerConfigResources,
+        SentenceEmbeddingsConfigResources, SentenceEmbeddingsModelType,
+        SentenceEmbeddingsModulesConfigResources, SentenceEmbeddingsPoolingConfigResources,
+        SentenceEmbeddingsTokenizerConfigResources,
+    },
+    pipelines::sentence_embeddings::{
+        SentenceEmbeddingsDenseConfigResources, SentenceEmbeddingsDenseResources,
     },
     resources::RemoteResource,
+    roberta::{
+        RobertaConfigResources, RobertaMergesResources, RobertaModelResources,
+        RobertaVocabResources,
+    },
+    t5::{T5ConfigResources, T5ModelResources, T5VocabResources},
 };
-use crate::{Config, RustBertError};
 
 /// # Configuration for sentence embeddings
 ///
@@ -47,35 +58,192 @@ pub struct SentenceEmbeddingsConfig {
 }
 
 #[cfg(feature = "remote")]
-impl Default for SentenceEmbeddingsConfig {
-    fn default() -> SentenceEmbeddingsConfig {
-        SentenceEmbeddingsConfig {
-            modules_config_resource: Box::new(RemoteResource::from_pretrained(
-                SentenceEmbeddingsModulesConfigResources::ALL_MINI_LM_L12_V2,
-            )),
-            transformer_type: ModelType::Bert,
-            transformer_config_resource: Box::new(RemoteResource::from_pretrained(
-                BertConfigResources::ALL_MINI_LM_L12_V2,
-            )),
-            transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
-                BertModelResources::ALL_MINI_LM_L12_V2,
-            )),
-            pooling_config_resource: Box::new(RemoteResource::from_pretrained(
-                SentenceEmbeddingsPoolingConfigResources::ALL_MINI_LM_L12_V2,
-            )),
-            dense_config_resource: None,
-            dense_weights_resource: None,
-            sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
-                SentenceEmbeddingsConfigResources::ALL_MINI_LM_L12_V2,
-            )),
-            tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
-                SentenceEmbeddingsTokenizerConfigResources::ALL_MINI_LM_L12_V2,
-            )),
-            tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
-                BertVocabResources::ALL_MINI_LM_L12_V2,
-            )),
-            tokenizer_merges_resource: None,
-            device: Device::cuda_if_available(),
+impl From<SentenceEmbeddingsModelType> for SentenceEmbeddingsConfig {
+    fn from(model_type: SentenceEmbeddingsModelType) -> Self {
+        match model_type {
+            SentenceEmbeddingsModelType::DistiluseBaseMultilingualCased => SentenceEmbeddingsConfig {
+                modules_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsModulesConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+                )),
+                transformer_type: ModelType::DistilBert,
+                transformer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    DistilBertConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+                )),
+                transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
+                    DistilBertModelResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+                )),
+                pooling_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsPoolingConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+                )),
+                dense_config_resource: Some(Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsDenseConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+                ))),
+                dense_weights_resource: Some(Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsDenseResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+                ))),
+                sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+                )),
+                tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsTokenizerConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+                )),
+                tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
+                    DistilBertVocabResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
+                )),
+                tokenizer_merges_resource: None,
+                device: Device::cuda_if_available(),
+            },
+
+            SentenceEmbeddingsModelType::BertBaseNliMeanTokens => SentenceEmbeddingsConfig {
+                modules_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsModulesConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
+                )),
+                transformer_type: ModelType::Bert,
+                transformer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    BertConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
+                )),
+                transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
+                    BertModelResources::BERT_BASE_NLI_MEAN_TOKENS,
+                )),
+                pooling_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsPoolingConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
+                )),
+                dense_config_resource: None,
+                dense_weights_resource: None,
+                sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
+                )),
+                tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsTokenizerConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
+                )),
+                tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
+                    BertVocabResources::BERT_BASE_NLI_MEAN_TOKENS,
+                )),
+                tokenizer_merges_resource: None,
+                device: Device::cuda_if_available(),
+            },
+
+            SentenceEmbeddingsModelType::AllMiniLmL12V2 => SentenceEmbeddingsConfig {
+                modules_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsModulesConfigResources::ALL_MINI_LM_L12_V2,
+                )),
+                transformer_type: ModelType::Bert,
+                transformer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    BertConfigResources::ALL_MINI_LM_L12_V2,
+                )),
+                transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
+                    BertModelResources::ALL_MINI_LM_L12_V2,
+                )),
+                pooling_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsPoolingConfigResources::ALL_MINI_LM_L12_V2,
+                )),
+                dense_config_resource: None,
+                dense_weights_resource: None,
+                sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsConfigResources::ALL_MINI_LM_L12_V2,
+                )),
+                tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsTokenizerConfigResources::ALL_MINI_LM_L12_V2,
+                )),
+                tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
+                    BertVocabResources::ALL_MINI_LM_L12_V2,
+                )),
+                tokenizer_merges_resource: None,
+                device: Device::cuda_if_available(),
+            },
+
+            SentenceEmbeddingsModelType::AllDistilrobertaV1 => SentenceEmbeddingsConfig {
+                modules_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsModulesConfigResources::ALL_DISTILROBERTA_V1,
+                )),
+                transformer_type: ModelType::Roberta,
+                transformer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    RobertaConfigResources::ALL_DISTILROBERTA_V1,
+                )),
+                transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
+                    RobertaModelResources::ALL_DISTILROBERTA_V1,
+                )),
+                pooling_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsPoolingConfigResources::ALL_DISTILROBERTA_V1,
+                )),
+                dense_config_resource: None,
+                dense_weights_resource: None,
+                sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsConfigResources::ALL_DISTILROBERTA_V1,
+                )),
+                tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsTokenizerConfigResources::ALL_DISTILROBERTA_V1,
+                )),
+                tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
+                    RobertaVocabResources::ALL_DISTILROBERTA_V1,
+                )),
+                tokenizer_merges_resource: Some(Box::new(RemoteResource::from_pretrained(
+                    RobertaMergesResources::ALL_DISTILROBERTA_V1,
+                ))),
+                device: Device::cuda_if_available(),
+            },
+
+            SentenceEmbeddingsModelType::ParaphraseAlbertSmallV2 => SentenceEmbeddingsConfig {
+                modules_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsModulesConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
+                )),
+                transformer_type: ModelType::Albert,
+                transformer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    AlbertConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
+                )),
+                transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
+                    AlbertModelResources::PARAPHRASE_ALBERT_SMALL_V2,
+                )),
+                pooling_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsPoolingConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
+                )),
+                dense_config_resource: None,
+                dense_weights_resource: None,
+                sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
+                )),
+                tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsTokenizerConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
+                )),
+                tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
+                    AlbertVocabResources::PARAPHRASE_ALBERT_SMALL_V2,
+                )),
+                tokenizer_merges_resource: None,
+                device: Device::cuda_if_available(),
+            },
+
+            SentenceEmbeddingsModelType::SentenceT5Base => SentenceEmbeddingsConfig {
+                modules_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsModulesConfigResources::SENTENCE_T5_BASE,
+                )),
+                transformer_type: ModelType::T5,
+                transformer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    T5ConfigResources::SENTENCE_T5_BASE,
+                )),
+                transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
+                    T5ModelResources::SENTENCE_T5_BASE,
+                )),
+                pooling_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsPoolingConfigResources::SENTENCE_T5_BASE,
+                )),
+                dense_config_resource: Some(Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsDenseConfigResources::SENTENCE_T5_BASE,
+                ))),
+                dense_weights_resource: Some(Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsDenseResources::SENTENCE_T5_BASE,
+                ))),
+                sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsConfigResources::SENTENCE_T5_BASE,
+                )),
+                tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsTokenizerConfigResources::SENTENCE_T5_BASE,
+                )),
+                tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
+                    T5VocabResources::SENTENCE_T5_BASE,
+                )),
+                tokenizer_merges_resource: None,
+                device: Device::cuda_if_available(),
+            },
         }
     }
 }

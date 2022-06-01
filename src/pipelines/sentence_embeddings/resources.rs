@@ -16,6 +16,15 @@ pub struct SentenceEmbeddingsConfigResources;
 /// # Pretrained tokenizer config files for sentence embeddings
 pub struct SentenceEmbeddingsTokenizerConfigResources;
 
+pub enum SentenceEmbeddingsModelType {
+    DistiluseBaseMultilingualCased,
+    BertBaseNliMeanTokens,
+    AllMiniLmL12V2,
+    AllDistilrobertaV1,
+    ParaphraseAlbertSmallV2,
+    SentenceT5Base,
+}
+
 impl SentenceEmbeddingsModulesConfigResources {
     /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased>. Modified with conversion to C-array format.
     pub const DISTILUSE_BASE_MULTILINGUAL_CASED: (&'static str, &'static str) = (

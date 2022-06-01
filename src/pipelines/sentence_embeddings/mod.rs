@@ -33,6 +33,7 @@ mod config;
 pub mod layers;
 mod pipeline;
 mod resources;
+
 pub use builder::SentenceEmbeddingsBuilder;
 pub use config::{
     SentenceEmbeddingsConfig, SentenceEmbeddingsModuleConfig, SentenceEmbeddingsModuleType,
@@ -46,8 +47,9 @@ pub use pipeline::{
 
 pub use resources::{
     SentenceEmbeddingsConfigResources, SentenceEmbeddingsDenseConfigResources,
-    SentenceEmbeddingsDenseResources, SentenceEmbeddingsModulesConfigResources,
-    SentenceEmbeddingsPoolingConfigResources, SentenceEmbeddingsTokenizerConfigResources,
+    SentenceEmbeddingsDenseResources, SentenceEmbeddingsModelType,
+    SentenceEmbeddingsModulesConfigResources, SentenceEmbeddingsPoolingConfigResources,
+    SentenceEmbeddingsTokenizerConfigResources,
 };
 
 /// Length = sequence length

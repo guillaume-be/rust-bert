@@ -9,6 +9,12 @@ use crate::pipelines::sentence_embeddings::{
 };
 use crate::{Config, RustBertError};
 
+#[cfg(feature = "remote")]
+use crate::{
+    pipelines::sentence_embeddings::resources::SentenceEmbeddingsModelType,
+    resources::RemoteResource,
+};
+
 /// # SentenceEmbeddings Model Builder
 ///
 /// Allows the user to build a model from standard Sentence-Transformer files
@@ -24,6 +30,17 @@ impl<T> SentenceEmbeddingsBuilder<T> {
         self
     }
 }
+
+pub struct Local {
+    model_dir: PathBuf,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModelConfig {
+    model_type: ModelType,
+}
+
+impl Config for ModelConfig {}
 
 impl SentenceEmbeddingsBuilder<Local> {
     pub fn local<P: Into<PathBuf>>(model_dir: P) -> Self {
@@ -96,13 +113,73 @@ impl SentenceEmbeddingsBuilder<Local> {
     }
 }
 
-pub struct Local {
-    model_dir: PathBuf,
+#[cfg(feature = "remote")]
+pub struct Remote {
+    config: SentenceEmbeddingsConfig,
 }
 
-#[derive(Debug, Deserialize)]
-struct ModelConfig {
-    model_type: ModelType,
-}
+#[cfg(feature = "remote")]
+impl SentenceEmbeddingsBuilder<Remote> {
+    pub fn remote(model_type: SentenceEmbeddingsModelType) -> Self {
+        Self {
+            device: Device::cuda_if_available(),
+            inner: Remote {
+                config: SentenceEmbeddingsConfig::from(model_type),
+            },
+        }
+    }
 
-impl Config for ModelConfig {}
+    pub fn modules_config(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.modules_config_resource = Box::new(resource);
+        self
+    }
+
+    pub fn transformer_config(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.transformer_config_resource = Box::new(resource);
+        self
+    }
+
+    pub fn transformer_weights(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.transformer_weights_resource = Box::new(resource);
+        self
+    }
+
+    pub fn pooling_config(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.pooling_config_resource = Box::new(resource);
+        self
+    }
+
+    pub fn dense_config(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.dense_config_resource = Some(Box::new(resource));
+        self
+    }
+
+    pub fn dense_weights(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.dense_weights_resource = Some(Box::new(resource));
+        self
+    }
+
+    pub fn sentence_bert_config(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.sentence_bert_config_resource = Box::new(resource);
+        self
+    }
+
+    pub fn tokenizer_config(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.tokenizer_config_resource = Box::new(resource);
+        self
+    }
+
+    pub fn tokenizer_vocab(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.tokenizer_vocab_resource = Box::new(resource);
+        self
+    }
+
+    pub fn tokenizer_merges(mut self, resource: RemoteResource) -> Self {
+        self.inner.config.tokenizer_merges_resource = Some(Box::new(resource));
+        self
+    }
+
+    pub fn create_model(self) -> Result<SentenceEmbeddingsModel, RustBertError> {
+        SentenceEmbeddingsModel::new(self.inner.config)
+    }
+}

@@ -1,59 +1,14 @@
-use rust_bert::albert::{AlbertConfigResources, AlbertModelResources, AlbertVocabResources};
-use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
-use rust_bert::distilbert::{
-    DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources,
-};
-use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::sentence_embeddings::{
-    SentenceEmbeddingsConfig, SentenceEmbeddingsConfigResources,
-    SentenceEmbeddingsDenseConfigResources, SentenceEmbeddingsDenseResources,
-    SentenceEmbeddingsModel, SentenceEmbeddingsModulesConfigResources,
-    SentenceEmbeddingsPoolingConfigResources, SentenceEmbeddingsTokenizerConfigResources,
+    SentenceEmbeddingsBuilder, SentenceEmbeddingsModelType,
 };
-use rust_bert::resources::RemoteResource;
-use rust_bert::roberta::{
-    RobertaConfigResources, RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
-};
-use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
-use tch::Device;
 
 #[test]
 #[ignore]
 fn sbert_distilbert() -> anyhow::Result<()> {
-    let config = SentenceEmbeddingsConfig {
-        modules_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsModulesConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
-        )),
-        transformer_type: ModelType::DistilBert,
-        transformer_config_resource: Box::new(RemoteResource::from_pretrained(
-            DistilBertConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
-        )),
-        transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
-            DistilBertModelResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
-        )),
-        pooling_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsPoolingConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
-        )),
-        dense_config_resource: Some(Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsDenseConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
-        ))),
-        dense_weights_resource: Some(Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsDenseResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
-        ))),
-        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
-        )),
-        tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsTokenizerConfigResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
-        )),
-        tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
-            DistilBertVocabResources::DISTILUSE_BASE_MULTILINGUAL_CASED,
-        )),
-        tokenizer_merges_resource: None,
-        device: Device::cuda_if_available(),
-    };
-
-    let model = SentenceEmbeddingsModel::new(config)?;
+    let model = SentenceEmbeddingsBuilder::remote(
+        SentenceEmbeddingsModelType::DistiluseBaseMultilingualCased,
+    )
+    .create_model()?;
 
     let sentences = ["This is an example sentence", "Each sentence is converted"];
     let embeddings = model.encode(&sentences)?;
@@ -78,36 +33,9 @@ fn sbert_distilbert() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_bert() -> anyhow::Result<()> {
-    let config = SentenceEmbeddingsConfig {
-        modules_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsModulesConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
-        )),
-        transformer_type: ModelType::Bert,
-        transformer_config_resource: Box::new(RemoteResource::from_pretrained(
-            BertConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
-        )),
-        transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
-            BertModelResources::BERT_BASE_NLI_MEAN_TOKENS,
-        )),
-        pooling_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsPoolingConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
-        )),
-        dense_config_resource: None,
-        dense_weights_resource: None,
-        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
-        )),
-        tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsTokenizerConfigResources::BERT_BASE_NLI_MEAN_TOKENS,
-        )),
-        tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
-            BertVocabResources::BERT_BASE_NLI_MEAN_TOKENS,
-        )),
-        tokenizer_merges_resource: None,
-        device: Device::cuda_if_available(),
-    };
-
-    let model = SentenceEmbeddingsModel::new(config)?;
+    let model =
+        SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::BertBaseNliMeanTokens)
+            .create_model()?;
 
     let sentences = ["this is an example sentence", "each sentence is converted"];
     let embeddings = model.encode(&sentences)?;
@@ -132,36 +60,9 @@ fn sbert_bert() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_bert_small() -> anyhow::Result<()> {
-    let config = SentenceEmbeddingsConfig {
-        modules_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsModulesConfigResources::ALL_MINI_LM_L12_V2,
-        )),
-        transformer_type: ModelType::Bert,
-        transformer_config_resource: Box::new(RemoteResource::from_pretrained(
-            BertConfigResources::ALL_MINI_LM_L12_V2,
-        )),
-        transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
-            BertModelResources::ALL_MINI_LM_L12_V2,
-        )),
-        pooling_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsPoolingConfigResources::ALL_MINI_LM_L12_V2,
-        )),
-        dense_config_resource: None,
-        dense_weights_resource: None,
-        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsConfigResources::ALL_MINI_LM_L12_V2,
-        )),
-        tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsTokenizerConfigResources::ALL_MINI_LM_L12_V2,
-        )),
-        tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
-            BertVocabResources::ALL_MINI_LM_L12_V2,
-        )),
-        tokenizer_merges_resource: None,
-        device: Device::cuda_if_available(),
-    };
+    let model = SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::AllMiniLmL12V2)
+        .create_model()?;
 
-    let model = SentenceEmbeddingsModel::new(config)?;
     let sentences = ["this is an example sentence", "each sentence is converted"];
     let embeddings = model.encode(&sentences)?;
 
@@ -185,38 +86,8 @@ fn sbert_bert_small() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_distilroberta() -> anyhow::Result<()> {
-    let config = SentenceEmbeddingsConfig {
-        modules_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsModulesConfigResources::ALL_DISTILROBERTA_V1,
-        )),
-        transformer_type: ModelType::Roberta,
-        transformer_config_resource: Box::new(RemoteResource::from_pretrained(
-            RobertaConfigResources::ALL_DISTILROBERTA_V1,
-        )),
-        transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
-            RobertaModelResources::ALL_DISTILROBERTA_V1,
-        )),
-        pooling_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsPoolingConfigResources::ALL_DISTILROBERTA_V1,
-        )),
-        dense_config_resource: None,
-        dense_weights_resource: None,
-        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsConfigResources::ALL_DISTILROBERTA_V1,
-        )),
-        tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsTokenizerConfigResources::ALL_DISTILROBERTA_V1,
-        )),
-        tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
-            RobertaVocabResources::ALL_DISTILROBERTA_V1,
-        )),
-        tokenizer_merges_resource: Some(Box::new(RemoteResource::from_pretrained(
-            RobertaMergesResources::ALL_DISTILROBERTA_V1,
-        ))),
-        device: Device::cuda_if_available(),
-    };
-
-    let model = SentenceEmbeddingsModel::new(config)?;
+    let model = SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::AllDistilrobertaV1)
+        .create_model()?;
 
     let sentences = ["This is an example sentence", "Each sentence is converted"];
     let embeddings = model.encode(&sentences)?;
@@ -241,36 +112,9 @@ fn sbert_distilroberta() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_albert() -> anyhow::Result<()> {
-    let config = SentenceEmbeddingsConfig {
-        modules_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsModulesConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
-        )),
-        transformer_type: ModelType::Albert,
-        transformer_config_resource: Box::new(RemoteResource::from_pretrained(
-            AlbertConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
-        )),
-        transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
-            AlbertModelResources::PARAPHRASE_ALBERT_SMALL_V2,
-        )),
-        pooling_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsPoolingConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
-        )),
-        dense_config_resource: None,
-        dense_weights_resource: None,
-        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
-        )),
-        tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsTokenizerConfigResources::PARAPHRASE_ALBERT_SMALL_V2,
-        )),
-        tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
-            AlbertVocabResources::PARAPHRASE_ALBERT_SMALL_V2,
-        )),
-        tokenizer_merges_resource: None,
-        device: Device::cuda_if_available(),
-    };
-
-    let model = SentenceEmbeddingsModel::new(config)?;
+    let model =
+        SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::ParaphraseAlbertSmallV2)
+            .create_model()?;
 
     let sentences = ["this is an example sentence", "each sentence is converted"];
     let embeddings = model.encode(&sentences)?;
@@ -295,40 +139,8 @@ fn sbert_albert() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn sbert_t5() -> anyhow::Result<()> {
-    let config = SentenceEmbeddingsConfig {
-        modules_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsModulesConfigResources::SENTENCE_T5_BASE,
-        )),
-        transformer_type: ModelType::T5,
-        transformer_config_resource: Box::new(RemoteResource::from_pretrained(
-            T5ConfigResources::SENTENCE_T5_BASE,
-        )),
-        transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
-            T5ModelResources::SENTENCE_T5_BASE,
-        )),
-        pooling_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsPoolingConfigResources::SENTENCE_T5_BASE,
-        )),
-        dense_config_resource: Some(Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsDenseConfigResources::SENTENCE_T5_BASE,
-        ))),
-        dense_weights_resource: Some(Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsDenseResources::SENTENCE_T5_BASE,
-        ))),
-        sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsConfigResources::SENTENCE_T5_BASE,
-        )),
-        tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
-            SentenceEmbeddingsTokenizerConfigResources::SENTENCE_T5_BASE,
-        )),
-        tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
-            T5VocabResources::SENTENCE_T5_BASE,
-        )),
-        tokenizer_merges_resource: None,
-        device: Device::cuda_if_available(),
-    };
-
-    let model = SentenceEmbeddingsModel::new(config)?;
+    let model = SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::SentenceT5Base)
+        .create_model()?;
 
     let sentences = ["This is an example sentence", "Each sentence is converted"];
     let embeddings = model.encode(&sentences)?;
