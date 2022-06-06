@@ -341,11 +341,12 @@ impl SentenceEmbeddingsModel {
         let tokens_masks = Tensor::stack(&tokens_masks, 0).to(self.var_store.device());
 
         let (tokens_embeddings, all_attentions) =
-            self.transformer.forward(&tokens_ids, &tokens_masks)?;
+            tch::no_grad(|| self.transformer.forward(&tokens_ids, &tokens_masks))?;
 
-        let mean_pool = self.pooling_layer.forward(tokens_embeddings, &tokens_masks);
+        let mean_pool =
+            tch::no_grad(|| self.pooling_layer.forward(tokens_embeddings, &tokens_masks));
         let maybe_linear = if let Some(dense_layer) = &self.dense_layer {
-            dense_layer.forward(&mean_pool)
+            tch::no_grad(|| dense_layer.forward(&mean_pool))
         } else {
             mean_pool
         };
