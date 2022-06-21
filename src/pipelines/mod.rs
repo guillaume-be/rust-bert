@@ -416,6 +416,7 @@ pub mod generation_utils;
 pub mod ner;
 pub mod pos_tagging;
 pub mod question_answering;
+pub mod sentence_embeddings;
 pub mod sentiment;
 pub mod sequence_classification;
 pub mod summarization;

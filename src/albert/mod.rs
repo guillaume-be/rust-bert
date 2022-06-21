@@ -59,8 +59,8 @@ mod encoder;
 
 pub use albert_model::{
     AlbertConfig, AlbertConfigResources, AlbertForMaskedLM, AlbertForMultipleChoice,
-    AlbertForQuestionAnswering, AlbertForSequenceClassification, AlbertForTokenClassification,
-    AlbertMaskedLMOutput, AlbertModel, AlbertModelResources, AlbertOutput,
-    AlbertQuestionAnsweringOutput, AlbertSequenceClassificationOutput,
+    AlbertForQuestionAnswering, AlbertForSentenceEmbeddings, AlbertForSequenceClassification,
+    AlbertForTokenClassification, AlbertMaskedLMOutput, AlbertModel, AlbertModelResources,
+    AlbertOutput, AlbertQuestionAnsweringOutput, AlbertSequenceClassificationOutput,
     AlbertTokenClassificationOutput, AlbertVocabResources,
 };

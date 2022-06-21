@@ -46,6 +46,11 @@ impl DistilBertModelResources {
         "distilbert-qa/model",
         "https://huggingface.co/distilbert-base-cased-distilled-squad/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased>. Modified with conversion to C-array format.
+    pub const DISTILUSE_BASE_MULTILINGUAL_CASED: (&'static str, &'static str) = (
+        "distiluse-base-multilingual-cased/model",
+        "https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased/resolve/main/rust_model.ot",
+    );
 }
 
 impl DistilBertConfigResources {
@@ -64,6 +69,11 @@ impl DistilBertConfigResources {
         "distilbert-qa/config",
         "https://huggingface.co/distilbert-base-cased-distilled-squad/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased>. Modified with conversion to C-array format.
+    pub const DISTILUSE_BASE_MULTILINGUAL_CASED: (&'static str, &'static str) = (
+        "distiluse-base-multilingual-cased/config",
+        "https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased/resolve/main/config.json",
+    );
 }
 
 impl DistilBertVocabResources {
@@ -81,6 +91,11 @@ impl DistilBertVocabResources {
     pub const DISTIL_BERT_SQUAD: (&'static str, &'static str) = (
         "distilbert-qa/vocab",
         "https://huggingface.co/bert-large-cased/resolve/main/vocab.txt",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased>. Modified with conversion to C-array format.
+    pub const DISTILUSE_BASE_MULTILINGUAL_CASED: (&'static str, &'static str) = (
+        "distiluse-base-multilingual-cased/vocab",
+        "https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased/resolve/main/vocab.txt",
     );
 }
 
@@ -754,6 +769,10 @@ impl DistilBertForTokenClassification {
         })
     }
 }
+
+/// # DistilBERT for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
+pub type DistilBertForSentenceEmbeddings = DistilBertModel;
 
 /// Container for the DistilBERT masked LM model output.
 pub struct DistilBertMaskedLMOutput {
