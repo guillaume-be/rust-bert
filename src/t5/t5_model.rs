@@ -265,10 +265,7 @@ impl T5Model {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = T5Config::from_file(config_path);
-    /// let t5: T5Model = T5Model::new(
-    ///     &p.root() / "t5",
-    ///     &config,
-    /// );
+    /// let t5: T5Model = T5Model::new(&p.root() / "t5", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &T5Config) -> T5Model
     where
@@ -471,10 +468,7 @@ impl T5ForConditionalGeneration {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = T5Config::from_file(config_path);
-    /// let t5 = T5ForConditionalGeneration::new(
-    ///     &p.root() / "t5",
-    ///     &config,
-    /// );
+    /// let t5 = T5ForConditionalGeneration::new(&p.root() / "t5", &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &T5Config) -> T5ForConditionalGeneration
     where

@@ -3,7 +3,6 @@ use rust_bert::pipelines::sentence_embeddings::{
 };
 
 #[test]
-#[ignore]
 fn sbert_distilbert() -> anyhow::Result<()> {
     let model = SentenceEmbeddingsBuilder::remote(
         SentenceEmbeddingsModelType::DistiluseBaseMultilingualCased,
@@ -31,7 +30,6 @@ fn sbert_distilbert() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore]
 fn sbert_bert() -> anyhow::Result<()> {
     let model =
         SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::BertBaseNliMeanTokens)
@@ -58,7 +56,6 @@ fn sbert_bert() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore]
 fn sbert_bert_small() -> anyhow::Result<()> {
     let model = SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::AllMiniLmL12V2)
         .create_model()?;
@@ -84,7 +81,6 @@ fn sbert_bert_small() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore]
 fn sbert_distilroberta() -> anyhow::Result<()> {
     let model = SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::AllDistilrobertaV1)
         .create_model()?;
@@ -110,7 +106,6 @@ fn sbert_distilroberta() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore]
 fn sbert_albert() -> anyhow::Result<()> {
     let model =
         SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::ParaphraseAlbertSmallV2)
@@ -137,7 +132,6 @@ fn sbert_albert() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore]
 fn sbert_t5() -> anyhow::Result<()> {
     let model = SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::SentenceT5Base)
         .create_model()?;
