@@ -513,7 +513,7 @@ impl DistilBertModelMaskedLM {
         let prediction_scores = base_model_output
             .hidden_state
             .apply(&self.vocab_transform)
-            .gelu()
+            .gelu("none")
             .apply(&self.vocab_layer_norm)
             .apply(&self.vocab_projector);
 
