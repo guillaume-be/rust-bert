@@ -74,8 +74,8 @@ This cache location defaults to `~/.cache/.rustbert`, but can be changed by sett
 
 ### Manual installation (recommended)
 
-1. Download `libtorch` from https://pytorch.org/get-started/locally/. This package requires `v1.11.0`: if this version is no longer available on the "get started" page,
-the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu113/libtorch-cxx11-abi-shared-with-deps-1.11.0%2Bcu113.zip` for a Linux version with CUDA11.
+1. Download `libtorch` from https://pytorch.org/get-started/locally/. This package requires `v1.12.0`: if this version is no longer available on the "get started" page,
+the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu116/libtorch-cxx11-abi-shared-with-deps-1.12.0%2Bcu116.zip` for a Linux version with CUDA11.
 2. Extract the library to a location of your choice
 3. Set the following environment variables
 ##### Linux:
