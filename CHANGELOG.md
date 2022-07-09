@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file. The format 
 ## Added
 - Support for sentence embeddings models and pipelines, based on [SentenceTransformers](https://www.sbert.net).
 
+## Changed
+- Upgraded to `torch` 1.12 (via `tch` 0.8.0)
+
 ## [0.18.0] - 2022-05-29
 ## Added
 - Addition of the DeBERTa language model and support for question answering, sequence and token classification

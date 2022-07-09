@@ -274,7 +274,7 @@ impl Module for LongformerLMHead {
     fn forward(&self, hidden_states: &Tensor) -> Tensor {
         hidden_states
             .apply(&self.dense)
-            .gelu()
+            .gelu("none")
             .apply(&self.layer_norm)
             .apply(&self.decoder)
             + &self.bias
