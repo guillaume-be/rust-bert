@@ -26,6 +26,10 @@ pub fn _tanh(x: &Tensor) -> Tensor {
     x.tanh()
 }
 
+pub fn _identity(x: &Tensor) -> Tensor {
+    x.shallow_clone()
+}
+
 pub struct TensorFunction(Box<fn(&Tensor) -> Tensor>);
 
 impl TensorFunction {
@@ -58,6 +62,8 @@ pub enum Activation {
     gelu_new,
     /// Tanh
     tanh,
+    /// Identity
+    identity,
 }
 
 impl Activation {
@@ -69,6 +75,7 @@ impl Activation {
             Activation::gelu_new => _gelu_new,
             Activation::mish => _mish,
             Activation::tanh => _tanh,
+            Activation::identity => _identity,
         }))
     }
 }

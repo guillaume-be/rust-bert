@@ -54,22 +54,28 @@ use rust_tokenizers::vocab::{
 use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::path::Path;
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
 /// # Identifies the type of model
 pub enum ModelType {
     Bart,
+    #[serde(alias = "bert")]
     Bert,
+    #[serde(alias = "distilbert")]
     DistilBert,
     Deberta,
     DebertaV2,
+    #[serde(alias = "roberta")]
     Roberta,
     XLMRoberta,
     Electra,
     Marian,
     MobileBert,
+    #[serde(alias = "t5")]
     T5,
+    #[serde(alias = "albert")]
     Albert,
     XLNet,
     GPT2,
@@ -305,6 +311,62 @@ impl ConfigOption {
             Self::M2M100(config) => Some(config.max_position_embeddings),
             Self::FNet(config) => Some(config.max_position_embeddings),
             Self::Roberta(config) => Some(config.max_position_embeddings),
+        }
+    }
+}
+
+impl TryFrom<&ConfigOption> for BertConfig {
+    type Error = RustBertError;
+
+    fn try_from(config: &ConfigOption) -> Result<Self, Self::Error> {
+        match config {
+            ConfigOption::Bert(config) | ConfigOption::Roberta(config) => Ok(config.clone()),
+            _ => Err(RustBertError::InvalidConfigurationError(
+                "You can only supply a BertConfig for Bert or a RobertaConfig for Roberta!"
+                    .to_string(),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&ConfigOption> for DistilBertConfig {
+    type Error = RustBertError;
+
+    fn try_from(config: &ConfigOption) -> Result<Self, Self::Error> {
+        if let ConfigOption::DistilBert(config) = config {
+            Ok(config.clone())
+        } else {
+            Err(RustBertError::InvalidConfigurationError(
+                "You can only supply a DistilBertConfig for DistilBert!".to_string(),
+            ))
+        }
+    }
+}
+
+impl TryFrom<&ConfigOption> for AlbertConfig {
+    type Error = RustBertError;
+
+    fn try_from(config: &ConfigOption) -> Result<Self, Self::Error> {
+        if let ConfigOption::Albert(config) = config {
+            Ok(config.clone())
+        } else {
+            Err(RustBertError::InvalidConfigurationError(
+                "You can only supply an AlbertConfig for Albert!".to_string(),
+            ))
+        }
+    }
+}
+
+impl TryFrom<&ConfigOption> for T5Config {
+    type Error = RustBertError;
+
+    fn try_from(config: &ConfigOption) -> Result<Self, Self::Error> {
+        if let ConfigOption::T5(config) = config {
+            Ok(config.clone())
+        } else {
+            Err(RustBertError::InvalidConfigurationError(
+                "You can only supply a T5Config for T5!".to_string(),
+            ))
         }
     }
 }

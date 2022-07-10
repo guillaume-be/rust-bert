@@ -119,7 +119,7 @@ fn _shift_tokens_right(
         (Kind::Int64, input_ids.device()),
     );
     let _ = shifted_input_ids.select(1, 0).fill_(decoder_start_token_id);
-    let _ = shifted_input_ids
+    shifted_input_ids
         .slice(1, 1, *shifted_input_ids.size().last().unwrap(), 1)
         .copy_(&input_ids.slice(1, 0, *input_ids.size().last().unwrap() - 1, 1));
     shifted_input_ids.masked_fill(&shifted_input_ids.eq(-100), pad_token_id)

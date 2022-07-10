@@ -59,6 +59,11 @@ impl T5ModelResources {
         "t5-base/model",
         "https://huggingface.co/t5-base/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
+    pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
+        "sentence-t5-base/model",
+        "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/rust_model.ot",
+    );
 }
 
 impl T5ConfigResources {
@@ -72,6 +77,11 @@ impl T5ConfigResources {
         "t5-base/config",
         "https://huggingface.co/t5-base/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
+    pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
+        "sentence-t5-base/config",
+        "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/config.json",
+    );
 }
 
 impl T5VocabResources {
@@ -84,6 +94,11 @@ impl T5VocabResources {
     pub const T5_BASE: (&'static str, &'static str) = (
         "t5-base/spiece",
         "https://huggingface.co/t5-base/resolve/main/spiece.model",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
+    pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
+        "sentence-t5-base/spiece",
+        "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/spiece.model",
     );
 }
 
@@ -133,6 +148,8 @@ pub struct T5Config {
     pub feed_forward_proj: Option<FeedForwardProj>,
     pub tie_word_embeddings: Option<bool>,
     task_specific_params: Option<TaskSpecificParams>,
+    pub output_attentions: Option<bool>,
+    pub output_hidden_states: Option<bool>,
 }
 
 /// # T5 task-specific configurations
@@ -209,6 +226,8 @@ impl Default for T5Config {
             feed_forward_proj: Some(FeedForwardProj::Relu),
             tie_word_embeddings: None,
             task_specific_params: None,
+            output_attentions: None,
+            output_hidden_states: None,
         }
     }
 }
@@ -233,8 +252,6 @@ impl T5Model {
     ///
     /// * `p` - Variable store path for the root of the BART model
     /// * `config` - `T5Config` object defining the model architecture
-    /// * `output_attention` - flag indicating if the model should output the attention weights of intermediate layers
-    /// * `output_hidden_states` - flag indicating if the model should output the hidden states weights of intermediate layers
     ///
     /// # Example
     ///
@@ -248,21 +265,9 @@ impl T5Model {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = T5Config::from_file(config_path);
-    /// let output_attentions = true;
-    /// let output_hidden_states = true;
-    /// let t5: T5Model = T5Model::new(
-    ///     &p.root() / "t5",
-    ///     &config,
-    ///     output_attentions,
-    ///     output_hidden_states,
-    /// );
+    /// let t5: T5Model = T5Model::new(&p.root() / "t5", &config);
     /// ```
-    pub fn new<'p, P>(
-        p: P,
-        config: &T5Config,
-        output_attentions: bool,
-        output_hidden_states: bool,
-    ) -> T5Model
+    pub fn new<'p, P>(p: P, config: &T5Config) -> T5Model
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -280,16 +285,16 @@ impl T5Model {
             config,
             false,
             false,
-            output_attentions,
-            output_hidden_states,
+            config.output_attentions.unwrap_or(false),
+            config.output_hidden_states.unwrap_or(false),
         );
         let decoder = T5Stack::new(
             p / "decoder",
             config,
             true,
             true,
-            output_attentions,
-            output_hidden_states,
+            config.output_attentions.unwrap_or(false),
+            config.output_hidden_states.unwrap_or(false),
         );
 
         T5Model {
@@ -338,7 +343,7 @@ impl T5Model {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = T5Config::from_file(config_path);
-    /// # let t5_model: T5Model = T5Model::new(&vs.root(), &config, false, false);
+    /// # let t5_model: T5Model = T5Model::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -450,8 +455,6 @@ impl T5ForConditionalGeneration {
     ///
     /// * `p` - Variable store path for the root of the BART model
     /// * `config` - `T5Config` object defining the model architecture
-    /// * `output_attention` - flag indicating if the model should output the attention weights of intermediate layers
-    /// * `output_hidden_states` - flag indicating if the model should output the hidden states weights of intermediate layers
     ///
     /// # Example
     ///
@@ -465,27 +468,15 @@ impl T5ForConditionalGeneration {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = T5Config::from_file(config_path);
-    /// let output_attentions = true;
-    /// let output_hidden_states = true;
-    /// let t5 = T5ForConditionalGeneration::new(
-    ///     &p.root() / "t5",
-    ///     &config,
-    ///     output_attentions,
-    ///     output_hidden_states,
-    /// );
+    /// let t5 = T5ForConditionalGeneration::new(&p.root() / "t5", &config);
     /// ```
-    pub fn new<'p, P>(
-        p: P,
-        config: &T5Config,
-        output_attentions: bool,
-        output_hidden_states: bool,
-    ) -> T5ForConditionalGeneration
+    pub fn new<'p, P>(p: P, config: &T5Config) -> T5ForConditionalGeneration
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
-        let base_model = T5Model::new(p, config, output_attentions, output_hidden_states);
+        let base_model = T5Model::new(p, config);
         let tie_word_embeddings = config.tie_word_embeddings.unwrap_or(true);
 
         let lm_head = if !tie_word_embeddings {
@@ -549,7 +540,7 @@ impl T5ForConditionalGeneration {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = T5Config::from_file(config_path);
-    /// # let t5_model: T5ForConditionalGeneration = T5ForConditionalGeneration::new(&vs.root(), &config, false, false);
+    /// # let t5_model: T5ForConditionalGeneration = T5ForConditionalGeneration::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -666,7 +657,7 @@ impl LMHeadModel for T5ForConditionalGeneration {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = T5Config::from_file(config_path);
-    /// # let t5_model: T5ForConditionalGeneration = T5ForConditionalGeneration::new(&vs.root(), &config, false, false);
+    /// # let t5_model: T5ForConditionalGeneration = T5ForConditionalGeneration::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -749,6 +740,84 @@ impl LMHeadModel for T5ForConditionalGeneration {
     }
 }
 
+/// # T5 for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
+pub struct T5ForSentenceEmbeddings {
+    embeddings: nn::Embedding,
+    encoder: T5Stack,
+}
+
+impl T5ForSentenceEmbeddings {
+    /// Build a new `T5ForSentenceEmbeddings`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BART model
+    /// * `config` - `T5Config` object defining the model architecture
+    ///
+    /// It consists of only an encoder (there is no decoder).
+    pub fn new<'p, P>(p: P, config: &T5Config) -> Self
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let embeddings: nn::Embedding = embedding(
+            p / "shared",
+            config.vocab_size,
+            config.d_model,
+            Default::default(),
+        );
+
+        let encoder = T5Stack::new(
+            p / "encoder",
+            config,
+            false,
+            false,
+            config.output_attentions.unwrap_or(false),
+            config.output_hidden_states.unwrap_or(false),
+        );
+
+        Self {
+            embeddings,
+            encoder,
+        }
+    }
+
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Input of shape (*batch size*, *source_sequence_length*).
+    /// * `mask` - Attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    ///
+    /// # Returns
+    ///
+    /// * Tuple containing:
+    ///   - `Tensor` of shape (*batch size*, *target_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
+    ///   - `Option<Vec<Tensor>>` of length *num_encoder_layers* of shape (*batch size*, *target_sequence_length*, *hidden_size*)  representing attention weights for all layers of the encoder
+    pub fn forward(
+        &self,
+        input_ids: &Tensor,
+        mask: &Tensor,
+    ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
+        let transformer_output = self.encoder.forward_t(
+            Some(input_ids),
+            Some(mask),
+            None,
+            None,
+            None,
+            &self.embeddings,
+            None,
+            false,
+        )?;
+        Ok((
+            transformer_output.hidden_state,
+            transformer_output.all_attentions,
+        ))
+    }
+}
+
 /// Container holding a T5 model output. The decoder output may hold the hidden state of
 /// the last layer of the decoder, or may hold logits for a custom head module after the
 /// decoder (e.g. for language modeling tasks)
@@ -812,7 +881,7 @@ impl T5Generator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = T5Config::from_file(config_path);
-        let model = T5ForConditionalGeneration::new(&var_store.root(), &config, false, false);
+        let model = T5ForConditionalGeneration::new(&var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(-1));

@@ -77,7 +77,7 @@ fn _shift_tokens_right(
         input_ids.size().as_slice(),
         (input_ids.kind(), input_ids.device()),
     );
-    let _ = shifted_input_ids
+    shifted_input_ids
         .slice(1, 1, input_ids_length, 1)
         .copy_(&input_ids.slice(1, 0, input_ids_length - 1, 1));
 

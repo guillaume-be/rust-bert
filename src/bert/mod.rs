@@ -59,8 +59,8 @@ pub(crate) mod encoder;
 
 pub use bert_model::{
     BertConfig, BertConfigResources, BertForMaskedLM, BertForMultipleChoice,
-    BertForQuestionAnswering, BertForSequenceClassification, BertForTokenClassification,
-    BertMaskedLMOutput, BertModel, BertModelOutput, BertModelResources,
+    BertForQuestionAnswering, BertForSentenceEmbeddings, BertForSequenceClassification,
+    BertForTokenClassification, BertMaskedLMOutput, BertModel, BertModelOutput, BertModelResources,
     BertQuestionAnsweringOutput, BertSequenceClassificationOutput, BertTokenClassificationOutput,
     BertVocabResources,
 };

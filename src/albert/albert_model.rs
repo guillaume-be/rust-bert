@@ -37,6 +37,11 @@ impl AlbertModelResources {
         "albert-base-v2/model",
         "https://huggingface.co/albert-base-v2/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2>. Modified with conversion to C-array format.
+    pub const PARAPHRASE_ALBERT_SMALL_V2: (&'static str, &'static str) = (
+        "paraphrase-albert-small-v2/model",
+        "https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2/resolve/main/rust_model.ot",
+    );
 }
 
 impl AlbertConfigResources {
@@ -45,6 +50,11 @@ impl AlbertConfigResources {
         "albert-base-v2/config",
         "https://huggingface.co/albert-base-v2/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2>. Modified with conversion to C-array format.
+    pub const PARAPHRASE_ALBERT_SMALL_V2: (&'static str, &'static str) = (
+        "paraphrase-albert-small-v2/config",
+        "https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2/resolve/main/config.json",
+    );
 }
 
 impl AlbertVocabResources {
@@ -52,6 +62,11 @@ impl AlbertVocabResources {
     pub const ALBERT_BASE_V2: (&'static str, &'static str) = (
         "albert-base-v2/spiece",
         "https://huggingface.co/albert-base-v2/resolve/main/spiece.model",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2>. Modified with conversion to C-array format.
+    pub const PARAPHRASE_ALBERT_SMALL_V2: (&'static str, &'static str) = (
+        "paraphrase-albert-small-v2/spiece",
+        "https://huggingface.co/sentence-transformers/paraphrase-albert-small-v2/resolve/main/spiece.model",
     );
 }
 
@@ -1047,6 +1062,10 @@ impl AlbertForMultipleChoice {
         })
     }
 }
+
+/// # ALBERT for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
+pub type AlbertForSentenceEmbeddings = AlbertModel;
 
 /// Container for the ALBERT model output.
 pub struct AlbertOutput {

@@ -52,6 +52,16 @@ impl BertModelResources {
         "bert-qa/model",
         "https://huggingface.co/bert-large-cased-whole-word-masking-finetuned-squad/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/bert-base-nli-mean-tokens>. Modified with conversion to C-array format.
+    pub const BERT_BASE_NLI_MEAN_TOKENS: (&'static str, &'static str) = (
+        "bert-base-nli-mean-tokens/model",
+        "https://huggingface.co/sentence-transformers/bert-base-nli-mean-tokens/resolve/main/rust_model.ot",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2>. Modified with conversion to C-array format.
+    pub const ALL_MINI_LM_L12_V2: (&'static str, &'static str) = (
+        "all-mini-lm-l12-v2/model",
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2/resolve/main/rust_model.ot",
+    );
 }
 
 impl BertConfigResources {
@@ -70,6 +80,16 @@ impl BertConfigResources {
         "bert-qa/config",
         "https://huggingface.co/bert-large-cased-whole-word-masking-finetuned-squad/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/bert-base-nli-mean-tokens>. Modified with conversion to C-array format.
+    pub const BERT_BASE_NLI_MEAN_TOKENS: (&'static str, &'static str) = (
+        "bert-base-nli-mean-tokens/config",
+        "https://huggingface.co/sentence-transformers/bert-base-nli-mean-tokens/resolve/main/config.json",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2>. Modified with conversion to C-array format.
+    pub const ALL_MINI_LM_L12_V2: (&'static str, &'static str) = (
+        "all-mini-lm-l12-v2/config",
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2/resolve/main/config.json",
+    );
 }
 
 impl BertVocabResources {
@@ -87,6 +107,16 @@ impl BertVocabResources {
     pub const BERT_QA: (&'static str, &'static str) = (
         "bert-qa/vocab",
         "https://huggingface.co/bert-large-cased-whole-word-masking-finetuned-squad/resolve/main/vocab.txt",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/bert-base-nli-mean-tokens>. Modified with conversion to C-array format.
+    pub const BERT_BASE_NLI_MEAN_TOKENS: (&'static str, &'static str) = (
+        "bert-base-nli-mean-tokens/vocab",
+        "https://huggingface.co/sentence-transformers/bert-base-nli-mean-tokens/resolve/main/vocab.txt",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2>. Modified with conversion to C-array format.
+    pub const ALL_MINI_LM_L12_V2: (&'static str, &'static str) = (
+        "all-mini-lm-l12-v2/vocab",
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2/resolve/main/vocab.txt",
     );
 }
 
@@ -1178,6 +1208,10 @@ impl BertForQuestionAnswering {
         }
     }
 }
+
+/// # BERT for sentence embeddings
+/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
+pub type BertForSentenceEmbeddings = BertModel<BertEmbeddings>;
 
 /// Container for the BERT model output.
 pub struct BertModelOutput {
