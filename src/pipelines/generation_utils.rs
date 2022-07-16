@@ -1820,7 +1820,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     fn generate_from_ids_and_past(
         &self,
         mut input_ids: Tensor,
-        attention_mask: Option<Tensor>,
+        mut attention_mask: Option<Tensor>,
         generate_options: Option<GenerateOptions>,
     ) -> Vec<GeneratedIndicesOutput> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).cloned();
@@ -1867,6 +1867,10 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             ) * self
                 .get_bos_id()
                 .expect("`bos_token_id` has to be defined when no `input_ids` are provided.");
+            attention_mask = Some(Tensor::ones(
+                &[*input_id_size.first().unwrap(), 1],
+                (Int64, input_ids.device()),
+            ));
             input_ids_len += 1;
         }
 
