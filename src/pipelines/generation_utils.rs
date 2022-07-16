@@ -1754,7 +1754,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             Some(prompts) if prompts.len() > 0 => {
                 self.encode_prompt_text(prompts, encoding_max_len, pad_token_id)
             }
-            _ => match self.get_bos_id() {
+            None => match self.get_bos_id() {
                 Some(bos_id) => {
                     Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * bos_id
                 }
@@ -1762,6 +1762,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                     "A model with a BOS token must be used to start generation with an empty input"
                 ),
             },
+            _ => return Vec::new(),
         };
         self.generate_from_ids_and_past(input_ids, None, generate_options)
     }
