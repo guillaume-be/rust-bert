@@ -1819,7 +1819,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// ```
     fn generate_from_ids_and_past(
         &self,
-        input_ids: Tensor,
+        mut input_ids: Tensor,
         attention_mask: Option<Tensor>,
         generate_options: Option<GenerateOptions>,
     ) -> Vec<GeneratedIndicesOutput> {
@@ -1858,7 +1858,18 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             None => eos_token_ids.as_ref().map(|eos_ids| eos_ids[0]),
         };
 
-        let input_ids_len = *input_ids.size().last().unwrap();
+        let input_id_size = input_ids.size();
+        let mut input_ids_len = *input_id_size.last().unwrap();
+        if input_ids_len == 0 {
+            input_ids = Tensor::ones(
+                &[*input_id_size.first().unwrap(), 1],
+                (Int64, input_ids.device()),
+            ) * self
+                .get_bos_id()
+                .expect("`bos_token_id` has to be defined when no `input_ids` are provided.");
+            input_ids_len += 1;
+        }
+
         let cur_len = if !self.is_encoder_decoder() {
             *input_ids.size().last().unwrap()
         } else {
