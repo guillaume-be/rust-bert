@@ -1751,8 +1751,10 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         };
 
         let input_ids = match prompt_texts {
-            Some(text) => self.encode_prompt_text(text, encoding_max_len, pad_token_id),
-            None => match self.get_bos_id() {
+            Some(prompts) if prompts.len() > 0 => {
+                self.encode_prompt_text(prompts, encoding_max_len, pad_token_id)
+            }
+            _ => match self.get_bos_id() {
                 Some(bos_id) => {
                     Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * bos_id
                 }
