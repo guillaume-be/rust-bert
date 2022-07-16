@@ -1751,7 +1751,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         };
 
         let input_ids = match prompt_texts {
-            Some(prompts) if prompts.len() > 0 => {
+            Some(prompts) if !prompts.is_empty() => {
                 self.encode_prompt_text(prompts, encoding_max_len, pad_token_id)
             }
             None => match self.get_bos_id() {
