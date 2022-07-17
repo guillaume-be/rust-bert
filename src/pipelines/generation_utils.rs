@@ -1751,7 +1751,9 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         };
 
         let input_ids = match prompt_texts {
-            Some(text) => self.encode_prompt_text(text, encoding_max_len, pad_token_id),
+            Some(prompts) if !prompts.is_empty() => {
+                self.encode_prompt_text(prompts, encoding_max_len, pad_token_id)
+            }
             None => match self.get_bos_id() {
                 Some(bos_id) => {
                     Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * bos_id
@@ -1760,6 +1762,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                     "A model with a BOS token must be used to start generation with an empty input"
                 ),
             },
+            _ => return Vec::new(),
         };
         self.generate_from_ids_and_past(input_ids, None, generate_options)
     }
@@ -1816,8 +1819,8 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// ```
     fn generate_from_ids_and_past(
         &self,
-        input_ids: Tensor,
-        attention_mask: Option<Tensor>,
+        mut input_ids: Tensor,
+        mut attention_mask: Option<Tensor>,
         generate_options: Option<GenerateOptions>,
     ) -> Vec<GeneratedIndicesOutput> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).cloned();
@@ -1855,7 +1858,22 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             None => eos_token_ids.as_ref().map(|eos_ids| eos_ids[0]),
         };
 
-        let input_ids_len = *input_ids.size().last().unwrap();
+        let input_id_size = input_ids.size();
+        let mut input_ids_len = *input_id_size.last().unwrap();
+        if input_ids_len == 0 {
+            input_ids = Tensor::ones(
+                &[*input_id_size.first().unwrap(), 1],
+                (Int64, input_ids.device()),
+            ) * self
+                .get_bos_id()
+                .expect("`bos_token_id` has to be defined when no `input_ids` are provided.");
+            attention_mask = Some(Tensor::ones(
+                &[*input_id_size.first().unwrap(), 1],
+                (Int64, input_ids.device()),
+            ));
+            input_ids_len += 1;
+        }
+
         let cur_len = if !self.is_encoder_decoder() {
             *input_ids.size().last().unwrap()
         } else {
