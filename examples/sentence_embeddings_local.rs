@@ -21,7 +21,6 @@ use rust_bert::pipelines::sentence_embeddings::SentenceEmbeddingsBuilder;
 /// ```sh
 ///   python ../utils/convert_model.py  resources/path/to/2_Dense/pytorch_model.bin --suffix
 /// ```
-///
 fn main() -> anyhow::Result<()> {
     // Set-up sentence embeddings model
     let model = SentenceEmbeddingsBuilder::local("resources/all-MiniLM-L12-v2")

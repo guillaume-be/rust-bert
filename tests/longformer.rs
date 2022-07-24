@@ -309,7 +309,7 @@ fn longformer_for_multiple_choice() -> anyhow::Result<()> {
 }
 
 #[test]
-fn mobilebert_for_token_classification() -> anyhow::Result<()> {
+fn longformer_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_4096);

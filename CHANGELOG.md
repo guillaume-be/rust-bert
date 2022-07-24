@@ -1,12 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.18.0] - 2022-07-24
 ## Added
 - Support for sentence embeddings models and pipelines, based on [SentenceTransformers](https://www.sbert.net).
 
 ## Changed
 - Upgraded to `torch` 1.12 (via `tch` 0.8.0)
+
+## Fixed
+- Allow empty slices or slices of empty prompts for text generation.
 
 ## [0.18.0] - 2022-05-29
 ## Added
