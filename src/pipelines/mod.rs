@@ -409,6 +409,34 @@
 //! ]
 //! # ;
 //! ```
+//!
+//! #### 10. Sentence embeddings
+//!
+//! Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
+//!```no_run
+//! # use rust_bert::pipelines::sentence_embeddings::{SentenceEmbeddingsBuilder, SentenceEmbeddingsModelType};
+//! # fn main() -> anyhow::Result<()> {
+//!    let model = SentenceEmbeddingsBuilder::remote(
+//!             SentenceEmbeddingsModelType::AllMiniLmL12V2
+//!         ).create_model()?;
+//!
+//!     let sentences = [
+//!         "this is an example sentence",
+//!         "each sentence is converted"
+//!     ];
+//!     
+//!     let output = model.predict(&sentences);
+//! # }
+//! ```
+//! Output:
+//! ```no_run
+//! # let output =
+//! [
+//!     [-0.000202666, 0.08148022, 0.03136178, 0.002920636],
+//!     [0.064757116, 0.048519745, -0.01786038, -0.0479775],
+//! ]
+//! # ;
+//! ```
 
 pub mod common;
 pub mod conversation;

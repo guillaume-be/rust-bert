@@ -32,35 +32,36 @@ The tasks currently supported include:
   - Named Entity Recognition
   - Part of Speech tagging
   - Question-Answering
-  - Language Generation.
+  - Language Generation
+  - Sentence Embeddings
 
 <details>
 <summary> <b>Expand to display the supported models/tasks matrix </b> </summary>
 
-| |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|
-:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
-DistilBERT|✅|✅|✅| | | |✅| 
-MobileBERT|✅|✅|✅| | | |✅| 
-DeBERTa|✅|✅|✅| | | |✅| 
-DeBERTa (v2)|✅|✅|✅| | | |✅| 
-FNet|✅|✅|✅| | | |✅| 
-BERT|✅|✅|✅| | | |✅| 
-RoBERTa|✅|✅|✅| | | |✅| 
-GPT| | | |✅ | | | | 
-GPT2| | | |✅ | | | | 
-GPT-Neo| | | |✅ | | | | 
-BART|✅| | |✅ |✅| | |
-Marian| | | |  | |✅| | 
-MBart|✅| | |✅ | | | | 
-M2M100| | | |✅ | | | | 
-Electra | |✅| | | | |✅| 
-ALBERT |✅|✅|✅| | | |✅| 
-T5 | | | |✅ |✅|✅| | 
-XLNet|✅|✅|✅|✅ | | |✅| 
-Reformer|✅| |✅|✅ | | |✅| 
-ProphetNet| | | |✅ |✅ | | | 
-Longformer|✅|✅|✅| | | |✅| 
-Pegasus| | | | |✅| | | 
+| |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|**Sentence Embeddings**|
+:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:
+DistilBERT|✅|✅|✅| | | |✅| ✅| 
+MobileBERT|✅|✅|✅| | | |✅| |
+DeBERTa|✅|✅|✅| | | |✅| |
+DeBERTa (v2)|✅|✅|✅| | | |✅| |
+FNet|✅|✅|✅| | | |✅| |
+BERT|✅|✅|✅| | | |✅| ✅|
+RoBERTa|✅|✅|✅| | | |✅| ✅| 
+GPT| | | |✅ | | | |  |
+GPT2| | | |✅ | | | |  |
+GPT-Neo| | | |✅ | | | | | 
+BART|✅| | |✅ |✅| | | |
+Marian| | | |  | |✅| |  |
+MBart|✅| | |✅ | | | |  |
+M2M100| | | |✅ | | | |  |
+Electra | |✅| | | | |✅|  |
+ALBERT |✅|✅|✅| | | |✅| ✅ |
+T5 | | | |✅ |✅|✅| | ✅ |
+XLNet|✅|✅|✅|✅ | | |✅|  |
+Reformer|✅| |✅|✅ | | |✅|  |
+ProphetNet| | | |✅ |✅ | | |  |
+Longformer|✅|✅|✅| | | |✅|  |
+Pegasus| | | | |✅| | |  |
 </details>
 
 ## Getting started
@@ -376,6 +377,31 @@ Output:
     Entity { word: "name", score: 0.6565, label: "NN" }
     Entity { word: "is", score: 0.3697, label: "VBZ" }
     Entity { word: "Bob", score: 0.7460, label: "NNP" }
+]
+```
+</details>
+&nbsp;  
+<details>
+<summary> <b>10. Sentence embeddings </b> </summary>
+
+Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
+```rust
+    let model = SentenceEmbeddingsBuilder::remote(
+            SentenceEmbeddingsModelType::AllMiniLmL12V2
+        ).create_model()?;
+
+    let sentences = [
+        "this is an example sentence", 
+        "each sentence is converted"
+    ];
+    
+    let output = model.predict(&sentences);
+```
+Output:
+```
+[
+    [-0.000202666, 0.08148022, 0.03136178, 0.002920636 ...],
+    [0.064757116, 0.048519745, -0.01786038, -0.0479775 ...]
 ]
 ```
 </details>

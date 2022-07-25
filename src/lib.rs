@@ -39,7 +39,8 @@
 //! - Named Entity Recognition
 //! - Part of Speech tagging
 //! - Question-Answering
-//! - Language Generation.
+//! - Language Generation
+//! - Sentence Embeddings
 //!
 //! More information on these can be found in the [`pipelines` module](./pipelines/index.html)
 //! - Transformer models base architectures with customized heads. These allow to load pre-trained models for customized inference in Rust
@@ -47,30 +48,30 @@
 //! <details>
 //! <summary> <b> Click to expand to display the supported models/tasks matrix </b> </summary>
 //!
-//! | |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|
-//! :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
-//! DistilBERT|✅|✅|✅| | | |✅|
-//! MobileBERT|✅|✅|✅| | | |✅|
-//! DeBERTa|✅|✅|✅| | | |✅|
-//! DeBERTa (v2)|✅|✅|✅| | | |✅|
-//! FNet|✅|✅|✅| | | |✅|
-//! BERT|✅|✅|✅| | | |✅|
-//! RoBERTa|✅|✅|✅| | | |✅|
-//! GPT| | | |✅ | | | |
-//! GPT2| | | |✅ | | | |
-//! GPT-Neo| | | |✅ | | | |
-//! BART|✅| | |✅ |✅| | |
-//! Marian| | | |  | |✅| |
-//! MBart|✅| | |✅ | | | |
-//! M2M100| | | |✅ | | | |
-//! Electra | |✅| | | | |✅|
-//! ALBERT |✅|✅|✅| | | |✅|
-//! T5 | | | |✅ |✅|✅| |
-//! XLNet|✅|✅|✅|✅ | | |✅|
-//! Reformer|✅| |✅|✅ | | |✅|
-//! ProphetNet| | | |✅ |✅ | | |
-//! Longformer|✅|✅|✅| | | |✅|
-//! Pegasus| | | | |✅| | |
+//!| |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|**Sentence Embeddings**|
+//!:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:
+//!DistilBERT|✅|✅|✅| | | |✅| ✅|
+//!MobileBERT|✅|✅|✅| | | |✅| |
+//!DeBERTa|✅|✅|✅| | | |✅| |
+//!DeBERTa (v2)|✅|✅|✅| | | |✅| |
+//!FNet|✅|✅|✅| | | |✅| |
+//!BERT|✅|✅|✅| | | |✅| ✅|
+//!RoBERTa|✅|✅|✅| | | |✅| ✅|
+//!GPT| | | |✅ | | | |  |
+//!GPT2| | | |✅ | | | |  |
+//!GPT-Neo| | | |✅ | | | | |
+//!BART|✅| | |✅ |✅| | | |
+//!Marian| | | |  | |✅| |  |
+//!MBart|✅| | |✅ | | | |  |
+//!M2M100| | | |✅ | | | |  |
+//!Electra | |✅| | | | |✅|  |
+//!ALBERT |✅|✅|✅| | | |✅| ✅ |
+//!T5 | | | |✅ |✅|✅| | ✅ |
+//!XLNet|✅|✅|✅|✅ | | |✅|  |
+//!Reformer|✅| |✅|✅ | | |✅|  |
+//!ProphetNet| | | |✅ |✅ | | |  |
+//!Longformer|✅|✅|✅| | | |✅|  |
+//!Pegasus| | | | |✅| | |  |
 //! </details>
 //!
 //! # Getting started
@@ -84,8 +85,8 @@
 //!
 //! ### Manual installation (recommended)
 //!
-//! 1. Download `libtorch` from <https://pytorch.org/get-started/locally/>. This package requires `v1.10.0`: if this version is no longer available on the "get started" page,
-//! the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu111/libtorch-shared-with-deps-1.10.0%2Bcu111.zip` for a Linux version with CUDA11.
+//! 1. Download `libtorch` from <https://pytorch.org/get-started/locally/>. This package requires `v1.12.0`: if this version is no longer available on the "get started" page,
+//! the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu116/libtorch-cxx11-abi-shared-with-deps-1.12.0%2Bcu116.zip` for a Linux version with CUDA11.
 //! 2. Extract the library to a location of your choice
 //! 3. Set the following environment variables
 //! ##### Linux:
@@ -103,7 +104,7 @@
 //! ### Automatic installation
 //!
 //! Alternatively, you can let the `build` script automatically download the `libtorch` library for you.
-//! The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu111`.
+//! The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu116`.
 //! Note that the libtorch library is large (order of several GBs for the CUDA-enabled version) and the first build may therefore take several minutes to complete.
 //!
 //! # Ready-to-use pipelines
@@ -544,7 +545,36 @@
 //! ]
 //! # ;
 //! ```
+//! </details>
+//! &nbsp;  
+//! <details>
+//! <summary> <b>10. Sentence embeddings </b> </summary>
 //!
+//! Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
+//!```no_run
+//! # use rust_bert::pipelines::sentence_embeddings::{SentenceEmbeddingsBuilder, SentenceEmbeddingsModelType};
+//! # fn main() -> anyhow::Result<()> {
+//!    let model = SentenceEmbeddingsBuilder::remote(
+//!             SentenceEmbeddingsModelType::AllMiniLmL12V2
+//!         ).create_model()?;
+//!
+//!     let sentences = [
+//!         "this is an example sentence",
+//!         "each sentence is converted"
+//!     ];
+//!     
+//!     let output = model.predict(&sentences);
+//! # }
+//! ```
+//! Output:
+//! ```no_run
+//! # let output =
+//! [
+//!     [-0.000202666, 0.08148022, 0.03136178, 0.002920636],
+//!     [0.064757116, 0.048519745, -0.01786038, -0.0479775],
+//! ]
+//! # ;
+//! ```
 //! </details>
 //!
 //! ## Benchmarks
