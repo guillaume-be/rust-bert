@@ -82,6 +82,7 @@ regex = "1.6"
 cached-path = { version = "0.6", optional = true }
 dirs = { version = "4", optional = true }
 lazy_static = { version = "1", optional = true }
+enum_dispatch = "0.3"
 
 [dev-dependencies]
 anyhow = "1"
