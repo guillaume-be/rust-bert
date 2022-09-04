@@ -524,7 +524,6 @@ pub type ZeroShotTemplate = Box<dyn Fn(&str) -> String>;
 ///     format!("This example is about {}.", label)
 /// }
 /// ```
-///
 
 /// # ZeroShotClassificationModel for Zero Shot Classification
 pub struct ZeroShotClassificationModel {
