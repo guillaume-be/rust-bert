@@ -105,7 +105,7 @@ pub struct DebertaV2Config {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq, Eq)]
 /// # Layer normalization layer for the DeBERTa model's relative embeddings.
 pub enum NormRelEmbedType {
     layer_norm,

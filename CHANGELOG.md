@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+## Changed
+- Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`)
+
 ## [0.18.0] - 2022-07-24
 ## Added
 - Support for sentence embeddings models and pipelines, based on [SentenceTransformers](https://www.sbert.net).

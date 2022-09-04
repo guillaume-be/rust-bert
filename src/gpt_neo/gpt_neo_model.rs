@@ -112,7 +112,7 @@ impl GptNeoMergesResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 /// #GPT-Neo attention layer type
 pub enum AttentionLayerType {

@@ -60,7 +60,7 @@ use crate::pipelines::sequence_classification::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// Enum with the possible sentiment polarities. Note that the pre-trained SST2 model does not include neutral sentiment.
 pub enum SentimentPolarity {
     Positive,

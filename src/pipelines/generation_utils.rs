@@ -236,7 +236,9 @@ pub(crate) mod private_generation_utils {
     use tch::{nn, Device, Kind, Tensor};
 
     use crate::pipelines::common::TokenizerOption;
-    use crate::pipelines::generation_utils::{BeamHypotheses, Cache, GenerateConfig, LMHeadModel};
+    use crate::pipelines::generation_utils::{
+        BeamHypotheses, Cache, GenerateConfig, LMHeadModel, PrefixAllowedFunction,
+    };
 
     use super::ordered_float::OrderedFloat;
     use crate::common::kind::get_positive_infinity;
@@ -738,7 +740,7 @@ pub(crate) mod private_generation_utils {
             batch_size: i64,
             attention_mask: Tensor,
             gen_opt: InternalGenerateOptions,
-            prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
+            prefix_allowed_tokens_fn: Option<PrefixAllowedFunction>,
             output_scores: bool,
         ) -> GeneratedOutputWithScores {
             let mut unfinished_sentences =
@@ -962,7 +964,7 @@ pub(crate) mod private_generation_utils {
             batch_size: i64,
             mut attention_mask: Tensor,
             gen_opt: InternalGenerateOptions,
-            prefix_allowed_tokens_fn: Option<&dyn Fn(i64, &Tensor) -> Vec<i64>>,
+            prefix_allowed_tokens_fn: Option<PrefixAllowedFunction>,
             output_scores: bool,
         ) -> GeneratedOutputWithScores {
             let num_beam_groups = gen_opt.num_beam_groups.unwrap_or(1);
@@ -1486,6 +1488,12 @@ pub struct GeneratedIndicesOutput {
     pub token_scores: Option<Vec<f64>>,
 }
 
+pub type PrefixAllowedFunction<'a> = &'a dyn Fn(i64, &Tensor) -> Vec<i64>;
+/// Type alias for a function defining allowed tokens based on current tokens generated.
+/// This function should take a `batch_id` and associated tensor of already generated tokens and
+/// should return a vector of allowed tokens. This is useful for controlled generation, i.e.
+/// deterministic generation of a token continuation if a sequence of token occurs.
+
 #[derive(Clone, Copy, Default)]
 /// # Generation options for text generation.
 /// When provided to a `generate` method, these options will take priority over the `GenerateConfig` used to create the
@@ -1528,7 +1536,7 @@ pub struct GenerateOptions<'a> {
     /// Forced first token generated
     pub forced_bos_token_id: Option<i64>,
     /// Function to control the generation process. The function should take a `batch_id` (i64) and a tensor of token_ids already generated and returns a `Vec<i64>` of allowed tokens.
-    pub prefix_allowed_tokens_fn: Option<&'a dyn Fn(i64, &Tensor) -> Vec<i64>>,
+    pub prefix_allowed_tokens_fn: Option<PrefixAllowedFunction<'a>>,
     /// List of bad word ids (may be a sequence of word ids) that will be banned during the generation
     pub bad_word_ids: Option<&'a Vec<Vec<i64>>>,
     /// Flag indicating if text generation scores should be returned
