@@ -425,7 +425,8 @@
 //!         "each sentence is converted"
 //!     ];
 //!     
-//!     let output = model.predict(&sentences);
+//!     let output = model.encode(&sentences);
+//! #   Ok(())
 //! # }
 //! ```
 //! Output:
