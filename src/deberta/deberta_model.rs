@@ -94,7 +94,7 @@ impl DebertaMergesResources {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq, Eq)]
 /// # Position attention type to use for the DeBERTa model.
 pub enum PositionAttentionType {
     p2c,

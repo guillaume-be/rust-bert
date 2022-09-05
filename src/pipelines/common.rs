@@ -57,7 +57,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::path::Path;
 
-#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
 /// # Identifies the type of model
 pub enum ModelType {
     Bart,

@@ -506,6 +506,25 @@ impl ZeroShotClassificationOption {
     }
 }
 
+pub type ZeroShotTemplate = Box<dyn Fn(&str) -> String>;
+/// Template used to transform the zero-shot classification labels into a set of
+/// natural language hypotheses for natural language inference.
+///
+/// For example, transform `[positive, negative]` into
+/// `[This is a positive review, This is a negative review]`
+///
+/// The function should take a `&str` as an input and return the formatted String.
+///
+/// This transformation has a strong impact on the resulting classification accuracy.
+/// If no function is provided for zero-shot classification, the default templating
+/// function will be used:
+///
+/// ```rust
+/// fn default_template(label: &str) -> String {
+///     format!("This example is about {}.", label)
+/// }
+/// ```
+
 /// # ZeroShotClassificationModel for Zero Shot Classification
 pub struct ZeroShotClassificationModel {
     tokenizer: TokenizerOption,
@@ -567,7 +586,7 @@ impl ZeroShotClassificationModel {
         &self,
         inputs: S,
         labels: T,
-        template: Option<Box<dyn Fn(&str) -> String>>,
+        template: Option<ZeroShotTemplate>,
         max_len: usize,
     ) -> (Tensor, Tensor)
     where
@@ -691,7 +710,7 @@ impl ZeroShotClassificationModel {
         &self,
         inputs: S,
         labels: T,
-        template: Option<Box<dyn Fn(&str) -> String>>,
+        template: Option<ZeroShotTemplate>,
         max_length: usize,
     ) -> Vec<Label>
     where
@@ -832,7 +851,7 @@ impl ZeroShotClassificationModel {
         &self,
         inputs: S,
         labels: T,
-        template: Option<Box<dyn Fn(&str) -> String>>,
+        template: Option<ZeroShotTemplate>,
         max_length: usize,
     ) -> Vec<Vec<Label>>
     where

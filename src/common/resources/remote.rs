@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use std::path::PathBuf;
 
 /// # Remote resource that will be downloaded and cached locally on demand
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct RemoteResource {
     /// Remote path/url for the resource
     pub url: String,
