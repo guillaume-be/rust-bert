@@ -60,6 +60,7 @@
 use crate::albert::AlbertForSequenceClassification;
 use crate::bart::BartForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
+use crate::codebert::CodeBertForSequenceClassification;
 use crate::common::error::RustBertError;
 use crate::deberta::DebertaForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
@@ -68,7 +69,7 @@ use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForSequenceClassification;
-use crate::resources::ResourceProvider;
+use crate::resources::{LocalResource, ResourceProvider};
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use rust_tokenizers::tokenizer::TruncationStrategy;
@@ -106,7 +107,7 @@ pub struct SequenceClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Config resource (default: pretrained BERT model on CoNLL)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
@@ -129,7 +130,8 @@ impl SequenceClassificationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * model_resource - The `ResourceProvider` pointing to the model for RemoteResource to load (e.g.  model.ot)
+    /// * model_local_resource - The `ResourceProvider` pointing to the model for LocalResource to load (e.g.  model.ot)
     /// * config - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
@@ -170,6 +172,7 @@ impl Default for SequenceClassificationConfig {
         SequenceClassificationConfig::new(
             ModelType::DistilBert,
             RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2),
+            None,
             RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
             RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
             None,
@@ -179,7 +182,6 @@ impl Default for SequenceClassificationConfig {
         )
     }
 }
-
 #[allow(clippy::large_enum_variant)]
 /// # Abstraction that holds one particular sequence classification model, for any of the supported models
 pub enum SequenceClassificationOption {
@@ -195,6 +197,8 @@ pub enum SequenceClassificationOption {
     MobileBert(MobileBertForSequenceClassification),
     /// Roberta for Sequence Classification
     Roberta(RobertaForSequenceClassification),
+    /// CodeBert for Sequence Classification
+    CodeBert(CodeBertForSequenceClassification),
     /// XLMRoberta for Sequence Classification
     XLMRoberta(RobertaForSequenceClassification),
     /// Albert for Sequence Classification
@@ -295,6 +299,17 @@ impl SequenceClassificationOption {
                     ))
                 }
             }
+            ModelType::CodeBert => {
+                if let ConfigOption::CodeBert(config) = config {
+                    Ok(SequenceClassificationOption::CodeBert(
+                        CodeBertForSequenceClassification::new(p, config),
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a CodeBertConfig for CodeBert!".to_string(),
+                    ))
+                }
+            }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Roberta(config) = config {
                     Ok(SequenceClassificationOption::XLMRoberta(
@@ -386,6 +401,7 @@ impl SequenceClassificationOption {
             Self::Deberta(_) => ModelType::Deberta,
             Self::DebertaV2(_) => ModelType::DebertaV2,
             Self::Roberta(_) => ModelType::Roberta,
+            Self::CodeBert(_) => ModelType::CodeBert,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::MobileBert(_) => ModelType::MobileBert,
@@ -472,6 +488,18 @@ impl SequenceClassificationOption {
                     .logits
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .logits
+            }
+            Self::CodeBert(ref model) => {
                 model
                     .forward_t(
                         input_ids,
@@ -570,13 +598,18 @@ impl SequenceClassificationModel {
     ) -> Result<SequenceClassificationModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
         let vocab_path = config.vocab_resource.get_local_path()?;
-        let weights_path = config.model_resource.get_local_path()?;
+        let weights_path = if config.model_local_resource.is_none() {
+            config.model_resource.unwrap().get_local_path()?
+        } else {
+            config.model_local_resource.unwrap().get_local_path()?
+        };
         let merges_path = if let Some(merges_resource) = &config.merges_resource {
             Some(merges_resource.get_local_path()?)
         } else {
             None
         };
-        let device = config.device;
+        // let device = config.device;
+        let device = Device::Cpu;
 
         let tokenizer = TokenizerOption::from_file(
             config.model_type,
