@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file. The format 
 ## Changed
 - Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`)
 
+## Fixed
+- Fixed configuration check for RoBERTa models for sentence classification.
+
 ## [0.18.0] - 2022-07-24
 ## Added
 - Support for sentence embeddings models and pipelines, based on [SentenceTransformers](https://www.sbert.net).
