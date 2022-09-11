@@ -608,8 +608,7 @@ impl SequenceClassificationModel {
         } else {
             None
         };
-        // let device = config.device;
-        let device = Device::Cpu;
+        let device = config.device;
 
         let tokenizer = TokenizerOption::from_file(
             config.model_type,
