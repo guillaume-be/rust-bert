@@ -46,8 +46,8 @@
 //!     println!("{:?}", word);
 //! }
 //!
-//! #Ok(())
-//! #}
+//! # Ok(())
+//! # }
 //! ```
 //!
 //!
@@ -517,8 +517,8 @@ impl MaskedLanguageModel {
     ///
     /// ```no_run
     ///
-    /// #fn main() -> anyhow::Result<()> {
-    /// #use rust_bert::pipelines::masked_language::MaskedLanguageModel;
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::masked_language::MaskedLanguageModel;
     /// //    Set-up model
     /// let mask_language_model = MaskedLanguageModel::new(Default::default())?;
     ///

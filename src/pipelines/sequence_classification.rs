@@ -24,6 +24,7 @@
 //! //Load a configuration
 //! let config = SequenceClassificationConfig::new(ModelType::DistilBert,
 //!    RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2),
+//!    None,
 //!    RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
 //!    RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
 //!    None, // Merge resources
