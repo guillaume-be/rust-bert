@@ -477,7 +477,10 @@
 pub mod common;
 pub mod conversation;
 pub mod generation_utils;
+<<<<<<< HEAD
 pub mod keywords_extraction;
+=======
+>>>>>>> add piplines::masked_language
 pub mod ner;
 pub mod pos_tagging;
 pub mod question_answering;
@@ -489,3 +492,5 @@ pub mod text_generation;
 pub mod token_classification;
 pub mod translation;
 pub mod zero_shot_classification;
+pub mod masked_language;
+
