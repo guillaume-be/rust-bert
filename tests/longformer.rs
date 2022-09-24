@@ -14,7 +14,7 @@ use rust_bert::pipelines::question_answering::{
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{MultiThreadedTokenizer, RobertaTokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::{RobertaVocab, Vocab};
+use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
@@ -67,7 +67,9 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
         .map(|input| input.token_ids.clone())
         .map(|mut input| {
             input.extend(vec![
-                tokenizer.vocab().token_to_id(RobertaVocab::pad_value());
+                tokenizer
+                    .vocab()
+                    .token_to_id(tokenizer.vocab().get_pad_value());
                 max_len - input.len()
             ]);
             input
