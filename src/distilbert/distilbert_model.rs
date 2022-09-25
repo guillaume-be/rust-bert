@@ -248,7 +248,7 @@ impl DistilBertModel {
         train: bool,
     ) -> Result<DistilBertTransformerOutput, RustBertError> {
         let input_embeddings = self.embeddings.forward_t(input, input_embeds, train)?;
-        let transformer_output = (&self.transformer).forward_t(&input_embeddings, mask, train);
+        let transformer_output = self.transformer.forward_t(&input_embeddings, mask, train);
         Ok(transformer_output)
     }
 }
