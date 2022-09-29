@@ -26,6 +26,7 @@ use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::fnet::FNetConfig;
 use crate::gpt2::Gpt2Config;
+use crate::gpt_j::GptJConfig;
 use crate::gpt_neo::GptNeoConfig;
 use crate::longformer::LongformerConfig;
 use crate::longt5::LongT5Config;
@@ -78,6 +79,7 @@ pub enum ModelType {
     Albert,
     XLNet,
     GPT2,
+    GPTJ,
     OpenAiGpt,
     Reformer,
     ProphetNet,
@@ -119,6 +121,8 @@ pub enum ConfigOption {
     XLNet(XLNetConfig),
     /// GPT2 configuration
     GPT2(Gpt2Config),
+    /// GPT-J configuration
+    GPTJ(GptJConfig),
     /// Reformer configuration
     Reformer(ReformerConfig),
     /// RoBERTa configuration
@@ -196,6 +200,7 @@ impl ConfigOption {
             ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
             ModelType::XLNet => ConfigOption::XLNet(XLNetConfig::from_file(path)),
             ModelType::GPT2 => ConfigOption::GPT2(Gpt2Config::from_file(path)),
+            ModelType::GPTJ => ConfigOption::GPTJ(GptJConfig::from_file(path)),
             ModelType::GPTNeo => ConfigOption::GPTNeo(GptNeoConfig::from_file(path)),
             ModelType::OpenAiGpt => ConfigOption::OpenAiGpt(OpenAiGptConfig::from_file(path)),
             ModelType::Reformer => ConfigOption::Reformer(ReformerConfig::from_file(path)),
@@ -285,6 +290,7 @@ impl ConfigOption {
             Self::LongT5(_) => panic!("LongT5 does not use a label mapping"),
             Self::OpenAiGpt(_) => panic!("OpenAI GPT does not use a label mapping"),
             Self::GPT2(_) => panic!("GPT2 does not use a label mapping"),
+            Self::GPTJ(_) => panic!("GPT-J does not use a label mapping"),
             Self::GPTNeo(_) => panic!("GPT-Neo does not use a label mapping"),
             Self::Pegasus(_) => panic!("Pegasus does not use a label mapping"),
         }
@@ -305,6 +311,7 @@ impl ConfigOption {
             Self::Albert(config) => Some(config.max_position_embeddings),
             Self::XLNet(_) => None,
             Self::GPT2(config) => Some(config.n_positions),
+            Self::GPTJ(config) => Some(config.n_positions),
             Self::Reformer(config) => Some(config.max_position_embeddings),
             Self::ProphetNet(config) => Some(config.max_position_embeddings),
             Self::Longformer(config) => Some(config.max_position_embeddings),
@@ -555,11 +562,13 @@ impl TokenizerOption {
                 }
                 TokenizerOption::Reformer(ReformerTokenizer::from_file(vocab_path, lower_case)?)
             }
-            ModelType::GPT2 | ModelType::GPTNeo => TokenizerOption::GPT2(Gpt2Tokenizer::from_file(
-                vocab_path,
-                merges_path.expect("No merges specified!"),
-                lower_case,
-            )?),
+            ModelType::GPT2 | ModelType::GPTNeo | ModelType::GPTJ => {
+                TokenizerOption::GPT2(Gpt2Tokenizer::from_file(
+                    vocab_path,
+                    merges_path.expect("No merges specified!"),
+                    lower_case,
+                )?)
+            }
             ModelType::OpenAiGpt => TokenizerOption::OpenAiGpt(OpenAiGptTokenizer::from_file(
                 vocab_path,
                 merges_path.expect("No merges specified!"),

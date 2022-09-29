@@ -74,6 +74,7 @@ use tch::{no_grad, Device, Tensor};
 use crate::bart::LayerState as BartLayerState;
 use crate::common::error::RustBertError;
 use crate::common::resources::ResourceProvider;
+use crate::gpt_j::LayerState as GPTJLayerState;
 use crate::gpt_neo::LayerState as GPTNeoLayerState;
 use crate::pipelines::generation_utils::private_generation_utils::{
     InternalGenerateOptions, PrivateLanguageGenerator,
@@ -224,6 +225,7 @@ pub enum Cache {
     ReformerCache(Option<Vec<Option<ReformerLayerState>>>),
     ProphetNetCache(Option<Vec<(Option<ProphetNetLayerState>, Option<ProphetNetLayerState>)>>),
     GPTNeoCache(Option<Vec<Option<GPTNeoLayerState>>>),
+    GPTJCache(Option<Vec<Option<GPTJLayerState>>>),
     None,
 }
 

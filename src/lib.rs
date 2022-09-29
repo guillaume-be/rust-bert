@@ -584,7 +584,7 @@
 //! # ;
 //! ```
 //! </details>
-//! &nbsp;  
+//! &nbsp;
 //! <details>
 //! <summary> <b>11. Sentence embeddings </b> </summary>
 //!
@@ -600,7 +600,7 @@
 //!         "this is an example sentence",
 //!         "each sentence is converted"
 //!     ];
-//!     
+//!
 //!     let output = model.encode(&sentences);
 //! #   Ok(())
 //! # }
@@ -708,6 +708,7 @@ pub mod distilbert;
 pub mod electra;
 pub mod fnet;
 pub mod gpt2;
+pub mod gpt_j;
 pub mod gpt_neo;
 pub mod longformer;
 pub mod longt5;
