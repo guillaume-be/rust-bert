@@ -20,7 +20,7 @@
 //!
 //!
 //! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/dialgpt-medium
-//!
+//! The following illustrates how to run a 2-turns conversation using a conversation manager:
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
@@ -30,15 +30,24 @@
 //! let conversation_id =
 //!     conversation_manager.create("Going to the movies tonight - any suggestions?");
 //! let output = conversation_model.generate_responses(&mut conversation_manager);
+//!
+//! let _ = conversation_manager
+//!  .get(&conversation_id)
+//!  .unwrap()
+//!  .add_user_input("Is it an action movie?")?;
+//!
+//! let output = conversation_model.generate_responses(&mut conversation_manager);
+//!
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! Example output: \
 //! ```no_run
-//! # let output =
-//! "The Big Lebowski."
-//! # ;
+//! # let output = [
+//! "{a0cb3c15-9a5a-4a34-958d-95eddac0215a: \"The Big Lebowski\"}",
+//! "{a0cb3c15-9a5a-4a34-958d-95eddac0215a: \"It's a comedy.\"}"
+//! # ];
 //! ```
 //!
 //! # Disclaimer
@@ -240,7 +249,7 @@ impl Conversation {
     /// use rust_bert::pipelines::conversation::Conversation;
     ///
     /// let mut conversation = Conversation::new_empty();
-    /// conversation.add_user_input("Hi there!");
+    /// conversation.add_user_input("Hi there!").unwrap();
     /// ```
     pub fn add_user_input(&mut self, text: &str) -> Result<(), RustBertError> {
         if self.new_user_input.is_some() {
@@ -270,7 +279,7 @@ impl Conversation {
     /// use rust_bert::pipelines::conversation::Conversation;
     ///
     /// let mut conversation = Conversation::new_empty();
-    /// conversation.add_user_input("This input will not be used");
+    /// conversation.add_user_input("This input will not be used").unwrap();
     /// let unused_string = conversation.add_user_input_with_overwrite("Hi there!");
     /// ```
     pub fn add_user_input_with_overwrite(&mut self, text: &str) -> Option<String> {
@@ -296,7 +305,7 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// let false_value = conversation.contains_new_input();
-    /// conversation.add_user_input("This input will not be used");
+    /// conversation.add_user_input("This input will not be used").unwrap();
     /// let true_value = conversation.contains_new_input();
     /// ```
     pub fn contains_new_input(&self) -> bool {
@@ -313,7 +322,7 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// let false_value = conversation.contains_new_input();
-    /// conversation.add_user_input("This input will not be used");
+    /// conversation.add_user_input("This input will not be used").unwrap();
     /// let true_value = conversation.contains_new_input();
     /// conversation.mark_processed();
     /// let false_value = conversation.contains_new_input();
@@ -340,7 +349,7 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// let none_value = conversation.get_last_input();
-    /// conversation.add_user_input("This input will not be used");
+    /// conversation.add_user_input("This input will not be used").unwrap();
     /// let last_provided_input = conversation.get_last_input();
     /// assert_eq!(last_provided_input, Some("This input will not be used"));
     /// ```
