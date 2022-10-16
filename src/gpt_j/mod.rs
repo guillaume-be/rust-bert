@@ -46,9 +46,9 @@
 //! # }
 //! ```
 
-pub(crate) mod attention;
+mod attention;
 mod gpt_j_model;
-pub(crate) mod transformer;
+mod transformer;
 
 pub use gpt_j_model::{
     GptJConfig, GptJConfigResources, GptJGenerator, GptJLMHeadModel, GptJMergesResources,

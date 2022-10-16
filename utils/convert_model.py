@@ -26,6 +26,10 @@ if __name__ == "__main__":
         action="store_true",
         help="Split weight names on '.' and keep only last part",
     )
+    parser.add_argument(
+        "--dtype",
+        help="Convert weights to a specific numpy DataType (float32, float16, ...)",
+    )
     args = parser.parse_args()
 
     source_file = Path(args.source_file)
@@ -54,7 +58,11 @@ if __name__ == "__main__":
         if args.suffix:
             k = k.split(".")[-1]
         if isinstance(v, Tensor):
-            nps[k] = np.ascontiguousarray(v.cpu().numpy())
+            tensor = v.cpu().numpy()
+            if args.dtype is not None:
+                nps[k] = np.ascontiguousarray(tensor.astype(np.dtype(args.dtype)))
+            else:
+                nps[k] = np.ascontiguousarray(tensor)
             print(f"converted {k} - {str(sys.getsizeof(nps[k]))} bytes")
         else:
             print(f"skipped non-tensor object: {k}")

@@ -75,7 +75,8 @@ fn test_generation_gpt_j() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    let model = TextGenerationModel::new(generation_config)?;
+    let mut model = TextGenerationModel::new(generation_config)?;
+    model.float();
 
     let input_context_1 = "It was a very nice and sunny";
     let input_context_2 = "It was a gloom winter night, and";

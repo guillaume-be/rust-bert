@@ -46,7 +46,7 @@ pub struct GptJAttention {
     bias: Tensor,
     attn_dropout: Dropout,
     resid_dropout: Dropout,
-    scale_attn: Tensor,
+    scale_attn: f64,
     k_proj: Linear,
     v_proj: Linear,
     q_proj: Linear,
@@ -87,9 +87,7 @@ impl GptJAttention {
         );
         let dim_per_head = config.n_embd / config.n_head;
 
-        let scale_attn = Tensor::from(dim_per_head as f32)
-            .to_kind(Kind::Float)
-            .sqrt();
+        let scale_attn = (dim_per_head as f64).sqrt();
 
         let linear_config = nn::LinearConfig {
             bias: false,
@@ -148,7 +146,7 @@ impl GptJAttention {
             tensor.permute(&[0, 2, 1, 3]) // (batch, head, seq_length, head_features)
         } else {
             panic!(
-                "Input tensor rank should be one of [4, 5], but is: {}",
+                "Input tensor should either be a rotary head, or its rank be one of [4, 5] but is: {}",
                 tensor.size().len()
             )
         }
@@ -201,7 +199,7 @@ impl GptJAttention {
             &Tensor::of_slice(&[-1e9f32]).to_device(attention_weights.device()),
         );
         if self.scale {
-            attention_weights /= &self.scale_attn;
+            attention_weights /= self.scale_attn;
         }
         if let Some(attention_mask_value) = attention_mask {
             attention_weights += attention_mask_value;

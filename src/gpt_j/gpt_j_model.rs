@@ -165,12 +165,10 @@ impl Default for GptJConfig {
     }
 }
 
-// TODO: default to false ?
 fn default_use_float16() -> bool {
     true
 }
 
-// TODO: default to false ?
 fn default_preload_on_cpu() -> bool {
     true
 }
@@ -291,7 +289,7 @@ impl GptJModel {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt_j::{GptJConfig, GptJModel};
+    /// use rust_bert::gpt_j::{GptJConfig, GptJModel, LayerState};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
@@ -300,18 +298,28 @@ impl GptJModel {
     /// # let gpt_j_model: GptJModel = GptJModel::new(&vs.root(), &config);
     /// let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    /// let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
+    /// let mut past: Vec<Option<LayerState>> = Vec::with_capacity(config.n_layer as usize);
     /// for _ in 0..config.n_layer as usize {
-    ///     past.push(Tensor::rand(
-    ///         &[
-    ///             2,
-    ///             batch_size,
-    ///             config.n_head,
-    ///             past_sequence_length,
-    ///             config.n_embd / config.n_head,
-    ///         ],
-    ///         (Double, device),
-    ///     ))
+    ///     past.push(Some(LayerState {
+    ///         prev_key: Tensor::rand(
+    ///             &[
+    ///                 batch_size,
+    ///                 config.n_head,
+    ///                 past_sequence_length,
+    ///                 config.n_embd / config.n_head,
+    ///             ],
+    ///             (Double, device),
+    ///         ),
+    ///         prev_value: Tensor::rand(
+    ///             &[
+    ///                 batch_size,
+    ///                 config.n_head,
+    ///                 past_sequence_length,
+    ///                 config.n_embd / config.n_head,
+    ///             ],
+    ///             (Double, device),
+    ///         ),
+    ///     }))
     /// }
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
@@ -348,12 +356,16 @@ impl GptJModel {
 
         let (layer_past, _layer_past_length) = match layer_past {
             Some(value) => {
-                assert_eq!(
-                    value.len(),
-                    self.h.len(),
-                    "Past activations vector must be of length equal to the number of layers"
-                );
-                (value.clone(), value.len())
+                if value.len() != self.h.len() {
+                    return Err(RustBertError::ValueError(format!(
+                        "Past activations vector length ({}) must be equal to the number of layers ({})",
+                        value.len(),
+                        self.h.len()
+                    )));
+                } else {
+                    let length = value.len();
+                    (value, length)
+                }
             }
             None => {
                 let mut out = Vec::with_capacity(self.h.len());
