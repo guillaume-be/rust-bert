@@ -21,11 +21,11 @@ fn main() -> anyhow::Result<()> {
     //    Define input
     let input = [
         "Looks like one [MASK] is missing",
-        "It was a very nice and [MASK] day",
+        "It was a very nice and <MASK> day",
     ];
 
     //    Run model
-    let output = mask_language_model.predict(&input, vec![4, 7]);
+    let output = mask_language_model.predict(&input);
     for word in output {
         println!("{:?}", word);
     }
