@@ -11,22 +11,21 @@
 // limitations under the License.
 
 extern crate anyhow;
+use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
 use rust_bert::pipelines::common::ModelType;
 use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
 use rust_bert::resources::RemoteResource;
-use rust_bert::roberta::{
-    RobertaConfigResources, RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
-};
 fn main() -> anyhow::Result<()> {
     //    Set-up model
     let config = MaskedLanguageConfig::new(
-        ModelType::Roberta,
-        RemoteResource::from_pretrained(RobertaModelResources::DISTILROBERTA_BASE),
+        ModelType::Bert,
+        RemoteResource::from_pretrained(BertModelResources::BERT),
         None,
-        RemoteResource::from_pretrained(RobertaConfigResources::DISTILROBERTA_BASE),
-        RemoteResource::from_pretrained(RobertaVocabResources::DISTILROBERTA_BASE),
-        RemoteResource::from_pretrained(RobertaMergesResources::DISTILROBERTA_BASE),
+        RemoteResource::from_pretrained(BertConfigResources::BERT),
+        RemoteResource::from_pretrained(BertVocabResources::BERT),
+        None,
         true,
+        None,
         None,
         None,
     );
@@ -34,12 +33,12 @@ fn main() -> anyhow::Result<()> {
     let mask_language_model = MaskedLanguageModel::new(config)?;
     //    Define input
     let input = [
-        "Looks like one <mask> is missing!",
-        "The goal of life is <mask>.",
+        "Hello I am a [MASK] student",
+        "Paris is the [MASK] of France",
     ];
 
     //    Run model
-    let output = mask_language_model.predict(&input, vec![5, 6]);
+    let output = mask_language_model.predict(&input);
     for word in output {
         println!("{:?}", word);
     }
