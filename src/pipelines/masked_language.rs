@@ -52,7 +52,6 @@
 //!
 //!
 use crate::bert::BertForMaskedLM;
-use crate::codebert::CodeBertForMaskedLM;
 use crate::common::error::RustBertError;
 use crate::deberta::DebertaForMaskedLM;
 use crate::deberta_v2::DebertaV2ForMaskedLM;
@@ -174,8 +173,6 @@ pub enum MaskedLanguageOption {
     DebertaV2(DebertaV2ForMaskedLM),
     /// Roberta for Masked Language
     Roberta(RobertaForMaskedLM),
-    /// CodeBert for Masked Language
-    CodeBert(CodeBertForMaskedLM),
     /// XLMRoberta for Masked Language
     XLMRoberta(RobertaForMaskedLM),
     /// FNet for Masked Language
@@ -241,17 +238,6 @@ impl MaskedLanguageOption {
                     ))
                 }
             }
-            ModelType::CodeBert => {
-                if let ConfigOption::CodeBert(config) = config {
-                    Ok(MaskedLanguageOption::CodeBert(CodeBertForMaskedLM::new(
-                        p, config,
-                    )))
-                } else {
-                    Err(RustBertError::InvalidConfigurationError(
-                        "You can only supply a CodeBertConfig for CodeBert!".to_string(),
-                    ))
-                }
-            }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Bert(config) = config {
                     Ok(MaskedLanguageOption::XLMRoberta(RobertaForMaskedLM::new(
@@ -286,7 +272,6 @@ impl MaskedLanguageOption {
             Self::Deberta(_) => ModelType::Deberta,
             Self::DebertaV2(_) => ModelType::DebertaV2,
             Self::Roberta(_) => ModelType::Roberta,
-            Self::CodeBert(_) => ModelType::CodeBert,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::FNet(_) => ModelType::FNet,
         }
@@ -361,20 +346,6 @@ impl MaskedLanguageOption {
                     )
                     .prediction_scores
             }
-            Self::CodeBert(ref model) => {
-                model
-                    .forward_t(
-                        input_ids,
-                        mask,
-                        token_type_ids,
-                        position_ids,
-                        input_embeds,
-                        encoder_hidden_states,
-                        encoder_mask,
-                        train,
-                    )
-                    .prediction_scores
-            }
             Self::FNet(ref model) => {
                 model
                     .forward_t(input_ids, token_type_ids, position_ids, input_embeds, train)
@@ -395,8 +366,6 @@ pub enum MaskTokenOption {
     DebertaV2(String),
     /// Roberta for Masked Token
     Roberta(String),
-    /// CodeBert for Masked Token
-    CodeBert(String),
     /// XLMRoberta for Masked Token
     XLMRoberta(String),
     /// FNet for Masked Token
@@ -443,13 +412,6 @@ impl MaskTokenOption {
                     Ok(MaskTokenOption::Roberta(mask_token.unwrap()))
                 }
             }
-            ModelType::CodeBert => {
-                if mask_token.is_none() {
-                    Ok(MaskTokenOption::CodeBert(String::from("<MASK>")))
-                } else {
-                    Ok(MaskTokenOption::CodeBert(mask_token.unwrap()))
-                }
-            }
             ModelType::XLMRoberta => {
                 if mask_token.is_none() {
                     Ok(MaskTokenOption::XLMRoberta(String::from("<MASK>")))
@@ -478,7 +440,6 @@ impl MaskTokenOption {
             Self::Deberta(ref mask_token) => mask_token,
             Self::DebertaV2(ref mask_token) => mask_token,
             Self::Roberta(ref mask_token) => mask_token,
-            Self::CodeBert(ref mask_token) => mask_token,
             Self::XLMRoberta(ref mask_token) => mask_token,
             Self::FNet(ref mask_token) => mask_token,
         }
@@ -613,9 +574,6 @@ impl MaskedLanguageModel {
             TokenizerOption::Roberta(ref tokenizer) => {
                 MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
             }
-            TokenizerOption::CodeBert(ref tokenizer) => {
-                MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
-            }
             TokenizerOption::XLMRoberta(ref tokenizer) => {
                 MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
             }
@@ -623,7 +581,7 @@ impl MaskedLanguageModel {
                 MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
             }
             _ => return Err(RustBertError::InvalidConfigurationError(
-                "Masked Language currently supports Bert|Deberta|DebertaV2|Roberta|CodeBert|XLMRoberta|FNet!".to_string(),
+                "Masked Language currently supports Bert|Deberta|DebertaV2|Roberta|XLMRoberta|FNet!".to_string(),
             )),
         };
         Ok(word)

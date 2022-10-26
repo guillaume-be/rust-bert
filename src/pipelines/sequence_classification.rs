@@ -61,7 +61,6 @@
 use crate::albert::AlbertForSequenceClassification;
 use crate::bart::BartForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
-use crate::codebert::CodeBertForSequenceClassification;
 use crate::common::error::RustBertError;
 use crate::deberta::DebertaForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
@@ -198,8 +197,6 @@ pub enum SequenceClassificationOption {
     MobileBert(MobileBertForSequenceClassification),
     /// Roberta for Sequence Classification
     Roberta(RobertaForSequenceClassification),
-    /// CodeBert for Sequence Classification
-    CodeBert(CodeBertForSequenceClassification),
     /// XLMRoberta for Sequence Classification
     XLMRoberta(RobertaForSequenceClassification),
     /// Albert for Sequence Classification
@@ -300,17 +297,6 @@ impl SequenceClassificationOption {
                     ))
                 }
             }
-            ModelType::CodeBert => {
-                if let ConfigOption::CodeBert(config) = config {
-                    Ok(SequenceClassificationOption::CodeBert(
-                        CodeBertForSequenceClassification::new(p, config),
-                    ))
-                } else {
-                    Err(RustBertError::InvalidConfigurationError(
-                        "You can only supply a CodeBertConfig for CodeBert!".to_string(),
-                    ))
-                }
-            }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Roberta(config) = config {
                     Ok(SequenceClassificationOption::XLMRoberta(
@@ -402,7 +388,6 @@ impl SequenceClassificationOption {
             Self::Deberta(_) => ModelType::Deberta,
             Self::DebertaV2(_) => ModelType::DebertaV2,
             Self::Roberta(_) => ModelType::Roberta,
-            Self::CodeBert(_) => ModelType::CodeBert,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::DistilBert(_) => ModelType::DistilBert,
             Self::MobileBert(_) => ModelType::MobileBert,
@@ -489,18 +474,6 @@ impl SequenceClassificationOption {
                     .logits
             }
             Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
-                model
-                    .forward_t(
-                        input_ids,
-                        mask,
-                        token_type_ids,
-                        position_ids,
-                        input_embeds,
-                        train,
-                    )
-                    .logits
-            }
-            Self::CodeBert(ref model) => {
                 model
                     .forward_t(
                         input_ids,

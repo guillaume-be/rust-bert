@@ -665,7 +665,6 @@
 pub mod albert;
 pub mod bart;
 pub mod bert;
-pub mod codebert;
 mod common;
 pub mod deberta;
 pub mod deberta_v2;
