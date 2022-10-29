@@ -1070,9 +1070,11 @@ impl BartGenerator {
         let merges_path = generate_config
             .merges_resource
             .as_ref()
-            .ok_or(RustBertError::InvalidConfigurationError(
-                "BART expects a merges resources to be provided".to_string(),
-            ))?
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "BART expects a merges resources to be provided".to_string(),
+                )
+            })?
             .get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
