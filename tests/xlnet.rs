@@ -202,9 +202,6 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
     let vocab_resource = Box::new(RemoteResource::from_pretrained(
         XLNetVocabResources::XLNET_BASE_CASED,
     ));
-    let merges_resource = Box::new(RemoteResource::from_pretrained(
-        XLNetVocabResources::XLNET_BASE_CASED,
-    ));
     let model_resource = Box::new(RemoteResource::from_pretrained(
         XLNetModelResources::XLNET_BASE_CASED,
     ));
@@ -214,7 +211,7 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        merges_resource: None,
         max_length: 32,
         do_sample: false,
         num_beams: 3,

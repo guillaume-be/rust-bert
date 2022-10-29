@@ -37,7 +37,7 @@ fn main() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        merges_resource: Some(merges_resource),
         num_beams: 1,
         length_penalty: 1.0,
         min_length: 56,
