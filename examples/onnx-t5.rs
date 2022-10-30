@@ -6,7 +6,10 @@ fn main() -> anyhow::Result<()> {
     let decoder_path = Path::new("E:/Coding/t5-small/decoder_model.onnx");
     let decoder_with_past_path = Path::new("E:/Coding/t5-small/decoder_with_past_model.onnx");
 
-    let encoder_model = onnx().model_for_path(encoder_path)?.into_runnable()?;
+    let encoder_model = onnx()
+        .model_for_path(encoder_path)?
+        // .into_optimized()?
+        .into_runnable()?;
 
     let input_ids: Vec<i64> = vec![8774, 48, 19, 3, 9, 182, 307, 1499, 12, 36, 15459, 5, 1];
     let attention: Vec<i64> = vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
