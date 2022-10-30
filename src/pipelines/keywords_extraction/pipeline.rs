@@ -20,7 +20,7 @@
 /// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
-use crate::pipelines::keywords::tokenizer::StopWordsTokenizer;
+use crate::pipelines::keywords_extraction::tokenizer::StopWordsTokenizer;
 use crate::pipelines::sentence_embeddings::{
     SentenceEmbeddingsConfig, SentenceEmbeddingsModel, SentenceEmbeddingsModelType,
 };
@@ -65,6 +65,10 @@ impl Default for KeywordExtractionConfig<'_> {
 pub struct KeywordExtractionModel<'a> {
     sentence_embeddings_model: SentenceEmbeddingsModel,
     tokenizer: StopWordsTokenizer<'a>,
+    scorer_type: KeywordScorerType,
+    num_keywords: usize,
+    diversity: Option<f32>,
+    max_sum_candidates: Option<usize>,
 }
 
 impl<'a> KeywordExtractionModel<'a> {
@@ -83,6 +87,10 @@ impl<'a> KeywordExtractionModel<'a> {
         Ok(Self {
             sentence_embeddings_model,
             tokenizer,
+            scorer_type: config.scorer_type,
+            num_keywords: config.num_keywords,
+            diversity: config.diversity,
+            max_sum_candidates: config.max_sum_candidates,
         })
     }
 
@@ -94,8 +102,33 @@ impl<'a> KeywordExtractionModel<'a> {
         let (flat_word_list, document_boundaries) =
             KeywordExtractionModel::flatten_word_list(&words);
 
-        let document_embeddings = self.sentence_embeddings_model.encode(inputs)?;
-        let word_embeddings = self.sentence_embeddings_model.encode(&flat_word_list)?;
+        let document_embeddings = self
+            .sentence_embeddings_model
+            .encode_as_tensor(inputs)?
+            .embeddings;
+
+        let word_embeddings = self
+            .sentence_embeddings_model
+            .encode_as_tensor(&flat_word_list)?;
+
+        for (document_index, (start, end)) in document_boundaries.into_iter().enumerate() {
+            let document_embedding = document_embeddings.select(0, document_index as i64);
+            println!("doc {:?}", document_embedding);
+            let word_embeddings = word_embeddings
+                .embeddings
+                .slice(0, start as i64, end as i64, 1);
+            let local_top_word_indices = self.scorer_type.score_keywords(
+                document_embedding,
+                word_embeddings,
+                self.num_keywords,
+                self.diversity,
+                self.max_sum_candidates,
+            );
+            for index in local_top_word_indices {
+                let word = flat_word_list[start + index];
+                println!("{:?} - {:?}", word, words[document_index].get(word));
+            }
+        }
 
         Ok(())
     }

@@ -1,4 +1,4 @@
-use crate::pipelines::keywords::stopwords::ENGLISH_STOPWORDS;
+use crate::pipelines::keywords_extraction::stopwords::ENGLISH_STOPWORDS;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 

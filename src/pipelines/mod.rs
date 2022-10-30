@@ -442,7 +442,7 @@
 pub mod common;
 pub mod conversation;
 pub mod generation_utils;
-pub mod keywords;
+pub mod keywords_extraction;
 pub mod ner;
 pub mod pos_tagging;
 pub mod question_answering;
