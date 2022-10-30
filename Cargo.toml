@@ -71,7 +71,7 @@ ordered-float = "3.0.0"
 uuid = { version = "1.1.0", features = ["v4"] }
 thiserror = "1.0.31"
 half = "1.8.2"
-tract-onnx = "0.17.1"
+tract-onnx = "0.18.3"
 ndarray = "0.15.4"
 
 cached-path = { version = "0.5.3", optional = true }
