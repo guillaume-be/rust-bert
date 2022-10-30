@@ -166,18 +166,20 @@ impl QuestionAnsweringConfig {
     /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new<R>(
+    pub fn new<RM, RC, RV>(
         model_type: ModelType,
-        model_resource: R,
-        config_resource: R,
-        vocab_resource: R,
-        merges_resource: Option<R>,
+        model_resource: RM,
+        config_resource: RC,
+        vocab_resource: RV,
+        merges_resource: Option<RV>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
     ) -> QuestionAnsweringConfig
     where
-        R: ResourceProvider + Send + 'static,
+        RM: ResourceProvider + Send + 'static,
+        RC: ResourceProvider + Send + 'static,
+        RV: ResourceProvider + Send + 'static,
     {
         QuestionAnsweringConfig {
             model_type,
@@ -210,12 +212,12 @@ impl QuestionAnsweringConfig {
     /// * max_query_length - Optional maximum question token length. Defaults to 64.
     /// * doc_stride - Optional stride to apply if a sliding window is required to process the input context. Represents the number of overlapping tokens between sliding windows. This should be lower than the max_seq_length minus max_query_length (otherwise there is a risk for the sliding window not to progress). Defaults to 128.
     /// * max_answer_length - Optional maximum token length for the extracted answer. Defaults to 15.
-    pub fn custom_new<R>(
+    pub fn custom_new<RM, RC, RV>(
         model_type: ModelType,
-        model_resource: R,
-        config_resource: R,
-        vocab_resource: R,
-        merges_resource: Option<R>,
+        model_resource: RM,
+        config_resource: RC,
+        vocab_resource: RV,
+        merges_resource: Option<RV>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
@@ -225,7 +227,9 @@ impl QuestionAnsweringConfig {
         max_answer_length: impl Into<Option<usize>>,
     ) -> QuestionAnsweringConfig
     where
-        R: ResourceProvider + Send + 'static,
+        RM: ResourceProvider + Send + 'static,
+        RC: ResourceProvider + Send + 'static,
+        RV: ResourceProvider + Send + 'static,
     {
         QuestionAnsweringConfig {
             model_type,

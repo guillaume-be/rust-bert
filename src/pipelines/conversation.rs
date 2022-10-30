@@ -82,7 +82,7 @@ pub struct ConversationConfig {
     /// Vocab resource (default: DialoGPT-medium)
     pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: DialoGPT-medium)
-    pub merges_resource: Box<dyn ResourceProvider + Send>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
@@ -131,9 +131,9 @@ impl Default for ConversationConfig {
             vocab_resource: Box::new(RemoteResource::from_pretrained(
                 Gpt2VocabResources::DIALOGPT_MEDIUM,
             )),
-            merges_resource: Box::new(RemoteResource::from_pretrained(
+            merges_resource: Some(Box::new(RemoteResource::from_pretrained(
                 Gpt2MergesResources::DIALOGPT_MEDIUM,
-            )),
+            ))),
             min_length: 0,
             max_length: 1000,
             min_length_for_response: 64,

@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Changed
 - Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`)
+- (BREAKING) `merges_resource` now optional for all pipelines
+- Allow mixing local and remote resources in pipelines
 
 ## Fixed
 - Fixed configuration check for RoBERTa models for sentence classification.

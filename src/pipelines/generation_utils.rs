@@ -103,7 +103,7 @@ pub struct GenerateConfig {
     /// Vocab resource (default: pretrained GPT2 model)
     pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: pretrained GPT2 model)
-    pub merges_resource: Box<dyn ResourceProvider + Send>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
@@ -143,7 +143,9 @@ impl Default for GenerateConfig {
             model_resource: Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)),
             config_resource: Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)),
             vocab_resource: Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)),
-            merges_resource: Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2)),
+            merges_resource: Some(Box::new(RemoteResource::from_pretrained(
+                Gpt2MergesResources::GPT2,
+            ))),
             min_length: 0,
             max_length: 20,
             do_sample: true,

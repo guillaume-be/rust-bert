@@ -128,7 +128,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        merges_resource: Some(merges_resource),
         min_length: 10,
         max_length: 32,
         do_sample: false,

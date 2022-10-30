@@ -837,7 +837,16 @@ impl MarianGenerator {
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<MarianGenerator, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let sentence_piece_path = generate_config.merges_resource.get_local_path()?;
+        let sentence_piece_path = generate_config
+            .merges_resource
+            .as_ref()
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "Marian expects a merges (SentencePiece model) resources to be provided"
+                        .to_string(),
+                )
+            })?
+            .get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
             ModelType::Marian,

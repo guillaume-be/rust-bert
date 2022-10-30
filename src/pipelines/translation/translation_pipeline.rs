@@ -380,7 +380,7 @@ pub struct TranslationConfig {
     /// Vocab resource
     pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource
-    pub merges_resource: Box<dyn ResourceProvider + Send>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Supported source languages
     pub source_languages: HashSet<Language>,
     /// Supported target languages
@@ -428,11 +428,8 @@ impl TranslationConfig {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::marian::{
-    ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianTargetLanguages,
-    ///     MarianVocabResources,
-    /// };
+    /// # fn main() -> anyhow::Result<()> {     ///
+    /// use rust_bert::marian::{MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources, MarianTargetLanguages, MarianVocabResources};
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
     /// use rust_bert::resources::RemoteResource;
@@ -441,6 +438,7 @@ impl TranslationConfig {
     /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
     /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
+    /// let spm_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
     ///
     /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
     /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -449,8 +447,8 @@ impl TranslationConfig {
     ///     ModelType::Marian,
     ///     model_resource,
     ///     config_resource,
-    ///     vocab_resource.clone(),
     ///     vocab_resource,
+    ///     Some(spm_resource),
     ///     source_languages,
     ///     target_languages,
     ///     Device::cuda_if_available(),
@@ -458,18 +456,20 @@ impl TranslationConfig {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new<R, S, T>(
+    pub fn new<RM, RC, RV, S, T>(
         model_type: ModelType,
-        model_resource: R,
-        config_resource: R,
-        vocab_resource: R,
-        merges_resource: R,
+        model_resource: RM,
+        config_resource: RC,
+        vocab_resource: RV,
+        merges_resource: Option<RV>,
         source_languages: S,
         target_languages: T,
         device: impl Into<Option<Device>>,
     ) -> TranslationConfig
     where
-        R: ResourceProvider + Send + 'static,
+        RM: ResourceProvider + Send + 'static,
+        RC: ResourceProvider + Send + 'static,
+        RV: ResourceProvider + Send + 'static,
         S: AsRef<[Language]>,
         T: AsRef<[Language]>,
     {
@@ -480,7 +480,7 @@ impl TranslationConfig {
             model_resource: Box::new(model_resource),
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
-            merges_resource: Box::new(merges_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             source_languages: source_languages.as_ref().iter().cloned().collect(),
             target_languages: target_languages.as_ref().iter().cloned().collect(),
             device,
@@ -786,11 +786,8 @@ impl TranslationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> anyhow::Result<()> {
-    /// use rust_bert::marian::{
-    ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianTargetLanguages,
-    ///     MarianVocabResources,
-    /// };
+    /// # fn main() -> anyhow::Result<()> {     ///
+    /// use rust_bert::marian::{MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources, MarianTargetLanguages, MarianVocabResources};
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
     /// use rust_bert::resources::RemoteResource;
@@ -799,6 +796,7 @@ impl TranslationModel {
     /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
     /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
+    /// let spm_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
     ///
     /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
     /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -807,8 +805,8 @@ impl TranslationModel {
     ///     ModelType::Marian,
     ///     model_resource,
     ///     config_resource,
-    ///     vocab_resource.clone(),
     ///     vocab_resource,
+    ///     Some(spm_resource),
     ///     source_languages,
     ///     target_languages,
     ///     Device::cuda_if_available(),
@@ -863,7 +861,7 @@ impl TranslationModel {
     ///     model_resource,
     ///     config_resource,
     ///     vocab_resource,
-    ///     merges_resource,
+    ///     Some(merges_resource),
     ///     source_languages,
     ///     target_languages,
     ///     Device::cuda_if_available(),
@@ -911,8 +909,8 @@ impl TranslationModel {
 mod test {
     use super::*;
     use crate::marian::{
-        MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianTargetLanguages,
-        MarianVocabResources,
+        MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+        MarianTargetLanguages, MarianVocabResources,
     };
     use crate::resources::RemoteResource;
 
@@ -923,6 +921,7 @@ mod test {
         let config_resource =
             RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
         let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
+        let merges_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
 
         let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
         let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -931,8 +930,8 @@ mod test {
             ModelType::Marian,
             model_resource,
             config_resource,
-            vocab_resource.clone(),
             vocab_resource,
+            Some(merges_resource),
             source_languages,
             target_languages,
             Device::cuda_if_available(),

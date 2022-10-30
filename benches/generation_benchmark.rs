@@ -17,7 +17,9 @@ fn create_text_generation_model() -> TextGenerationModel {
         model_resource: Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)),
         config_resource: Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)),
         vocab_resource: Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)),
-        merges_resource: Box::new(RemoteResource::from_pretrained(Gpt2MergesResources::GPT2)),
+        merges_resource: Some(Box::new(RemoteResource::from_pretrained(
+            Gpt2MergesResources::GPT2,
+        ))),
         min_length: 0,
         max_length: 30,
         do_sample: true,

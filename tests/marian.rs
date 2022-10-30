@@ -26,7 +26,7 @@ fn test_translation() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        Some(merges_resource),
         source_languages,
         target_languages,
         Device::cuda_if_available(),
