@@ -71,6 +71,7 @@ ordered-float = "3.0.0"
 uuid = { version = "1.1.2", features = ["v4"] }
 thiserror = "1.0.31"
 half = "2.1.0"
+regex = "1.6.0"
 
 cached-path = { version = "0.5.3", optional = true }
 dirs = { version = "4.0.0", optional = true }
