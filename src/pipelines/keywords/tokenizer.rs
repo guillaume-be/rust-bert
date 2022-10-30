@@ -33,4 +33,14 @@ impl<'a> StopWordsTokenizer<'a> {
         }
         tokenized_text
     }
+
+    pub fn tokenize_list<'b, S>(&self, texts: &'b [S]) -> Vec<HashMap<&'b str, Vec<(usize, usize)>>>
+    where
+        S: AsRef<str> + Sync,
+    {
+        texts
+            .into_iter()
+            .map(|text| self.tokenize(text.as_ref()))
+            .collect()
+    }
 }

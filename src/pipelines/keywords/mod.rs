@@ -1,2 +1,6 @@
+mod pipeline;
+mod scorer;
 mod stopwords;
-pub mod tokenizer;
+mod tokenizer;
+
+pub use pipeline::{KeywordExtractionConfig, KeywordExtractionModel, KeywordScorerType};
