@@ -26,7 +26,16 @@ use crate::pipelines::sentence_embeddings::{
 };
 use crate::RustBertError;
 use regex::Regex;
+use rust_tokenizers::Offset;
 use std::collections::{HashMap, HashSet};
+use std::mem;
+
+#[derive(Debug, Clone)]
+pub struct Keyword {
+    pub text: String,
+    pub score: f32,
+    pub offsets: Vec<Offset>,
+}
 
 pub enum KeywordScorerType {
     CosineSimilarity,
@@ -94,11 +103,11 @@ impl<'a> KeywordExtractionModel<'a> {
         })
     }
 
-    pub fn predict<S>(&self, inputs: &[S]) -> Result<(), RustBertError>
+    pub fn predict<S>(&self, inputs: &[S]) -> Result<Vec<Vec<Keyword>>, RustBertError>
     where
         S: AsRef<str> + Sync,
     {
-        let words = self.tokenizer.tokenize_list(inputs);
+        let mut words = self.tokenizer.tokenize_list(inputs);
         let (flat_word_list, document_boundaries) =
             KeywordExtractionModel::flatten_word_list(&words);
 
@@ -111,7 +120,9 @@ impl<'a> KeywordExtractionModel<'a> {
             .sentence_embeddings_model
             .encode_as_tensor(&flat_word_list)?;
 
+        let mut output_keywords: Vec<Vec<Keyword>> = Vec::new();
         for (document_index, (start, end)) in document_boundaries.into_iter().enumerate() {
+            let mut document_keywords = Vec::new();
             let document_embedding = document_embeddings.select(0, document_index as i64);
             let word_embeddings = word_embeddings
                 .embeddings
@@ -125,20 +136,20 @@ impl<'a> KeywordExtractionModel<'a> {
             );
             for (index, score) in local_top_word_indices {
                 let word = flat_word_list[start + index];
-                println!(
-                    "{:?} {:?} - {:?}",
-                    word,
+                document_keywords.push(Keyword {
+                    text: word.to_string(),
                     score,
-                    words[document_index].get(word)
-                );
+                    offsets: mem::take(words[document_index].get_mut(word).unwrap()),
+                });
             }
+            output_keywords.push(document_keywords)
         }
 
-        Ok(())
+        Ok(output_keywords)
     }
 
     fn flatten_word_list(
-        words: &[HashMap<&'a str, Vec<(usize, usize)>>],
+        words: &[HashMap<&'a str, Vec<Offset>>],
     ) -> (Vec<&'a str>, Vec<(usize, usize)>) {
         let mut flat_word_list = Vec::new();
         let mut doc_boundaries = Vec::with_capacity(words.len());

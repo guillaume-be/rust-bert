@@ -1,5 +1,6 @@
 use crate::pipelines::keywords_extraction::stopwords::ENGLISH_STOPWORDS;
 use regex::Regex;
+use rust_tokenizers::{Offset, OffsetSize};
 use std::collections::{HashMap, HashSet};
 
 const DEFAULT_REGEX_PATTERN: &str = r"(?u)\b\w\w+\b";
@@ -17,7 +18,7 @@ impl<'a> StopWordsTokenizer<'a> {
         Self { stopwords, pattern }
     }
 
-    pub fn tokenize<'b>(&self, text: &'b str) -> HashMap<&'b str, Vec<(usize, usize)>> {
+    pub fn tokenize<'b>(&self, text: &'b str) -> HashMap<&'b str, Vec<Offset>> {
         let mut tokenized_text = HashMap::new();
 
         for hit in self.pattern.find_iter(text) {
@@ -25,16 +26,19 @@ impl<'a> StopWordsTokenizer<'a> {
             if self.stopwords.contains(hit_text.as_str()) {
                 continue;
             }
-            let pos = (hit.start(), hit.end());
+            let pos = Offset {
+                begin: hit.start() as OffsetSize,
+                end: hit.end() as OffsetSize,
+            };
             tokenized_text
-                .entry(&text[pos.0..pos.1])
-                .and_modify(|pos_vec: &mut Vec<(usize, usize)>| pos_vec.push(pos))
+                .entry(&text[pos.begin as usize..pos.end as usize])
+                .and_modify(|pos_vec: &mut Vec<Offset>| pos_vec.push(pos))
                 .or_insert(vec![pos]);
         }
         tokenized_text
     }
 
-    pub fn tokenize_list<'b, S>(&self, texts: &'b [S]) -> Vec<HashMap<&'b str, Vec<(usize, usize)>>>
+    pub fn tokenize_list<'b, S>(&self, texts: &'b [S]) -> Vec<HashMap<&'b str, Vec<Offset>>>
     where
         S: AsRef<str> + Sync,
     {
