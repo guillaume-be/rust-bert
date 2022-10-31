@@ -113,7 +113,6 @@ impl<'a> KeywordExtractionModel<'a> {
 
         for (document_index, (start, end)) in document_boundaries.into_iter().enumerate() {
             let document_embedding = document_embeddings.select(0, document_index as i64);
-            println!("doc {:?}", document_embedding);
             let word_embeddings = word_embeddings
                 .embeddings
                 .slice(0, start as i64, end as i64, 1);
@@ -124,9 +123,14 @@ impl<'a> KeywordExtractionModel<'a> {
                 self.diversity,
                 self.max_sum_candidates,
             );
-            for index in local_top_word_indices {
+            for (index, score) in local_top_word_indices {
                 let word = flat_word_list[start + index];
-                println!("{:?} - {:?}", word, words[document_index].get(word));
+                println!(
+                    "{:?} {:?} - {:?}",
+                    word,
+                    score,
+                    words[document_index].get(word)
+                );
             }
         }
 
