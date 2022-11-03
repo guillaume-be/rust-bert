@@ -49,7 +49,7 @@ pub struct KeywordExtractionConfig<'a> {
     pub tokenizer_pattern: Option<Regex>,
     pub scorer_type: KeywordScorerType,
     pub num_keywords: usize,
-    pub diversity: Option<f32>,
+    pub diversity: Option<f64>,
     pub max_sum_candidates: Option<usize>,
 }
 
@@ -76,7 +76,7 @@ pub struct KeywordExtractionModel<'a> {
     tokenizer: StopWordsTokenizer<'a>,
     scorer_type: KeywordScorerType,
     num_keywords: usize,
-    diversity: Option<f32>,
+    diversity: Option<f64>,
     max_sum_candidates: Option<usize>,
 }
 
@@ -123,7 +123,9 @@ impl<'a> KeywordExtractionModel<'a> {
         let mut output_keywords: Vec<Vec<Keyword>> = Vec::new();
         for (document_index, (start, end)) in document_boundaries.into_iter().enumerate() {
             let mut document_keywords = Vec::new();
-            let document_embedding = document_embeddings.select(0, document_index as i64);
+            let document_embedding = document_embeddings
+                .select(0, document_index as i64)
+                .unsqueeze(0);
             let word_embeddings = word_embeddings
                 .embeddings
                 .slice(0, start as i64, end as i64, 1);
