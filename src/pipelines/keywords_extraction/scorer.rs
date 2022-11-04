@@ -21,7 +21,7 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 use crate::pipelines::keywords_extraction::KeywordScorerType;
-use std::cmp::min;
+use std::cmp::{max, min};
 use tch::{Kind, Tensor};
 
 impl KeywordScorerType {
@@ -43,9 +43,12 @@ impl KeywordScorerType {
                 num_keywords,
                 diversity.unwrap_or(0.5),
             ),
-            KeywordScorerType::MaxSum => {
-                todo!();
-            }
+            KeywordScorerType::MaxSum => max_sum_score(
+                document_embedding,
+                word_embeddings,
+                num_keywords,
+                max_sum_candidates.unwrap_or(num_keywords * 2),
+            ),
         }
     }
 }
@@ -113,6 +116,53 @@ fn maximal_margin_relevance_score(
 
     keyword_indices
         .into_iter()
+        .map(|index| {
+            (
+                index as usize,
+                word_document_similarities.double_value(&[index]) as f32,
+            )
+        })
+        .collect()
+}
+
+fn max_sum_score(
+    document_embedding: Tensor,
+    word_embeddings: Tensor,
+    num_keywords: usize,
+    max_sum_candidates: usize,
+) -> Vec<(usize, f32)> {
+    let max_sum_candidates = max(num_keywords, max_sum_candidates);
+    let word_document_similarities =
+        cosine_similarity(Some(&document_embedding), &word_embeddings).squeeze();
+    let word_similarities = cosine_similarity(None, &word_embeddings);
+    let (_, top_keywords) =
+        word_document_similarities.topk(max_sum_candidates as i64, 0, true, false);
+
+    let keyword_combinations = top_keywords.combinations(num_keywords as i64, false);
+    let (mut best_score, mut best_combination) = (None, None);
+    for idx in 0..keyword_combinations.size()[0] {
+        let combination = keyword_combinations.get(idx);
+        let combination_score = f64::from(
+            word_similarities
+                .index_select(0, &combination)
+                .index_select(1, &combination)
+                .sum(word_similarities.kind()),
+        );
+        if let Some(current_best_score) = best_score {
+            if combination_score < current_best_score {
+                best_score = Some(combination_score);
+                best_combination = Some(combination);
+            }
+        } else {
+            best_score = Some(combination_score);
+            best_combination = Some(combination);
+        }
+    }
+
+    best_combination
+        .unwrap()
+        .iter::<i64>()
+        .unwrap()
         .map(|index| {
             (
                 index as usize,
