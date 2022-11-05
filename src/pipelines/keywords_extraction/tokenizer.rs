@@ -53,11 +53,12 @@ impl<'a> StopWordsTokenizer<'a> {
                 if self.do_lower_case {
                     ngram_text = Cow::from(ngram_text.to_lowercase());
                 }
-                // let hit_text = hit.as_str().to_lowercase();
                 if self.stopwords.contains(&*ngram_text) {
                     continue;
                 }
-
+                if (ngram_size > 1) & (ngram.last().unwrap().begin > ngram[0].end + 1) {
+                    continue;
+                }
                 tokenized_text
                     .entry(ngram_text)
                     .and_modify(|pos_vec: &mut Vec<Offset>| pos_vec.push(pos))
