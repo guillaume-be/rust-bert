@@ -23,12 +23,13 @@
 use crate::pipelines::keywords_extraction::tokenizer::StopWordsTokenizer;
 use crate::pipelines::sentence_embeddings::{
     SentenceEmbeddingsConfig, SentenceEmbeddingsModel, SentenceEmbeddingsModelType,
+    SentenceEmbeddingsSentenceBertConfig, SentenceEmbeddingsTokenizerConfig,
 };
-use crate::RustBertError;
+use crate::{Config, RustBertError};
 use regex::Regex;
 use rust_tokenizers::Offset;
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::mem;
 
 #[derive(Debug, Clone)]
 pub struct Keyword {
@@ -48,6 +49,7 @@ pub struct KeywordExtractionConfig<'a> {
     pub tokenizer_stopwords: Option<HashSet<&'a str>>,
     pub tokenizer_pattern: Option<Regex>,
     pub scorer_type: KeywordScorerType,
+    pub ngram_range: (usize, usize),
     pub num_keywords: usize,
     pub diversity: Option<f64>,
     pub max_sum_candidates: Option<usize>,
@@ -64,6 +66,7 @@ impl Default for KeywordExtractionConfig<'_> {
             tokenizer_stopwords: None,
             tokenizer_pattern: None,
             scorer_type: KeywordScorerType::CosineSimilarity,
+            ngram_range: (1, 1),
             num_keywords: 5,
             diversity: None,
             max_sum_candidates: None,
@@ -75,6 +78,7 @@ pub struct KeywordExtractionModel<'a> {
     sentence_embeddings_model: SentenceEmbeddingsModel,
     tokenizer: StopWordsTokenizer<'a>,
     scorer_type: KeywordScorerType,
+    ngram_range: (usize, usize),
     num_keywords: usize,
     diversity: Option<f64>,
     max_sum_candidates: Option<usize>,
@@ -89,14 +93,35 @@ impl<'a> KeywordExtractionModel<'a> {
     pub fn new(
         config: KeywordExtractionConfig<'a>,
     ) -> Result<KeywordExtractionModel<'a>, RustBertError> {
+        let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
+            &config
+                .sentence_embeddings_config
+                .tokenizer_config_resource
+                .get_local_path()?,
+        );
+        let sentence_bert_config = SentenceEmbeddingsSentenceBertConfig::from_file(
+            &config
+                .sentence_embeddings_config
+                .sentence_bert_config_resource
+                .get_local_path()?,
+        );
         let sentence_embeddings_model =
             SentenceEmbeddingsModel::new(config.sentence_embeddings_config)?;
-        let tokenizer =
-            StopWordsTokenizer::new(config.tokenizer_stopwords, config.tokenizer_pattern);
+
+        let do_lower_case = tokenizer_config
+            .do_lower_case
+            .unwrap_or(sentence_bert_config.do_lower_case);
+
+        let tokenizer = StopWordsTokenizer::new(
+            config.tokenizer_stopwords,
+            config.tokenizer_pattern,
+            do_lower_case,
+        );
         Ok(Self {
             sentence_embeddings_model,
             tokenizer,
             scorer_type: config.scorer_type,
+            ngram_range: config.ngram_range,
             num_keywords: config.num_keywords,
             diversity: config.diversity,
             max_sum_candidates: config.max_sum_candidates,
@@ -107,7 +132,7 @@ impl<'a> KeywordExtractionModel<'a> {
     where
         S: AsRef<str> + Sync,
     {
-        let mut words = self.tokenizer.tokenize_list(inputs);
+        let words = self.tokenizer.tokenize_list(inputs, self.ngram_range);
         let (flat_word_list, document_boundaries) =
             KeywordExtractionModel::flatten_word_list(&words);
 
@@ -141,7 +166,7 @@ impl<'a> KeywordExtractionModel<'a> {
                 document_keywords.push(Keyword {
                     text: word.to_string(),
                     score,
-                    offsets: mem::take(words[document_index].get_mut(word).unwrap()),
+                    offsets: words[document_index].get(word).unwrap().clone(),
                 });
             }
             output_keywords.push(document_keywords)
@@ -151,8 +176,8 @@ impl<'a> KeywordExtractionModel<'a> {
     }
 
     fn flatten_word_list(
-        words: &[HashMap<&'a str, Vec<Offset>>],
-    ) -> (Vec<&'a str>, Vec<(usize, usize)>) {
+        words: &'a [HashMap<Cow<str>, Vec<Offset>>],
+    ) -> (Vec<&'a Cow<'a, str>>, Vec<(usize, usize)>) {
         let mut flat_word_list = Vec::new();
         let mut doc_boundaries = Vec::with_capacity(words.len());
         let mut current_index = 0;
