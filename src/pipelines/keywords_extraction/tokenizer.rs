@@ -44,7 +44,7 @@ impl<'a> StopWordsTokenizer<'a> {
             tokens_list.push(pos);
         }
         for ngram_size in ngram_range.0..ngram_range.1 + 1 {
-            for ngram in tokens_list.windows(ngram_size) {
+            'ngram_loop: for ngram in tokens_list.windows(ngram_size) {
                 let pos = Offset {
                     begin: ngram[0].begin,
                     end: ngram.last().unwrap().end,
@@ -56,8 +56,19 @@ impl<'a> StopWordsTokenizer<'a> {
                 if self.stopwords.contains(&*ngram_text) {
                     continue;
                 }
-                if (ngram_size > 1) & (ngram.last().unwrap().begin > ngram[0].end + 1) {
-                    continue;
+                if ngram_size > 1 {
+                    for token in ngram {
+                        let mut token = Cow::from(&text[token.begin as usize..token.end as usize]);
+                        if self.do_lower_case {
+                            token = Cow::from(token.to_lowercase());
+                        }
+                        if self.stopwords.contains(&*token) {
+                            continue 'ngram_loop;
+                        }
+                    }
+                    if ngram.last().unwrap().begin > ngram[0].end + 1 {
+                        continue;
+                    }
                 }
                 tokenized_text
                     .entry(ngram_text)
