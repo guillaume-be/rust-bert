@@ -109,7 +109,7 @@ fn fnet_for_sequence_classification() -> anyhow::Result<()> {
         "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
     ];
 
-    let output = sentiment_classifier.predict(&input);
+    let output = sentiment_classifier.predict(input);
 
     assert_eq!(output.len(), 3usize);
     assert_eq!(output[0].polarity, SentimentPolarity::Negative);
