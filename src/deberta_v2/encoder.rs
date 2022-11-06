@@ -290,8 +290,9 @@ impl DebertaV2Encoder {
         let input_mask = if attention_mask.dim() <= 2 {
             attention_mask.shallow_clone()
         } else {
+            let dim: &[i64] = &[-2];
             attention_mask
-                .sum_dim_intlist(&[-2], false, attention_mask.kind())
+                .sum_dim_intlist(dim, false, attention_mask.kind())
                 .gt(0)
                 .to_kind(Kind::Uint8)
         };

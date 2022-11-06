@@ -223,7 +223,7 @@ impl LongformerSelfAttention {
         let key = self.chunk(&key, window_overlap);
 
         let diagonal_chunked_attention_scores = self.pad_and_transpose_last_two_dims(
-            &Tensor::einsum("bcxd,bcyd->bcxy", &[query, key]),
+            &Tensor::einsum("bcxd,bcyd->bcxy", &[query, key], None),
             &[0, 0, 0, 1],
         );
 
@@ -353,6 +353,7 @@ impl LongformerSelfAttention {
         Tensor::einsum(
             "bcwd,bcdh->bcwh",
             &[chunked_attention_probas, chunked_value],
+            None,
         )
         .view([batch_size, num_heads, sequence_length, head_dim])
         .transpose(1, 2)
@@ -362,8 +363,9 @@ impl LongformerSelfAttention {
         &self,
         is_index_global_attn: &Tensor,
     ) -> GlobalAttentionIndices {
+        let dim: &[i64] = &[1];
         let num_global_attention_indices =
-            is_index_global_attn.sum_dim_intlist(&[1], false, Kind::Int64);
+            is_index_global_attn.sum_dim_intlist(dim, false, Kind::Int64);
         let max_num_global_attention_indices = i64::from(num_global_attention_indices.max());
         let is_index_global_attn_nonzero = is_index_global_attn
             .nonzero_numpy()
@@ -428,6 +430,7 @@ impl LongformerSelfAttention {
         let attention_probas_from_global_key = Tensor::einsum(
             "blhd,bshd->blhs",
             &[query_vectors, &key_vectors_only_global],
+            None,
         );
 
         let _ = attention_probas_from_global_key

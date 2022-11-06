@@ -54,10 +54,10 @@ impl Pooling {
 
         if self.conf.pooling_mode_mean_tokens || self.conf.pooling_mode_mean_sqrt_len_tokens {
             let input_mask_expanded = attention_mask.unsqueeze(-1).expand_as(&token_embeddings);
+            let dim: &[i64] = &[1];
             let sum_embeddings =
-                (token_embeddings * &input_mask_expanded).sum_dim_intlist(&[1], false, Kind::Float);
-
-            let sum_mask = input_mask_expanded.sum_dim_intlist(&[1], false, Kind::Float);
+                (token_embeddings * &input_mask_expanded).sum_dim_intlist(dim, false, Kind::Float);
+            let sum_mask = input_mask_expanded.sum_dim_intlist(dim, false, Kind::Float);
             let sum_mask = sum_mask.clamp_min(10e-9);
 
             if self.conf.pooling_mode_mean_tokens {

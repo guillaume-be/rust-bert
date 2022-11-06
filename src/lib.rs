@@ -85,8 +85,8 @@
 //!
 //! ### Manual installation (recommended)
 //!
-//! 1. Download `libtorch` from <https://pytorch.org/get-started/locally/>. This package requires `v1.12.0`: if this version is no longer available on the "get started" page,
-//! the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu116/libtorch-cxx11-abi-shared-with-deps-1.12.0%2Bcu116.zip` for a Linux version with CUDA11.
+//! 1. Download `libtorch` from <https://pytorch.org/get-started/locally/>. This package requires `v1.13.0`: if this version is no longer available on the "get started" page,
+//! the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-1.13.0%2Bcu117.zip` for a Linux version with CUDA11.
 //! 2. Extract the library to a location of your choice
 //! 3. Set the following environment variables
 //! ##### Linux:
@@ -104,7 +104,7 @@
 //! ### Automatic installation
 //!
 //! Alternatively, you can let the `build` script automatically download the `libtorch` library for you.
-//! The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu116`.
+//! The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu117`.
 //! Note that the libtorch library is large (order of several GBs for the CUDA-enabled version) and the first build may therefore take several minutes to complete.
 //!
 //! # Ready-to-use pipelines
