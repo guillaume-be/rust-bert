@@ -891,8 +891,10 @@ impl TokenClassificationModel {
                     None,
                     false,
                 );
-                let dim: &[i64] = &[-1];
-                let score = output.exp() / output.exp().sum_dim_intlist(dim, true, Kind::Float);
+                let score = output.exp()
+                    / output
+                        .exp()
+                        .sum_dim_intlist([-1].as_slice(), true, Kind::Float);
                 let label_indices = score.argmax(-1, true);
                 for sentence_idx in 0..label_indices.size()[0] {
                     let labels = label_indices.get(sentence_idx);

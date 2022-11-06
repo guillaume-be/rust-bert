@@ -652,8 +652,8 @@ impl LSHSelfAttention {
     }
 
     fn len_norm(&self, input_tensor: &Tensor, epsilon: f64) -> Tensor {
-        let dim: &[i64] = &[-1];
-        let variance = (input_tensor * input_tensor).mean_dim(dim, true, input_tensor.kind());
+        let variance =
+            (input_tensor * input_tensor).mean_dim([-1].as_slice(), true, input_tensor.kind());
         input_tensor * (variance + epsilon).rsqrt()
     }
 
@@ -909,10 +909,10 @@ impl LSHSelfAttention {
                 Some(self.attention_head_size),
             )?
             .unsqueeze(-1);
-            let dim: &[i64] = &[2];
-            let probs_vectors = (&logits - &logits.logsumexp(dim, true)).exp();
+            let probs_vectors = (&logits - &logits.logsumexp([2].as_slice(), true)).exp();
             let out_kind = out_vectors.kind();
-            out_vectors = (out_vectors * probs_vectors).sum_dim_intlist(dim, false, out_kind);
+            out_vectors =
+                (out_vectors * probs_vectors).sum_dim_intlist([2].as_slice(), false, out_kind);
         }
 
         out_vectors = merge_hidden_size_dim(

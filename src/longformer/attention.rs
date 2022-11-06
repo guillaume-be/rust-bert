@@ -363,9 +363,8 @@ impl LongformerSelfAttention {
         &self,
         is_index_global_attn: &Tensor,
     ) -> GlobalAttentionIndices {
-        let dim: &[i64] = &[1];
         let num_global_attention_indices =
-            is_index_global_attn.sum_dim_intlist(dim, false, Kind::Int64);
+            is_index_global_attn.sum_dim_intlist([1].as_slice(), false, Kind::Int64);
         let max_num_global_attention_indices = i64::from(num_global_attention_indices.max());
         let is_index_global_attn_nonzero = is_index_global_attn
             .nonzero_numpy()

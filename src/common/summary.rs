@@ -134,8 +134,7 @@ impl SequenceSummary {
             SummaryType::first => hidden_states.select(1, 0),
 
             SummaryType::mean => {
-                let dim: &[i64] = &[1];
-                hidden_states.mean_dim(dim, false, hidden_states.kind())
+                hidden_states.mean_dim([1].as_slice(), false, hidden_states.kind())
             }
             SummaryType::cls_index => {
                 let cls_index = if let Some(cls_index_value) = cls_index {
