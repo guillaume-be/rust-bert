@@ -25,7 +25,7 @@ use std::cmp::{max, min};
 use tch::{Kind, Tensor};
 
 impl KeywordScorerType {
-    pub fn score_keywords(
+    pub(crate) fn score_keywords(
         &self,
         document_embedding: Tensor,
         word_embeddings: Tensor,
@@ -43,12 +43,18 @@ impl KeywordScorerType {
                 num_keywords,
                 diversity.unwrap_or(0.5),
             ),
-            KeywordScorerType::MaxSum => max_sum_score(
-                document_embedding,
-                word_embeddings,
-                num_keywords,
-                max_sum_candidates.unwrap_or(num_keywords * 2),
-            ),
+            KeywordScorerType::MaxSum => {
+                let num_keywords_candidates = word_embeddings.size()[0] as usize;
+                max_sum_score(
+                    document_embedding,
+                    word_embeddings,
+                    num_keywords,
+                    min(
+                        max_sum_candidates.unwrap_or(num_keywords * 2),
+                        num_keywords_candidates,
+                    ),
+                )
+            }
         }
     }
 }
