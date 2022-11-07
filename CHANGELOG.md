@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. The format 
 - Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`)
 - (BREAKING) `merges_resource` now optional for all pipelines
 - Allow mixing local and remote resources in pipelines
+- Upgraded to `torch` 1.13 (via `tch` 0.9.0)
 
 ## Fixed
 - Fixed configuration check for RoBERTa models for sentence classification.

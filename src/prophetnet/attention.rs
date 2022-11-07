@@ -531,6 +531,7 @@ impl ProphetNetNgramAttention {
         let predict_attention_weights = Tensor::einsum(
             "nbtc,nbsc->nbts",
             &[predict_query_states, predict_key_states],
+            None,
         );
 
         let predict_relative_pos_embeddings = self.get_predict_relative_pos_embeddings(
@@ -554,6 +555,7 @@ impl ProphetNetNgramAttention {
         let predict_attention_output = Tensor::einsum(
             "nbts,nbsc->nbtc",
             &[&predict_attention_probas, &predict_value_states],
+            None,
         )
         .transpose(1, 2)
         .contiguous()
