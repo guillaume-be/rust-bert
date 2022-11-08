@@ -291,7 +291,7 @@ impl DebertaV2Encoder {
             attention_mask.shallow_clone()
         } else {
             attention_mask
-                .sum_dim_intlist(&[-2], false, attention_mask.kind())
+                .sum_dim_intlist([-2].as_slice(), false, attention_mask.kind())
                 .gt(0)
                 .to_kind(Kind::Uint8)
         };

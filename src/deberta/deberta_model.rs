@@ -303,9 +303,9 @@ impl Module for DebertaLayerNorm {
     fn forward(&self, hidden_states: &Tensor) -> Tensor {
         let input_type = hidden_states.kind();
         let hidden_states = hidden_states.to_kind(Kind::Float);
-        let mean = hidden_states.mean_dim(&[-1], true, hidden_states.kind());
+        let mean = hidden_states.mean_dim([-1].as_slice(), true, hidden_states.kind());
         let variance = (&hidden_states - &mean).pow_tensor_scalar(2.0).mean_dim(
-            &[-1],
+            [-1].as_slice(),
             true,
             hidden_states.kind(),
         );
