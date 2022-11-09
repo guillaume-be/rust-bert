@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## Added
+- Addition of All-MiniLM-L6-V2 model weights
+
 ## Changed
 - Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`)
 - (BREAKING) `merges_resource` now optional for all pipelines

@@ -62,6 +62,11 @@ impl BertModelResources {
         "all-mini-lm-l12-v2/model",
         "https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2>. Modified with conversion to C-array format.
+    pub const ALL_MINI_LM_L6_V2: (&'static str, &'static str) = (
+        "all-mini-lm-l6-v2/model",
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/rust_model.ot",
+    );
 }
 
 impl BertConfigResources {
@@ -90,6 +95,11 @@ impl BertConfigResources {
         "all-mini-lm-l12-v2/config",
         "https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2>. Modified with conversion to C-array format.
+    pub const ALL_MINI_LM_L6_V2: (&'static str, &'static str) = (
+        "all-mini-lm-l6-v2/config",
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json",
+    );
 }
 
 impl BertVocabResources {
@@ -117,6 +127,11 @@ impl BertVocabResources {
     pub const ALL_MINI_LM_L12_V2: (&'static str, &'static str) = (
         "all-mini-lm-l12-v2/vocab",
         "https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2/resolve/main/vocab.txt",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2>. Modified with conversion to C-array format.
+    pub const ALL_MINI_LM_L6_V2: (&'static str, &'static str) = (
+        "all-mini-lm-l6-v2/vocab",
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/vocab.txt",
     );
 }
 
