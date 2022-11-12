@@ -97,7 +97,7 @@ impl Default for KeywordExtractionConfig<'_> {
             tokenizer_stopwords: None,
             tokenizer_pattern: None,
             scorer_type: KeywordScorerType::CosineSimilarity,
-            ngram_range: (1, 1),
+            ngram_range: (1, 2),
             num_keywords: 5,
             diversity: None,
             max_sum_candidates: None,

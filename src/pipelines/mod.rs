@@ -370,7 +370,39 @@
 //! # ;
 //! ```
 //!
-//! #### 9. Part of Speech tagging
+//! #### 9. Keywords/Keyphrases extraction
+//!
+//! Extract keywords and keyphrases extractions from input documents. Based on a sentence embedding model
+//! to compute the semantic similarity between the full text and word n-grams composing it.
+//!
+//!```no_run
+//! # fn main() -> anyhow::Result<()> {
+//!     use rust_bert::pipelines::keywords_extraction::KeywordExtractionModel;
+//!     let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
+//!
+//!     let input = "Supervised learning (SL) is a machine learning paradigm for problems where \
+//!     the available data consists of labelled examples, meaning that each data point contains \
+//!     features (covariates) and an associated label. The goal of supervised learning algorithms \
+//!     is learning a function that maps feature vectors (inputs) to labels (output), based on example \
+//!     input-output pairs. It infers a function from labeled training data consisting of a set of training examples";
+//!     let output = keyword_extraction_model.predict(&[input])?;
+//!     Ok(())
+//! }
+//! ```
+//! Output:
+//! ```no_run
+//! # let output =
+//! [
+//!   ("labeled training", 0.5459698),
+//!   ("supervised learning", 0.6481135),
+//!   ("supervised", 0.6056863),
+//!   ("machine learning", 0.5031823),
+//!   ("learning algorithms", 0.49665272),
+//! ]
+//! # ;
+//! ```
+//!
+//! #### 10. Part of Speech tagging
 //! Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 //! ```no_run
 //! use rust_bert::pipelines::pos_tagging::POSModel;
@@ -410,7 +442,7 @@
 //! # ;
 //! ```
 //!
-//! #### 10. Sentence embeddings
+//! #### 11. Sentence embeddings
 //!
 //! Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
 //!```no_run
