@@ -73,7 +73,7 @@ impl<'a> StopWordsTokenizer<'a> {
                 tokenized_text
                     .entry(ngram_text)
                     .and_modify(|pos_vec: &mut Vec<Offset>| pos_vec.push(pos))
-                    .or_insert(vec![pos]);
+                    .or_insert_with(|| vec![pos]);
             }
         }
         tokenized_text
@@ -88,7 +88,7 @@ impl<'a> StopWordsTokenizer<'a> {
         S: AsRef<str> + Sync,
     {
         texts
-            .into_iter()
+            .iter()
             .map(|text| self.tokenize(text.as_ref(), ngram_range))
             .collect()
     }
