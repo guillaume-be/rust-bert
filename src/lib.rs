@@ -514,11 +514,14 @@
 //!     use rust_bert::pipelines::keywords_extraction::KeywordExtractionModel;
 //!     let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
 //!
-//!     let input = "Supervised learning (SL) is a machine learning paradigm for problems where \
-//!     the available data consists of labelled examples, meaning that each data point contains \
-//!     features (covariates) and an associated label. The goal of supervised learning algorithms \
-//!     is learning a function that maps feature vectors (inputs) to labels (output), based on example \
-//!     input-output pairs. It infers a function from labeled training data consisting of a set of training examples";
+//!     let input = "Rust is a multi-paradigm, general-purpose programming language. \
+//!         Rust emphasizes performance, type safety, and concurrency. Rust enforces memory safety—that is, \
+//!         that all references point to valid memory—without requiring the use of a garbage collector or \
+//!         reference counting present in other memory-safe languages. To simultaneously enforce \
+//!         memory safety and prevent concurrent data races, Rust's borrow checker tracks the object lifetime \
+//!         and variable scope of all references in a program during compilation. Rust is popular for \
+//!         systems programming but also offers high-level features including functional programming constructs.";
+//!     // Credits: Wikimedia https://en.wikipedia.org/wiki/Rust_(programming_language)
 //!     let output = keyword_extraction_model.predict(&[input])?;
 //!     Ok(())
 //! }
@@ -527,11 +530,11 @@
 //! ```no_run
 //! # let output =
 //! [
-//!   ("labeled training", 0.5459698),
-//!   ("supervised learning", 0.6481135),
-//!   ("supervised", 0.6056863),
-//!   ("machine learning", 0.5031823),
-//!   ("learning algorithms", 0.49665272),
+//!     ("rust", 0.50910604),
+//!     ("concurrency", 0.33825397),
+//!     ("languages", 0.28515345),
+//!     ("compilation", 0.2801403),
+//!     ("safety", 0.2657791),
 //! ]
 //! # ;
 //! ```

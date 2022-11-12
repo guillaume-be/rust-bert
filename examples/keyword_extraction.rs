@@ -12,8 +12,8 @@ fn main() -> anyhow::Result<()> {
         sentence_embeddings_config: SentenceEmbeddingsConfig::from(
             SentenceEmbeddingsModelType::AllMiniLmL6V2,
         ),
-        scorer_type: KeywordScorerType::MaximalMarginRelevance,
-        ngram_range: (1, 2),
+        scorer_type: KeywordScorerType::MaxSum,
+        ngram_range: (1, 1),
         num_keywords: 5,
         ..Default::default()
     };

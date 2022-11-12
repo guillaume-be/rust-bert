@@ -97,7 +97,7 @@ impl Default for KeywordExtractionConfig<'_> {
             tokenizer_stopwords: None,
             tokenizer_pattern: None,
             scorer_type: KeywordScorerType::CosineSimilarity,
-            ngram_range: (1, 2),
+            ngram_range: (1, 1),
             num_keywords: 5,
             diversity: None,
             max_sum_candidates: None,
@@ -134,7 +134,7 @@ impl<'a> KeywordExtractionModel<'a> {
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::keywords_extraction::KeywordExtractionModel;
     ///
-    /// let keyword_extraction_model =  KeywordExtractionModel::new(Default::default())?;
+    /// let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
     /// # Ok(())
     /// # }
     /// ```
@@ -192,10 +192,10 @@ impl<'a> KeywordExtractionModel<'a> {
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::keywords_extraction::KeywordExtractionModel;
     ///
-    /// let keyword_extraction_model =  KeywordExtractionModel::new(Default::default())?;
+    /// let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
     /// let input = [
-    ///   "This is a first sentence to extract keywords from.",
-    ///   "Some keywords will be extracted from this text too.",
+    ///     "This is a first sentence to extract keywords from.",
+    ///     "Some keywords will be extracted from this text too.",
     /// ];
     /// let output = keyword_extraction_model.predict(&input);
     /// # Ok(())
@@ -243,6 +243,7 @@ impl<'a> KeywordExtractionModel<'a> {
                     offsets: words[document_index].get(word).unwrap().clone(),
                 });
             }
+            document_keywords.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
             output_keywords.push(document_keywords)
         }
 
