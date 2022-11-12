@@ -1610,7 +1610,7 @@ impl XLNetGenerator {
     /// use rust_bert::xlnet::XLNetGenerator;
     ///
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,

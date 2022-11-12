@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
         num_beams: 1,
         length_penalty: 1.0,
         min_length: 56,
-        max_length: 142,
+        max_length: Some(142),
         device: Device::Cpu,
         ..Default::default()
     };

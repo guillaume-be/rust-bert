@@ -862,7 +862,7 @@ impl MBartGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -983,13 +983,15 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
         &self,
         scores: &mut Tensor,
         current_length: i64,
-        max_length: i64,
+        max_length: Option<i64>,
         forced_bos_token_id: Option<i64>,
     ) {
         if current_length == 1 {
             self.force_token_id_generation(scores, &[forced_bos_token_id.unwrap_or(250004)]);
-        } else if current_length == max_length - 1 {
-            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+        } else if let Some(max_length) = max_length {
+            if current_length == max_length - 1 {
+                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+            }
         }
     }
 
@@ -1028,7 +1030,7 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
     fn encode_prompt_text<S>(
         &self,
         prompt_text: &[S],
-        max_len: i64,
+        max_len: Option<i64>,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
@@ -1036,7 +1038,9 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
     {
         let tokens = self._get_tokenizer().encode_list(
             prompt_text,
-            max_len as usize,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
             &TruncationStrategy::LongestFirst,
             0,
         );

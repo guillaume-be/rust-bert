@@ -96,7 +96,7 @@ pub struct SummarizationConfig {
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
-    pub max_length: i64,
+    pub max_length: Option<i64>,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
@@ -154,7 +154,7 @@ impl SummarizationConfig {
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             min_length: 56,
-            max_length: 142,
+            max_length: Some(142),
             do_sample: false,
             early_stopping: true,
             num_beams: 3,

@@ -97,7 +97,7 @@ fn bart_summarization_greedy() -> anyhow::Result<()> {
         num_beams: 1,
         length_penalty: 1.0,
         min_length: 56,
-        max_length: 142,
+        max_length: Some(142),
         device: Device::Cpu,
         ..Default::default()
     };
@@ -157,7 +157,7 @@ fn bart_summarization_beam_search() -> anyhow::Result<()> {
         merges_resource: Some(merges_resource),
         num_beams: 4,
         min_length: 56,
-        max_length: 142,
+        max_length: Some(142),
         length_penalty: 1.0,
         device: Device::Cpu,
         ..Default::default()

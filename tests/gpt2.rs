@@ -121,7 +121,7 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
-        max_length: 40,
+        max_length: Some(40),
         do_sample: false,
         num_beams: 1,
         temperature: 1.1,
@@ -153,7 +153,7 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
-        max_length: 20,
+        max_length: Some(20),
         do_sample: false,
         num_beams: 5,
         temperature: 1.2,
@@ -197,7 +197,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
-        max_length: 20,
+        max_length: Some(20),
         do_sample: false,
         num_beams: 5,
         temperature: 1.2,
@@ -254,7 +254,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
-        max_length: 20,
+        max_length: Some(20),
         do_sample: false,
         num_beams: 5,
         temperature: 1.2,
@@ -311,7 +311,7 @@ fn gpt2_diverse_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()
         vocab_resource,
         merges_resource: Some(merges_resource),
         min_length: 10,
-        max_length: 20,
+        max_length: Some(20),
         do_sample: false,
         num_beams: 6,
         num_beam_groups: Some(3),
@@ -378,7 +378,7 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
     }
 
     let generate_config = GenerateConfig {
-        max_length: 56,
+        max_length: Some(56),
         model_resource,
         config_resource,
         vocab_resource,
@@ -428,7 +428,7 @@ fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
     let model_resource = Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = GenerateConfig {
-        max_length: 36,
+        max_length: Some(36),
         model_resource,
         config_resource,
         vocab_resource,
@@ -494,7 +494,7 @@ fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
     let model_resource = Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = GenerateConfig {
-        max_length: 36,
+        max_length: Some(36),
         model_resource,
         config_resource,
         vocab_resource,
@@ -575,7 +575,7 @@ fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
     }
 
     let generate_config = GenerateConfig {
-        max_length: 32,
+        max_length: Some(32),
         model_resource,
         config_resource,
         vocab_resource,
@@ -625,7 +625,7 @@ fn gpt2_greedy_token_scores() -> anyhow::Result<()> {
     let model_resource = Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = GenerateConfig {
-        max_length: 16,
+        max_length: Some(16),
         model_resource,
         config_resource,
         vocab_resource,
@@ -681,7 +681,7 @@ fn gpt2_beam_search_token_scores() -> anyhow::Result<()> {
     let model_resource = Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2));
 
     let generate_config = GenerateConfig {
-        max_length: 16,
+        max_length: Some(16),
         model_resource,
         config_resource,
         vocab_resource,
@@ -812,7 +812,7 @@ fn dialogpt_multiple_multi_turn_conversation() -> anyhow::Result<()> {
 fn dialogpt_multiple_multi_turn_conversation_with_truncation() -> anyhow::Result<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
-        max_length: 36,
+        max_length: Some(36),
         min_length_for_response: 24,
         do_sample: false,
         device: Device::Cpu,

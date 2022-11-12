@@ -50,7 +50,7 @@ fn test_generation_reformer() -> anyhow::Result<()> {
         vocab_resource,
         merges_resource: None,
         min_length: 100,
-        max_length: 100,
+        max_length: Some(100),
         do_sample: false,
         early_stopping: true,
         no_repeat_ngram_size: 3,

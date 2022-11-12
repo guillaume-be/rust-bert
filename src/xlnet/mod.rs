@@ -39,7 +39,7 @@
 //!     config_resource,
 //!     vocab_resource,
 //!     merges_resource: None,
-//!     max_length: 56,
+//!     max_length: Some(56),
 //!     do_sample: true,
 //!     num_beams: 3,
 //!     temperature: 1.0,

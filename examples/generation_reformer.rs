@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
         vocab_resource,
         merges_resource: None,
         min_length: 100,
-        max_length: 100,
+        max_length: Some(100),
         do_sample: true,
         early_stopping: false,
         num_beams: 3,

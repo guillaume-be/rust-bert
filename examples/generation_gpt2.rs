@@ -19,7 +19,7 @@ fn main() -> anyhow::Result<()> {
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
-        max_length: 30,
+        max_length: Some(30),
         do_sample: false,
         num_beams: 1,
         temperature: 1.0,
