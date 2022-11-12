@@ -351,10 +351,11 @@ pub(crate) fn _prepare_decoder_attention_mask(
 }
 
 fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
-    let index_eos: Tensor = input_ids
-        .ne(pad_token_id)
-        .sum_dim_intlist(&[-1], true, Kind::Int64)
-        - 1;
+    let index_eos: Tensor =
+        input_ids
+            .ne(pad_token_id)
+            .sum_dim_intlist([-1].as_slice(), true, Kind::Int64)
+            - 1;
     let output = input_ids.empty_like().to_kind(Kind::Int64);
     output
         .select(1, 0)
@@ -857,7 +858,7 @@ impl BartForSequenceClassification {
             train,
         );
         let eos_mask = input_ids.eq(self.eos_token_id);
-        let reshape = eos_mask.sum_dim_intlist(&[1], true, input_ids.kind());
+        let reshape = eos_mask.sum_dim_intlist([1].as_slice(), true, input_ids.kind());
         let sentence_representation = base_model_output
             .decoder_output
             .permute(&[2, 0, 1])

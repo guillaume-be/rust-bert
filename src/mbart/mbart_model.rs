@@ -160,7 +160,7 @@ fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
     let output = input_ids.masked_fill(&input_ids.eq(-100), pad_token_id);
     let index_eos: Tensor = input_ids
         .ne(pad_token_id)
-        .sum_dim_intlist(&[1], true, Int64)
+        .sum_dim_intlist([1].as_slice(), true, Int64)
         - 1;
     output
         .select(1, 0)
@@ -682,7 +682,7 @@ impl MBartForSequenceClassification {
             train,
         );
         let eos_mask = input_ids.eq(self.eos_token_id);
-        let reshape = eos_mask.sum_dim_intlist(&[1], true, Int64);
+        let reshape = eos_mask.sum_dim_intlist([1].as_slice(), true, Int64);
         let sentence_representation = base_model_output
             .decoder_output
             .permute(&[2, 0, 1])

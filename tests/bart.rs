@@ -212,7 +212,7 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
     let candidate_labels = &["politics", "public health", "economy", "sports"];
 
     let output = sequence_classification_model.predict(
-        &[input_sentence, input_sequence_2],
+        [input_sentence, input_sequence_2],
         candidate_labels,
         Some(Box::new(|label: &str| {
             format!("This example is about {}.", label)
@@ -245,7 +245,7 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
     let candidate_labels = &["politics", "public health", "economy", "sports"];
 
     let output = sequence_classification_model.predict_multilabel(
-        &[input_sentence, input_sequence_2],
+        [input_sentence, input_sequence_2],
         candidate_labels,
         Some(Box::new(|label: &str| {
             format!("This example is about {}.", label)

@@ -132,7 +132,10 @@ impl SequenceSummary {
         let mut output = match self.summary_type {
             SummaryType::last => hidden_states.select(1, -1),
             SummaryType::first => hidden_states.select(1, 0),
-            SummaryType::mean => hidden_states.mean_dim(&[1], false, hidden_states.kind()),
+
+            SummaryType::mean => {
+                hidden_states.mean_dim([1].as_slice(), false, hidden_states.kind())
+            }
             SummaryType::cls_index => {
                 let cls_index = if let Some(cls_index_value) = cls_index {
                     let mut expand_dim = vec![-1i64; cls_index_value.dim() - 1];

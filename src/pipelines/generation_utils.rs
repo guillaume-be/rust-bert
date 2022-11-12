@@ -932,8 +932,11 @@ pub(crate) mod private_generation_utils {
                 current_length += 1;
             }
             let scores_output = token_scores_output.as_ref().map(|scores_tensor| {
-                (Tensor::stack(scores_tensor, 1).sum_dim_intlist(&[1], false, Kind::Float)
-                    / sentence_lengths.pow_tensor_scalar(gen_opt.length_penalty))
+                (Tensor::stack(scores_tensor, 1).sum_dim_intlist(
+                    [1].as_slice(),
+                    false,
+                    Kind::Float,
+                ) / sentence_lengths.pow_tensor_scalar(gen_opt.length_penalty))
                 .iter::<f64>()
                 .unwrap()
                 .collect::<Vec<f64>>()
