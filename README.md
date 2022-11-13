@@ -360,7 +360,37 @@ Output:
 </details>
 &nbsp;  
 <details>
-<summary> <b>9. Part of Speech tagging </b> </summary>
+<summary> <b>9. Keywords/keyphrases extraction</b> </summary>
+
+Extract keywords and keyphrases extractions from input documents
+
+```rust
+fn main() -> anyhow::Result<()> {
+    let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
+    
+    let input = "Rust is a multi-paradigm, general-purpose programming language. \
+       Rust emphasizes performance, type safety, and concurrency. Rust enforces memory safety—that is, \
+       that all references point to valid memory—without requiring the use of a garbage collector or \
+       reference counting present in other memory-safe languages. To simultaneously enforce \
+       memory safety and prevent concurrent data races, Rust's borrow checker tracks the object lifetime \
+       and variable scope of all references in a program during compilation. Rust is popular for \
+       systems programming but also offers high-level features including functional programming constructs.";
+
+    let output = keyword_extraction_model.predict(&[input])?;
+}
+```
+Output:
+```
+"rust" - 0.50910604
+"programming" - 0.35731024
+"concurrency" - 0.33825397
+"concurrent" - 0.31229728
+"program" - 0.29115444
+```
+</details>
+&nbsp;  
+<details>
+<summary> <b>10. Part of Speech tagging </b> </summary>
 
 Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 ```rust
@@ -382,7 +412,7 @@ Output:
 </details>
 &nbsp;  
 <details>
-<summary> <b>10. Sentence embeddings </b> </summary>
+<summary> <b>11. Sentence embeddings </b> </summary>
 
 Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
 ```rust

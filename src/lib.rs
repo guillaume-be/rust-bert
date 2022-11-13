@@ -505,7 +505,43 @@
 //! </details>
 //! &nbsp;
 //! <details>
-//! <summary> <b>9. Part of Speech tagging </b> </summary>
+//! <summary> <b>9. Keywords/keyphrases extraction</b> </summary>
+//!
+//! Extract keywords and keyphrases extractions from input documents
+//!
+//!```no_run
+//! # fn main() -> anyhow::Result<()> {
+//!     use rust_bert::pipelines::keywords_extraction::KeywordExtractionModel;
+//!     let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
+//!
+//!     let input = "Rust is a multi-paradigm, general-purpose programming language. \
+//!         Rust emphasizes performance, type safety, and concurrency. Rust enforces memory safety—that is, \
+//!         that all references point to valid memory—without requiring the use of a garbage collector or \
+//!         reference counting present in other memory-safe languages. To simultaneously enforce \
+//!         memory safety and prevent concurrent data races, Rust's borrow checker tracks the object lifetime \
+//!         and variable scope of all references in a program during compilation. Rust is popular for \
+//!         systems programming but also offers high-level features including functional programming constructs.";
+//!     // Credits: Wikimedia https://en.wikipedia.org/wiki/Rust_(programming_language)
+//!     let output = keyword_extraction_model.predict(&[input])?;
+//!     Ok(())
+//! }
+//! ```
+//! Output:
+//! ```no_run
+//! # let output =
+//! [
+//!     ("rust", 0.50910604),
+//!     ("concurrency", 0.33825397),
+//!     ("languages", 0.28515345),
+//!     ("compilation", 0.2801403),
+//!     ("safety", 0.2657791),
+//! ]
+//! # ;
+//! ```
+//! </details>
+//! &nbsp;
+//! <details>
+//! <summary> <b>10. Part of Speech tagging </b> </summary>
 //!
 //! Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 //! ```no_run
@@ -548,7 +584,7 @@
 //! </details>
 //! &nbsp;  
 //! <details>
-//! <summary> <b>10. Sentence embeddings </b> </summary>
+//! <summary> <b>11. Sentence embeddings </b> </summary>
 //!
 //! Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
 //!```no_run

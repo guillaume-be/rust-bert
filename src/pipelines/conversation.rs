@@ -32,9 +32,9 @@
 //! let output = conversation_model.generate_responses(&mut conversation_manager);
 //!
 //! let _ = conversation_manager
-//!  .get(&conversation_id)
-//!  .unwrap()
-//!  .add_user_input("Is it an action movie?")?;
+//!     .get(&conversation_id)
+//!     .unwrap()
+//!     .add_user_input("Is it an action movie?")?;
 //!
 //! let output = conversation_model.generate_responses(&mut conversation_manager);
 //!
@@ -279,7 +279,9 @@ impl Conversation {
     /// use rust_bert::pipelines::conversation::Conversation;
     ///
     /// let mut conversation = Conversation::new_empty();
-    /// conversation.add_user_input("This input will not be used").unwrap();
+    /// conversation
+    ///     .add_user_input("This input will not be used")
+    ///     .unwrap();
     /// let unused_string = conversation.add_user_input_with_overwrite("Hi there!");
     /// ```
     pub fn add_user_input_with_overwrite(&mut self, text: &str) -> Option<String> {
@@ -305,7 +307,9 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// let false_value = conversation.contains_new_input();
-    /// conversation.add_user_input("This input will not be used").unwrap();
+    /// conversation
+    ///     .add_user_input("This input will not be used")
+    ///     .unwrap();
     /// let true_value = conversation.contains_new_input();
     /// ```
     pub fn contains_new_input(&self) -> bool {
@@ -322,7 +326,9 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// let false_value = conversation.contains_new_input();
-    /// conversation.add_user_input("This input will not be used").unwrap();
+    /// conversation
+    ///     .add_user_input("This input will not be used")
+    ///     .unwrap();
     /// let true_value = conversation.contains_new_input();
     /// conversation.mark_processed();
     /// let false_value = conversation.contains_new_input();
@@ -349,7 +355,9 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// let none_value = conversation.get_last_input();
-    /// conversation.add_user_input("This input will not be used").unwrap();
+    /// conversation
+    ///     .add_user_input("This input will not be used")
+    ///     .unwrap();
     /// let last_provided_input = conversation.get_last_input();
     /// assert_eq!(last_provided_input, Some("This input will not be used"));
     /// ```

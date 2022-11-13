@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Added
 - Addition of All-MiniLM-L6-V2 model weights
+- Addition of Keyword/Keyphrases extraction pipeline based on KeyBERT (https://github.com/MaartenGr/KeyBERT)
 
 ## Changed
 - Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`)
