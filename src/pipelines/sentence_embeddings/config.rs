@@ -453,6 +453,7 @@ impl Config for SentenceEmbeddingsSentenceBertConfig {}
 pub struct SentenceEmbeddingsTokenizerConfig {
     pub add_prefix_space: Option<bool>,
     pub strip_accents: Option<bool>,
+    pub do_lower_case: Option<bool>,
 }
 
 impl Config for SentenceEmbeddingsTokenizerConfig {}

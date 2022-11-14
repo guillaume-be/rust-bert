@@ -216,7 +216,9 @@ impl SentenceEmbeddingsModel {
                 .transpose()?
                 .map(|path| path.to_string_lossy().into_owned())
                 .as_deref(),
-            sentence_bert_config.do_lower_case,
+            tokenizer_config
+                .do_lower_case
+                .unwrap_or(sentence_bert_config.do_lower_case),
             tokenizer_config.strip_accents,
             tokenizer_config.add_prefix_space,
         )?;

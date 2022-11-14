@@ -429,7 +429,10 @@ impl TranslationConfig {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {     ///
-    /// use rust_bert::marian::{MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources, MarianTargetLanguages, MarianVocabResources};
+    /// use rust_bert::marian::{
+    ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+    ///     MarianTargetLanguages, MarianVocabResources,
+    /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
     /// use rust_bert::resources::RemoteResource;
@@ -787,7 +790,10 @@ impl TranslationModel {
     ///
     /// ```no_run
     /// # fn main() -> anyhow::Result<()> {     ///
-    /// use rust_bert::marian::{MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources, MarianTargetLanguages, MarianVocabResources};
+    /// use rust_bert::marian::{
+    ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+    ///     MarianTargetLanguages, MarianVocabResources,
+    /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
     /// use rust_bert::resources::RemoteResource;
