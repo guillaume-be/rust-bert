@@ -292,6 +292,7 @@ fn fixed_pos_embedding(x: &Tensor, seq_len: i64) -> (Tensor, Tensor) {
     let sinusoid_inp = Tensor::einsum(
         "i , j -> i j",
         &[Tensor::arange(seq_len, (x.kind(), x.device())), inv_freq],
+        None,
     );
     (sinusoid_inp.sin(), sinusoid_inp.cos())
 }

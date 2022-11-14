@@ -404,10 +404,10 @@ impl GptJModel {
                 presents.push(temp.1);
             };
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(temp.2.as_ref().unwrap().copy());
+                attentions.push(std::mem::take(&mut temp.2.unwrap()));
             };
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-                hidden_states.push(hidden_state.as_ref().copy());
+                hidden_states.push(std::mem::take(&mut hidden_state));
             };
         }
 
@@ -653,7 +653,15 @@ impl GptJGenerator {
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<GptJGenerator, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let merges_path = generate_config
+            .merges_resource
+            .as_ref()
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "GPT-J expects a merges resources to be provided".to_string(),
+                )
+            })?
+            .get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
             ModelType::GPTJ,
@@ -679,7 +687,7 @@ impl GptJGenerator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = GptJConfig::from_file(config_path);
-        let model = GptJLMHeadModel::new(&var_store.root(), &config);
+        let model = GptJLMHeadModel::new(var_store.root(), &config);
         if config.preload_on_cpu && device != Device::Cpu {
             var_store.set_device(Device::Cpu);
         }
