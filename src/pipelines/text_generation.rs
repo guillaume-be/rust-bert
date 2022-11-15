@@ -66,8 +66,8 @@ pub struct TextGenerationConfig {
     pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
-    /// Maximum sequence length (default: 20)
-    pub max_length: i64,
+    /// Maximum sequence length (default: 56)
+    pub max_length: Option<i64>,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
@@ -125,7 +125,7 @@ impl TextGenerationConfig {
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             min_length: 0,
-            max_length: 20,
+            max_length: Some(56),
             do_sample: true,
             early_stopping: true,
             num_beams: 5,
@@ -326,7 +326,7 @@ pub struct TextGenerationModel {
     prefix: Option<String>,
     prefix_length: Option<i64>,
     min_length: i64,
-    max_length: i64,
+    max_length: Option<i64>,
 }
 
 impl TextGenerationModel {
@@ -445,7 +445,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                 self.model.generate_indices(
                     Some(&texts),
                     Some(self.min_length + prefix_length),
-                    Some(self.max_length + prefix_length),
+                    self.max_length.map(|max_length| max_length + prefix_length),
                 )
             }
             _ => panic!("Prefix length not defined but prefix provided!"),

@@ -8,13 +8,15 @@ All notable changes to this project will be documented in this file. The format 
 - Addition of Keyword/Keyphrases extraction pipeline based on KeyBERT (https://github.com/MaartenGr/KeyBERT)
 
 ## Changed
-- Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`)
-- (BREAKING) `merges_resource` now optional for all pipelines
-- Allow mixing local and remote resources in pipelines
-- Upgraded to `torch` 1.13 (via `tch` 0.9.0)
+- Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`).
+- (BREAKING) `merges_resource` now optional for all pipelines.
+- Allow mixing local and remote resources in pipelines.
+- Upgraded to `torch` 1.13 (via `tch` 0.9.0).
+- (BREAKING) Made the `max_length` argument for generation methods and pipelines optional.
 
 ## Fixed
 - Fixed configuration check for RoBERTa models for sentence classification.
+- Fixed a bug causing the input prompt to be truncated for text generation if the prompt length was longer than `max_length`
 
 ## [0.18.0] - 2022-07-24
 ## Added

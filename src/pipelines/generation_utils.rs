@@ -107,7 +107,7 @@ pub struct GenerateConfig {
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
-    pub max_length: i64,
+    pub max_length: Option<i64>,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
@@ -147,7 +147,7 @@ impl Default for GenerateConfig {
                 Gpt2MergesResources::GPT2,
             ))),
             min_length: 0,
-            max_length: 20,
+            max_length: Some(56),
             do_sample: true,
             early_stopping: true,
             num_beams: 5,
@@ -234,7 +234,6 @@ pub(crate) mod private_generation_utils {
     use rust_tokenizers::tokenizer::{truncate_sequences, Tokenizer, TruncationStrategy};
     use rust_tokenizers::vocab::Vocab;
     use rust_tokenizers::TokenIdsWithOffsets;
-    use tch::kind::Kind::{Bool, Float, Int64};
     use tch::{nn, Device, Kind, Tensor};
 
     use crate::pipelines::common::TokenizerOption;
@@ -247,7 +246,7 @@ pub(crate) mod private_generation_utils {
 
     pub struct InternalGenerateOptions<'a> {
         pub min_length: i64,
-        pub max_length: i64,
+        pub max_length: Option<i64>,
         pub do_sample: bool,
         pub temperature: f64,
         pub top_k: i64,
@@ -299,7 +298,7 @@ pub(crate) mod private_generation_utils {
             &self,
             _scores: &mut Tensor,
             _current_length: i64,
-            _max_length: i64,
+            _max_length: Option<i64>,
             _forced_bos_token_id: Option<i64>,
         ) {
         }
@@ -328,7 +327,7 @@ pub(crate) mod private_generation_utils {
         fn encode_prompt_text<S>(
             &self,
             prompt_text: &[S],
-            max_len: i64,
+            max_len: Option<i64>,
             pad_token_id: Option<i64>,
         ) -> Tensor
         where
@@ -343,11 +342,15 @@ pub(crate) mod private_generation_utils {
             let num_truncated_tokens = token_ids
                 .iter()
                 .map(|token_ids| {
-                    if token_ids.len() > max_len as usize {
-                        token_ids.len() - max_len as usize
-                    } else {
-                        0
-                    }
+                    max_len
+                        .map(|max_len| {
+                            if token_ids.len() > max_len as usize {
+                                token_ids.len() - max_len as usize
+                            } else {
+                                0
+                            }
+                        })
+                        .unwrap_or(0)
                 })
                 .collect::<Vec<usize>>();
 
@@ -408,7 +411,7 @@ pub(crate) mod private_generation_utils {
                         let _ = next_token_logits.get(i).index_fill_(
                             0,
                             &Tensor::of_slice(&[token])
-                                .to_kind(Int64)
+                                .to_kind(Kind::Int64)
                                 .to_device(next_token_logits.device()),
                             updated_value * repetition_penalty,
                         );
@@ -416,7 +419,7 @@ pub(crate) mod private_generation_utils {
                         let _ = next_token_logits.get(i).index_fill_(
                             0,
                             &Tensor::of_slice(&[token])
-                                .to_kind(Int64)
+                                .to_kind(Kind::Int64)
                                 .to_device(next_token_logits.device()),
                             updated_value / repetition_penalty,
                         );
@@ -498,17 +501,21 @@ pub(crate) mod private_generation_utils {
                     .softmax(-1, sorted_logits.kind())
                     .cumsum(-1, sorted_logits.kind());
                 let mut sorted_indices_to_remove =
-                    cumulative_probabilities.ge(top_p).to_kind(Int64);
+                    cumulative_probabilities.ge(top_p).to_kind(Kind::Int64);
                 if min_tokens_to_keep > 1 {
                     let _ = sorted_indices_to_remove.index_fill_(
                         1,
-                        &Tensor::arange_start(0, min_tokens_to_keep + 1, (Int64, logits.device())),
+                        &Tensor::arange_start(
+                            0,
+                            min_tokens_to_keep + 1,
+                            (Kind::Int64, logits.device()),
+                        ),
                         0,
                     );
                 }
                 let _ = sorted_indices_to_remove.index_copy_(
                     1,
-                    &Tensor::arange_start(1, vocab_size, (Int64, logits.device())),
+                    &Tensor::arange_start(1, vocab_size, (Kind::Int64, logits.device())),
                     &sorted_indices_to_remove
                         .slice(1, 0, vocab_size - 1, 1)
                         .copy(),
@@ -516,13 +523,13 @@ pub(crate) mod private_generation_utils {
                 let _ = sorted_indices_to_remove.index_fill_(
                     1,
                     &Tensor::of_slice(&[0])
-                        .to_kind(Int64)
+                        .to_kind(Kind::Int64)
                         .to_device(sorted_indices_to_remove.device()),
                     0,
                 );
                 let indices_to_remove = sorted_indices_to_remove
                     .scatter(1, &sorted_indices, &sorted_indices_to_remove)
-                    .to_kind(Bool);
+                    .to_kind(Kind::Bool);
                 let _ = logits.masked_fill_(&indices_to_remove, f64::NEG_INFINITY);
             }
         }
@@ -746,10 +753,9 @@ pub(crate) mod private_generation_utils {
             output_scores: bool,
         ) -> GeneratedOutputWithScores {
             let mut unfinished_sentences =
-                Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()));
+                Tensor::ones(&[batch_size], (Kind::Int64, self.get_var_store().device()));
             let mut sentence_lengths: Tensor =
-                Tensor::ones(&[batch_size], (Int64, self.get_var_store().device()))
-                    * gen_opt.max_length as i64;
+                Tensor::ones(&[batch_size], (Kind::Int64, self.get_var_store().device()));
             let (bad_word_ids_length_1, bad_word_ids_length_greater_than_1) =
                 self.split_bad_word_ids(gen_opt.bad_word_ids);
             let mut static_bad_words_mask: Option<Tensor> = None;
@@ -761,7 +767,7 @@ pub(crate) mod private_generation_utils {
             let mut token_scores_output: Option<Vec<Tensor>> =
                 if output_scores { Some(vec![]) } else { None };
 
-            while current_length < gen_opt.max_length {
+            loop {
                 let prepared_input = self.prepare_inputs_for_generation(
                     input_ids.copy(),
                     encoder_outputs.as_ref(),
@@ -902,11 +908,12 @@ pub(crate) mod private_generation_utils {
                 input_ids = Tensor::cat(&[input_ids, tokens_to_add.unsqueeze(-1)], -1);
                 if gen_opt.eos_token_ids.is_some() {
                     for eos_token_id in gen_opt.eos_token_ids.as_ref().unwrap() {
-                        let sentence_with_eos = tokens_to_add.eq(*eos_token_id).to_kind(Int64);
+                        let sentence_with_eos =
+                            tokens_to_add.eq(*eos_token_id).to_kind(Kind::Int64);
                         let sentence_with_eos: Tensor = sentence_with_eos * &unfinished_sentences;
                         let _ = sentence_lengths.masked_fill_(
                             &sentence_with_eos
-                                .to_kind(Bool)
+                                .to_kind(Kind::Bool)
                                 .to_device(sentence_lengths.device()),
                             current_length as i64 + 1,
                         );
@@ -922,7 +929,7 @@ pub(crate) mod private_generation_utils {
                             attention_mask.as_ref(),
                             Tensor::ones(
                                 &[*attention_mask.size().first().unwrap(), 1],
-                                (Int64, attention_mask.device()),
+                                (Kind::Int64, attention_mask.device()),
                             )
                             .as_ref(),
                         ],
@@ -930,6 +937,17 @@ pub(crate) mod private_generation_utils {
                     );
                 }
                 current_length += 1;
+                if let Some(max_length) = gen_opt.max_length {
+                    if current_length >= max_length {
+                        let _ = sentence_lengths.masked_fill_(
+                            &unfinished_sentences
+                                .to_kind(Kind::Bool)
+                                .to_device(sentence_lengths.device()),
+                            current_length as i64,
+                        );
+                        break;
+                    }
+                }
             }
             let scores_output = token_scores_output.as_ref().map(|scores_tensor| {
                 (Tensor::stack(scores_tensor, 1).sum_dim_intlist(
@@ -993,7 +1011,7 @@ pub(crate) mod private_generation_utils {
             let vocab_size = self.get_vocab_size();
             let beam_scores = Tensor::ones(
                 &[batch_size, gen_opt.num_beams],
-                (Float, self.get_var_store().device()),
+                (Kind::Float, self.get_var_store().device()),
             ) * -1e9;
             let _ = beam_scores
                 .slice(1, 0, *beam_scores.size().last().unwrap(), num_sub_beams)
@@ -1002,11 +1020,11 @@ pub(crate) mod private_generation_utils {
             let mut beam_scores = beam_scores.view_(&[-1]);
             let mut beam_tokens = Tensor::zeros(
                 &[batch_size * gen_opt.num_beams],
-                (Int64, self.get_var_store().device()),
+                (Kind::Int64, self.get_var_store().device()),
             );
             let mut beam_indices = Tensor::zeros(
                 &[batch_size * gen_opt.num_beams],
-                (Int64, self.get_var_store().device()),
+                (Kind::Int64, self.get_var_store().device()),
             );
             let mut saved_beam_scores: Option<Vec<Tensor>> =
                 if output_scores { Some(vec![]) } else { None };
@@ -1019,7 +1037,7 @@ pub(crate) mod private_generation_utils {
             let mut encoder_outputs = encoder_outputs;
             let mut current_length = cur_len;
 
-            while current_length < gen_opt.max_length {
+            loop {
                 if num_beam_groups > 1 {
                     current_tokens = Tensor::zeros(
                         &[batch_size * gen_opt.num_beams],
@@ -1209,19 +1227,19 @@ pub(crate) mod private_generation_utils {
 
                     let eos_token_ids = gen_opt.eos_token_ids.as_ref();
                     let beam_ids_tensor = &next_tokens.divide_scalar_mode(vocab_size, "floor");
-                    let effective_beam_ids_tensor = (&next_tokens.ones_like().cumsum(0, Int64) - 1)
-                        * group_size
-                        + beam_ids_tensor;
+                    let effective_beam_ids_tensor =
+                        (&next_tokens.ones_like().cumsum(0, Kind::Int64) - 1) * group_size
+                            + beam_ids_tensor;
                     let token_id_tensor = &next_tokens - beam_ids_tensor * vocab_size;
                     let (max_scores, _) = next_scores.max_dim(1, false);
                     let mut eos_mask = token_id_tensor.ones_like();
                     if let Some(eos_token_id) = eos_token_ids {
-                        eos_mask -= token_id_tensor.eq(eos_token_id[0]).to_kind(Int64);
+                        eos_mask -= token_id_tensor.eq(eos_token_id[0]).to_kind(Kind::Int64);
                     }
                     let eos_mask2 = eos_mask
-                        .cumsum(1, Int64)
+                        .cumsum(1, Kind::Int64)
                         .le(group_size)
-                        .to_kind(Bool)
+                        .to_kind(Kind::Bool)
                         .logical_and(&eos_mask);
 
                     let group_beam_scores = next_scores.masked_select(&eos_mask2);
@@ -1321,6 +1339,13 @@ pub(crate) mod private_generation_utils {
                     ],
                     -1,
                 );
+
+                current_length += 1;
+                if let Some(max_length) = gen_opt.max_length {
+                    if current_length >= max_length {
+                        break;
+                    }
+                }
                 encoder_outputs = self.reorder_cache(&mut past, encoder_outputs, &beam_indices);
 
                 if !self.is_encoder_decoder() {
@@ -1329,15 +1354,13 @@ pub(crate) mod private_generation_utils {
                             attention_mask.as_ref(),
                             Tensor::ones(
                                 &[*attention_mask.size().first().unwrap(), 1],
-                                (Int64, attention_mask.device()),
+                                (Kind::Int64, attention_mask.device()),
                             )
                             .as_ref(),
                         ],
                         -1,
                     );
                 }
-
-                current_length += 1;
             }
 
             let mut batch_index = 0i64;
@@ -1377,7 +1400,7 @@ pub(crate) mod private_generation_utils {
             };
 
             let mut sentence_lengths =
-                Tensor::zeros(&[output_batch_size], (Int64, input_ids.device()));
+                Tensor::zeros(&[output_batch_size], (Kind::Int64, input_ids.device()));
             let mut best_ids = vec![];
 
             let mut scores_output = if output_scores {
@@ -1421,11 +1444,14 @@ pub(crate) mod private_generation_utils {
                     }
                 }
             }
-            let sentence_max_length =
-                min(i64::from(sentence_lengths.max()) + 1, gen_opt.max_length);
+            let sentence_max_length = gen_opt
+                .max_length
+                .map(|max_length| min(i64::from(sentence_lengths.max()) + 1, max_length))
+                .unwrap_or(i64::from(sentence_lengths.max()) + 1);
+
             let mut decoded = input_ids.new_empty(
                 &[output_batch_size, sentence_max_length],
-                (Int64, input_ids.device()),
+                (Kind::Int64, input_ids.device()),
             );
             if i64::from(sentence_lengths.max()) != i64::from(sentence_lengths.min()) {
                 let _ = decoded.fill_(
@@ -1440,12 +1466,15 @@ pub(crate) mod private_generation_utils {
                     &Tensor::arange_start(
                         0,
                         i64::from(sentence_lengths.get(hypothesis_index as i64)),
-                        (Int64, input_ids.device()),
+                        (Kind::Int64, input_ids.device()),
                     ),
                     best_id,
                 );
                 let sentence_length = i64::from(sentence_lengths.get(hypothesis_index as i64));
-                if sentence_length < gen_opt.max_length {
+                let sentence_length_max = gen_opt
+                    .max_length
+                    .unwrap_or_else(|| i64::from(sentence_lengths.max()));
+                if sentence_length < sentence_length_max {
                     let _ = decoded.get(hypothesis_index as i64).index_fill_(
                         0,
                         &Tensor::of_slice(&[sentence_length]).to_device(input_ids.device()),
@@ -1591,7 +1620,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -1698,7 +1727,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -1752,9 +1781,12 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let eos_token_ids = self.get_eos_ids();
 
         let config = self.get_config();
-        let max_length = unpack_config!(max_length, generate_options, config);
+
+        let max_length = generate_options.map_or(config.max_length, |generate_options| {
+            generate_options.max_length
+        });
         let encoding_max_len = if self.is_encoder_decoder() {
-            self.get_max_positions_embeddings()
+            Some(self.get_max_positions_embeddings())
         } else {
             max_length
         };
@@ -1975,13 +2007,20 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
 
         let max_length = if let Some(generate_options) = generate_options {
             match (generate_options.max_length, generate_options.max_new_tokens) {
-                (Some(max_length), _) => max_length,
-                (None, Some(max_new_tokens)) => max_new_tokens + input_ids.size().last().unwrap(),
+                (Some(max_length), _) => Some(max_length),
+                (None, Some(max_new_tokens)) => {
+                    Some(max_new_tokens + input_ids.size().last().unwrap())
+                }
                 (None, None) => config.max_length,
             }
         } else {
             config.max_length
         };
+
+        if max_length.is_none() & eos_token_ids.is_none() {
+            panic!("No maximum length given for a model without an EOS token. \
+            This would lead to an infinite generation loop. Please provide a `max_length` or `max_new_tokens`")
+        }
 
         let gen_opt = InternalGenerateOptions {
             min_length,
@@ -2083,7 +2122,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -2115,7 +2154,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
 
 #[derive(Debug)]
 struct BeamHypotheses {
-    max_length: i64,
+    max_length: Option<i64>,
     length_penalty: f64,
     early_stopping: bool,
     num_beams: i64,
@@ -2151,12 +2190,12 @@ impl Clone for BeamHypotheses {
 impl BeamHypotheses {
     fn new(
         num_beams: i64,
-        max_length: i64,
+        max_length: Option<i64>,
         length_penalty: f64,
         early_stopping: bool,
     ) -> BeamHypotheses {
         BeamHypotheses {
-            max_length: max_length - 1,
+            max_length: max_length.map(|max_length| max_length - 1),
             length_penalty,
             early_stopping,
             num_beams,

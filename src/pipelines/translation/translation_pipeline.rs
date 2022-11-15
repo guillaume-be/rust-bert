@@ -387,8 +387,8 @@ pub struct TranslationConfig {
     pub target_languages: HashSet<Language>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
-    /// Maximum sequence length (default: 20)
-    pub max_length: i64,
+    /// Maximum sequence length (default: 512)
+    pub max_length: Option<i64>,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
@@ -488,7 +488,7 @@ impl TranslationConfig {
             target_languages: target_languages.as_ref().iter().cloned().collect(),
             device,
             min_length: 0,
-            max_length: 512,
+            max_length: Some(512),
             do_sample: false,
             early_stopping: true,
             num_beams: 3,

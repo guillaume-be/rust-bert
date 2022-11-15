@@ -70,7 +70,7 @@ fn test_summarization_t5() -> anyhow::Result<()> {
         vocab_resource: Box::new(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL)),
         merges_resource: None,
         min_length: 30,
-        max_length: 200,
+        max_length: Some(200),
         early_stopping: true,
         num_beams: 4,
         length_penalty: 2.0,

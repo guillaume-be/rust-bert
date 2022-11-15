@@ -21,7 +21,7 @@ fn create_text_generation_model() -> TextGenerationModel {
             Gpt2MergesResources::GPT2,
         ))),
         min_length: 0,
-        max_length: 30,
+        max_length: Some(30),
         do_sample: true,
         early_stopping: false,
         num_beams: 5,

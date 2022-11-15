@@ -86,7 +86,7 @@ pub struct ConversationConfig {
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
-    pub max_length: i64,
+    pub max_length: Option<i64>,
     /// Minimum free length available for generated responses (default: 32)
     pub min_length_for_response: i64,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
@@ -135,7 +135,7 @@ impl Default for ConversationConfig {
                 Gpt2MergesResources::DIALOGPT_MEDIUM,
             ))),
             min_length: 0,
-            max_length: 1000,
+            max_length: Some(1000),
             min_length_for_response: 64,
             do_sample: true,
             early_stopping: false,
@@ -750,7 +750,7 @@ impl ConversationOption {
 pub struct ConversationModel {
     model: ConversationOption,
     eos_token_id: i64,
-    max_allowed_context_length: i64,
+    max_allowed_context_length: Option<i64>,
     device: Device,
 }
 
@@ -774,8 +774,9 @@ impl ConversationModel {
     pub fn new(
         conversation_config: ConversationConfig,
     ) -> Result<ConversationModel, RustBertError> {
-        let max_allowed_length =
-            conversation_config.max_length - conversation_config.min_length_for_response;
+        let max_allowed_length = conversation_config
+            .max_length
+            .map(|max_length| max_length - conversation_config.min_length_for_response);
         let device = conversation_config.device;
         let model = ConversationOption::new(conversation_config)?;
         let eos_token_id = model.get_eos_id()?;
@@ -921,17 +922,18 @@ impl ConversationModel {
 
         let truncated_concatenated_inputs = concatenated_inputs
             .iter()
-            .map(|input| {
-                if input.len() > self.max_allowed_context_length as usize {
+            .map(|input| match self.max_allowed_context_length {
+                Some(max_allowed_context_length)
+                    if input.len() > max_allowed_context_length as usize =>
+                {
                     let start = self.get_truncated_input_index(
                         input,
-                        self.max_allowed_context_length as usize,
+                        max_allowed_context_length as usize,
                         pad_token,
                     );
                     &input[start..]
-                } else {
-                    input.as_slice()
                 }
+                _ => input.as_slice(),
             })
             .collect::<Vec<&[i64]>>();
 
@@ -1018,7 +1020,9 @@ impl ConversationModel {
                     .convert_tokens_to_ids(&prompt_tokens)
             })
             .map(|mut tokens| {
-                tokens.truncate(self.max_allowed_context_length as usize - 1);
+                if let Some(max_allowed_context_length) = self.max_allowed_context_length {
+                    tokens.truncate(max_allowed_context_length as usize - 1);
+                }
                 tokens.push(self.eos_token_id);
                 tokens
             })

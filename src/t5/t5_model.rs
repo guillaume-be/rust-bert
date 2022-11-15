@@ -985,7 +985,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     fn encode_prompt_text<S>(
         &self,
         prompt_text: &[S],
-        max_len: i64,
+        max_len: Option<i64>,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
@@ -993,7 +993,9 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     {
         let tokens = self._get_tokenizer().encode_list(
             prompt_text,
-            max_len as usize,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
             &TruncationStrategy::LongestFirst,
             0,
         );
