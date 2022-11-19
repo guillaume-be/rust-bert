@@ -21,9 +21,11 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 /// SOFTWARE.
 use crate::pipelines::keywords_extraction::tokenizer::StopWordsTokenizer;
+#[cfg(feature = "remote")]
+use crate::pipelines::sentence_embeddings::SentenceEmbeddingsModelType;
 use crate::pipelines::sentence_embeddings::{
-    SentenceEmbeddingsConfig, SentenceEmbeddingsModel, SentenceEmbeddingsModelType,
-    SentenceEmbeddingsSentenceBertConfig, SentenceEmbeddingsTokenizerConfig,
+    SentenceEmbeddingsConfig, SentenceEmbeddingsModel, SentenceEmbeddingsSentenceBertConfig,
+    SentenceEmbeddingsTokenizerConfig,
 };
 use crate::{Config, RustBertError};
 use regex::Regex;

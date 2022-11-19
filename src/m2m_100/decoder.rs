@@ -174,7 +174,7 @@ impl M2M100Decoder {
                 hidden_states.push(hidden_state.as_ref().copy());
             };
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().copy());
+                attentions.push(std::mem::take(&mut attention_weights.unwrap()));
             };
             if let Some(value) = &mut next_decoder_cache {
                 value[layer_idx] = temp.2
