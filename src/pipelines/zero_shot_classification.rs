@@ -590,7 +590,7 @@ impl ZeroShotClassificationModel {
         labels: T,
         template: Option<ZeroShotTemplate>,
         max_len: usize,
-    ) -> (Tensor, Tensor)
+    ) -> Option<(Tensor, Tensor)>
     where
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
@@ -624,11 +624,13 @@ impl ZeroShotClassificationModel {
             &TruncationStrategy::LongestFirst,
             0,
         );
-        let max_len = tokenized_input
-            .iter()
-            .map(|input| input.token_ids.len())
-            .max()
-            .unwrap();
+        let max_len = {
+            tokenized_input
+                .iter()
+                .map(|input| input.token_ids.len())
+                .max()?
+        };
+
         let pad_id = self
             .tokenizer
             .get_pad_id()
@@ -651,7 +653,7 @@ impl ZeroShotClassificationModel {
                 .expect("The Tokenizer used for zero shot classification should contain a PAD id"))
             .to_kind(Bool);
 
-        (tokenized_input_tensors, mask)
+        Some((tokenized_input_tensors, mask))
     }
 
     /// Zero shot classification with 1 (and exactly 1) true label.
@@ -665,7 +667,7 @@ impl ZeroShotClassificationModel {
     ///
     /// # Returns
     ///
-    /// * `Vec<Label>` containing with the most likely label for each input sentence.
+    /// * `Option<Vec<Label>>` containing the most likely label for each input sentence.
     ///
     /// # Example
     ///
@@ -692,36 +694,38 @@ impl ZeroShotClassificationModel {
     /// outputs:
     /// ```no_run
     /// # use rust_bert::pipelines::sequence_classification::Label;
-    /// let output = [
-    ///     Label {
-    ///         text: "politics".to_string(),
-    ///         score: 0.959,
-    ///         id: 0,
-    ///         sentence: 0,
-    ///     },
-    ///     Label {
-    ///         text: "economy".to_string(),
-    ///         score: 0.642,
-    ///         id: 2,
-    ///         sentence: 1,
-    ///     },
-    /// ]
-    /// .to_vec();
+    /// let output = Some(
+    ///     [
+    ///         Label {
+    ///             text: "politics".to_string(),
+    ///             score: 0.959,
+    ///             id: 0,
+    ///             sentence: 0,
+    ///         },
+    ///         Label {
+    ///             text: "economy".to_string(),
+    ///             score: 0.642,
+    ///             id: 2,
+    ///             sentence: 1,
+    ///         },
+    ///     ]
+    ///     .to_vec(),
+    /// );
     /// ```
-    pub fn predict<'a, S, T>(
+    pub fn predict_checked<'a, S, T>(
         &self,
         inputs: S,
         labels: T,
         template: Option<ZeroShotTemplate>,
         max_length: usize,
-    ) -> Vec<Label>
+    ) -> Option<Vec<Label>>
     where
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
     {
         let num_inputs = inputs.as_ref().len();
         let (input_tensor, mask) =
-            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length);
+            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(&input_tensor),
@@ -739,8 +743,8 @@ impl ZeroShotClassificationModel {
         let scores = scores
             .gather(1, &label_indices.unsqueeze(-1), false)
             .squeeze_dim(1);
-        let label_indices = label_indices.iter::<i64>().unwrap().collect::<Vec<i64>>();
-        let scores = scores.iter::<f64>().unwrap().collect::<Vec<f64>>();
+        let label_indices = label_indices.iter::<i64>().ok()?.collect::<Vec<i64>>();
+        let scores = scores.iter::<f64>().ok()?.collect::<Vec<f64>>();
 
         let mut output_labels: Vec<Label> = vec![];
         for sentence_idx in 0..label_indices.len() {
@@ -753,7 +757,29 @@ impl ZeroShotClassificationModel {
             };
             output_labels.push(label)
         }
-        output_labels
+        Some(output_labels)
+    }
+
+    /// Exactly the same as [predict_checked](Self::predict_checked),
+    /// except it implicitly unwraps the result.
+    /// This used to be the default behavior, so this method is kept to preserve compatibility
+    /// with applications already relying on the result being implicitly unwrapped.
+    ///
+    /// New applications are encouraged to use [predict_checked](Self::predict_checked)
+    /// and implement appropriate [Option] handling to reduce the possibility of panics at prediction time.
+    pub fn predict<'a, S, T>(
+        &self,
+        inputs: S,
+        labels: T,
+        template: Option<ZeroShotTemplate>,
+        max_length: usize,
+    ) -> Vec<Label>
+    where
+        S: AsRef<[&'a str]>,
+        T: AsRef<[&'a str]>,
+    {
+        self.predict_checked(inputs, labels, template, max_length)
+            .unwrap()
     }
 
     /// Zero shot multi-label classification with 0, 1 or no true label.
@@ -767,7 +793,7 @@ impl ZeroShotClassificationModel {
     ///
     /// # Returns
     ///
-    /// * `Vec<Vec<Label>>` containing a vector of labels and their probability for each input text
+    /// * `Option<Vec<Vec<Label>>>` containing a vector of labels and their probability for each input text
     ///
     /// # Example
     ///
@@ -781,7 +807,7 @@ impl ZeroShotClassificationModel {
     /// let input_sequence_2 = "The central bank is meeting today to discuss monetary policy.";
     /// let candidate_labels = &["politics", "public health", "economics", "sports"];
     ///
-    /// let output = sequence_classification_model.predict_multilabel(
+    /// let output = sequence_classification_model.predict_multilabel_checked(
     ///     &[input_sentence, input_sequence_2],
     ///     candidate_labels,
     ///     None,
@@ -849,20 +875,20 @@ impl ZeroShotClassificationModel {
     /// ]
     /// .to_vec();
     /// ```
-    pub fn predict_multilabel<'a, S, T>(
+    pub fn predict_multilabel_checked<'a, S, T>(
         &self,
         inputs: S,
         labels: T,
         template: Option<ZeroShotTemplate>,
         max_length: usize,
-    ) -> Vec<Vec<Label>>
+    ) -> Option<Vec<Vec<Label>>>
     where
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
     {
         let num_inputs = inputs.as_ref().len();
         let (input_tensor, mask) =
-            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length);
+            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(&input_tensor),
@@ -883,7 +909,7 @@ impl ZeroShotClassificationModel {
             for (label_index, score) in scores
                 .select(0, sentence_idx as i64)
                 .iter::<f64>()
-                .unwrap()
+                .ok()?
                 .enumerate()
             {
                 let label_string = labels.as_ref()[label_index].to_string();
@@ -897,7 +923,29 @@ impl ZeroShotClassificationModel {
             }
             output_labels.push(sentence_labels);
         }
-        output_labels
+        Some(output_labels)
+    }
+
+    /// Exactly the same as [predict_multilabel_checked](Self::predict_multilabel_checked),
+    /// except it implicitly unwraps the result.
+    /// This used to be the default behavior, so this method is kept to preserve compatibility
+    /// with applications already relying on the result being implicitly unwrapped.
+    ///
+    /// New applications are encouraged to use [predict_multilabel_checked](Self::predict_multilabel_checked)
+    /// and implement appropriate [Option] handling to reduce the possibility of panics at prediction time.
+    pub fn predict_multilabel<'a, S, T>(
+        &self,
+        inputs: S,
+        labels: T,
+        template: Option<ZeroShotTemplate>,
+        max_length: usize,
+    ) -> Vec<Vec<Label>>
+    where
+        S: AsRef<[&'a str]>,
+        T: AsRef<[&'a str]>,
+    {
+        self.predict_multilabel_checked(inputs, labels, template, max_length)
+            .unwrap()
     }
 }
 #[cfg(test)]
