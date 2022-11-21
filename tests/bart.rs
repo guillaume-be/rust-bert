@@ -7,7 +7,7 @@ use rust_bert::pipelines::zero_shot_classification::{
     ZeroShotClassificationConfig, ZeroShotClassificationModel,
 };
 use rust_bert::resources::{RemoteResource, ResourceProvider};
-use rust_bert::Config;
+use rust_bert::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
@@ -232,6 +232,34 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
+fn bart_zero_shot_classification_checked_error() -> anyhow::Result<()> {
+    //    Set-up model
+    let zero_shot_config = ZeroShotClassificationConfig {
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
+
+    let output = sequence_classification_model.predict_checked(
+        [],
+        &[],
+        Some(Box::new(|label: &str| {
+            format!("This example is about {}.", label)
+        })),
+        128,
+    );
+
+    let output_is_error = match output {
+        Err(RustBertError::ValueError(_)) => true,
+        _ => unreachable!(),
+    };
+    assert!(output_is_error);
+
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
 fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
     // Set-up model
     let zero_shot_config = ZeroShotClassificationConfig {
@@ -274,5 +302,33 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
     assert!((output[1][2].score - 0.9851).abs() < 1e-4);
     assert_eq!(output[1][3].text, "sports");
     assert!((output[1][3].score - 0.0004).abs() < 1e-4);
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
+fn bart_zero_shot_classification_multilabel_checked_error() -> anyhow::Result<()> {
+    //    Set-up model
+    let zero_shot_config = ZeroShotClassificationConfig {
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
+
+    let output = sequence_classification_model.predict_multilabel_checked(
+        [],
+        &[],
+        Some(Box::new(|label: &str| {
+            format!("This example is about {}.", label)
+        })),
+        128,
+    );
+
+    let output_is_error = match output {
+        Err(RustBertError::ValueError(_)) => true,
+        _ => unreachable!(),
+    };
+    assert!(output_is_error);
+
     Ok(())
 }
