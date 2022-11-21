@@ -164,7 +164,7 @@ impl Transformer {
             hidden_state = Some(temp.0);
             attention_weights = temp.1;
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().copy());
+                attentions.push(std::mem::take(&mut attention_weights.unwrap()));
             };
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
                 hidden_states.push(hidden_state.as_ref().unwrap().copy());

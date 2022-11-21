@@ -509,7 +509,7 @@ impl T5Stack {
                 hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
             };
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().copy());
+                attentions.push(std::mem::take(&mut attention_weights.unwrap()));
             };
             if let Some(value) = &mut next_cache {
                 value[layer_idx] = block_output.cache
