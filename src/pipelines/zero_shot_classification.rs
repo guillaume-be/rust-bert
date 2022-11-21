@@ -624,12 +624,10 @@ impl ZeroShotClassificationModel {
             &TruncationStrategy::LongestFirst,
             0,
         );
-        let max_len = {
-            tokenized_input
-                .iter()
-                .map(|input| input.token_ids.len())
-                .max()?
-        };
+        let max_len = tokenized_input
+            .iter()
+            .map(|input| input.token_ids.len())
+            .max()?;
 
         let pad_id = self
             .tokenizer
@@ -667,7 +665,7 @@ impl ZeroShotClassificationModel {
     ///
     /// # Returns
     ///
-    /// * `Option<Vec<Label>>` containing the most likely label for each input sentence.
+    /// * `Result<Vec<Label>, RustBertError>` containing the most likely label for each input sentence or error, if any.
     ///
     /// # Example
     ///
@@ -694,23 +692,21 @@ impl ZeroShotClassificationModel {
     /// outputs:
     /// ```no_run
     /// # use rust_bert::pipelines::sequence_classification::Label;
-    /// let output = Some(
-    ///     [
-    ///         Label {
-    ///             text: "politics".to_string(),
-    ///             score: 0.959,
-    ///             id: 0,
-    ///             sentence: 0,
-    ///         },
-    ///         Label {
-    ///             text: "economy".to_string(),
-    ///             score: 0.642,
-    ///             id: 2,
-    ///             sentence: 1,
-    ///         },
-    ///     ]
-    ///     .to_vec(),
-    /// );
+    /// let output = Ok([
+    ///     Label {
+    ///         text: "politics".to_string(),
+    ///         score: 0.959,
+    ///         id: 0,
+    ///         sentence: 0,
+    ///     },
+    ///     Label {
+    ///         text: "economy".to_string(),
+    ///         score: 0.642,
+    ///         id: 2,
+    ///         sentence: 1,
+    ///     },
+    /// ]
+    /// .to_vec());
     /// ```
     pub fn predict_checked<'a, S, T>(
         &self,
@@ -718,14 +714,22 @@ impl ZeroShotClassificationModel {
         labels: T,
         template: Option<ZeroShotTemplate>,
         max_length: usize,
-    ) -> Option<Vec<Label>>
+    ) -> Result<Vec<Label>, RustBertError>
     where
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
     {
         let num_inputs = inputs.as_ref().len();
         let (input_tensor, mask) =
-            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
+            match self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length) {
+                Some((input_tensor, mask)) => (input_tensor, mask),
+                None => {
+                    return Err(RustBertError::ValueError(
+                        "Could not prepare inputs and labels for model".to_string(),
+                    ));
+                }
+            };
+
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(&input_tensor),
@@ -743,8 +747,8 @@ impl ZeroShotClassificationModel {
         let scores = scores
             .gather(1, &label_indices.unsqueeze(-1), false)
             .squeeze_dim(1);
-        let label_indices = label_indices.iter::<i64>().ok()?.collect::<Vec<i64>>();
-        let scores = scores.iter::<f64>().ok()?.collect::<Vec<f64>>();
+        let label_indices = label_indices.iter::<i64>()?.collect::<Vec<i64>>();
+        let scores = scores.iter::<f64>()?.collect::<Vec<f64>>();
 
         let mut output_labels: Vec<Label> = vec![];
         for sentence_idx in 0..label_indices.len() {
@@ -757,7 +761,7 @@ impl ZeroShotClassificationModel {
             };
             output_labels.push(label)
         }
-        Some(output_labels)
+        Ok(output_labels)
     }
 
     /// Exactly the same as [predict_checked](Self::predict_checked),
@@ -766,7 +770,7 @@ impl ZeroShotClassificationModel {
     /// with applications already relying on the result being implicitly unwrapped.
     ///
     /// New applications are encouraged to use [predict_checked](Self::predict_checked)
-    /// and implement appropriate [Option] handling to reduce the possibility of panics at prediction time.
+    /// and implement appropriate error handling to reduce the possibility of panics at prediction time.
     pub fn predict<'a, S, T>(
         &self,
         inputs: S,
@@ -793,7 +797,7 @@ impl ZeroShotClassificationModel {
     ///
     /// # Returns
     ///
-    /// * `Option<Vec<Vec<Label>>>` containing a vector of labels and their probability for each input text
+    /// * `Result<Vec<Vec<Label>>, RustBertError>` containing a vector of labels and their probability for each input text, or error, if any.
     ///
     /// # Example
     ///
@@ -819,7 +823,7 @@ impl ZeroShotClassificationModel {
     /// outputs:
     /// ```no_run
     /// # use rust_bert::pipelines::sequence_classification::Label;
-    /// let output = [
+    /// let output = Ok([
     ///     [
     ///         Label {
     ///             text: "politics".to_string(),
@@ -873,7 +877,7 @@ impl ZeroShotClassificationModel {
     ///         },
     ///     ],
     /// ]
-    /// .to_vec();
+    /// .to_vec());
     /// ```
     pub fn predict_multilabel_checked<'a, S, T>(
         &self,
@@ -881,14 +885,21 @@ impl ZeroShotClassificationModel {
         labels: T,
         template: Option<ZeroShotTemplate>,
         max_length: usize,
-    ) -> Option<Vec<Vec<Label>>>
+    ) -> Result<Vec<Vec<Label>>, RustBertError>
     where
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
     {
         let num_inputs = inputs.as_ref().len();
         let (input_tensor, mask) =
-            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
+            match self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length) {
+                Some((input_tensor, mask)) => (input_tensor, mask),
+                None => {
+                    return Err(RustBertError::ValueError(
+                        "Could not prepare inputs and labels for model".to_string(),
+                    ));
+                }
+            };
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(&input_tensor),
@@ -908,8 +919,7 @@ impl ZeroShotClassificationModel {
 
             for (label_index, score) in scores
                 .select(0, sentence_idx as i64)
-                .iter::<f64>()
-                .ok()?
+                .iter::<f64>()?
                 .enumerate()
             {
                 let label_string = labels.as_ref()[label_index].to_string();
@@ -923,7 +933,7 @@ impl ZeroShotClassificationModel {
             }
             output_labels.push(sentence_labels);
         }
-        Some(output_labels)
+        Ok(output_labels)
     }
 
     /// Exactly the same as [predict_multilabel_checked](Self::predict_multilabel_checked),
@@ -932,7 +942,7 @@ impl ZeroShotClassificationModel {
     /// with applications already relying on the result being implicitly unwrapped.
     ///
     /// New applications are encouraged to use [predict_multilabel_checked](Self::predict_multilabel_checked)
-    /// and implement appropriate [Option] handling to reduce the possibility of panics at prediction time.
+    /// and implement appropriate error handling to reduce the possibility of panics at prediction time.
     pub fn predict_multilabel<'a, S, T>(
         &self,
         inputs: S,
