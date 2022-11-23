@@ -232,7 +232,7 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn bart_zero_shot_classification_checked_error() -> anyhow::Result<()> {
+fn bart_zero_shot_classification_try_error() -> anyhow::Result<()> {
     //    Set-up model
     let zero_shot_config = ZeroShotClassificationConfig {
         device: Device::Cpu,
@@ -240,7 +240,7 @@ fn bart_zero_shot_classification_checked_error() -> anyhow::Result<()> {
     };
     let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
 
-    let output = sequence_classification_model.predict_checked(
+    let output = sequence_classification_model.try_predict(
         [],
         &[],
         Some(Box::new(|label: &str| {
@@ -307,7 +307,7 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
 
 #[test]
 #[cfg_attr(not(feature = "all-tests"), ignore)]
-fn bart_zero_shot_classification_multilabel_checked_error() -> anyhow::Result<()> {
+fn bart_zero_shot_classification_multilabel_try_error() -> anyhow::Result<()> {
     //    Set-up model
     let zero_shot_config = ZeroShotClassificationConfig {
         device: Device::Cpu,
@@ -315,7 +315,7 @@ fn bart_zero_shot_classification_multilabel_checked_error() -> anyhow::Result<()
     };
     let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
 
-    let output = sequence_classification_model.predict_multilabel_checked(
+    let output = sequence_classification_model.try_predict_multilabel(
         [],
         &[],
         Some(Box::new(|label: &str| {

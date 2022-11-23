@@ -679,7 +679,7 @@ impl ZeroShotClassificationModel {
     /// let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
     /// let candidate_labels = &["politics", "public health", "economics", "sports"];
     ///
-    /// let output = sequence_classification_model.predict(
+    /// let output = sequence_classification_model.try_predict(
     ///     &[input_sentence, input_sequence_2],
     ///     candidate_labels,
     ///     None,
@@ -708,7 +708,7 @@ impl ZeroShotClassificationModel {
     /// ]
     /// .to_vec());
     /// ```
-    pub fn predict_checked<'a, S, T>(
+    pub fn try_predict<'a, S, T>(
         &self,
         inputs: S,
         labels: T,
@@ -782,7 +782,7 @@ impl ZeroShotClassificationModel {
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
     {
-        self.predict_checked(inputs, labels, template, max_length)
+        self.try_predict(inputs, labels, template, max_length)
             .unwrap()
     }
 
@@ -811,7 +811,7 @@ impl ZeroShotClassificationModel {
     /// let input_sequence_2 = "The central bank is meeting today to discuss monetary policy.";
     /// let candidate_labels = &["politics", "public health", "economics", "sports"];
     ///
-    /// let output = sequence_classification_model.predict_multilabel_checked(
+    /// let output = sequence_classification_model.try_predict_multilabel(
     ///     &[input_sentence, input_sequence_2],
     ///     candidate_labels,
     ///     None,
@@ -879,7 +879,7 @@ impl ZeroShotClassificationModel {
     /// ]
     /// .to_vec());
     /// ```
-    pub fn predict_multilabel_checked<'a, S, T>(
+    pub fn try_predict_multilabel<'a, S, T>(
         &self,
         inputs: S,
         labels: T,
@@ -954,7 +954,7 @@ impl ZeroShotClassificationModel {
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
     {
-        self.predict_multilabel_checked(inputs, labels, template, max_length)
+        self.try_predict_multilabel(inputs, labels, template, max_length)
             .unwrap()
     }
 }
