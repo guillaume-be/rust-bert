@@ -590,7 +590,7 @@ impl ZeroShotClassificationModel {
         labels: T,
         template: Option<ZeroShotTemplate>,
         max_len: usize,
-    ) -> Option<(Tensor, Tensor)>
+    ) -> Result<(Tensor, Tensor), RustBertError>
     where
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
@@ -627,7 +627,8 @@ impl ZeroShotClassificationModel {
         let max_len = tokenized_input
             .iter()
             .map(|input| input.token_ids.len())
-            .max()?;
+            .max()
+            .ok_or_else(|| RustBertError::ValueError("Got empty iterator as input".to_string()))?;
 
         let pad_id = self
             .tokenizer
@@ -651,7 +652,7 @@ impl ZeroShotClassificationModel {
                 .expect("The Tokenizer used for zero shot classification should contain a PAD id"))
             .to_kind(Bool);
 
-        Some((tokenized_input_tensors, mask))
+        Ok((tokenized_input_tensors, mask))
     }
 
     /// Zero shot classification with 1 (and exactly 1) true label.
@@ -721,14 +722,7 @@ impl ZeroShotClassificationModel {
     {
         let num_inputs = inputs.as_ref().len();
         let (input_tensor, mask) =
-            match self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length) {
-                Some((input_tensor, mask)) => (input_tensor, mask),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "Could not prepare inputs and labels for model".to_string(),
-                    ));
-                }
-            };
+            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
 
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
@@ -870,14 +864,8 @@ impl ZeroShotClassificationModel {
     {
         let num_inputs = inputs.as_ref().len();
         let (input_tensor, mask) =
-            match self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length) {
-                Some((input_tensor, mask)) => (input_tensor, mask),
-                None => {
-                    return Err(RustBertError::ValueError(
-                        "Could not prepare inputs and labels for model".to_string(),
-                    ));
-                }
-            };
+            self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
+
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(&input_tensor),
