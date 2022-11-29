@@ -708,7 +708,7 @@ impl ZeroShotClassificationModel {
     /// ]
     /// .to_vec());
     /// ```
-    pub fn try_predict<'a, S, T>(
+    pub fn predict<'a, S, T>(
         &self,
         inputs: S,
         labels: T,
@@ -762,28 +762,6 @@ impl ZeroShotClassificationModel {
             output_labels.push(label)
         }
         Ok(output_labels)
-    }
-
-    /// Exactly the same as [predict_checked](Self::predict_checked),
-    /// except it implicitly unwraps the result.
-    /// This used to be the default behavior, so this method is kept to preserve compatibility
-    /// with applications already relying on the result being implicitly unwrapped.
-    ///
-    /// New applications are encouraged to use [predict_checked](Self::predict_checked)
-    /// and implement appropriate error handling to reduce the possibility of panics at prediction time.
-    pub fn predict<'a, S, T>(
-        &self,
-        inputs: S,
-        labels: T,
-        template: Option<ZeroShotTemplate>,
-        max_length: usize,
-    ) -> Vec<Label>
-    where
-        S: AsRef<[&'a str]>,
-        T: AsRef<[&'a str]>,
-    {
-        self.try_predict(inputs, labels, template, max_length)
-            .unwrap()
     }
 
     /// Zero shot multi-label classification with 0, 1 or no true label.
@@ -879,7 +857,7 @@ impl ZeroShotClassificationModel {
     /// ]
     /// .to_vec());
     /// ```
-    pub fn try_predict_multilabel<'a, S, T>(
+    pub fn predict_multilabel<'a, S, T>(
         &self,
         inputs: S,
         labels: T,
@@ -934,28 +912,6 @@ impl ZeroShotClassificationModel {
             output_labels.push(sentence_labels);
         }
         Ok(output_labels)
-    }
-
-    /// Exactly the same as [predict_multilabel_checked](Self::predict_multilabel_checked),
-    /// except it implicitly unwraps the result.
-    /// This used to be the default behavior, so this method is kept to preserve compatibility
-    /// with applications already relying on the result being implicitly unwrapped.
-    ///
-    /// New applications are encouraged to use [predict_multilabel_checked](Self::predict_multilabel_checked)
-    /// and implement appropriate error handling to reduce the possibility of panics at prediction time.
-    pub fn predict_multilabel<'a, S, T>(
-        &self,
-        inputs: S,
-        labels: T,
-        template: Option<ZeroShotTemplate>,
-        max_length: usize,
-    ) -> Vec<Vec<Label>>
-    where
-        S: AsRef<[&'a str]>,
-        T: AsRef<[&'a str]>,
-    {
-        self.try_predict_multilabel(inputs, labels, template, max_length)
-            .unwrap()
     }
 }
 #[cfg(test)]

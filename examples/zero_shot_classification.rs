@@ -23,7 +23,7 @@ fn main() -> anyhow::Result<()> {
     let candidate_labels = &["politics", "public health", "economy", "sports"];
 
     let output = sequence_classification_model
-        .try_predict_multilabel(
+        .predict_multilabel(
             [input_sentence, input_sequence_2],
             candidate_labels,
             Some(Box::new(|label: &str| {

@@ -218,7 +218,7 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
             format!("This example is about {}.", label)
         })),
         128,
-    );
+    )?;
 
     assert_eq!(output.len(), 2);
 
@@ -240,7 +240,7 @@ fn bart_zero_shot_classification_try_error() -> anyhow::Result<()> {
     };
     let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
 
-    let output = sequence_classification_model.try_predict(
+    let output = sequence_classification_model.predict(
         [],
         &[],
         Some(Box::new(|label: &str| {
@@ -279,7 +279,7 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
             format!("This example is about {}.", label)
         })),
         128,
-    );
+    )?;
 
     assert_eq!(output.len(), 2);
     assert_eq!(output[0].len(), candidate_labels.len());
@@ -315,7 +315,7 @@ fn bart_zero_shot_classification_multilabel_try_error() -> anyhow::Result<()> {
     };
     let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
 
-    let output = sequence_classification_model.try_predict_multilabel(
+    let output = sequence_classification_model.predict_multilabel(
         [],
         &[],
         Some(Box::new(|label: &str| {
