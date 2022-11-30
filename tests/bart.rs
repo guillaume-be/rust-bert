@@ -242,7 +242,7 @@ fn bart_zero_shot_classification_try_error() -> anyhow::Result<()> {
 
     let output = sequence_classification_model.predict(
         [],
-        &[],
+        [],
         Some(Box::new(|label: &str| {
             format!("This example is about {}.", label)
         })),
@@ -317,7 +317,7 @@ fn bart_zero_shot_classification_multilabel_try_error() -> anyhow::Result<()> {
 
     let output = sequence_classification_model.predict_multilabel(
         [],
-        &[],
+        [],
         Some(Box::new(|label: &str| {
             format!("This example is about {}.", label)
         })),
