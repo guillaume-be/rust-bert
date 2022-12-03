@@ -38,7 +38,7 @@ jobs:
 
   build-windows:
     name: Build Windows
-    runs-on: windows-latest
+    runs-on: windows-2019
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
