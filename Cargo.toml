@@ -77,11 +77,8 @@ ordered-float = "3.0.0"
 uuid = { version = "1.1.2", features = ["v4"] }
 thiserror = "1.0.31"
 half = "2.1.0"
-<<<<<<< HEAD
 regex = "1.6.0"
-=======
 lazy-regex = "2.3.0"
->>>>>>> provide an optional mask_token String field for asked_language pipline
 
 cached-path = { version = "0.5.3", optional = true }
 dirs = { version = "4.0.0", optional = true }
@@ -92,10 +89,6 @@ anyhow = "1.0.58"
 csv = "1.1.6"
 criterion = "0.3.6"
 tokio = { version = "1.20.0", features = ["sync", "rt-multi-thread", "macros"] }
-<<<<<<< HEAD
-torch-sys =  "~0.9.0"
-=======
-torch-sys = "~0.8.0"
->>>>>>> provide an optional mask_token String field for asked_language pipline
+torch-sys = "0.9.0"
 tempfile = "3.3.0"
 itertools = "0.10.3"
