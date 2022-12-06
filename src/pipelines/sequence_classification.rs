@@ -24,7 +24,6 @@
 //! //Load a configuration
 //! let config = SequenceClassificationConfig::new(ModelType::DistilBert,
 //!    RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2),
-//!    None,
 //!    RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
 //!    RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
 //!    None, // Merge resources
@@ -69,7 +68,7 @@ use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
 use crate::reformer::ReformerForSequenceClassification;
-use crate::resources::{LocalResource, ResourceProvider};
+use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
 use rust_tokenizers::tokenizer::TruncationStrategy;
@@ -107,7 +106,7 @@ pub struct SequenceClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Option<Box<dyn ResourceProvider + Send>>,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: pretrained BERT model on CoNLL)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
@@ -131,17 +130,16 @@ impl SequenceClassificationConfig {
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
     /// * model_resource - The `ResourceProvider` pointing to the model for RemoteResource to load (e.g.  model.ot)
-    /// * model_local_resource - The `ResourceProvider` pointing to the model for LocalResource to load (e.g.  model.ot)
     /// * config - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new<RM, RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
-        config_resource: RC,
-        vocab_resource: RV,
-        merges_resource: Option<RV>,
+        model_resource: R,
+        config_resource: R,
+        vocab_resource: R,
+        merges_resource: impl Into<Option<R>>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
@@ -172,7 +170,6 @@ impl Default for SequenceClassificationConfig {
         SequenceClassificationConfig::new(
             ModelType::DistilBert,
             RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2),
-            None,
             RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
             RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
             None,
@@ -572,11 +569,7 @@ impl SequenceClassificationModel {
     ) -> Result<SequenceClassificationModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
         let vocab_path = config.vocab_resource.get_local_path()?;
-        let weights_path = if config.model_local_resource.is_none() {
-            config.model_resource.unwrap().get_local_path()?
-        } else {
-            config.model_local_resource.unwrap().get_local_path()?
-        };
+        let weights_path = config.model_resource.get_local_path()?;
         let merges_path = if let Some(merges_resource) = &config.merges_resource {
             Some(merges_resource.get_local_path()?)
         } else {

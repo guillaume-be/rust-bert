@@ -23,7 +23,6 @@
 //!    let config = MaskedLanguageConfig::new(
 //!        ModelType::Bert,
 //!        RemoteResource::from_pretrained(BertModelResources::BERT),
-//!        None,
 //!        RemoteResource::from_pretrained(BertConfigResources::BERT),
 //!        RemoteResource::from_pretrained(BertVocabResources::BERT),
 //!        None,
@@ -57,7 +56,7 @@ use crate::deberta::DebertaForMaskedLM;
 use crate::deberta_v2::DebertaV2ForMaskedLM;
 use crate::fnet::FNetForMaskedLM;
 use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
-use crate::resources::{LocalResource, ResourceProvider};
+use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForMaskedLM;
 #[cfg(feature = "remote")]
 use crate::{
@@ -79,9 +78,7 @@ pub struct MaskedLanguageConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Option<Box<dyn ResourceProvider + Send>>,
-    /// Local model weights resource instead of RemoteResource
-    pub model_local_resource: Option<LocalResource>,
+    pub model_resource: Box<dyn ResourceProvider + Send>,
     /// Config resource (default: pretrained BERT model on CoNLL)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
@@ -107,7 +104,6 @@ impl MaskedLanguageConfig {
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
     /// * model_resource - The `ResourceProvider` pointing to the model for RemoteResource to load (e.g.  model.ot)
-    /// * model_local_resource - The `ResourceProvider` pointing to the model for LocalResource to load (e.g.  model.ot)
     /// * config - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
     /// * vocab - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
@@ -115,8 +111,7 @@ impl MaskedLanguageConfig {
     /// * mask_token - A token used for model to predict masking words..
     pub fn new<R>(
         model_type: ModelType,
-        model_resource: impl Into<Option<R>>,
-        model_local_resource: impl Into<Option<LocalResource>>,
+        model_resource: R,
         config_resource: R,
         vocab_resource: R,
         merges_resource: impl Into<Option<R>>,
@@ -130,8 +125,7 @@ impl MaskedLanguageConfig {
     {
         MaskedLanguageConfig {
             model_type,
-            model_resource: model_resource.into().map(|r| Box::new(r) as Box<_>),
-            model_local_resource: model_local_resource.into(),
+            model_resource: Box::new(model_resource),
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.into().map(|r| Box::new(r) as Box<_>),
@@ -150,7 +144,6 @@ impl Default for MaskedLanguageConfig {
         MaskedLanguageConfig::new(
             ModelType::Bert,
             RemoteResource::from_pretrained(BertModelResources::BERT),
-            None,
             RemoteResource::from_pretrained(BertConfigResources::BERT),
             RemoteResource::from_pretrained(BertVocabResources::BERT),
             None,
@@ -474,11 +467,7 @@ impl MaskedLanguageModel {
     pub fn new(config: MaskedLanguageConfig) -> Result<MaskedLanguageModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
         let vocab_path = config.vocab_resource.get_local_path()?;
-        let weights_path = if config.model_local_resource.is_none() {
-            config.model_resource.unwrap().get_local_path()?
-        } else {
-            config.model_local_resource.unwrap().get_local_path()?
-        };
+        let weights_path = config.model_resource.get_local_path()?;
         let merges_path = if let Some(merges_resource) = &config.merges_resource {
             Some(merges_resource.get_local_path()?)
         } else {

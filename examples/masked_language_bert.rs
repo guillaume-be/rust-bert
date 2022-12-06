@@ -20,7 +20,6 @@ fn main() -> anyhow::Result<()> {
     let config = MaskedLanguageConfig::new(
         ModelType::Bert,
         RemoteResource::from_pretrained(BertModelResources::BERT),
-        None,
         RemoteResource::from_pretrained(BertConfigResources::BERT),
         RemoteResource::from_pretrained(BertVocabResources::BERT),
         None,
