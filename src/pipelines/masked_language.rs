@@ -29,13 +29,13 @@
 //!        true,
 //!        None,
 //!        None,
-//!        None,
+//!        Some(String::from("<MASK>")),
 //!    );
 //!
 //!    let mask_language_model = MaskedLanguageModel::new(config)?;
 //!    //    Define input
 //!    let input = [
-//!        "Looks like one [mask] is missing",
+//!        "Looks like one [MASK] is missing",
 //!        "Paris is the [MASK] of France",
 //!    ];
 //!
@@ -48,7 +48,6 @@
 //! # Ok(())
 //! # }
 //! ```
-//!
 //!
 use crate::bert::BertForMaskedLM;
 use crate::common::error::RustBertError;
@@ -63,14 +62,18 @@ use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
     resources::RemoteResource,
 };
-use lazy_regex::regex_replace_all;
-use rust_tokenizers::tokenizer::MultiThreadedTokenizer;
 use rust_tokenizers::tokenizer::TruncationStrategy;
-use rust_tokenizers::vocab::Vocab;
 use rust_tokenizers::TokenizedInput;
 use std::borrow::Borrow;
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
+
+#[derive(Debug, Clone)]
+pub struct MaskedToken {
+    pub text: String,
+    pub id: i64,
+    pub score: f64,
+}
 
 /// # Configuration for MaskedLanguageModel
 /// Contains information regarding the model to load and device to place the model on.
@@ -351,100 +354,11 @@ impl MaskedLanguageOption {
     }
 }
 
-/// #Masked token for masked language model to predict
-pub enum MaskTokenOption {
-    /// Bert for Masked Token
-    Bert(String),
-    /// DeBERTa for Masked Token
-    Deberta(String),
-    /// DeBERTa V2 for Masked Token
-    DebertaV2(String),
-    /// Roberta for Masked Token
-    Roberta(String),
-    /// XLMRoberta for Masked Token
-    XLMRoberta(String),
-    /// FNet for Masked Token
-    FNet(String),
-}
-impl MaskTokenOption {
-    /// Instantiate a new masked token object of the supplied type.
-    ///
-    /// # Arguments
-    ///
-    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded)
-    /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
-    /// * `mask_token` - A configuration (the configuration must in accordance with the `model_type`)
-    pub fn new(
-        model_type: ModelType,
-        mask_token: Option<String>,
-    ) -> Result<MaskTokenOption, RustBertError> {
-        match model_type {
-            ModelType::Bert => {
-                if mask_token.is_none() {
-                    Ok(MaskTokenOption::Bert(String::from("[MASK]")))
-                } else {
-                    Ok(MaskTokenOption::Bert(mask_token.unwrap()))
-                }
-            }
-            ModelType::Deberta => {
-                if mask_token.is_none() {
-                    Ok(MaskTokenOption::Deberta(String::from("[MASK]")))
-                } else {
-                    Ok(MaskTokenOption::Deberta(mask_token.unwrap()))
-                }
-            }
-            ModelType::DebertaV2 => {
-                if mask_token.is_none() {
-                    Ok(MaskTokenOption::DebertaV2(String::from("[MASK]")))
-                } else {
-                    Ok(MaskTokenOption::DebertaV2(mask_token.unwrap()))
-                }
-            }
-            ModelType::Roberta => {
-                if mask_token.is_none() {
-                    Ok(MaskTokenOption::Roberta(String::from("<MASK]>")))
-                } else {
-                    Ok(MaskTokenOption::Roberta(mask_token.unwrap()))
-                }
-            }
-            ModelType::XLMRoberta => {
-                if mask_token.is_none() {
-                    Ok(MaskTokenOption::XLMRoberta(String::from("<MASK>")))
-                } else {
-                    Ok(MaskTokenOption::XLMRoberta(mask_token.unwrap()))
-                }
-            }
-            ModelType::FNet => {
-                if mask_token.is_none() {
-                    Ok(MaskTokenOption::FNet(String::from("[MASK]")))
-                } else {
-                    Ok(MaskTokenOption::FNet(mask_token.unwrap()))
-                }
-            }
-            _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "MaskTokenOption is not implemented for {:?}!",
-                model_type
-            ))),
-        }
-    }
-
-    /// Return the `mask_token` for this MaskTokenOption
-    pub fn get_mask_token(&self) -> &String {
-        match *self {
-            Self::Bert(ref mask_token) => mask_token,
-            Self::Deberta(ref mask_token) => mask_token,
-            Self::DebertaV2(ref mask_token) => mask_token,
-            Self::Roberta(ref mask_token) => mask_token,
-            Self::XLMRoberta(ref mask_token) => mask_token,
-            Self::FNet(ref mask_token) => mask_token,
-        }
-    }
-}
 /// # MaskedLanguageModel for Masked Language (e.g. Fill Mask)
 pub struct MaskedLanguageModel {
     tokenizer: TokenizerOption,
     language_encode: MaskedLanguageOption,
-    mask_token: MaskTokenOption,
+    mask_token: Option<String>,
     var_store: VarStore,
     max_length: usize,
 }
@@ -495,7 +409,7 @@ impl MaskedLanguageModel {
         let language_encode =
             MaskedLanguageOption::new(config.model_type, &var_store.root(), &model_config)?;
         var_store.load(weights_path)?;
-        let mask_token = MaskTokenOption::new(config.model_type, config.mask_token)?;
+        let mask_token = config.mask_token;
         Ok(MaskedLanguageModel {
             tokenizer,
             language_encode,
@@ -505,28 +419,30 @@ impl MaskedLanguageModel {
         })
     }
 
-    // replace wrong mask_token in input text to correct mask_token
-    fn replace_mask_token<'a, S>(&self, input: S) -> Vec<String>
+    /// Replace custom user-provided mask token by language model mask token.
+    fn replace_mask_token<'a, S>(
+        &self,
+        input: S,
+        mask_token: &str,
+    ) -> Result<Vec<String>, RustBertError>
     where
         S: AsRef<[&'a str]>,
     {
-        let mask_token = self.mask_token.get_mask_token();
+        let model_mask_token = self.tokenizer.get_mask_value().ok_or(
+            RustBertError::InvalidConfigurationError("Tokenizer does ot have a default mask token and no mask token provided in configuration. \
+            Please provide a `mask_token` in the configuration.".into()))?;
         let output = input
             .as_ref()
             .iter()
-            .map(|&x| {
-                regex_replace_all!(
-                    r#"(<\w+?>|\[\w+?\])"#i,
-                    x,
-                    |_,_| format!("{}",mask_token),
-                )
-                .to_string()
-            })
+            .map(|&x| x.replace(mask_token, model_mask_token))
             .collect::<Vec<_>>();
-        output
+        Ok(output)
     }
 
-    fn prepare_for_model(&self, input: &Vec<String>) -> Tensor {
+    fn prepare_for_model<'a, S>(&self, input: S) -> Tensor
+    where
+        S: AsRef<[&'a str]>,
+    {
         let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_list(
             input.as_ref(),
             self.max_length,
@@ -550,34 +466,6 @@ impl MaskedLanguageModel {
         Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())
     }
 
-    /// Return the word predicted by model
-    fn get_vocab(&self, input: Tensor) -> Result<String, RustBertError> {
-        let word = match self.tokenizer {
-            TokenizerOption::Bert(ref tokenizer) => {
-                MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
-            }
-            TokenizerOption::Deberta(ref tokenizer) => {
-                MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
-            }
-            TokenizerOption::DebertaV2(ref tokenizer) => {
-                MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
-            }
-            TokenizerOption::Roberta(ref tokenizer) => {
-                MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
-            }
-            TokenizerOption::XLMRoberta(ref tokenizer) => {
-                MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
-            }
-            TokenizerOption::FNet(ref tokenizer) => {
-                MultiThreadedTokenizer::vocab(tokenizer).id_to_token(&input.int64_value(&[]))
-            }
-            _ => return Err(RustBertError::InvalidConfigurationError(
-                "Masked Language currently supports Bert|Deberta|DebertaV2|Roberta|XLMRoberta|FNet!".to_string(),
-            )),
-        };
-        Ok(word)
-    }
-
     /// Mask texts
     ///
     /// # Arguments
@@ -591,7 +479,6 @@ impl MaskedLanguageModel {
     /// # Example
     ///
     /// ```no_run
-    ///
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::pipelines::masked_language::MaskedLanguageModel;
     /// //    Set-up model
@@ -611,14 +498,24 @@ impl MaskedLanguageModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn predict<'a, S>(&self, input: S) -> Vec<String>
+    pub fn predict<'a, S>(&self, input: S) -> Result<Vec<Vec<MaskedToken>>, RustBertError>
     where
         S: AsRef<[&'a str]>,
     {
-        let input_with_token = self.replace_mask_token(input);
-        let input_tensor = self.prepare_for_model(&input_with_token);
+        let input_tensor = if let Some(mask_token) = &self.mask_token {
+            let input_with_replaced_mask = self.replace_mask_token(input.as_ref(), mask_token)?;
+            self.prepare_for_model(
+                input_with_replaced_mask
+                    .iter()
+                    .map(|w| w.as_str())
+                    .collect::<Vec<&str>>(),
+            )
+        } else {
+            self.prepare_for_model(input.as_ref())
+        };
+
         let output = no_grad(|| {
-            let output = self.language_encode.forward_t(
+            self.language_encode.forward_t(
                 Some(&input_tensor),
                 None,
                 None,
@@ -627,38 +524,33 @@ impl MaskedLanguageModel {
                 None,
                 None,
                 false,
-            );
-            output.to(Device::Cpu)
+            )
         });
         // get the position of mask_token in input texts
-        let mask_token = self.mask_token.get_mask_token();
-        let index = input_with_token
-            .iter()
-            .map(|x| {
-                let pos = match x
-                    .split(' ')
-                    .collect::<Vec<_>>()
-                    .iter()
-                    .position(|&r| r == mask_token)
-                {
-                    Some(val) => val,
-                    None => panic!("You should provide a mask in sentences! Such as  \"Looks like one [MASK] is missing.\""),
-                };
-                pos + 1
-            } as i64)
-            .collect::<Vec<_>>();
-        // extract the predicted words
-        let token_indices = output.size()[0];
-        let mut words: Vec<String> = vec![];
-        for token_idx in 0..token_indices {
-            let word_idx = output
-                .get(token_idx)
-                .get(index[token_idx as usize])
-                .argmax(0, false);
-            let word = self.get_vocab(word_idx).unwrap();
-            words.push(word)
+        let mask_token_id =
+            self.tokenizer
+                .get_mask_id()
+                .ok_or(RustBertError::InvalidConfigurationError(
+                    "Tokenizer does not have a mask token id, Please use a tokenizer/model with a mask token.".into(),
+                ))?;
+        let mask_token_mask = input_tensor.eq(mask_token_id);
+        let mut output_tokens = Vec::with_capacity(input.as_ref().len());
+        for input_id in 0..input.as_ref().len() as i64 {
+            let mut sequence_tokens = vec![];
+            let sequence_mask = mask_token_mask.get(input_id);
+            if bool::from(sequence_mask.any()) {
+                let mask_scores = output
+                    .get(input_id)
+                    .masked_select(&sequence_mask.unsqueeze(1));
+                let (token_scores, token_ids) = mask_scores.max_dim(0, true);
+                for (id, score) in token_ids.iter::<i64>()?.zip(token_scores.iter::<f64>()?) {
+                    let text = self.tokenizer.decode(&[id], false, true);
+                    sequence_tokens.push(MaskedToken { text, id, score });
+                }
+            }
+            output_tokens.push(sequence_tokens);
         }
-        words
+        Ok(output_tokens)
     }
 }
 #[cfg(test)]

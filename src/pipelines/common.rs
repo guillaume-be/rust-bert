@@ -1534,6 +1534,114 @@ impl TokenizerOption {
     }
 
     /// Interface method
+    pub fn get_mask_id(&self) -> Option<i64> {
+        match *self {
+            Self::Bert(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(BertVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::Deberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(DeBERTaVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::DebertaV2(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(DeBERTaV2Vocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::Roberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(RobertaVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::Bart(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(RobertaVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::XLMRoberta(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(XLMRobertaVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::Albert(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(AlbertVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::XLNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(XLNetVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::ProphetNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(ProphetNetVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::MBart50(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(MBart50Vocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::FNet(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(FNetVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::Pegasus(ref tokenizer) => Some(
+                *MultiThreadedTokenizer::vocab(tokenizer)
+                    .special_values
+                    .get(PegasusVocab::mask_value())
+                    .expect("MASK token not found in vocabulary"),
+            ),
+            Self::Marian(_) => None,
+            Self::M2M100(_) => None,
+            Self::T5(_) => None,
+            Self::GPT2(_) => None,
+            Self::OpenAiGpt(_) => None,
+            Self::Reformer(_) => None,
+        }
+    }
+
+    /// Interface method
+    pub fn get_mask_value(&self) -> Option<&str> {
+        match self {
+            Self::Bert(_) => Some(BertVocab::mask_value()),
+            Self::Deberta(_) => Some(DeBERTaVocab::mask_value()),
+            Self::DebertaV2(_) => Some(DeBERTaV2Vocab::mask_value()),
+            Self::Roberta(_) => Some(RobertaVocab::mask_value()),
+            Self::Bart(_) => Some(RobertaVocab::mask_value()),
+            Self::XLMRoberta(_) => Some(XLMRobertaVocab::mask_value()),
+            Self::Albert(_) => Some(AlbertVocab::mask_value()),
+            Self::XLNet(_) => Some(XLNetVocab::mask_value()),
+            Self::ProphetNet(_) => Some(ProphetNetVocab::mask_value()),
+            Self::MBart50(_) => Some(MBart50Vocab::mask_value()),
+            Self::FNet(_er) => Some(FNetVocab::mask_value()),
+            Self::M2M100(_) => None,
+            Self::Marian(_) => None,
+            Self::T5(_) => None,
+            Self::GPT2(_) => None,
+            Self::OpenAiGpt(_) => None,
+            Self::Reformer(_) => None,
+            Self::Pegasus(_) => None,
+        }
+    }
+
+    /// Interface method
     pub fn get_bos_id(&self) -> Option<i64> {
         match *self {
             Self::Roberta(ref tokenizer) => Some(

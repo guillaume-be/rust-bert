@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
 
     let sentiment_config = SentimentConfig {
         model_type: ModelType::FNet,
-        model_resource: model_resource,
+        model_resource,
         config_resource,
         vocab_resource,
         ..Default::default()
