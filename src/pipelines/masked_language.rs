@@ -11,42 +11,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //! # Masked language pipeline (e.g. Fill Mask)
-//! More generic masked language pipeline, works with multiple models (Bert, Roberta)
+//! Fill in the missing / masked words in input sequences. The pattern to use to specify
+//! a masked word can be specified in the `MaskedLanguageConfig` (`mask_token`). and allows
+//! multiple masked tokens per input sequence.
 //!
 //!  ```no_run
 //!use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
 //!use rust_bert::pipelines::common::ModelType;
 //!use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
 //!use rust_bert::resources::RemoteResource;
-//!fn main() -> anyhow::Result<()> {
-//!    //    Set-up model
-//!    let config = MaskedLanguageConfig::new(
-//!        ModelType::Bert,
-//!        RemoteResource::from_pretrained(BertModelResources::BERT),
-//!        RemoteResource::from_pretrained(BertConfigResources::BERT),
-//!        RemoteResource::from_pretrained(BertVocabResources::BERT),
-//!        None,
-//!        true,
-//!        None,
-//!        None,
-//!        Some(String::from("<MASK>")),
-//!    );
+//! fn main() -> anyhow::Result<()> {
 //!
-//!    let mask_language_model = MaskedLanguageModel::new(config)?;
-//!    //    Define input
-//!    let input = [
-//!        "Looks like one [MASK] is missing",
-//!        "Paris is the [MASK] of France",
-//!    ];
+//!     let config = MaskedLanguageConfig::new(
+//!         ModelType::Bert,
+//!         RemoteResource::from_pretrained(BertModelResources::BERT),
+//!         RemoteResource::from_pretrained(BertConfigResources::BERT),
+//!         RemoteResource::from_pretrained(BertVocabResources::BERT),
+//!         None,
+//!         true,
+//!         None,
+//!         None,
+//!         Some(String::from("<mask>")),
+//!     );
 //!
-//!    //    Run model
-//!    let output = mask_language_model.predict(&input);
-//!    for word in output {
-//!        println!("{:?}", word);
-//!    }
+//!     let mask_language_model = MaskedLanguageModel::new(config)?;
+//!     let input = [
+//!         "Hello I am a <mask> student",
+//!         "Paris is the <mask> of France. It is <mask> in Europe.",
+//!     ];
 //!
-//! # Ok(())
-//! # }
+//!     let output = mask_language_model.predict(input)?;
+//!     Ok(())
+//! }
 //! ```
 //!
 use crate::bert::BertForMaskedLM;
@@ -69,9 +65,13 @@ use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
 
 #[derive(Debug, Clone)]
+/// Output container for masked language model pipeline.
 pub struct MaskedToken {
+    /// String representation of the masked word
     pub text: String,
+    /// Vocabulary index for the masked word
     pub id: i64,
+    /// Score for the masked word
     pub score: f64,
 }
 
@@ -454,7 +454,7 @@ impl MaskedLanguageModel {
             .map(|input| input.token_ids.len())
             .max()
             .unwrap();
-        let tokenized_input_tensors: Vec<tch::Tensor> = tokenized_input
+        let tokenized_input_tensors = tokenized_input
             .iter()
             .map(|input| input.token_ids.clone())
             .map(|mut input| {

@@ -33,6 +33,7 @@ The tasks currently supported include:
   - Part of Speech tagging
   - Question-Answering
   - Language Generation
+  - Masked Language Model
   - Sentence Embeddings
 
 <details>
@@ -432,6 +433,33 @@ Output:
 [
     [-0.000202666, 0.08148022, 0.03136178, 0.002920636 ...],
     [0.064757116, 0.048519745, -0.01786038, -0.0479775 ...]
+]
+```
+</details>
+
+
+<details>
+<summary> <b>12. Masked Language Model </b> </summary>
+
+Predict masked words in input sentences.
+```rust
+    let model = MaskedLanguageModel::new(Default::default())?;
+
+    let sentences = [
+        "Hello I am a <mask> student",
+        "Paris is the <mask> of France. It is <mask> in Europe.",
+    ];
+    
+    let output = model.predict(&sentences);
+```
+Output:
+```
+[
+    [MaskedToken { text: "college", id: 2267, score: 8.091}],
+    [
+        MaskedToken { text: "capital", id: 3007, score: 16.7249}, 
+        MaskedToken { text: "located", id: 2284, score: 9.0452}
+    ]
 ]
 ```
 </details>
