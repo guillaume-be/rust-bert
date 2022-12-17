@@ -33,13 +33,13 @@ fn main() -> anyhow::Result<()> {
     //    Define input
     let input = [
         "Hello I am a <mask> student",
-        "Paris is the <mask> of France",
+        "Paris is the <mask> of France. It is <mask> in Europe.",
     ];
 
     //    Run model
-    let output = mask_language_model.predict(&input);
-    for word in output {
-        println!("{:?}", word);
+    let output = mask_language_model.predict(input)?;
+    for sentence_output in output {
+        println!("{:?}", sentence_output);
     }
 
     Ok(())

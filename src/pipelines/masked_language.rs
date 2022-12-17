@@ -428,7 +428,7 @@ impl MaskedLanguageModel {
     where
         S: AsRef<[&'a str]>,
     {
-        let model_mask_token = self.tokenizer.get_mask_value().ok_or(
+        let model_mask_token = self.tokenizer.get_mask_value().ok_or_else(||
             RustBertError::InvalidConfigurationError("Tokenizer does ot have a default mask token and no mask token provided in configuration. \
             Please provide a `mask_token` in the configuration.".into()))?;
         let output = input
@@ -530,7 +530,7 @@ impl MaskedLanguageModel {
         let mask_token_id =
             self.tokenizer
                 .get_mask_id()
-                .ok_or(RustBertError::InvalidConfigurationError(
+                .ok_or_else(|| RustBertError::InvalidConfigurationError(
                     "Tokenizer does not have a mask token id, Please use a tokenizer/model with a mask token.".into(),
                 ))?;
         let mask_token_mask = input_tensor.eq(mask_token_id);
@@ -541,8 +541,8 @@ impl MaskedLanguageModel {
             if bool::from(sequence_mask.any()) {
                 let mask_scores = output
                     .get(input_id)
-                    .masked_select(&sequence_mask.unsqueeze(1));
-                let (token_scores, token_ids) = mask_scores.max_dim(0, true);
+                    .index_select(0, &sequence_mask.argwhere().squeeze_dim(1));
+                let (token_scores, token_ids) = mask_scores.max_dim(1, false);
                 for (id, score) in token_ids.iter::<i64>()?.zip(token_scores.iter::<f64>()?) {
                     let text = self.tokenizer.decode(&[id], false, true);
                     sequence_tokens.push(MaskedToken { text, id, score });
