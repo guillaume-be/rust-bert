@@ -11,23 +11,35 @@
 // limitations under the License.
 
 extern crate anyhow;
-
-use rust_bert::pipelines::masked_language::MaskedLanguageModel;
-
+use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
+use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
+use rust_bert::resources::RemoteResource;
 fn main() -> anyhow::Result<()> {
     //    Set-up model
-    let mask_language_model = MaskedLanguageModel::new(Default::default())?;
+    let config = MaskedLanguageConfig::new(
+        ModelType::Bert,
+        RemoteResource::from_pretrained(BertModelResources::BERT),
+        RemoteResource::from_pretrained(BertConfigResources::BERT),
+        RemoteResource::from_pretrained(BertVocabResources::BERT),
+        None,
+        true,
+        None,
+        None,
+        Some(String::from("<mask>")),
+    );
 
+    let mask_language_model = MaskedLanguageModel::new(config)?;
     //    Define input
     let input = [
-        "Looks like one [MASK] is missing",
-        "It was a very nice and <MASK> day",
+        "Hello I am a <mask> student",
+        "Paris is the <mask> of France. It is <mask> in Europe.",
     ];
 
     //    Run model
-    let output = mask_language_model.predict(&input);
-    for word in output {
-        println!("{:?}", word);
+    let output = mask_language_model.predict(input)?;
+    for sentence_output in output {
+        println!("{:?}", sentence_output);
     }
 
     Ok(())

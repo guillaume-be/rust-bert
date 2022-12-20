@@ -41,6 +41,7 @@
 //! - Question-Answering
 //! - Language Generation
 //! - Sentence Embeddings
+//! - Masked Language Model
 //!
 //! More information on these can be found in the [`pipelines` module](./pipelines/index.html)
 //! - Transformer models base architectures with customized heads. These allow to load pre-trained models for customized inference in Rust
@@ -609,6 +610,38 @@
 //! [
 //!     [-0.000202666, 0.08148022, 0.03136178, 0.002920636],
 //!     [0.064757116, 0.048519745, -0.01786038, -0.0479775],
+//! ]
+//! # ;
+//! ```
+//! </details>
+//! &nbsp;  
+//! <details>
+//! <summary> <b>12. Masked Language Model </b> </summary>
+//!
+//! Predict masked words in input sentences.
+//!```no_run
+//! # use rust_bert::pipelines::masked_language::MaskedLanguageModel;
+//! # fn main() -> anyhow::Result<()> {
+//! let model = MaskedLanguageModel::new(Default::default())?;
+//!
+//! let sentences = [
+//!     "Hello I am a <mask> student",
+//!     "Paris is the <mask> of France. It is <mask> in Europe.",
+//! ];
+//!
+//! let output = model.predict(&sentences);
+//! #   Ok(())
+//! # }
+//! ```
+//! Output:
+//!```no_run
+//! # use rust_bert::pipelines::masked_language::MaskedToken;
+//! let output = vec![
+//!    vec![MaskedToken { text: String::from("college"), id: 2267, score: 8.091}],
+//!    vec![
+//!        MaskedToken { text: String::from("capital"), id: 3007, score: 16.7249},
+//!        MaskedToken { text: String::from("located"), id: 2284, score: 9.0452}
+//!    ]
 //! ]
 //! # ;
 //! ```
