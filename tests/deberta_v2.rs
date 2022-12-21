@@ -22,7 +22,7 @@ fn deberta_v2_masked_lm() -> anyhow::Result<()> {
     let mut config = DebertaV2Config::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let deberta_model = DebertaV2ForMaskedLM::new(&vs.root(), &config);
+    let deberta_model = DebertaV2ForMaskedLM::new(vs.root(), &config);
 
     //    Generate random input
     let input_tensor = Tensor::randint(42, &[32, 128], (Kind::Int64, device));
@@ -88,7 +88,7 @@ fn deberta_v2_for_sequence_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(1, String::from("Neutral"));
     dummy_label_mapping.insert(2, String::from("Negative"));
     config.id2label = Some(dummy_label_mapping);
-    let model = DebertaV2ForSequenceClassification::new(&vs.root(), &config);
+    let model = DebertaV2ForSequenceClassification::new(vs.root(), &config);
 
     //    Define input
     let inputs = ["Where's Paris?", "In Kentucky, United States"];
@@ -142,7 +142,7 @@ fn deberta_v2_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(2, String::from("PER"));
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
-    let model = DebertaV2ForTokenClassification::new(&vs.root(), &config);
+    let model = DebertaV2ForTokenClassification::new(vs.root(), &config);
 
     //    Define input
     let inputs = ["Where's Paris?", "In Kentucky, United States"];
@@ -190,7 +190,7 @@ fn deberta_v2_for_question_answering() -> anyhow::Result<()> {
     let tokenizer =
         DeBERTaV2Tokenizer::from_file(vocab_path.to_str().unwrap(), false, false, false)?;
     let config = DebertaV2Config::from_file(config_path);
-    let model = DebertaV2ForQuestionAnswering::new(&vs.root(), &config);
+    let model = DebertaV2ForQuestionAnswering::new(vs.root(), &config);
 
     //    Define input
     let inputs = ["Where's Paris?", "Paris is in In Kentucky, United States"];

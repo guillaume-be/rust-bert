@@ -403,7 +403,7 @@ pub(crate) mod private_generation_utils {
             prev_output_tokens: &Tensor,
             repetition_penalty: f64,
         ) {
-            for i in 0..(batch_size * num_beams as i64) {
+            for i in 0..(batch_size * num_beams) {
                 for token_position in 0..prev_output_tokens.get(i).size()[0] {
                     let token = prev_output_tokens.get(i).int64_value(&[token_position]);
                     let updated_value = &next_token_logits.double_value(&[i, token]);
@@ -826,8 +826,8 @@ pub(crate) mod private_generation_utils {
                 if gen_opt.no_repeat_ngram_size > 0 {
                     let banned_tokens = self.get_banned_tokens(
                         &input_ids,
-                        gen_opt.no_repeat_ngram_size as i64,
-                        current_length as i64,
+                        gen_opt.no_repeat_ngram_size,
+                        current_length,
                     );
                     for (batch_index, index_banned_token) in
                         (0..banned_tokens.len() as i64).zip(banned_tokens)
@@ -875,7 +875,7 @@ pub(crate) mod private_generation_utils {
                     }
                     self.top_k_top_p_filtering(
                         &mut next_token_logits,
-                        gen_opt.top_k as i64,
+                        gen_opt.top_k,
                         gen_opt.top_p,
                         1,
                     );
@@ -915,7 +915,7 @@ pub(crate) mod private_generation_utils {
                             &sentence_with_eos
                                 .to_kind(Kind::Bool)
                                 .to_device(sentence_lengths.device()),
-                            current_length as i64 + 1,
+                            current_length + 1,
                         );
                         unfinished_sentences = -unfinished_sentences * (sentence_with_eos - 1);
                     }
@@ -943,7 +943,7 @@ pub(crate) mod private_generation_utils {
                             &unfinished_sentences
                                 .to_kind(Kind::Bool)
                                 .to_device(sentence_lengths.device()),
-                            current_length as i64,
+                            current_length,
                         );
                         break;
                     }
@@ -1927,10 +1927,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
         let batch_size = *input_ids.size().first().unwrap();
 
         let (effective_batch_size, effective_batch_mult) = match do_sample {
-            true => (
-                batch_size * num_return_sequences as i64,
-                num_return_sequences as i64,
-            ),
+            true => (batch_size * num_return_sequences, num_return_sequences),
             false => (batch_size, 1),
         };
 
@@ -1946,7 +1943,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
             let encoder_outputs = self.encode(&input_ids, Some(&attention_mask)).unwrap();
             let expanded_batch_indices = Tensor::arange(batch_size, (Int64, input_ids.device()))
                 .view((-1, 1))
-                .repeat(&[1, num_beams as i64 * effective_batch_mult])
+                .repeat(&[1, num_beams * effective_batch_mult])
                 .view(-1);
             Some(encoder_outputs.index_select(0, &expanded_batch_indices))
         } else {
@@ -1959,19 +1956,19 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                     input_ids
                         .unsqueeze(1)
                         .expand(
-                            &[batch_size, effective_batch_mult * num_beams as i64, cur_len],
+                            &[batch_size, effective_batch_mult * num_beams, cur_len],
                             true,
                         )
                         .contiguous()
-                        .view((effective_batch_size * num_beams as i64, cur_len)),
+                        .view((effective_batch_size * num_beams, cur_len)),
                     attention_mask
                         .unsqueeze(1)
                         .expand(
-                            &[batch_size, effective_batch_mult * num_beams as i64, cur_len],
+                            &[batch_size, effective_batch_mult * num_beams, cur_len],
                             true,
                         )
                         .contiguous()
-                        .view((effective_batch_size * num_beams as i64, cur_len)),
+                        .view((effective_batch_size * num_beams, cur_len)),
                 )
             } else {
                 (input_ids, attention_mask)
@@ -1982,7 +1979,7 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                     .expect("decoder start id must be specified for encoder decoders")
             });
             let input_ids = Tensor::full(
-                &[effective_batch_size * num_beams as i64, 1],
+                &[effective_batch_size * num_beams, 1],
                 decoder_start_token_id,
                 (Int64, input_ids.device()),
             );
@@ -1990,15 +1987,11 @@ pub trait LanguageGenerator<T: LMHeadModel, V: Vocab, U: Tokenizer<V>>:
                 attention_mask
                     .unsqueeze(1)
                     .expand(
-                        &[
-                            batch_size,
-                            effective_batch_mult * num_beams as i64,
-                            input_ids_len,
-                        ],
+                        &[batch_size, effective_batch_mult * num_beams, input_ids_len],
                         true,
                     )
                     .contiguous()
-                    .view((effective_batch_size * num_beams as i64, input_ids_len))
+                    .view((effective_batch_size * num_beams, input_ids_len))
             } else {
                 attention_mask
             };

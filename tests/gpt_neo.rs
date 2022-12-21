@@ -40,7 +40,7 @@ fn gpt_neo_lm() -> anyhow::Result<()> {
     let mut config = GptNeoConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let gpt_neo_model = GptNeoForCausalLM::new(&vs.root(), &config)?;
+    let gpt_neo_model = GptNeoForCausalLM::new(vs.root(), &config)?;
     vs.load(weights_path)?;
 
     //    Define input

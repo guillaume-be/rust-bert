@@ -61,7 +61,7 @@ fn distilbert_masked_lm() -> anyhow::Result<()> {
     let tokenizer: BertTokenizer =
         BertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
     let config = DistilBertConfig::from_file(config_path);
-    let distil_bert_model = DistilBertModelMaskedLM::new(&vs.root(), &config);
+    let distil_bert_model = DistilBertModelMaskedLM::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input
@@ -140,7 +140,7 @@ fn distilbert_for_question_answering() -> anyhow::Result<()> {
     let mut config = DistilBertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let distil_bert_model = DistilBertForQuestionAnswering::new(&vs.root(), &config);
+    let distil_bert_model = DistilBertForQuestionAnswering::new(vs.root(), &config);
 
     //    Define input
     let input = [
@@ -211,7 +211,7 @@ fn distilbert_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(2, String::from("PER"));
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
-    let distil_bert_model = DistilBertForTokenClassification::new(&vs.root(), &config);
+    let distil_bert_model = DistilBertForTokenClassification::new(vs.root(), &config);
 
     //    Define input
     let input = [

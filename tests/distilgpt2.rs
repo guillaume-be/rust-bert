@@ -37,7 +37,7 @@ fn distilgpt2_lm_model() -> anyhow::Result<()> {
         false,
     )?;
     let config = Gpt2Config::from_file(config_path);
-    let gpt2_model = GPT2LMHeadModel::new(&vs.root(), &config);
+    let gpt2_model = GPT2LMHeadModel::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input

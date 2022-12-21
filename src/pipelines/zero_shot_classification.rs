@@ -575,7 +575,7 @@ impl ZeroShotClassificationModel {
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let zero_shot_classifier =
-            ZeroShotClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
+            ZeroShotClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
         var_store.load(weights_path)?;
         Ok(ZeroShotClassificationModel {
             tokenizer,

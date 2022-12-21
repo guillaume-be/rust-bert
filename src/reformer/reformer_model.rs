@@ -354,7 +354,7 @@ impl ReformerModel {
 
         let must_pad_to_match_chunk_length =
             (input_shape.last().unwrap() % self.least_common_mult_chunk_length != 0)
-                & (*input_shape.last().unwrap() as i64 > self.min_chunk_length)
+                & (*input_shape.last().unwrap() > self.min_chunk_length)
                 & old_layer_states.is_none();
 
         let start_idx_pos_encodings = if let Some(layer_states) = &old_layer_states {
@@ -1091,7 +1091,7 @@ impl ReformerGenerator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let config = ReformerConfig::from_file(config_path);
-        let model = ReformerModelWithLMHead::new(&var_store.root(), &config)?;
+        let model = ReformerModelWithLMHead::new(var_store.root(), &config)?;
         var_store.load(weights_path)?;
 
         let bos_token_id = tokenizer.get_bos_id();

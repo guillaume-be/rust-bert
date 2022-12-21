@@ -593,7 +593,7 @@ impl SequenceClassificationModel {
             .map(|v| v as usize)
             .unwrap_or(usize::MAX);
         let sequence_classifier =
-            SequenceClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
+            SequenceClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping().clone();
         var_store.load(weights_path)?;
         Ok(SequenceClassificationModel {

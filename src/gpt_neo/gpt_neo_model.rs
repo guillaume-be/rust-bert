@@ -716,7 +716,7 @@ impl GptNeoGenerator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let config = GptNeoConfig::from_file(config_path);
-        let model = GptNeoForCausalLM::new(&var_store.root(), &config)?;
+        let model = GptNeoForCausalLM::new(var_store.root(), &config)?;
         var_store.load(weights_path)?;
 
         let bos_token_id = tokenizer.get_bos_id();

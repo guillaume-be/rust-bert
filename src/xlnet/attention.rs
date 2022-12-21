@@ -15,7 +15,7 @@
 use crate::common::dropout::Dropout;
 use crate::xlnet::XLNetConfig;
 use std::borrow::Borrow;
-use tch::nn::Init;
+use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::{nn, Kind, Tensor};
 
 #[derive(Debug)]
@@ -72,52 +72,52 @@ impl XLNetRelativeAttention {
         let query = p.var(
             "q",
             &[config.d_model, config.n_head, config.d_head],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
 
         let key = p.var(
             "k",
             &[config.d_model, config.n_head, config.d_head],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
 
         let value = p.var(
             "v",
             &[config.d_model, config.n_head, config.d_head],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
 
         let output = p.var(
             "o",
             &[config.d_model, config.n_head, config.d_head],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
 
         let pos = p.var(
             "r",
             &[config.d_model, config.n_head, config.d_head],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
 
         let r_r_bias = p.var(
             "r_r_bias",
             &[config.n_head, config.d_head],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
         let r_s_bias = p.var(
             "r_s_bias",
             &[config.n_head, config.d_head],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
         let r_w_bias = p.var(
             "r_w_bias",
             &[config.n_head, config.d_head],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
         let seg_embed = p.var(
             "seg_embed",
             &[2, config.n_head, config.d_head],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
 
         let dropout = Dropout::new(config.dropout);

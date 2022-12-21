@@ -35,7 +35,7 @@ fn albert_masked_lm() -> anyhow::Result<()> {
     let tokenizer: AlbertTokenizer =
         AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let config = AlbertConfig::from_file(config_path);
-    let albert_model = AlbertForMaskedLM::new(&vs.root(), &config);
+    let albert_model = AlbertForMaskedLM::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input
@@ -109,7 +109,7 @@ fn albert_for_sequence_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let albert_model = AlbertForSequenceClassification::new(&vs.root(), &config);
+    let albert_model = AlbertForSequenceClassification::new(vs.root(), &config);
 
     //    Define input
     let input = [
@@ -170,7 +170,7 @@ fn albert_for_multiple_choice() -> anyhow::Result<()> {
     let mut config = AlbertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let albert_model = AlbertForMultipleChoice::new(&vs.root(), &config);
+    let albert_model = AlbertForMultipleChoice::new(vs.root(), &config);
 
     //    Define input
     let input = [
@@ -242,7 +242,7 @@ fn albert_for_token_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let albert_model = AlbertForTokenClassification::new(&vs.root(), &config);
+    let albert_model = AlbertForTokenClassification::new(vs.root(), &config);
 
     //    Define input
     let input = [
@@ -303,7 +303,7 @@ fn albert_for_question_answering() -> anyhow::Result<()> {
     let mut config = AlbertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let albert_model = AlbertForQuestionAnswering::new(&vs.root(), &config);
+    let albert_model = AlbertForQuestionAnswering::new(vs.root(), &config);
 
     //    Define input
     let input = [

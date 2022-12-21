@@ -144,13 +144,13 @@ impl<'a> KeywordExtractionModel<'a> {
         config: KeywordExtractionConfig<'a>,
     ) -> Result<KeywordExtractionModel<'a>, RustBertError> {
         let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
-            &config
+            config
                 .sentence_embeddings_config
                 .tokenizer_config_resource
                 .get_local_path()?,
         );
         let sentence_bert_config = SentenceEmbeddingsSentenceBertConfig::from_file(
-            &config
+            config
                 .sentence_embeddings_config
                 .sentence_bert_config_resource
                 .get_local_path()?,

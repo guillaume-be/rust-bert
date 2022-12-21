@@ -130,7 +130,7 @@ impl Dense {
             bias: dense_conf.bias,
         };
         let linear = nn::linear(
-            &vs_dense.root(),
+            vs_dense.root(),
             dense_conf.in_features,
             dense_conf.out_features,
             linear_conf,

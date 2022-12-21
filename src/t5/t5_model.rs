@@ -881,7 +881,7 @@ impl T5Generator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = T5Config::from_file(config_path);
-        let model = T5ForConditionalGeneration::new(&var_store.root(), &config);
+        let model = T5ForConditionalGeneration::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(-1));

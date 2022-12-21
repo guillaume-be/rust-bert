@@ -965,7 +965,7 @@ impl ProphetNetConditionalGenerator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let config = ProphetNetConfig::from_file(config_path);
-        let model = ProphetNetForConditionalGeneration::new(&var_store.root(), &config)?;
+        let model = ProphetNetForConditionalGeneration::new(var_store.root(), &config)?;
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id);

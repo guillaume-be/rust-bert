@@ -742,7 +742,7 @@ impl GPT2Generator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = Gpt2Config::from_file(config_path);
-        let model = GPT2LMHeadModel::new(&var_store.root(), &config);
+        let model = GPT2LMHeadModel::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = tokenizer.get_bos_id();

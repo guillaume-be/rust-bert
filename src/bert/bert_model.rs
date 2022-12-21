@@ -24,7 +24,7 @@ use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use tch::nn::Init;
+use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::{nn, Kind, Tensor};
 
 /// # BERT Pretrained model weight files
@@ -507,7 +507,7 @@ impl BertLMPredictionHead {
             config.vocab_size,
             Default::default(),
         );
-        let bias = p.var("bias", &[config.vocab_size], Init::KaimingUniform);
+        let bias = p.var("bias", &[config.vocab_size], DEFAULT_KAIMING_UNIFORM);
 
         BertLMPredictionHead {
             transform,
@@ -1301,9 +1301,9 @@ mod test {
 
         //    Set-up masked LM model
         let device = Device::cuda_if_available();
-        let vs = tch::nn::VarStore::new(device);
+        let vs = nn::VarStore::new(device);
         let config = BertConfig::from_file(config_path);
 
-        let _: Box<dyn Send> = Box::new(BertModel::<BertEmbeddings>::new(&vs.root(), &config));
+        let _: Box<dyn Send> = Box::new(BertModel::<BertEmbeddings>::new(vs.root(), &config));
     }
 }

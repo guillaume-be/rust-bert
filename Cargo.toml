@@ -70,7 +70,7 @@ features = ["doc-only"]
 
 [dependencies]
 rust_tokenizers = "~7.0.2"
-tch = "~0.9.0"
+tch = "~0.10.1"
 serde_json = "1.0.82"
 serde = { version = "1.0.140", features = ["derive"] }
 ordered-float = "3.0.0"
@@ -88,6 +88,6 @@ anyhow = "1.0.58"
 csv = "1.1.6"
 criterion = "0.3.6"
 tokio = { version = "1.20.0", features = ["sync", "rt-multi-thread", "macros"] }
-torch-sys = "0.9.0"
+torch-sys = "0.10.0"
 tempfile = "3.3.0"
 itertools = "0.10.3"

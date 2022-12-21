@@ -19,6 +19,7 @@ use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
+use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::nn::{Init, LayerNormConfig, Module};
 use tch::{nn, Kind, Tensor};
 
@@ -292,7 +293,7 @@ impl MobileBertLMPredictionHead {
                 config.hidden_size - config.embedding_size,
                 config.vocab_size,
             ],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
         let bias = p.var("bias", &[config.vocab_size], Init::Const(0.0));
 

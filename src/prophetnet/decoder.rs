@@ -21,7 +21,7 @@ use crate::prophetnet::embeddings::ProphetNetPositionalEmbeddings;
 use crate::prophetnet::ProphetNetConfig;
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
-use tch::nn::Init;
+use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::{nn, Device, Kind, Tensor};
 
 fn ngram_attention_bias(sequence_length: i64, ngram: i64, device: Device, kind: Kind) -> Tensor {
@@ -210,7 +210,7 @@ impl ProphetNetDecoder {
         let ngram_embeddings = p_ngram_embedding.var(
             "weight",
             &[config.ngram, config.hidden_size],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
 
         let output_attentions = config.output_attentions.unwrap_or(false);
