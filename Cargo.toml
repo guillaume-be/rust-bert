@@ -8,7 +8,13 @@ repository = "https://github.com/guillaume-be/rust-bert"
 documentation = "https://docs.rs/rust-bert"
 license = "Apache-2.0"
 readme = "README.md"
-keywords = ["nlp", "deep-learning", "machine-learning", "transformers", "translation"]
+keywords = [
+    "nlp",
+    "deep-learning",
+    "machine-learning",
+    "transformers",
+    "translation",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -57,7 +63,7 @@ opt-level = 3
 default = ["remote"]
 doc-only = ["tch/doc-only"]
 all-tests = []
-remote = [ "cached-path", "dirs", "lazy_static" ]
+remote = ["cached-path", "dirs", "lazy_static"]
 
 [package.metadata.docs.rs]
 features = ["doc-only"]
@@ -82,6 +88,6 @@ anyhow = "1.0.58"
 csv = "1.1.6"
 criterion = "0.3.6"
 tokio = { version = "1.20.0", features = ["sync", "rt-multi-thread", "macros"] }
-torch-sys =  "~0.9.0"
+torch-sys = "0.9.0"
 tempfile = "3.3.0"
 itertools = "0.10.3"

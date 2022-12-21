@@ -7,6 +7,7 @@ use rust_bert::bert::{
     BertModelResources, BertVocabResources,
 };
 use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
 use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
@@ -97,6 +98,46 @@ fn bert_masked_lm() -> anyhow::Result<()> {
     assert_eq!("person", word_1); // Outputs "person" : "Looks like one [person] is missing"
     assert_eq!("orange", word_2); // Outputs "pear" : "It\'s like comparing [pear] to apples"
 
+    Ok(())
+}
+
+#[test]
+fn bert_masked_lm_pipeline() -> anyhow::Result<()> {
+    //    Set-up model
+    let config = MaskedLanguageConfig::new(
+        ModelType::Bert,
+        RemoteResource::from_pretrained(BertModelResources::BERT),
+        RemoteResource::from_pretrained(BertConfigResources::BERT),
+        RemoteResource::from_pretrained(BertVocabResources::BERT),
+        None,
+        true,
+        None,
+        None,
+        Some(String::from("<mask>")),
+    );
+
+    let mask_language_model = MaskedLanguageModel::new(config)?;
+    //    Define input
+    let input = [
+        "Hello I am a <mask> student",
+        "Paris is the <mask> of France. It is <mask> in Europe.",
+    ];
+
+    //    Run model
+    let output = mask_language_model.predict(input)?;
+
+    assert_eq!(output.len(), 2);
+    assert_eq!(output[0].len(), 1);
+    assert_eq!(output[0][0].id, 2267);
+    assert_eq!(output[0][0].text, "college");
+    assert!((output[0][0].score - 8.0919).abs() < 1e-4);
+    assert_eq!(output[1].len(), 2);
+    assert_eq!(output[1][0].id, 3007);
+    assert_eq!(output[1][0].text, "capital");
+    assert!((output[1][0].score - 16.7249).abs() < 1e-4);
+    assert_eq!(output[1][1].id, 2284);
+    assert_eq!(output[1][1].text, "located");
+    assert!((output[1][1].score - 9.0452).abs() < 1e-4);
     Ok(())
 }
 

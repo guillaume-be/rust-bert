@@ -680,7 +680,7 @@ impl ZeroShotClassificationModel {
     /// let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
     /// let candidate_labels = &["politics", "public health", "economics", "sports"];
     ///
-    /// let output = sequence_classification_model.try_predict(
+    /// let output = sequence_classification_model.predict(
     ///     &[input_sentence, input_sequence_2],
     ///     candidate_labels,
     ///     None,
@@ -693,7 +693,7 @@ impl ZeroShotClassificationModel {
     /// outputs:
     /// ```no_run
     /// # use rust_bert::pipelines::sequence_classification::Label;
-    /// let output = Ok([
+    /// let output = [
     ///     Label {
     ///         text: "politics".to_string(),
     ///         score: 0.959,
@@ -707,7 +707,7 @@ impl ZeroShotClassificationModel {
     ///         sentence: 1,
     ///     },
     /// ]
-    /// .to_vec());
+    /// .to_vec();
     /// ```
     pub fn predict<'a, S, T>(
         &self,
@@ -783,7 +783,7 @@ impl ZeroShotClassificationModel {
     /// let input_sequence_2 = "The central bank is meeting today to discuss monetary policy.";
     /// let candidate_labels = &["politics", "public health", "economics", "sports"];
     ///
-    /// let output = sequence_classification_model.try_predict_multilabel(
+    /// let output = sequence_classification_model.predict_multilabel(
     ///     &[input_sentence, input_sequence_2],
     ///     candidate_labels,
     ///     None,
@@ -795,7 +795,7 @@ impl ZeroShotClassificationModel {
     /// outputs:
     /// ```no_run
     /// # use rust_bert::pipelines::sequence_classification::Label;
-    /// let output = Ok([
+    /// let output = [
     ///     [
     ///         Label {
     ///             text: "politics".to_string(),
@@ -849,7 +849,7 @@ impl ZeroShotClassificationModel {
     ///         },
     ///     ],
     /// ]
-    /// .to_vec());
+    /// .to_vec();
     /// ```
     pub fn predict_multilabel<'a, S, T>(
         &self,
