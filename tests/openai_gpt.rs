@@ -39,7 +39,7 @@ fn openai_gpt_lm_model() -> anyhow::Result<()> {
         true,
     )?;
     let config = OpenAiGptConfig::from_file(config_path);
-    let openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
+    let openai_gpt = OpenAIGPTLMHeadModel::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input

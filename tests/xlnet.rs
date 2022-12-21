@@ -141,7 +141,7 @@ fn xlnet_lm_model() -> anyhow::Result<()> {
     let tokenizer: XLNetTokenizer =
         XLNetTokenizer::from_file(vocab_path.to_str().unwrap(), false, true)?;
     let config = XLNetConfig::from_file(config_path);
-    let xlnet_model = XLNetLMHeadModel::new(&vs.root(), &config);
+    let xlnet_model = XLNetLMHeadModel::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input
@@ -257,7 +257,7 @@ fn xlnet_for_sequence_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let xlnet_model = XLNetForSequenceClassification::new(&vs.root(), &config)?;
+    let xlnet_model = XLNetForSequenceClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = ["Very positive sentence", "Second sentence input"];
@@ -322,7 +322,7 @@ fn xlnet_for_multiple_choice() -> anyhow::Result<()> {
     let vs = nn::VarStore::new(device);
     let tokenizer = XLNetTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
     let config = XLNetConfig::from_file(config_path);
-    let xlnet_model = XLNetForMultipleChoice::new(&vs.root(), &config)?;
+    let xlnet_model = XLNetForMultipleChoice::new(vs.root(), &config)?;
 
     //    Define input
     let prompt = "In Italy, pizza served in formal settings, such as at a restaurant, is presented unsliced.";
@@ -396,7 +396,7 @@ fn xlnet_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(2, String::from("PER"));
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
-    let xlnet_model = XLNetForTokenClassification::new(&vs.root(), &config)?;
+    let xlnet_model = XLNetForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let inputs = ["Where's Paris?", "In Kentucky, United States"];
@@ -453,7 +453,7 @@ fn xlnet_for_question_answering() -> anyhow::Result<()> {
     let vs = nn::VarStore::new(device);
     let tokenizer = XLNetTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
     let config = XLNetConfig::from_file(config_path);
-    let xlnet_model = XLNetForQuestionAnswering::new(&vs.root(), &config)?;
+    let xlnet_model = XLNetForQuestionAnswering::new(vs.root(), &config)?;
 
     //    Define input
     let inputs = ["Where's Paris?", "Paris is in In Kentucky, United States"];

@@ -35,7 +35,7 @@ fn bert_masked_lm() -> anyhow::Result<()> {
     let tokenizer: BertTokenizer =
         BertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
     let config = BertConfig::from_file(config_path);
-    let bert_model = BertForMaskedLM::new(&vs.root(), &config);
+    let bert_model = BertForMaskedLM::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input
@@ -162,7 +162,7 @@ fn bert_for_sequence_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = BertForSequenceClassification::new(&vs.root(), &config);
+    let bert_model = BertForSequenceClassification::new(vs.root(), &config);
 
     //    Define input
     let input = [
@@ -219,7 +219,7 @@ fn bert_for_multiple_choice() -> anyhow::Result<()> {
     let mut config = BertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = BertForMultipleChoice::new(&vs.root(), &config);
+    let bert_model = BertForMultipleChoice::new(vs.root(), &config);
 
     //    Define input
     let input = [
@@ -283,7 +283,7 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = BertForTokenClassification::new(&vs.root(), &config);
+    let bert_model = BertForTokenClassification::new(vs.root(), &config);
 
     //    Define input
     let input = [
@@ -340,7 +340,7 @@ fn bert_for_question_answering() -> anyhow::Result<()> {
     let mut config = BertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = BertForQuestionAnswering::new(&vs.root(), &config);
+    let bert_model = BertForQuestionAnswering::new(vs.root(), &config);
 
     //    Define input
     let input = [
