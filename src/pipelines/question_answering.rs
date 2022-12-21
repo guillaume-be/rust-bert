@@ -620,7 +620,7 @@ impl QuestionAnsweringModel {
 
         let qa_model = QuestionAnsweringOption::new(
             question_answering_config.model_type,
-            &var_store.root(),
+            var_store.root(),
             &model_config,
         )?;
 
@@ -878,7 +878,7 @@ impl QuestionAnsweringModel {
             max_seq_length - sequence_pair_added_tokens - encoded_query.ids.len();
 
         let mut start_token = 0_usize;
-        while (spans.len() * doc_stride as usize) < encoded_context.ids.len() {
+        while (spans.len() * doc_stride) < encoded_context.ids.len() {
             let end_token = min(start_token + max_context_length, encoded_context.ids.len());
             let sub_encoded_context = TokenIdsWithOffsets {
                 ids: encoded_context.ids[start_token..end_token].to_vec(),

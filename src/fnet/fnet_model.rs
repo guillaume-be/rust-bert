@@ -1070,6 +1070,6 @@ mod test {
         let vs = tch::nn::VarStore::new(device);
         let config = FNetConfig::from_file(config_path);
 
-        let _: Box<dyn Send> = Box::new(FNetModel::new(&vs.root(), &config, true));
+        let _: Box<dyn Send> = Box::new(FNetModel::new(vs.root(), &config, true));
     }
 }

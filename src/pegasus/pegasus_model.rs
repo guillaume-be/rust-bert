@@ -624,7 +624,7 @@ impl PegasusConditionalGenerator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let config = PegasusConfig::from_file(config_path);
-        let model = PegasusForConditionalGeneration::new(&var_store.root(), &config);
+        let model = PegasusForConditionalGeneration::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
@@ -654,7 +654,7 @@ impl PegasusConditionalGenerator {
     }
 
     fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
+        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
             .filter(|pos| !token_ids.contains(pos))
             .collect();
         let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());

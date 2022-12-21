@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use std::borrow::Borrow;
+use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::nn::{Init, Module, Path};
 use tch::Tensor;
 
@@ -22,7 +23,7 @@ pub struct LinearNoBiasConfig {
 impl Default for LinearNoBiasConfig {
     fn default() -> Self {
         LinearNoBiasConfig {
-            ws_init: Init::KaimingUniform,
+            ws_init: DEFAULT_KAIMING_UNIFORM,
         }
     }
 }

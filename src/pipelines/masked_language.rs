@@ -407,7 +407,7 @@ impl MaskedLanguageModel {
             .unwrap_or(usize::MAX);
 
         let language_encode =
-            MaskedLanguageOption::new(config.model_type, &var_store.root(), &model_config)?;
+            MaskedLanguageOption::new(config.model_type, var_store.root(), &model_config)?;
         var_store.load(weights_path)?;
         let mask_token = config.mask_token;
         Ok(MaskedLanguageModel {

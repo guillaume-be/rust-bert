@@ -699,7 +699,7 @@ impl TokenClassificationModel {
             .map(|v| v as usize)
             .unwrap_or(usize::MAX);
         let token_sequence_classifier =
-            TokenClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
+            TokenClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping().clone();
         let batch_size = config.batch_size;
         var_store.load(weights_path)?;
@@ -749,7 +749,7 @@ impl TokenClassificationModel {
         let mut start_token = 0_usize;
         let total_length = encoded_input.ids.len();
 
-        while (spans.len() * doc_stride as usize) < encoded_input.ids.len() {
+        while (spans.len() * doc_stride) < encoded_input.ids.len() {
             let end_token = min(start_token + max_content_length, total_length);
             let sub_encoded_input = TokenIdsWithOffsets {
                 ids: encoded_input.ids[start_token..end_token].to_vec(),
@@ -994,8 +994,8 @@ impl TokenClassificationModel {
         position_idx: i64,
         word_index: u16,
     ) -> Token {
-        let label_id = labels.int64_value(&[position_idx as i64]);
-        let token_id = input_tensor.int64_value(&[sentence_idx, position_idx as i64]);
+        let label_id = labels.int64_value(&[position_idx]);
+        let token_id = input_tensor.int64_value(&[sentence_idx, position_idx]);
 
         let offsets = &sentence_tokens.offsets[position_idx as usize];
 

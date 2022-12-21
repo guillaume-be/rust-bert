@@ -17,7 +17,7 @@ use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::roberta::embeddings::RobertaEmbeddings;
 use std::borrow::Borrow;
-use tch::nn::Init;
+use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::{nn, Tensor};
 
 /// # RoBERTa Pretrained model weight files
@@ -218,7 +218,7 @@ impl RobertaLMHead {
             config.vocab_size,
             Default::default(),
         );
-        let bias = p.var("bias", &[config.vocab_size], Init::KaimingUniform);
+        let bias = p.var("bias", &[config.vocab_size], DEFAULT_KAIMING_UNIFORM);
 
         RobertaLMHead {
             dense,

@@ -1648,7 +1648,7 @@ impl XLNetGenerator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = XLNetConfig::from_file(config_path);
-        let model = XLNetLMHeadModel::new(&var_store.root(), &config);
+        let model = XLNetLMHeadModel::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id);

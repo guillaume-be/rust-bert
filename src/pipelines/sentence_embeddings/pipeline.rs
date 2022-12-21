@@ -230,11 +230,8 @@ impl SentenceEmbeddingsModel {
             transformer_type,
             transformer_config_resource.get_local_path()?,
         );
-        let transformer = SentenceEmbeddingsOption::new(
-            transformer_type,
-            &var_store.root(),
-            &transformer_config,
-        )?;
+        let transformer =
+            SentenceEmbeddingsOption::new(transformer_type, var_store.root(), &transformer_config)?;
         var_store.load(transformer_weights_resource.get_local_path()?)?;
 
         // Setup pooling layer
@@ -310,7 +307,7 @@ impl SentenceEmbeddingsModel {
                 Tensor::of_slice(
                     &input
                         .iter()
-                        .map(|&e| if e == pad_token_id { 0_i64 } else { 1_i64 })
+                        .map(|&e| i64::from(e != pad_token_id))
                         .collect::<Vec<_>>(),
                 )
             })
