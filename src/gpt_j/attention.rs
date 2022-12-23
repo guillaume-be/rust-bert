@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::common::kind::get_min;
 use crate::gpt_j::gpt_j_model::GptJConfig;
 use std::borrow::Borrow;
 use tch::nn::Linear;
@@ -46,7 +47,7 @@ pub struct GptJAttention {
     bias: Tensor,
     attn_dropout: Dropout,
     resid_dropout: Dropout,
-    scale_attn: f64,
+    scale_attn: f32,
     k_proj: Linear,
     v_proj: Linear,
     q_proj: Linear,
@@ -87,7 +88,7 @@ impl GptJAttention {
         );
         let dim_per_head = config.n_embd / config.n_head;
 
-        let scale_attn = (dim_per_head as f64).sqrt();
+        let scale_attn = (dim_per_head as f32).sqrt();
 
         let linear_config = nn::LinearConfig {
             bias: false,
@@ -194,10 +195,14 @@ impl GptJAttention {
             .to_kind(Kind::Bool)
             .to_device(attention_weights.device());
 
-        let mut attention_weights = attention_weights.where_self(
-            causal_mask,
-            &Tensor::of_slice(&[-1e9f32]).to_device(attention_weights.device()),
+        let mask_value = get_min(attention_weights.kind()).unwrap();
+        let mask_value = Tensor::full(
+            &attention_weights.size(),
+            mask_value,
+            (attention_weights.kind(), attention_weights.device()),
         );
+
+        let mut attention_weights = attention_weights.where_self(causal_mask, &mask_value);
         if self.scale {
             attention_weights /= self.scale_attn;
         }

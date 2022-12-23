@@ -13,6 +13,7 @@
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
 use crate::common::embeddings::process_ids_embeddings_pair;
+use crate::common::kind::get_min;
 use crate::gpt_j::attention::LayerState;
 use crate::gpt_j::transformer::GptJBlock;
 use crate::pipelines::common::{ModelType, TokenizerOption};
@@ -42,16 +43,22 @@ pub struct GptJVocabResources;
 /// # GPT-J Pretrained model merges files
 pub struct GptJMergesResources;
 
+/// Model weights for Rust are not available out of the box for GPT-J but can be created
+/// simply with the following command:
+///
+/// ```
+/// python utils/convert_model.py path/to/gpt_j/pytorch_model.bin
+/// ```
+///
+/// Where `pytorch_model.bin` was downloaded from [EleutherAI GPT-J 6B][gpt-j-6B] or
+/// [EleutherAI GPT-J 6B (float16)][gpt-j-6B-float16]. Note that to convert GPT-J 6B you
+/// will need about 32 Gb of RAM, and converting GPT-J 6B float16 requires about 12 Gb
+/// of RAM.
+///
+/// [gpt-j-6B]: https://huggingface.co/EleutherAI/gpt-j-6B/tree/main
+/// [gpt-j-6B-float16]:https://huggingface.co/EleutherAI/gpt-j-6B/tree/float16
+///
 impl GptJModelResources {
-    /// Shared under Apache 2.0 license by the EleutherAI contributors at <https://www.eleuther.ai>. Modified with conversion to C-array format.
-    pub const GPT_J_6B: (&'static str, &'static str) = (
-        "gpt-j-6B/model",
-        "https://huggingface.co/EleutherAI/gpt-j-6B/resolve/main/rust_model.ot",
-    );
-    pub const GPT_J_6B_FLOAT16: (&'static str, &'static str) = (
-        "gpt-j-6B/model",
-        "https://huggingface.co/EleutherAI/gpt-j-6B/resolve/float16/rust_model.ot",
-    );
     pub const GPT_J_TINY_RANDOM: (&'static str, &'static str) = (
         "gpt-j-tiny-random/model",
         "https://huggingface.co/anton-l/gpt-j-tiny-random/resolve/main/rust_model.ot",
@@ -374,6 +381,7 @@ impl GptJModel {
             }
         };
 
+        let kind_min = get_min(input_embeddings.kind())?;
         let attention_mask: Option<Tensor> = attention_mask.map(|value| {
             let attention_mask = value
                 .view((input_embeddings.size()[0], -1))
@@ -381,8 +389,8 @@ impl GptJModel {
                 .unsqueeze(2)
                 .to_kind(input_embeddings.kind());
 
-            let attention_mask: Tensor = (1.0 - attention_mask) * (-10000.0);
-            attention_mask.to_kind(input_embeddings.kind())
+            (attention_mask.ones_like() - attention_mask.to_kind(input_embeddings.kind()))
+                * kind_min
         });
 
         let mut hidden_state: Tensor = input_embeddings.copy();
