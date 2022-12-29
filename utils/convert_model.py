@@ -24,7 +24,13 @@ if __name__ == "__main__":
     for k, v in weights.items():
         k = k.replace("gamma", "weight").replace("beta", "bias")
         if args.skip_embeddings:
-            if k in {"lm_head.weight", "model.encoder.embed_tokens.weight", "model.decoder.embed_tokens.weight"}:
+            if k in {
+                "lm_head.weight",
+                "model.encoder.embed_tokens.weight",
+                "encoder.embed_tokens.weight",
+                "model.decoder.embed_tokens.weight",
+                "decoder.embed_tokens.weight"
+            }:
                 continue
         if args.prefix:
             k = args.prefix + k

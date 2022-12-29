@@ -707,6 +707,7 @@ pub mod fnet;
 pub mod gpt2;
 pub mod gpt_neo;
 pub mod longformer;
+pub mod longt5;
 pub mod m2m_100;
 pub mod marian;
 pub mod mbart;

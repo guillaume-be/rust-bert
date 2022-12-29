@@ -54,6 +54,7 @@ mod layer_norm;
 mod t5_model;
 
 pub use attention::LayerState;
+pub(crate) use t5_model::{FeedForwardProj, TaskSpecificParams};
 pub use t5_model::{
     T5Config, T5ConfigResources, T5ForConditionalGeneration, T5ForSentenceEmbeddings, T5Generator,
     T5Model, T5ModelOutput, T5ModelResources, T5Prefix, T5SourceLanguages, T5TargetLanguages,
