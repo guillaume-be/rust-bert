@@ -1,3 +1,4 @@
+mod attention;
 mod longt5_model;
 
 pub use longt5_model::{

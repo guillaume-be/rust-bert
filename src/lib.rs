@@ -695,6 +695,8 @@
 // These are used abundantly in this code
 #![allow(clippy::assign_op_pattern, clippy::upper_case_acronyms)]
 
+extern crate core;
+
 pub mod albert;
 pub mod bart;
 pub mod bert;
