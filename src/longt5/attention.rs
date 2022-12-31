@@ -1,4 +1,4 @@
-// Copyright 2022, The LongT5 Authors and HuggingFace Inc.
+// Copyright 2022 Google LLC., LongT5 Authors and HuggingFace Inc. team.
 // Copyright 2022 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ fn mask_local_attention_mask(local_attention_mask: &Tensor, block_length: i64) -
     local_attention_mask.logical_and(&locality_mask)
 }
 
-fn get_local_attention_mask(attention_mask: Tensor, block_length: i64, device: Device) -> Tensor {
+fn get_local_attention_mask(attention_mask: Tensor, block_length: i64) -> Tensor {
     let blocked_attention_mask = split_into_blocks(attention_mask, block_length, 1);
     let three_blocked_attention_mask = concatenate_3_blocks(&blocked_attention_mask, 1, 2, None);
 
@@ -91,4 +91,59 @@ fn get_local_attention_mask(attention_mask: Tensor, block_length: i64, device: D
         block_length,
     );
     local_attention_mask.unsqueeze(1)
+}
+
+fn make_global_fixed_block_ids(
+    attention_mask: &Tensor,
+    global_block_size: i64,
+) -> (Tensor, Tensor) {
+    let &[batch_size, seq_length, ..] = attention_mask.size().as_slice() else {unreachable!()};
+
+    let handle_orphan_tokens = |block_ids: Tensor| -> Tensor {
+        let block_ends = Tensor::arange(seq_length, (Kind::Int64, block_ids.device()))
+            .remainder(global_block_size)
+            .eq(global_block_size - 1);
+        let true_block_ends = block_ends.logical_and(&block_ids.ge(0));
+        let full_blocks = true_block_ends
+            .sum_dim_intlist([-1].as_slice(), false, block_ids.kind())
+            .unsqueeze(-1)
+            - 1;
+        full_blocks.where_self(&block_ids.lt_tensor(&full_blocks), &full_blocks)
+    };
+
+    let fixed_block_mask = attention_mask.ones_like() / global_block_size;
+    let fixed_block_mask = fixed_block_mask.cumsum(1, fixed_block_mask.kind()) - fixed_block_mask;
+    let mask = attention_mask
+        .ones_like()
+        .where_scalarother(&attention_mask.not_equal(0.0), -1000.0);
+
+    let mut global_block_ids = (mask + fixed_block_mask - 1.0).floor();
+    global_block_ids = global_block_ids.where_scalarother(&global_block_ids.gt(-1.0), -1.0);
+    global_block_ids = global_block_ids * attention_mask + attention_mask - 1;
+    global_block_ids = handle_orphan_tokens(global_block_ids);
+    let num_globals = seq_length / global_block_size;
+    let sequence_block_ids_max = if num_globals > 0 {
+        global_block_ids
+            .max_dim(-1, false)
+            .0
+            .repeat(&[num_globals, 1])
+            .transpose(0, 1)
+    } else {
+        Tensor::zeros(
+            &[batch_size, 0],
+            (global_block_ids.kind(), global_block_ids.device()),
+        )
+    };
+    let global_segment_ids = Tensor::ones(
+        &[batch_size, num_globals],
+        (attention_mask.kind(), attention_mask.device()),
+    )
+    .cumsum(-1, attention_mask.kind());
+    let global_segment_ids = global_segment_ids
+        .ones_like()
+        .where_scalarother(&global_segment_ids.le_tensor(&sequence_block_ids_max), 0.0);
+    (
+        global_block_ids.to_kind(Kind::Int),
+        global_segment_ids.to_kind(Kind::Int),
+    )
 }
