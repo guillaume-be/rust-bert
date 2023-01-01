@@ -147,3 +147,26 @@ fn make_global_fixed_block_ids(
         global_segment_ids.to_kind(Kind::Int),
     )
 }
+
+fn make_side_relative_position_ids(attention_mask: &Tensor, global_block_size: i64) -> Tensor {
+    let (block_ids, global_segment_ids) =
+        make_global_fixed_block_ids(attention_mask, global_block_size);
+    let global_seq_length = *global_segment_ids.size().last().unwrap();
+    let global_positions = Tensor::arange(global_seq_length, (Kind::Int64, block_ids.device()));
+    global_positions - block_ids.unsqueeze(-1)
+}
+
+fn create_global_aggregates(
+    hidden_states: &Tensor,
+    block_ids: &Tensor,
+    global_seq_length: i64,
+) -> Tensor {
+    let block_ids = block_ids.where_scalarother(&block_ids.ge(0), global_seq_length);
+    let one_hot_block_ids = block_ids.one_hot(global_seq_length + 1);
+    let one_hot_block_ids = one_hot_block_ids.narrow(2, 0, one_hot_block_ids.size()[2] - 1);
+    Tensor::einsum(
+        "...nd,...ng->...gd",
+        &[hidden_states, &one_hot_block_ids],
+        None,
+    )
+}
