@@ -142,7 +142,7 @@ impl T5Attention {
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
         let input_size = hidden_states.size();
-        let (bs, seq_length, _) = (input_size[0], input_size[1], input_size[2]);
+        let (bs, seq_length) = (input_size[0], input_size[1]);
 
         let real_seq_length = if layer_state.is_some() {
             match query_length {
