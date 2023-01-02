@@ -13,7 +13,7 @@
 use crate::common::dropout::Dropout;
 use crate::longt5::LongT5Config;
 use crate::t5::get_relative_position_bucket;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use tch::nn::LinearConfig;
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
@@ -176,6 +176,18 @@ fn create_global_aggregates(
     )
 }
 
+pub struct PositionBias {
+    value: Tensor,
+}
+
+impl Clone for PositionBias {
+    fn clone(&self) -> Self {
+        PositionBias {
+            value: self.value.copy(),
+        }
+    }
+}
+
 pub struct LongT5LocalAttention {
     is_decoder: bool,
     has_relative_attention_bias: bool,
@@ -276,5 +288,80 @@ impl LongT5LocalAttention {
             .permute(&[2, 0, 1])
             .unsqueeze(0)
             .unsqueeze(0)
+    }
+
+    pub fn forward_t<'p>(
+        &self,
+        hidden_states: &Tensor,
+        mask: Option<&Tensor>,
+        position_bias: Option<Cow<'p, PositionBias>>,
+        layer_head_mask: Option<&Tensor>,
+        train: bool,
+    ) -> (Tensor, Cow<'p, PositionBias>, Option<Tensor>) {
+        let input_size = hidden_states.size();
+        let (batch_size, seq_length) = (input_size[0], input_size[1]);
+
+        let shape = |states: &Tensor| -> Tensor {
+            states.view([batch_size, -1, self.n_heads, self.key_value_proj_dim])
+        };
+        let unshape = |states: &Tensor| -> Tensor {
+            states.contiguous().view([batch_size, -1, self.inner_dim])
+        };
+
+        let query_states = shape(&hidden_states.apply(&self.query));
+        let key_states = shape(&hidden_states.apply(&self.key));
+        let value_states = shape(&hidden_states.apply(&self.value));
+
+        let query_states = split_into_blocks(query_states, self.block_length, 1);
+        let key_states = split_into_blocks(key_states, self.block_length, 1);
+        let value_states = split_into_blocks(value_states, self.block_length, 1);
+
+        let key_states = concatenate_3_blocks(&key_states, 1, 2, None);
+        let value_states = concatenate_3_blocks(&value_states, 1, 2, None);
+
+        let mut scores = Tensor::einsum("...qhd,...khd->...hqk", &[query_states, key_states], None);
+        let calc_position_bias = if position_bias.is_none() {
+            let mut position_bias = if !self.has_relative_attention_bias {
+                Tensor::zeros(
+                    &[1, 1, self.n_heads, self.block_length, 3 * self.block_length],
+                    (scores.kind(), scores.device()),
+                )
+            } else {
+                self.compute_bias(self.block_length)
+            };
+            if let Some(mask) = mask {
+                let mask = mask.zeros_like().where_scalarother(&mask.gt(0), -1e10);
+                position_bias = position_bias + mask.transpose(1, 2);
+            }
+            Some(PositionBias {
+                value: position_bias,
+            })
+        } else {
+            None
+        };
+        let position_bias =
+            position_bias.unwrap_or_else(|| Cow::Owned(calc_position_bias.unwrap()));
+        scores += &position_bias.value;
+        let mut attention_weights = scores
+            .to_kind(Kind::Float)
+            .softmax(-1, scores.kind())
+            .apply_t(&self.dropout, train);
+        if let Some(layer_head_mask) = layer_head_mask {
+            attention_weights = attention_weights * layer_head_mask;
+        }
+        attention_weights = attention_weights.to_kind(value_states.kind());
+        let attention_output = unshape(&Tensor::einsum(
+            "...hqk,...khd->...qhd",
+            &[&attention_weights, &value_states],
+            None,
+        ))
+        .narrow(1, 0, seq_length)
+        .apply(&self.output);
+        let attention_weights = if self.output_attentions {
+            Some(attention_weights)
+        } else {
+            None
+        };
+        (attention_output, position_bias, attention_weights)
     }
 }
