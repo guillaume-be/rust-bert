@@ -113,11 +113,23 @@ impl Gpt2ConfigResources {
         "distilgpt2/config",
         "https://huggingface.co/distilgpt2/resolve/main/config.json",
     );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-small>. Modified with conversion to C-array format.
+    pub const DIALOGPT_SMALL: (&'static str, &'static str) = (
+        "dialogpt-small/config",
+        "https://huggingface.co/microsoft/DialoGPT-small/resolve/main/config.json",
+    );
     /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/config",
         "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/config.json",
     );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-large>. Modified with conversion to C-array format.
+    pub const DIALOGPT_LARGE: (&'static str, &'static str) = (
+        "dialogpt-large/config",
+        "https://huggingface.co/microsoft/DialoGPT-large/resolve/main/config.json",
+    );
+
+
 }
 
 impl Gpt2VocabResources {
@@ -146,10 +158,20 @@ impl Gpt2VocabResources {
         "distilgpt2/vocab",
         "https://huggingface.co/distilgpt2/resolve/main/vocab.json",
     );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-small>. Modified with conversion to C-array format.
+    pub const DIALOGPT_SMALL: (&'static str, &'static str) = (
+        "dialogpt-small/vocab",
+        "https://huggingface.co/microsoft/DialoGPT-small/resolve/main/vocab.json",
+    );
     /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/vocab",
         "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/vocab.json",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-large>. Modified with conversion to C-array format.
+    pub const DIALOGPT_LARGE: (&'static str, &'static str) = (
+        "dialogpt-large/vocab",
+        "https://huggingface.co/microsoft/DialoGPT-large/resolve/main/vocab.json",
     );
 }
 
@@ -179,11 +201,22 @@ impl Gpt2MergesResources {
         "distilgpt2/merges",
         "https://huggingface.co/distilgpt2/resolve/main/merges.txt",
     );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-small>. Modified with conversion to C-array format.
+    pub const DIALOGPT_SMALL: (&'static str, &'static str) = (
+        "dialogpt-small/merges",
+        "https://huggingface.co/microsoft/DialoGPT-small/resolve/main/merges.txt",
+    );
     /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-medium>. Modified with conversion to C-array format.
     pub const DIALOGPT_MEDIUM: (&'static str, &'static str) = (
         "dialogpt-medium/merges",
         "https://huggingface.co/microsoft/DialoGPT-medium/resolve/main/merges.txt",
     );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/DialoGPT-large>. Modified with conversion to C-array format.
+    pub const DIALOGPT_LARGE: (&'static str, &'static str) = (
+        "dialogpt-large/merges",
+        "https://huggingface.co/microsoft/DialoGPT-large/resolve/main/merges.txt",
+    );
+
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
