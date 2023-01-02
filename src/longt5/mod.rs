@@ -1,4 +1,5 @@
 mod attention;
+mod layer_norm;
 mod longt5_model;
 
 pub use longt5_model::{

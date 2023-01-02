@@ -11,6 +11,7 @@
 // limitations under the License.
 
 use crate::common::dropout::Dropout;
+use crate::longt5::layer_norm::LongT5LayerNorm;
 use crate::longt5::LongT5Config;
 use crate::t5::get_relative_position_bucket;
 use std::borrow::{Borrow, Cow};
@@ -176,6 +177,31 @@ fn create_global_aggregates(
     )
 }
 
+fn compute_bias(
+    block_length: i64,
+    relative_attention_bias: &nn::Embedding,
+    is_decoder: bool,
+    relative_attention_num_buckets: i64,
+    relative_attention_max_distance: i64,
+) -> Tensor {
+    let device = relative_attention_bias.ws.device();
+    let memory_position = Tensor::arange(3 * block_length, (Kind::Int64, device)).unsqueeze(0);
+    let context_position = memory_position.narrow(0, block_length, block_length);
+    let relative_position = memory_position.unsqueeze(0) - context_position.unsqueeze(-1);
+
+    let rp_bucket = get_relative_position_bucket(
+        &relative_position,
+        !is_decoder,
+        relative_attention_num_buckets,
+        relative_attention_max_distance,
+    );
+    rp_bucket
+        .apply(relative_attention_bias)
+        .permute(&[2, 0, 1])
+        .unsqueeze(0)
+        .unsqueeze(0)
+}
+
 pub struct PositionBias {
     value: Tensor,
 }
@@ -271,25 +297,6 @@ impl LongT5LocalAttention {
         }
     }
 
-    fn compute_bias(&self, block_length: i64) -> Tensor {
-        let device = self.relative_attention_bias.as_ref().unwrap().ws.device();
-        let memory_position = Tensor::arange(3 * block_length, (Kind::Int64, device)).unsqueeze(0);
-        let context_position = memory_position.narrow(0, block_length, block_length);
-        let relative_position = memory_position.unsqueeze(0) - context_position.unsqueeze(-1);
-
-        let rp_bucket = get_relative_position_bucket(
-            &relative_position,
-            !self.is_decoder,
-            self.relative_attention_num_buckets,
-            self.relative_attention_max_distance,
-        );
-        rp_bucket
-            .apply(self.relative_attention_bias.as_ref().unwrap())
-            .permute(&[2, 0, 1])
-            .unsqueeze(0)
-            .unsqueeze(0)
-    }
-
     pub fn forward_t<'p>(
         &self,
         hidden_states: &Tensor,
@@ -327,7 +334,13 @@ impl LongT5LocalAttention {
                     (scores.kind(), scores.device()),
                 )
             } else {
-                self.compute_bias(self.block_length)
+                compute_bias(
+                    self.block_length,
+                    &self.relative_attention_bias.as_ref().unwrap(),
+                    self.is_decoder,
+                    self.relative_attention_num_buckets,
+                    self.relative_attention_max_distance,
+                )
             };
             if let Some(mask) = mask {
                 let mask = mask.zeros_like().where_scalarother(&mask.gt(0), -1e10);
@@ -363,5 +376,156 @@ impl LongT5LocalAttention {
             None
         };
         (attention_output, position_bias, attention_weights)
+    }
+}
+
+pub struct LongT5TransientGlobalAttention {
+    is_decoder: bool,
+    has_relative_attention_bias: bool,
+    relative_attention_num_buckets: i64,
+    relative_attention_max_distance: i64,
+    d_model: i64,
+    key_value_proj_dim: i64,
+    n_heads: i64,
+    local_radius: i64,
+    block_length: i64,
+    global_block_size: i64,
+    dropout: Dropout,
+    inner_dim: i64,
+    output_attentions: bool,
+    store_cache: bool,
+    query: nn::Linear,
+    key: nn::Linear,
+    value: nn::Linear,
+    output: nn::Linear,
+    global_relative_attention_bias: Option<nn::Embedding>,
+    global_input_layer_norm: LongT5LayerNorm,
+}
+
+impl LongT5TransientGlobalAttention {
+    pub fn new<'p, P>(
+        p: P,
+        config: &LongT5Config,
+        is_decoder: bool,
+        store_cache: bool,
+        has_relative_attention_bias: bool,
+    ) -> LongT5TransientGlobalAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let linear_config = LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+
+        let local_radius = config.local_radius;
+        let block_length = config.local_radius + 1;
+        let global_block_size = config.global_block_size;
+        let key_value_proj_dim = config.d_kv;
+
+        let inner_dim = config.num_heads * config.d_kv;
+        let key = nn::linear(p / "k", config.d_model, inner_dim, linear_config);
+        let value = nn::linear(p / "v", config.d_model, inner_dim, linear_config);
+        let query = nn::linear(p / "q", config.d_model, inner_dim, linear_config);
+        let output = nn::linear(p / "o", inner_dim, config.d_model, linear_config);
+
+        let dropout = Dropout::new(config.dropout_rate);
+        let global_relative_attention_bias = if has_relative_attention_bias {
+            Some(nn::embedding(
+                p / "global_relative_attention_bias",
+                config.relative_attention_num_buckets,
+                config.num_heads,
+                Default::default(),
+            ))
+        } else {
+            None
+        };
+        let global_input_layer_norm = LongT5LayerNorm::new(
+            p / "global_input_layer_norm",
+            config.d_model,
+            config.layer_norm_epsilon,
+        );
+
+        LongT5TransientGlobalAttention {
+            is_decoder,
+            has_relative_attention_bias,
+            relative_attention_num_buckets: config.relative_attention_num_buckets,
+            relative_attention_max_distance: config.relative_attention_max_distance.unwrap_or(128),
+            d_model: config.d_kv,
+            key_value_proj_dim,
+            n_heads: config.num_heads,
+            local_radius,
+            block_length,
+            global_block_size,
+            dropout,
+            inner_dim,
+            output_attentions: config.output_attentions.unwrap_or(false),
+            store_cache,
+            query,
+            key,
+            value,
+            output,
+            global_relative_attention_bias,
+            global_input_layer_norm,
+        }
+    }
+
+    fn compute_side_bias(&self, mask: &Tensor, global_segment_ids: &Tensor) -> Tensor {
+        let side_attention_mask = mask
+            .unsqueeze(-1)
+            .eq_tensor(&global_segment_ids.unsqueeze(1))
+            .unsqueeze(1);
+
+        let attention_side_bias = side_attention_mask
+            .ones_like()
+            .where_scalarother(&side_attention_mask.gt(0), -1e10);
+
+        let side_relative_position = make_side_relative_position_ids(mask, self.global_block_size);
+        let side_relative_position_bucket = get_relative_position_bucket(
+            &side_relative_position,
+            !self.is_decoder,
+            self.relative_attention_num_buckets,
+            self.relative_attention_max_distance,
+        );
+        let side_bias = side_relative_position_bucket
+            .apply(self.global_relative_attention_bias.as_ref().unwrap())
+            .permute(&[0, 3, 1, 2]);
+        attention_side_bias + side_bias
+    }
+
+    pub fn forward_t<'p>(
+        &self,
+        hidden_states: &Tensor,
+        mask: Option<&Tensor>,
+        position_bias: Option<Cow<'p, PositionBias>>,
+        layer_head_mask: Option<&Tensor>,
+        train: bool,
+    ) -> (Tensor, Cow<'p, PositionBias>, Option<Tensor>) {
+        let input_size = hidden_states.size();
+        let (batch_size, seq_length) = (input_size[0], input_size[1]);
+
+        let shape = |states: &Tensor| -> Tensor {
+            states.view([batch_size, -1, self.n_heads, self.key_value_proj_dim])
+        };
+        let unshape = |states: &Tensor| -> Tensor {
+            states.contiguous().view([batch_size, -1, self.inner_dim])
+        };
+        let calc_mask = if mask.is_none() {
+            let mut mask_size = input_size.clone();
+            let _ = mask_size.pop();
+            Some(Tensor::ones(
+                mask_size.as_slice(),
+                (Kind::Bool, hidden_states.device()),
+            ))
+        } else {
+            None
+        };
+        let (block_ids, global_segment_ids) = make_global_fixed_block_ids(
+            mask.unwrap_or_else(|| calc_mask.as_ref().unwrap()),
+            self.global_block_size,
+        );
+        let global_seq_length = *global_segment_ids.size().last().unwrap();
     }
 }
