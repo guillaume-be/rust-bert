@@ -54,7 +54,7 @@ mod layer_norm;
 mod t5_model;
 
 pub use attention::LayerState;
-pub(crate) use attention::T5Attention;
+pub(crate) use attention::{get_relative_position_bucket, T5Attention};
 pub(crate) use encoder::T5LayerFF;
 pub(crate) use t5_model::{FeedForwardProj, TaskSpecificParams};
 pub use t5_model::{

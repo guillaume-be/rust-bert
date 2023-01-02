@@ -10,7 +10,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::{Device, IndexOp, Kind, Tensor};
+use crate::common::dropout::Dropout;
+use crate::longt5::LongT5Config;
+use crate::t5::get_relative_position_bucket;
+use std::borrow::Borrow;
+use tch::nn::LinearConfig;
+use tch::{nn, Device, IndexOp, Kind, Tensor};
 
 fn pad_to_multiple(x: Tensor, block_length: i64, dim: usize, pad_value: f64) -> Tensor {
     let mut x_size = x.size();
@@ -169,4 +174,107 @@ fn create_global_aggregates(
         &[hidden_states, &one_hot_block_ids],
         None,
     )
+}
+
+pub struct LongT5LocalAttention {
+    is_decoder: bool,
+    has_relative_attention_bias: bool,
+    relative_attention_num_buckets: i64,
+    relative_attention_max_distance: i64,
+    d_model: i64,
+    key_value_proj_dim: i64,
+    n_heads: i64,
+    local_radius: i64,
+    block_length: i64,
+    dropout: Dropout,
+    inner_dim: i64,
+    output_attentions: bool,
+    store_cache: bool,
+    query: nn::Linear,
+    key: nn::Linear,
+    value: nn::Linear,
+    output: nn::Linear,
+    relative_attention_bias: Option<nn::Embedding>,
+}
+
+impl LongT5LocalAttention {
+    pub fn new<'p, P>(
+        p: P,
+        config: &LongT5Config,
+        is_decoder: bool,
+        store_cache: bool,
+        has_relative_attention_bias: bool,
+    ) -> LongT5LocalAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let linear_config = LinearConfig {
+            bias: false,
+            ..Default::default()
+        };
+
+        let local_radius = config.local_radius;
+        let block_length = config.local_radius + 1;
+        let key_value_proj_dim = config.d_kv;
+
+        let inner_dim = config.num_heads * config.d_kv;
+        let key = nn::linear(p / "k", config.d_model, inner_dim, linear_config);
+        let value = nn::linear(p / "v", config.d_model, inner_dim, linear_config);
+        let query = nn::linear(p / "q", config.d_model, inner_dim, linear_config);
+        let output = nn::linear(p / "o", inner_dim, config.d_model, linear_config);
+
+        let dropout = Dropout::new(config.dropout_rate);
+        let relative_attention_bias = if has_relative_attention_bias {
+            Some(nn::embedding(
+                p / "relative_attention_bias",
+                config.relative_attention_num_buckets,
+                config.num_heads,
+                Default::default(),
+            ))
+        } else {
+            None
+        };
+
+        LongT5LocalAttention {
+            is_decoder,
+            has_relative_attention_bias,
+            relative_attention_num_buckets: config.relative_attention_num_buckets,
+            relative_attention_max_distance: config.relative_attention_max_distance.unwrap_or(128),
+            d_model: config.d_kv,
+            key_value_proj_dim,
+            n_heads: config.num_heads,
+            local_radius,
+            block_length,
+            dropout,
+            inner_dim,
+            output_attentions: config.output_attentions.unwrap_or(false),
+            store_cache,
+            query,
+            key,
+            value,
+            output,
+            relative_attention_bias,
+        }
+    }
+
+    fn compute_bias(&self, block_length: i64) -> Tensor {
+        let device = self.relative_attention_bias.as_ref().unwrap().ws.device();
+        let memory_position = Tensor::arange(3 * block_length, (Kind::Int64, device)).unsqueeze(0);
+        let context_position = memory_position.narrow(0, block_length, block_length);
+        let relative_position = memory_position.unsqueeze(0) - context_position.unsqueeze(-1);
+
+        let rp_bucket = get_relative_position_bucket(
+            &relative_position,
+            !self.is_decoder,
+            self.relative_attention_num_buckets,
+            self.relative_attention_max_distance,
+        );
+        rp_bucket
+            .apply(self.relative_attention_bias.as_ref().unwrap())
+            .permute(&[2, 0, 1])
+            .unsqueeze(0)
+            .unsqueeze(0)
+    }
 }
