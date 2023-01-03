@@ -18,7 +18,7 @@ use std::borrow::{Borrow, Cow};
 use tch::nn::LinearConfig;
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
-fn pad_to_multiple(x: Tensor, block_length: i64, dim: usize, pad_value: f64) -> Tensor {
+fn pad_to_multiple(x: &Tensor, block_length: i64, dim: usize, pad_value: f64) -> Tensor {
     let mut x_size = x.size();
     let pad_length = -x_size[dim] % block_length;
 
@@ -33,18 +33,20 @@ fn pad_to_multiple(x: Tensor, block_length: i64, dim: usize, pad_value: f64) -> 
     }
 }
 
-fn split_into_blocks(mut x: Tensor, block_length: i64, dim: usize) -> Tensor {
+fn split_into_blocks(x: &Tensor, block_length: i64, dim: usize) -> Tensor {
     let mut x_size = x.size();
-    if x_size[dim] % block_length != 0 {
-        x = pad_to_multiple(x, block_length, dim, 0f64);
-    }
+    let do_pad_to_multiple = x_size[dim] % block_length != 0;
     let num_blocks = x_size[dim] / block_length;
     x_size.insert(dim, block_length);
     x_size.insert(dim, num_blocks);
     if x_size.iter().any(|&el| el == 0) {
         Tensor::empty(x_size.as_slice(), (x.kind(), x.device()))
     } else {
-        x.reshape(x_size.as_slice())
+        if do_pad_to_multiple {
+            pad_to_multiple(x, block_length, dim, 0f64).reshape(x_size.as_slice())
+        } else {
+            x.reshape(x_size.as_slice())
+        }
     }
 }
 
@@ -85,7 +87,7 @@ fn mask_local_attention_mask(local_attention_mask: &Tensor, block_length: i64) -
     local_attention_mask.logical_and(&locality_mask)
 }
 
-fn get_local_attention_mask(attention_mask: Tensor, block_length: i64) -> Tensor {
+fn get_local_attention_mask(attention_mask: &Tensor, block_length: i64) -> Tensor {
     let blocked_attention_mask = split_into_blocks(attention_mask, block_length, 1);
     let three_blocked_attention_mask = concatenate_3_blocks(&blocked_attention_mask, 1, 2, None);
 
@@ -319,9 +321,9 @@ impl LongT5LocalAttention {
         let key_states = shape(&hidden_states.apply(&self.key));
         let value_states = shape(&hidden_states.apply(&self.value));
 
-        let query_states = split_into_blocks(query_states, self.block_length, 1);
-        let key_states = split_into_blocks(key_states, self.block_length, 1);
-        let value_states = split_into_blocks(value_states, self.block_length, 1);
+        let query_states = split_into_blocks(&query_states, self.block_length, 1);
+        let key_states = split_into_blocks(&key_states, self.block_length, 1);
+        let value_states = split_into_blocks(&value_states, self.block_length, 1);
 
         let key_states = concatenate_3_blocks(&key_states, 1, 2, None);
         let value_states = concatenate_3_blocks(&value_states, 1, 2, None);
@@ -527,5 +529,104 @@ impl LongT5TransientGlobalAttention {
             self.global_block_size,
         );
         let global_seq_length = *global_segment_ids.size().last().unwrap();
+        let global_inputs = create_global_aggregates(hidden_states, &block_ids, global_seq_length)
+            .apply(&self.global_input_layer_norm);
+
+        let query_states = shape(&hidden_states.apply(&self.query));
+        let key_states = shape(&hidden_states.apply(&self.key));
+        let value_states = shape(&hidden_states.apply(&self.value));
+
+        let side_key_states = shape(&global_inputs.apply(&self.key));
+        let side_value_states = shape(&global_inputs.apply(&self.value));
+
+        let query_states = split_into_blocks(&query_states, self.block_length, 1);
+        let key_states = split_into_blocks(&key_states, self.block_length, 1);
+        let value_states = split_into_blocks(&value_states, self.block_length, 1);
+
+        let key_states = concatenate_3_blocks(&key_states, 1, 2, None);
+        let value_states = concatenate_3_blocks(&value_states, 1, 2, None);
+
+        let mut reps = vec![1; side_key_states.dim() + 1];
+        reps[1] = key_states.size()[1];
+        let side_key_states = side_key_states.unsqueeze(1).repeat(reps.as_slice());
+        let side_value_states = side_value_states.unsqueeze(1).repeat(reps.as_slice());
+        let key_states = Tensor::cat(&[key_states, side_key_states], 2);
+        let value_states = Tensor::cat(&[value_states, side_value_states], 2);
+
+        let mut scores = Tensor::einsum("...qhd,...khd->...hqk", &[query_states, key_states], None);
+        let local_attention_mask = mask.map(|mask| {
+            let local_attention_mask = get_local_attention_mask(mask, self.block_length);
+            local_attention_mask
+                .zeros_like()
+                .where_scalarother(&local_attention_mask.gt(0), -1e10)
+        });
+
+        let calc_position_bias = if position_bias.is_none() {
+            let mut position_bias = if !self.has_relative_attention_bias {
+                Tensor::zeros(
+                    &[1, 1, self.n_heads, self.block_length, 3 * self.block_length],
+                    (scores.kind(), scores.device()),
+                )
+            } else {
+                compute_bias(
+                    self.block_length,
+                    &self.global_relative_attention_bias.as_ref().unwrap(),
+                    self.is_decoder,
+                    self.relative_attention_num_buckets,
+                    self.relative_attention_max_distance,
+                )
+            };
+            if let Some(local_attention_mask) = local_attention_mask {
+                position_bias = position_bias + local_attention_mask.transpose(1, 2);
+            }
+            let calc_mask = if mask.is_none() {
+                Some(Tensor::ones(
+                    &[batch_size, seq_length],
+                    (global_segment_ids.kind(), global_segment_ids.device()),
+                ))
+            } else {
+                None
+            };
+            let mask = mask.unwrap_or_else(|| calc_mask.as_ref().unwrap());
+            let side_position_bias = split_into_blocks(
+                &self.compute_side_bias(mask, &global_segment_ids),
+                self.block_length,
+                mask.dim() - 2,
+            )
+            .transpose(1, 2);
+            let position_bias = Tensor::cat(&[position_bias, side_position_bias], -1);
+
+            Some(PositionBias {
+                value: position_bias,
+            })
+        } else {
+            None
+        };
+        let position_bias =
+            position_bias.unwrap_or_else(|| Cow::Owned(calc_position_bias.unwrap()));
+
+        scores += &position_bias.value;
+        let mut attention_weights = scores
+            .to_kind(Kind::Float)
+            .softmax(-1, scores.kind())
+            .apply_t(&self.dropout, train);
+
+        if let Some(layer_head_mask) = layer_head_mask {
+            attention_weights = attention_weights * layer_head_mask;
+        };
+
+        let attention_output = unshape(&Tensor::einsum(
+            "...hqk,...khd->...qhd",
+            &[&attention_weights, &value_states],
+            None,
+        ))
+        .narrow(1, 0, seq_length)
+        .apply(&self.output);
+        let attention_weights = if self.output_attentions {
+            Some(attention_weights)
+        } else {
+            None
+        };
+        (attention_output, position_bias, attention_weights)
     }
 }
