@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::t5::{FeedForwardProj, TaskSpecificParams};
+use crate::t5::{FeedForwardProj, T5Attention, T5Config, TaskSpecificParams};
 use crate::Config;
 use serde::{Deserialize, Serialize};
 
@@ -83,7 +83,7 @@ pub struct LongT5Config {
     pub vocab_size: i64,
     pub feed_forward_proj: Option<FeedForwardProj>,
     pub tie_word_embeddings: Option<bool>,
-    task_specific_params: Option<TaskSpecificParams>,
+    pub task_specific_params: Option<TaskSpecificParams>,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
 }
@@ -118,6 +118,35 @@ impl Default for LongT5Config {
             task_specific_params: None,
             output_attentions: None,
             output_hidden_states: None,
+        }
+    }
+}
+
+impl Into<T5Config> for &LongT5Config {
+    fn into(self) -> T5Config {
+        T5Config {
+            dropout_rate: self.dropout_rate,
+            d_model: self.d_model,
+            d_ff: self.d_ff,
+            d_kv: self.d_kv,
+            decoder_start_token_id: self.decoder_start_token_id,
+            bos_token_id: None,
+            eos_token_id: self.eos_token_id,
+            initializer_factor: self.initializer_factor,
+            is_encoder_decoder: self.is_encoder_decoder,
+            layer_norm_epsilon: self.layer_norm_epsilon,
+            num_heads: self.num_heads,
+            num_layers: self.num_layers,
+            output_past: self.output_past,
+            pad_token_id: self.pad_token_id,
+            relative_attention_num_buckets: self.relative_attention_num_buckets,
+            relative_attention_max_distance: self.relative_attention_max_distance,
+            vocab_size: self.vocab_size,
+            feed_forward_proj: self.feed_forward_proj,
+            tie_word_embeddings: self.tie_word_embeddings,
+            task_specific_params: self.task_specific_params.clone(),
+            output_attentions: self.output_attentions,
+            output_hidden_states: self.output_hidden_states,
         }
     }
 }

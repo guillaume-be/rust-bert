@@ -147,7 +147,7 @@ pub struct T5Config {
     pub vocab_size: i64,
     pub feed_forward_proj: Option<FeedForwardProj>,
     pub tie_word_embeddings: Option<bool>,
-    task_specific_params: Option<TaskSpecificParams>,
+    pub task_specific_params: Option<TaskSpecificParams>,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
 }
