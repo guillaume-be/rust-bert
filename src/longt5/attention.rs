@@ -14,7 +14,7 @@ use crate::common::dropout::Dropout;
 use crate::longt5::layer_norm::LongT5LayerNorm;
 use crate::longt5::LongT5Config;
 use crate::t5::{get_relative_position_bucket, LayerState as T5layerState, T5Attention};
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use tch::nn::LinearConfig;
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
@@ -207,18 +207,6 @@ fn compute_bias(
         .unsqueeze(0)
 }
 
-pub struct PositionBias {
-    value: Tensor,
-}
-
-impl Clone for PositionBias {
-    fn clone(&self) -> Self {
-        PositionBias {
-            value: self.value.copy(),
-        }
-    }
-}
-
 pub struct LongT5LocalAttention {
     is_decoder: bool,
     has_relative_attention_bias: bool,
@@ -306,10 +294,10 @@ impl LongT5LocalAttention {
         &self,
         hidden_states: &Tensor,
         mask: Option<&Tensor>,
-        position_bias: Option<Cow<'p, PositionBias>>,
+        position_bias: Option<&Tensor>,
         layer_head_mask: Option<&Tensor>,
         train: bool,
-    ) -> (Tensor, Cow<'p, PositionBias>, Option<Tensor>) {
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>) {
         let input_size = hidden_states.size();
         let (batch_size, seq_length) = (input_size[0], input_size[1]);
 
@@ -351,15 +339,12 @@ impl LongT5LocalAttention {
                 let mask = mask.zeros_like().where_scalarother(&mask.gt(0), -1e10);
                 position_bias = position_bias + mask.transpose(1, 2);
             }
-            Some(PositionBias {
-                value: position_bias,
-            })
+            Some(position_bias)
         } else {
             None
         };
-        let position_bias =
-            position_bias.unwrap_or_else(|| Cow::Owned(calc_position_bias.unwrap()));
-        scores += &position_bias.value;
+        let position_bias = position_bias.unwrap_or_else(|| calc_position_bias.as_ref().unwrap());
+        scores += position_bias;
         let mut attention_weights = scores
             .to_kind(Kind::Float)
             .softmax(-1, scores.kind())
@@ -375,8 +360,15 @@ impl LongT5LocalAttention {
         ))
         .narrow(1, 0, seq_length)
         .apply(&self.output);
+
         let attention_weights = if self.output_attentions {
             Some(attention_weights)
+        } else {
+            None
+        };
+
+        let position_bias = if self.has_relative_attention_bias {
+            calc_position_bias
         } else {
             None
         };
@@ -504,10 +496,10 @@ impl LongT5TransientGlobalAttention {
         &self,
         hidden_states: &Tensor,
         mask: Option<&Tensor>,
-        position_bias: Option<Cow<'p, PositionBias>>,
+        position_bias: Option<&Tensor>,
         layer_head_mask: Option<&Tensor>,
         train: bool,
-    ) -> (Tensor, Cow<'p, PositionBias>, Option<Tensor>) {
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>) {
         let input_size = hidden_states.size();
         let (batch_size, seq_length) = (input_size[0], input_size[1]);
 
@@ -599,16 +591,13 @@ impl LongT5TransientGlobalAttention {
             .transpose(1, 2);
             let position_bias = Tensor::cat(&[position_bias, side_position_bias], -1);
 
-            Some(PositionBias {
-                value: position_bias,
-            })
+            Some(position_bias)
         } else {
             None
         };
-        let position_bias =
-            position_bias.unwrap_or_else(|| Cow::Owned(calc_position_bias.unwrap()));
+        let position_bias = position_bias.unwrap_or_else(|| calc_position_bias.as_ref().unwrap());
 
-        scores += &position_bias.value;
+        scores += position_bias;
         let mut attention_weights = scores
             .to_kind(Kind::Float)
             .softmax(-1, scores.kind())
@@ -625,8 +614,15 @@ impl LongT5TransientGlobalAttention {
         ))
         .narrow(1, 0, seq_length)
         .apply(&self.output);
+
         let attention_weights = if self.output_attentions {
             Some(attention_weights)
+        } else {
+            None
+        };
+
+        let position_bias = if self.has_relative_attention_bias {
+            calc_position_bias
         } else {
             None
         };
@@ -684,6 +680,7 @@ impl LongT5LayerSelfAttention {
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
         let norm_x = hidden_states.apply(&self.layer_norm);
+
         let (y, attention_weights, position_bias, layer_state) = self.self_attention.forward_t(
             &norm_x,
             None,
@@ -697,5 +694,67 @@ impl LongT5LayerSelfAttention {
         let output = hidden_states + y.apply_t(&self.dropout, train);
 
         (output, attention_weights, position_bias, layer_state)
+    }
+}
+
+pub struct LongT5LayerTransientGlobalSelfAttention {
+    transient_global_sef_attention: LongT5TransientGlobalAttention,
+    layer_norm: LongT5LayerNorm,
+    dropout: Dropout,
+}
+
+impl LongT5LayerTransientGlobalSelfAttention {
+    pub fn new<'p, P>(
+        p: P,
+        config: &LongT5Config,
+        has_relative_attention_bias: bool,
+        is_decoder: bool,
+        store_cache: bool,
+    ) -> LongT5LayerTransientGlobalSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let transient_global_sef_attention = LongT5TransientGlobalAttention::new(
+            p / "TransientGlobalSelfAttention",
+            config,
+            is_decoder,
+            store_cache,
+            has_relative_attention_bias,
+        );
+
+        let layer_norm =
+            LongT5LayerNorm::new(p / "layer_norm", config.d_model, config.layer_norm_epsilon);
+        let dropout = Dropout::new(config.dropout_rate);
+
+        LongT5LayerTransientGlobalSelfAttention {
+            transient_global_sef_attention,
+            layer_norm,
+            dropout,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        position_bias: Option<&Tensor>,
+        layer_head_mask: Option<&Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>) {
+        let normed_hidden_states = hidden_states.apply(&self.layer_norm);
+        let (attention_output, position_bias, attention_weights) =
+            self.transient_global_sef_attention.forward_t(
+                &normed_hidden_states,
+                attention_mask,
+                position_bias,
+                layer_head_mask,
+                train,
+            );
+
+        let output = hidden_states + attention_output.apply_t(&self.dropout, train);
+
+        (output, position_bias, attention_weights)
     }
 }
