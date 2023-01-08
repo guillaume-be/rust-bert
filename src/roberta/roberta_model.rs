@@ -16,6 +16,7 @@ use crate::common::activations::_gelu;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::roberta::embeddings::RobertaEmbeddings;
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::{nn, Tensor};
@@ -733,7 +734,10 @@ impl RobertaForTokenClassification {
     /// let config = RobertaConfig::from_file(config_path);
     /// let roberta = RobertaForMultipleChoice::new(&p.root() / "roberta", &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BertConfig,
+    ) -> Result<RobertaForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -744,7 +748,11 @@ impl RobertaForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -753,11 +761,11 @@ impl RobertaForTokenClassification {
             Default::default(),
         );
 
-        RobertaForTokenClassification {
+        Ok(RobertaForTokenClassification {
             roberta,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -792,7 +800,7 @@ impl RobertaForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
-    /// # let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config);
+    /// # let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));

@@ -1127,9 +1127,12 @@ impl MobileBertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = MobileBertConfig::from_file(config_path);
-    /// let mobilebert = MobileBertForTokenClassification::new(&p.root(), &config);
+    /// let mobilebert = MobileBertForTokenClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &MobileBertConfig,
+    ) -> Result<MobileBertForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -1140,7 +1143,11 @@ impl MobileBertForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -1148,11 +1155,12 @@ impl MobileBertForTokenClassification {
             num_labels,
             Default::default(),
         );
-        MobileBertForTokenClassification {
+
+        Ok(MobileBertForTokenClassification {
             mobilebert,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -1185,7 +1193,7 @@ impl MobileBertForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = MobileBertConfig::from_file(config_path);
-    /// let model = MobileBertForTokenClassification::new(&vs.root(), &config);
+    /// let model = MobileBertForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));

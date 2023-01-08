@@ -746,7 +746,10 @@ impl DebertaV2ForTokenClassification {
     /// let config = DebertaV2Config::from_file(config_path);
     /// let model = DebertaV2ForTokenClassification::new(&p.root(), &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &DebertaV2Config) -> DebertaV2ForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &DebertaV2Config,
+    ) -> Result<DebertaV2ForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -757,7 +760,11 @@ impl DebertaV2ForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -766,11 +773,11 @@ impl DebertaV2ForTokenClassification {
             Default::default(),
         );
 
-        DebertaV2ForTokenClassification {
+        Ok(DebertaV2ForTokenClassification {
             deberta,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -802,7 +809,7 @@ impl DebertaV2ForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = DebertaV2Config::from_file(config_path);
-    /// # let model = DebertaV2ForTokenClassification::new(&vs.root(), &config);
+    /// # let model = DebertaV2ForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
