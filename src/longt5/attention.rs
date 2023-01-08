@@ -13,12 +13,15 @@
 use crate::common::dropout::Dropout;
 use crate::longt5::layer_norm::LongT5LayerNorm;
 use crate::longt5::LongT5Config;
-use crate::t5::{get_relative_position_bucket, LayerState as T5layerState, T5Attention};
+use crate::t5::{
+    get_relative_position_bucket, LayerState as T5layerState, T5Attention, T5LayerCrossAttention,
+};
 use std::borrow::Borrow;
 use tch::nn::LinearConfig;
 use tch::{nn, Device, IndexOp, Kind, Tensor};
 
 pub type LongT5Attention = T5Attention;
+pub type LongT5LayerCrossAttention = T5LayerCrossAttention;
 pub type LayerState = T5layerState;
 
 fn pad_to_multiple(x: &Tensor, block_length: i64, dim: usize, pad_value: f64) -> Tensor {
@@ -694,6 +697,69 @@ impl LongT5LayerSelfAttention {
         let output = hidden_states + y.apply_t(&self.dropout, train);
 
         (output, attention_weights, position_bias, layer_state)
+    }
+}
+
+pub struct LongT5LayerLocalSelfAttention {
+    local_self_attention: LongT5LocalAttention,
+    layer_norm: LongT5LayerNorm,
+    dropout: Dropout,
+}
+
+impl LongT5LayerLocalSelfAttention {
+    pub fn new<'p, P>(
+        p: P,
+        config: &LongT5Config,
+        has_relative_attention_bias: bool,
+        is_decoder: bool,
+        store_cache: bool,
+    ) -> LongT5LayerLocalSelfAttention
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let local_self_attention = LongT5LocalAttention::new(
+            p / "LocalSelfAttention",
+            config,
+            is_decoder,
+            store_cache,
+            has_relative_attention_bias,
+        );
+
+        let layer_norm =
+            LongT5LayerNorm::new(p / "layer_norm", config.d_model, config.layer_norm_epsilon);
+        let dropout = Dropout::new(config.dropout_rate);
+
+        LongT5LayerLocalSelfAttention {
+            local_self_attention,
+            layer_norm,
+            dropout,
+        }
+    }
+
+    pub fn forward_t(
+        &self,
+        hidden_states: &Tensor,
+        attention_mask: Option<&Tensor>,
+        position_bias: Option<&Tensor>,
+        layer_head_mask: Option<&Tensor>,
+        train: bool,
+    ) -> (Tensor, Option<Tensor>, Option<Tensor>) {
+        let normed_hidden_states = hidden_states.apply(&self.layer_norm);
+
+        let (attention_output, position_bias, attention_weights) =
+            self.local_self_attention.forward_t(
+                &normed_hidden_states,
+                attention_mask,
+                position_bias,
+                layer_head_mask,
+                train,
+            );
+
+        let output = hidden_states + attention_output.apply_t(&self.dropout, train);
+
+        (output, position_bias, attention_weights)
     }
 }
 

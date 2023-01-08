@@ -226,7 +226,7 @@ impl T5Block {
         }
     }
 
-    fn clamp_hidden_states(hidden_states: Tensor) -> Tensor {
+    pub(crate) fn clamp_hidden_states(hidden_states: Tensor) -> Tensor {
         if (hidden_states.kind() != Kind::Float) & bool::from(hidden_states.isinf().any()) {
             let clamp_value = match hidden_states.kind() {
                 Kind::Half => half::f16::MAX.to_f64() - 1000.,
