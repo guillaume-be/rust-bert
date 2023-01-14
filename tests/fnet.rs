@@ -121,6 +121,7 @@ fn fnet_for_sequence_classification() -> anyhow::Result<()> {
 
     Ok(())
 }
+
 //
 #[test]
 fn fnet_for_multiple_choice() -> anyhow::Result<()> {
@@ -227,7 +228,7 @@ fn fnet_for_token_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output = no_grad(|| {
-        fnet_model
+        fnet_model.unwrap()
             .forward_t(Some(&input_tensor), None, None, None, false)
             .unwrap()
     });
