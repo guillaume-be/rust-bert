@@ -960,12 +960,12 @@ impl FNetForQuestionAnswering {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::Int64;
-    /// use rust_bert::fnet::{FNetConfig, FNetForTokenClassification};
+    /// use rust_bert::fnet::{FNetConfig, FNetForQuestionAnswering};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = FNetConfig::from_file(config_path);
-    /// let model = FNetForTokenClassification::new(&vs.root(), &config).unwrap();
+    /// let model = FNetForQuestionAnswering::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
