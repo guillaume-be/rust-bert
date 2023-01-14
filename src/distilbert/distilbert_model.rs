@@ -696,7 +696,11 @@ impl DistilBertForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .ok_or_else(|| RustBertError::InvalidConfigurationError("id2label must be provided for classifiers".to_string()))?
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "id2label must be provided for classifiers".to_string(),
+                )
+            })?
             .len() as i64;
 
         let classifier = nn::linear(p / "classifier", config.dim, num_labels, Default::default());
