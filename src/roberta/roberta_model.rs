@@ -81,7 +81,7 @@ impl RobertaModelResources {
     /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/CodeBERT>. Modified with conversion to C-array format.
     pub const CODEBERT_MLM: (&'static str, &'static str) = (
         "codebert-mlm/model",
-        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/pytorch_model.bin",
+        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/rust_model.ot",
     );
 }
 

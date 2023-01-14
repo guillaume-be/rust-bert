@@ -17,11 +17,10 @@ use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguage
 use rust_bert::pipelines::sequence_classification::{
     SequenceClassificationConfig, SequenceClassificationModel,
 };
-use rust_bert::resources::{LocalResource, RemoteResource};
+use rust_bert::resources::RemoteResource;
 use rust_bert::roberta::{
     RobertaConfigResources, RobertaMergesResources, RobertaModelResources, RobertaVocabResources,
 };
-use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
     //    Language identification

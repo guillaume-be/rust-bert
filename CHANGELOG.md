@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. The format 
 - Addition of All-MiniLM-L6-V2 model weights
 - Addition of Keyword/Keyphrases extraction pipeline based on KeyBERT (https://github.com/MaartenGr/KeyBERT)
 - Addition of Masked Language Model pipeline, allowing to predict masked words.
+- Support for the CodeBERT language model with pretrained models for language detection and masked token prediction
 
 ## Changed
 - Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`).
