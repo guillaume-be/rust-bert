@@ -228,10 +228,8 @@ fn fnet_for_token_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output = no_grad(|| {
-        fnet_model
-            .unwrap()
-            .forward_t(Some(&input_tensor), None, None, None, false)
-            .unwrap()
+        fnet_model?
+            .forward_t(Some(&input_tensor), None, None, None, false)?
     });
 
     assert_eq!(model_output.logits.size(), &[2, 11, 4]);
