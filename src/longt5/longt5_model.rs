@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::t5::{FeedForwardProj, T5Attention, T5Config, TaskSpecificParams};
+use crate::t5::{FeedForwardProj, T5Config, TaskSpecificParams};
 use crate::Config;
 use serde::{Deserialize, Serialize};
 

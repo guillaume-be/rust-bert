@@ -12,17 +12,18 @@
 
 use crate::common::dropout::Dropout;
 use crate::common::embeddings::process_ids_embeddings_pair;
+use crate::common::kind::get_negative_infinity;
 use crate::longt5::attention::{
-    LayerState, LongT5LayerCrossAttention, LongT5LayerLocalSelfAttention, LongT5LayerSelfAttention,
-    LongT5LayerTransientGlobalSelfAttention,
+    get_local_attention_mask, LayerState, LongT5LayerCrossAttention, LongT5LayerLocalSelfAttention,
+    LongT5LayerSelfAttention, LongT5LayerTransientGlobalSelfAttention,
 };
 use crate::longt5::layer_norm::LongT5LayerNorm;
 use crate::longt5::longt5_model::EncoderAttentionType;
 use crate::longt5::LongT5Config;
 use crate::t5::{T5Block, T5BlockOutput, T5LayerFF, T5StackOutput};
 use crate::RustBertError;
-use std::borrow::Borrow;
-use tch::{nn, Kind, Scalar, Tensor};
+use std::borrow::{Borrow, BorrowMut};
+use tch::{nn, Kind, Tensor};
 
 pub type LongT5LayerFF = T5LayerFF;
 
@@ -38,7 +39,6 @@ impl LongT5AttentionLayer {
         hidden_states: &Tensor,
         position_bias: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
-        layer_head_mask: Option<&Tensor>,
         layer_state: Option<LayerState>,
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
@@ -51,23 +51,13 @@ impl LongT5AttentionLayer {
                 train,
             ),
             LongT5AttentionLayer::LocalSelfAttention(ref layer) => {
-                let (output, position_bias, attention_weights) = layer.forward_t(
-                    hidden_states,
-                    attention_mask,
-                    position_bias,
-                    layer_head_mask,
-                    train,
-                );
+                let (output, position_bias, attention_weights) =
+                    layer.forward_t(hidden_states, attention_mask, position_bias, train);
                 (output, attention_weights, position_bias, None)
             }
             LongT5AttentionLayer::GlobalSelfAttention(ref layer) => {
-                let (output, position_bias, attention_weights) = layer.forward_t(
-                    hidden_states,
-                    attention_mask,
-                    position_bias,
-                    layer_head_mask,
-                    train,
-                );
+                let (output, position_bias, attention_weights) =
+                    layer.forward_t(hidden_states, attention_mask, position_bias, train);
                 (output, attention_weights, position_bias, None)
             }
         }
@@ -161,7 +151,6 @@ impl LongT5Block {
         encoder_hidden_states: Option<&Tensor>,
         encoder_attention_mask: Option<&Tensor>,
         encoder_decoder_position_bias: Option<&Tensor>,
-        layer_head_mask: Option<&Tensor>,
         mut layer_states: (Option<LayerState>, Option<LayerState>),
         train: bool,
     ) -> LongT5BlockOutput {
@@ -174,7 +163,6 @@ impl LongT5Block {
             hidden_states,
             position_bias,
             attention_mask,
-            layer_head_mask,
             layer_states.0,
             train,
         );
@@ -229,6 +217,8 @@ pub struct LongT5Stack {
     output_hidden_states: bool,
     is_decoder: bool,
     store_cache: bool,
+    encoder_attention_type: EncoderAttentionType,
+    block_length: i64,
 }
 
 impl LongT5Stack {
@@ -265,6 +255,12 @@ impl LongT5Stack {
             config.layer_norm_epsilon,
         );
 
+        let encoder_attention_type = config
+            .encoder_attention_type
+            .unwrap_or(EncoderAttentionType::Local);
+
+        let block_length = config.local_radius + 1;
+
         LongT5Stack {
             blocks,
             final_layer_norm,
@@ -273,6 +269,8 @@ impl LongT5Stack {
             output_hidden_states,
             is_decoder,
             store_cache,
+            encoder_attention_type,
+            block_length,
         }
     }
 
@@ -283,7 +281,6 @@ impl LongT5Stack {
         encoder_hidden_states: Option<&Tensor>,
         encoder_attention_mask: Option<&Tensor>,
         input_embeds: Option<&Tensor>,
-        head_mask: Option<&Tensor>,
         embeddings: &nn::Embedding,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
@@ -321,133 +318,140 @@ impl LongT5Stack {
         };
         let attention_mask =
             attention_mask.unwrap_or_else(|| calculated_attention_mask.as_ref().unwrap());
-        //     let extended_attention_mask = match attention_mask.dim() {
-        //         3 => attention_mask.unsqueeze(1),
-        //         2 => {
-        //             if self.is_decoder {
-        //                 let seq_ids = Tensor::arange(
-        //                     input_shape[1],
-        //                     (input_embeddings.kind(), input_embeddings.device()),
-        //                 );
-        //                 let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&[
-        //                     input_shape[0],
-        //                     input_shape[1],
-        //                     1,
-        //                 ]);
-        //                 let causal_mask = causal_mask.le_tensor(&seq_ids.unsqueeze(0).unsqueeze(-1));
-        //                 causal_mask.unsqueeze(1) * attention_mask.unsqueeze(1).unsqueeze(1)
-        //             } else {
-        //                 attention_mask.unsqueeze(1).unsqueeze(1)
-        //             }
-        //         }
-        //         _ => {
-        //             return Err(RustBertError::ValueError(
-        //                 "Invalid attention mask dimension, must be 2 or 3".into(),
-        //             ));
-        //         }
-        //     };
-        //
-        //     let extended_attention_mask: Option<Tensor> = Some(
-        //         ((extended_attention_mask.ones_like() - extended_attention_mask) * -1e4)
-        //             .to_kind(input_embeddings.kind()),
-        //     );
-        //
-        //     let extended_encoder_attention_mask = if self.is_decoder & encoder_hidden_states.is_some() {
-        //         let encoder_hidden_states = encoder_hidden_states.as_ref().unwrap();
-        //         let encoder_hidden_states_shape = encoder_hidden_states.size();
-        //         let encoder_mask = match encoder_attention_mask {
-        //             Some(value) => value.copy(),
-        //             None => Tensor::ones(
-        //                 &[
-        //                     encoder_hidden_states_shape[0],
-        //                     encoder_hidden_states_shape[1],
-        //                 ],
-        //                 (Kind::Int8, input_embeddings.device()),
-        //             ),
-        //         };
-        //         let encoder_mask = match encoder_mask.dim() {
-        //             2 => encoder_mask.unsqueeze(1).unsqueeze(1),
-        //             3 => encoder_mask.unsqueeze(1),
-        //             _ => {
-        //                 return Err(RustBertError::ValueError(
-        //                     "Invalid attention mask dimension, must be 2 or 3".into(),
-        //                 ));
-        //             }
-        //         };
-        //         Some(
-        //             ((encoder_mask.ones_like() - encoder_mask) * -1e4).to_kind(input_embeddings.kind()),
-        //         )
-        //     } else {
-        //         None
-        //     };
-        //
-        //     let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
-        //         Some(Vec::with_capacity(self.blocks.len()))
-        //     } else {
-        //         None
-        //     };
-        //     let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
-        //         Some(Vec::with_capacity(self.blocks.len()))
-        //     } else {
-        //         None
-        //     };
-        //     let mut next_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>> =
-        //         if self.store_cache {
-        //             if old_layer_states.is_some() {
-        //                 old_layer_states
-        //             } else {
-        //                 Some(vec![(None, None); self.blocks.len()])
-        //             }
-        //         } else {
-        //             None
-        //         };
-        //     let mut position_bias = None;
-        //     let mut encoder_decoder_position_bias = None;
-        //     let mut attention_weights: Option<Tensor>;
-        //     let mut hidden_state = input_embeddings.apply_t(&self.dropout, train);
-        //
-        //     for (layer_idx, layer) in self.blocks.iter().enumerate() {
-        //         let layer_state = match &next_cache {
-        //             Some(values) => values[layer_idx].to_owned(),
-        //             None => (None, None),
-        //         };
-        //         let block_output = layer.forward_t(
-        //             &hidden_state,
-        //             position_bias.as_ref(),
-        //             extended_attention_mask.as_ref(),
-        //             encoder_hidden_states,
-        //             extended_encoder_attention_mask.as_ref(),
-        //             encoder_decoder_position_bias.as_ref(),
-        //             layer_state,
-        //             train,
-        //         );
-        //         if layer_idx == 0 {
-        //             position_bias = block_output.self_attention_position_bias;
-        //             encoder_decoder_position_bias = block_output.cross_attention_position_bias;
-        //         }
-        //         hidden_state = block_output.hidden_states;
-        //         attention_weights = block_output.cross_attention_weights;
-        //         if let Some(hidden_states) = all_hidden_states.borrow_mut() {
-        //             hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
-        //         };
-        //         if let Some(attentions) = all_attentions.borrow_mut() {
-        //             attentions.push(std::mem::take(&mut attention_weights.unwrap()));
-        //         };
-        //         if let Some(value) = &mut next_cache {
-        //             value[layer_idx] = block_output.cache
-        //         };
-        //     }
-        //
-        //     let hidden_state = hidden_state
-        //         .apply(&self.final_layer_norm)
-        //         .apply_t(&self.dropout, train);
-        //
-        //     Ok(LongT5StackOutput {
-        //         hidden_state,
-        //         all_hidden_states,
-        //         all_attentions,
-        //         next_cache,
-        //     })
+
+        let extended_attention_mask = if self.is_decoder {
+            Some(match attention_mask.dim() {
+                3 => attention_mask.unsqueeze(1),
+                2 => {
+                    if self.is_decoder {
+                        let seq_ids = Tensor::arange(
+                            sequence_length,
+                            (input_embeddings.kind(), input_embeddings.device()),
+                        );
+                        let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&[
+                            batch_size,
+                            sequence_length,
+                            1,
+                        ]);
+                        let causal_mask =
+                            causal_mask.le_tensor(&seq_ids.unsqueeze(0).unsqueeze(-1));
+                        causal_mask.unsqueeze(1) * attention_mask.unsqueeze(1).unsqueeze(1)
+                    } else {
+                        attention_mask.unsqueeze(1).unsqueeze(1)
+                    }
+                }
+                _ => {
+                    return Err(RustBertError::ValueError(
+                        "Invalid attention mask dimension, must be 2 or 3".into(),
+                    ));
+                }
+            })
+        } else if let EncoderAttentionType::Local = self.encoder_attention_type {
+            Some(get_local_attention_mask(&attention_mask, self.block_length))
+        } else {
+            None
+        };
+        let extended_attention_mask = extended_attention_mask.as_ref().unwrap_or(attention_mask);
+        let extended_attention_mask = (extended_attention_mask.ones_like()
+            - extended_attention_mask.to_kind(input_embeddings.kind()))
+            * get_negative_infinity(input_embeddings.kind()).unwrap();
+
+        let encoder_extended_attention_mask = if self.is_decoder & encoder_hidden_states.is_some() {
+            let new_shape = &encoder_hidden_states.as_ref().unwrap().size()[..2];
+            let calculated_encoder_attention_mask = if encoder_attention_mask.is_none() {
+                Some(Tensor::ones(
+                    &[batch_size, new_shape[1]],
+                    (Kind::Int64, input_embeddings.device()),
+                ))
+            } else {
+                None
+            };
+            let encoder_attention_mask = encoder_attention_mask
+                .unwrap_or_else(|| calculated_encoder_attention_mask.as_ref().unwrap());
+
+            let mut encoder_extended_attention_mask =
+                encoder_attention_mask.to_kind(input_embeddings.kind());
+            if encoder_extended_attention_mask.dim() == 3 {
+                encoder_extended_attention_mask = encoder_extended_attention_mask.unsqueeze_(1);
+            } else if encoder_extended_attention_mask.dim() == 2 {
+                encoder_extended_attention_mask =
+                    encoder_extended_attention_mask.unsqueeze_(1).unsqueeze_(1);
+            };
+            Some(
+                (encoder_extended_attention_mask.ones_like() - encoder_extended_attention_mask)
+                    * get_negative_infinity(input_embeddings.kind()).unwrap(),
+            )
+        } else {
+            None
+        };
+
+        let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
+            Some(Vec::with_capacity(self.blocks.len()))
+        } else {
+            None
+        };
+        let mut all_attentions: Option<Vec<Tensor>> = if self.output_attentions {
+            Some(Vec::with_capacity(self.blocks.len()))
+        } else {
+            None
+        };
+        let mut next_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>> =
+            if self.store_cache {
+                if old_layer_states.is_some() {
+                    old_layer_states
+                } else {
+                    Some(vec![(None, None); self.blocks.len()])
+                }
+            } else {
+                None
+            };
+        let mut position_bias = None;
+        let mut encoder_decoder_position_bias = None;
+        let mut attention_weights: Option<Tensor>;
+        let mut hidden_state = input_embeddings.apply_t(&self.dropout, train);
+
+        for (layer_idx, layer) in self.blocks.iter().enumerate() {
+            let layer_state = match &mut next_cache {
+                Some(values) => std::mem::take(&mut values[layer_idx]),
+                None => (None, None),
+            };
+            let block_output = layer.forward_t(
+                &hidden_state,
+                Some(extended_attention_mask.as_ref()),
+                position_bias.as_ref(),
+                encoder_hidden_states,
+                encoder_extended_attention_mask.as_ref(),
+                encoder_decoder_position_bias.as_ref(),
+                layer_state,
+                train,
+            );
+            if layer_idx == 0 {
+                position_bias = block_output.self_attention_position_bias;
+                encoder_decoder_position_bias = block_output.cross_attention_position_bias;
+            }
+            hidden_state = block_output.hidden_states;
+            attention_weights = block_output.cross_attention_weights;
+            if let Some(hidden_states) = all_hidden_states.borrow_mut() {
+                hidden_states.push(hidden_state.as_ref().copy().transpose(0, 1));
+            };
+            if let Some(attentions) = all_attentions.borrow_mut() {
+                attentions.push(std::mem::take(&mut attention_weights.unwrap()));
+            };
+            if let Some(value) = &mut next_cache {
+                value[layer_idx] = block_output.cache
+            };
+        }
+
+        let hidden_state = hidden_state
+            .apply(&self.final_layer_norm)
+            .apply_t(&self.dropout, train);
+
+        Ok(LongT5StackOutput {
+            hidden_state,
+            all_hidden_states,
+            all_attentions,
+            next_cache,
+        })
     }
 }
 
