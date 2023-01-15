@@ -202,7 +202,7 @@ fn fnet_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
     config.output_hidden_states = Some(true);
-    let fnet_model = FNetForTokenClassification::new(vs.root(), &config);
+    let fnet_model = FNetForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [
@@ -228,8 +228,9 @@ fn fnet_for_token_classification() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output = no_grad(|| {
-        fnet_model?
-            .forward_t(Some(&input_tensor), None, None, None, false)?
+        fnet_model
+            .forward_t(Some(&input_tensor), None, None, None, false)
+            .unwrap()
     });
 
     assert_eq!(model_output.logits.size(), &[2, 11, 4]);

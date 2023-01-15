@@ -240,7 +240,7 @@ fn mobilebert_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(2, String::from("PER"));
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
-    let model = MobileBertForTokenClassification::new(vs.root(), &config);
+    let model = MobileBertForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let inputs = ["Where's Paris?", "In Kentucky, United States"];
@@ -262,9 +262,8 @@ fn mobilebert_for_token_classification() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let model_output = no_grad(|| {
-        model?.forward_t(Some(input_tensor.as_ref()), None, None, None, None, false)
-    })?;
+    let model_output =
+        no_grad(|| model.forward_t(Some(input_tensor.as_ref()), None, None, None, None, false))?;
 
     assert_eq!(model_output.logits.size(), &[2, 7, 4]);
 
