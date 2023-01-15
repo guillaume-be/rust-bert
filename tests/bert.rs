@@ -308,8 +308,11 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     //    Forward pass
-    let model_output =
-        no_grad(|| bert_model.unwrap().forward_t(Some(&input_tensor), None, None, None, None, false));
+    let model_output = no_grad(|| {
+        bert_model
+            .unwrap()
+            .forward_t(Some(&input_tensor), None, None, None, None, false)
+    });
 
     assert_eq!(model_output.logits.size(), &[2, 11, 4]);
     assert_eq!(
