@@ -121,6 +121,7 @@ fn fnet_for_sequence_classification() -> anyhow::Result<()> {
 
     Ok(())
 }
+
 //
 #[test]
 fn fnet_for_multiple_choice() -> anyhow::Result<()> {
@@ -201,7 +202,7 @@ fn fnet_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
     config.output_hidden_states = Some(true);
-    let fnet_model = FNetForTokenClassification::new(vs.root(), &config);
+    let fnet_model = FNetForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [

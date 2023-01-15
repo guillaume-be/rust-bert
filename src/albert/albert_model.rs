@@ -648,9 +648,12 @@ impl AlbertForTokenClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForTokenClassification =
-    ///     AlbertForTokenClassification::new(&p.root(), &config);
+    ///     AlbertForTokenClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &AlbertConfig,
+    ) -> Result<AlbertForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -661,7 +664,11 @@ impl AlbertForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -670,11 +677,11 @@ impl AlbertForTokenClassification {
             Default::default(),
         );
 
-        AlbertForTokenClassification {
+        Ok(AlbertForTokenClassification {
             albert,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -707,7 +714,7 @@ impl AlbertForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = AlbertConfig::from_file(config_path);
-    /// # let albert_model: AlbertForTokenClassification = AlbertForTokenClassification::new(&vs.root(), &config);
+    /// # let albert_model: AlbertForTokenClassification = AlbertForTokenClassification::new(&vs.root(), &config).unwrap();
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));

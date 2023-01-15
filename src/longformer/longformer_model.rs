@@ -1196,9 +1196,12 @@ impl LongformerForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = LongformerConfig::from_file(config_path);
-    /// let longformer_model = LongformerForTokenClassification::new(&p.root(), &config);
+    /// let longformer_model = LongformerForTokenClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &LongformerConfig) -> LongformerForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &LongformerConfig,
+    ) -> Result<LongformerForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -1210,7 +1213,11 @@ impl LongformerForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
 
         let classifier = nn::linear(
@@ -1220,11 +1227,11 @@ impl LongformerForTokenClassification {
             Default::default(),
         );
 
-        LongformerForTokenClassification {
+        Ok(LongformerForTokenClassification {
             longformer,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -1260,7 +1267,7 @@ impl LongformerForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = LongformerConfig::from_file(config_path);
-    /// let longformer_model = LongformerForTokenClassification::new(&vs.root(), &config);
+    /// let longformer_model = LongformerForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length, target_sequence_length) = (64, 128, 32);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));

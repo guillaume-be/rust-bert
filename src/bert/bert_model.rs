@@ -971,9 +971,12 @@ impl BertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert = BertForTokenClassification::new(&p.root() / "bert", &config);
+    /// let bert = BertForTokenClassification::new(&p.root() / "bert", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BertConfig,
+    ) -> Result<BertForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -984,7 +987,11 @@ impl BertForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -993,11 +1000,11 @@ impl BertForTokenClassification {
             Default::default(),
         );
 
-        BertForTokenClassification {
+        Ok(BertForTokenClassification {
             bert,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -1030,7 +1037,7 @@ impl BertForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
-    /// # let bert_model = BertForTokenClassification::new(&vs.root(), &config);
+    /// # let bert_model = BertForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));

@@ -779,9 +779,12 @@ impl FNetForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = FNetConfig::from_file(config_path);
-    /// let fnet = FNetForTokenClassification::new(&p.root() / "fnet", &config);
+    /// let fnet = FNetForTokenClassification::new(&p.root() / "fnet", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &FNetConfig,
+    ) -> Result<FNetForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -792,7 +795,11 @@ impl FNetForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -801,11 +808,11 @@ impl FNetForTokenClassification {
             Default::default(),
         );
 
-        FNetForTokenClassification {
+        Ok(FNetForTokenClassification {
             fnet,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -836,7 +843,7 @@ impl FNetForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = FNetConfig::from_file(config_path);
-    /// let model = FNetForTokenClassification::new(&vs.root(), &config);
+    /// let model = FNetForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -953,12 +960,12 @@ impl FNetForQuestionAnswering {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::Int64;
-    /// use rust_bert::fnet::{FNetConfig, FNetForTokenClassification};
+    /// use rust_bert::fnet::{FNetConfig, FNetForQuestionAnswering};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = FNetConfig::from_file(config_path);
-    /// let model = FNetForTokenClassification::new(&vs.root(), &config);
+    /// let model = FNetForQuestionAnswering::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -1067,7 +1074,7 @@ mod test {
 
         //    Set-up masked LM model
         let device = Device::cuda_if_available();
-        let vs = tch::nn::VarStore::new(device);
+        let vs = nn::VarStore::new(device);
         let config = FNetConfig::from_file(config_path);
 
         let _: Box<dyn Send> = Box::new(FNetModel::new(vs.root(), &config, true));

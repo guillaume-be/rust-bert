@@ -354,7 +354,7 @@ impl TokenClassificationOption {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
                     Ok(TokenClassificationOption::Bert(
-                        BertForTokenClassification::new(p, config),
+                        BertForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -365,7 +365,7 @@ impl TokenClassificationOption {
             ModelType::Deberta => {
                 if let ConfigOption::Deberta(config) = config {
                     Ok(TokenClassificationOption::Deberta(
-                        DebertaForTokenClassification::new(p, config),
+                        DebertaForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -376,7 +376,7 @@ impl TokenClassificationOption {
             ModelType::DebertaV2 => {
                 if let ConfigOption::DebertaV2(config) = config {
                     Ok(TokenClassificationOption::DebertaV2(
-                        DebertaV2ForTokenClassification::new(p, config),
+                        DebertaV2ForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -387,7 +387,7 @@ impl TokenClassificationOption {
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
                     Ok(TokenClassificationOption::DistilBert(
-                        DistilBertForTokenClassification::new(p, config),
+                        DistilBertForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -398,7 +398,7 @@ impl TokenClassificationOption {
             ModelType::MobileBert => {
                 if let ConfigOption::MobileBert(config) = config {
                     Ok(TokenClassificationOption::MobileBert(
-                        MobileBertForTokenClassification::new(p, config),
+                        MobileBertForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -409,7 +409,7 @@ impl TokenClassificationOption {
             ModelType::Roberta => {
                 if let ConfigOption::Roberta(config) = config {
                     Ok(TokenClassificationOption::Roberta(
-                        RobertaForTokenClassification::new(p, config),
+                        RobertaForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -420,7 +420,7 @@ impl TokenClassificationOption {
             ModelType::XLMRoberta => {
                 if let ConfigOption::Roberta(config) = config {
                     Ok(TokenClassificationOption::XLMRoberta(
-                        RobertaForTokenClassification::new(p, config),
+                        RobertaForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -431,7 +431,7 @@ impl TokenClassificationOption {
             ModelType::Electra => {
                 if let ConfigOption::Electra(config) = config {
                     Ok(TokenClassificationOption::Electra(
-                        ElectraForTokenClassification::new(p, config),
+                        ElectraForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -442,7 +442,7 @@ impl TokenClassificationOption {
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
                     Ok(TokenClassificationOption::Albert(
-                        AlbertForTokenClassification::new(p, config),
+                        AlbertForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -453,7 +453,7 @@ impl TokenClassificationOption {
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = config {
                     Ok(TokenClassificationOption::XLNet(
-                        XLNetForTokenClassification::new(p, config).unwrap(),
+                        XLNetForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -464,7 +464,7 @@ impl TokenClassificationOption {
             ModelType::Longformer => {
                 if let ConfigOption::Longformer(config) = config {
                     Ok(TokenClassificationOption::Longformer(
-                        LongformerForTokenClassification::new(p, config),
+                        LongformerForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -475,7 +475,7 @@ impl TokenClassificationOption {
             ModelType::FNet => {
                 if let ConfigOption::FNet(config) = config {
                     Ok(TokenClassificationOption::FNet(
-                        FNetForTokenClassification::new(p, config),
+                        FNetForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(

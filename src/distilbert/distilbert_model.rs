@@ -680,9 +680,12 @@ impl DistilBertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertForTokenClassification::new(&p.root() / "distilbert", &config);
+    /// let distil_bert = DistilBertForTokenClassification::new(&p.root() / "distilbert", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &DistilBertConfig,
+    ) -> Result<DistilBertForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -693,17 +696,21 @@ impl DistilBertForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("id2label must be provided for classifiers")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "id2label must be provided for classifiers".to_string(),
+                )
+            })?
             .len() as i64;
 
         let classifier = nn::linear(p / "classifier", config.dim, num_labels, Default::default());
         let dropout = Dropout::new(config.seq_classif_dropout);
 
-        DistilBertForTokenClassification {
+        Ok(DistilBertForTokenClassification {
             distil_bert_model,
             classifier,
             dropout,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -735,7 +742,7 @@ impl DistilBertForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = DistilBertConfig::from_file(config_path);
-    /// # let distilbert_model = DistilBertForTokenClassification::new(&vs.root(), &config);
+    /// # let distilbert_model = DistilBertForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -793,6 +800,7 @@ pub struct DistilBertSequenceClassificationOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }
+
 /// Container for the DistilBERT token classification model output
 pub struct DistilBertTokenClassificationOutput {
     /// Logits for each sequence item (token) for each target class
@@ -802,6 +810,7 @@ pub struct DistilBertTokenClassificationOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }
+
 /// Container for the DistilBERT question answering model output
 pub struct DistilBertQuestionAnsweringOutput {
     /// Logits for the start position for token of each input sequence
