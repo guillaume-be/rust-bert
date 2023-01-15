@@ -919,7 +919,7 @@ impl XLNetForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = XLNetConfig::from_file(config_path);
-    /// let xlnet_model = XLNetForSequenceClassification::new(&p.root(), &config);
+    /// let xlnet_model = XLNetForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -936,7 +936,11 @@ impl XLNetForSequenceClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
 
         let logits_proj = nn::linear(

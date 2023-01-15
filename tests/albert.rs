@@ -109,7 +109,7 @@ fn albert_for_sequence_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let albert_model = AlbertForSequenceClassification::new(vs.root(), &config);
+    let albert_model = AlbertForSequenceClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [

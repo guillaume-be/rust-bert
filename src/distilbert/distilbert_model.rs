@@ -287,9 +287,12 @@ impl DistilBertModelClassifier {
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert: DistilBertModelClassifier =
-    ///     DistilBertModelClassifier::new(&p.root() / "distilbert", &config);
+    ///     DistilBertModelClassifier::new(&p.root() / "distilbert", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertModelClassifier
+    pub fn new<'p, P>(
+        p: P,
+        config: &DistilBertConfig,
+    ) -> Result<DistilBertModelClassifier, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -300,7 +303,11 @@ impl DistilBertModelClassifier {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("id2label must be provided for classifiers")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
 
         let pre_classifier = nn::linear(
@@ -312,12 +319,12 @@ impl DistilBertModelClassifier {
         let classifier = nn::linear(p / "classifier", config.dim, num_labels, Default::default());
         let dropout = Dropout::new(config.seq_classif_dropout);
 
-        DistilBertModelClassifier {
+        Ok(DistilBertModelClassifier {
             distil_bert_model,
             pre_classifier,
             classifier,
             dropout,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -680,7 +687,8 @@ impl DistilBertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertForTokenClassification::new(&p.root() / "distilbert", &config).unwrap();
+    /// let distil_bert =
+    ///     DistilBertForTokenClassification::new(&p.root() / "distilbert", &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,

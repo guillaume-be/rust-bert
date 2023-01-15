@@ -41,7 +41,7 @@ fn deberta_natural_language_inference() -> anyhow::Result<()> {
         false,
     )?;
     let config = DebertaConfig::from_file(config_path);
-    let model = DebertaForSequenceClassification::new(vs.root(), &config);
+    let model = DebertaForSequenceClassification::new(vs.root(), &config)?;
     vs.load(weights_path)?;
 
     //    Define input

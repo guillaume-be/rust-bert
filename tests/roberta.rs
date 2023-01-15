@@ -136,7 +136,7 @@ fn roberta_for_sequence_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let roberta_model = RobertaForSequenceClassification::new(vs.root(), &config);
+    let roberta_model = RobertaForSequenceClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [

@@ -499,9 +499,12 @@ impl FNetForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = FNetConfig::from_file(config_path);
-    /// let fnet = FNetForSequenceClassification::new(&p.root() / "fnet", &config);
+    /// let fnet = FNetForSequenceClassification::new(&p.root() / "fnet", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &FNetConfig) -> FNetForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &FNetConfig,
+    ) -> Result<FNetForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -512,7 +515,11 @@ impl FNetForSequenceClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -521,11 +528,11 @@ impl FNetForSequenceClassification {
             Default::default(),
         );
 
-        FNetForSequenceClassification {
+        Ok(FNetForSequenceClassification {
             fnet,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model

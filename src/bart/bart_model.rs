@@ -695,7 +695,7 @@ pub struct BartClassificationHead {
 }
 
 impl BartClassificationHead {
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartClassificationHead
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> Result<BartClassificationHead, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -703,7 +703,11 @@ impl BartClassificationHead {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let dense = nn::linear(
             p / "dense",
@@ -719,11 +723,11 @@ impl BartClassificationHead {
             Default::default(),
         );
 
-        BartClassificationHead {
+        Ok(BartClassificationHead {
             dense,
             dropout,
             out_proj,
-        }
+        })
     }
 
     pub fn forward_t(&self, x: &Tensor, train: bool) -> Tensor {
@@ -768,22 +772,25 @@ impl BartForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
     /// let bart: BartForSequenceClassification =
-    ///     BartForSequenceClassification::new(&p.root() / "bart", &config);
+    ///     BartForSequenceClassification::new(&p.root() / "bart", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BartConfig,
+    ) -> Result<BartForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
         let base_model = BartModel::new(p / "model", config);
-        let classification_head = BartClassificationHead::new(p / "classification_head", config);
+        let classification_head = BartClassificationHead::new(p / "classification_head", config)?;
         let eos_token_id = config.eos_token_id.unwrap_or(3);
-        BartForSequenceClassification {
+        Ok(BartForSequenceClassification {
             base_model,
             classification_head,
             eos_token_id,
-        }
+        })
     }
 
     /// Forward pass through the model

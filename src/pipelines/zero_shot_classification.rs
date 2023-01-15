@@ -262,7 +262,7 @@ impl ZeroShotClassificationOption {
             ModelType::Bart => {
                 if let ConfigOption::Bart(config) = config {
                     Ok(ZeroShotClassificationOption::Bart(
-                        BartForSequenceClassification::new(p, config),
+                        BartForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -273,7 +273,7 @@ impl ZeroShotClassificationOption {
             ModelType::Deberta => {
                 if let ConfigOption::Deberta(config) = config {
                     Ok(ZeroShotClassificationOption::Deberta(
-                        DebertaForSequenceClassification::new(p, config),
+                        DebertaForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -284,7 +284,7 @@ impl ZeroShotClassificationOption {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
                     Ok(ZeroShotClassificationOption::Bert(
-                        BertForSequenceClassification::new(p, config),
+                        BertForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -295,7 +295,7 @@ impl ZeroShotClassificationOption {
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
                     Ok(ZeroShotClassificationOption::DistilBert(
-                        DistilBertModelClassifier::new(p, config),
+                        DistilBertModelClassifier::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -306,7 +306,7 @@ impl ZeroShotClassificationOption {
             ModelType::MobileBert => {
                 if let ConfigOption::MobileBert(config) = config {
                     Ok(ZeroShotClassificationOption::MobileBert(
-                        MobileBertForSequenceClassification::new(p, config),
+                        MobileBertForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -317,7 +317,7 @@ impl ZeroShotClassificationOption {
             ModelType::Roberta => {
                 if let ConfigOption::Bert(config) = config {
                     Ok(ZeroShotClassificationOption::Roberta(
-                        RobertaForSequenceClassification::new(p, config),
+                        RobertaForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -328,7 +328,7 @@ impl ZeroShotClassificationOption {
             ModelType::XLMRoberta => {
                 if let ConfigOption::Bert(config) = config {
                     Ok(ZeroShotClassificationOption::XLMRoberta(
-                        RobertaForSequenceClassification::new(p, config),
+                        RobertaForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -339,7 +339,7 @@ impl ZeroShotClassificationOption {
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
                     Ok(ZeroShotClassificationOption::Albert(
-                        AlbertForSequenceClassification::new(p, config),
+                        AlbertForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -350,7 +350,7 @@ impl ZeroShotClassificationOption {
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = config {
                     Ok(ZeroShotClassificationOption::XLNet(
-                        XLNetForSequenceClassification::new(p, config).unwrap(),
+                        XLNetForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -361,7 +361,7 @@ impl ZeroShotClassificationOption {
             ModelType::Longformer => {
                 if let ConfigOption::Longformer(config) = config {
                     Ok(ZeroShotClassificationOption::Longformer(
-                        LongformerForSequenceClassification::new(p, config),
+                        LongformerForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(

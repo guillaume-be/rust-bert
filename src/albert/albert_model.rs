@@ -505,9 +505,12 @@ impl AlbertForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForSequenceClassification =
-    ///     AlbertForSequenceClassification::new(&p.root(), &config);
+    ///     AlbertForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &AlbertConfig) -> AlbertForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &AlbertConfig,
+    ) -> Result<AlbertForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -519,7 +522,11 @@ impl AlbertForSequenceClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -528,11 +535,11 @@ impl AlbertForSequenceClassification {
             Default::default(),
         );
 
-        AlbertForSequenceClassification {
+        Ok(AlbertForSequenceClassification {
             albert,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
