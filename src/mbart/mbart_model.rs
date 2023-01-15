@@ -178,7 +178,7 @@ pub struct MBartClassificationHead {
 }
 
 impl MBartClassificationHead {
-    pub fn new<'p, P>(p: P, config: &MBartConfig) -> MBartClassificationHead
+    pub fn new<'p, P>(p: P, config: &MBartConfig) -> Result<MBartClassificationHead, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -194,9 +194,12 @@ impl MBartClassificationHead {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("id2label not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
-
         let out_proj = nn::linear(
             p / "out_proj",
             config.d_model,
@@ -206,11 +209,11 @@ impl MBartClassificationHead {
 
         let dropout = Dropout::new(config.classifier_dropout.unwrap_or(0.0));
 
-        MBartClassificationHead {
+        Ok(MBartClassificationHead {
             dense,
             dropout,
             out_proj,
-        }
+        })
     }
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
@@ -592,22 +595,25 @@ impl MBartForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = MBartConfig::from_file(config_path);
     /// let mbart: MBartForSequenceClassification =
-    ///     MBartForSequenceClassification::new(&p.root(), &config);
+    ///     MBartForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &MBartConfig) -> MBartForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &MBartConfig,
+    ) -> Result<MBartForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
         let base_model = MBartModel::new(p / "model", config);
-        let classification_head = MBartClassificationHead::new(p / "classification_head", config);
+        let classification_head = MBartClassificationHead::new(p / "classification_head", config)?;
         let eos_token_id = config.eos_token_id.unwrap_or(3);
-        MBartForSequenceClassification {
+        Ok(MBartForSequenceClassification {
             base_model,
             classification_head,
             eos_token_id,
-        }
+        })
     }
 
     /// Forward pass through the model

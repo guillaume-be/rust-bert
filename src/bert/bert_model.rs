@@ -682,9 +682,12 @@ impl BertForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert = BertForSequenceClassification::new(&p.root() / "bert", &config);
+    /// let bert = BertForSequenceClassification::new(&p.root() / "bert", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BertConfig,
+    ) -> Result<BertForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -695,7 +698,11 @@ impl BertForSequenceClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -704,11 +711,11 @@ impl BertForSequenceClassification {
             Default::default(),
         );
 
-        BertForSequenceClassification {
+        Ok(BertForSequenceClassification {
             bert,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model

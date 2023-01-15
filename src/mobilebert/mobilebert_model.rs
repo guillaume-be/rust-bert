@@ -690,9 +690,12 @@ impl MobileBertForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = MobileBertConfig::from_file(config_path);
-    /// let mobilebert = MobileBertForSequenceClassification::new(&p.root(), &config);
+    /// let mobilebert = MobileBertForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &MobileBertConfig) -> MobileBertForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &MobileBertConfig,
+    ) -> Result<MobileBertForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -703,7 +706,11 @@ impl MobileBertForSequenceClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -711,11 +718,11 @@ impl MobileBertForSequenceClassification {
             num_labels,
             Default::default(),
         );
-        MobileBertForSequenceClassification {
+        Ok(MobileBertForSequenceClassification {
             mobilebert,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model

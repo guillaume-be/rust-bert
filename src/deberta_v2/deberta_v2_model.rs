@@ -594,9 +594,12 @@ impl DebertaV2ForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DebertaV2Config::from_file(config_path);
-    /// let model = DebertaV2ForSequenceClassification::new(&p.root(), &config);
+    /// let model = DebertaV2ForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &DebertaV2Config) -> DebertaV2ForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &DebertaV2Config,
+    ) -> Result<DebertaV2ForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -613,7 +616,11 @@ impl DebertaV2ForSequenceClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
 
         let classifier = nn::linear(
@@ -623,12 +630,12 @@ impl DebertaV2ForSequenceClassification {
             Default::default(),
         );
 
-        DebertaV2ForSequenceClassification {
+        Ok(DebertaV2ForSequenceClassification {
             deberta,
             pooler,
             classifier,
             dropout,
-        }
+        })
     }
 
     /// Forward pass through the model

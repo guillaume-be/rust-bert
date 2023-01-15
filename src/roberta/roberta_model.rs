@@ -381,7 +381,7 @@ pub struct RobertaClassificationHead {
 }
 
 impl RobertaClassificationHead {
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaClassificationHead
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> Result<RobertaClassificationHead, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -395,7 +395,11 @@ impl RobertaClassificationHead {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let out_proj = nn::linear(
             p / "out_proj",
@@ -405,11 +409,11 @@ impl RobertaClassificationHead {
         );
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
-        RobertaClassificationHead {
+        Ok(RobertaClassificationHead {
             dense,
             dropout,
             out_proj,
-        }
+        })
     }
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
@@ -453,21 +457,24 @@ impl RobertaForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = RobertaConfig::from_file(config_path);
-    /// let roberta = RobertaForSequenceClassification::new(&p.root() / "roberta", &config);
+    /// let roberta = RobertaForSequenceClassification::new(&p.root() / "roberta", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BertConfig,
+    ) -> Result<RobertaForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
         let roberta =
             BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
-        let classifier = RobertaClassificationHead::new(p / "classifier", config);
+        let classifier = RobertaClassificationHead::new(p / "classifier", config)?;
 
-        RobertaForSequenceClassification {
+        Ok(RobertaForSequenceClassification {
             roberta,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model

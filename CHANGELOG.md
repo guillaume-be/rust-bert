@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. The format 
 - Allow mixing local and remote resources in pipelines.
 - Upgraded to `torch` 1.13 (via `tch` 0.9.0).
 - (BREAKING) Made the `max_length` argument for generation methods and pipelines optional.
+- (BREAKING) Changed return type of `ModelForSequenceClassification` and `ModelForTokenClassification` to `Result<Self, RustBertError>` allowing error handling if no labels are provided in the configuration.
 
 ## Fixed
 - Fixed configuration check for RoBERTa models for sentence classification.

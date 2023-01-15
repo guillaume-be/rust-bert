@@ -88,7 +88,7 @@ fn deberta_v2_for_sequence_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(1, String::from("Neutral"));
     dummy_label_mapping.insert(2, String::from("Negative"));
     config.id2label = Some(dummy_label_mapping);
-    let model = DebertaV2ForSequenceClassification::new(vs.root(), &config);
+    let model = DebertaV2ForSequenceClassification::new(vs.root(), &config)?;
 
     //    Define input
     let inputs = ["Where's Paris?", "In Kentucky, United States"];
