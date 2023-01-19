@@ -232,7 +232,7 @@ impl SequenceClassificationOption {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
                     Ok(SequenceClassificationOption::Bert(
-                        BertForSequenceClassification::new(p, config),
+                        BertForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -243,7 +243,7 @@ impl SequenceClassificationOption {
             ModelType::Deberta => {
                 if let ConfigOption::Deberta(config) = config {
                     Ok(SequenceClassificationOption::Deberta(
-                        DebertaForSequenceClassification::new(p, config),
+                        DebertaForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -254,7 +254,7 @@ impl SequenceClassificationOption {
             ModelType::DebertaV2 => {
                 if let ConfigOption::DebertaV2(config) = config {
                     Ok(SequenceClassificationOption::DebertaV2(
-                        DebertaV2ForSequenceClassification::new(p, config),
+                        DebertaV2ForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -265,7 +265,7 @@ impl SequenceClassificationOption {
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
                     Ok(SequenceClassificationOption::DistilBert(
-                        DistilBertModelClassifier::new(p, config),
+                        DistilBertModelClassifier::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -276,7 +276,7 @@ impl SequenceClassificationOption {
             ModelType::MobileBert => {
                 if let ConfigOption::MobileBert(config) = config {
                     Ok(SequenceClassificationOption::MobileBert(
-                        MobileBertForSequenceClassification::new(p, config),
+                        MobileBertForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -287,7 +287,7 @@ impl SequenceClassificationOption {
             ModelType::Roberta => {
                 if let ConfigOption::Roberta(config) = config {
                     Ok(SequenceClassificationOption::Roberta(
-                        RobertaForSequenceClassification::new(p, config),
+                        RobertaForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -298,7 +298,7 @@ impl SequenceClassificationOption {
             ModelType::XLMRoberta => {
                 if let ConfigOption::Roberta(config) = config {
                     Ok(SequenceClassificationOption::XLMRoberta(
-                        RobertaForSequenceClassification::new(p, config),
+                        RobertaForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -309,7 +309,7 @@ impl SequenceClassificationOption {
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
                     Ok(SequenceClassificationOption::Albert(
-                        AlbertForSequenceClassification::new(p, config),
+                        AlbertForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -320,7 +320,7 @@ impl SequenceClassificationOption {
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = config {
                     Ok(SequenceClassificationOption::XLNet(
-                        XLNetForSequenceClassification::new(p, config).unwrap(),
+                        XLNetForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -331,7 +331,7 @@ impl SequenceClassificationOption {
             ModelType::Bart => {
                 if let ConfigOption::Bart(config) = config {
                     Ok(SequenceClassificationOption::Bart(
-                        BartForSequenceClassification::new(p, config),
+                        BartForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -353,7 +353,7 @@ impl SequenceClassificationOption {
             ModelType::Longformer => {
                 if let ConfigOption::Longformer(config) = config {
                     Ok(SequenceClassificationOption::Longformer(
-                        LongformerForSequenceClassification::new(p, config),
+                        LongformerForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -364,7 +364,7 @@ impl SequenceClassificationOption {
             ModelType::FNet => {
                 if let ConfigOption::FNet(config) = config {
                     Ok(SequenceClassificationOption::FNet(
-                        FNetForSequenceClassification::new(p, config),
+                        FNetForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(

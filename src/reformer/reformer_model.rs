@@ -709,14 +709,15 @@ impl ReformerClassificationHead {
             config.hidden_size,
             Default::default(),
         );
-        let num_labels = match &config.id2label {
-            Some(value) => value.len() as i64,
-            None => {
-                return Err(RustBertError::InvalidConfigurationError(
-                    "an id to label mapping must be provided for classification tasks".to_string(),
-                ));
-            }
-        };
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
+            .len() as i64;
         let out_proj = nn::linear(
             p / "out_proj",
             config.hidden_size,
