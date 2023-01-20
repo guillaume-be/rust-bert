@@ -69,10 +69,20 @@ impl RobertaModelResources {
         "xlm-roberta-ner-es/model",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 licenseat <https://huggingface.co/sentence-transformers/all-distilroberta-v1>. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/sentence-transformers/all-distilroberta-v1>. Modified with conversion to C-array format.
     pub const ALL_DISTILROBERTA_V1: (&'static str, &'static str) = (
         "all-distilroberta-v1/model",
         "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/rust_model.ot",
+    );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/huggingface/CodeBERTa-language-id>. Modified with conversion to C-array format.
+    pub const CODEBERTA_LANGUAGE_ID: (&'static str, &'static str) = (
+        "codeberta-language-id/model",
+        "https://huggingface.co/huggingface/CodeBERTa-language-id/resolve/main/rust_model.ot",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/CodeBERT>. Modified with conversion to C-array format.
+    pub const CODEBERT_MLM: (&'static str, &'static str) = (
+        "codebert-mlm/model",
+        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/rust_model.ot",
     );
 }
 
@@ -117,6 +127,16 @@ impl RobertaConfigResources {
         "all-distilroberta-v1/config",
         "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/huggingface/CodeBERTa-language-id>. Modified with conversion to C-array format.
+    pub const CODEBERTA_LANGUAGE_ID: (&'static str, &'static str) = (
+        "codeberta-language-id/config",
+        "https://huggingface.co/huggingface/CodeBERTa-language-id/resolve/main/config.json",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/CodeBERT>. Modified with conversion to C-array format.
+    pub const CODEBERT_MLM: (&'static str, &'static str) = (
+        "codebert-mlm/config",
+        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/config.json",
+    );
 }
 
 impl RobertaVocabResources {
@@ -160,6 +180,16 @@ impl RobertaVocabResources {
         "all-distilroberta-v1/vocab",
         "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/vocab.json",
     );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/huggingface/CodeBERTa-language-id>. Modified with conversion to C-array format.
+    pub const CODEBERTA_LANGUAGE_ID: (&'static str, &'static str) = (
+        "codeberta-language-id/vocab",
+        "https://huggingface.co/huggingface/CodeBERTa-language-id/resolve/main/vocab.json",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/CodeBERT>. Modified with conversion to C-array format.
+    pub const CODEBERT_MLM: (&'static str, &'static str) = (
+        "codebert-mlm/vocab",
+        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/vocab.json",
+    );
 }
 
 impl RobertaMergesResources {
@@ -182,6 +212,16 @@ impl RobertaMergesResources {
     pub const ALL_DISTILROBERTA_V1: (&'static str, &'static str) = (
         "all-distilroberta-v1/merges",
         "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/merges.txt",
+    );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/huggingface/CodeBERTa-language-id>. Modified with conversion to C-array format.
+    pub const CODEBERTA_LANGUAGE_ID: (&'static str, &'static str) = (
+        "codeberta-language-id/merges",
+        "https://huggingface.co/huggingface/CodeBERTa-language-id/resolve/main/merges.txt",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/CodeBERT>. Modified with conversion to C-array format.
+    pub const CODEBERT_MLM: (&'static str, &'static str) = (
+        "codebert-mlm/merges",
+        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/merges.txt",
     );
 }
 
