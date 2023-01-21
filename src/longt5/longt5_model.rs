@@ -12,11 +12,12 @@
 
 use crate::longt5::encoder::LongT5Stack;
 use crate::longt5::LayerState;
+use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
 use crate::t5::{FeedForwardProj, T5Config, T5ModelOutput, TaskSpecificParams};
 use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
-use tch::nn::embedding;
+use tch::nn::{embedding, LinearConfig};
 use tch::{nn, Tensor};
 
 /// # LongT5 Pretrained model weight files
@@ -347,6 +348,310 @@ impl LongT5Model {
             all_decoder_attentions: decoder_output.all_attentions,
             all_encoder_hidden_states,
             all_encoder_attentions,
+        })
+    }
+}
+
+/// # LongT5 Model for conditional generation
+/// LongT5 model with a vocabulary decoding head
+/// It is made of the following blocks:
+/// - `base_model`: `T5Model` Base T5 model
+/// - `model_dim`: `f64` representation of the model dimension for scaling of the generated logits
+pub struct LongT5ForConditionalGeneration {
+    base_model: LongT5Model,
+    model_dim: f64,
+    tie_word_embeddings: bool,
+    lm_head: Option<nn::Linear>,
+}
+
+impl LongT5ForConditionalGeneration {
+    /// Build a new `LongT5ForConditionalGeneration`
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Variable store path for the root of the BART model
+    /// * `config` - `LongT5Config` object defining the model architecture
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::longt5::{LongT5Config, LongT5ForConditionalGeneration};
+    /// use rust_bert::Config;
+    /// use std::path::Path;
+    /// use tch::{nn, Device};
+    ///
+    /// let config_path = Path::new("path/to/config.json");
+    /// let device = Device::Cpu;
+    /// let p = nn::VarStore::new(device);
+    /// let config = LongT5Config::from_file(config_path);
+    /// let longt5 = LongT5ForConditionalGeneration::new(&p.root() / "t5", &config);
+    /// ```
+    pub fn new<'p, P>(p: P, config: &LongT5Config) -> LongT5ForConditionalGeneration
+    where
+        P: Borrow<nn::Path<'p>>,
+    {
+        let p = p.borrow();
+
+        let base_model = LongT5Model::new(p, config);
+        let tie_word_embeddings = config.tie_word_embeddings.unwrap_or(true);
+
+        let lm_head = if !tie_word_embeddings {
+            Some(nn::linear(
+                p / "lm_head",
+                config.d_model,
+                config.vocab_size,
+                LinearConfig {
+                    bias: false,
+                    ..Default::default()
+                },
+            ))
+        } else {
+            None
+        };
+
+        LongT5ForConditionalGeneration {
+            base_model,
+            model_dim: config.d_model as f64,
+            tie_word_embeddings,
+            lm_head,
+        }
+    }
+
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). This or `input_embeds` must be provided.
+    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). This or `decoder_input_embeds` must be provided.
+    /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
+    /// These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
+    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *source_sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
+    /// * `decoder_input_embeds` - Optional input tensor of shape (*batch size*, *target_sequence_length*, *embeddings dimension*). This or `decoder_input_ids` must be provided.
+    /// * `old_layer_states` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `T5ModelOutput` containing:
+    ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *vocab_size*) representing the logits for each sequence position and vocabulary item
+    ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
+    ///   - `cache` - `Option<Vec<(Option<Vec<LayerState, LayerState>>)>>` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
+    ///   - `all_encoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_encoder_attentions` - `Option<Vec<Tensor>>` of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_hidden_states` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    ///   - `all_decoder_attentions` - `Option<Vec<Tensor>>` of length *num_decoder_layers* with shape (*batch size*, *target_sequence_length*, *hidden_size*)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::longt5::{LongT5Config, LongT5ForConditionalGeneration};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = LongT5Config::from_file(config_path);
+    /// # let longt5_model: LongT5ForConditionalGeneration = LongT5ForConditionalGeneration::new(&vs.root(), &config);
+    /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    /// let encoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    /// let decoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     t5_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&encoder_attention_mask),
+    ///         None,
+    ///         Some(&target_tensor),
+    ///         Some(&decoder_attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
+    pub fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: Option<&Tensor>,
+        decoder_attention_mask: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        decoder_input_embeds: Option<&Tensor>,
+        old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
+        train: bool,
+    ) -> Result<LongT5ModelOutput, RustBertError> {
+        let base_model_output = self.base_model.forward_t(
+            input_ids,
+            attention_mask,
+            encoder_outputs,
+            decoder_input_ids,
+            decoder_attention_mask,
+            input_embeds,
+            decoder_input_embeds,
+            old_layer_states,
+            train,
+        )?;
+
+        let lm_logits = if self.tie_word_embeddings {
+            base_model_output
+                .decoder_output
+                .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+                * (self.model_dim.powf(-0.5))
+        } else {
+            base_model_output
+                .decoder_output
+                .apply(self.lm_head.as_ref().unwrap())
+        };
+
+        Ok(T5ModelOutput {
+            decoder_output: lm_logits,
+            ..base_model_output
+        })
+    }
+
+    pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
+        self.base_model
+            .encoder
+            .forward_t(
+                Some(input_ids),
+                attention_mask,
+                None,
+                None,
+                None,
+                &self.base_model.embeddings,
+                None,
+                false,
+            )
+            .unwrap()
+            .hidden_state
+    }
+}
+
+impl LMHeadModel for LongT5ForConditionalGeneration {
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `input_embeds` - Unused for LongT5
+    /// * `token_type_ids` - Unused for LongT5
+    /// * `position_ids` - Unused for LongT5
+    /// * `encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *hidden_size*). When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*).
+    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
+    ///
+    /// # Returns
+    ///
+    /// * `LMModelOutput` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
+    ///   - `cache` - `T5Cache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
+    ///      both the self attention and the encoder cross attention of each layer of the decoder.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use tch::{nn, Device, Tensor, no_grad};
+    /// # use rust_bert::Config;
+    /// # use std::path::Path;
+    /// # use tch::kind::Kind::{Int64, Double};
+    /// use rust_bert::longt5::{LongT5Config, LongT5ForConditionalGeneration};
+    /// # let config_path = Path::new("path/to/config.json");
+    /// # let vocab_path = Path::new("path/to/vocab.txt");
+    /// # let device = Device::Cpu;
+    /// # let vs = nn::VarStore::new(device);
+    /// # let config = LongT5Config::from_file(config_path);
+    /// # let longt5_model: LongT5ForConditionalGeneration = LongT5ForConditionalGeneration::new(&vs.root(), &config);
+    /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
+    /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    /// let encoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    /// let decoder_attention_mask =
+    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///
+    /// let model_output = no_grad(|| {
+    ///     t5_model.forward_t(
+    ///         Some(&input_tensor),
+    ///         Some(&encoder_attention_mask),
+    ///         None,
+    ///         Some(&target_tensor),
+    ///         Some(&decoder_attention_mask),
+    ///         None,
+    ///         None,
+    ///         None,
+    ///         false,
+    ///     )
+    /// });
+    /// ```
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        cache: Cache,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match cache {
+            Cache::LongT5Cache(cached_layer_states) => self.base_model.forward_t(
+                input_ids,
+                attention_mask,
+                encoder_outputs,
+                decoder_input_ids,
+                None,
+                None,
+                None,
+                cached_layer_states,
+                train,
+            )?,
+            Cache::None => self.base_model.forward_t(
+                input_ids,
+                attention_mask,
+                encoder_outputs,
+                decoder_input_ids,
+                None,
+                None,
+                None,
+                None,
+                train,
+            )?,
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with LongT5 Model".into(),
+                ));
+            }
+        };
+
+        let lm_logits = if self.tie_word_embeddings {
+            base_model_output
+                .decoder_output
+                .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+                * (self.model_dim.powf(-0.5))
+        } else {
+            base_model_output
+                .decoder_output
+                .apply(self.lm_head.as_ref().unwrap())
+        };
+
+        Ok(LMModelOutput {
+            lm_logits,
+            cache: Cache::LongT5Cache(base_model_output.next_cache),
         })
     }
 }

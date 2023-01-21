@@ -219,6 +219,7 @@ pub enum Cache {
     GPT2Cache(Option<Vec<Tensor>>),
     BARTCache(Option<Vec<(Option<BartLayerState>, Option<BartLayerState>)>>),
     T5Cache(Option<Vec<(Option<T5LayerState>, Option<T5LayerState>)>>),
+    LongT5Cache(Option<Vec<(Option<T5LayerState>, Option<T5LayerState>)>>),
     XLNetCache(Option<Vec<Option<XLNetLayerState>>>),
     ReformerCache(Option<Vec<Option<ReformerLayerState>>>),
     ProphetNetCache(Option<Vec<(Option<ProphetNetLayerState>, Option<ProphetNetLayerState>)>>),
