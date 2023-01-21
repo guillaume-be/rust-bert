@@ -87,7 +87,7 @@ lazy_static = { version = "1", optional = true }
 anyhow = "1"
 csv = "1"
 criterion = "0.4"
-tokio = { version = "1", features = ["sync", "rt-multi-thread", "macros"] }
+tokio = { version = "1.24", features = ["sync", "rt-multi-thread", "macros"] }
 torch-sys = "=0.10.0"
 tempfile = "3"
 itertools = "0.10"
