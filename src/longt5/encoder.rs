@@ -102,7 +102,6 @@ impl LongT5Block {
                         config,
                         has_relative_attention_bias,
                         is_decoder,
-                        store_cache,
                     ))
                 }
                 Some(EncoderAttentionType::TransientGlobal) => {
@@ -112,7 +111,6 @@ impl LongT5Block {
                             config,
                             has_relative_attention_bias,
                             is_decoder,
-                            store_cache,
                         ),
                     )
                 }

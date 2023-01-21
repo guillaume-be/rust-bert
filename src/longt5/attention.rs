@@ -215,15 +215,12 @@ pub struct LongT5LocalAttention {
     has_relative_attention_bias: bool,
     relative_attention_num_buckets: i64,
     relative_attention_max_distance: i64,
-    d_model: i64,
     key_value_proj_dim: i64,
     n_heads: i64,
-    local_radius: i64,
     block_length: i64,
     dropout: Dropout,
     inner_dim: i64,
     output_attentions: bool,
-    store_cache: bool,
     query: nn::Linear,
     key: nn::Linear,
     value: nn::Linear,
@@ -236,7 +233,6 @@ impl LongT5LocalAttention {
         p: P,
         config: &LongT5Config,
         is_decoder: bool,
-        store_cache: bool,
         has_relative_attention_bias: bool,
     ) -> LongT5LocalAttention
     where
@@ -249,7 +245,6 @@ impl LongT5LocalAttention {
             ..Default::default()
         };
 
-        let local_radius = config.local_radius;
         let block_length = config.local_radius + 1;
         let key_value_proj_dim = config.d_kv;
 
@@ -276,15 +271,12 @@ impl LongT5LocalAttention {
             has_relative_attention_bias,
             relative_attention_num_buckets: config.relative_attention_num_buckets,
             relative_attention_max_distance: config.relative_attention_max_distance.unwrap_or(128),
-            d_model: config.d_kv,
             key_value_proj_dim,
             n_heads: config.num_heads,
-            local_radius,
             block_length,
             dropout,
             inner_dim,
             output_attentions: config.output_attentions.unwrap_or(false),
-            store_cache,
             query,
             key,
             value,
@@ -380,16 +372,13 @@ pub struct LongT5TransientGlobalAttention {
     has_relative_attention_bias: bool,
     relative_attention_num_buckets: i64,
     relative_attention_max_distance: i64,
-    d_model: i64,
     key_value_proj_dim: i64,
     n_heads: i64,
-    local_radius: i64,
     block_length: i64,
     global_block_size: i64,
     dropout: Dropout,
     inner_dim: i64,
     output_attentions: bool,
-    store_cache: bool,
     query: nn::Linear,
     key: nn::Linear,
     value: nn::Linear,
@@ -403,7 +392,6 @@ impl LongT5TransientGlobalAttention {
         p: P,
         config: &LongT5Config,
         is_decoder: bool,
-        store_cache: bool,
         has_relative_attention_bias: bool,
     ) -> LongT5TransientGlobalAttention
     where
@@ -416,7 +404,6 @@ impl LongT5TransientGlobalAttention {
             ..Default::default()
         };
 
-        let local_radius = config.local_radius;
         let block_length = config.local_radius + 1;
         let global_block_size = config.global_block_size;
         let key_value_proj_dim = config.d_kv;
@@ -449,16 +436,13 @@ impl LongT5TransientGlobalAttention {
             has_relative_attention_bias,
             relative_attention_num_buckets: config.relative_attention_num_buckets,
             relative_attention_max_distance: config.relative_attention_max_distance.unwrap_or(128),
-            d_model: config.d_kv,
             key_value_proj_dim,
             n_heads: config.num_heads,
-            local_radius,
             block_length,
             global_block_size,
             dropout,
             inner_dim,
             output_attentions: config.output_attentions.unwrap_or(false),
-            store_cache,
             query,
             key,
             value,
@@ -703,7 +687,6 @@ impl LongT5LayerLocalSelfAttention {
         config: &LongT5Config,
         has_relative_attention_bias: bool,
         is_decoder: bool,
-        store_cache: bool,
     ) -> LongT5LayerLocalSelfAttention
     where
         P: Borrow<nn::Path<'p>>,
@@ -714,7 +697,6 @@ impl LongT5LayerLocalSelfAttention {
             p / "LocalSelfAttention",
             config,
             is_decoder,
-            store_cache,
             has_relative_attention_bias,
         );
 
@@ -760,7 +742,6 @@ impl LongT5LayerTransientGlobalSelfAttention {
         config: &LongT5Config,
         has_relative_attention_bias: bool,
         is_decoder: bool,
-        store_cache: bool,
     ) -> LongT5LayerTransientGlobalSelfAttention
     where
         P: Borrow<nn::Path<'p>>,
@@ -771,7 +752,6 @@ impl LongT5LayerTransientGlobalSelfAttention {
             p / "TransientGlobalSelfAttention",
             config,
             is_decoder,
-            store_cache,
             has_relative_attention_bias,
         );
 
