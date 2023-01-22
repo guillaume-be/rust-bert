@@ -491,7 +491,7 @@ impl MaskedLanguageModel {
     /// ];
     ///
     /// //    Run model
-    /// let output = mask_language_model.predict(&input);
+    /// let output = mask_language_model.predict(&input)?;
     /// for word in output {
     ///     println!("{:?}", word);
     /// }

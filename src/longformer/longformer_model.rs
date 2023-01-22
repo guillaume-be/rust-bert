@@ -925,7 +925,7 @@ impl LongformerForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = LongformerConfig::from_file(config_path);
-    /// let longformer_model = LongformerForSequenceClassification::new(&vs.root(), &config);
+    /// let longformer_model = LongformerForSequenceClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length, target_sequence_length) = (64, 128, 32);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));

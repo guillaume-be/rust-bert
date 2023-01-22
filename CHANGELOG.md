@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.20.0] - 2023-01-21
 ## Added
 - Addition of All-MiniLM-L6-V2 model weights
 - Addition of Keyword/Keyphrases extraction pipeline based on KeyBERT (https://github.com/MaartenGr/KeyBERT)
@@ -21,7 +22,7 @@ All notable changes to this project will be documented in this file. The format 
 - Fixed configuration check for RoBERTa models for sentence classification.
 - Fixed a bug causing the input prompt to be truncated for text generation if the prompt length was longer than `max_length`
 
-## [0.18.0] - 2022-07-24
+## [0.19.0] - 2022-07-24
 ## Added
 - Support for sentence embeddings models and pipelines, based on [SentenceTransformers](https://www.sbert.net).
 

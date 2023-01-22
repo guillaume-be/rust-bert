@@ -563,7 +563,7 @@ impl FNetForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = FNetConfig::from_file(config_path);
-    /// let model = FNetForSequenceClassification::new(&vs.root(), &config);
+    /// let model = FNetForSequenceClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -972,7 +972,7 @@ impl FNetForQuestionAnswering {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = FNetConfig::from_file(config_path);
-    /// let model = FNetForQuestionAnswering::new(&vs.root(), &config).unwrap();
+    /// let model = FNetForQuestionAnswering::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));

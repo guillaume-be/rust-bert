@@ -667,7 +667,7 @@ impl DebertaV2ForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = DebertaV2Config::from_file(config_path);
-    /// # let model = DebertaV2ForSequenceClassification::new(&vs.root(), &config);
+    /// # let model = DebertaV2ForSequenceClassification::new(&vs.root(), &config).unwrap();;
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));

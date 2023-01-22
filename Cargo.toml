@@ -1,9 +1,9 @@
 [package]
 name = "rust-bert"
-version = "0.19.0"
+version = "0.20.0"
 authors = ["Guillaume Becquin <guillaume.becquin@gmail.com>"]
 edition = "2018"
-description = "Ready-to-use NLP pipelines and transformer-based models (BERT, DistilBERT, GPT2,...)"
+description = "Ready-to-use NLP pipelines and language models"
 repository = "https://github.com/guillaume-be/rust-bert"
 documentation = "https://docs.rs/rust-bert"
 license = "Apache-2.0"
@@ -71,23 +71,23 @@ features = ["doc-only"]
 [dependencies]
 rust_tokenizers = "~7.0.2"
 tch = "~0.10.1"
-serde_json = "1.0.82"
-serde = { version = "1.0.140", features = ["derive"] }
-ordered-float = "3.0.0"
-uuid = { version = "1.1.2", features = ["v4"] }
-thiserror = "1.0.31"
-half = "2.1.0"
-regex = "1.6.0"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+ordered-float = "3"
+uuid = { version = "1", features = ["v4"] }
+thiserror = "1"
+half = "2"
+regex = "1.6"
 
-cached-path = { version = "0.6.0", optional = true }
-dirs = { version = "4.0.0", optional = true }
-lazy_static = { version = "1.4.0", optional = true }
+cached-path = { version = "0.6", optional = true }
+dirs = { version = "4", optional = true }
+lazy_static = { version = "1", optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.58"
-csv = "1.1.6"
-criterion = "0.3.6"
-tokio = { version = "1.20.0", features = ["sync", "rt-multi-thread", "macros"] }
-torch-sys = "0.10.0"
-tempfile = "3.3.0"
-itertools = "0.10.3"
+anyhow = "1"
+csv = "1"
+criterion = "0.4"
+tokio = { version = "1.24", features = ["sync", "rt-multi-thread", "macros"] }
+torch-sys = "=0.10.0"
+tempfile = "3"
+itertools = "0.10"
