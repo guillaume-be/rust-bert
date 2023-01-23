@@ -274,7 +274,10 @@ impl NERModel {
     /// ]]
     /// # ;
     /// ```
-    pub fn predict_full_entities(&self, input: &[&str]) -> Vec<Vec<Entity>> {
+    pub fn predict_full_entities<S>(&self, input: &[S]) -> Vec<Vec<Entity>>
+    where
+        S: AsRef<str>,
+    {
         let tokens = self.token_classification_model.predict(input, true, false);
         let mut entities: Vec<Vec<Entity>> = Vec::new();
 
