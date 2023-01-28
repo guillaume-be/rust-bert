@@ -33,6 +33,7 @@ The tasks currently supported include:
   - Part of Speech tagging
   - Question-Answering
   - Language Generation
+  - Masked Language Model
   - Sentence Embeddings
 
 <details>
@@ -75,8 +76,8 @@ This cache location defaults to `~/.cache/.rustbert`, but can be changed by sett
 
 ### Manual installation (recommended)
 
-1. Download `libtorch` from https://pytorch.org/get-started/locally/. This package requires `v1.12.0`: if this version is no longer available on the "get started" page,
-the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu116/libtorch-cxx11-abi-shared-with-deps-1.12.0%2Bcu116.zip` for a Linux version with CUDA11.
+1. Download `libtorch` from https://pytorch.org/get-started/locally/. This package requires `v1.13.1`: if this version is no longer available on the "get started" page,
+the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-1.13.1%2Bcu117.zip` for a Linux version with CUDA11. **NOTE:** When using `rust-bert` as dependency from [crates.io](https://crates.io), please check the required `LIBTORCH` on the published package [readme](https://crates.io/crates/rust-bert) as it may differ from the version documented here (applying to the current repository version).
 2. Extract the library to a location of your choice
 3. Set the following environment variables
 ##### Linux:
@@ -94,7 +95,7 @@ $Env:Path += ";X:\path\to\libtorch\lib"
 ### Automatic installation
 
 Alternatively, you can let the `build` script automatically download the `libtorch` library for you.
-The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu113`.
+The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu117`.
 Note that the libtorch library is large (order of several GBs for the CUDA-enabled version) and the first build may therefore take several minutes to complete.
 
 ## Ready-to-use pipelines
@@ -360,7 +361,37 @@ Output:
 </details>
 &nbsp;  
 <details>
-<summary> <b>9. Part of Speech tagging </b> </summary>
+<summary> <b>9. Keywords/keyphrases extraction</b> </summary>
+
+Extract keywords and keyphrases extractions from input documents
+
+```rust
+fn main() -> anyhow::Result<()> {
+    let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
+    
+    let input = "Rust is a multi-paradigm, general-purpose programming language. \
+       Rust emphasizes performance, type safety, and concurrency. Rust enforces memory safety—that is, \
+       that all references point to valid memory—without requiring the use of a garbage collector or \
+       reference counting present in other memory-safe languages. To simultaneously enforce \
+       memory safety and prevent concurrent data races, Rust's borrow checker tracks the object lifetime \
+       and variable scope of all references in a program during compilation. Rust is popular for \
+       systems programming but also offers high-level features including functional programming constructs.";
+
+    let output = keyword_extraction_model.predict(&[input])?;
+}
+```
+Output:
+```
+"rust" - 0.50910604
+"programming" - 0.35731024
+"concurrency" - 0.33825397
+"concurrent" - 0.31229728
+"program" - 0.29115444
+```
+</details>
+&nbsp;  
+<details>
+<summary> <b>10. Part of Speech tagging </b> </summary>
 
 Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 ```rust
@@ -382,7 +413,7 @@ Output:
 </details>
 &nbsp;  
 <details>
-<summary> <b>10. Sentence embeddings </b> </summary>
+<summary> <b>11. Sentence embeddings </b> </summary>
 
 Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
 ```rust
@@ -402,6 +433,32 @@ Output:
 [
     [-0.000202666, 0.08148022, 0.03136178, 0.002920636 ...],
     [0.064757116, 0.048519745, -0.01786038, -0.0479775 ...]
+]
+```
+</details>
+&nbsp;  
+<details>
+<summary> <b>12. Masked Language Model </b> </summary>
+
+Predict masked words in input sentences.
+```rust
+    let model = MaskedLanguageModel::new(Default::default())?;
+
+    let sentences = [
+        "Hello I am a <mask> student",
+        "Paris is the <mask> of France. It is <mask> in Europe.",
+    ];
+    
+    let output = model.predict(&sentences);
+```
+Output:
+```
+[
+    [MaskedToken { text: "college", id: 2267, score: 8.091}],
+    [
+        MaskedToken { text: "capital", id: 3007, score: 16.7249}, 
+        MaskedToken { text: "located", id: 2284, score: 9.0452}
+    ]
 ]
 ```
 </details>

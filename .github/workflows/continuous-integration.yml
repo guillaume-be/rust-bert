@@ -21,9 +21,24 @@ jobs:
         with:
           command: build
 
+  build-no-defaults:
+    name: Build no defaults
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --no-default-features
+
   build-windows:
     name: Build Windows
-    runs-on: windows-latest
+    runs-on: windows-2019
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -128,7 +143,7 @@ jobs:
           override: true
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
+          python-version: '3.10'
       - run: |
           pip install -r requirements.txt --progress-bar off
           python ./utils/download-dependencies_distilbert.py

@@ -192,7 +192,7 @@ impl T5Attention {
             None
         };
 
-        let mut scores = Tensor::einsum("bnqd,bnkd->bnqk", &[q, k]);
+        let mut scores = Tensor::einsum("bnqd,bnkd->bnqk", &[q, k], None);
 
         let calculated_position_bias = if position_bias.is_none() {
             let mut temp_value = if self.has_relative_attention_bias {

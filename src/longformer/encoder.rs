@@ -340,10 +340,11 @@ impl LongformerEncoder {
             attention_weights = temp.1;
             global_attention_weights = temp.2;
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().transpose(1, 2));
+                attentions.push(std::mem::take(&mut attention_weights.unwrap()).transpose(1, 2));
             };
             if let Some(global_attentions) = all_global_attentions.borrow_mut() {
-                global_attentions.push(global_attention_weights.as_ref().unwrap().transpose(2, 3));
+                global_attentions
+                    .push(std::mem::take(&mut global_attention_weights.unwrap()).transpose(2, 3));
             };
             if let Some(all_hidden_states) = all_hidden_states.borrow_mut() {
                 all_hidden_states.push(x.as_ref().unwrap().copy());

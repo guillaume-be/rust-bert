@@ -30,7 +30,7 @@ fn fnet_masked_lm() -> anyhow::Result<()> {
     let tokenizer: FNetTokenizer =
         FNetTokenizer::from_file(vocab_path.to_str().unwrap(), false, false)?;
     let config = FNetConfig::from_file(config_path);
-    let fnet_model = FNetForMaskedLM::new(&vs.root(), &config);
+    let fnet_model = FNetForMaskedLM::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input
@@ -109,7 +109,7 @@ fn fnet_for_sequence_classification() -> anyhow::Result<()> {
         "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
     ];
 
-    let output = sentiment_classifier.predict(&input);
+    let output = sentiment_classifier.predict(input);
 
     assert_eq!(output.len(), 3usize);
     assert_eq!(output[0].polarity, SentimentPolarity::Negative);
@@ -121,6 +121,7 @@ fn fnet_for_sequence_classification() -> anyhow::Result<()> {
 
     Ok(())
 }
+
 //
 #[test]
 fn fnet_for_multiple_choice() -> anyhow::Result<()> {
@@ -138,7 +139,7 @@ fn fnet_for_multiple_choice() -> anyhow::Result<()> {
     let mut config = FNetConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let fnet_model = FNetForMultipleChoice::new(&vs.root(), &config);
+    let fnet_model = FNetForMultipleChoice::new(vs.root(), &config);
 
     //    Define input
     let input = [
@@ -201,7 +202,7 @@ fn fnet_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
     config.output_hidden_states = Some(true);
-    let fnet_model = FNetForTokenClassification::new(&vs.root(), &config);
+    let fnet_model = FNetForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [
@@ -256,7 +257,7 @@ fn fnet_for_question_answering() -> anyhow::Result<()> {
         FNetTokenizer::from_file(vocab_path.to_str().unwrap(), false, false)?;
     let mut config = FNetConfig::from_file(config_path);
     config.output_hidden_states = Some(true);
-    let fnet_model = FNetForQuestionAnswering::new(&vs.root(), &config);
+    let fnet_model = FNetForQuestionAnswering::new(vs.root(), &config);
 
     //    Define input
     let input = [

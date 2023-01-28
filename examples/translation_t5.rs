@@ -22,7 +22,6 @@ fn main() -> anyhow::Result<()> {
     let model_resource = RemoteResource::from_pretrained(T5ModelResources::T5_BASE);
     let config_resource = RemoteResource::from_pretrained(T5ConfigResources::T5_BASE);
     let vocab_resource = RemoteResource::from_pretrained(T5VocabResources::T5_BASE);
-    let merges_resource = RemoteResource::from_pretrained(T5VocabResources::T5_BASE);
 
     let source_languages = [
         Language::English,
@@ -42,7 +41,7 @@ fn main() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        None,
         source_languages,
         target_languages,
         Device::cuda_if_available(),

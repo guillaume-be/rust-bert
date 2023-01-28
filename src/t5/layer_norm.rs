@@ -33,10 +33,11 @@ impl T5LayerNorm {
 impl Module for T5LayerNorm {
     fn forward(&self, x: &Tensor) -> Tensor {
         let input_type = x.kind();
-        let variance =
-            x.to_kind(Kind::Float)
-                .pow_tensor_scalar(2.0_f64)
-                .mean_dim(&[-1], true, Kind::Float);
+        let variance = x.to_kind(Kind::Float).pow_tensor_scalar(2.0_f64).mean_dim(
+            [-1].as_slice(),
+            true,
+            Kind::Float,
+        );
         let x = x * (variance + self.epsilon).rsqrt();
         if input_type != Kind::Float {
             (&self.weight * x).to_kind(input_type)

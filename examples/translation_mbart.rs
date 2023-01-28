@@ -26,8 +26,6 @@ fn main() -> anyhow::Result<()> {
     let config_resource =
         RemoteResource::from_pretrained(MBartConfigResources::MBART50_MANY_TO_MANY);
     let vocab_resource = RemoteResource::from_pretrained(MBartVocabResources::MBART50_MANY_TO_MANY);
-    let merges_resource =
-        RemoteResource::from_pretrained(MBartVocabResources::MBART50_MANY_TO_MANY);
 
     let source_languages = MBartSourceLanguages::MBART50_MANY_TO_MANY;
     let target_languages = MBartTargetLanguages::MBART50_MANY_TO_MANY;
@@ -37,7 +35,7 @@ fn main() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        None,
         source_languages,
         target_languages,
         Device::cuda_if_available(),

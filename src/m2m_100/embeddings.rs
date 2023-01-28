@@ -71,7 +71,7 @@ impl SinusoidalPositionalEmbedding {
     ) -> Tensor {
         let half_dim = embedding_dim / 2;
 
-        let emb = -(10000f64.ln() as f64) / ((half_dim - 1) as f64);
+        let emb = -(10000f64.ln()) / ((half_dim - 1) as f64);
         let emb = (Tensor::arange(half_dim, (Kind::Float, device)) * emb).exp();
         let emb =
             Tensor::arange(num_embeddings, (Kind::Float, device)).unsqueeze(1) * emb.unsqueeze(0);

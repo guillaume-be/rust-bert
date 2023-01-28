@@ -7,7 +7,7 @@ use rust_bert::pipelines::zero_shot_classification::{
     ZeroShotClassificationConfig, ZeroShotClassificationModel,
 };
 use rust_bert::resources::{RemoteResource, ResourceProvider};
-use rust_bert::Config;
+use rust_bert::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{RobertaTokenizer, Tokenizer, TruncationStrategy};
 use tch::{nn, Device, Tensor};
 
@@ -93,11 +93,11 @@ fn bart_summarization_greedy() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        merges_resource: Some(merges_resource),
         num_beams: 1,
         length_penalty: 1.0,
         min_length: 56,
-        max_length: 142,
+        max_length: Some(142),
         device: Device::Cpu,
         ..Default::default()
     };
@@ -154,10 +154,10 @@ fn bart_summarization_beam_search() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        merges_resource: Some(merges_resource),
         num_beams: 4,
         min_length: 56,
-        max_length: 142,
+        max_length: Some(142),
         length_penalty: 1.0,
         device: Device::Cpu,
         ..Default::default()
@@ -212,13 +212,13 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
     let candidate_labels = &["politics", "public health", "economy", "sports"];
 
     let output = sequence_classification_model.predict(
-        &[input_sentence, input_sequence_2],
+        [input_sentence, input_sequence_2],
         candidate_labels,
         Some(Box::new(|label: &str| {
             format!("This example is about {}.", label)
         })),
         128,
-    );
+    )?;
 
     assert_eq!(output.len(), 2);
 
@@ -227,6 +227,34 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
     assert!((output[0].score - 0.9630).abs() < 1e-4);
     assert_eq!(output[1].text, "economy");
     assert!((output[1].score - 0.6416).abs() < 1e-4);
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
+fn bart_zero_shot_classification_try_error() -> anyhow::Result<()> {
+    //    Set-up model
+    let zero_shot_config = ZeroShotClassificationConfig {
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
+
+    let output = sequence_classification_model.predict(
+        [],
+        [],
+        Some(Box::new(|label: &str| {
+            format!("This example is about {}.", label)
+        })),
+        128,
+    );
+
+    let output_is_error = match output {
+        Err(RustBertError::ValueError(_)) => true,
+        _ => unreachable!(),
+    };
+    assert!(output_is_error);
+
     Ok(())
 }
 
@@ -245,13 +273,13 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
     let candidate_labels = &["politics", "public health", "economy", "sports"];
 
     let output = sequence_classification_model.predict_multilabel(
-        &[input_sentence, input_sequence_2],
+        [input_sentence, input_sequence_2],
         candidate_labels,
         Some(Box::new(|label: &str| {
             format!("This example is about {}.", label)
         })),
         128,
-    );
+    )?;
 
     assert_eq!(output.len(), 2);
     assert_eq!(output[0].len(), candidate_labels.len());
@@ -274,5 +302,33 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
     assert!((output[1][2].score - 0.9851).abs() < 1e-4);
     assert_eq!(output[1][3].text, "sports");
     assert!((output[1][3].score - 0.0004).abs() < 1e-4);
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
+fn bart_zero_shot_classification_multilabel_try_error() -> anyhow::Result<()> {
+    //    Set-up model
+    let zero_shot_config = ZeroShotClassificationConfig {
+        device: Device::Cpu,
+        ..Default::default()
+    };
+    let sequence_classification_model = ZeroShotClassificationModel::new(zero_shot_config)?;
+
+    let output = sequence_classification_model.predict_multilabel(
+        [],
+        [],
+        Some(Box::new(|label: &str| {
+            format!("This example is about {}.", label)
+        })),
+        128,
+    );
+
+    let output_is_error = match output {
+        Err(RustBertError::ValueError(_)) => true,
+        _ => unreachable!(),
+    };
+    assert!(output_is_error);
+
     Ok(())
 }

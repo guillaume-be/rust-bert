@@ -22,14 +22,16 @@ fn main() -> anyhow::Result<()> {
     let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
     let candidate_labels = &["politics", "public health", "economy", "sports"];
 
-    let output = sequence_classification_model.predict_multilabel(
-        &[input_sentence, input_sequence_2],
-        candidate_labels,
-        Some(Box::new(|label: &str| {
-            format!("This example is about {}.", label)
-        })),
-        128,
-    );
+    let output = sequence_classification_model
+        .predict_multilabel(
+            [input_sentence, input_sequence_2],
+            candidate_labels,
+            Some(Box::new(|label: &str| {
+                format!("This example is about {}.", label)
+            })),
+            128,
+        )
+        .unwrap();
 
     println!("{:?}", output);
 

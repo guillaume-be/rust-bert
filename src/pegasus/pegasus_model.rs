@@ -585,7 +585,7 @@ impl PegasusConditionalGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -624,7 +624,7 @@ impl PegasusConditionalGenerator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let config = PegasusConfig::from_file(config_path);
-        let model = PegasusForConditionalGeneration::new(&var_store.root(), &config);
+        let model = PegasusForConditionalGeneration::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
@@ -654,7 +654,7 @@ impl PegasusConditionalGenerator {
     }
 
     fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
+        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
             .filter(|pos| !token_ids.contains(pos))
             .collect();
         let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
@@ -710,11 +710,13 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
         &self,
         scores: &mut Tensor,
         current_length: i64,
-        max_length: i64,
+        max_length: Option<i64>,
         _forced_bos_token_id: Option<i64>,
     ) {
-        if current_length == max_length - 1 {
-            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+        if let Some(max_length) = max_length {
+            if current_length == max_length - 1 {
+                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+            }
         }
     }
 
@@ -753,7 +755,7 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
     fn encode_prompt_text<S>(
         &self,
         prompt_text: &[S],
-        max_len: i64,
+        max_len: Option<i64>,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
@@ -761,7 +763,9 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
     {
         let tokens = self._get_tokenizer().encode_list(
             prompt_text,
-            max_len as usize,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
             &TruncationStrategy::LongestFirst,
             0,
         );

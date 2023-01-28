@@ -92,11 +92,11 @@ pub struct SummarizationConfig {
     /// Vocab resource (default: pretrained BART model on CNN-DM)
     pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: pretrained BART model on CNN-DM)
-    pub merges_resource: Box<dyn ResourceProvider + Send>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
-    pub max_length: i64,
+    pub max_length: Option<i64>,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
@@ -135,24 +135,26 @@ impl SummarizationConfig {
     /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
-    pub fn new<R>(
+    pub fn new<RM, RC, RV>(
         model_type: ModelType,
-        model_resource: R,
-        config_resource: R,
-        vocab_resource: R,
-        merges_resource: R,
+        model_resource: RM,
+        config_resource: RC,
+        vocab_resource: RV,
+        merges_resource: Option<RV>,
     ) -> SummarizationConfig
     where
-        R: ResourceProvider + Send + 'static,
+        RM: ResourceProvider + Send + 'static,
+        RC: ResourceProvider + Send + 'static,
+        RV: ResourceProvider + Send + 'static,
     {
         SummarizationConfig {
             model_type,
             model_resource: Box::new(model_resource),
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
-            merges_resource: Box::new(merges_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             min_length: 56,
-            max_length: 142,
+            max_length: Some(142),
             do_sample: false,
             early_stopping: true,
             num_beams: 3,
@@ -178,7 +180,9 @@ impl Default for SummarizationConfig {
             RemoteResource::from_pretrained(BartModelResources::BART_CNN),
             RemoteResource::from_pretrained(BartConfigResources::BART_CNN),
             RemoteResource::from_pretrained(BartVocabResources::BART_CNN),
-            RemoteResource::from_pretrained(BartMergesResources::BART_CNN),
+            Some(RemoteResource::from_pretrained(
+                BartMergesResources::BART_CNN,
+            )),
         )
     }
 }

@@ -39,9 +39,6 @@ fn test_generation_reformer() -> anyhow::Result<()> {
     let vocab_resource = Box::new(RemoteResource::from_pretrained(
         ReformerVocabResources::CRIME_AND_PUNISHMENT,
     ));
-    let merges_resource = Box::new(RemoteResource::from_pretrained(
-        ReformerVocabResources::CRIME_AND_PUNISHMENT,
-    ));
     let model_resource = Box::new(RemoteResource::from_pretrained(
         ReformerModelResources::CRIME_AND_PUNISHMENT,
     ));
@@ -51,9 +48,9 @@ fn test_generation_reformer() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        merges_resource: None,
         min_length: 100,
-        max_length: 100,
+        max_length: Some(100),
         do_sample: false,
         early_stopping: true,
         no_repeat_ngram_size: 3,
@@ -101,7 +98,7 @@ fn reformer_for_sequence_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let reformer_model = ReformerForSequenceClassification::new(&vs.root(), &config)?;
+    let reformer_model = ReformerForSequenceClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [
@@ -162,7 +159,7 @@ fn reformer_for_question_answering() -> anyhow::Result<()> {
     let mut config = ReformerConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let reformer_model = ReformerForQuestionAnswering::new(&vs.root(), &config)?;
+    let reformer_model = ReformerForQuestionAnswering::new(vs.root(), &config)?;
 
     //    Define input
     let input = [

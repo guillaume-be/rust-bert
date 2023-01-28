@@ -26,8 +26,8 @@ fn main() -> anyhow::Result<()> {
         ModelType::T5,
         weights_resource,
         config_resource,
-        vocab_resource.clone(),
         vocab_resource,
+        None,
     );
     let summarization_model = SummarizationModel::new(summarization_config)?;
 

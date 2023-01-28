@@ -39,7 +39,7 @@ fn openai_gpt_lm_model() -> anyhow::Result<()> {
         true,
     )?;
     let config = OpenAiGptConfig::from_file(config_path);
-    let openai_gpt = OpenAIGPTLMHeadModel::new(&vs.root(), &config);
+    let openai_gpt = OpenAIGPTLMHeadModel::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input
@@ -122,8 +122,8 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
-        max_length: 40,
+        merges_resource: Some(merges_resource),
+        max_length: Some(40),
         do_sample: false,
         num_beams: 1,
         top_p: 1.0,
@@ -164,8 +164,8 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
-        max_length: 20,
+        merges_resource: Some(merges_resource),
+        max_length: Some(20),
         do_sample: false,
         early_stopping: true,
         num_beams: 5,
@@ -217,8 +217,8 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
-        max_length: 20,
+        merges_resource: Some(merges_resource),
+        max_length: Some(20),
         do_sample: false,
         early_stopping: true,
         num_beams: 5,
@@ -286,8 +286,8 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
-        max_length: 20,
+        merges_resource: Some(merges_resource),
+        max_length: Some(20),
         do_sample: false,
         num_beams: 5,
         temperature: 2.0,

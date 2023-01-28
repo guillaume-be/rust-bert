@@ -63,11 +63,11 @@ pub struct TextGenerationConfig {
     /// Vocab resource (default: pretrained BART model on CNN-DM)
     pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: pretrained BART model on CNN-DM)
-    pub merges_resource: Box<dyn ResourceProvider + Send>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
-    /// Maximum sequence length (default: 20)
-    pub max_length: i64,
+    /// Maximum sequence length (default: 56)
+    pub max_length: Option<i64>,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
@@ -106,24 +106,26 @@ impl TextGenerationConfig {
     /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
-    pub fn new<R>(
+    pub fn new<RM, RC, RV>(
         model_type: ModelType,
-        model_resource: R,
-        config_resource: R,
-        vocab_resource: R,
-        merges_resource: R,
+        model_resource: RM,
+        config_resource: RC,
+        vocab_resource: RV,
+        merges_resource: Option<RV>,
     ) -> TextGenerationConfig
     where
-        R: ResourceProvider + Send + 'static,
+        RM: ResourceProvider + Send + 'static,
+        RC: ResourceProvider + Send + 'static,
+        RV: ResourceProvider + Send + 'static,
     {
         TextGenerationConfig {
             model_type,
             model_resource: Box::new(model_resource),
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
-            merges_resource: Box::new(merges_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             min_length: 0,
-            max_length: 20,
+            max_length: Some(56),
             do_sample: true,
             early_stopping: true,
             num_beams: 5,
@@ -149,7 +151,9 @@ impl Default for TextGenerationConfig {
             RemoteResource::from_pretrained(Gpt2ModelResources::GPT2_MEDIUM),
             RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2_MEDIUM),
             RemoteResource::from_pretrained(Gpt2VocabResources::GPT2_MEDIUM),
-            RemoteResource::from_pretrained(Gpt2MergesResources::GPT2_MEDIUM),
+            Some(RemoteResource::from_pretrained(
+                Gpt2MergesResources::GPT2_MEDIUM,
+            )),
         )
     }
 }
@@ -322,7 +326,7 @@ pub struct TextGenerationModel {
     prefix: Option<String>,
     prefix_length: Option<i64>,
     min_length: i64,
-    max_length: i64,
+    max_length: Option<i64>,
 }
 
 impl TextGenerationModel {
@@ -441,7 +445,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                 self.model.generate_indices(
                     Some(&texts),
                     Some(self.min_length + prefix_length),
-                    Some(self.max_length + prefix_length),
+                    self.max_length.map(|max_length| max_length + prefix_length),
                 )
             }
             _ => panic!("Prefix length not defined but prefix provided!"),

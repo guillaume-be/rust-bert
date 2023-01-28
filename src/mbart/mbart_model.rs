@@ -160,7 +160,7 @@ fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
     let output = input_ids.masked_fill(&input_ids.eq(-100), pad_token_id);
     let index_eos: Tensor = input_ids
         .ne(pad_token_id)
-        .sum_dim_intlist(&[1], true, Int64)
+        .sum_dim_intlist([1].as_slice(), true, Int64)
         - 1;
     output
         .select(1, 0)
@@ -178,7 +178,7 @@ pub struct MBartClassificationHead {
 }
 
 impl MBartClassificationHead {
-    pub fn new<'p, P>(p: P, config: &MBartConfig) -> MBartClassificationHead
+    pub fn new<'p, P>(p: P, config: &MBartConfig) -> Result<MBartClassificationHead, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -194,9 +194,12 @@ impl MBartClassificationHead {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("id2label not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
-
         let out_proj = nn::linear(
             p / "out_proj",
             config.d_model,
@@ -206,11 +209,11 @@ impl MBartClassificationHead {
 
         let dropout = Dropout::new(config.classifier_dropout.unwrap_or(0.0));
 
-        MBartClassificationHead {
+        Ok(MBartClassificationHead {
             dense,
             dropout,
             out_proj,
-        }
+        })
     }
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
@@ -592,22 +595,25 @@ impl MBartForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = MBartConfig::from_file(config_path);
     /// let mbart: MBartForSequenceClassification =
-    ///     MBartForSequenceClassification::new(&p.root(), &config);
+    ///     MBartForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &MBartConfig) -> MBartForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &MBartConfig,
+    ) -> Result<MBartForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
         let base_model = MBartModel::new(p / "model", config);
-        let classification_head = MBartClassificationHead::new(p / "classification_head", config);
+        let classification_head = MBartClassificationHead::new(p / "classification_head", config)?;
         let eos_token_id = config.eos_token_id.unwrap_or(3);
-        MBartForSequenceClassification {
+        Ok(MBartForSequenceClassification {
             base_model,
             classification_head,
             eos_token_id,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -646,7 +652,7 @@ impl MBartForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = MBartConfig::from_file(config_path);
-    /// # let mbart_model: MBartForSequenceClassification = MBartForSequenceClassification::new(&vs.root(), &config);
+    /// # let mbart_model: MBartForSequenceClassification = MBartForSequenceClassification::new(&vs.root(), &config).unwrap();;
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -682,7 +688,7 @@ impl MBartForSequenceClassification {
             train,
         );
         let eos_mask = input_ids.eq(self.eos_token_id);
-        let reshape = eos_mask.sum_dim_intlist(&[1], true, Int64);
+        let reshape = eos_mask.sum_dim_intlist([1].as_slice(), true, Int64);
         let sentence_representation = base_model_output
             .decoder_output
             .permute(&[2, 0, 1])
@@ -862,7 +868,7 @@ impl MBartGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -900,7 +906,7 @@ impl MBartGenerator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = MBartConfig::from_file(config_path);
-        let model = MBartForConditionalGeneration::new(&var_store.root(), &config);
+        let model = MBartForConditionalGeneration::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
@@ -930,7 +936,7 @@ impl MBartGenerator {
     }
 
     fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
+        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
             .filter(|pos| !token_ids.contains(pos))
             .collect();
         let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
@@ -983,13 +989,15 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
         &self,
         scores: &mut Tensor,
         current_length: i64,
-        max_length: i64,
+        max_length: Option<i64>,
         forced_bos_token_id: Option<i64>,
     ) {
         if current_length == 1 {
             self.force_token_id_generation(scores, &[forced_bos_token_id.unwrap_or(250004)]);
-        } else if current_length == max_length - 1 {
-            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+        } else if let Some(max_length) = max_length {
+            if current_length == max_length - 1 {
+                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+            }
         }
     }
 
@@ -1028,7 +1036,7 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
     fn encode_prompt_text<S>(
         &self,
         prompt_text: &[S],
-        max_len: i64,
+        max_len: Option<i64>,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
@@ -1036,7 +1044,9 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
     {
         let tokens = self._get_tokenizer().encode_list(
             prompt_text,
-            max_len as usize,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
             &TruncationStrategy::LongestFirst,
             0,
         );
@@ -1130,6 +1140,6 @@ mod test {
         let vs = tch::nn::VarStore::new(device);
         let config = MBartConfig::from_file(config_path);
 
-        let _: Box<dyn Send> = Box::new(MBartModel::new(&vs.root(), &config));
+        let _: Box<dyn Send> = Box::new(MBartModel::new(vs.root(), &config));
     }
 }

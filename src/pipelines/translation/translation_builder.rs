@@ -383,7 +383,7 @@ impl TranslationModelBuilder {
             translation_resources.model_resource,
             translation_resources.config_resource,
             translation_resources.vocab_resource,
-            translation_resources.merges_resource,
+            Some(translation_resources.merges_resource),
             translation_resources.source_languages,
             translation_resources.target_languages,
             device,

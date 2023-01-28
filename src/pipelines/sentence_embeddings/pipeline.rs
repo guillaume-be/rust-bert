@@ -216,7 +216,9 @@ impl SentenceEmbeddingsModel {
                 .transpose()?
                 .map(|path| path.to_string_lossy().into_owned())
                 .as_deref(),
-            sentence_bert_config.do_lower_case,
+            tokenizer_config
+                .do_lower_case
+                .unwrap_or(sentence_bert_config.do_lower_case),
             tokenizer_config.strip_accents,
             tokenizer_config.add_prefix_space,
         )?;
@@ -228,11 +230,8 @@ impl SentenceEmbeddingsModel {
             transformer_type,
             transformer_config_resource.get_local_path()?,
         );
-        let transformer = SentenceEmbeddingsOption::new(
-            transformer_type,
-            &var_store.root(),
-            &transformer_config,
-        )?;
+        let transformer =
+            SentenceEmbeddingsOption::new(transformer_type, var_store.root(), &transformer_config)?;
         var_store.load(transformer_weights_resource.get_local_path()?)?;
 
         // Setup pooling layer
@@ -308,7 +307,7 @@ impl SentenceEmbeddingsModel {
                 Tensor::of_slice(
                     &input
                         .iter()
-                        .map(|&e| if e == pad_token_id { 0_i64 } else { 1_i64 })
+                        .map(|&e| i64::from(e != pad_token_id))
                         .collect::<Vec<_>>(),
                 )
             })

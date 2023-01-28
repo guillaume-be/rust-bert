@@ -254,19 +254,21 @@ impl TokenClassificationConfig {
     /// * vocab - The `ResourceProvider` pointing to the tokenizers' vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `ResourceProvider` pointing to the tokenizers' merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new<R>(
+    pub fn new<RM, RC, RV>(
         model_type: ModelType,
-        model_resource: R,
-        config_resource: R,
-        vocab_resource: R,
-        merges_resource: Option<R>,
+        model_resource: RM,
+        config_resource: RC,
+        vocab_resource: RV,
+        merges_resource: Option<RV>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
         label_aggregation_function: LabelAggregationOption,
     ) -> TokenClassificationConfig
     where
-        R: ResourceProvider + Send + 'static,
+        RM: ResourceProvider + Send + 'static,
+        RC: ResourceProvider + Send + 'static,
+        RV: ResourceProvider + Send + 'static,
     {
         TokenClassificationConfig {
             model_type,
@@ -352,7 +354,7 @@ impl TokenClassificationOption {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
                     Ok(TokenClassificationOption::Bert(
-                        BertForTokenClassification::new(p, config),
+                        BertForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -363,7 +365,7 @@ impl TokenClassificationOption {
             ModelType::Deberta => {
                 if let ConfigOption::Deberta(config) = config {
                     Ok(TokenClassificationOption::Deberta(
-                        DebertaForTokenClassification::new(p, config),
+                        DebertaForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -374,7 +376,7 @@ impl TokenClassificationOption {
             ModelType::DebertaV2 => {
                 if let ConfigOption::DebertaV2(config) = config {
                     Ok(TokenClassificationOption::DebertaV2(
-                        DebertaV2ForTokenClassification::new(p, config),
+                        DebertaV2ForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -385,7 +387,7 @@ impl TokenClassificationOption {
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
                     Ok(TokenClassificationOption::DistilBert(
-                        DistilBertForTokenClassification::new(p, config),
+                        DistilBertForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -396,7 +398,7 @@ impl TokenClassificationOption {
             ModelType::MobileBert => {
                 if let ConfigOption::MobileBert(config) = config {
                     Ok(TokenClassificationOption::MobileBert(
-                        MobileBertForTokenClassification::new(p, config),
+                        MobileBertForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -407,7 +409,7 @@ impl TokenClassificationOption {
             ModelType::Roberta => {
                 if let ConfigOption::Roberta(config) = config {
                     Ok(TokenClassificationOption::Roberta(
-                        RobertaForTokenClassification::new(p, config),
+                        RobertaForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -418,7 +420,7 @@ impl TokenClassificationOption {
             ModelType::XLMRoberta => {
                 if let ConfigOption::Roberta(config) = config {
                     Ok(TokenClassificationOption::XLMRoberta(
-                        RobertaForTokenClassification::new(p, config),
+                        RobertaForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -429,7 +431,7 @@ impl TokenClassificationOption {
             ModelType::Electra => {
                 if let ConfigOption::Electra(config) = config {
                     Ok(TokenClassificationOption::Electra(
-                        ElectraForTokenClassification::new(p, config),
+                        ElectraForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -440,7 +442,7 @@ impl TokenClassificationOption {
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
                     Ok(TokenClassificationOption::Albert(
-                        AlbertForTokenClassification::new(p, config),
+                        AlbertForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -451,7 +453,7 @@ impl TokenClassificationOption {
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = config {
                     Ok(TokenClassificationOption::XLNet(
-                        XLNetForTokenClassification::new(p, config).unwrap(),
+                        XLNetForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -462,7 +464,7 @@ impl TokenClassificationOption {
             ModelType::Longformer => {
                 if let ConfigOption::Longformer(config) = config {
                     Ok(TokenClassificationOption::Longformer(
-                        LongformerForTokenClassification::new(p, config),
+                        LongformerForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -473,7 +475,7 @@ impl TokenClassificationOption {
             ModelType::FNet => {
                 if let ConfigOption::FNet(config) = config {
                     Ok(TokenClassificationOption::FNet(
-                        FNetForTokenClassification::new(p, config),
+                        FNetForTokenClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -697,7 +699,7 @@ impl TokenClassificationModel {
             .map(|v| v as usize)
             .unwrap_or(usize::MAX);
         let token_sequence_classifier =
-            TokenClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
+            TokenClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping().clone();
         let batch_size = config.batch_size;
         var_store.load(weights_path)?;
@@ -747,7 +749,7 @@ impl TokenClassificationModel {
         let mut start_token = 0_usize;
         let total_length = encoded_input.ids.len();
 
-        while (spans.len() * doc_stride as usize) < encoded_input.ids.len() {
+        while (spans.len() * doc_stride) < encoded_input.ids.len() {
             let end_token = min(start_token + max_content_length, total_length);
             let sub_encoded_input = TokenIdsWithOffsets {
                 ids: encoded_input.ids[start_token..end_token].to_vec(),
@@ -889,7 +891,10 @@ impl TokenClassificationModel {
                     None,
                     false,
                 );
-                let score = output.exp() / output.exp().sum_dim_intlist(&[-1], true, Kind::Float);
+                let score = output.exp()
+                    / output
+                        .exp()
+                        .sum_dim_intlist([-1].as_slice(), true, Kind::Float);
                 let label_indices = score.argmax(-1, true);
                 for sentence_idx in 0..label_indices.size()[0] {
                     let labels = label_indices.get(sentence_idx);
@@ -989,8 +994,8 @@ impl TokenClassificationModel {
         position_idx: i64,
         word_index: u16,
     ) -> Token {
-        let label_id = labels.int64_value(&[position_idx as i64]);
-        let token_id = input_tensor.int64_value(&[sentence_idx, position_idx as i64]);
+        let label_id = labels.int64_value(&[position_idx]);
+        let token_id = input_tensor.int64_value(&[sentence_idx, position_idx]);
 
         let offsets = &sentence_tokens.offsets[position_idx as usize];
 
