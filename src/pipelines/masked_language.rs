@@ -257,8 +257,7 @@ impl MaskedLanguageOption {
                 }
             }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Masked Language is not implemented for {:?}!",
-                model_type
+                "Masked Language is not implemented for {model_type:?}!",
             ))),
         }
     }

@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     let output = model.translate(&[input_context_1, input_context_2], None, Language::Spanish)?;
 
     for sentence in output {
-        println!("{}", sentence);
+        println!("{sentence}");
     }
     Ok(())
 }

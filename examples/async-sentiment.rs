@@ -16,7 +16,7 @@ async fn main() -> Result<()> {
         "Classify this negative text".to_owned(),
     ];
     let sentiments = classifier.predict(texts).await?;
-    println!("Results: {:?}", sentiments);
+    println!("Results: {sentiments:?}");
 
     Ok(())
 }

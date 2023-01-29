@@ -370,8 +370,7 @@ impl ZeroShotClassificationOption {
                 }
             }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Zero shot classification not implemented for {:?}!",
-                model_type
+                "Zero shot classification not implemented for {model_type:?}!",
             ))),
         }
     }
@@ -604,7 +603,7 @@ impl ZeroShotClassificationModel {
             None => labels
                 .as_ref()
                 .iter()
-                .map(|label| format!("This example is about {}.", label))
+                .map(|label| format!("This example is about {label}."))
                 .collect(),
         };
 

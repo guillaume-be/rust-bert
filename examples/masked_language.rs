@@ -39,7 +39,7 @@ fn main() -> anyhow::Result<()> {
     //    Run model
     let output = mask_language_model.predict(input)?;
     for sentence_output in output {
-        println!("{:?}", sentence_output);
+        println!("{sentence_output:?}");
     }
 
     Ok(())

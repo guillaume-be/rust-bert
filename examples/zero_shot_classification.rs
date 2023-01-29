@@ -27,13 +27,13 @@ fn main() -> anyhow::Result<()> {
             [input_sentence, input_sequence_2],
             candidate_labels,
             Some(Box::new(|label: &str| {
-                format!("This example is about {}.", label)
+                format!("This example is about {label}.")
             })),
             128,
         )
         .unwrap();
 
-    println!("{:?}", output);
+    println!("{output:?}");
 
     Ok(())
 }

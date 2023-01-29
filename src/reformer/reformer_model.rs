@@ -548,7 +548,7 @@ impl ReformerModelWithLMHead {
         if let Some(lsh_num_chunks_after) = config.lsh_num_chunks_after {
             if config.attn_layers.contains(&AttentionType::lsh) & (lsh_num_chunks_after != 0) {
                 return Err(RustBertError::InvalidConfigurationError(
-                    format!("For text generation using LSH attention ensure `config.lsh_num_chunks_after` is set to 0 (currently {})", lsh_num_chunks_after),
+                    format!("For text generation using LSH attention ensure `config.lsh_num_chunks_after` is set to 0 (currently {lsh_num_chunks_after})"),
                 ));
             }
         }
@@ -556,7 +556,7 @@ impl ReformerModelWithLMHead {
         if let Some(local_num_chunks_after) = config.local_num_chunks_after {
             if config.attn_layers.contains(&AttentionType::local) & (local_num_chunks_after != 0) {
                 return Err(RustBertError::InvalidConfigurationError(
-                    format!("For text generation using local attention ensure `config.local_num_chunks_after` is set to 0 (currently {})", local_num_chunks_after),
+                    format!("For text generation using local attention ensure `config.local_num_chunks_after` is set to 0 (currently {local_num_chunks_after})"),
                 ));
             }
         }

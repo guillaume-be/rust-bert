@@ -372,8 +372,7 @@ impl TranslationModelBuilder {
             }
             (Some(model_type), _, _) => {
                 return Err(RustBertError::InvalidConfigurationError(format!(
-                    "Automated translation model builder not implemented for {:?}",
-                    model_type
+                    "Automated translation model builder not implemented for {model_type:?}"
                 )));
             }
         };
@@ -459,91 +458,92 @@ mod model_fetchers {
         source_languages: Option<&Vec<Language>>,
         target_languages: Option<&Vec<Language>>,
     ) -> Result<TranslationResources<RemoteResource>, RustBertError> {
-        let (resources, source_languages, target_languages) =
-            if let (Some(source_languages), Some(target_languages)) =
-                (source_languages, target_languages)
-            {
-                match (source_languages.as_slice(), target_languages.as_slice()) {
-                    ([Language::English], [Language::German]) => {
-                        get_marian_resources!(ENGLISH2GERMAN)
-                    }
-                    ([Language::English], [Language::Russian]) => {
-                        get_marian_resources!(ENGLISH2RUSSIAN)
-                    }
-                    ([Language::English], [Language::Dutch]) => {
-                        get_marian_resources!(ENGLISH2DUTCH)
-                    }
-                    ([Language::English], [Language::ChineseMandarin]) => {
-                        get_marian_resources!(ENGLISH2CHINESE)
-                    }
-                    ([Language::English], [Language::Swedish]) => {
-                        get_marian_resources!(ENGLISH2SWEDISH)
-                    }
-                    ([Language::English], [Language::Arabic]) => {
-                        get_marian_resources!(ENGLISH2ARABIC)
-                    }
-                    ([Language::English], [Language::Hindi]) => {
-                        get_marian_resources!(ENGLISH2HINDI)
-                    }
-                    ([Language::English], [Language::Hebrew]) => {
-                        get_marian_resources!(ENGLISH2HEBREW)
-                    }
-                    ([Language::German], [Language::English]) => {
-                        get_marian_resources!(GERMAN2ENGLISH)
-                    }
-                    ([Language::German], [Language::French]) => {
-                        get_marian_resources!(GERMAN2FRENCH)
-                    }
-                    ([Language::French], [Language::German]) => {
-                        get_marian_resources!(FRENCH2GERMAN)
-                    }
-                    ([Language::Russian], [Language::English]) => {
-                        get_marian_resources!(RUSSIAN2ENGLISH)
-                    }
-                    ([Language::Dutch], [Language::English]) => {
-                        get_marian_resources!(DUTCH2ENGLISH)
-                    }
-                    ([Language::ChineseMandarin], [Language::English]) => {
-                        get_marian_resources!(CHINESE2ENGLISH)
-                    }
-                    ([Language::Swedish], [Language::English]) => {
-                        get_marian_resources!(SWEDISH2ENGLISH)
-                    }
-                    ([Language::Arabic], [Language::English]) => {
-                        get_marian_resources!(ARABIC2ENGLISH)
-                    }
-                    ([Language::Hindi], [Language::English]) => {
-                        get_marian_resources!(HINDI2ENGLISH)
-                    }
-                    ([Language::Hebrew], [Language::English]) => {
-                        get_marian_resources!(HEBREW2ENGLISH)
-                    }
-                    ([Language::English], languages)
-                        if languages
-                            .iter()
-                            .all(|lang| MarianTargetLanguages::ENGLISH2ROMANCE.contains(lang)) =>
-                    {
-                        get_marian_resources!(ENGLISH2ROMANCE)
-                    }
-                    (languages, [Language::English])
-                        if languages
-                            .iter()
-                            .all(|lang| MarianSourceLanguages::ROMANCE2ENGLISH.contains(lang)) =>
-                    {
-                        get_marian_resources!(ROMANCE2ENGLISH)
-                    }
-                    (_, _) => {
-                        return Err(RustBertError::InvalidConfigurationError(format!(
-                            "No Pretrained Marian configuration found for {:?} to {:?} translation",
-                            source_languages, target_languages
-                        )));
-                    }
+        let (resources, source_languages, target_languages) = if let (
+            Some(source_languages),
+            Some(target_languages),
+        ) =
+            (source_languages, target_languages)
+        {
+            match (source_languages.as_slice(), target_languages.as_slice()) {
+                ([Language::English], [Language::German]) => {
+                    get_marian_resources!(ENGLISH2GERMAN)
                 }
-            } else {
-                return Err(RustBertError::InvalidConfigurationError(
-                    "Source and target languages must be provided for Marian models".to_string(),
-                ));
-            };
+                ([Language::English], [Language::Russian]) => {
+                    get_marian_resources!(ENGLISH2RUSSIAN)
+                }
+                ([Language::English], [Language::Dutch]) => {
+                    get_marian_resources!(ENGLISH2DUTCH)
+                }
+                ([Language::English], [Language::ChineseMandarin]) => {
+                    get_marian_resources!(ENGLISH2CHINESE)
+                }
+                ([Language::English], [Language::Swedish]) => {
+                    get_marian_resources!(ENGLISH2SWEDISH)
+                }
+                ([Language::English], [Language::Arabic]) => {
+                    get_marian_resources!(ENGLISH2ARABIC)
+                }
+                ([Language::English], [Language::Hindi]) => {
+                    get_marian_resources!(ENGLISH2HINDI)
+                }
+                ([Language::English], [Language::Hebrew]) => {
+                    get_marian_resources!(ENGLISH2HEBREW)
+                }
+                ([Language::German], [Language::English]) => {
+                    get_marian_resources!(GERMAN2ENGLISH)
+                }
+                ([Language::German], [Language::French]) => {
+                    get_marian_resources!(GERMAN2FRENCH)
+                }
+                ([Language::French], [Language::German]) => {
+                    get_marian_resources!(FRENCH2GERMAN)
+                }
+                ([Language::Russian], [Language::English]) => {
+                    get_marian_resources!(RUSSIAN2ENGLISH)
+                }
+                ([Language::Dutch], [Language::English]) => {
+                    get_marian_resources!(DUTCH2ENGLISH)
+                }
+                ([Language::ChineseMandarin], [Language::English]) => {
+                    get_marian_resources!(CHINESE2ENGLISH)
+                }
+                ([Language::Swedish], [Language::English]) => {
+                    get_marian_resources!(SWEDISH2ENGLISH)
+                }
+                ([Language::Arabic], [Language::English]) => {
+                    get_marian_resources!(ARABIC2ENGLISH)
+                }
+                ([Language::Hindi], [Language::English]) => {
+                    get_marian_resources!(HINDI2ENGLISH)
+                }
+                ([Language::Hebrew], [Language::English]) => {
+                    get_marian_resources!(HEBREW2ENGLISH)
+                }
+                ([Language::English], languages)
+                    if languages
+                        .iter()
+                        .all(|lang| MarianTargetLanguages::ENGLISH2ROMANCE.contains(lang)) =>
+                {
+                    get_marian_resources!(ENGLISH2ROMANCE)
+                }
+                (languages, [Language::English])
+                    if languages
+                        .iter()
+                        .all(|lang| MarianSourceLanguages::ROMANCE2ENGLISH.contains(lang)) =>
+                {
+                    get_marian_resources!(ROMANCE2ENGLISH)
+                }
+                (_, _) => {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                            "No Pretrained Marian configuration found for {source_languages:?} to {target_languages:?} translation",
+                        )));
+                }
+            }
+        } else {
+            return Err(RustBertError::InvalidConfigurationError(
+                "Source and target languages must be provided for Marian models".to_string(),
+            ));
+        };
 
         Ok(TranslationResources {
             model_type: ModelType::Marian,

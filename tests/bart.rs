@@ -215,7 +215,7 @@ fn bart_zero_shot_classification() -> anyhow::Result<()> {
         [input_sentence, input_sequence_2],
         candidate_labels,
         Some(Box::new(|label: &str| {
-            format!("This example is about {}.", label)
+            format!("This example is about {label}.")
         })),
         128,
     )?;
@@ -244,7 +244,7 @@ fn bart_zero_shot_classification_try_error() -> anyhow::Result<()> {
         [],
         [],
         Some(Box::new(|label: &str| {
-            format!("This example is about {}.", label)
+            format!("This example is about {label}.")
         })),
         128,
     );
@@ -276,7 +276,7 @@ fn bart_zero_shot_classification_multilabel() -> anyhow::Result<()> {
         [input_sentence, input_sequence_2],
         candidate_labels,
         Some(Box::new(|label: &str| {
-            format!("This example is about {}.", label)
+            format!("This example is about {label}.")
         })),
         128,
     )?;
@@ -319,7 +319,7 @@ fn bart_zero_shot_classification_multilabel_try_error() -> anyhow::Result<()> {
         [],
         [],
         Some(Box::new(|label: &str| {
-            format!("This example is about {}.", label)
+            format!("This example is about {label}.")
         })),
         128,
     );

@@ -65,8 +65,7 @@ impl SentenceEmbeddingsOption {
             ModelType::T5 => T5(T5ForSentenceEmbeddings::new(p, &(config.try_into()?))),
             _ => {
                 return Err(RustBertError::InvalidConfigurationError(format!(
-                    "Unsupported transformer model {:?} for Sentence Embeddings",
-                    transformer_type
+                    "Unsupported transformer model {transformer_type:?} for Sentence Embeddings"
                 )));
             }
         };

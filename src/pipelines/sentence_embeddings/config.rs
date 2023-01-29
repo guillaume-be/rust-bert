@@ -408,7 +408,7 @@ mod serde_sentence_embeddings_module_type {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&format!("sentence_transformers.models.{:?}", module_type))
+        serializer.serialize_str(&format!("sentence_transformers.models.{module_type:?}"))
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<SentenceEmbeddingsModuleType, D::Error>
@@ -430,7 +430,7 @@ mod serde_sentence_embeddings_module_type {
                     .map(|s| serde_json::from_value(serde_json::Value::String(s.to_string())))
                     .transpose()
                     .map_err(de::Error::custom)?
-                    .ok_or_else(|| format!("Invalid SentenceEmbeddingsModuleType: {}", s))
+                    .ok_or_else(|| format!("Invalid SentenceEmbeddingsModuleType: {s}"))
                     .map_err(de::Error::custom)
             }
         }

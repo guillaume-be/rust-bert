@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
 
     let output = conversation_model.generate_responses(&mut conversation_manager);
 
-    println!("{:?}", output);
+    println!("{output:?}");
 
     let _ = conversation_manager
         .get(&conversation_1_id)
@@ -40,11 +40,11 @@ fn main() -> anyhow::Result<()> {
 
     let output = conversation_model.generate_responses(&mut conversation_manager);
 
-    println!("{:?}", output);
+    println!("{output:?}");
 
     let output = conversation_model.generate_responses(&mut conversation_manager);
 
-    println!("{:?}", output);
+    println!("{output:?}");
 
     Ok(())
 }

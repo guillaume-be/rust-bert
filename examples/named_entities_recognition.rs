@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
     //    Run model
     let output = ner_model.predict_full_entities(&input);
     for entity in output {
-        println!("{:?}", entity);
+        println!("{entity:?}");
     }
 
     Ok(())
