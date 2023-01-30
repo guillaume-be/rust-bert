@@ -135,7 +135,7 @@ pub enum Language {
 impl Display for Language {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", {
-            let input_string = format!("{:?}", self);
+            let input_string = format!("{self:?}");
             let mut output: Vec<&str> = Vec::new();
             let mut start: usize = 0;
 
@@ -584,8 +584,7 @@ impl TranslationOption {
         if let Some(source_language) = source_language {
             if !supported_source_languages.contains(source_language) {
                 return Err(RustBertError::ValueError(format!(
-                    "{} not in list of supported languages: {:?}",
-                    source_language, supported_source_languages
+                    "{source_language} not in list of supported languages: {supported_source_languages:?}",
                 )));
             }
         }
@@ -593,8 +592,7 @@ impl TranslationOption {
         if let Some(target_language) = target_language {
             if !supported_target_languages.contains(target_language) {
                 return Err(RustBertError::ValueError(format!(
-                    "{} not in list of supported languages: {:?}",
-                    target_language, supported_target_languages
+                    "{target_language} not in list of supported languages: {supported_target_languages:?}"
                 )));
             }
         }
@@ -610,9 +608,8 @@ impl TranslationOption {
                                 None => {
                                     return Err(RustBertError::ValueError(format!(
                                         "Missing target language for Marian \
-                                        (multiple languages supported by model: {:?}, \
+                                        (multiple languages supported by model: {supported_target_languages:?}, \
                                         need to specify target language)",
-                                        supported_target_languages
                                     )));
                                 }
                             }
@@ -653,9 +650,8 @@ impl TranslationOption {
                         None => {
                             return Err(RustBertError::ValueError(format!(
                                 "Missing source language for MBart\
-                                (multiple languages supported by model: {:?}, \
-                                need to specify target language)",
-                                supported_source_languages
+                                (multiple languages supported by model: {supported_source_languages:?}, \
+                                need to specify target language)"
                             )));
                         }
                     }
@@ -670,9 +666,8 @@ impl TranslationOption {
                 } else {
                     return Err(RustBertError::ValueError(format!(
                         "Missing target language for MBart\
-                        (multiple languages supported by model: {:?}, \
-                        need to specify target language)",
-                        supported_target_languages
+                        (multiple languages supported by model: {supported_target_languages:?}, \
+                        need to specify target language)"
                     )));
                 },
             ),
@@ -681,8 +676,8 @@ impl TranslationOption {
                     Some(value) => {
                         let language_code = value.get_iso_639_1_code();
                         match language_code.len() {
-                            2 => format!(">>{}.<< ", language_code),
-                            3 => format!(">>{}<< ", language_code),
+                            2 => format!(">>{language_code}.<< "),
+                            3 => format!(">>{language_code}<< "),
                             _ => {
                                 return Err(RustBertError::ValueError(
                                     "Invalid ISO 639-3 code".to_string(),
@@ -693,9 +688,8 @@ impl TranslationOption {
                     None => {
                         return Err(RustBertError::ValueError(format!(
                             "Missing source language for M2M100 \
-                            (multiple languages supported by model: {:?}, \
-                            need to specify target language)",
-                            supported_source_languages
+                            (multiple languages supported by model: {supported_source_languages:?}, \
+                            need to specify target language)"
                         )));
                     }
                 }),
@@ -704,8 +698,8 @@ impl TranslationOption {
                     Some(
                         model._get_tokenizer().convert_tokens_to_ids(&[
                             match language_code.len() {
-                                2 => format!(">>{}.<<", language_code),
-                                3 => format!(">>{}<<", language_code),
+                                2 => format!(">>{language_code}.<<"),
+                                3 => format!(">>{language_code}<<"),
                                 _ => {
                                     return Err(RustBertError::ValueError(
                                         "Invalid ISO 639-3 code".to_string(),
@@ -717,9 +711,8 @@ impl TranslationOption {
                 } else {
                     return Err(RustBertError::ValueError(format!(
                         "Missing target language for M2M100 \
-                        (multiple languages supported by model: {:?}, \
+                        (multiple languages supported by model: {supported_target_languages:?}, \
                         need to specify target language)",
-                        supported_target_languages
                     )));
                 },
             ),

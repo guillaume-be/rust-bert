@@ -111,8 +111,7 @@ impl FromStr for PositionAttentionType {
             "c2p" => Ok(PositionAttentionType::c2p),
             "p2p" => Ok(PositionAttentionType::p2p),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Position attention type `{}` not in accepted variants (`p2c`, `c2p`, `p2p`)",
-                s
+                "Position attention type `{s}` not in accepted variants (`p2c`, `c2p`, `p2p`)",
             ))),
         }
     }

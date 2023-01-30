@@ -49,7 +49,7 @@ fn main() -> anyhow::Result<()> {
     //    Run model
     let output = sentiment_classifier.predict(input);
     for sentiment in output {
-        println!("{:?}", sentiment);
+        println!("{sentiment:?}");
     }
 
     Ok(())

@@ -32,6 +32,6 @@ fn main() -> anyhow::Result<()> {
 
     // Generate Embeddings
     let embeddings = model.encode(&sentences)?;
-    println!("{:?}", embeddings);
+    println!("{embeddings:?}");
     Ok(())
 }

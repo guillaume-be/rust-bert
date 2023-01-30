@@ -456,8 +456,7 @@ impl QuestionAnsweringOption {
                 }
             }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "QuestionAnswering not implemented for {:?}!",
-                model_type
+                "QuestionAnswering not implemented for {model_type:?}!",
             ))),
         }
     }

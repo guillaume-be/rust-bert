@@ -373,8 +373,7 @@ impl SequenceClassificationOption {
                 }
             }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Sequence Classification not implemented for {:?}!",
-                model_type
+                "Sequence Classification not implemented for {model_type:?}!",
             ))),
         }
     }

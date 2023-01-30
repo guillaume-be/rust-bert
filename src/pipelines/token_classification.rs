@@ -484,8 +484,7 @@ impl TokenClassificationOption {
                 }
             }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Token classification not implemented for {:?}!",
-                model_type
+                "Token classification not implemented for {model_type:?}!"
             ))),
         }
     }
