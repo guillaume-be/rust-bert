@@ -25,7 +25,7 @@ use crate::pipelines::generation_utils::{
 use crate::pipelines::translation::Language;
 use crate::{Activation, Config, RustBertError};
 use rust_tokenizers::tokenizer::{MBart50Tokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::{MBart50Vocab, Vocab};
+use rust_tokenizers::vocab::MBart50Vocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -178,7 +178,7 @@ pub struct MBartClassificationHead {
 }
 
 impl MBartClassificationHead {
-    pub fn new<'p, P>(p: P, config: &MBartConfig) -> MBartClassificationHead
+    pub fn new<'p, P>(p: P, config: &MBartConfig) -> Result<MBartClassificationHead, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -194,9 +194,12 @@ impl MBartClassificationHead {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("id2label not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
-
         let out_proj = nn::linear(
             p / "out_proj",
             config.d_model,
@@ -206,11 +209,11 @@ impl MBartClassificationHead {
 
         let dropout = Dropout::new(config.classifier_dropout.unwrap_or(0.0));
 
-        MBartClassificationHead {
+        Ok(MBartClassificationHead {
             dense,
             dropout,
             out_proj,
-        }
+        })
     }
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
@@ -592,22 +595,25 @@ impl MBartForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = MBartConfig::from_file(config_path);
     /// let mbart: MBartForSequenceClassification =
-    ///     MBartForSequenceClassification::new(&p.root(), &config);
+    ///     MBartForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &MBartConfig) -> MBartForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &MBartConfig,
+    ) -> Result<MBartForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
         let base_model = MBartModel::new(p / "model", config);
-        let classification_head = MBartClassificationHead::new(p / "classification_head", config);
+        let classification_head = MBartClassificationHead::new(p / "classification_head", config)?;
         let eos_token_id = config.eos_token_id.unwrap_or(3);
-        MBartForSequenceClassification {
+        Ok(MBartForSequenceClassification {
             base_model,
             classification_head,
             eos_token_id,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -646,7 +652,7 @@ impl MBartForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = MBartConfig::from_file(config_path);
-    /// # let mbart_model: MBartForSequenceClassification = MBartForSequenceClassification::new(&vs.root(), &config);
+    /// # let mbart_model: MBartForSequenceClassification = MBartForSequenceClassification::new(&vs.root(), &config).unwrap();;
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -1053,9 +1059,7 @@ impl PrivateLanguageGenerator<MBartForConditionalGeneration, MBart50Vocab, MBart
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self
-                ._get_tokenizer()
-                .convert_tokens_to_ids(&[MBart50Vocab::unknown_value()])[0],
+            None => self._get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids

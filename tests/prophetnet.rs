@@ -63,8 +63,8 @@ about exoplanets like K2-18b."];
     assert_eq!(
         output[0],
         "scientists have confirmed the presence of water in the atmosphere of k2 - 18b. \
-[X_SEP] this is the first such discovery in a planet in its star's habitable zone. \
-[X_SEP] the planet is 110 light - years from earth and has a star in the constellation leo."
+this is the first such discovery in a planet in its star's habitable zone. \
+the planet is 110 light - years from earth and has a star in the constellation leo."
     );
 
     Ok(())

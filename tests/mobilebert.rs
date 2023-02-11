@@ -130,7 +130,7 @@ fn mobilebert_for_sequence_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(1, String::from("Negative"));
     dummy_label_mapping.insert(3, String::from("Neutral"));
     config.id2label = Some(dummy_label_mapping);
-    let model = MobileBertForSequenceClassification::new(vs.root(), &config);
+    let model = MobileBertForSequenceClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = ["Very positive sentence", "Second sentence input"];
@@ -240,7 +240,7 @@ fn mobilebert_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(2, String::from("PER"));
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
-    let model = MobileBertForTokenClassification::new(vs.root(), &config);
+    let model = MobileBertForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let inputs = ["Where's Paris?", "In Kentucky, United States"];

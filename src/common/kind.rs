@@ -14,8 +14,7 @@ pub(crate) fn get_positive_infinity(kind: Kind) -> Result<Scalar, RustBertError>
         Kind::Double => Scalar::float(f64::INFINITY),
         _ => {
             return Err(RustBertError::ValueError(format!(
-                "Type not supported: attempted to get positive infinity for {:?}",
-                kind
+                "Type not supported: attempted to get positive infinity for {kind:?}",
             )))
         }
     })
@@ -34,8 +33,7 @@ pub(crate) fn get_negative_infinity(kind: Kind) -> Result<Scalar, RustBertError>
         Kind::Double => Scalar::float(f64::NEG_INFINITY),
         _ => {
             return Err(RustBertError::ValueError(format!(
-                "Type not supported: attempted to get negative infinity for {:?}",
-                kind
+                "Type not supported: attempted to get negative infinity for {kind:?}",
             )))
         }
     })

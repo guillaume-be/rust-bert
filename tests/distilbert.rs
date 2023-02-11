@@ -211,7 +211,7 @@ fn distilbert_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(2, String::from("PER"));
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
-    let distil_bert_model = DistilBertForTokenClassification::new(vs.root(), &config);
+    let distil_bert_model = DistilBertForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [

@@ -885,7 +885,9 @@ impl MarianGenerator {
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id =
-            Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::pad_value()])[0]);
+            Some(tokenizer.get_pad_id().ok_or(RustBertError::TokenizerError(
+                "The tokenizer must contain a pad token ID to be used as BOS".to_string(),
+            ))?);
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(MarianGenerator {

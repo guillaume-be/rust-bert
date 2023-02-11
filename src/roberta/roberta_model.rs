@@ -16,6 +16,7 @@ use crate::common::activations::_gelu;
 use crate::common::dropout::Dropout;
 use crate::common::linear::{linear_no_bias, LinearNoBias};
 use crate::roberta::embeddings::RobertaEmbeddings;
+use crate::RustBertError;
 use std::borrow::Borrow;
 use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::{nn, Tensor};
@@ -68,10 +69,20 @@ impl RobertaModelResources {
         "xlm-roberta-ner-es/model",
         "https://huggingface.co/xlm-roberta-large-finetuned-conll02-spanish/resolve/main/rust_model.ot",
     );
-    /// Shared under Apache 2.0 licenseat <https://huggingface.co/sentence-transformers/all-distilroberta-v1>. Modified with conversion to C-array format.
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/sentence-transformers/all-distilroberta-v1>. Modified with conversion to C-array format.
     pub const ALL_DISTILROBERTA_V1: (&'static str, &'static str) = (
         "all-distilroberta-v1/model",
         "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/rust_model.ot",
+    );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/huggingface/CodeBERTa-language-id>. Modified with conversion to C-array format.
+    pub const CODEBERTA_LANGUAGE_ID: (&'static str, &'static str) = (
+        "codeberta-language-id/model",
+        "https://huggingface.co/huggingface/CodeBERTa-language-id/resolve/main/rust_model.ot",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/CodeBERT>. Modified with conversion to C-array format.
+    pub const CODEBERT_MLM: (&'static str, &'static str) = (
+        "codebert-mlm/model",
+        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/rust_model.ot",
     );
 }
 
@@ -116,6 +127,16 @@ impl RobertaConfigResources {
         "all-distilroberta-v1/config",
         "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/huggingface/CodeBERTa-language-id>. Modified with conversion to C-array format.
+    pub const CODEBERTA_LANGUAGE_ID: (&'static str, &'static str) = (
+        "codeberta-language-id/config",
+        "https://huggingface.co/huggingface/CodeBERTa-language-id/resolve/main/config.json",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/CodeBERT>. Modified with conversion to C-array format.
+    pub const CODEBERT_MLM: (&'static str, &'static str) = (
+        "codebert-mlm/config",
+        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/config.json",
+    );
 }
 
 impl RobertaVocabResources {
@@ -159,6 +180,16 @@ impl RobertaVocabResources {
         "all-distilroberta-v1/vocab",
         "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/vocab.json",
     );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/huggingface/CodeBERTa-language-id>. Modified with conversion to C-array format.
+    pub const CODEBERTA_LANGUAGE_ID: (&'static str, &'static str) = (
+        "codeberta-language-id/vocab",
+        "https://huggingface.co/huggingface/CodeBERTa-language-id/resolve/main/vocab.json",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/CodeBERT>. Modified with conversion to C-array format.
+    pub const CODEBERT_MLM: (&'static str, &'static str) = (
+        "codebert-mlm/vocab",
+        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/vocab.json",
+    );
 }
 
 impl RobertaMergesResources {
@@ -181,6 +212,16 @@ impl RobertaMergesResources {
     pub const ALL_DISTILROBERTA_V1: (&'static str, &'static str) = (
         "all-distilroberta-v1/merges",
         "https://huggingface.co/sentence-transformers/all-distilroberta-v1/resolve/main/merges.txt",
+    );
+    /// Shared under Apache 2.0 license by the HuggingFace Inc. team at <https://huggingface.co/huggingface/CodeBERTa-language-id>. Modified with conversion to C-array format.
+    pub const CODEBERTA_LANGUAGE_ID: (&'static str, &'static str) = (
+        "codeberta-language-id/merges",
+        "https://huggingface.co/huggingface/CodeBERTa-language-id/resolve/main/merges.txt",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://github.com/microsoft/CodeBERT>. Modified with conversion to C-array format.
+    pub const CODEBERT_MLM: (&'static str, &'static str) = (
+        "codebert-mlm/merges",
+        "https://huggingface.co/microsoft/codebert-base-mlm/resolve/main/merges.txt",
     );
 }
 
@@ -380,7 +421,7 @@ pub struct RobertaClassificationHead {
 }
 
 impl RobertaClassificationHead {
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaClassificationHead
+    pub fn new<'p, P>(p: P, config: &BertConfig) -> Result<RobertaClassificationHead, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -394,7 +435,11 @@ impl RobertaClassificationHead {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let out_proj = nn::linear(
             p / "out_proj",
@@ -404,11 +449,11 @@ impl RobertaClassificationHead {
         );
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
-        RobertaClassificationHead {
+        Ok(RobertaClassificationHead {
             dense,
             dropout,
             out_proj,
-        }
+        })
     }
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
@@ -452,21 +497,24 @@ impl RobertaForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = RobertaConfig::from_file(config_path);
-    /// let roberta = RobertaForSequenceClassification::new(&p.root() / "roberta", &config);
+    /// let roberta = RobertaForSequenceClassification::new(&p.root() / "roberta", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BertConfig,
+    ) -> Result<RobertaForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
         let roberta =
             BertModel::<RobertaEmbeddings>::new_with_optional_pooler(p / "roberta", config, false);
-        let classifier = RobertaClassificationHead::new(p / "classifier", config);
+        let classifier = RobertaClassificationHead::new(p / "classifier", config)?;
 
-        RobertaForSequenceClassification {
+        Ok(RobertaForSequenceClassification {
             roberta,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -501,7 +549,7 @@ impl RobertaForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
-    /// # let roberta_model = RobertaForSequenceClassification::new(&vs.root(), &config);
+    /// # let roberta_model = RobertaForSequenceClassification::new(&vs.root(), &config).unwrap();;
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -733,7 +781,10 @@ impl RobertaForTokenClassification {
     /// let config = RobertaConfig::from_file(config_path);
     /// let roberta = RobertaForMultipleChoice::new(&p.root() / "roberta", &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> RobertaForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BertConfig,
+    ) -> Result<RobertaForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -744,7 +795,11 @@ impl RobertaForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -753,11 +808,11 @@ impl RobertaForTokenClassification {
             Default::default(),
         );
 
-        RobertaForTokenClassification {
+        Ok(RobertaForTokenClassification {
             roberta,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -792,7 +847,7 @@ impl RobertaForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
-    /// # let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config);
+    /// # let roberta_model = RobertaForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));

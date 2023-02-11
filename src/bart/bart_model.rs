@@ -26,7 +26,7 @@ use crate::pipelines::generation_utils::{
 };
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{RobertaTokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::{RobertaVocab, Vocab};
+use rust_tokenizers::vocab::RobertaVocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -695,7 +695,7 @@ pub struct BartClassificationHead {
 }
 
 impl BartClassificationHead {
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartClassificationHead
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> Result<BartClassificationHead, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -703,7 +703,11 @@ impl BartClassificationHead {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let dense = nn::linear(
             p / "dense",
@@ -719,11 +723,11 @@ impl BartClassificationHead {
             Default::default(),
         );
 
-        BartClassificationHead {
+        Ok(BartClassificationHead {
             dense,
             dropout,
             out_proj,
-        }
+        })
     }
 
     pub fn forward_t(&self, x: &Tensor, train: bool) -> Tensor {
@@ -768,22 +772,25 @@ impl BartForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
     /// let bart: BartForSequenceClassification =
-    ///     BartForSequenceClassification::new(&p.root() / "bart", &config);
+    ///     BartForSequenceClassification::new(&p.root() / "bart", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BartConfig,
+    ) -> Result<BartForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
         let base_model = BartModel::new(p / "model", config);
-        let classification_head = BartClassificationHead::new(p / "classification_head", config);
+        let classification_head = BartClassificationHead::new(p / "classification_head", config)?;
         let eos_token_id = config.eos_token_id.unwrap_or(3);
-        BartForSequenceClassification {
+        Ok(BartForSequenceClassification {
             base_model,
             classification_head,
             eos_token_id,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -822,7 +829,7 @@ impl BartForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BartConfig::from_file(config_path);
-    /// # let bart_model: BartForSequenceClassification = BartForSequenceClassification::new(&vs.root(), &config);
+    /// # let bart_model: BartForSequenceClassification = BartForSequenceClassification::new(&vs.root(), &config).unwrap();;
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -1256,9 +1263,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self
-                ._get_tokenizer()
-                .convert_tokens_to_ids(&[RobertaVocab::unknown_value()])[0],
+            None => self._get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids

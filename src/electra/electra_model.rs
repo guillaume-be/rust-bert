@@ -806,9 +806,12 @@ impl ElectraForTokenClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = ElectraConfig::from_file(config_path);
     /// let electra_model: ElectraForTokenClassification =
-    ///     ElectraForTokenClassification::new(&p.root(), &config);
+    ///     ElectraForTokenClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &ElectraConfig) -> ElectraForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &ElectraConfig,
+    ) -> Result<ElectraForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -819,7 +822,11 @@ impl ElectraForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("id2label must be provided for classifiers")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "id2label must be provided for classifiers".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -828,11 +835,11 @@ impl ElectraForTokenClassification {
             Default::default(),
         );
 
-        ElectraForTokenClassification {
+        Ok(ElectraForTokenClassification {
             electra,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -865,7 +872,7 @@ impl ElectraForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = ElectraConfig::from_file(config_path);
-    /// # let electra_model: ElectraForTokenClassification = ElectraForTokenClassification::new(&vs.root(), &config);
+    /// # let electra_model: ElectraForTokenClassification = ElectraForTokenClassification::new(&vs.root(), &config).unwrap();
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));

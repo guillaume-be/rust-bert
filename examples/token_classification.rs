@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     let token_outputs = token_classification_model.predict(&input);
 
     for token in token_outputs {
-        println!("{:?}", token);
+        println!("{token:?}");
     }
 
     Ok(())

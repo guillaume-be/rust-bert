@@ -257,8 +257,7 @@ impl MaskedLanguageOption {
                 }
             }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Masked Language is not implemented for {:?}!",
-                model_type
+                "Masked Language is not implemented for {model_type:?}!",
             ))),
         }
     }
@@ -491,7 +490,7 @@ impl MaskedLanguageModel {
     /// ];
     ///
     /// //    Run model
-    /// let output = mask_language_model.predict(&input);
+    /// let output = mask_language_model.predict(&input)?;
     /// for word in output {
     ///     println!("{:?}", word);
     /// }

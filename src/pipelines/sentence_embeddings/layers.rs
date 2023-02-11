@@ -102,7 +102,7 @@ where
         .map(|s| serde_json::from_value(serde_json::Value::String(s.to_lowercase())))
         .transpose()
         .map_err(de::Error::custom)?
-        .ok_or_else(|| format!("Invalid Activation: {}", activation))
+        .ok_or_else(|| format!("Invalid Activation: {activation}"))
         .map_err(de::Error::custom)
 }
 

@@ -24,7 +24,7 @@ use crate::pipelines::generation_utils::{
 use crate::pipelines::translation::Language;
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{M2M100Tokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::{M2M100Vocab, Vocab};
+use rust_tokenizers::vocab::M2M100Vocab;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
@@ -804,9 +804,7 @@ impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M10
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self
-                ._get_tokenizer()
-                .convert_tokens_to_ids(&[M2M100Vocab::unknown_value()])[0],
+            None => self._get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids

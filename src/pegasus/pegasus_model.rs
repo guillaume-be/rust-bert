@@ -780,7 +780,8 @@ impl PrivateLanguageGenerator<PegasusForConditionalGeneration, PegasusVocab, Peg
             Some(value) => value,
             None => self
                 ._get_tokenizer()
-                .convert_tokens_to_ids(&[PegasusVocab::pad_value()])[0],
+                .get_pad_id()
+                .expect("A padding token must be provided to encode prompt texts."),
         };
 
         let token_ids = token_ids
