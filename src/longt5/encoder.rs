@@ -12,7 +12,7 @@
 
 use crate::common::dropout::Dropout;
 use crate::common::embeddings::process_ids_embeddings_pair;
-use crate::common::kind::get_negative_infinity;
+use crate::common::kind::get_min;
 use crate::longt5::attention::{
     get_local_attention_mask, LayerState, LongT5LayerCrossAttention, LongT5LayerLocalSelfAttention,
     LongT5LayerSelfAttention, LongT5LayerTransientGlobalSelfAttention,
@@ -347,7 +347,7 @@ impl LongT5Stack {
             Some(
                 (extended_attention_mask.ones_like() - extended_attention_mask)
                     .to_kind(input_embeddings.kind())
-                    * get_negative_infinity(input_embeddings.kind()).unwrap(),
+                    * get_min(input_embeddings.kind()).unwrap(),
             )
         } else if let EncoderAttentionType::Local = self.encoder_attention_type {
             Some(get_local_attention_mask(&attention_mask, self.block_length))
@@ -379,7 +379,7 @@ impl LongT5Stack {
             };
             Some(
                 (encoder_extended_attention_mask.ones_like() - encoder_extended_attention_mask)
-                    * get_negative_infinity(input_embeddings.kind()).unwrap(),
+                    * get_min(input_embeddings.kind()).unwrap(),
             )
         } else {
             None

@@ -16,7 +16,7 @@ use crate::bart::decoder::BartDecoder;
 use crate::bart::encoder::BartEncoder;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
-use crate::common::kind::get_negative_infinity;
+use crate::common::kind::get_min;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
@@ -273,7 +273,7 @@ pub(crate) fn _make_causal_mask(
 
     let mut mask = Tensor::full(
         &[target_length, target_length],
-        get_negative_infinity(dtype).unwrap(),
+        get_min(dtype).unwrap(),
         (dtype, device),
     );
     let mask_cond = Tensor::arange(target_length, (dtype, device));
@@ -311,10 +311,7 @@ pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>, dtype: Kin
         .expand(&[batch_size, 1, target_length, source_length], true)
         .totype(dtype);
     let inverted_mask: Tensor = 1 - expanded_mask;
-    inverted_mask.masked_fill(
-        &inverted_mask.to_kind(Kind::Bool),
-        get_negative_infinity(dtype).unwrap(),
-    )
+    inverted_mask.masked_fill(&inverted_mask.to_kind(Kind::Bool), get_min(dtype).unwrap())
 }
 
 pub(crate) fn _prepare_decoder_attention_mask(
