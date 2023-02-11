@@ -125,7 +125,7 @@ fn make_global_fixed_block_ids(
             .sum_dim_intlist([-1].as_slice(), false, block_ids.kind())
             .unsqueeze(-1)
             - 1;
-        full_blocks.where_self(&block_ids.lt_tensor(&full_blocks), &full_blocks)
+        block_ids.where_self(&block_ids.lt_tensor(&full_blocks), &full_blocks)
     };
 
     let fixed_block_mask = attention_mask.ones_like() / global_block_size;
@@ -155,7 +155,8 @@ fn make_global_fixed_block_ids(
         &[batch_size, num_globals],
         (attention_mask.kind(), attention_mask.device()),
     )
-    .cumsum(-1, attention_mask.kind());
+    .cumsum(-1, attention_mask.kind())
+        - 1;
     let global_segment_ids = global_segment_ids
         .ones_like()
         .where_scalarother(&global_segment_ids.le_tensor(&sequence_block_ids_max), 0.0);
@@ -391,6 +392,7 @@ pub struct LongT5TransientGlobalAttention {
     key: nn::Linear,
     value: nn::Linear,
     output: nn::Linear,
+    relative_attention_bias: Option<nn::Embedding>,
     global_relative_attention_bias: Option<nn::Embedding>,
     global_input_layer_norm: LongT5LayerNorm,
 }
@@ -433,6 +435,16 @@ impl LongT5TransientGlobalAttention {
         } else {
             None
         };
+        let relative_attention_bias = if has_relative_attention_bias {
+            Some(nn::embedding(
+                p / "relative_attention_bias",
+                config.relative_attention_num_buckets,
+                config.num_heads,
+                Default::default(),
+            ))
+        } else {
+            None
+        };
         let global_input_layer_norm = LongT5LayerNorm::new(
             p / "global_input_layer_norm",
             config.d_model,
@@ -455,6 +467,7 @@ impl LongT5TransientGlobalAttention {
             key,
             value,
             output,
+            relative_attention_bias,
             global_relative_attention_bias,
             global_input_layer_norm,
         }
@@ -467,7 +480,7 @@ impl LongT5TransientGlobalAttention {
             .unsqueeze(1);
 
         let attention_side_bias = side_attention_mask
-            .ones_like()
+            .zeros_like()
             .where_scalarother(&side_attention_mask.gt(0), -1e10);
 
         let side_relative_position = make_side_relative_position_ids(mask, self.global_block_size);
@@ -555,7 +568,7 @@ impl LongT5TransientGlobalAttention {
             } else {
                 compute_bias(
                     self.block_length,
-                    &self.global_relative_attention_bias.as_ref().unwrap(),
+                    &self.relative_attention_bias.as_ref().unwrap(),
                     self.is_decoder,
                     self.relative_attention_num_buckets,
                     self.relative_attention_max_distance,
