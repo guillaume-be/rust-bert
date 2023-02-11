@@ -26,33 +26,36 @@ pub type LayerState = T5layerState;
 
 fn pad_to_multiple(x: &Tensor, block_length: i64, dim: usize, pad_value: f64) -> Tensor {
     let mut x_size = x.size();
-    let pad_length = -x_size[dim] % block_length;
+    let pad_length = (-x_size[dim]).rem_euclid(block_length);
 
     if x_size.iter().any(|&el| el == 0) {
         x_size[dim] += pad_length;
         Tensor::zeros(x_size.as_slice(), (x.kind(), x.device()))
     } else {
         let mut pad = vec![0i64; 2 * x.dim()];
-        pad[2 * dim + 1] = pad_length;
+        pad[2 * dim] = pad_length;
         pad.reverse();
         x.pad(pad.as_slice(), "constant", pad_value)
     }
 }
 
 fn split_into_blocks(x: &Tensor, block_length: i64, dim: usize) -> Tensor {
+    let x_size = x.size();
+    let padded_x = if x_size[dim] % block_length != 0 {
+        Some(pad_to_multiple(x, block_length, dim, 0f64))
+    } else {
+        None
+    };
+    let x = padded_x.as_ref().unwrap_or(x);
     let mut x_size = x.size();
-    let do_pad_to_multiple = x_size[dim] % block_length != 0;
     let num_blocks = x_size[dim] / block_length;
+    x_size.remove(dim);
     x_size.insert(dim, block_length);
     x_size.insert(dim, num_blocks);
     if x_size.iter().any(|&el| el == 0) {
         Tensor::empty(x_size.as_slice(), (x.kind(), x.device()))
     } else {
-        if do_pad_to_multiple {
-            pad_to_multiple(x, block_length, dim, 0f64).reshape(x_size.as_slice())
-        } else {
-            x.reshape(x_size.as_slice())
-        }
+        x.reshape(x_size.as_slice())
     }
 }
 
@@ -65,8 +68,8 @@ fn concatenate_3_blocks(
     let x_size = x.size();
     let num_blocks = x_size[block_dim];
     let mut pad = vec![0i64; 2 * x.dim()];
-    pad[block_dim] = 1;
-    pad[block_dim + 1] = 1;
+    pad[2 * block_dim] = 1;
+    pad[2 * block_dim + 1] = 1;
     pad.reverse();
     let x = x.pad(pad.as_slice(), "constant", pad_value.unwrap_or(0f64));
     let mut block_list: Vec<Tensor> = Vec::with_capacity(3);
@@ -198,7 +201,7 @@ fn compute_bias(
     relative_attention_max_distance: i64,
 ) -> Tensor {
     let device = relative_attention_bias.ws.device();
-    let memory_position = Tensor::arange(3 * block_length, (Kind::Int64, device)).unsqueeze(0);
+    let memory_position = Tensor::arange(3 * block_length, (Kind::Int64, device));
     let context_position = memory_position.narrow(0, block_length, block_length);
     let relative_position = memory_position.unsqueeze(0) - context_position.unsqueeze(-1);
 
@@ -570,10 +573,11 @@ impl LongT5TransientGlobalAttention {
                 None
             };
             let mask = mask.unwrap_or_else(|| calc_mask.as_ref().unwrap());
+            let side_position_bias = self.compute_side_bias(mask, &global_segment_ids);
             let side_position_bias = split_into_blocks(
-                &self.compute_side_bias(mask, &global_segment_ids),
+                &side_position_bias,
                 self.block_length,
-                mask.dim() - 2,
+                side_position_bias.dim() - 2,
             )
             .transpose(1, 2);
             let position_bias = Tensor::cat(&[position_bias, side_position_bias], -1);

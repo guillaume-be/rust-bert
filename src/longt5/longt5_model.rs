@@ -799,7 +799,7 @@ impl PrivateLanguageGenerator<LongT5ForConditionalGeneration, T5Vocab, T5Tokeniz
                 prepared_encoder_output: encoder_outputs,
                 prepared_decoder_input: Some(input_ids.narrow(1, -1, 1)),
                 prepared_position_ids: None,
-                prepared_past: Cache::T5Cache(past),
+                prepared_past: Cache::LongT5Cache(past),
             },
             Cache::None => PreparedInput {
                 prepared_input: None,
@@ -807,7 +807,7 @@ impl PrivateLanguageGenerator<LongT5ForConditionalGeneration, T5Vocab, T5Tokeniz
                 prepared_encoder_output: encoder_outputs,
                 prepared_decoder_input: Some(input_ids),
                 prepared_position_ids: None,
-                prepared_past: Cache::T5Cache(None),
+                prepared_past: Cache::LongT5Cache(None),
             },
             _ => panic!("Cache type incompatible with longT5"),
         }
