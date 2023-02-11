@@ -318,7 +318,7 @@ impl LongT5Stack {
             attention_mask.unwrap_or_else(|| calculated_attention_mask.as_ref().unwrap());
 
         let extended_attention_mask = if self.is_decoder {
-            Some(match attention_mask.dim() {
+            let extended_attention_mask = match attention_mask.dim() {
                 3 => attention_mask.unsqueeze(1),
                 2 => {
                     if self.is_decoder {
@@ -343,16 +343,18 @@ impl LongT5Stack {
                         "Invalid attention mask dimension, must be 2 or 3".into(),
                     ));
                 }
-            })
+            };
+            Some(
+                (extended_attention_mask.ones_like() - extended_attention_mask)
+                    .to_kind(input_embeddings.kind())
+                    * get_negative_infinity(input_embeddings.kind()).unwrap(),
+            )
         } else if let EncoderAttentionType::Local = self.encoder_attention_type {
             Some(get_local_attention_mask(&attention_mask, self.block_length))
         } else {
             None
         };
         let extended_attention_mask = extended_attention_mask.as_ref().unwrap_or(attention_mask);
-        let extended_attention_mask = (extended_attention_mask.ones_like()
-            - extended_attention_mask.to_kind(input_embeddings.kind()))
-            * get_negative_infinity(input_embeddings.kind()).unwrap();
 
         let encoder_extended_attention_mask = if self.is_decoder & encoder_hidden_states.is_some() {
             let new_shape = &encoder_hidden_states.as_ref().unwrap().size()[..2];

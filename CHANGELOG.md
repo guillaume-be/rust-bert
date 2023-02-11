@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file. The format 
 ## Changed
 - Bumped the tokenizers dependency from 7.x to 8.x, exposing additional options for special token mapping and adding the NLLBTokenizer.
 
+## Fixed
+- MIN/MAX computation for float-like (was set to infinity instead of min/max)
+
 ## [0.20.0] - 2023-01-21
 ## Added
 - Addition of All-MiniLM-L6-V2 model weights

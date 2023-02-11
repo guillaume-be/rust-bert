@@ -288,7 +288,7 @@ impl LongT5Model {
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     t5_model.forward_t(
+    ///     longt5_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
     ///         None,
@@ -476,7 +476,7 @@ impl LongT5ForConditionalGeneration {
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     t5_model.forward_t(
+    ///     longt5_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
     ///         None,
@@ -593,7 +593,7 @@ impl LMHeadModel for LongT5ForConditionalGeneration {
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     t5_model.forward_t(
+    ///     longt5_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
     ///         None,
