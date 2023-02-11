@@ -176,11 +176,16 @@ fn create_global_aggregates(
     global_seq_length: i64,
 ) -> Tensor {
     let block_ids = block_ids.where_scalarother(&block_ids.ge(0), global_seq_length);
-    let one_hot_block_ids = block_ids.one_hot(global_seq_length + 1);
+    let one_hot_block_ids = block_ids
+        .to_kind(Kind::Int64)
+        .one_hot(global_seq_length + 1);
     let one_hot_block_ids = one_hot_block_ids.narrow(2, 0, one_hot_block_ids.size()[2] - 1);
     Tensor::einsum(
         "...nd,...ng->...gd",
-        &[hidden_states, &one_hot_block_ids],
+        &[
+            hidden_states,
+            &one_hot_block_ids.to_kind(hidden_states.kind()),
+        ],
         None,
     )
 }

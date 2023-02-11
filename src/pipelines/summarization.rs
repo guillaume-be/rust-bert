@@ -73,6 +73,7 @@ use crate::prophetnet::ProphetNetConditionalGenerator;
 use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 
+use crate::longt5::LongT5Generator;
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
@@ -219,6 +220,8 @@ pub enum SummarizationOption {
     Bart(BartGenerator),
     /// Summarizer based on T5 model
     T5(T5Generator),
+    /// Summarizer based on LongT5 model
+    LongT5(LongT5Generator),
     /// Summarizer based on ProphetNet model
     ProphetNet(ProphetNetConditionalGenerator),
     /// Summarizer based on Pegasus model
@@ -232,6 +235,9 @@ impl SummarizationOption {
                 config.into(),
             )?)),
             ModelType::T5 => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
+            ModelType::LongT5 => Ok(SummarizationOption::LongT5(LongT5Generator::new(
+                config.into(),
+            )?)),
             ModelType::ProphetNet => Ok(SummarizationOption::ProphetNet(
                 ProphetNetConditionalGenerator::new(config.into())?,
             )),
@@ -250,6 +256,7 @@ impl SummarizationOption {
         match *self {
             Self::Bart(_) => ModelType::Bart,
             Self::T5(_) => ModelType::T5,
+            Self::LongT5(_) => ModelType::LongT5,
             Self::ProphetNet(_) => ModelType::ProphetNet,
             Self::Pegasus(_) => ModelType::Pegasus,
         }
@@ -267,6 +274,11 @@ impl SummarizationOption {
                 .map(|output| output.text)
                 .collect(),
             Self::T5(ref model) => model
+                .generate(prompt_texts, None)
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
+            Self::LongT5(ref model) => model
                 .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)

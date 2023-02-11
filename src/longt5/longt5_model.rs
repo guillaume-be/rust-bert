@@ -12,9 +12,17 @@
 
 use crate::longt5::encoder::LongT5Stack;
 use crate::longt5::LayerState;
-use crate::pipelines::generation_utils::{Cache, LMHeadModel, LMModelOutput};
+use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::{
+    PreparedInput, PrivateLanguageGenerator,
+};
+use crate::pipelines::generation_utils::{
+    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
+};
 use crate::t5::{FeedForwardProj, T5Config, T5ModelOutput, TaskSpecificParams};
 use crate::{Config, RustBertError};
+use rust_tokenizers::tokenizer::{T5Tokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::T5Vocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use tch::nn::{embedding, LinearConfig};
@@ -72,6 +80,7 @@ pub struct LongT5Config {
     pub d_ff: i64,
     pub d_kv: i64,
     pub decoder_start_token_id: Option<i64>,
+    pub bos_token_id: Option<i64>,
     pub eos_token_id: Option<i64>,
     pub initializer_factor: f64,
     pub is_encoder_decoder: Option<bool>,
@@ -104,6 +113,7 @@ impl Default for LongT5Config {
             d_ff: 2048,
             d_kv: 64,
             decoder_start_token_id: None,
+            bos_token_id: None,
             eos_token_id: Some(1),
             initializer_factor: 1.0,
             is_encoder_decoder: None,
@@ -657,3 +667,227 @@ impl LMHeadModel for LongT5ForConditionalGeneration {
 }
 
 pub type LongT5ModelOutput = T5ModelOutput;
+
+pub struct LongT5Generator {
+    model: LongT5ForConditionalGeneration,
+    tokenizer: TokenizerOption,
+    var_store: nn::VarStore,
+    generate_config: GenerateConfig,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+    max_position_embeddings: i64,
+}
+
+impl LongT5Generator {
+    pub fn new(generate_config: GenerateConfig) -> Result<LongT5Generator, RustBertError> {
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+
+        let tokenizer = TokenizerOption::from_file(
+            ModelType::LongT5,
+            vocab_path.to_str().unwrap(),
+            None,
+            false,
+            None,
+            None,
+        )?;
+
+        Self::new_with_tokenizer(generate_config, tokenizer)
+    }
+
+    pub fn new_with_tokenizer(
+        generate_config: GenerateConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<LongT5Generator, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_local_path()?;
+        let device = generate_config.device;
+
+        generate_config.validate();
+        let mut var_store = nn::VarStore::new(device);
+
+        let config = LongT5Config::from_file(config_path);
+        let model = LongT5ForConditionalGeneration::new(var_store.root(), &config);
+        var_store.load(weights_path)?;
+
+        let bos_token_id = config.bos_token_id;
+        let eos_token_ids = Some(match config.eos_token_id {
+            Some(value) => vec![value],
+            None => vec![1],
+        });
+        let pad_token_id = Some(config.pad_token_id.unwrap_or(0));
+        let vocab_size = config.vocab_size;
+        let is_encoder_decoder = true;
+        let decoder_start_id = pad_token_id;
+        // longT5 do not have an embedding matrix for position IDs and relies on relative positions instead
+        let max_position_embeddings = i64::MAX;
+
+        Ok(LongT5Generator {
+            model,
+            tokenizer,
+            var_store,
+            generate_config,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+            max_position_embeddings,
+        })
+    }
+}
+
+impl PrivateLanguageGenerator<LongT5ForConditionalGeneration, T5Vocab, T5Tokenizer>
+    for LongT5Generator
+{
+    fn get_model(&self) -> &LongT5ForConditionalGeneration {
+        &self.model
+    }
+    fn _get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_var_store(&self) -> &nn::VarStore {
+        &self.var_store
+    }
+    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
+        &mut self.var_store
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
+    }
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+    fn get_max_positions_embeddings(&self) -> i64 {
+        self.max_position_embeddings
+    }
+
+    fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
+        Some(self.get_model().encode(input_ids, attention_mask))
+    }
+
+    fn prepare_inputs_for_generation<'a>(
+        &self,
+        input_ids: Tensor,
+        encoder_outputs: Option<&'a Tensor>,
+        past: Cache,
+        attention_mask: Tensor,
+    ) -> PreparedInput<'a> {
+        match past {
+            Cache::LongT5Cache(past) => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids.narrow(1, -1, 1)),
+                prepared_position_ids: None,
+                prepared_past: Cache::T5Cache(past),
+            },
+            Cache::None => PreparedInput {
+                prepared_input: None,
+                prepared_attention_mask: Some(attention_mask),
+                prepared_encoder_output: encoder_outputs,
+                prepared_decoder_input: Some(input_ids),
+                prepared_position_ids: None,
+                prepared_past: Cache::T5Cache(None),
+            },
+            _ => panic!("Cache type incompatible with longT5"),
+        }
+    }
+
+    fn encode_prompt_text<S>(
+        &self,
+        prompt_text: &[S],
+        max_len: Option<i64>,
+        pad_token_id: Option<i64>,
+    ) -> Tensor
+    where
+        S: AsRef<str> + Sync,
+    {
+        let tokens = self._get_tokenizer().encode_list(
+            prompt_text,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
+        let token_ids = tokens
+            .into_iter()
+            .map(|tokenized_input| tokenized_input.token_ids)
+            .collect::<Vec<Vec<i64>>>();
+
+        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+
+        let pad_token = match pad_token_id {
+            Some(value) => value,
+            None => self._get_tokenizer().get_unk_id(),
+        };
+
+        let token_ids = token_ids
+            .into_iter()
+            .map(|mut input| {
+                let temp = vec![pad_token; max_len - input.len()];
+                input.extend(temp);
+                input
+            })
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .collect::<Vec<Tensor>>();
+
+        Tensor::stack(&token_ids, 0)
+    }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::LongT5Cache(old_cache_option) => match old_cache_option {
+                Some(old_cache) => {
+                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
+                        if self_layer_state.is_some() {
+                            self_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
+                        };
+                        if encoder_layer_state.is_some() {
+                            encoder_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
+                        };
+                    }
+                }
+                None => {}
+            },
+            Cache::None => {}
+            _ => {
+                panic!("Invalid cache for LongT5 model");
+            }
+        };
+        encoder_outputs
+    }
+}
+
+impl LanguageGenerator<LongT5ForConditionalGeneration, T5Vocab, T5Tokenizer> for LongT5Generator {}
