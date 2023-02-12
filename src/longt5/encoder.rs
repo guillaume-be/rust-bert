@@ -29,8 +29,8 @@ pub type LongT5LayerFF = T5LayerFF;
 
 enum LongT5AttentionLayer {
     SelfAttention(LongT5LayerSelfAttention),
-    LocalSelfAttention(LongT5LayerLocalSelfAttention),
-    GlobalSelfAttention(LongT5LayerTransientGlobalSelfAttention),
+    Local(LongT5LayerLocalSelfAttention),
+    Global(LongT5LayerTransientGlobalSelfAttention),
 }
 
 impl LongT5AttentionLayer {
@@ -50,12 +50,12 @@ impl LongT5AttentionLayer {
                 layer_state,
                 train,
             ),
-            LongT5AttentionLayer::LocalSelfAttention(ref layer) => {
+            LongT5AttentionLayer::Local(ref layer) => {
                 let (output, position_bias, attention_weights) =
                     layer.forward_t(hidden_states, attention_mask, position_bias, train);
                 (output, attention_weights, position_bias, None)
             }
-            LongT5AttentionLayer::GlobalSelfAttention(ref layer) => {
+            LongT5AttentionLayer::Global(ref layer) => {
                 let (output, position_bias, attention_weights) =
                     layer.forward_t(hidden_states, attention_mask, position_bias, train);
                 (output, attention_weights, position_bias, None)
@@ -97,7 +97,7 @@ impl LongT5Block {
         } else {
             match config.encoder_attention_type {
                 Some(EncoderAttentionType::Local) | None => {
-                    LongT5AttentionLayer::LocalSelfAttention(LongT5LayerLocalSelfAttention::new(
+                    LongT5AttentionLayer::Local(LongT5LayerLocalSelfAttention::new(
                         &p / module_index,
                         config,
                         has_relative_attention_bias,
@@ -105,14 +105,12 @@ impl LongT5Block {
                     ))
                 }
                 Some(EncoderAttentionType::TransientGlobal) => {
-                    LongT5AttentionLayer::GlobalSelfAttention(
-                        LongT5LayerTransientGlobalSelfAttention::new(
-                            &p / module_index,
-                            config,
-                            has_relative_attention_bias,
-                            is_decoder,
-                        ),
-                    )
+                    LongT5AttentionLayer::Global(LongT5LayerTransientGlobalSelfAttention::new(
+                        &p / module_index,
+                        config,
+                        has_relative_attention_bias,
+                        is_decoder,
+                    ))
                 }
             }
         };
@@ -350,7 +348,7 @@ impl LongT5Stack {
                     * get_min(input_embeddings.kind()).unwrap(),
             )
         } else if let EncoderAttentionType::Local = self.encoder_attention_type {
-            Some(get_local_attention_mask(&attention_mask, self.block_length))
+            Some(get_local_attention_mask(attention_mask, self.block_length))
         } else {
             None
         };
@@ -417,7 +415,7 @@ impl LongT5Stack {
             };
             let block_output = layer.forward_t(
                 &hidden_state,
-                Some(extended_attention_mask.as_ref()),
+                Some(extended_attention_mask),
                 position_bias.as_ref(),
                 encoder_hidden_states,
                 encoder_extended_attention_mask.as_ref(),

@@ -250,7 +250,7 @@ impl T5Model {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BART model
+    /// * `p` - Variable store path for the root of the T5 model
     /// * `config` - `T5Config` object defining the model architecture
     ///
     /// # Example

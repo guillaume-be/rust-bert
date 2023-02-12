@@ -294,7 +294,7 @@ impl LongT5LocalAttention {
         }
     }
 
-    pub fn forward_t<'p>(
+    pub fn forward_t(
         &self,
         hidden_states: &Tensor,
         mask: Option<&Tensor>,
@@ -332,7 +332,7 @@ impl LongT5LocalAttention {
             } else {
                 compute_bias(
                     self.block_length,
-                    &self.relative_attention_bias.as_ref().unwrap(),
+                    self.relative_attention_bias.as_ref().unwrap(),
                     self.is_decoder,
                     self.relative_attention_num_buckets,
                     self.relative_attention_max_distance,
@@ -496,7 +496,7 @@ impl LongT5TransientGlobalAttention {
         attention_side_bias + side_bias
     }
 
-    pub fn forward_t<'p>(
+    pub fn forward_t(
         &self,
         hidden_states: &Tensor,
         mask: Option<&Tensor>,
@@ -513,7 +513,7 @@ impl LongT5TransientGlobalAttention {
             states.contiguous().view([batch_size, -1, self.inner_dim])
         };
         let calc_mask = if mask.is_none() {
-            let mut mask_size = input_size.clone();
+            let mut mask_size = input_size;
             let _ = mask_size.pop();
             Some(Tensor::ones(
                 mask_size.as_slice(),
@@ -568,7 +568,7 @@ impl LongT5TransientGlobalAttention {
             } else {
                 compute_bias(
                     self.block_length,
-                    &self.relative_attention_bias.as_ref().unwrap(),
+                    self.relative_attention_bias.as_ref().unwrap(),
                     self.is_decoder,
                     self.relative_attention_num_buckets,
                     self.relative_attention_max_distance,

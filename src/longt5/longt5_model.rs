@@ -138,31 +138,31 @@ impl Default for LongT5Config {
     }
 }
 
-impl Into<T5Config> for &LongT5Config {
-    fn into(self) -> T5Config {
+impl From<&LongT5Config> for T5Config {
+    fn from(val: &LongT5Config) -> T5Config {
         T5Config {
-            dropout_rate: self.dropout_rate,
-            d_model: self.d_model,
-            d_ff: self.d_ff,
-            d_kv: self.d_kv,
-            decoder_start_token_id: self.decoder_start_token_id,
+            dropout_rate: val.dropout_rate,
+            d_model: val.d_model,
+            d_ff: val.d_ff,
+            d_kv: val.d_kv,
+            decoder_start_token_id: val.decoder_start_token_id,
             bos_token_id: None,
-            eos_token_id: self.eos_token_id,
-            initializer_factor: self.initializer_factor,
-            is_encoder_decoder: self.is_encoder_decoder,
-            layer_norm_epsilon: self.layer_norm_epsilon,
-            num_heads: self.num_heads,
-            num_layers: self.num_layers,
-            output_past: self.output_past,
-            pad_token_id: self.pad_token_id,
-            relative_attention_num_buckets: self.relative_attention_num_buckets,
-            relative_attention_max_distance: self.relative_attention_max_distance,
-            vocab_size: self.vocab_size,
-            feed_forward_proj: self.feed_forward_proj,
-            tie_word_embeddings: self.tie_word_embeddings,
-            task_specific_params: self.task_specific_params.clone(),
-            output_attentions: self.output_attentions,
-            output_hidden_states: self.output_hidden_states,
+            eos_token_id: val.eos_token_id,
+            initializer_factor: val.initializer_factor,
+            is_encoder_decoder: val.is_encoder_decoder,
+            layer_norm_epsilon: val.layer_norm_epsilon,
+            num_heads: val.num_heads,
+            num_layers: val.num_layers,
+            output_past: val.output_past,
+            pad_token_id: val.pad_token_id,
+            relative_attention_num_buckets: val.relative_attention_num_buckets,
+            relative_attention_max_distance: val.relative_attention_max_distance,
+            vocab_size: val.vocab_size,
+            feed_forward_proj: val.feed_forward_proj,
+            tie_word_embeddings: val.tie_word_embeddings,
+            task_specific_params: val.task_specific_params.clone(),
+            output_attentions: val.output_attentions,
+            output_hidden_states: val.output_hidden_states,
         }
     }
 }
@@ -185,7 +185,7 @@ impl LongT5Model {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BART model
+    /// * `p` - Variable store path for the root of the LongT5 model
     /// * `config` - `LongT5Config` object defining the model architecture
     ///
     /// # Example
@@ -365,7 +365,7 @@ impl LongT5Model {
 /// # LongT5 Model for conditional generation
 /// LongT5 model with a vocabulary decoding head
 /// It is made of the following blocks:
-/// - `base_model`: `T5Model` Base T5 model
+/// - `base_model`: `LongT5Model` Base LongT5 model
 /// - `model_dim`: `f64` representation of the model dimension for scaling of the generated logits
 pub struct LongT5ForConditionalGeneration {
     base_model: LongT5Model,
@@ -433,9 +433,9 @@ impl LongT5ForConditionalGeneration {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). This or `input_embeds` must be provided.
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
-    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). This or `decoder_input_embeds` must be provided.
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
     /// These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). This or `decoder_input_embeds` must be provided.
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `input_embeds` - Optional input tensor of shape (*batch size*, *source_sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
     /// * `decoder_input_embeds` - Optional input tensor of shape (*batch size*, *target_sequence_length*, *embeddings dimension*). This or `decoder_input_ids` must be provided.
@@ -444,7 +444,7 @@ impl LongT5ForConditionalGeneration {
     ///
     /// # Returns
     ///
-    /// * `T5ModelOutput` containing:
+    /// * `longT5ModelOutput` containing:
     ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *vocab_size*) representing the logits for each sequence position and vocabulary item
     ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
     ///   - `cache` - `Option<Vec<(Option<Vec<LayerState, LayerState>>)>>` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
@@ -554,7 +554,7 @@ impl LMHeadModel for LongT5ForConditionalGeneration {
     /// # Arguments
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
-    /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `cache` - `Cache` object containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
     /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
     /// * `input_embeds` - Unused for LongT5
     /// * `token_type_ids` - Unused for LongT5
@@ -666,6 +666,7 @@ impl LMHeadModel for LongT5ForConditionalGeneration {
     }
 }
 
+/// Container holding a LongT5 model output.
 pub type LongT5ModelOutput = T5ModelOutput;
 
 pub struct LongT5Generator {
