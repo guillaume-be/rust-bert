@@ -43,6 +43,37 @@ impl LayerState {
     }
 }
 
+pub fn get_relative_position_bucket(
+    relative_position: &Tensor,
+    bidirectional: bool,
+    num_buckets: i64,
+    max_distance: i64,
+) -> Tensor {
+    let n = -relative_position;
+    let mut num_buckets = num_buckets;
+    let mut ret = n.zeros_like();
+    let n = if bidirectional {
+        num_buckets /= 2;
+        ret += n.lt(0).to_kind(Kind::Int64) * num_buckets;
+        n.abs()
+    } else {
+        n.max_other(&n.zeros_like())
+    };
+
+    let max_exact = num_buckets / 2;
+    let is_small = n.lt(max_exact);
+
+    let value_if_large: Tensor = ((n.to_kind(Kind::Float) / max_exact as f64).log2()
+        / (max_distance as f64 / max_exact as f64).log2()
+        * (num_buckets - max_exact) as f64)
+        .to_kind(Kind::Int64)
+        + max_exact;
+
+    let value_if_large = value_if_large.min_other(&value_if_large.full_like(num_buckets - 1));
+    ret += n.where_self(&is_small, &value_if_large);
+    ret
+}
+
 #[derive(Debug)]
 pub struct T5Attention {
     is_decoder: bool,
@@ -142,7 +173,7 @@ impl T5Attention {
         train: bool,
     ) -> (Tensor, Option<Tensor>, Option<Tensor>, Option<LayerState>) {
         let input_size = hidden_states.size();
-        let (bs, seq_length, _) = (input_size[0], input_size[1], input_size[2]);
+        let (bs, seq_length) = (input_size[0], input_size[1]);
 
         let real_seq_length = if layer_state.is_some() {
             match query_length {
@@ -245,44 +276,12 @@ impl T5Attention {
         (context, attention_weights, position_bias, layer_state)
     }
 
-    fn get_relative_position_bucket(
-        &self,
-        relative_position: &Tensor,
-        bidirectional: bool,
-        num_buckets: i64,
-        max_distance: i64,
-    ) -> Tensor {
-        let n = -relative_position;
-        let mut num_buckets = num_buckets;
-        let mut ret = n.zeros_like();
-        let n = if bidirectional {
-            num_buckets /= 2;
-            ret += n.lt(0).to_kind(Kind::Int64) * num_buckets;
-            n.abs()
-        } else {
-            n.max_other(&n.zeros_like())
-        };
-
-        let max_exact = num_buckets / 2;
-        let is_small = n.lt(max_exact);
-
-        let value_if_large: Tensor = ((n.to_kind(Kind::Float) / max_exact as f64).log2()
-            / (max_distance as f64 / max_exact as f64).log2()
-            * (num_buckets - max_exact) as f64)
-            .to_kind(Kind::Int64)
-            + max_exact;
-
-        let value_if_large = value_if_large.min_other(&value_if_large.full_like(num_buckets - 1));
-        ret += n.where_self(&is_small, &value_if_large);
-        ret
-    }
-
     fn compute_bias(&self, q_len: i64, k_len: i64, device: Device) -> Tensor {
         let context_position = Tensor::arange(q_len, (Kind::Int64, device)).unsqueeze(1);
         let memory_position = Tensor::arange(k_len, (Kind::Int64, device)).unsqueeze(0);
         let relative_position = memory_position - context_position;
 
-        let rp_bucket = self.get_relative_position_bucket(
+        let rp_bucket = get_relative_position_bucket(
             &relative_position,
             self.is_bidirectional,
             self.relative_attention_num_buckets,

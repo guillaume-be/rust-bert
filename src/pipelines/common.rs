@@ -28,6 +28,7 @@ use crate::fnet::FNetConfig;
 use crate::gpt2::Gpt2Config;
 use crate::gpt_neo::GptNeoConfig;
 use crate::longformer::LongformerConfig;
+use crate::longt5::LongT5Config;
 use crate::m2m_100::M2M100Config;
 use crate::marian::MarianConfig;
 use crate::mbart::MBartConfig;
@@ -71,6 +72,8 @@ pub enum ModelType {
     MobileBert,
     #[serde(alias = "t5")]
     T5,
+    #[serde(alias = "longt5")]
+    LongT5,
     #[serde(alias = "albert")]
     Albert,
     XLNet,
@@ -108,6 +111,8 @@ pub enum ConfigOption {
     OpenAiGpt(OpenAiGptConfig),
     /// T5 configuration
     T5(T5Config),
+    /// LongT5 configuration
+    LongT5(LongT5Config),
     /// Albert configuration
     Albert(AlbertConfig),
     /// XLNet configuration
@@ -187,6 +192,7 @@ impl ConfigOption {
             ModelType::Marian => ConfigOption::Marian(MarianConfig::from_file(path)),
             ModelType::MobileBert => ConfigOption::MobileBert(MobileBertConfig::from_file(path)),
             ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
+            ModelType::LongT5 => ConfigOption::LongT5(LongT5Config::from_file(path)),
             ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
             ModelType::XLNet => ConfigOption::XLNet(XLNetConfig::from_file(path)),
             ModelType::GPT2 => ConfigOption::GPT2(Gpt2Config::from_file(path)),
@@ -276,6 +282,7 @@ impl ConfigOption {
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
+            Self::LongT5(_) => panic!("LongT5 does not use a label mapping"),
             Self::OpenAiGpt(_) => panic!("OpenAI GPT does not use a label mapping"),
             Self::GPT2(_) => panic!("GPT2 does not use a label mapping"),
             Self::GPTNeo(_) => panic!("GPT-Neo does not use a label mapping"),
@@ -294,6 +301,7 @@ impl ConfigOption {
             Self::Marian(config) => Some(config.max_position_embeddings),
             Self::MobileBert(config) => Some(config.max_position_embeddings),
             Self::T5(_) => None,
+            Self::LongT5(_) => None,
             Self::Albert(config) => Some(config.max_position_embeddings),
             Self::XLNet(_) => None,
             Self::GPT2(config) => Some(config.n_positions),
@@ -473,7 +481,7 @@ impl TokenizerOption {
                     lower_case,
                 )?)
             }
-            ModelType::T5 => {
+            ModelType::T5 | ModelType::LongT5 => {
                 if strip_accents.is_some() {
                     return Err(RustBertError::InvalidConfigurationError(format!(
                         "Optional input `strip_accents` set to value {} but cannot be used by {:?}",

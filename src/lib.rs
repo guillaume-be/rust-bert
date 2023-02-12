@@ -68,6 +68,7 @@
 //!Electra | |✅| | | | |✅|  |
 //!ALBERT |✅|✅|✅| | | |✅| ✅ |
 //!T5 | | | |✅ |✅|✅| | ✅ |
+//!LongT5 | | | |✅ |✅| | |  |
 //!XLNet|✅|✅|✅|✅ | | |✅|  |
 //!Reformer|✅| |✅|✅ | | |✅|  |
 //!ProphetNet| | | |✅ |✅ | | |  |
@@ -695,6 +696,8 @@
 // These are used abundantly in this code
 #![allow(clippy::assign_op_pattern, clippy::upper_case_acronyms)]
 
+extern crate core;
+
 pub mod albert;
 pub mod bart;
 pub mod bert;
@@ -707,6 +710,7 @@ pub mod fnet;
 pub mod gpt2;
 pub mod gpt_neo;
 pub mod longformer;
+pub mod longt5;
 pub mod m2m_100;
 pub mod marian;
 pub mod mbart;

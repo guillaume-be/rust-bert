@@ -1,5 +1,5 @@
-// Copyright 2018 Mesh TensorFlow authors, T5 Authors and HuggingFace Inc. team.
-// Copyright 2020 Guillaume Becquin
+// Copyright 2022 Google LLC., LongT5 Authors and HuggingFace Inc. team.
+// Copyright 2022 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,14 +10,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Borrow;
-
-use rust_tokenizers::tokenizer::{T5Tokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::T5Vocab;
-use serde::{Deserialize, Serialize};
-use tch::nn::{embedding, LinearConfig};
-use tch::{nn, Tensor};
-
+use crate::longt5::encoder::LongT5Stack;
+use crate::longt5::LayerState;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
@@ -25,109 +19,62 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{
     Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
 };
-use crate::pipelines::translation::Language;
-use crate::t5::attention::LayerState;
-use crate::t5::encoder::T5Stack;
+use crate::t5::{FeedForwardProj, T5Config, T5ModelOutput, TaskSpecificParams};
 use crate::{Config, RustBertError};
+use rust_tokenizers::tokenizer::{T5Tokenizer, TruncationStrategy};
+use rust_tokenizers::vocab::T5Vocab;
+use serde::{Deserialize, Serialize};
+use std::borrow::Borrow;
+use tch::nn::{embedding, LinearConfig};
+use tch::{nn, Tensor};
 
-/// # T5 Pretrained model weight files
-pub struct T5ModelResources;
+/// # LongT5 Pretrained model weight files
+pub struct LongT5ModelResources;
 
-/// # T5 Pretrained model config files
-pub struct T5ConfigResources;
+/// # LongT5 Pretrained model config files
+pub struct LongT5ConfigResources;
 
-/// # T5 Pretrained model vocab files
-pub struct T5VocabResources;
+/// # LongT5 Pretrained model vocab files
+pub struct LongT5VocabResources;
 
-/// # T5 optional prefixes
-pub struct T5Prefix;
-
-/// # T5 source languages pre-sets
-pub struct T5SourceLanguages;
-
-/// # T5 target languages pre-sets
-pub type T5TargetLanguages = T5SourceLanguages;
-
-impl T5ModelResources {
-    /// Shared under Apache 2.0 license by the T5 Authors at <https://github.com/google-research/text-to-text-transfer-transformer>. Modified with conversion to C-array format.
-    pub const T5_SMALL: (&'static str, &'static str) = (
-        "t5-small/model",
-        "https://huggingface.co/t5-small/resolve/main/rust_model.ot",
-    );
-    /// Shared under Apache 2.0 license by the T5 Authors at <https://github.com/google-research/text-to-text-transfer-transformer>. Modified with conversion to C-array format.
-    pub const T5_BASE: (&'static str, &'static str) = (
-        "t5-base/model",
-        "https://huggingface.co/t5-base/resolve/main/rust_model.ot",
-    );
-    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
-    pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
-        "sentence-t5-base/model",
-        "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/rust_model.ot",
+impl LongT5ModelResources {
+    /// Shared under Apache 2.0 license at <https://huggingface.co/pszemraj/long-t5-tglobal-base-16384-book-summary>. Modified with conversion to C-array format.
+    pub const TGLOBAL_BASE_BOOK_SUMMARY: (&'static str, &'static str) = (
+        "longt5-tglobal-base-book-summary/model",
+        "https://huggingface.co/pszemraj/long-t5-tglobal-base-16384-book-summary/resolve/main/rust_model.ot",
     );
 }
 
-impl T5ConfigResources {
-    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
-    pub const T5_SMALL: (&'static str, &'static str) = (
-        "t5-small/config",
-        "https://huggingface.co/t5-small/resolve/main/config.json",
-    );
-    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
-    pub const T5_BASE: (&'static str, &'static str) = (
-        "t5-base/config",
-        "https://huggingface.co/t5-base/resolve/main/config.json",
-    );
-    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
-    pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
-        "sentence-t5-base/config",
-        "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/config.json",
+impl LongT5ConfigResources {
+    /// Shared under Apache 2.0 license at <https://huggingface.co/pszemraj/long-t5-tglobal-base-16384-book-summary>. Modified with conversion to C-array format.
+    pub const TGLOBAL_BASE_BOOK_SUMMARY: (&'static str, &'static str) = (
+        "longt5-tglobal-base-book-summary/config",
+        "https://huggingface.co/pszemraj/long-t5-tglobal-base-16384-book-summary/resolve/main/config.json",
     );
 }
 
-impl T5VocabResources {
-    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
-    pub const T5_SMALL: (&'static str, &'static str) = (
-        "t5-small/spiece",
-        "https://huggingface.co/t5-small/resolve/main/spiece.model",
+impl LongT5VocabResources {
+    /// Shared under Apache 2.0 license at <https://huggingface.co/pszemraj/long-t5-tglobal-base-16384-book-summary>. Modified with conversion to C-array format.
+    pub const TGLOBAL_BASE_BOOK_SUMMARY: (&'static str, &'static str) = (
+        "longt5-tglobal-base-book-summary/spiece",
+        "https://huggingface.co/pszemraj/long-t5-tglobal-base-16384-book-summary/resolve/main/spiece.model",
     );
-    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
-    pub const T5_BASE: (&'static str, &'static str) = (
-        "t5-base/spiece",
-        "https://huggingface.co/t5-base/resolve/main/spiece.model",
-    );
-    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
-    pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
-        "sentence-t5-base/spiece",
-        "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/spiece.model",
-    );
-}
-
-const T5LANGUAGES: [Language; 3] = [Language::English, Language::French, Language::German];
-
-impl T5SourceLanguages {
-    pub const T5_SMALL: [Language; 3] = T5LANGUAGES;
-    pub const T5_BASE: [Language; 3] = T5LANGUAGES;
-}
-
-impl T5Prefix {
-    pub const ENGLISH2FRENCH: Option<&'static str> = Some("translate English to French:");
-    pub const ENGLISH2GERMAN: Option<&'static str> = Some("translate English to German:");
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "kebab-case")]
-/// # Options for T5 Feed-forward projection layer
-pub enum FeedForwardProj {
-    /// ReLU
-    Relu,
-    /// Gated geLU
-    GatedGelu,
+/// # Options for LongT5 encoder attention type
+pub enum EncoderAttentionType {
+    /// Local
+    Local,
+    /// Transient Global
+    TransientGlobal,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-/// # T5 model configuration
-/// Defines the T5 model architecture (e.g. number of layers, hidden layer size, label mapping...)
-pub struct T5Config {
+/// # LongT5 model configuration
+/// Defines the LongT5 model architecture (e.g. number of layers, hidden layer size, label mapping...)
+pub struct LongT5Config {
     pub dropout_rate: f64,
     pub d_model: i64,
     pub d_ff: i64,
@@ -140,10 +87,14 @@ pub struct T5Config {
     pub layer_norm_epsilon: f64,
     pub num_heads: i64,
     pub num_layers: i64,
+    pub num_decoder_layers: Option<i64>,
+    pub local_radius: i64,
+    pub global_block_size: i64,
     pub output_past: Option<bool>,
     pub pad_token_id: Option<i64>,
     pub relative_attention_num_buckets: i64,
     pub relative_attention_max_distance: Option<i64>,
+    pub encoder_attention_type: Option<EncoderAttentionType>,
     pub vocab_size: i64,
     pub feed_forward_proj: Option<FeedForwardProj>,
     pub tie_word_embeddings: Option<bool>,
@@ -152,60 +103,11 @@ pub struct T5Config {
     pub output_hidden_states: Option<bool>,
 }
 
-/// # T5 task-specific configurations
-/// Defines the T5 configuration for summarization and translation tasks
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TaskSpecificParams {
-    summarization: Summarization,
-    translation_en_to_de: TranslationEnToDe,
-    translation_en_to_fr: TranslationEnToFr,
-    translation_en_to_ro: TranslationEnToRo,
-}
+impl Config for LongT5Config {}
 
-/// # T5 summarization configuration
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Summarization {
-    early_stopping: bool,
-    length_penalty: f64,
-    max_length: i64,
-    min_length: i64,
-    no_repeat_ngram_size: i64,
-    num_beams: i64,
-    prefix: String,
-}
-
-/// # T5 English to German configuration
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TranslationEnToDe {
-    early_stopping: bool,
-    max_length: i64,
-    num_beams: i64,
-    prefix: String,
-}
-
-/// # T5 English to French configuration
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TranslationEnToFr {
-    early_stopping: bool,
-    max_length: i64,
-    num_beams: i64,
-    prefix: String,
-}
-
-/// # T5 English to Romanian configuration
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TranslationEnToRo {
-    early_stopping: bool,
-    max_length: i64,
-    num_beams: i64,
-    prefix: String,
-}
-
-impl Config for T5Config {}
-
-impl Default for T5Config {
+impl Default for LongT5Config {
     fn default() -> Self {
-        T5Config {
+        LongT5Config {
             dropout_rate: 0.1,
             d_model: 512,
             d_ff: 2048,
@@ -218,10 +120,14 @@ impl Default for T5Config {
             layer_norm_epsilon: 1e-6,
             num_heads: 8,
             num_layers: 6,
+            num_decoder_layers: None,
+            local_radius: 127,
+            global_block_size: 16,
             output_past: None,
             pad_token_id: Some(0),
             relative_attention_num_buckets: 32,
             relative_attention_max_distance: Some(128),
+            encoder_attention_type: Some(EncoderAttentionType::Local),
             vocab_size: 32128,
             feed_forward_proj: Some(FeedForwardProj::Relu),
             tie_word_embeddings: None,
@@ -232,31 +138,60 @@ impl Default for T5Config {
     }
 }
 
-/// # T5 Base model
-/// Base architecture for T5 model. Usually complemented with a task-specific head, such as a language model head.
+impl From<&LongT5Config> for T5Config {
+    fn from(val: &LongT5Config) -> T5Config {
+        T5Config {
+            dropout_rate: val.dropout_rate,
+            d_model: val.d_model,
+            d_ff: val.d_ff,
+            d_kv: val.d_kv,
+            decoder_start_token_id: val.decoder_start_token_id,
+            bos_token_id: None,
+            eos_token_id: val.eos_token_id,
+            initializer_factor: val.initializer_factor,
+            is_encoder_decoder: val.is_encoder_decoder,
+            layer_norm_epsilon: val.layer_norm_epsilon,
+            num_heads: val.num_heads,
+            num_layers: val.num_layers,
+            output_past: val.output_past,
+            pad_token_id: val.pad_token_id,
+            relative_attention_num_buckets: val.relative_attention_num_buckets,
+            relative_attention_max_distance: val.relative_attention_max_distance,
+            vocab_size: val.vocab_size,
+            feed_forward_proj: val.feed_forward_proj,
+            tie_word_embeddings: val.tie_word_embeddings,
+            task_specific_params: val.task_specific_params.clone(),
+            output_attentions: val.output_attentions,
+            output_hidden_states: val.output_hidden_states,
+        }
+    }
+}
+
+/// # LongT5 Base model
+/// Base architecture for LongT5 model. Usually complemented with a task-specific head, such as a language model head.
 /// It is made of the following blocks:
 /// - `encoder`: `T5Stack` (transformer) made of a vector of encoding layers
 /// - `decoder`: `T5Stack` (transformer)  made of a vector of decoding layers with self attention and encoder cross-attention.
 /// caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
 /// - `embeddings`: `nn::Embedding` Shared embeddings for the encoder and decoder.
-pub struct T5Model {
-    pub(crate) encoder: T5Stack,
-    decoder: T5Stack,
+pub struct LongT5Model {
+    pub(crate) encoder: LongT5Stack,
+    decoder: LongT5Stack,
     pub(crate) embeddings: nn::Embedding,
 }
 
-impl T5Model {
-    /// Build a new `T5Model`
+impl LongT5Model {
+    /// Build a new `LongT5Model`
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the T5 model
-    /// * `config` - `T5Config` object defining the model architecture
+    /// * `p` - Variable store path for the root of the LongT5 model
+    /// * `config` - `LongT5Config` object defining the model architecture
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::t5::{T5Config, T5Model};
+    /// use rust_bert::longt5::{LongT5Config, LongT5Model};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -264,10 +199,10 @@ impl T5Model {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = T5Config::from_file(config_path);
-    /// let t5: T5Model = T5Model::new(&p.root() / "t5", &config);
+    /// let config = LongT5Config::from_file(config_path);
+    /// let long_t5: LongT5Model = LongT5Model::new(&p.root() / "longt5", &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &T5Config) -> T5Model
+    pub fn new<'p, P>(p: P, config: &LongT5Config) -> LongT5Model
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -280,7 +215,7 @@ impl T5Model {
             Default::default(),
         );
 
-        let encoder = T5Stack::new(
+        let encoder = LongT5Stack::new(
             p / "encoder",
             config,
             false,
@@ -288,7 +223,7 @@ impl T5Model {
             config.output_attentions.unwrap_or(false),
             config.output_hidden_states.unwrap_or(false),
         );
-        let decoder = T5Stack::new(
+        let decoder = LongT5Stack::new(
             p / "decoder",
             config,
             true,
@@ -297,7 +232,7 @@ impl T5Model {
             config.output_hidden_states.unwrap_or(false),
         );
 
-        T5Model {
+        LongT5Model {
             encoder,
             decoder,
             embeddings,
@@ -310,9 +245,9 @@ impl T5Model {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). This or `input_embeds` must be provided.
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
-    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). This or `decoder_input_embeds` must be provided.
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
     /// These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). This or `decoder_input_embeds` must be provided.
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `input_embeds` - Optional input tensor of shape (*batch size*, *source_sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
     /// * `decoder_input_embeds` - Optional input tensor of shape (*batch size*, *target_sequence_length*, *embeddings dimension*). This or `decoder_input_ids` must be provided.
@@ -321,7 +256,7 @@ impl T5Model {
     ///
     /// # Returns
     ///
-    /// * `T5ModelOutput` containing:
+    /// * `LongT5ModelOutput` containing:
     ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *hidden_size*) representing the activations of the last decoder hidden state
     ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
     ///   - `cache` - `Option<Vec<(Option<Vec<LayerState, LayerState>>)>>` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
@@ -337,13 +272,13 @@ impl T5Model {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::t5::{T5Config, T5Model};
+    /// use rust_bert::longt5::{LongT5Config, LongT5Model};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = T5Config::from_file(config_path);
-    /// # let t5_model: T5Model = T5Model::new(&vs.root(), &config);
+    /// # let config = LongT5Config::from_file(config_path);
+    /// # let longt5_model: LongT5Model = LongT5Model::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -353,7 +288,7 @@ impl T5Model {
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     t5_model.forward_t(
+    ///     longt5_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
     ///         None,
@@ -377,32 +312,23 @@ impl T5Model {
         decoder_input_embeds: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> T5ModelOutput {
-        let calc_encoder_outputs = if encoder_outputs.is_none() {
-            Some(
-                self.encoder
-                    .forward_t(
-                        input_ids,
-                        attention_mask,
-                        None,
-                        None,
-                        input_embeds,
-                        &self.embeddings,
-                        None,
-                        train,
-                    )
-                    .unwrap(),
-            )
-        } else {
-            None
-        };
-
+    ) -> Result<LongT5ModelOutput, RustBertError> {
         let (calc_hidden_states, all_encoder_hidden_states, all_encoder_attentions) =
-            if let Some(calc_encoder_outputs) = calc_encoder_outputs {
+            if encoder_outputs.is_none() {
+                let encoder_output = self.encoder.forward_t(
+                    input_ids,
+                    attention_mask,
+                    None,
+                    None,
+                    input_embeds,
+                    &self.embeddings,
+                    None,
+                    train,
+                )?;
                 (
-                    Some(calc_encoder_outputs.hidden_state),
-                    calc_encoder_outputs.all_hidden_states,
-                    calc_encoder_outputs.all_attentions,
+                    Some(encoder_output.hidden_state),
+                    encoder_output.all_hidden_states,
+                    encoder_output.all_attentions,
                 )
             } else {
                 (None, None, None)
@@ -424,7 +350,7 @@ impl T5Model {
                 train,
             )
             .unwrap();
-        T5ModelOutput {
+        Ok(LongT5ModelOutput {
             decoder_output: decoder_output.hidden_state,
             encoder_hidden_state: calc_hidden_states,
             next_cache: decoder_output.next_cache,
@@ -432,34 +358,34 @@ impl T5Model {
             all_decoder_attentions: decoder_output.all_attentions,
             all_encoder_hidden_states,
             all_encoder_attentions,
-        }
+        })
     }
 }
 
-/// # T5 Model for conditional generation
-/// T5 model with a vocabulary decoding head
+/// # LongT5 Model for conditional generation
+/// LongT5 model with a vocabulary decoding head
 /// It is made of the following blocks:
-/// - `base_model`: `T5Model` Base T5 model
+/// - `base_model`: `LongT5Model` Base LongT5 model
 /// - `model_dim`: `f64` representation of the model dimension for scaling of the generated logits
-pub struct T5ForConditionalGeneration {
-    base_model: T5Model,
+pub struct LongT5ForConditionalGeneration {
+    base_model: LongT5Model,
     model_dim: f64,
     tie_word_embeddings: bool,
     lm_head: Option<nn::Linear>,
 }
 
-impl T5ForConditionalGeneration {
-    /// Build a new `T5ForConditionalGeneration`
+impl LongT5ForConditionalGeneration {
+    /// Build a new `LongT5ForConditionalGeneration`
     ///
     /// # Arguments
     ///
     /// * `p` - Variable store path for the root of the BART model
-    /// * `config` - `T5Config` object defining the model architecture
+    /// * `config` - `LongT5Config` object defining the model architecture
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::t5::{T5Config, T5ForConditionalGeneration};
+    /// use rust_bert::longt5::{LongT5Config, LongT5ForConditionalGeneration};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -467,16 +393,16 @@ impl T5ForConditionalGeneration {
     /// let config_path = Path::new("path/to/config.json");
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
-    /// let config = T5Config::from_file(config_path);
-    /// let t5 = T5ForConditionalGeneration::new(&p.root() / "t5", &config);
+    /// let config = LongT5Config::from_file(config_path);
+    /// let longt5 = LongT5ForConditionalGeneration::new(&p.root() / "t5", &config);
     /// ```
-    pub fn new<'p, P>(p: P, config: &T5Config) -> T5ForConditionalGeneration
+    pub fn new<'p, P>(p: P, config: &LongT5Config) -> LongT5ForConditionalGeneration
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
-        let base_model = T5Model::new(p, config);
+        let base_model = LongT5Model::new(p, config);
         let tie_word_embeddings = config.tie_word_embeddings.unwrap_or(true);
 
         let lm_head = if !tie_word_embeddings {
@@ -493,7 +419,7 @@ impl T5ForConditionalGeneration {
             None
         };
 
-        T5ForConditionalGeneration {
+        LongT5ForConditionalGeneration {
             base_model,
             model_dim: config.d_model as f64,
             tie_word_embeddings,
@@ -507,9 +433,9 @@ impl T5ForConditionalGeneration {
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). This or `input_embeds` must be provided.
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
-    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). This or `decoder_input_embeds` must be provided.
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
     /// These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). This or `decoder_input_embeds` must be provided.
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `input_embeds` - Optional input tensor of shape (*batch size*, *source_sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
     /// * `decoder_input_embeds` - Optional input tensor of shape (*batch size*, *target_sequence_length*, *embeddings dimension*). This or `decoder_input_ids` must be provided.
@@ -518,7 +444,7 @@ impl T5ForConditionalGeneration {
     ///
     /// # Returns
     ///
-    /// * `T5ModelOutput` containing:
+    /// * `longT5ModelOutput` containing:
     ///   - `decoder_output` - `Tensor` of shape (*batch size*, *target_sequence_length*, *vocab_size*) representing the logits for each sequence position and vocabulary item
     ///   - `encoder_hidden_states` - `Tensor` of shape (*batch size*, *source_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
     ///   - `cache` - `Option<Vec<(Option<Vec<LayerState, LayerState>>)>>` of length *n_layer* containing the encoder padding mask and past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
@@ -534,13 +460,13 @@ impl T5ForConditionalGeneration {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::t5::{T5Config, T5ForConditionalGeneration};
+    /// use rust_bert::longt5::{LongT5Config, LongT5ForConditionalGeneration};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = T5Config::from_file(config_path);
-    /// # let t5_model: T5ForConditionalGeneration = T5ForConditionalGeneration::new(&vs.root(), &config);
+    /// # let config = LongT5Config::from_file(config_path);
+    /// # let longt5_model: LongT5ForConditionalGeneration = LongT5ForConditionalGeneration::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -550,7 +476,7 @@ impl T5ForConditionalGeneration {
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     t5_model.forward_t(
+    ///     longt5_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
     ///         None,
@@ -574,7 +500,7 @@ impl T5ForConditionalGeneration {
         decoder_input_embeds: Option<&Tensor>,
         old_layer_states: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
         train: bool,
-    ) -> T5ModelOutput {
+    ) -> Result<LongT5ModelOutput, RustBertError> {
         let base_model_output = self.base_model.forward_t(
             input_ids,
             attention_mask,
@@ -585,7 +511,7 @@ impl T5ForConditionalGeneration {
             decoder_input_embeds,
             old_layer_states,
             train,
-        );
+        )?;
 
         let lm_logits = if self.tie_word_embeddings {
             base_model_output
@@ -598,10 +524,10 @@ impl T5ForConditionalGeneration {
                 .apply(self.lm_head.as_ref().unwrap())
         };
 
-        T5ModelOutput {
+        Ok(T5ModelOutput {
             decoder_output: lm_logits,
             ..base_model_output
-        }
+        })
     }
 
     pub fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Tensor {
@@ -622,17 +548,17 @@ impl T5ForConditionalGeneration {
     }
 }
 
-impl LMHeadModel for T5ForConditionalGeneration {
+impl LMHeadModel for LongT5ForConditionalGeneration {
     /// Forward pass through the model
     ///
     /// # Arguments
     ///
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
-    /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
+    /// * `cache` - `Cache` object containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
     /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `input_embeds` - Unused for T5
-    /// * `token_type_ids` - Unused for T5
-    /// * `position_ids` - Unused for T5
+    /// * `input_embeds` - Unused for LongT5
+    /// * `token_type_ids` - Unused for LongT5
+    /// * `position_ids` - Unused for LongT5
     /// * `encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *hidden_size*). When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*).
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -651,13 +577,13 @@ impl LMHeadModel for T5ForConditionalGeneration {
     /// # use rust_bert::Config;
     /// # use std::path::Path;
     /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::t5::{T5Config, T5ForConditionalGeneration};
+    /// use rust_bert::longt5::{LongT5Config, LongT5ForConditionalGeneration};
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
-    /// # let config = T5Config::from_file(config_path);
-    /// # let t5_model: T5ForConditionalGeneration = T5ForConditionalGeneration::new(&vs.root(), &config);
+    /// # let config = LongT5Config::from_file(config_path);
+    /// # let longt5_model: LongT5ForConditionalGeneration = LongT5ForConditionalGeneration::new(&vs.root(), &config);
     /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -667,7 +593,7 @@ impl LMHeadModel for T5ForConditionalGeneration {
     ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     t5_model.forward_t(
+    ///     longt5_model.forward_t(
     ///         Some(&input_tensor),
     ///         Some(&encoder_attention_mask),
     ///         None,
@@ -693,7 +619,7 @@ impl LMHeadModel for T5ForConditionalGeneration {
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match cache {
-            Cache::T5Cache(cached_layer_states) => self.base_model.forward_t(
+            Cache::LongT5Cache(cached_layer_states) => self.base_model.forward_t(
                 input_ids,
                 attention_mask,
                 encoder_outputs,
@@ -703,7 +629,7 @@ impl LMHeadModel for T5ForConditionalGeneration {
                 None,
                 cached_layer_states,
                 train,
-            ),
+            )?,
             Cache::None => self.base_model.forward_t(
                 input_ids,
                 attention_mask,
@@ -714,10 +640,10 @@ impl LMHeadModel for T5ForConditionalGeneration {
                 None,
                 None,
                 train,
-            ),
+            )?,
             _ => {
                 return Err(RustBertError::ValueError(
-                    "Cache not compatible with T5 Model".into(),
+                    "Cache not compatible with LongT5 Model".into(),
                 ));
             }
         };
@@ -735,112 +661,16 @@ impl LMHeadModel for T5ForConditionalGeneration {
 
         Ok(LMModelOutput {
             lm_logits,
-            cache: Cache::T5Cache(base_model_output.next_cache),
+            cache: Cache::LongT5Cache(base_model_output.next_cache),
         })
     }
 }
 
-/// # T5 for sentence embeddings
-/// Transformer usable in [`SentenceEmbeddingsModel`](crate::pipelines::sentence_embeddings::SentenceEmbeddingsModel).
-pub struct T5ForSentenceEmbeddings {
-    embeddings: nn::Embedding,
-    encoder: T5Stack,
-}
+/// Container holding a LongT5 model output.
+pub type LongT5ModelOutput = T5ModelOutput;
 
-impl T5ForSentenceEmbeddings {
-    /// Build a new `T5ForSentenceEmbeddings`
-    ///
-    /// # Arguments
-    ///
-    /// * `p` - Variable store path for the root of the BART model
-    /// * `config` - `T5Config` object defining the model architecture
-    ///
-    /// It consists of only an encoder (there is no decoder).
-    pub fn new<'p, P>(p: P, config: &T5Config) -> Self
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        let p = p.borrow();
-
-        let embeddings: nn::Embedding = embedding(
-            p / "shared",
-            config.vocab_size,
-            config.d_model,
-            Default::default(),
-        );
-
-        let encoder = T5Stack::new(
-            p / "encoder",
-            config,
-            false,
-            false,
-            config.output_attentions.unwrap_or(false),
-            config.output_hidden_states.unwrap_or(false),
-        );
-
-        Self {
-            embeddings,
-            encoder,
-        }
-    }
-
-    /// Forward pass through the model
-    ///
-    /// # Arguments
-    ///
-    /// * `input_ids` - Input of shape (*batch size*, *source_sequence_length*).
-    /// * `mask` - Attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
-    ///
-    /// # Returns
-    ///
-    /// * Tuple containing:
-    ///   - `Tensor` of shape (*batch size*, *target_sequence_length*, *hidden_size*) representing the activations of the last encoder hidden state
-    ///   - `Option<Vec<Tensor>>` of length *num_encoder_layers* of shape (*batch size*, *target_sequence_length*, *hidden_size*)  representing attention weights for all layers of the encoder
-    pub fn forward(
-        &self,
-        input_ids: &Tensor,
-        mask: &Tensor,
-    ) -> Result<(Tensor, Option<Vec<Tensor>>), RustBertError> {
-        let transformer_output = self.encoder.forward_t(
-            Some(input_ids),
-            Some(mask),
-            None,
-            None,
-            None,
-            &self.embeddings,
-            None,
-            false,
-        )?;
-        Ok((
-            transformer_output.hidden_state,
-            transformer_output.all_attentions,
-        ))
-    }
-}
-
-/// Container holding a T5 model output. The decoder output may hold the hidden state of
-/// the last layer of the decoder, or may hold logits for a custom head module after the
-/// decoder (e.g. for language modeling tasks)
-pub struct T5ModelOutput {
-    /// Hidden state of the last layer of the decoder, or logits for a custom head
-    /// module after the decoder (e.g. for language modeling tasks)
-    pub decoder_output: Tensor,
-    /// Hidden state for the last layer of the encoder if they are calculated, otherwise None
-    pub encoder_hidden_state: Option<Tensor>,
-    /// Cached outputs of the model (attention layers keys and values) if the model is used for generation
-    pub next_cache: Option<Vec<(Option<LayerState>, Option<LayerState>)>>,
-    /// Hidden states for all layers of the decoder
-    pub all_decoder_hidden_states: Option<Vec<Tensor>>,
-    /// Attention weights for all layers of the decoder
-    pub all_decoder_attentions: Option<Vec<Tensor>>,
-    /// Hidden states for all layers of the encoder
-    pub all_encoder_hidden_states: Option<Vec<Tensor>>,
-    /// Attention weights for all layers of the encoder
-    pub all_encoder_attentions: Option<Vec<Tensor>>,
-}
-
-pub struct T5Generator {
-    model: T5ForConditionalGeneration,
+pub struct LongT5Generator {
+    model: LongT5ForConditionalGeneration,
     tokenizer: TokenizerOption,
     var_store: nn::VarStore,
     generate_config: GenerateConfig,
@@ -853,12 +683,12 @@ pub struct T5Generator {
     max_position_embeddings: i64,
 }
 
-impl T5Generator {
-    pub fn new(generate_config: GenerateConfig) -> Result<T5Generator, RustBertError> {
+impl LongT5Generator {
+    pub fn new(generate_config: GenerateConfig) -> Result<LongT5Generator, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
-            ModelType::T5,
+            ModelType::LongT5,
             vocab_path.to_str().unwrap(),
             None,
             false,
@@ -872,7 +702,7 @@ impl T5Generator {
     pub fn new_with_tokenizer(
         generate_config: GenerateConfig,
         tokenizer: TokenizerOption,
-    ) -> Result<T5Generator, RustBertError> {
+    ) -> Result<LongT5Generator, RustBertError> {
         let config_path = generate_config.config_resource.get_local_path()?;
         let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
@@ -880,11 +710,11 @@ impl T5Generator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
 
-        let config = T5Config::from_file(config_path);
-        let model = T5ForConditionalGeneration::new(var_store.root(), &config);
+        let config = LongT5Config::from_file(config_path);
+        let model = LongT5ForConditionalGeneration::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
-        let bos_token_id = Some(config.bos_token_id.unwrap_or(-1));
+        let bos_token_id = config.bos_token_id;
         let eos_token_ids = Some(match config.eos_token_id {
             Some(value) => vec![value],
             None => vec![1],
@@ -892,11 +722,11 @@ impl T5Generator {
         let pad_token_id = Some(config.pad_token_id.unwrap_or(0));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(0);
-        // T5 do not have an embedding matrix for position IDs and relies on relative positions instead
+        let decoder_start_id = pad_token_id;
+        // longT5 do not have an embedding matrix for position IDs and relies on relative positions instead
         let max_position_embeddings = i64::MAX;
 
-        Ok(T5Generator {
+        Ok(LongT5Generator {
             model,
             tokenizer,
             var_store,
@@ -912,8 +742,10 @@ impl T5Generator {
     }
 }
 
-impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> for T5Generator {
-    fn get_model(&self) -> &T5ForConditionalGeneration {
+impl PrivateLanguageGenerator<LongT5ForConditionalGeneration, T5Vocab, T5Tokenizer>
+    for LongT5Generator
+{
+    fn get_model(&self) -> &LongT5ForConditionalGeneration {
         &self.model
     }
     fn _get_tokenizer(&self) -> &TokenizerOption {
@@ -962,13 +794,13 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
         attention_mask: Tensor,
     ) -> PreparedInput<'a> {
         match past {
-            Cache::T5Cache(past) => PreparedInput {
+            Cache::LongT5Cache(past) => PreparedInput {
                 prepared_input: None,
                 prepared_attention_mask: Some(attention_mask),
                 prepared_encoder_output: encoder_outputs,
                 prepared_decoder_input: Some(input_ids.narrow(1, -1, 1)),
                 prepared_position_ids: None,
-                prepared_past: Cache::T5Cache(past),
+                prepared_past: Cache::LongT5Cache(past),
             },
             Cache::None => PreparedInput {
                 prepared_input: None,
@@ -976,9 +808,9 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
                 prepared_encoder_output: encoder_outputs,
                 prepared_decoder_input: Some(input_ids),
                 prepared_position_ids: None,
-                prepared_past: Cache::T5Cache(None),
+                prepared_past: Cache::LongT5Cache(None),
             },
-            _ => panic!("Cache type incompatible with T5"),
+            _ => panic!("Cache type incompatible with longT5"),
         }
     }
 
@@ -1031,7 +863,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
         beam_indices: &Tensor,
     ) -> Option<Tensor> {
         match past {
-            Cache::T5Cache(old_cache_option) => match old_cache_option {
+            Cache::LongT5Cache(old_cache_option) => match old_cache_option {
                 Some(old_cache) => {
                     for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
                         if self_layer_state.is_some() {
@@ -1052,11 +884,11 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
             },
             Cache::None => {}
             _ => {
-                panic!("Invalid cache for T5 model");
+                panic!("Invalid cache for LongT5 model");
             }
         };
         encoder_outputs
     }
 }
 
-impl LanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> for T5Generator {}
+impl LanguageGenerator<LongT5ForConditionalGeneration, T5Vocab, T5Tokenizer> for LongT5Generator {}

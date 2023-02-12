@@ -16,7 +16,7 @@ use crate::bert::{
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::{Dropout, XDropout};
 use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
-use crate::common::kind::get_negative_infinity;
+use crate::common::kind::get_min;
 use crate::deberta::embeddings::DebertaEmbeddings;
 use crate::deberta::encoder::{DebertaEncoder, DebertaEncoderOutput};
 use crate::{Activation, Config, RustBertError};
@@ -264,7 +264,7 @@ impl Config for DebertaConfig {}
 pub fn x_softmax(input: &Tensor, mask: &Tensor, dim: i64) -> Tensor {
     let inverse_mask = ((1 - mask) as Tensor).to_kind(Kind::Bool);
     input
-        .masked_fill(&inverse_mask, get_negative_infinity(input.kind()).unwrap())
+        .masked_fill(&inverse_mask, get_min(input.kind()).unwrap())
         .softmax(dim, input.kind())
         .masked_fill(&inverse_mask, 0.0)
 }

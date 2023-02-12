@@ -130,6 +130,7 @@ jobs:
           command: test
           args: --package rust-bert
             --test sentence_embeddings
+            --test longt5
 
   convert-model:
     name: Model conversion test

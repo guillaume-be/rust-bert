@@ -10,7 +10,8 @@ from torch import Tensor
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("source_file", help="Absolute path to the Pytorch weights file to convert")
-    parser.add_argument("--skip_embeddings", action="store_true", help="Skip shared embeddings / language model head")
+    parser.add_argument("--skip_embeddings", action="store_true", help="Skip shared embeddings")
+    parser.add_argument("--skip_lm_head", action="store_true", help="Skip language model head")
     parser.add_argument("--prefix", help="Add a prefix on weight names")
     parser.add_argument("--suffix", action="store_true", help="Split weight names on '.' and keep only last part")
     args = parser.parse_args()
@@ -24,7 +25,17 @@ if __name__ == "__main__":
     for k, v in weights.items():
         k = k.replace("gamma", "weight").replace("beta", "bias")
         if args.skip_embeddings:
-            if k in {"lm_head.weight", "model.encoder.embed_tokens.weight", "model.decoder.embed_tokens.weight"}:
+            if k in {
+                "model.encoder.embed_tokens.weight",
+                "encoder.embed_tokens.weight",
+                "model.decoder.embed_tokens.weight",
+                "decoder.embed_tokens.weight"
+            }:
+                continue
+        if args.skip_lm_head:
+            if k in {
+                "lm_head.weight",
+            }:
                 continue
         if args.prefix:
             k = args.prefix + k
