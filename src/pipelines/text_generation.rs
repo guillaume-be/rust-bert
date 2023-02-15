@@ -35,6 +35,7 @@ use tch::Device;
 
 use crate::common::error::RustBertError;
 use crate::gpt2::GPT2Generator;
+use crate::gpt_j::GptJGenerator;
 use crate::gpt_neo::GptNeoGenerator;
 use crate::openai_gpt::OpenAIGenerator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
@@ -192,6 +193,8 @@ pub enum TextGenerationOption {
     GPT(OpenAIGenerator),
     /// Text Generator based on GPT-Neo model
     GPTNeo(GptNeoGenerator),
+    /// Text Generator based on GPT-J model
+    GPTJ(GptJGenerator),
     /// Text Generator based on XLNet model
     XLNet(XLNetGenerator),
     /// Text Generator based on Reformer model
@@ -216,6 +219,9 @@ impl TextGenerationOption {
             ModelType::GPTNeo => Ok(TextGenerationOption::GPTNeo(GptNeoGenerator::new(
                 config.into(),
             )?)),
+            ModelType::GPTJ => Ok(TextGenerationOption::GPTJ(GptJGenerator::new(
+                config.into(),
+            )?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Text generation not implemented for {:?}!",
                 config.model_type
@@ -229,6 +235,7 @@ impl TextGenerationOption {
             Self::GPT(_) => ModelType::OpenAiGpt,
             Self::GPT2(_) => ModelType::GPT2,
             Self::GPTNeo(_) => ModelType::GPTNeo,
+            Self::GPTJ(_) => ModelType::GPTJ,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
         }
@@ -240,6 +247,7 @@ impl TextGenerationOption {
             Self::GPT(model_ref) => model_ref._get_tokenizer(),
             Self::GPT2(model_ref) => model_ref._get_tokenizer(),
             Self::GPTNeo(model_ref) => model_ref._get_tokenizer(),
+            Self::GPTJ(model_ref) => model_ref._get_tokenizer(),
             Self::XLNet(model_ref) => model_ref._get_tokenizer(),
             Self::Reformer(model_ref) => model_ref._get_tokenizer(),
         }
@@ -276,6 +284,11 @@ impl TextGenerationOption {
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
+            Self::GPTJ(ref model) => model
+                .generate_indices(prompt_texts, generate_options)
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
             Self::XLNet(ref model) => model
                 .generate_indices(prompt_texts, generate_options)
                 .into_iter()
@@ -294,6 +307,7 @@ impl TextGenerationOption {
             Self::GPT(model_ref) => model_ref.half(),
             Self::GPT2(model_ref) => model_ref.half(),
             Self::GPTNeo(model_ref) => model_ref.half(),
+            Self::GPTJ(model_ref) => model_ref.half(),
             Self::XLNet(model_ref) => model_ref.half(),
             Self::Reformer(model_ref) => model_ref.half(),
         }
@@ -304,6 +318,7 @@ impl TextGenerationOption {
             Self::GPT(model_ref) => model_ref.float(),
             Self::GPT2(model_ref) => model_ref.float(),
             Self::GPTNeo(model_ref) => model_ref.float(),
+            Self::GPTJ(model_ref) => model_ref.float(),
             Self::XLNet(model_ref) => model_ref.float(),
             Self::Reformer(model_ref) => model_ref.float(),
         }
@@ -314,6 +329,7 @@ impl TextGenerationOption {
             Self::GPT(model_ref) => model_ref.set_device(device),
             Self::GPT2(model_ref) => model_ref.set_device(device),
             Self::GPTNeo(model_ref) => model_ref.set_device(device),
+            Self::GPTJ(model_ref) => model_ref.set_device(device),
             Self::XLNet(model_ref) => model_ref.set_device(device),
             Self::Reformer(model_ref) => model_ref.set_device(device),
         }
