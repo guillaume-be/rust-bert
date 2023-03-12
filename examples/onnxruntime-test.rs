@@ -2,17 +2,19 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ndarray::Array2;
+use ndarray::{Array2, Dimension};
 use ort::{
     tensor::{FromArray, InputTensor},
-    Environment, ExecutionProvider, GraphOptimizationLevel, OrtApiError, OrtError, OrtResult,
-    Session, SessionBuilder,
+    Environment, ExecutionProvider, GraphOptimizationLevel, OrtResult, Session, SessionBuilder,
 };
+use rust_bert::pipelines::generation_utils::{Cache, LMModelOutput};
+use rust_bert::pipelines::onnx::ONNXLayerCache;
+use tch::Tensor;
 
 #[derive(Debug)]
 struct NameMapping<'a> {
     decoder_input_names: Vec<&'a str>,
-    decoder_output_names: Vec<&'a str>,
+    decoder_output_names: HashMap<&'a str, usize>,
     decoder_key_value_input_names: HashMap<&'a str, usize>,
     decoder_key_value_output_names: HashMap<&'a str, usize>,
 }
@@ -27,8 +29,9 @@ fn get_input_output_mapping(session: &Session) -> NameMapping {
     let decoder_output_names = session
         .outputs
         .iter()
-        .map(|output| output.name.as_str())
-        .collect::<Vec<&str>>();
+        .enumerate()
+        .map(|(pos, output)| (output.name.as_str(), pos))
+        .collect::<HashMap<&str, usize>>();
 
     let decoder_key_value_input_names = decoder_input_names
         .iter()
@@ -39,9 +42,8 @@ fn get_input_output_mapping(session: &Session) -> NameMapping {
 
     let decoder_key_value_output_names = decoder_output_names
         .iter()
-        .enumerate()
-        .filter(|(_, name)| name.contains(".key") | name.contains(".value"))
-        .map(|(pos, name)| (*name, pos))
+        .filter(|(name, _)| name.contains(".key") | name.contains(".value"))
+        .map(|(name, pos)| (*name, *pos))
         .collect::<HashMap<&str, usize>>();
 
     NameMapping {
@@ -86,8 +88,37 @@ fn main() -> OrtResult<()> {
 
     let outputs = decoder_session.run(inputs)?;
 
+    let logits = outputs[*decoder_name_mapping
+        .decoder_output_names
+        .get("logits")
+        .unwrap()]
+    .try_extract::<f32>()?;
+
+    let lm_logits = Tensor::of_slice(logits.view().as_slice().unwrap()).view(
+        logits
+            .view()
+            .dim()
+            .as_array_view()
+            .iter()
+            .map(|dim| *dim as i64)
+            .collect::<Vec<_>>()
+            .as_slice(),
+    );
+
+    let cache = Cache::ONNXCache(ONNXLayerCache::from_ort_output(
+        &outputs,
+        &decoder_name_mapping.decoder_key_value_output_names,
+    ));
+
+    let lm_output = LMModelOutput { lm_logits, cache };
+
+    println!("{} - {:?}", lm_output.lm_logits, lm_output.cache);
+
+    // ToDo: identify if the input and output types for the models are the same (use as reference type for ONNXCache)
+    // ToDo: store the output in a Cache object (to have the logits and cache in the dict)
+    // ToDo: skip output dict and directly get the logits and present stored in the cache
     // ToDo: extract the features using the mapping
-    println!("{:?}", outputs);
+    // println!("{:?}", output_dict);
 
     // for _ in 0..GEN_TOKENS {
     //     let n_tokens = &tokens.shape()[0];

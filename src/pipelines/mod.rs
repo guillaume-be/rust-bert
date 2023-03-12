@@ -480,6 +480,7 @@ pub mod generation_utils;
 pub mod keywords_extraction;
 pub mod masked_language;
 pub mod ner;
+pub mod onnx;
 pub mod pos_tagging;
 pub mod question_answering;
 pub mod sentence_embeddings;
