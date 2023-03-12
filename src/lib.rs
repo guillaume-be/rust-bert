@@ -39,7 +39,9 @@
 //! - Named Entity Recognition
 //! - Part of Speech tagging
 //! - Question-Answering
-//! - Language Generation.
+//! - Language Generation
+//! - Sentence Embeddings
+//! - Masked Language Model
 //!
 //! More information on these can be found in the [`pipelines` module](./pipelines/index.html)
 //! - Transformer models base architectures with customized heads. These allow to load pre-trained models for customized inference in Rust
@@ -47,30 +49,31 @@
 //! <details>
 //! <summary> <b> Click to expand to display the supported models/tasks matrix </b> </summary>
 //!
-//! | |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|
-//! :-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:
-//! DistilBERT|✅|✅|✅| | | |✅|
-//! MobileBERT|✅|✅|✅| | | |✅|
-//! DeBERTa|✅|✅|✅| | | |✅|
-//! DeBERTa (v2)|✅|✅|✅| | | |✅|
-//! FNet|✅|✅|✅| | | |✅|
-//! BERT|✅|✅|✅| | | |✅|
-//! RoBERTa|✅|✅|✅| | | |✅|
-//! GPT| | | |✅ | | | |
-//! GPT2| | | |✅ | | | |
-//! GPT-Neo| | | |✅ | | | |
-//! BART|✅| | |✅ |✅| | |
-//! Marian| | | |  | |✅| |
-//! MBart|✅| | |✅ | | | |
-//! M2M100| | | |✅ | | | |
-//! Electra | |✅| | | | |✅|
-//! ALBERT |✅|✅|✅| | | |✅|
-//! T5 | | | |✅ |✅|✅| |
-//! XLNet|✅|✅|✅|✅ | | |✅|
-//! Reformer|✅| |✅|✅ | | |✅|
-//! ProphetNet| | | |✅ |✅ | | |
-//! Longformer|✅|✅|✅| | | |✅|
-//! Pegasus| | | | |✅| | |
+//!| |**Sequence classification**|**Token classification**|**Question answering**|**Text Generation**|**Summarization**|**Translation**|**Masked LM**|**Sentence Embeddings**|
+//!:-----:|:----:|:----:|:-----:|:----:|:-----:|:----:|:----:|:----:
+//!DistilBERT|✅|✅|✅| | | |✅| ✅|
+//!MobileBERT|✅|✅|✅| | | |✅| |
+//!DeBERTa|✅|✅|✅| | | |✅| |
+//!DeBERTa (v2)|✅|✅|✅| | | |✅| |
+//!FNet|✅|✅|✅| | | |✅| |
+//!BERT|✅|✅|✅| | | |✅| ✅|
+//!RoBERTa|✅|✅|✅| | | |✅| ✅|
+//!GPT| | | |✅ | | | |  |
+//!GPT2| | | |✅ | | | |  |
+//!GPT-Neo| | | |✅ | | | | |
+//!BART|✅| | |✅ |✅| | | |
+//!Marian| | | |  | |✅| |  |
+//!MBart|✅| | |✅ | | | |  |
+//!M2M100| | | |✅ | | | |  |
+//!Electra | |✅| | | | |✅|  |
+//!ALBERT |✅|✅|✅| | | |✅| ✅ |
+//!T5 | | | |✅ |✅|✅| | ✅ |
+//!LongT5 | | | |✅ |✅| | |  |
+//!XLNet|✅|✅|✅|✅ | | |✅|  |
+//!Reformer|✅| |✅|✅ | | |✅|  |
+//!ProphetNet| | | |✅ |✅ | | |  |
+//!Longformer|✅|✅|✅| | | |✅|  |
+//!Pegasus| | | | |✅| | |  |
 //! </details>
 //!
 //! # Getting started
@@ -84,8 +87,8 @@
 //!
 //! ### Manual installation (recommended)
 //!
-//! 1. Download `libtorch` from <https://pytorch.org/get-started/locally/>. This package requires `v1.10.0`: if this version is no longer available on the "get started" page,
-//! the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu111/libtorch-shared-with-deps-1.10.0%2Bcu111.zip` for a Linux version with CUDA11.
+//! 1. Download `libtorch` from <https://pytorch.org/get-started/locally/>. This package requires `v1.13.0`: if this version is no longer available on the "get started" page,
+//! the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-1.13.0%2Bcu117.zip` for a Linux version with CUDA11.
 //! 2. Extract the library to a location of your choice
 //! 3. Set the following environment variables
 //! ##### Linux:
@@ -103,7 +106,7 @@
 //! ### Automatic installation
 //!
 //! Alternatively, you can let the `build` script automatically download the `libtorch` library for you.
-//! The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu111`.
+//! The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu117`.
 //! Note that the libtorch library is large (order of several GBs for the CUDA-enabled version) and the first build may therefore take several minutes to complete.
 //!
 //! # Ready-to-use pipelines
@@ -504,7 +507,43 @@
 //! </details>
 //! &nbsp;
 //! <details>
-//! <summary> <b>9. Part of Speech tagging </b> </summary>
+//! <summary> <b>9. Keywords/keyphrases extraction</b> </summary>
+//!
+//! Extract keywords and keyphrases extractions from input documents
+//!
+//!```no_run
+//! # fn main() -> anyhow::Result<()> {
+//!     use rust_bert::pipelines::keywords_extraction::KeywordExtractionModel;
+//!     let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
+//!
+//!     let input = "Rust is a multi-paradigm, general-purpose programming language. \
+//!         Rust emphasizes performance, type safety, and concurrency. Rust enforces memory safety—that is, \
+//!         that all references point to valid memory—without requiring the use of a garbage collector or \
+//!         reference counting present in other memory-safe languages. To simultaneously enforce \
+//!         memory safety and prevent concurrent data races, Rust's borrow checker tracks the object lifetime \
+//!         and variable scope of all references in a program during compilation. Rust is popular for \
+//!         systems programming but also offers high-level features including functional programming constructs.";
+//!     // Credits: Wikimedia https://en.wikipedia.org/wiki/Rust_(programming_language)
+//!     let output = keyword_extraction_model.predict(&[input])?;
+//!     Ok(())
+//! }
+//! ```
+//! Output:
+//! ```no_run
+//! # let output =
+//! [
+//!     ("rust", 0.50910604),
+//!     ("concurrency", 0.33825397),
+//!     ("languages", 0.28515345),
+//!     ("compilation", 0.2801403),
+//!     ("safety", 0.2657791),
+//! ]
+//! # ;
+//! ```
+//! </details>
+//! &nbsp;
+//! <details>
+//! <summary> <b>10. Part of Speech tagging </b> </summary>
 //!
 //! Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 //! ```no_run
@@ -544,7 +583,69 @@
 //! ]
 //! # ;
 //! ```
+//! </details>
+//! &nbsp;
+//! <details>
+//! <summary> <b>11. Sentence embeddings </b> </summary>
 //!
+//! Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
+//!```no_run
+//! # use rust_bert::pipelines::sentence_embeddings::{SentenceEmbeddingsBuilder, SentenceEmbeddingsModelType};
+//! # fn main() -> anyhow::Result<()> {
+//!    let model = SentenceEmbeddingsBuilder::remote(
+//!             SentenceEmbeddingsModelType::AllMiniLmL12V2
+//!         ).create_model()?;
+//!
+//!     let sentences = [
+//!         "this is an example sentence",
+//!         "each sentence is converted"
+//!     ];
+//!
+//!     let output = model.encode(&sentences);
+//! #   Ok(())
+//! # }
+//! ```
+//! Output:
+//! ```no_run
+//! # let output =
+//! [
+//!     [-0.000202666, 0.08148022, 0.03136178, 0.002920636],
+//!     [0.064757116, 0.048519745, -0.01786038, -0.0479775],
+//! ]
+//! # ;
+//! ```
+//! </details>
+//! &nbsp;  
+//! <details>
+//! <summary> <b>12. Masked Language Model </b> </summary>
+//!
+//! Predict masked words in input sentences.
+//!```no_run
+//! # use rust_bert::pipelines::masked_language::MaskedLanguageModel;
+//! # fn main() -> anyhow::Result<()> {
+//! let model = MaskedLanguageModel::new(Default::default())?;
+//!
+//! let sentences = [
+//!     "Hello I am a <mask> student",
+//!     "Paris is the <mask> of France. It is <mask> in Europe.",
+//! ];
+//!
+//! let output = model.predict(&sentences);
+//! #   Ok(())
+//! # }
+//! ```
+//! Output:
+//!```no_run
+//! # use rust_bert::pipelines::masked_language::MaskedToken;
+//! let output = vec![
+//!    vec![MaskedToken { text: String::from("college"), id: 2267, score: 8.091}],
+//!    vec![
+//!        MaskedToken { text: String::from("capital"), id: 3007, score: 16.7249},
+//!        MaskedToken { text: String::from("located"), id: 2284, score: 9.0452}
+//!    ]
+//! ]
+//! # ;
+//! ```
 //! </details>
 //!
 //! ## Benchmarks
@@ -595,6 +696,8 @@
 // These are used abundantly in this code
 #![allow(clippy::assign_op_pattern, clippy::upper_case_acronyms)]
 
+extern crate core;
+
 pub mod albert;
 pub mod bart;
 pub mod bert;
@@ -605,8 +708,10 @@ pub mod distilbert;
 pub mod electra;
 pub mod fnet;
 pub mod gpt2;
+pub mod gpt_j;
 pub mod gpt_neo;
 pub mod longformer;
+pub mod longt5;
 pub mod m2m_100;
 pub mod marian;
 pub mod mbart;

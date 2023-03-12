@@ -20,7 +20,7 @@
 //!
 //!
 //! The dependencies will be downloaded to the user's home directory, under ~/.cache/.rustbert/dialgpt-medium
-//!
+//! The following illustrates how to run a 2-turns conversation using a conversation manager:
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
@@ -30,15 +30,24 @@
 //! let conversation_id =
 //!     conversation_manager.create("Going to the movies tonight - any suggestions?");
 //! let output = conversation_model.generate_responses(&mut conversation_manager);
+//!
+//! let _ = conversation_manager
+//!     .get(&conversation_id)
+//!     .unwrap()
+//!     .add_user_input("Is it an action movie?")?;
+//!
+//! let output = conversation_model.generate_responses(&mut conversation_manager);
+//!
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! Example output: \
 //! ```no_run
-//! # let output =
-//! "The Big Lebowski."
-//! # ;
+//! # let output = [
+//! "{a0cb3c15-9a5a-4a34-958d-95eddac0215a: \"The Big Lebowski\"}",
+//! "{a0cb3c15-9a5a-4a34-958d-95eddac0215a: \"It's a comedy.\"}"
+//! # ];
 //! ```
 //!
 //! # Disclaimer
@@ -73,11 +82,11 @@ pub struct ConversationConfig {
     /// Vocab resource (default: DialoGPT-medium)
     pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource (default: DialoGPT-medium)
-    pub merges_resource: Box<dyn ResourceProvider + Send>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
     /// Maximum sequence length (default: 20)
-    pub max_length: i64,
+    pub max_length: Option<i64>,
     /// Minimum free length available for generated responses (default: 32)
     pub min_length_for_response: i64,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
@@ -122,11 +131,11 @@ impl Default for ConversationConfig {
             vocab_resource: Box::new(RemoteResource::from_pretrained(
                 Gpt2VocabResources::DIALOGPT_MEDIUM,
             )),
-            merges_resource: Box::new(RemoteResource::from_pretrained(
+            merges_resource: Some(Box::new(RemoteResource::from_pretrained(
                 Gpt2MergesResources::DIALOGPT_MEDIUM,
-            )),
+            ))),
             min_length: 0,
-            max_length: 1000,
+            max_length: Some(1000),
             min_length_for_response: 64,
             do_sample: true,
             early_stopping: false,
@@ -240,7 +249,7 @@ impl Conversation {
     /// use rust_bert::pipelines::conversation::Conversation;
     ///
     /// let mut conversation = Conversation::new_empty();
-    /// conversation.add_user_input("Hi there!");
+    /// conversation.add_user_input("Hi there!").unwrap();
     /// ```
     pub fn add_user_input(&mut self, text: &str) -> Result<(), RustBertError> {
         if self.new_user_input.is_some() {
@@ -270,7 +279,9 @@ impl Conversation {
     /// use rust_bert::pipelines::conversation::Conversation;
     ///
     /// let mut conversation = Conversation::new_empty();
-    /// conversation.add_user_input("This input will not be used");
+    /// conversation
+    ///     .add_user_input("This input will not be used")
+    ///     .unwrap();
     /// let unused_string = conversation.add_user_input_with_overwrite("Hi there!");
     /// ```
     pub fn add_user_input_with_overwrite(&mut self, text: &str) -> Option<String> {
@@ -296,7 +307,9 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// let false_value = conversation.contains_new_input();
-    /// conversation.add_user_input("This input will not be used");
+    /// conversation
+    ///     .add_user_input("This input will not be used")
+    ///     .unwrap();
     /// let true_value = conversation.contains_new_input();
     /// ```
     pub fn contains_new_input(&self) -> bool {
@@ -313,7 +326,9 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// let false_value = conversation.contains_new_input();
-    /// conversation.add_user_input("This input will not be used");
+    /// conversation
+    ///     .add_user_input("This input will not be used")
+    ///     .unwrap();
     /// let true_value = conversation.contains_new_input();
     /// conversation.mark_processed();
     /// let false_value = conversation.contains_new_input();
@@ -340,7 +355,9 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// let none_value = conversation.get_last_input();
-    /// conversation.add_user_input("This input will not be used");
+    /// conversation
+    ///     .add_user_input("This input will not be used")
+    ///     .unwrap();
     /// let last_provided_input = conversation.get_last_input();
     /// assert_eq!(last_provided_input, Some("This input will not be used"));
     /// ```
@@ -733,7 +750,7 @@ impl ConversationOption {
 pub struct ConversationModel {
     model: ConversationOption,
     eos_token_id: i64,
-    max_allowed_context_length: i64,
+    max_allowed_context_length: Option<i64>,
     device: Device,
 }
 
@@ -757,8 +774,9 @@ impl ConversationModel {
     pub fn new(
         conversation_config: ConversationConfig,
     ) -> Result<ConversationModel, RustBertError> {
-        let max_allowed_length =
-            conversation_config.max_length - conversation_config.min_length_for_response;
+        let max_allowed_length = conversation_config
+            .max_length
+            .map(|max_length| max_length - conversation_config.min_length_for_response);
         let device = conversation_config.device;
         let model = ConversationOption::new(conversation_config)?;
         let eos_token_id = model.get_eos_id()?;
@@ -904,17 +922,18 @@ impl ConversationModel {
 
         let truncated_concatenated_inputs = concatenated_inputs
             .iter()
-            .map(|input| {
-                if input.len() > self.max_allowed_context_length as usize {
+            .map(|input| match self.max_allowed_context_length {
+                Some(max_allowed_context_length)
+                    if input.len() > max_allowed_context_length as usize =>
+                {
                     let start = self.get_truncated_input_index(
                         input,
-                        self.max_allowed_context_length as usize,
+                        max_allowed_context_length as usize,
                         pad_token,
                     );
                     &input[start..]
-                } else {
-                    input.as_slice()
                 }
+                _ => input.as_slice(),
             })
             .collect::<Vec<&[i64]>>();
 
@@ -1001,7 +1020,9 @@ impl ConversationModel {
                     .convert_tokens_to_ids(&prompt_tokens)
             })
             .map(|mut tokens| {
-                tokens.truncate(self.max_allowed_context_length as usize - 1);
+                if let Some(max_allowed_context_length) = self.max_allowed_context_length {
+                    tokens.truncate(max_allowed_context_length as usize - 1);
+                }
                 tokens.push(self.eos_token_id);
                 tokens
             })

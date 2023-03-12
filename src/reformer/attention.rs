@@ -253,7 +253,11 @@ impl LSHSelfAttention {
                 self.hidden_size,
             ])
             .transpose(-2, -1);
-        Tensor::einsum("balh,ahr->balr", &[hidden_states, &per_head_query_key])
+        Tensor::einsum(
+            "balh,ahr->balr",
+            &[hidden_states, &per_head_query_key],
+            None,
+        )
     }
 
     fn value_per_attention_head(&self, hidden_states: &Tensor) -> Tensor {
@@ -266,7 +270,7 @@ impl LSHSelfAttention {
                 self.hidden_size,
             ])
             .transpose(-2, -1);
-        Tensor::einsum("balh,ahr->balr", &[hidden_states, &per_head_value])
+        Tensor::einsum("balh,ahr->balr", &[hidden_states, &per_head_value], None)
     }
 
     fn hash_vectors(
@@ -304,7 +308,8 @@ impl LSHSelfAttention {
             rotation_size / 2,
         ];
         let random_rotations = Tensor::randn(&rotations_shape, (vectors.kind(), vectors.device()));
-        let rotated_vectors = Tensor::einsum("bmtd,mdhr->bmhtr", &[vectors, random_rotations]);
+        let rotated_vectors =
+            Tensor::einsum("bmtd,mdhr->bmhtr", &[vectors, random_rotations], None);
 
         let mut buckets = match &self.num_buckets {
             NumBuckets::Integer(_) => {
@@ -647,7 +652,8 @@ impl LSHSelfAttention {
     }
 
     fn len_norm(&self, input_tensor: &Tensor, epsilon: f64) -> Tensor {
-        let variance = (input_tensor * input_tensor).mean_dim(&[-1], true, input_tensor.kind());
+        let variance =
+            (input_tensor * input_tensor).mean_dim([-1].as_slice(), true, input_tensor.kind());
         input_tensor * (variance + epsilon).rsqrt()
     }
 
@@ -903,9 +909,10 @@ impl LSHSelfAttention {
                 Some(self.attention_head_size),
             )?
             .unsqueeze(-1);
-            let probs_vectors = (&logits - &logits.logsumexp(&[2], true)).exp();
+            let probs_vectors = (&logits - &logits.logsumexp([2].as_slice(), true)).exp();
             let out_kind = out_vectors.kind();
-            out_vectors = (out_vectors * probs_vectors).sum_dim_intlist(&[2], false, out_kind);
+            out_vectors =
+                (out_vectors * probs_vectors).sum_dim_intlist([2].as_slice(), false, out_kind);
         }
 
         out_vectors = merge_hidden_size_dim(

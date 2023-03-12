@@ -44,7 +44,7 @@
 //!         model_resource,
 //!         config_resource,
 //!         vocab_resource,
-//!         merges_resource,
+//!         merges_resource: Some(merges_resource),
 //!         num_beams: 4,
 //!         no_repeat_ngram_size: 3,
 //!         device: Device::cuda_if_available(),

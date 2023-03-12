@@ -30,9 +30,6 @@
 //! let vocab_resource = Box::new(RemoteResource::from_pretrained(
 //!     XLNetVocabResources::XLNET_BASE_CASED,
 //! ));
-//! let merges_resource = Box::new(RemoteResource::from_pretrained(
-//!     XLNetVocabResources::XLNET_BASE_CASED,
-//! ));
 //! let model_resource = Box::new(RemoteResource::from_pretrained(
 //!     XLNetModelResources::XLNET_BASE_CASED,
 //! ));
@@ -41,8 +38,8 @@
 //!     model_resource,
 //!     config_resource,
 //!     vocab_resource,
-//!     merges_resource,
-//!     max_length: 56,
+//!     merges_resource: None,
+//!     max_length: Some(56),
 //!     do_sample: true,
 //!     num_beams: 3,
 //!     temperature: 1.0,

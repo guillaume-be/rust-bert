@@ -354,7 +354,7 @@ impl ReformerModel {
 
         let must_pad_to_match_chunk_length =
             (input_shape.last().unwrap() % self.least_common_mult_chunk_length != 0)
-                & (*input_shape.last().unwrap() as i64 > self.min_chunk_length)
+                & (*input_shape.last().unwrap() > self.min_chunk_length)
                 & old_layer_states.is_none();
 
         let start_idx_pos_encodings = if let Some(layer_states) = &old_layer_states {
@@ -548,7 +548,7 @@ impl ReformerModelWithLMHead {
         if let Some(lsh_num_chunks_after) = config.lsh_num_chunks_after {
             if config.attn_layers.contains(&AttentionType::lsh) & (lsh_num_chunks_after != 0) {
                 return Err(RustBertError::InvalidConfigurationError(
-                    format!("For text generation using LSH attention ensure `config.lsh_num_chunks_after` is set to 0 (currently {})", lsh_num_chunks_after),
+                    format!("For text generation using LSH attention ensure `config.lsh_num_chunks_after` is set to 0 (currently {lsh_num_chunks_after})"),
                 ));
             }
         }
@@ -556,7 +556,7 @@ impl ReformerModelWithLMHead {
         if let Some(local_num_chunks_after) = config.local_num_chunks_after {
             if config.attn_layers.contains(&AttentionType::local) & (local_num_chunks_after != 0) {
                 return Err(RustBertError::InvalidConfigurationError(
-                    format!("For text generation using local attention ensure `config.local_num_chunks_after` is set to 0 (currently {})", local_num_chunks_after),
+                    format!("For text generation using local attention ensure `config.local_num_chunks_after` is set to 0 (currently {local_num_chunks_after})"),
                 ));
             }
         }
@@ -709,14 +709,15 @@ impl ReformerClassificationHead {
             config.hidden_size,
             Default::default(),
         );
-        let num_labels = match &config.id2label {
-            Some(value) => value.len() as i64,
-            None => {
-                return Err(RustBertError::InvalidConfigurationError(
-                    "an id to label mapping must be provided for classification tasks".to_string(),
-                ));
-            }
-        };
+        let num_labels = config
+            .id2label
+            .as_ref()
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
+            .len() as i64;
         let out_proj = nn::linear(
             p / "out_proj",
             config.hidden_size,
@@ -1091,7 +1092,7 @@ impl ReformerGenerator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let config = ReformerConfig::from_file(config_path);
-        let model = ReformerModelWithLMHead::new(&var_store.root(), &config)?;
+        let model = ReformerModelWithLMHead::new(var_store.root(), &config)?;
         var_store.load(weights_path)?;
 
         let bos_token_id = tokenizer.get_bos_id();

@@ -135,7 +135,7 @@ pub enum Language {
 impl Display for Language {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", {
-            let input_string = format!("{:?}", self);
+            let input_string = format!("{self:?}");
             let mut output: Vec<&str> = Vec::new();
             let mut start: usize = 0;
 
@@ -380,15 +380,15 @@ pub struct TranslationConfig {
     /// Vocab resource
     pub vocab_resource: Box<dyn ResourceProvider + Send>,
     /// Merges resource
-    pub merges_resource: Box<dyn ResourceProvider + Send>,
+    pub merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Supported source languages
     pub source_languages: HashSet<Language>,
     /// Supported target languages
     pub target_languages: HashSet<Language>,
     /// Minimum sequence length (default: 0)
     pub min_length: i64,
-    /// Maximum sequence length (default: 20)
-    pub max_length: i64,
+    /// Maximum sequence length (default: 512)
+    pub max_length: Option<i64>,
     /// Sampling flag. If true, will perform top-k and/or nucleus sampling on generated tokens, otherwise greedy (deterministic) decoding (default: true)
     pub do_sample: bool,
     /// Early stopping flag indicating if the beam search should stop as soon as `num_beam` hypotheses have been generated (default: false)
@@ -428,10 +428,10 @@ impl TranslationConfig {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> anyhow::Result<()> {
+    /// # fn main() -> anyhow::Result<()> {     ///
     /// use rust_bert::marian::{
-    ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianTargetLanguages,
-    ///     MarianVocabResources,
+    ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+    ///     MarianTargetLanguages, MarianVocabResources,
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationConfig;
@@ -441,6 +441,7 @@ impl TranslationConfig {
     /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
     /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
+    /// let spm_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
     ///
     /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
     /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -449,8 +450,8 @@ impl TranslationConfig {
     ///     ModelType::Marian,
     ///     model_resource,
     ///     config_resource,
-    ///     vocab_resource.clone(),
     ///     vocab_resource,
+    ///     Some(spm_resource),
     ///     source_languages,
     ///     target_languages,
     ///     Device::cuda_if_available(),
@@ -458,18 +459,20 @@ impl TranslationConfig {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new<R, S, T>(
+    pub fn new<RM, RC, RV, S, T>(
         model_type: ModelType,
-        model_resource: R,
-        config_resource: R,
-        vocab_resource: R,
-        merges_resource: R,
+        model_resource: RM,
+        config_resource: RC,
+        vocab_resource: RV,
+        merges_resource: Option<RV>,
         source_languages: S,
         target_languages: T,
         device: impl Into<Option<Device>>,
     ) -> TranslationConfig
     where
-        R: ResourceProvider + Send + 'static,
+        RM: ResourceProvider + Send + 'static,
+        RC: ResourceProvider + Send + 'static,
+        RV: ResourceProvider + Send + 'static,
         S: AsRef<[Language]>,
         T: AsRef<[Language]>,
     {
@@ -480,12 +483,12 @@ impl TranslationConfig {
             model_resource: Box::new(model_resource),
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
-            merges_resource: Box::new(merges_resource),
+            merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
             source_languages: source_languages.as_ref().iter().cloned().collect(),
             target_languages: target_languages.as_ref().iter().cloned().collect(),
             device,
             min_length: 0,
-            max_length: 512,
+            max_length: Some(512),
             do_sample: false,
             early_stopping: true,
             num_beams: 3,
@@ -581,8 +584,7 @@ impl TranslationOption {
         if let Some(source_language) = source_language {
             if !supported_source_languages.contains(source_language) {
                 return Err(RustBertError::ValueError(format!(
-                    "{} not in list of supported languages: {:?}",
-                    source_language, supported_source_languages
+                    "{source_language} not in list of supported languages: {supported_source_languages:?}",
                 )));
             }
         }
@@ -590,8 +592,7 @@ impl TranslationOption {
         if let Some(target_language) = target_language {
             if !supported_target_languages.contains(target_language) {
                 return Err(RustBertError::ValueError(format!(
-                    "{} not in list of supported languages: {:?}",
-                    target_language, supported_target_languages
+                    "{target_language} not in list of supported languages: {supported_target_languages:?}"
                 )));
             }
         }
@@ -607,9 +608,8 @@ impl TranslationOption {
                                 None => {
                                     return Err(RustBertError::ValueError(format!(
                                         "Missing target language for Marian \
-                                        (multiple languages supported by model: {:?}, \
+                                        (multiple languages supported by model: {supported_target_languages:?}, \
                                         need to specify target language)",
-                                        supported_target_languages
                                     )));
                                 }
                             }
@@ -650,9 +650,8 @@ impl TranslationOption {
                         None => {
                             return Err(RustBertError::ValueError(format!(
                                 "Missing source language for MBart\
-                                (multiple languages supported by model: {:?}, \
-                                need to specify target language)",
-                                supported_source_languages
+                                (multiple languages supported by model: {supported_source_languages:?}, \
+                                need to specify target language)"
                             )));
                         }
                     }
@@ -667,9 +666,8 @@ impl TranslationOption {
                 } else {
                     return Err(RustBertError::ValueError(format!(
                         "Missing target language for MBart\
-                        (multiple languages supported by model: {:?}, \
-                        need to specify target language)",
-                        supported_target_languages
+                        (multiple languages supported by model: {supported_target_languages:?}, \
+                        need to specify target language)"
                     )));
                 },
             ),
@@ -678,8 +676,8 @@ impl TranslationOption {
                     Some(value) => {
                         let language_code = value.get_iso_639_1_code();
                         match language_code.len() {
-                            2 => format!(">>{}.<< ", language_code),
-                            3 => format!(">>{}<< ", language_code),
+                            2 => format!(">>{language_code}.<< "),
+                            3 => format!(">>{language_code}<< "),
                             _ => {
                                 return Err(RustBertError::ValueError(
                                     "Invalid ISO 639-3 code".to_string(),
@@ -690,9 +688,8 @@ impl TranslationOption {
                     None => {
                         return Err(RustBertError::ValueError(format!(
                             "Missing source language for M2M100 \
-                            (multiple languages supported by model: {:?}, \
-                            need to specify target language)",
-                            supported_source_languages
+                            (multiple languages supported by model: {supported_source_languages:?}, \
+                            need to specify target language)"
                         )));
                     }
                 }),
@@ -701,8 +698,8 @@ impl TranslationOption {
                     Some(
                         model._get_tokenizer().convert_tokens_to_ids(&[
                             match language_code.len() {
-                                2 => format!(">>{}.<<", language_code),
-                                3 => format!(">>{}<<", language_code),
+                                2 => format!(">>{language_code}.<<"),
+                                3 => format!(">>{language_code}<<"),
                                 _ => {
                                     return Err(RustBertError::ValueError(
                                         "Invalid ISO 639-3 code".to_string(),
@@ -714,9 +711,8 @@ impl TranslationOption {
                 } else {
                     return Err(RustBertError::ValueError(format!(
                         "Missing target language for M2M100 \
-                        (multiple languages supported by model: {:?}, \
+                        (multiple languages supported by model: {supported_target_languages:?}, \
                         need to specify target language)",
-                        supported_target_languages
                     )));
                 },
             ),
@@ -786,10 +782,10 @@ impl TranslationModel {
     /// # Example
     ///
     /// ```no_run
-    /// # fn main() -> anyhow::Result<()> {
+    /// # fn main() -> anyhow::Result<()> {     ///
     /// use rust_bert::marian::{
-    ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianTargetLanguages,
-    ///     MarianVocabResources,
+    ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+    ///     MarianTargetLanguages, MarianVocabResources,
     /// };
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
@@ -799,6 +795,7 @@ impl TranslationModel {
     /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
     /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
+    /// let spm_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
     ///
     /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
     /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -807,8 +804,8 @@ impl TranslationModel {
     ///     ModelType::Marian,
     ///     model_resource,
     ///     config_resource,
-    ///     vocab_resource.clone(),
     ///     vocab_resource,
+    ///     Some(spm_resource),
     ///     source_languages,
     ///     target_languages,
     ///     Device::cuda_if_available(),
@@ -863,7 +860,7 @@ impl TranslationModel {
     ///     model_resource,
     ///     config_resource,
     ///     vocab_resource,
-    ///     merges_resource,
+    ///     Some(merges_resource),
     ///     source_languages,
     ///     target_languages,
     ///     Device::cuda_if_available(),
@@ -911,8 +908,8 @@ impl TranslationModel {
 mod test {
     use super::*;
     use crate::marian::{
-        MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianTargetLanguages,
-        MarianVocabResources,
+        MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+        MarianTargetLanguages, MarianVocabResources,
     };
     use crate::resources::RemoteResource;
 
@@ -923,6 +920,7 @@ mod test {
         let config_resource =
             RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
         let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
+        let merges_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
 
         let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
         let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
@@ -931,8 +929,8 @@ mod test {
             ModelType::Marian,
             model_resource,
             config_resource,
-            vocab_resource.clone(),
             vocab_resource,
+            Some(merges_resource),
             source_languages,
             target_languages,
             Device::cuda_if_available(),

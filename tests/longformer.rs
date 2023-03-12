@@ -14,7 +14,7 @@ use rust_bert::pipelines::question_answering::{
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{MultiThreadedTokenizer, RobertaTokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::{RobertaVocab, Vocab};
+use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
 use tch::{nn, no_grad, Device, Tensor};
 
@@ -67,7 +67,9 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
         .map(|input| input.token_ids.clone())
         .map(|mut input| {
             input.extend(vec![
-                tokenizer.vocab().token_to_id(RobertaVocab::pad_value());
+                tokenizer
+                    .vocab()
+                    .token_to_id(tokenizer.vocab().get_pad_value());
                 max_len - input.len()
             ]);
             input
@@ -197,7 +199,7 @@ fn longformer_for_sequence_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(1, String::from("Negative"));
     dummy_label_mapping.insert(3, String::from("Neutral"));
     config.id2label = Some(dummy_label_mapping);
-    let model = LongformerForSequenceClassification::new(&vs.root(), &config);
+    let model = LongformerForSequenceClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = ["Very positive sentence", "Second sentence input"];
@@ -258,7 +260,7 @@ fn longformer_for_multiple_choice() -> anyhow::Result<()> {
         false,
     )?;
     let config = LongformerConfig::from_file(config_path);
-    let model = LongformerForMultipleChoice::new(&vs.root(), &config);
+    let model = LongformerForMultipleChoice::new(vs.root(), &config);
 
     //    Define input
     let prompt = "In Italy, pizza served in formal settings, such as at a restaurant, is presented unsliced.";
@@ -309,7 +311,7 @@ fn longformer_for_multiple_choice() -> anyhow::Result<()> {
 }
 
 #[test]
-fn mobilebert_for_token_classification() -> anyhow::Result<()> {
+fn longformer_for_token_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource =
         RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_4096);
@@ -337,7 +339,7 @@ fn mobilebert_for_token_classification() -> anyhow::Result<()> {
     dummy_label_mapping.insert(2, String::from("PER"));
     dummy_label_mapping.insert(3, String::from("ORG"));
     config.id2label = Some(dummy_label_mapping);
-    let model = LongformerForTokenClassification::new(&vs.root(), &config);
+    let model = LongformerForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let inputs = ["Where's Paris?", "In Kentucky, United States"];

@@ -24,7 +24,7 @@ use crate::{Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use tch::nn::Init;
+use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::{nn, Kind, Tensor};
 
 /// # BERT Pretrained model weight files
@@ -62,6 +62,11 @@ impl BertModelResources {
         "all-mini-lm-l12-v2/model",
         "https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2>. Modified with conversion to C-array format.
+    pub const ALL_MINI_LM_L6_V2: (&'static str, &'static str) = (
+        "all-mini-lm-l6-v2/model",
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/rust_model.ot",
+    );
 }
 
 impl BertConfigResources {
@@ -90,6 +95,11 @@ impl BertConfigResources {
         "all-mini-lm-l12-v2/config",
         "https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2>. Modified with conversion to C-array format.
+    pub const ALL_MINI_LM_L6_V2: (&'static str, &'static str) = (
+        "all-mini-lm-l6-v2/config",
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json",
+    );
 }
 
 impl BertVocabResources {
@@ -117,6 +127,11 @@ impl BertVocabResources {
     pub const ALL_MINI_LM_L12_V2: (&'static str, &'static str) = (
         "all-mini-lm-l12-v2/vocab",
         "https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2/resolve/main/vocab.txt",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2>. Modified with conversion to C-array format.
+    pub const ALL_MINI_LM_L6_V2: (&'static str, &'static str) = (
+        "all-mini-lm-l6-v2/vocab",
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/vocab.txt",
     );
 }
 
@@ -492,7 +507,7 @@ impl BertLMPredictionHead {
             config.vocab_size,
             Default::default(),
         );
-        let bias = p.var("bias", &[config.vocab_size], Init::KaimingUniform);
+        let bias = p.var("bias", &[config.vocab_size], DEFAULT_KAIMING_UNIFORM);
 
         BertLMPredictionHead {
             transform,
@@ -667,9 +682,12 @@ impl BertForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert = BertForSequenceClassification::new(&p.root() / "bert", &config);
+    /// let bert = BertForSequenceClassification::new(&p.root() / "bert", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BertConfig,
+    ) -> Result<BertForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -680,7 +698,11 @@ impl BertForSequenceClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -689,11 +711,11 @@ impl BertForSequenceClassification {
             Default::default(),
         );
 
-        BertForSequenceClassification {
+        Ok(BertForSequenceClassification {
             bert,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -725,7 +747,7 @@ impl BertForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
-    /// # let bert_model = BertForSequenceClassification::new(&vs.root(), &config);
+    /// # let bert_model = BertForSequenceClassification::new(&vs.root(), &config).unwrap();;
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
@@ -956,9 +978,12 @@ impl BertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
-    /// let bert = BertForTokenClassification::new(&p.root() / "bert", &config);
+    /// let bert = BertForTokenClassification::new(&p.root() / "bert", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &BertConfig) -> BertForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BertConfig,
+    ) -> Result<BertForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -969,7 +994,11 @@ impl BertForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -978,11 +1007,11 @@ impl BertForTokenClassification {
             Default::default(),
         );
 
-        BertForTokenClassification {
+        Ok(BertForTokenClassification {
             bert,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -1015,7 +1044,7 @@ impl BertForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BertConfig::from_file(config_path);
-    /// # let bert_model = BertForTokenClassification::new(&vs.root(), &config);
+    /// # let bert_model = BertForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -1286,9 +1315,9 @@ mod test {
 
         //    Set-up masked LM model
         let device = Device::cuda_if_available();
-        let vs = tch::nn::VarStore::new(device);
+        let vs = nn::VarStore::new(device);
         let config = BertConfig::from_file(config_path);
 
-        let _: Box<dyn Send> = Box::new(BertModel::<BertEmbeddings>::new(&vs.root(), &config));
+        let _: Box<dyn Send> = Box::new(BertModel::<BertEmbeddings>::new(vs.root(), &config));
     }
 }

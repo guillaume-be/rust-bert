@@ -12,7 +12,7 @@
 
 use crate::common::dropout::Dropout;
 use crate::common::embeddings::process_ids_embeddings_pair;
-use crate::common::kind::get_negative_infinity;
+use crate::common::kind::get_min;
 use crate::prophetnet::attention::{
     compute_all_stream_relative_buckets, LayerState, ProphetNetAttention, ProphetNetFeedForward,
     ProphetNetNgramAttention,
@@ -21,12 +21,12 @@ use crate::prophetnet::embeddings::ProphetNetPositionalEmbeddings;
 use crate::prophetnet::ProphetNetConfig;
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
-use tch::nn::Init;
+use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::{nn, Device, Kind, Tensor};
 
 fn ngram_attention_bias(sequence_length: i64, ngram: i64, device: Device, kind: Kind) -> Tensor {
     let left_block = Tensor::ones(&[ngram, sequence_length, sequence_length], (kind, device))
-        * get_negative_infinity(kind).unwrap();
+        * get_min(kind).unwrap();
     let right_block = left_block.copy();
     for stream_idx in 0..ngram {
         let _ = right_block.get(stream_idx).fill_diagonal_(0, false);
@@ -210,7 +210,7 @@ impl ProphetNetDecoder {
         let ngram_embeddings = p_ngram_embedding.var(
             "weight",
             &[config.ngram, config.hidden_size],
-            Init::KaimingUniform,
+            DEFAULT_KAIMING_UNIFORM,
         );
 
         let output_attentions = config.output_attentions.unwrap_or(false);
@@ -515,7 +515,7 @@ impl ProphetNetDecoder {
 
         let causal_mask = Tensor::full(
             &[sequence_length, sequence_length],
-            get_negative_infinity(hidden_states.kind()).unwrap(),
+            get_min(hidden_states.kind()).unwrap(),
             (hidden_states.kind(), hidden_states.device()),
         )
         .triu_(1);

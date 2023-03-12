@@ -370,7 +370,42 @@
 //! # ;
 //! ```
 //!
-//! #### 9. Part of Speech tagging
+//! #### 9. Keywords/Keyphrases extraction
+//!
+//! Extract keywords and keyphrases extractions from input documents. Based on a sentence embedding model
+//! to compute the semantic similarity between the full text and word n-grams composing it.
+//!
+//!```no_run
+//! # fn main() -> anyhow::Result<()> {
+//!     use rust_bert::pipelines::keywords_extraction::KeywordExtractionModel;
+//!     let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
+//!
+//!     let input = "Rust is a multi-paradigm, general-purpose programming language. \
+//!         Rust emphasizes performance, type safety, and concurrency. Rust enforces memory safety—that is, \
+//!         that all references point to valid memory—without requiring the use of a garbage collector or \
+//!         reference counting present in other memory-safe languages. To simultaneously enforce \
+//!         memory safety and prevent concurrent data races, Rust's borrow checker tracks the object lifetime \
+//!         and variable scope of all references in a program during compilation. Rust is popular for \
+//!         systems programming but also offers high-level features including functional programming constructs.";
+//!     // Credits: Wikimedia https://en.wikipedia.org/wiki/Rust_(programming_language)
+//!     let output = keyword_extraction_model.predict(&[input])?;
+//!     Ok(())
+//! }
+//! ```
+//! Output:
+//! ```no_run
+//! # let output =
+//! [
+//!     ("rust", 0.50910604),
+//!     ("concurrency", 0.33825397),
+//!     ("languages", 0.28515345),
+//!     ("compilation", 0.2801403),
+//!     ("safety", 0.2657791),
+//! ]
+//! # ;
+//! ```
+//!
+//! #### 10. Part of Speech tagging
 //! Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
 //! ```no_run
 //! use rust_bert::pipelines::pos_tagging::POSModel;
@@ -409,10 +444,41 @@
 //! ]
 //! # ;
 //! ```
+//!
+//! #### 11. Sentence embeddings
+//!
+//! Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
+//!```no_run
+//! # use rust_bert::pipelines::sentence_embeddings::{SentenceEmbeddingsBuilder, SentenceEmbeddingsModelType};
+//! # fn main() -> anyhow::Result<()> {
+//!    let model = SentenceEmbeddingsBuilder::remote(
+//!             SentenceEmbeddingsModelType::AllMiniLmL12V2
+//!         ).create_model()?;
+//!
+//!     let sentences = [
+//!         "this is an example sentence",
+//!         "each sentence is converted"
+//!     ];
+//!     
+//!     let output = model.encode(&sentences);
+//! #   Ok(())
+//! # }
+//! ```
+//! Output:
+//! ```no_run
+//! # let output =
+//! [
+//!     [-0.000202666, 0.08148022, 0.03136178, 0.002920636],
+//!     [0.064757116, 0.048519745, -0.01786038, -0.0479775],
+//! ]
+//! # ;
+//! ```
 
 pub mod common;
 pub mod conversation;
 pub mod generation_utils;
+pub mod keywords_extraction;
+pub mod masked_language;
 pub mod ner;
 pub mod pos_tagging;
 pub mod question_answering;

@@ -248,7 +248,7 @@ impl DistilBertModel {
         train: bool,
     ) -> Result<DistilBertTransformerOutput, RustBertError> {
         let input_embeddings = self.embeddings.forward_t(input, input_embeds, train)?;
-        let transformer_output = (&self.transformer).forward_t(&input_embeddings, mask, train);
+        let transformer_output = self.transformer.forward_t(&input_embeddings, mask, train);
         Ok(transformer_output)
     }
 }
@@ -287,9 +287,12 @@ impl DistilBertModelClassifier {
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert: DistilBertModelClassifier =
-    ///     DistilBertModelClassifier::new(&p.root() / "distilbert", &config);
+    ///     DistilBertModelClassifier::new(&p.root() / "distilbert", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertModelClassifier
+    pub fn new<'p, P>(
+        p: P,
+        config: &DistilBertConfig,
+    ) -> Result<DistilBertModelClassifier, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -300,7 +303,11 @@ impl DistilBertModelClassifier {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("id2label must be provided for classifiers")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
 
         let pre_classifier = nn::linear(
@@ -312,12 +319,12 @@ impl DistilBertModelClassifier {
         let classifier = nn::linear(p / "classifier", config.dim, num_labels, Default::default());
         let dropout = Dropout::new(config.seq_classif_dropout);
 
-        DistilBertModelClassifier {
+        Ok(DistilBertModelClassifier {
             distil_bert_model,
             pre_classifier,
             classifier,
             dropout,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -349,7 +356,7 @@ impl DistilBertModelClassifier {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = DistilBertConfig::from_file(config_path);
-    /// # let distilbert_model: DistilBertModelClassifier = DistilBertModelClassifier::new(&vs.root(), &config);
+    /// # let distilbert_model: DistilBertModelClassifier = DistilBertModelClassifier::new(&vs.root(), &config).unwrap();;
     ///  let (batch_size, sequence_length) = (64, 128);
     ///  let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     ///  let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -680,9 +687,13 @@ impl DistilBertForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
-    /// let distil_bert = DistilBertForTokenClassification::new(&p.root() / "distilbert", &config);
+    /// let distil_bert =
+    ///     DistilBertForTokenClassification::new(&p.root() / "distilbert", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &DistilBertConfig) -> DistilBertForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &DistilBertConfig,
+    ) -> Result<DistilBertForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -693,17 +704,21 @@ impl DistilBertForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("id2label must be provided for classifiers")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "id2label must be provided for classifiers".to_string(),
+                )
+            })?
             .len() as i64;
 
         let classifier = nn::linear(p / "classifier", config.dim, num_labels, Default::default());
         let dropout = Dropout::new(config.seq_classif_dropout);
 
-        DistilBertForTokenClassification {
+        Ok(DistilBertForTokenClassification {
             distil_bert_model,
             classifier,
             dropout,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -735,7 +750,7 @@ impl DistilBertForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = DistilBertConfig::from_file(config_path);
-    /// # let distilbert_model = DistilBertForTokenClassification::new(&vs.root(), &config);
+    /// # let distilbert_model = DistilBertForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
@@ -793,6 +808,7 @@ pub struct DistilBertSequenceClassificationOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }
+
 /// Container for the DistilBERT token classification model output
 pub struct DistilBertTokenClassificationOutput {
     /// Logits for each sequence item (token) for each target class
@@ -802,6 +818,7 @@ pub struct DistilBertTokenClassificationOutput {
     /// Attention weights for all intermediate layers
     pub all_attentions: Option<Vec<Tensor>>,
 }
+
 /// Container for the DistilBERT question answering model output
 pub struct DistilBertQuestionAnsweringOutput {
     /// Logits for the start position for token of each input sequence

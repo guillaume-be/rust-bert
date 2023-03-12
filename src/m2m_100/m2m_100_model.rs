@@ -24,7 +24,7 @@ use crate::pipelines::generation_utils::{
 use crate::pipelines::translation::Language;
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{M2M100Tokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::{M2M100Vocab, Vocab};
+use rust_tokenizers::vocab::M2M100Vocab;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
@@ -604,7 +604,7 @@ impl M2M100Generator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -617,7 +617,15 @@ impl M2M100Generator {
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<M2M100Generator, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let merges_path = generate_config
+            .merges_resource
+            .as_ref()
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "M2M100 expects a merges resources to be provided".to_string(),
+                )
+            })?
+            .get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
             ModelType::M2M100,
@@ -643,7 +651,7 @@ impl M2M100Generator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = M2M100Config::from_file(config_path);
-        let model = M2M100ForConditionalGeneration::new(&var_store.root(), &config);
+        let model = M2M100ForConditionalGeneration::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
@@ -673,7 +681,7 @@ impl M2M100Generator {
     }
 
     fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
+        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
             .filter(|pos| !token_ids.contains(pos))
             .collect();
         let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
@@ -726,13 +734,15 @@ impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M10
         &self,
         scores: &mut Tensor,
         current_length: i64,
-        max_length: i64,
+        max_length: Option<i64>,
         forced_bos_token_id: Option<i64>,
     ) {
         if current_length == 1 {
             self.force_token_id_generation(scores, &[forced_bos_token_id.unwrap_or(250004)]);
-        } else if current_length == max_length - 1 {
-            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+        } else if let Some(max_length) = max_length {
+            if current_length == max_length - 1 {
+                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+            }
         }
     }
 
@@ -771,7 +781,7 @@ impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M10
     fn encode_prompt_text<S>(
         &self,
         prompt_text: &[S],
-        max_len: i64,
+        max_len: Option<i64>,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
@@ -779,7 +789,9 @@ impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M10
     {
         let tokens = self._get_tokenizer().encode_list(
             prompt_text,
-            max_len as usize,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
             &TruncationStrategy::LongestFirst,
             0,
         );
@@ -792,9 +804,7 @@ impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M10
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self
-                ._get_tokenizer()
-                .convert_tokens_to_ids(&[M2M100Vocab::unknown_value()])[0],
+            None => self._get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids
@@ -875,6 +885,6 @@ mod test {
         let vs = tch::nn::VarStore::new(device);
         let config = M2M100Config::from_file(config_path);
 
-        let _: Box<dyn Send> = Box::new(M2M100Model::new(&vs.root(), &config));
+        let _: Box<dyn Send> = Box::new(M2M100Model::new(vs.root(), &config));
     }
 }

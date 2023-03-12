@@ -54,10 +54,12 @@ impl Pooling {
 
         if self.conf.pooling_mode_mean_tokens || self.conf.pooling_mode_mean_sqrt_len_tokens {
             let input_mask_expanded = attention_mask.unsqueeze(-1).expand_as(&token_embeddings);
-            let sum_embeddings =
-                (token_embeddings * &input_mask_expanded).sum_dim_intlist(&[1], false, Kind::Float);
-
-            let sum_mask = input_mask_expanded.sum_dim_intlist(&[1], false, Kind::Float);
+            let sum_embeddings = (token_embeddings * &input_mask_expanded).sum_dim_intlist(
+                [1].as_slice(),
+                false,
+                Kind::Float,
+            );
+            let sum_mask = input_mask_expanded.sum_dim_intlist([1].as_slice(), false, Kind::Float);
             let sum_mask = sum_mask.clamp_min(10e-9);
 
             if self.conf.pooling_mode_mean_tokens {
@@ -100,7 +102,7 @@ where
         .map(|s| serde_json::from_value(serde_json::Value::String(s.to_lowercase())))
         .transpose()
         .map_err(de::Error::custom)?
-        .ok_or_else(|| format!("Invalid Activation: {}", activation))
+        .ok_or_else(|| format!("Invalid Activation: {activation}"))
         .map_err(de::Error::custom)
 }
 
@@ -128,7 +130,7 @@ impl Dense {
             bias: dense_conf.bias,
         };
         let linear = nn::linear(
-            &vs_dense.root(),
+            vs_dense.root(),
             dense_conf.in_features,
             dense_conf.out_features,
             linear_conf,

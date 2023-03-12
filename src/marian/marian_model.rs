@@ -824,7 +824,7 @@ impl MarianGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: 512,
+    ///     max_length: Some(512),
     ///     do_sample: true,
     ///     num_beams: 6,
     ///     temperature: 1.0,
@@ -837,7 +837,16 @@ impl MarianGenerator {
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<MarianGenerator, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let sentence_piece_path = generate_config.merges_resource.get_local_path()?;
+        let sentence_piece_path = generate_config
+            .merges_resource
+            .as_ref()
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "Marian expects a merges (SentencePiece model) resources to be provided"
+                        .to_string(),
+                )
+            })?
+            .get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
             ModelType::Marian,
@@ -863,7 +872,7 @@ impl MarianGenerator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = BartConfig::from_file(config_path);
-        let model = MarianForConditionalGeneration::new(&var_store.root(), &config);
+        let model = MarianForConditionalGeneration::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
@@ -876,7 +885,9 @@ impl MarianGenerator {
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id =
-            Some(tokenizer.convert_tokens_to_ids(&[MarianVocab::pad_value()])[0]);
+            Some(tokenizer.get_pad_id().ok_or(RustBertError::TokenizerError(
+                "The tokenizer must contain a pad token ID to be used as BOS".to_string(),
+            ))?);
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(MarianGenerator {
@@ -895,7 +906,7 @@ impl MarianGenerator {
     }
 
     fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
+        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
             .filter(|pos| !token_ids.contains(pos))
             .collect();
         let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
@@ -947,7 +958,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         &self,
         scores: &mut Tensor,
         current_length: i64,
-        max_length: i64,
+        max_length: Option<i64>,
         _forced_bos_token_id: Option<i64>,
     ) {
         let _ = scores.index_fill_(
@@ -957,8 +968,10 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
                 .to_device(scores.device()),
             f64::NEG_INFINITY,
         );
-        if current_length == max_length - 1 {
-            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+        if let Some(max_length) = max_length {
+            if current_length == max_length - 1 {
+                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+            }
         }
     }
 
@@ -997,7 +1010,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
     fn encode_prompt_text<S>(
         &self,
         prompt_text: &[S],
-        max_len: i64,
+        max_len: Option<i64>,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
@@ -1005,7 +1018,9 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
     {
         let tokens = self._get_tokenizer().encode_list(
             prompt_text,
-            max_len as usize,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
             &TruncationStrategy::LongestFirst,
             0,
         );

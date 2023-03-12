@@ -112,7 +112,7 @@ impl GptNeoMergesResources {
     );
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 /// #GPT-Neo attention layer type
 pub enum AttentionLayerType {
@@ -425,7 +425,7 @@ impl GptNeoModel {
             attention_weights = temp.1;
             next_cache[layer_idx] = temp.2;
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(attention_weights.as_ref().unwrap().copy());
+                attentions.push(std::mem::take(&mut attention_weights.unwrap()));
             };
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
                 hidden_states.push(x.as_ref().unwrap().copy());
@@ -670,7 +670,7 @@ impl GptNeoGenerator {
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     ///
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -683,7 +683,15 @@ impl GptNeoGenerator {
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<GptNeoGenerator, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let merges_path = generate_config
+            .merges_resource
+            .as_ref()
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "GPT-Neo expects a merges resources to be provided".to_string(),
+                )
+            })?
+            .get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
             ModelType::GPTNeo,
@@ -708,7 +716,7 @@ impl GptNeoGenerator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let config = GptNeoConfig::from_file(config_path);
-        let model = GptNeoForCausalLM::new(&var_store.root(), &config)?;
+        let model = GptNeoForCausalLM::new(var_store.root(), &config)?;
         var_store.load(weights_path)?;
 
         let bos_token_id = tokenizer.get_bos_id();
