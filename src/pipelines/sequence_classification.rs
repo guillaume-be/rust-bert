@@ -134,18 +134,20 @@ impl SequenceClassificationConfig {
     /// * vocab - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new<R>(
+    pub fn new<RM, RC, RV>(
         model_type: ModelType,
-        model_resource: R,
-        config_resource: R,
-        vocab_resource: R,
-        merges_resource: Option<R>,
+        model_resource: RM,
+        config_resource: RC,
+        vocab_resource: RV,
+        merges_resource: Option<RV>,
         lower_case: bool,
         strip_accents: impl Into<Option<bool>>,
         add_prefix_space: impl Into<Option<bool>>,
     ) -> SequenceClassificationConfig
     where
-        R: ResourceProvider + Send + 'static,
+        RM: ResourceProvider + Send + 'static,
+        RC: ResourceProvider + Send + 'static,
+        RV: ResourceProvider + Send + 'static,
     {
         SequenceClassificationConfig {
             model_type,
@@ -230,7 +232,7 @@ impl SequenceClassificationOption {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
                     Ok(SequenceClassificationOption::Bert(
-                        BertForSequenceClassification::new(p, config),
+                        BertForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -241,7 +243,7 @@ impl SequenceClassificationOption {
             ModelType::Deberta => {
                 if let ConfigOption::Deberta(config) = config {
                     Ok(SequenceClassificationOption::Deberta(
-                        DebertaForSequenceClassification::new(p, config),
+                        DebertaForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -252,7 +254,7 @@ impl SequenceClassificationOption {
             ModelType::DebertaV2 => {
                 if let ConfigOption::DebertaV2(config) = config {
                     Ok(SequenceClassificationOption::DebertaV2(
-                        DebertaV2ForSequenceClassification::new(p, config),
+                        DebertaV2ForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -263,7 +265,7 @@ impl SequenceClassificationOption {
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = config {
                     Ok(SequenceClassificationOption::DistilBert(
-                        DistilBertModelClassifier::new(p, config),
+                        DistilBertModelClassifier::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -274,7 +276,7 @@ impl SequenceClassificationOption {
             ModelType::MobileBert => {
                 if let ConfigOption::MobileBert(config) = config {
                     Ok(SequenceClassificationOption::MobileBert(
-                        MobileBertForSequenceClassification::new(p, config),
+                        MobileBertForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -283,31 +285,31 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Bert(config) = config {
+                if let ConfigOption::Roberta(config) = config {
                     Ok(SequenceClassificationOption::Roberta(
-                        RobertaForSequenceClassification::new(p, config),
+                        RobertaForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
-                        "You can only supply a BertConfig for Roberta!".to_string(),
+                        "You can only supply a RobertaConfig for Roberta!".to_string(),
                     ))
                 }
             }
             ModelType::XLMRoberta => {
-                if let ConfigOption::Bert(config) = config {
+                if let ConfigOption::Roberta(config) = config {
                     Ok(SequenceClassificationOption::XLMRoberta(
-                        RobertaForSequenceClassification::new(p, config),
+                        RobertaForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
-                        "You can only supply a BertConfig for Roberta!".to_string(),
+                        "You can only supply a RobertaConfig for Roberta!".to_string(),
                     ))
                 }
             }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = config {
                     Ok(SequenceClassificationOption::Albert(
-                        AlbertForSequenceClassification::new(p, config),
+                        AlbertForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -318,7 +320,7 @@ impl SequenceClassificationOption {
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = config {
                     Ok(SequenceClassificationOption::XLNet(
-                        XLNetForSequenceClassification::new(p, config).unwrap(),
+                        XLNetForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -329,7 +331,7 @@ impl SequenceClassificationOption {
             ModelType::Bart => {
                 if let ConfigOption::Bart(config) = config {
                     Ok(SequenceClassificationOption::Bart(
-                        BartForSequenceClassification::new(p, config),
+                        BartForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -351,7 +353,7 @@ impl SequenceClassificationOption {
             ModelType::Longformer => {
                 if let ConfigOption::Longformer(config) = config {
                     Ok(SequenceClassificationOption::Longformer(
-                        LongformerForSequenceClassification::new(p, config),
+                        LongformerForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -362,7 +364,7 @@ impl SequenceClassificationOption {
             ModelType::FNet => {
                 if let ConfigOption::FNet(config) = config {
                     Ok(SequenceClassificationOption::FNet(
-                        FNetForSequenceClassification::new(p, config),
+                        FNetForSequenceClassification::new(p, config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -371,8 +373,7 @@ impl SequenceClassificationOption {
                 }
             }
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Sequence Classification not implemented for {:?}!",
-                model_type
+                "Sequence Classification not implemented for {model_type:?}!",
             ))),
         }
     }
@@ -591,7 +592,7 @@ impl SequenceClassificationModel {
             .map(|v| v as usize)
             .unwrap_or(usize::MAX);
         let sequence_classifier =
-            SequenceClassificationOption::new(config.model_type, &var_store.root(), &model_config)?;
+            SequenceClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping().clone();
         var_store.load(weights_path)?;
         Ok(SequenceClassificationModel {

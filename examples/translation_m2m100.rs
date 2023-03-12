@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        Some(merges_resource),
         source_languages,
         target_languages,
         Device::cuda_if_available(),
@@ -50,7 +50,7 @@ fn main() -> anyhow::Result<()> {
     outputs.extend(model.translate(&[source_sentence], Language::English, Language::Hindi)?);
 
     for sentence in outputs {
-        println!("{}", sentence);
+        println!("{sentence}");
     }
     Ok(())
 }

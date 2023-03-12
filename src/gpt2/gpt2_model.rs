@@ -470,10 +470,10 @@ impl Gpt2Model {
                 layer.forward_t(&hidden_state, past.as_ref(), attention_mask.as_ref(), train);
             hidden_state = temp.0;
             if let Some(presents) = all_presents.borrow_mut() {
-                presents.push(temp.1.as_ref().copy());
+                presents.push(temp.1);
             };
             if let Some(attentions) = all_attentions.borrow_mut() {
-                attentions.push(temp.2.as_ref().unwrap().copy());
+                attentions.push(temp.2.unwrap());
             };
             if let Some(hidden_states) = all_hidden_states.borrow_mut() {
                 hidden_states.push(hidden_state.as_ref().copy());
@@ -695,7 +695,7 @@ impl GPT2Generator {
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     ///
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -708,7 +708,15 @@ impl GPT2Generator {
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<GPT2Generator, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let merges_path = generate_config
+            .merges_resource
+            .as_ref()
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "GPT2 expects a merges resources to be provided".to_string(),
+                )
+            })?
+            .get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
             ModelType::GPT2,
@@ -734,7 +742,7 @@ impl GPT2Generator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = Gpt2Config::from_file(config_path);
-        let model = GPT2LMHeadModel::new(&var_store.root(), &config);
+        let model = GPT2LMHeadModel::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = tokenizer.get_bos_id();

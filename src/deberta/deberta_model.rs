@@ -16,7 +16,7 @@ use crate::bert::{
 use crate::common::activations::TensorFunction;
 use crate::common::dropout::{Dropout, XDropout};
 use crate::common::embeddings::get_shape_and_device_from_ids_embeddings_pair;
-use crate::common::kind::get_negative_infinity;
+use crate::common::kind::get_min;
 use crate::deberta::embeddings::DebertaEmbeddings;
 use crate::deberta::encoder::{DebertaEncoder, DebertaEncoderOutput};
 use crate::{Activation, Config, RustBertError};
@@ -94,7 +94,7 @@ impl DebertaMergesResources {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy, PartialEq, Eq)]
 /// # Position attention type to use for the DeBERTa model.
 pub enum PositionAttentionType {
     p2c,
@@ -111,8 +111,7 @@ impl FromStr for PositionAttentionType {
             "c2p" => Ok(PositionAttentionType::c2p),
             "p2p" => Ok(PositionAttentionType::p2p),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Position attention type `{}` not in accepted variants (`p2c`, `c2p`, `p2p`)",
-                s
+                "Position attention type `{s}` not in accepted variants (`p2c`, `c2p`, `p2p`)",
             ))),
         }
     }
@@ -265,7 +264,7 @@ impl Config for DebertaConfig {}
 pub fn x_softmax(input: &Tensor, mask: &Tensor, dim: i64) -> Tensor {
     let inverse_mask = ((1 - mask) as Tensor).to_kind(Kind::Bool);
     input
-        .masked_fill(&inverse_mask, get_negative_infinity(input.kind()).unwrap())
+        .masked_fill(&inverse_mask, get_min(input.kind()).unwrap())
         .softmax(dim, input.kind())
         .masked_fill(&inverse_mask, 0.0)
 }
@@ -303,9 +302,9 @@ impl Module for DebertaLayerNorm {
     fn forward(&self, hidden_states: &Tensor) -> Tensor {
         let input_type = hidden_states.kind();
         let hidden_states = hidden_states.to_kind(Kind::Float);
-        let mean = hidden_states.mean_dim(&[-1], true, hidden_states.kind());
+        let mean = hidden_states.mean_dim([-1].as_slice(), true, hidden_states.kind());
         let variance = (&hidden_states - &mean).pow_tensor_scalar(2.0).mean_dim(
-            &[-1],
+            [-1].as_slice(),
             true,
             hidden_states.kind(),
         );
@@ -732,9 +731,12 @@ impl DebertaForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DebertaConfig::from_file(config_path);
-    /// let model = DebertaForSequenceClassification::new(&p.root(), &config);
+    /// let model = DebertaForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &DebertaConfig,
+    ) -> Result<DebertaForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -751,7 +753,11 @@ impl DebertaForSequenceClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
 
         let classifier = nn::linear(
@@ -761,12 +767,12 @@ impl DebertaForSequenceClassification {
             Default::default(),
         );
 
-        DebertaForSequenceClassification {
+        Ok(DebertaForSequenceClassification {
             deberta,
             pooler,
             classifier,
             dropout,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -798,7 +804,7 @@ impl DebertaForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = DebertaConfig::from_file(config_path);
-    /// # let model = DebertaForSequenceClassification::new(&vs.root(), &config);
+    /// # let model = DebertaForSequenceClassification::new(&vs.root(), &config).unwrap();;
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
@@ -882,9 +888,12 @@ impl DebertaForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = DebertaConfig::from_file(config_path);
-    /// let model = DebertaForTokenClassification::new(&p.root(), &config);
+    /// let model = DebertaForTokenClassification::new(&p.root(), &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &DebertaConfig) -> DebertaForTokenClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &DebertaConfig,
+    ) -> Result<DebertaForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -895,7 +904,11 @@ impl DebertaForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let classifier = nn::linear(
             p / "classifier",
@@ -904,11 +917,11 @@ impl DebertaForTokenClassification {
             Default::default(),
         );
 
-        DebertaForTokenClassification {
+        Ok(DebertaForTokenClassification {
             deberta,
             dropout,
             classifier,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -940,7 +953,7 @@ impl DebertaForTokenClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = DebertaConfig::from_file(config_path);
-    /// # let model = DebertaForTokenClassification::new(&vs.root(), &config);
+    /// # let model = DebertaForTokenClassification::new(&vs.root(), &config).unwrap();
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));

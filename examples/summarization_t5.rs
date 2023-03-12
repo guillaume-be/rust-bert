@@ -26,8 +26,8 @@ fn main() -> anyhow::Result<()> {
         ModelType::T5,
         weights_resource,
         config_resource,
-        vocab_resource.clone(),
         vocab_resource,
+        None,
     );
     let summarization_model = SummarizationModel::new(summarization_config)?;
 
@@ -56,7 +56,7 @@ about exoplanets like K2-18b."];
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
     let _output = summarization_model.summarize(&input);
     for sentence in _output {
-        println!("{}", sentence);
+        println!("{sentence}");
     }
 
     Ok(())

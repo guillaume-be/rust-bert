@@ -16,7 +16,7 @@ use crate::bart::decoder::BartDecoder;
 use crate::bart::encoder::BartEncoder;
 use crate::common::activations::Activation;
 use crate::common::dropout::Dropout;
-use crate::common::kind::get_negative_infinity;
+use crate::common::kind::get_min;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
@@ -26,7 +26,7 @@ use crate::pipelines::generation_utils::{
 };
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::{RobertaTokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::{RobertaVocab, Vocab};
+use rust_tokenizers::vocab::RobertaVocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -273,7 +273,7 @@ pub(crate) fn _make_causal_mask(
 
     let mut mask = Tensor::full(
         &[target_length, target_length],
-        get_negative_infinity(dtype).unwrap(),
+        get_min(dtype).unwrap(),
         (dtype, device),
     );
     let mask_cond = Tensor::arange(target_length, (dtype, device));
@@ -311,10 +311,7 @@ pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>, dtype: Kin
         .expand(&[batch_size, 1, target_length, source_length], true)
         .totype(dtype);
     let inverted_mask: Tensor = 1 - expanded_mask;
-    inverted_mask.masked_fill(
-        &inverted_mask.to_kind(Kind::Bool),
-        get_negative_infinity(dtype).unwrap(),
-    )
+    inverted_mask.masked_fill(&inverted_mask.to_kind(Kind::Bool), get_min(dtype).unwrap())
 }
 
 pub(crate) fn _prepare_decoder_attention_mask(
@@ -351,10 +348,11 @@ pub(crate) fn _prepare_decoder_attention_mask(
 }
 
 fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
-    let index_eos: Tensor = input_ids
-        .ne(pad_token_id)
-        .sum_dim_intlist(&[-1], true, Kind::Int64)
-        - 1;
+    let index_eos: Tensor =
+        input_ids
+            .ne(pad_token_id)
+            .sum_dim_intlist([-1].as_slice(), true, Kind::Int64)
+            - 1;
     let output = input_ids.empty_like().to_kind(Kind::Int64);
     output
         .select(1, 0)
@@ -694,7 +692,7 @@ pub struct BartClassificationHead {
 }
 
 impl BartClassificationHead {
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartClassificationHead
+    pub fn new<'p, P>(p: P, config: &BartConfig) -> Result<BartClassificationHead, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -702,7 +700,11 @@ impl BartClassificationHead {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
         let dense = nn::linear(
             p / "dense",
@@ -718,11 +720,11 @@ impl BartClassificationHead {
             Default::default(),
         );
 
-        BartClassificationHead {
+        Ok(BartClassificationHead {
             dense,
             dropout,
             out_proj,
-        }
+        })
     }
 
     pub fn forward_t(&self, x: &Tensor, train: bool) -> Tensor {
@@ -767,22 +769,25 @@ impl BartForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = BartConfig::from_file(config_path);
     /// let bart: BartForSequenceClassification =
-    ///     BartForSequenceClassification::new(&p.root() / "bart", &config);
+    ///     BartForSequenceClassification::new(&p.root() / "bart", &config).unwrap();
     /// ```
-    pub fn new<'p, P>(p: P, config: &BartConfig) -> BartForSequenceClassification
+    pub fn new<'p, P>(
+        p: P,
+        config: &BartConfig,
+    ) -> Result<BartForSequenceClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
         let base_model = BartModel::new(p / "model", config);
-        let classification_head = BartClassificationHead::new(p / "classification_head", config);
+        let classification_head = BartClassificationHead::new(p / "classification_head", config)?;
         let eos_token_id = config.eos_token_id.unwrap_or(3);
-        BartForSequenceClassification {
+        Ok(BartForSequenceClassification {
             base_model,
             classification_head,
             eos_token_id,
-        }
+        })
     }
 
     /// Forward pass through the model
@@ -821,7 +826,7 @@ impl BartForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BartConfig::from_file(config_path);
-    /// # let bart_model: BartForSequenceClassification = BartForSequenceClassification::new(&vs.root(), &config);
+    /// # let bart_model: BartForSequenceClassification = BartForSequenceClassification::new(&vs.root(), &config).unwrap();;
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -857,7 +862,7 @@ impl BartForSequenceClassification {
             train,
         );
         let eos_mask = input_ids.eq(self.eos_token_id);
-        let reshape = eos_mask.sum_dim_intlist(&[1], true, input_ids.kind());
+        let reshape = eos_mask.sum_dim_intlist([1].as_slice(), true, input_ids.kind());
         let sentence_representation = base_model_output
             .decoder_output
             .permute(&[2, 0, 1])
@@ -1054,7 +1059,7 @@ impl BartGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -1067,7 +1072,15 @@ impl BartGenerator {
     /// ```
     pub fn new(generate_config: GenerateConfig) -> Result<BartGenerator, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
-        let merges_path = generate_config.merges_resource.get_local_path()?;
+        let merges_path = generate_config
+            .merges_resource
+            .as_ref()
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "BART expects a merges resources to be provided".to_string(),
+                )
+            })?
+            .get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
             ModelType::Bart,
@@ -1092,7 +1105,7 @@ impl BartGenerator {
         generate_config.validate();
         let mut var_store = nn::VarStore::new(device);
         let config = BartConfig::from_file(config_path);
-        let model = BartForConditionalGeneration::new(&var_store.root(), &config);
+        let model = BartForConditionalGeneration::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
@@ -1122,7 +1135,7 @@ impl BartGenerator {
     }
 
     fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size() as i64)
+        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
             .filter(|pos| !token_ids.contains(pos))
             .collect();
         let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
@@ -1174,7 +1187,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
         &self,
         scores: &mut Tensor,
         current_length: i64,
-        max_length: i64,
+        max_length: Option<i64>,
         forced_bos_token_id: Option<i64>,
     ) {
         if current_length == 1 {
@@ -1182,8 +1195,10 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
                 scores,
                 &[forced_bos_token_id.unwrap_or_else(|| self.get_bos_id().unwrap())],
             );
-        } else if current_length == max_length - 1 {
-            self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+        } else if let Some(max_length) = max_length {
+            if current_length == max_length - 1 {
+                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+            }
         }
     }
 
@@ -1222,7 +1237,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     fn encode_prompt_text<S>(
         &self,
         prompt_text: &[S],
-        max_len: i64,
+        max_len: Option<i64>,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
@@ -1230,7 +1245,9 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
     {
         let tokens = self._get_tokenizer().encode_list(
             prompt_text,
-            max_len as usize,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
             &TruncationStrategy::LongestFirst,
             0,
         );
@@ -1243,9 +1260,7 @@ impl PrivateLanguageGenerator<BartForConditionalGeneration, RobertaVocab, Robert
 
         let pad_token = match pad_token_id {
             Some(value) => value,
-            None => self
-                ._get_tokenizer()
-                .convert_tokens_to_ids(&[RobertaVocab::unknown_value()])[0],
+            None => self._get_tokenizer().get_unk_id(),
         };
 
         let token_ids = token_ids
@@ -1324,6 +1339,6 @@ mod test {
         let vs = tch::nn::VarStore::new(device);
         let config = BartConfig::from_file(config_path);
 
-        let _: Box<dyn Send> = Box::new(BartModel::new(&vs.root(), &config));
+        let _: Box<dyn Send> = Box::new(BartModel::new(vs.root(), &config));
     }
 }

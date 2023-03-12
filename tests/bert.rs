@@ -7,6 +7,7 @@ use rust_bert::bert::{
     BertModelResources, BertVocabResources,
 };
 use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
 use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
@@ -34,7 +35,7 @@ fn bert_masked_lm() -> anyhow::Result<()> {
     let tokenizer: BertTokenizer =
         BertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
     let config = BertConfig::from_file(config_path);
-    let bert_model = BertForMaskedLM::new(&vs.root(), &config);
+    let bert_model = BertForMaskedLM::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input
@@ -101,6 +102,46 @@ fn bert_masked_lm() -> anyhow::Result<()> {
 }
 
 #[test]
+fn bert_masked_lm_pipeline() -> anyhow::Result<()> {
+    //    Set-up model
+    let config = MaskedLanguageConfig::new(
+        ModelType::Bert,
+        RemoteResource::from_pretrained(BertModelResources::BERT),
+        RemoteResource::from_pretrained(BertConfigResources::BERT),
+        RemoteResource::from_pretrained(BertVocabResources::BERT),
+        None,
+        true,
+        None,
+        None,
+        Some(String::from("<mask>")),
+    );
+
+    let mask_language_model = MaskedLanguageModel::new(config)?;
+    //    Define input
+    let input = [
+        "Hello I am a <mask> student",
+        "Paris is the <mask> of France. It is <mask> in Europe.",
+    ];
+
+    //    Run model
+    let output = mask_language_model.predict(input)?;
+
+    assert_eq!(output.len(), 2);
+    assert_eq!(output[0].len(), 1);
+    assert_eq!(output[0][0].id, 2267);
+    assert_eq!(output[0][0].text, "college");
+    assert!((output[0][0].score - 8.0919).abs() < 1e-4);
+    assert_eq!(output[1].len(), 2);
+    assert_eq!(output[1][0].id, 3007);
+    assert_eq!(output[1][0].text, "capital");
+    assert!((output[1][0].score - 16.7249).abs() < 1e-4);
+    assert_eq!(output[1][1].id, 2284);
+    assert_eq!(output[1][1].text, "located");
+    assert!((output[1][1].score - 9.0452).abs() < 1e-4);
+    Ok(())
+}
+
+#[test]
 fn bert_for_sequence_classification() -> anyhow::Result<()> {
     //    Resources paths
     let config_resource = RemoteResource::from_pretrained(BertConfigResources::BERT);
@@ -121,7 +162,7 @@ fn bert_for_sequence_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = BertForSequenceClassification::new(&vs.root(), &config);
+    let bert_model = BertForSequenceClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [
@@ -178,7 +219,7 @@ fn bert_for_multiple_choice() -> anyhow::Result<()> {
     let mut config = BertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = BertForMultipleChoice::new(&vs.root(), &config);
+    let bert_model = BertForMultipleChoice::new(vs.root(), &config);
 
     //    Define input
     let input = [
@@ -242,7 +283,7 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = BertForTokenClassification::new(&vs.root(), &config);
+    let bert_model = BertForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [
@@ -299,7 +340,7 @@ fn bert_for_question_answering() -> anyhow::Result<()> {
     let mut config = BertConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = BertForQuestionAnswering::new(&vs.root(), &config);
+    let bert_model = BertForQuestionAnswering::new(vs.root(), &config);
 
     //    Define input
     let input = [

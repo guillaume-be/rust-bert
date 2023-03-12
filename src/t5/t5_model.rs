@@ -147,7 +147,7 @@ pub struct T5Config {
     pub vocab_size: i64,
     pub feed_forward_proj: Option<FeedForwardProj>,
     pub tie_word_embeddings: Option<bool>,
-    task_specific_params: Option<TaskSpecificParams>,
+    pub task_specific_params: Option<TaskSpecificParams>,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
 }
@@ -250,7 +250,7 @@ impl T5Model {
     ///
     /// # Arguments
     ///
-    /// * `p` - Variable store path for the root of the BART model
+    /// * `p` - Variable store path for the root of the T5 model
     /// * `config` - `T5Config` object defining the model architecture
     ///
     /// # Example
@@ -881,7 +881,7 @@ impl T5Generator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = T5Config::from_file(config_path);
-        let model = T5ForConditionalGeneration::new(&var_store.root(), &config);
+        let model = T5ForConditionalGeneration::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(-1));
@@ -985,7 +985,7 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     fn encode_prompt_text<S>(
         &self,
         prompt_text: &[S],
-        max_len: i64,
+        max_len: Option<i64>,
         pad_token_id: Option<i64>,
     ) -> Tensor
     where
@@ -993,7 +993,9 @@ impl PrivateLanguageGenerator<T5ForConditionalGeneration, T5Vocab, T5Tokenizer> 
     {
         let tokens = self._get_tokenizer().encode_list(
             prompt_text,
-            max_len as usize,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
             &TruncationStrategy::LongestFirst,
             0,
         );

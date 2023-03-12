@@ -32,7 +32,7 @@ fn electra_masked_lm() -> anyhow::Result<()> {
     let mut config = ElectraConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let electra_model = ElectraForMaskedLM::new(&vs.root(), &config);
+    let electra_model = ElectraForMaskedLM::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input
@@ -114,7 +114,7 @@ fn electra_discriminator() -> anyhow::Result<()> {
     let tokenizer: BertTokenizer =
         BertTokenizer::from_file(vocab_path.to_str().unwrap(), true, true)?;
     let config = ElectraConfig::from_file(config_path);
-    let electra_model = ElectraDiscriminator::new(&vs.root(), &config);
+    let electra_model = ElectraDiscriminator::new(vs.root(), &config);
     vs.load(weights_path)?;
 
     //    Define input

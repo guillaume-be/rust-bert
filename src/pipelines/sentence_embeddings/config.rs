@@ -152,6 +152,35 @@ impl From<SentenceEmbeddingsModelType> for SentenceEmbeddingsConfig {
                 device: Device::cuda_if_available(),
             },
 
+            SentenceEmbeddingsModelType::AllMiniLmL6V2 => SentenceEmbeddingsConfig {
+                modules_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsModulesConfigResources::ALL_MINI_LM_L6_V2,
+                )),
+                transformer_type: ModelType::Bert,
+                transformer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    BertConfigResources::ALL_MINI_LM_L6_V2,
+                )),
+                transformer_weights_resource: Box::new(RemoteResource::from_pretrained(
+                    BertModelResources::ALL_MINI_LM_L6_V2,
+                )),
+                pooling_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsPoolingConfigResources::ALL_MINI_LM_L6_V2,
+                )),
+                dense_config_resource: None,
+                dense_weights_resource: None,
+                sentence_bert_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsConfigResources::ALL_MINI_LM_L6_V2,
+                )),
+                tokenizer_config_resource: Box::new(RemoteResource::from_pretrained(
+                    SentenceEmbeddingsTokenizerConfigResources::ALL_MINI_LM_L6_V2,
+                )),
+                tokenizer_vocab_resource: Box::new(RemoteResource::from_pretrained(
+                    BertVocabResources::ALL_MINI_LM_L6_V2,
+                )),
+                tokenizer_merges_resource: None,
+                device: Device::cuda_if_available(),
+            },
+
             SentenceEmbeddingsModelType::AllDistilrobertaV1 => SentenceEmbeddingsConfig {
                 modules_config_resource: Box::new(RemoteResource::from_pretrained(
                     SentenceEmbeddingsModulesConfigResources::ALL_DISTILROBERTA_V1,
@@ -379,7 +408,7 @@ mod serde_sentence_embeddings_module_type {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&format!("sentence_transformers.models.{:?}", module_type))
+        serializer.serialize_str(&format!("sentence_transformers.models.{module_type:?}"))
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<SentenceEmbeddingsModuleType, D::Error>
@@ -401,7 +430,7 @@ mod serde_sentence_embeddings_module_type {
                     .map(|s| serde_json::from_value(serde_json::Value::String(s.to_string())))
                     .transpose()
                     .map_err(de::Error::custom)?
-                    .ok_or_else(|| format!("Invalid SentenceEmbeddingsModuleType: {}", s))
+                    .ok_or_else(|| format!("Invalid SentenceEmbeddingsModuleType: {s}"))
                     .map_err(de::Error::custom)
             }
         }
@@ -424,6 +453,7 @@ impl Config for SentenceEmbeddingsSentenceBertConfig {}
 pub struct SentenceEmbeddingsTokenizerConfig {
     pub add_prefix_space: Option<bool>,
     pub strip_accents: Option<bool>,
+    pub do_lower_case: Option<bool>,
 }
 
 impl Config for SentenceEmbeddingsTokenizerConfig {}

@@ -40,7 +40,7 @@ fn gpt_neo_lm() -> anyhow::Result<()> {
     let mut config = GptNeoConfig::from_file(config_path);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let gpt_neo_model = GptNeoForCausalLM::new(&vs.root(), &config)?;
+    let gpt_neo_model = GptNeoForCausalLM::new(vs.root(), &config)?;
     vs.load(weights_path)?;
 
     //    Define input
@@ -128,9 +128,9 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        merges_resource: Some(merges_resource),
         min_length: 10,
-        max_length: 32,
+        max_length: Some(32),
         do_sample: false,
         early_stopping: true,
         num_beams: 4,

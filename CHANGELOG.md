@@ -3,10 +3,42 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 ## Added
+- Addition of the [LongT5](https://arxiv.org/abs/2112.07916) model architecture and pretrained weights.
+
+## Changed
+- Bumped the tokenizers dependency from 7.x to 8.x, exposing additional options for special token mapping and adding the NLLBTokenizer.
+
+## Fixed
+- MIN/MAX computation for float-like (was set to infinity instead of min/max)
+
+## [0.20.0] - 2023-01-21
+## Added
+- Addition of All-MiniLM-L6-V2 model weights
+- Addition of Keyword/Keyphrases extraction pipeline based on KeyBERT (https://github.com/MaartenGr/KeyBERT)
+- Addition of Masked Language Model pipeline, allowing to predict masked words.
+- Support for the CodeBERT language model with pretrained models for language detection and masked token prediction
+
+## Changed
+- Addition of type aliases for the controlled generation (`PrefixAllowedFunction`) and zero-shot classification (`ZeroShotTemplate`).
+- (BREAKING) `merges_resource` now optional for all pipelines.
+- Allow mixing local and remote resources in pipelines.
+- Upgraded to `torch` 1.13 (via `tch` 0.9.0).
+- (BREAKING) Made the `max_length` argument for generation methods and pipelines optional.
+- (BREAKING) Changed return type of `ModelForSequenceClassification` and `ModelForTokenClassification` to `Result<Self, RustBertError>` allowing error handling if no labels are provided in the configuration.
+
+## Fixed
+- Fixed configuration check for RoBERTa models for sentence classification.
+- Fixed a bug causing the input prompt to be truncated for text generation if the prompt length was longer than `max_length`
+
+## [0.19.0] - 2022-07-24
+## Added
 - Support for sentence embeddings models and pipelines, based on [SentenceTransformers](https://www.sbert.net).
 
 ## Changed
 - Upgraded to `torch` 1.12 (via `tch` 0.8.0)
+
+## Fixed
+- Allow empty slices or slices of empty prompts for text generation.
 
 ## [0.18.0] - 2022-05-29
 ## Added

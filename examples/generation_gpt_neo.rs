@@ -41,9 +41,9 @@ fn main() -> anyhow::Result<()> {
         model_resource,
         config_resource,
         vocab_resource,
-        merges_resource,
+        merges_resource: Some(merges_resource),
         min_length: 10,
-        max_length: 32,
+        max_length: Some(32),
         do_sample: false,
         early_stopping: true,
         num_beams: 4,
@@ -60,7 +60,7 @@ fn main() -> anyhow::Result<()> {
     let output = model.generate(&[input_context_1, input_context_2], None);
 
     for sentence in output {
-        println!("{}", sentence);
+        println!("{sentence}");
     }
     Ok(())
 }

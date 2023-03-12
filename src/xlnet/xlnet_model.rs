@@ -311,7 +311,7 @@ impl XLNetModel {
         inverse_frequency: &Tensor,
         batch_size: Option<i64>,
     ) -> Tensor {
-        let sinusoid = Tensor::einsum("i,d->id", &[position_sequence, inverse_frequency]);
+        let sinusoid = Tensor::einsum("i,d->id", &[position_sequence, inverse_frequency], None);
         let mut positional_embeddings =
             Tensor::cat(&[sinusoid.sin(), sinusoid.cos()], -1).unsqueeze(1);
 
@@ -545,9 +545,8 @@ impl XLNetModel {
 
         let mut output_h = word_emb_k.apply_t(&self.dropout, train);
         let mut output_g = target_mapping.as_ref().map(|target_mapping_value| {
-            (&self
-                .mask_emb
-                .expand(&[target_mapping_value.size()[0], batch_size, -1], true))
+            self.mask_emb
+                .expand(&[target_mapping_value.size()[0], batch_size, -1], true)
                 .apply_t(&self.dropout, train)
         });
 
@@ -920,7 +919,7 @@ impl XLNetForSequenceClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = XLNetConfig::from_file(config_path);
-    /// let xlnet_model = XLNetForSequenceClassification::new(&p.root(), &config);
+    /// let xlnet_model = XLNetForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -937,7 +936,11 @@ impl XLNetForSequenceClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
 
         let logits_proj = nn::linear(
@@ -1081,7 +1084,7 @@ impl XLNetForTokenClassification {
     /// let device = Device::Cpu;
     /// let p = nn::VarStore::new(device);
     /// let config = XLNetConfig::from_file(config_path);
-    /// let xlnet_model = XLNetForTokenClassification::new(&p.root(), &config);
+    /// let xlnet_model = XLNetForTokenClassification::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -1096,7 +1099,11 @@ impl XLNetForTokenClassification {
         let num_labels = config
             .id2label
             .as_ref()
-            .expect("num_labels not provided in configuration")
+            .ok_or_else(|| {
+                RustBertError::InvalidConfigurationError(
+                    "num_labels not provided in configuration".to_string(),
+                )
+            })?
             .len() as i64;
 
         let classifier = nn::linear(
@@ -1611,7 +1618,7 @@ impl XLNetGenerator {
     /// use rust_bert::xlnet::XLNetGenerator;
     ///
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -1649,7 +1656,7 @@ impl XLNetGenerator {
         let mut var_store = nn::VarStore::new(device);
 
         let config = XLNetConfig::from_file(config_path);
-        let model = XLNetLMHeadModel::new(&var_store.root(), &config);
+        let model = XLNetLMHeadModel::new(var_store.root(), &config);
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id);
