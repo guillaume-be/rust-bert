@@ -5,12 +5,14 @@ use std::sync::Arc;
 use ndarray::Array2;
 use ort::{
     tensor::{FromArray, InputTensor},
-    Environment, ExecutionProvider, GraphOptimizationLevel, OrtResult, Session, SessionBuilder,
+    Environment, ExecutionProvider, GraphOptimizationLevel, OrtApiError, OrtError, OrtResult,
+    Session, SessionBuilder,
 };
 
+#[derive(Debug)]
 struct NameMapping<'a> {
-    decoder_input_names: HashMap<&'a str, usize>,
-    decoder_output_names: HashMap<&'a str, usize>,
+    decoder_input_names: Vec<&'a str>,
+    decoder_output_names: Vec<&'a str>,
     decoder_key_value_input_names: HashMap<&'a str, usize>,
     decoder_key_value_output_names: HashMap<&'a str, usize>,
 }
@@ -19,27 +21,27 @@ fn get_input_output_mapping(session: &Session) -> NameMapping {
     let decoder_input_names = session
         .inputs
         .iter()
-        .enumerate()
-        .map(|(pos, input)| (input.name.as_str(), pos))
-        .collect::<HashMap<&str, usize>>();
+        .map(|input| input.name.as_str())
+        .collect::<Vec<&str>>();
 
     let decoder_output_names = session
         .outputs
         .iter()
-        .enumerate()
-        .map(|(pos, output)| (output.name.as_str(), pos))
-        .collect::<HashMap<&str, usize>>();
+        .map(|output| output.name.as_str())
+        .collect::<Vec<&str>>();
 
     let decoder_key_value_input_names = decoder_input_names
         .iter()
-        .filter(|(name, _)| name.contains(".key") | name.contains(".value"))
-        .map(|(name, pos)| (*name, *pos))
+        .enumerate()
+        .filter(|(_, name)| name.contains(".key") | name.contains(".value"))
+        .map(|(pos, name)| (*name, pos))
         .collect::<HashMap<&str, usize>>();
 
     let decoder_key_value_output_names = decoder_output_names
         .iter()
-        .filter(|(name, _)| name.contains(".key") | name.contains(".value"))
-        .map(|(name, pos)| (*name, *pos))
+        .enumerate()
+        .filter(|(_, name)| name.contains(".key") | name.contains(".value"))
+        .map(|(pos, name)| (*name, pos))
         .collect::<HashMap<&str, usize>>();
 
     NameMapping {
@@ -61,22 +63,28 @@ fn main() -> OrtResult<()> {
     );
 
     let decoder_session = SessionBuilder::new(&environment)?
-        .with_optimization_level(GraphOptimizationLevel::Level1)?
+        .with_optimization_level(GraphOptimizationLevel::Level3)?
         .with_intra_threads(1)?
         .with_model_from_file(PathBuf::from(
             "E:/Coding/distilgpt2-onnx/decoder_model.onnx",
         ))?;
-
-    // ToDo: align the input array using the mapping
     let decoder_name_mapping = get_input_output_mapping(&decoder_session);
 
     let input_ids = Array2::from_shape_vec((1, 3), vec![8888i64, 318i64, 257i64]).unwrap();
     let attention_mask = Array2::from_shape_vec((1, 3), vec![1i64, 1i64, 1i64]).unwrap();
 
-    let outputs = decoder_session.run([
-        InputTensor::from_array(input_ids.into_dyn()),
-        InputTensor::from_array(attention_mask.into_dyn()),
-    ])?;
+    let mut input_dict =
+        HashMap::from([("input_ids", input_ids), ("attention_mask", attention_mask)]);
+
+    let inputs = decoder_name_mapping
+        .decoder_input_names
+        .iter()
+        .map(|input_name| {
+            InputTensor::from_array(input_dict.remove(input_name).unwrap().into_dyn())
+        })
+        .collect::<Vec<_>>();
+
+    let outputs = decoder_session.run(inputs)?;
 
     // ToDo: extract the features using the mapping
     println!("{:?}", outputs);
