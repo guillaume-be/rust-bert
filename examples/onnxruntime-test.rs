@@ -1,71 +1,67 @@
-#![forbid(unsafe_code)]
+use std::path::PathBuf;
+use std::sync::Arc;
 
-use onnxruntime::{
-    environment::Environment, ndarray::Array, tensor::OrtOwnedTensor, GraphOptimizationLevel,
-    LoggingLevel,
+use ndarray::{array, concatenate, s, Array1, Axis};
+use ort::{
+    download::language::machine_comprehension::GPT2,
+    tensor::{DynOrtTensor, FromArray, InputTensor, OrtOwnedTensor},
+    Environment, ExecutionProvider, GraphOptimizationLevel, OrtResult, SessionBuilder,
 };
-use tracing::Level;
-use tracing_subscriber::FmtSubscriber;
+use rand::Rng;
 
-type Error = Box<dyn std::error::Error>;
+const GEN_TOKENS: i32 = 45;
+const TOP_K: usize = 5;
 
-fn main() {
-    if let Err(e) = run() {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
-}
+fn main() -> OrtResult<()> {
+    tracing_subscriber::fmt::init();
 
-fn run() -> Result<(), Error> {
-    // Setup the example's log level.
-    // NOTE: ONNX Runtime's log level is controlled separately when building the environment.
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::TRACE)
-        .finish();
+    let mut rng = rand::thread_rng();
 
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    let environment = Arc::new(
+        Environment::builder()
+            .with_name("GPT2")
+            .with_execution_providers([ExecutionProvider::cuda()])
+            .build()?,
+    );
 
-    let environment = Environment::builder()
-        .with_name("test")
-        // The ONNX Runtime's log level can be different than the one of the wrapper crate or the application.
-        .with_log_level(LoggingLevel::Info)
-        .build()?;
+    let session = SessionBuilder::new(&environment)?
+        .with_optimization_level(GraphOptimizationLevel::Level1)?
+        .with_intra_threads(1)?
+        .with_model_from_file(PathBuf::from(
+            "E:/Coding/distilgpt2-onnx/decoder_model.onnx",
+        ))?;
+
+    // let tokens = &mut Array1::from_iter(tokens.iter().cloned());
     //
-    // let mut session = environment
-    //     .new_session_builder()?
-    //     .with_optimization_level(GraphOptimizationLevel::Basic)?
-    //     .with_number_threads(1)?
-    //     // NOTE: The example uses SqueezeNet 1.0 (ONNX version: 1.3, Opset version: 8),
-    //     //       _not_ SqueezeNet 1.1 as downloaded by '.with_model_downloaded(ImageClassification::SqueezeNet)'
-    //     //       Obtain it with:
-    //     //          curl -LO "https://github.com/onnx/models/raw/master/vision/classification/squeezenet/model/squeezenet1.0-8.onnx"
-    //     .with_model_from_file("squeezenet1.0-8.onnx")?;
+    // for _ in 0..GEN_TOKENS {
+    //     let n_tokens = &tokens.shape()[0];
+    //     let array = tokens
+    //         .clone()
+    //         .insert_axis(Axis(0))
+    //         .into_shape((1, 1, *n_tokens))
+    //         .unwrap();
+    //     let outputs: Vec<DynOrtTensor<ndarray::Dim<ndarray::IxDynImpl>>> =
+    //         session.run([InputTensor::from_array(array.into_dyn())])?;
+    //     let generated_tokens: OrtOwnedTensor<f32, _> = outputs[0].try_extract().unwrap();
+    //     let generated_tokens = generated_tokens.view();
     //
-    // let input0_shape: Vec<usize> = session.inputs[0].dimensions().map(|d| d.unwrap()).collect();
-    // let output0_shape: Vec<usize> = session.outputs[0]
-    //     .dimensions()
-    //     .map(|d| d.unwrap())
-    //     .collect();
+    //     let probabilities = &mut generated_tokens
+    //         .slice(s![0, 0, -1, ..])
+    //         .insert_axis(Axis(0))
+    //         .to_owned()
+    //         .iter()
+    //         .cloned()
+    //         .enumerate()
+    //         .collect::<Vec<_>>();
+    //     probabilities
+    //         .sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Less));
     //
-    // assert_eq!(input0_shape, [1, 3, 224, 224]);
-    // assert_eq!(output0_shape, [1, 1000, 1, 1]);
-    //
-    // // initialize input data with values in [0.0, 1.0]
-    // let n: u32 = session.inputs[0]
-    //     .dimensions
-    //     .iter()
-    //     .map(|d| d.unwrap())
-    //     .product();
-    // let array = Array::linspace(0.0_f32, 1.0, n as usize)
-    //     .into_shape(input0_shape)
-    //     .unwrap();
-    // let input_tensor_values = vec![array];
-    //
-    // let outputs: Vec<OrtOwnedTensor<f32, _>> = session.run(input_tensor_values)?;
-    //
-    // assert_eq!(outputs[0].shape(), output0_shape.as_slice());
-    // for i in 0..5 {
-    //     println!("Score for class [{}] =  {}", i, outputs[0][[0, i, 0, 0]]);
+    //     let token = probabilities[rng.gen_range(0..=TOP_K)].0;
+    //     *tokens = concatenate![Axis(0), *tokens, array![token.try_into().unwrap()]];
+    //     let sentence = tokenizer
+    //         .decode(tokens.iter().map(|i| *i as u32).collect::<Vec<_>>(), true)
+    //         .unwrap();
+    //     println!("{}", sentence);
     // }
 
     Ok(())
