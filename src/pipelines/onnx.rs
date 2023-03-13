@@ -1,52 +1,47 @@
 use ndarray::{Dimension, IxDyn};
 use ort::tensor::DynOrtTensor;
+use ort::{OrtApiError, OrtError};
 use std::collections::HashMap;
 use tch::Tensor;
 
+pub fn ort_tensor_to_tch(ort_tensor: &DynOrtTensor<IxDyn>) -> Result<Tensor, OrtError> {
+    let ort_tensor = ort_tensor.try_extract::<f32>()?;
+    let dim = ort_tensor
+        .view()
+        .dim()
+        .as_array_view()
+        .iter()
+        .map(|dim| *dim as i64)
+        .collect::<Vec<_>>();
+    Ok(
+        Tensor::of_slice(ort_tensor.view().as_slice().ok_or_else(|| {
+            return OrtError::FailedTensorCheck(OrtApiError::Msg(
+                "Non-contiguous tensor encountered during conversion to tch".to_string(),
+            ));
+        })?)
+        .view(dim.as_slice()),
+    )
+}
+
 #[derive(Debug)]
 pub struct ONNXLayerCache {
-    values: HashMap<String, Tensor>,
+    pub values: HashMap<String, Tensor>,
 }
 
 impl ONNXLayerCache {
     pub fn from_ort_output(
         ort_output: &'_ Vec<DynOrtTensor<IxDyn>>,
         key_value_names: &HashMap<&str, usize>,
-    ) -> ONNXLayerCache {
+    ) -> Result<ONNXLayerCache, OrtError> {
         let values = key_value_names
             .iter()
             .filter(|(name, _)| name.contains(".key") | name.contains(".value"))
             .map(|(name, pos)| {
-                let value = ort_output[*pos].try_extract::<f32>().unwrap();
-                (
-                    name.to_string(),
-                    Tensor::of_slice(value.view().as_slice().unwrap()).view(
-                        value
-                            .view()
-                            .dim()
-                            .as_array_view()
-                            .iter()
-                            .map(|dim| *dim as i64)
-                            .collect::<Vec<_>>()
-                            .as_slice(),
-                    ),
-                )
+                let value = &ort_output[*pos];
+                Ok((name.to_string(), ort_tensor_to_tch(value)?))
             })
-            .collect::<HashMap<String, Tensor>>();
+            .collect::<Result<HashMap<String, Tensor>, OrtError>>()?;
 
-        ONNXLayerCache { values }
+        Ok(ONNXLayerCache { values })
     }
 }
-
-// // WORKING IMPLEMENTATION 2
-// let values = decoder_name_mapping
-//     .decoder_key_value_output_names
-//     .iter()
-//     .filter(|(name, pos)| name.contains(".key") | name.contains(".value"))
-//     .map(|(name, pos)| {
-//         (
-//             name.to_string(),
-//             array![outputs[*pos].try_extract::<f32>().unwrap()],
-//         )
-//     })
-//     .collect::<HashMap<String, ArrayBase<OwnedRepr<OrtOwnedTensor<f32, IxDyn>>, Ix1>>>();
