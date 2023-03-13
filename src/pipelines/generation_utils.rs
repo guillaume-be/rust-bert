@@ -87,7 +87,7 @@ use crate::xlnet::LayerState as XLNetLayerState;
 use self::ordered_float::OrderedFloat;
 use crate::pipelines::common::TokenizerOption;
 
-use crate::pipelines::onnx::ONNXLayerCache;
+use crate::pipelines::onnx::conversion::ONNXLayerCache;
 #[cfg(feature = "remote")]
 use crate::{
     gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},

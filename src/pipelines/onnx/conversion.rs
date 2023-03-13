@@ -31,7 +31,7 @@ pub struct ONNXLayerCache {
 impl ONNXLayerCache {
     pub fn from_ort_output(
         ort_output: &'_ Vec<DynOrtTensor<IxDyn>>,
-        key_value_names: &HashMap<&str, usize>,
+        key_value_names: &HashMap<String, usize>,
     ) -> Result<ONNXLayerCache, OrtError> {
         let values = key_value_names
             .iter()

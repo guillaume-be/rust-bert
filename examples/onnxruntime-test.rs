@@ -6,54 +6,14 @@ use std::sync::Arc;
 use ndarray::Array2;
 use ort::{
     tensor::{FromArray, InputTensor},
-    Environment, ExecutionProvider, GraphOptimizationLevel, OrtResult, Session, SessionBuilder,
+    Environment, ExecutionProvider, GraphOptimizationLevel, SessionBuilder,
 };
 use rust_bert::pipelines::generation_utils::{Cache, LMModelOutput};
-use rust_bert::pipelines::onnx::{ort_tensor_to_tch, ONNXLayerCache};
+use rust_bert::pipelines::onnx::conversion::{ort_tensor_to_tch, ONNXLayerCache};
+use rust_bert::pipelines::onnx::decoder::get_input_output_mapping;
+use rust_bert::RustBertError;
 
-#[derive(Debug)]
-struct NameMapping<'a> {
-    decoder_input_names: Vec<&'a str>,
-    decoder_output_names: HashMap<&'a str, usize>,
-    decoder_key_value_input_names: Vec<&'a str>,
-    decoder_key_value_output_names: HashMap<&'a str, usize>,
-}
-
-fn get_input_output_mapping(session: &Session) -> NameMapping {
-    let decoder_input_names = session
-        .inputs
-        .iter()
-        .map(|input| input.name.as_str())
-        .collect::<Vec<&str>>();
-
-    let decoder_output_names = session
-        .outputs
-        .iter()
-        .enumerate()
-        .map(|(pos, output)| (output.name.as_str(), pos))
-        .collect::<HashMap<&str, usize>>();
-
-    let decoder_key_value_input_names = decoder_input_names
-        .iter()
-        .filter(|name| name.contains(".key") | name.contains(".value"))
-        .map(|name| *name)
-        .collect::<Vec<&str>>();
-
-    let decoder_key_value_output_names = decoder_output_names
-        .iter()
-        .filter(|(name, _)| name.contains(".key") | name.contains(".value"))
-        .map(|(name, pos)| (*name, *pos))
-        .collect::<HashMap<&str, usize>>();
-
-    NameMapping {
-        decoder_input_names,
-        decoder_output_names,
-        decoder_key_value_input_names,
-        decoder_key_value_output_names,
-    }
-}
-
-fn main() -> OrtResult<()> {
+fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     // Initial set-up, load ONNX sessions
@@ -92,7 +52,7 @@ fn main() -> OrtResult<()> {
         .decoder_input_names
         .iter()
         .map(|input_name| {
-            InputTensor::from_array(input_dict.remove(input_name).unwrap().into_dyn())
+            InputTensor::from_array(input_dict.remove(input_name.as_str()).unwrap().into_dyn())
         })
         .collect::<Vec<_>>();
 
@@ -126,8 +86,8 @@ fn main() -> OrtResult<()> {
         .decoder_input_names
         .iter()
         .map(|input_name| {
-            if let Some(array) = input_dict.remove(*input_name) {
-                InputTensor::from_array(array.into_dyn())
+            if let Some(array) = input_dict.remove(input_name.as_str()) {
+                Ok(InputTensor::from_array(array.into_dyn()))
             } else {
                 match lm_output.cache {
                     Cache::ONNXCache(ref cache) => {
@@ -137,15 +97,17 @@ fn main() -> OrtResult<()> {
                             .unwrap()
                             .try_into()
                             .unwrap();
-                        InputTensor::from_array(value.into_dyn())
+                        Ok(InputTensor::from_array(value.into_dyn()))
                     }
                     _ => {
-                        unreachable!()
+                        return Err(RustBertError::ValueError(
+                            "Cache not compatible with GPT-J Model".into(),
+                        ));
                     }
                 }
             }
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, RustBertError>>()?;
 
     let outputs = decoder_with_past_session.run(inputs)?;
 

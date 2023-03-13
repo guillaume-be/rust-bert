@@ -1,3 +1,4 @@
+use ort::OrtError;
 use rust_tokenizers::error::TokenizerError;
 use tch::TchError;
 use thiserror::Error;
@@ -22,6 +23,9 @@ pub enum RustBertError {
 
     #[error("Value error: {0}")]
     ValueError(String),
+
+    #[error("Value error: {0}")]
+    OrtError(String),
 }
 
 impl From<std::io::Error> for RustBertError {
@@ -39,5 +43,11 @@ impl From<TokenizerError> for RustBertError {
 impl From<TchError> for RustBertError {
     fn from(error: TchError) -> Self {
         RustBertError::TchError(error.to_string())
+    }
+}
+
+impl From<OrtError> for RustBertError {
+    fn from(error: OrtError) -> Self {
+        RustBertError::OrtError(error.to_string())
     }
 }
