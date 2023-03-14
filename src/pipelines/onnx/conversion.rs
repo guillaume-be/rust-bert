@@ -1,8 +1,10 @@
 use crate::RustBertError;
-use ndarray::{Dimension, IxDyn};
+use ndarray::{ArrayBase, Dimension, IxDyn, OwnedRepr};
 use ort::tensor::DynOrtTensor;
 use ort::{OrtApiError, OrtError};
 use std::collections::HashMap;
+use std::convert::TryInto;
+use tch::kind::Element;
 use tch::Tensor;
 
 pub fn ort_tensor_to_tch(ort_tensor: &DynOrtTensor<IxDyn>) -> Result<Tensor, RustBertError> {
@@ -22,6 +24,13 @@ pub fn ort_tensor_to_tch(ort_tensor: &DynOrtTensor<IxDyn>) -> Result<Tensor, Rus
         })?)
         .view(dim.as_slice()),
     )
+}
+
+pub fn tch_tensor_to_ort<T: Element>(
+    tch_tensor: &Tensor,
+) -> Result<ArrayBase<OwnedRepr<T>, IxDyn>, RustBertError> {
+    let array: ndarray::ArrayD<T> = tch_tensor.try_into()?;
+    Ok(array.into_dyn())
 }
 
 #[derive(Debug)]

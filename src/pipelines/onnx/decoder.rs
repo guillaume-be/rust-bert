@@ -1,11 +1,10 @@
 use crate::pipelines::generation_utils::{Cache, LMModelOutput};
 use crate::pipelines::onnx::config::{ONNXEnvironmentConfig, ATTENTION_MASK_NAME, INPUT_IDS_NAME};
-use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, ONNXLayerCache};
+use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, tch_tensor_to_ort, ONNXLayerCache};
 use crate::RustBertError;
 use ort::tensor::{FromArray, InputTensor};
 use ort::{Environment, Session};
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tch::Tensor;
@@ -88,21 +87,20 @@ impl ONNXDecoder {
             .iter()
             .map(|input_name| {
                 if let Some(tensor) = input_dict.remove(input_name.as_str()) {
-                    let array: ndarray::ArrayD<f32> = tensor.try_into()?;
-                    Ok(InputTensor::from_array(array.into_dyn()))
+                    Ok(InputTensor::from_array(tch_tensor_to_ort::<i64>(tensor)?))
                 } else {
-                    let array: ndarray::ArrayD<f32> = layer_states
-                        .ok_or_else(|| {
-                            return RustBertError::OrtError(format!(
-                                "{input_name} not found and cache was not provided."
-                            ));
-                        })?
-                        .values
-                        .get(&input_name.replace("past_key_values", "present"))
-                        .unwrap()
-                        .try_into()
-                        .unwrap();
-                    Ok(InputTensor::from_array(array.into_dyn()))
+                    let array = tch_tensor_to_ort::<f32>(
+                        layer_states
+                            .ok_or_else(|| {
+                                return RustBertError::OrtError(format!(
+                                    "{input_name} not found and cache was not provided."
+                                ));
+                            })?
+                            .values
+                            .get(&input_name.replace("past_key_values", "present"))
+                            .unwrap(),
+                    )?;
+                    Ok(InputTensor::from_array(array))
                 }
             })
             .collect::<Result<Vec<_>, RustBertError>>()?;
