@@ -1,10 +1,11 @@
+use crate::RustBertError;
 use ndarray::{Dimension, IxDyn};
 use ort::tensor::DynOrtTensor;
 use ort::{OrtApiError, OrtError};
 use std::collections::HashMap;
 use tch::Tensor;
 
-pub fn ort_tensor_to_tch(ort_tensor: &DynOrtTensor<IxDyn>) -> Result<Tensor, OrtError> {
+pub fn ort_tensor_to_tch(ort_tensor: &DynOrtTensor<IxDyn>) -> Result<Tensor, RustBertError> {
     let ort_tensor = ort_tensor.try_extract::<f32>()?;
     let dim = ort_tensor
         .view()
@@ -32,7 +33,7 @@ impl ONNXLayerCache {
     pub fn from_ort_output(
         ort_output: &'_ Vec<DynOrtTensor<IxDyn>>,
         key_value_names: &HashMap<String, usize>,
-    ) -> Result<ONNXLayerCache, OrtError> {
+    ) -> Result<ONNXLayerCache, RustBertError> {
         let values = key_value_names
             .iter()
             .filter(|(name, _)| name.contains(".key") | name.contains(".value"))
@@ -40,7 +41,7 @@ impl ONNXLayerCache {
                 let value = &ort_output[*pos];
                 Ok((name.to_string(), ort_tensor_to_tch(value)?))
             })
-            .collect::<Result<HashMap<String, Tensor>, OrtError>>()?;
+            .collect::<Result<HashMap<String, Tensor>, RustBertError>>()?;
 
         Ok(ONNXLayerCache { values })
     }

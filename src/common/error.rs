@@ -1,3 +1,4 @@
+use ndarray::ShapeError;
 use ort::OrtError;
 use rust_tokenizers::error::TokenizerError;
 use tch::TchError;
@@ -26,6 +27,9 @@ pub enum RustBertError {
 
     #[error("Value error: {0}")]
     OrtError(String),
+
+    #[error("Value error: {0}")]
+    NdArrayError(String),
 }
 
 impl From<std::io::Error> for RustBertError {
@@ -49,5 +53,11 @@ impl From<TchError> for RustBertError {
 impl From<OrtError> for RustBertError {
     fn from(error: OrtError) -> Self {
         RustBertError::OrtError(error.to_string())
+    }
+}
+
+impl From<ShapeError> for RustBertError {
+    fn from(error: ShapeError) -> Self {
+        RustBertError::NdArrayError(error.to_string())
     }
 }

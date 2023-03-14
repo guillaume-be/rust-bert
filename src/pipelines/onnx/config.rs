@@ -2,6 +2,9 @@ use crate::RustBertError;
 use ort::{AllocatorType, Environment, GraphOptimizationLevel, MemType, SessionBuilder};
 use std::sync::Arc;
 
+pub static INPUT_IDS_NAME: &str = "input_ids";
+pub static ATTENTION_MASK_NAME: &str = "attention_mask";
+
 pub struct ONNXEnvironmentConfig {
     pub optimization_level: Option<GraphOptimizationLevel>,
     pub num_intra_threads: Option<i16>,

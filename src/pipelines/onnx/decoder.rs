@@ -1,9 +1,14 @@
-use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
+use crate::pipelines::generation_utils::{Cache, LMModelOutput};
+use crate::pipelines::onnx::config::{ONNXEnvironmentConfig, ATTENTION_MASK_NAME, INPUT_IDS_NAME};
+use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, ONNXLayerCache};
 use crate::RustBertError;
+use ort::tensor::{FromArray, InputTensor};
 use ort::{Environment, Session};
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tch::Tensor;
 
 #[derive(Debug)]
 pub struct DecoderNameMapping {
@@ -41,22 +46,85 @@ pub fn get_input_output_mapping(session: &Session) -> DecoderNameMapping {
 
 pub struct ONNXDecoder {
     session: Session,
-    decoder_name_mapping: DecoderNameMapping,
+    name_mapping: DecoderNameMapping,
+    use_cache: bool,
 }
 
 impl ONNXDecoder {
     pub fn new(
         model_file: PathBuf,
+        use_cache: bool,
         environment: &Arc<Environment>,
         onnx_config: &ONNXEnvironmentConfig,
     ) -> Result<Self, RustBertError> {
         let session = onnx_config
             .get_session_builder(environment)?
             .with_model_from_file(model_file)?;
-        let decoder_name_mapping = get_input_output_mapping(&session);
+        let name_mapping = get_input_output_mapping(&session);
         Ok(Self {
             session,
-            decoder_name_mapping,
+            name_mapping,
+            use_cache,
         })
+    }
+
+    pub fn forward(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        layer_states: Option<&ONNXLayerCache>,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let mut input_dict = HashMap::new();
+        if let Some(input_ids) = input_ids {
+            input_dict.insert(INPUT_IDS_NAME, input_ids);
+        }
+        if let Some(attention_mask) = attention_mask {
+            input_dict.insert(ATTENTION_MASK_NAME, attention_mask);
+        }
+
+        let inputs = self
+            .name_mapping
+            .decoder_input_names
+            .iter()
+            .map(|input_name| {
+                if let Some(tensor) = input_dict.remove(input_name.as_str()) {
+                    let array: ndarray::ArrayD<f32> = tensor.try_into()?;
+                    Ok(InputTensor::from_array(array.into_dyn()))
+                } else {
+                    let array: ndarray::ArrayD<f32> = layer_states
+                        .ok_or_else(|| {
+                            return RustBertError::OrtError(format!(
+                                "{input_name} not found and cache was not provided."
+                            ));
+                        })?
+                        .values
+                        .get(&input_name.replace("past_key_values", "present"))
+                        .unwrap()
+                        .try_into()
+                        .unwrap();
+                    Ok(InputTensor::from_array(array.into_dyn()))
+                }
+            })
+            .collect::<Result<Vec<_>, RustBertError>>()?;
+
+        let outputs = self.session.run(inputs)?;
+
+        let lm_logits = ort_tensor_to_tch(
+            &outputs[*self
+                .name_mapping
+                .decoder_output_names
+                .get("logits")
+                .unwrap()],
+        )?;
+        let cache = if self.use_cache {
+            Cache::ONNXCache(ONNXLayerCache::from_ort_output(
+                &outputs,
+                &self.name_mapping.decoder_key_value_output_names,
+            )?)
+        } else {
+            Cache::None
+        };
+
+        Ok(LMModelOutput { lm_logits, cache })
     }
 }
