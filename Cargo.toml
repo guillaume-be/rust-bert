@@ -70,7 +70,8 @@ features = ["doc-only"]
 
 [dependencies]
 rust_tokenizers = "8.0.0"
-tch = "~0.10.1"
+#tch = {git = "https://github.com/LaurentMazare/tch-rs.git", branch="main"}
+tch = {path="E:/Coding/tch-rs"}
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 ordered-float = "3"
@@ -90,7 +91,7 @@ anyhow = "1"
 csv = "1"
 criterion = "0.4"
 tokio = { version = "1.24", features = ["sync", "rt-multi-thread", "macros"] }
-torch-sys = "=0.10.0"
+torch-sys = {path="E:/Coding/tch-rs/torch-sys"}
 tempfile = "3"
 itertools = "0.10"
 tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt" ] }

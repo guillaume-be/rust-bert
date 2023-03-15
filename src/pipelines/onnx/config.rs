@@ -1,12 +1,18 @@
 use crate::RustBertError;
-use ort::{AllocatorType, Environment, GraphOptimizationLevel, MemType, SessionBuilder};
+use ort::{
+    AllocatorType, Environment, ExecutionProvider, GraphOptimizationLevel, MemType, SessionBuilder,
+};
 use std::sync::Arc;
 
 pub static INPUT_IDS_NAME: &str = "input_ids";
 pub static ATTENTION_MASK_NAME: &str = "attention_mask";
+pub static ENCODER_HIDDEN_STATES_NAME: &str = "encoder_hidden_states";
+pub static ENCODER_ATTENTION_MASK_NAME: &str = "encoder_attention_mask";
 
+#[derive(Default)]
 pub struct ONNXEnvironmentConfig {
     pub optimization_level: Option<GraphOptimizationLevel>,
+    pub execution_providers: Option<Vec<ExecutionProvider>>,
     pub num_intra_threads: Option<i16>,
     pub num_inter_threads: Option<i16>,
     pub parallel_execution: Option<bool>,
@@ -15,26 +21,12 @@ pub struct ONNXEnvironmentConfig {
     pub memory_type: Option<MemType>,
 }
 
-impl Default for ONNXEnvironmentConfig {
-    fn default() -> Self {
-        ONNXEnvironmentConfig {
-            optimization_level: None,
-            num_intra_threads: None,
-            num_inter_threads: None,
-            parallel_execution: None,
-            enable_memory_pattern: None,
-            allocator: None,
-            memory_type: None,
-        }
-    }
-}
-
 impl ONNXEnvironmentConfig {
     pub(crate) fn get_session_builder(
         &self,
         environment: &Arc<Environment>,
     ) -> Result<SessionBuilder, RustBertError> {
-        let mut session_builder = SessionBuilder::new(&environment)?;
+        let mut session_builder = SessionBuilder::new(environment)?;
         match &self.optimization_level {
             Some(GraphOptimizationLevel::Level3) | None => {}
             Some(GraphOptimizationLevel::Level2) => {

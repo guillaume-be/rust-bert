@@ -5,7 +5,7 @@ use ort::{Environment, ExecutionProvider};
 use rust_bert::pipelines::generation_utils::Cache;
 use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
 use rust_bert::pipelines::onnx::decoder::ONNXDecoder;
-use tch::Tensor;
+use tch::{Kind, Tensor};
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -34,24 +34,35 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     // Initial decoder forward pass (without past)
-    let input_ids = Tensor::of_slice(&[8888, 318, 257]).unsqueeze(0);
-    let attention_mask = &Tensor::of_slice(&[1, 1, 1]).unsqueeze(0);
+    let input_ids = Tensor::of_slice(&[8888, 318, 257])
+        .unsqueeze(0)
+        .to_kind(Kind::Int64);
+    let attention_mask = Tensor::of_slice(&[1, 1, 1])
+        .unsqueeze(0)
+        .to_kind(Kind::Int64);
 
-    let outputs = decoder.forward(Some(&input_ids), Some(&attention_mask), None)?;
+    let outputs = decoder.forward(Some(&input_ids), Some(&attention_mask), None, None, None)?;
 
     println!("{} - {:?}", outputs.lm_logits, outputs.cache);
 
     // Second decoder forward pass (without past)
-    let input_ids = Tensor::of_slice(&[649]).unsqueeze(0);
-    let attention_mask = &Tensor::of_slice(&[1, 1, 1, 1]).unsqueeze(0);
+    let input_ids = Tensor::of_slice(&[649]).unsqueeze(0).to_kind(Kind::Int64);
+    let attention_mask = Tensor::of_slice(&[1, 1, 1, 1])
+        .unsqueeze(0)
+        .to_kind(Kind::Int64);
 
     let cache = match outputs.cache {
         Cache::ONNXCache(ref cache) => cache,
         _ => unreachable!(),
     };
 
-    let outputs =
-        decoder_with_past.forward(Some(&input_ids), Some(&attention_mask), Some(cache))?;
+    let outputs = decoder_with_past.forward(
+        Some(&input_ids),
+        Some(&attention_mask),
+        None,
+        None,
+        Some(cache),
+    )?;
 
     println!("{} - {:?}", outputs.lm_logits, outputs.cache);
 

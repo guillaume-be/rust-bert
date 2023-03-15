@@ -1,8 +1,10 @@
 use crate::pipelines::generation_utils::{Cache, LMModelOutput};
-use crate::pipelines::onnx::config::{ONNXEnvironmentConfig, ATTENTION_MASK_NAME, INPUT_IDS_NAME};
+use crate::pipelines::onnx::config::{
+    ONNXEnvironmentConfig, ATTENTION_MASK_NAME, ENCODER_ATTENTION_MASK_NAME,
+    ENCODER_HIDDEN_STATES_NAME, INPUT_IDS_NAME,
+};
 use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, tch_tensor_to_ort, ONNXLayerCache};
 use crate::RustBertError;
-use ort::tensor::{FromArray, InputTensor};
 use ort::{Environment, Session};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -71,6 +73,8 @@ impl ONNXDecoder {
         &self,
         input_ids: Option<&Tensor>,
         attention_mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_attention_mask: Option<&Tensor>,
         layer_states: Option<&ONNXLayerCache>,
     ) -> Result<LMModelOutput, RustBertError> {
         let mut input_dict = HashMap::new();
@@ -80,6 +84,12 @@ impl ONNXDecoder {
         if let Some(attention_mask) = attention_mask {
             input_dict.insert(ATTENTION_MASK_NAME, attention_mask);
         }
+        if let Some(encoder_hidden_states) = encoder_hidden_states {
+            input_dict.insert(ENCODER_HIDDEN_STATES_NAME, encoder_hidden_states);
+        }
+        if let Some(encoder_attention_mask) = encoder_attention_mask {
+            input_dict.insert(ENCODER_ATTENTION_MASK_NAME, encoder_attention_mask);
+        }
 
         let inputs = self
             .name_mapping
@@ -87,9 +97,9 @@ impl ONNXDecoder {
             .iter()
             .map(|input_name| {
                 if let Some(tensor) = input_dict.remove(input_name.as_str()) {
-                    Ok(InputTensor::from_array(tch_tensor_to_ort::<i64>(tensor)?))
+                    Ok(tch_tensor_to_ort(tensor)?)
                 } else {
-                    let array = tch_tensor_to_ort::<f32>(
+                    tch_tensor_to_ort(
                         layer_states
                             .ok_or_else(|| {
                                 return RustBertError::OrtError(format!(
@@ -99,8 +109,7 @@ impl ONNXDecoder {
                             .values
                             .get(&input_name.replace("past_key_values", "present"))
                             .unwrap(),
-                    )?;
-                    Ok(InputTensor::from_array(array))
+                    )
                 }
             })
             .collect::<Result<Vec<_>, RustBertError>>()?;
