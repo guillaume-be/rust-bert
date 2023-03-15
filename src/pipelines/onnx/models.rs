@@ -1,10 +1,11 @@
-use crate::pipelines::generation_utils::GenerateConfig;
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput};
 use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
 use crate::pipelines::onnx::decoder::ONNXDecoder;
 use crate::RustBertError;
 use ort::{Environment, ExecutionProvider};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tch::Tensor;
 
 pub struct ONNXCausalDecoder {
     pub decoder_without_past: Option<ONNXDecoder>,
@@ -68,5 +69,64 @@ impl ONNXCausalDecoder {
             decoder_with_past,
             generate_config,
         })
+    }
+
+    pub fn forward(
+        &self,
+        input_ids: Option<&Tensor>,
+        attention_mask: Option<&Tensor>,
+        encoder_hidden_states: Option<&Tensor>,
+        encoder_attention_mask: Option<&Tensor>,
+        layer_states: Option<&Cache>,
+    ) -> Result<LMModelOutput, RustBertError> {
+        match (
+            &self.decoder_without_past,
+            &self.decoder_with_past,
+            layer_states,
+        ) {
+            (Some(ref decoder_without_past), _, None)
+            | (Some(ref decoder_without_past), _, Some(Cache::None)) => decoder_without_past
+                .forward(
+                    input_ids,
+                    attention_mask,
+                    encoder_hidden_states,
+                    encoder_attention_mask,
+                    None,
+                ),
+            (_, Some(ref decoder_with_past), Some(Cache::ONNXCache(ref onnx_cache))) => {
+                decoder_with_past.forward(
+                    input_ids,
+                    attention_mask,
+                    encoder_hidden_states,
+                    encoder_attention_mask,
+                    Some(onnx_cache),
+                )
+            }
+            (Some(ref decoder_without_past), None, Some(Cache::ONNXCache(_))) => {
+                decoder_without_past.forward(
+                    input_ids,
+                    attention_mask,
+                    encoder_hidden_states,
+                    encoder_attention_mask,
+                    None,
+                )
+            }
+            (None, _, None) => {
+                return Err(RustBertError::ValueError(
+                    "No decoder_without_cache loaded and no cache provided.".to_string(),
+                ));
+            }
+            (None, None, _) => {
+                return Err(RustBertError::ValueError(
+                    "No decoder provided.".to_string(),
+                ));
+            }
+            (_, _, Some(cache)) => {
+                return Err(RustBertError::ValueError(format!(
+                    "Invalid cache type provided, expected Cache::ONNXlayerCache, got {:?}.",
+                    cache
+                )));
+            }
+        }
     }
 }

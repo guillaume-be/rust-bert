@@ -1,36 +1,24 @@
 use std::path::PathBuf;
-use std::sync::Arc;
 
-use ort::{Environment, ExecutionProvider};
-use rust_bert::pipelines::generation_utils::Cache;
+use rust_bert::pipelines::generation_utils::GenerateConfig;
 use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
-use rust_bert::pipelines::onnx::decoder::ONNXDecoder;
+
+use rust_bert::pipelines::onnx::models::ONNXCausalDecoder;
 use tch::{Kind, Tensor};
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    // Initial set-up, load ONNX sessions
-    let environment = Arc::new(
-        Environment::builder()
-            .with_name("GPT2")
-            .with_execution_providers([ExecutionProvider::cpu()])
-            .build()?,
-    );
-    let onnx_config = ONNXEnvironmentConfig::default();
-
-    let decoder = ONNXDecoder::new(
-        PathBuf::from("E:/Coding/distilgpt2-onnx/decoder_model.onnx"),
-        true,
-        &environment,
-        &onnx_config,
-    )?;
-
-    let decoder_with_past = ONNXDecoder::new(
-        PathBuf::from("E:/Coding/distilgpt2-onnx/decoder_with_past_model.onnx"),
-        true,
-        &environment,
-        &onnx_config,
+    let onnx_causal_decoder = ONNXCausalDecoder::new(
+        Some(PathBuf::from(
+            "E:/Coding/distilgpt2-onnx/decoder_model.onnx",
+        )),
+        Some(PathBuf::from(
+            "E:/Coding/distilgpt2-onnx/decoder_with_past_model.onnx",
+        )),
+        &ONNXEnvironmentConfig::default(),
+        GenerateConfig::default(),
+        None,
     )?;
 
     // Initial decoder forward pass (without past)
@@ -41,7 +29,8 @@ fn main() -> anyhow::Result<()> {
         .unsqueeze(0)
         .to_kind(Kind::Int64);
 
-    let outputs = decoder.forward(Some(&input_ids), Some(&attention_mask), None, None, None)?;
+    let outputs =
+        onnx_causal_decoder.forward(Some(&input_ids), Some(&attention_mask), None, None, None)?;
 
     println!("{} - {:?}", outputs.lm_logits, outputs.cache);
 
@@ -51,17 +40,12 @@ fn main() -> anyhow::Result<()> {
         .unsqueeze(0)
         .to_kind(Kind::Int64);
 
-    let cache = match outputs.cache {
-        Cache::ONNXCache(ref cache) => cache,
-        _ => unreachable!(),
-    };
-
-    let outputs = decoder_with_past.forward(
+    let outputs = onnx_causal_decoder.forward(
         Some(&input_ids),
         Some(&attention_mask),
         None,
         None,
-        Some(cache),
+        Some(&outputs.cache),
     )?;
 
     println!("{} - {:?}", outputs.lm_logits, outputs.cache);
