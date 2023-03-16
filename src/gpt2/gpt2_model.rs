@@ -739,11 +739,9 @@ impl PrivateLanguageGenerator for GPT2Generator {
                 input_embeds,
                 train,
             ),
-            _ => {
-                return Err(RustBertError::ValueError(
-                    "Cache not compatible with GPT2 Model".into(),
-                ));
-            }
+            _ => Err(RustBertError::ValueError(
+                "Cache not compatible with GPT2 Model".into(),
+            )),
         }
     }
 
