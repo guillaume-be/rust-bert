@@ -1085,7 +1085,7 @@ impl PrivateLanguageGenerator for BartGenerator {
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
         let base_model_output = match cache {
-            Cache::BARTCache(cached_layer_states) => self.model.base_model.forward_t(
+            Cache::BARTCache(cached_layer_states) => self.model.forward_t(
                 input_ids,
                 attention_mask,
                 decoder_input_ids,
@@ -1095,7 +1095,7 @@ impl PrivateLanguageGenerator for BartGenerator {
                 train,
             ),
 
-            Cache::None => self.model.base_model.forward_t(
+            Cache::None => self.model.forward_t(
                 input_ids,
                 attention_mask,
                 decoder_input_ids,
@@ -1111,14 +1111,12 @@ impl PrivateLanguageGenerator for BartGenerator {
             }
         };
 
-        let lm_logits = base_model_output
-            .decoder_output
-            .linear::<Tensor>(&self.model.base_model.embeddings.ws, None);
         Ok(LMModelOutput {
-            lm_logits,
+            lm_logits: base_model_output.decoder_output,
             cache: Cache::BARTCache(base_model_output.cache),
         })
     }
+
     fn prepare_scores_for_generation(
         &self,
         scores: &mut Tensor,

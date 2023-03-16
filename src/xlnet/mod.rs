@@ -2,7 +2,7 @@
 //!
 //! Implementation of the XLNet language model ([Generalized Autoregressive Pretraining for Language Understanding](https://arxiv.org/abs/1906.08237) Yang, Dai, Yang, Carbonell, Salakhutdinov, Le, 2019).
 //! The base model is implemented in the `xlnet_model::XLNetModel` struct. Several language model heads have also been implemented, including:
-//! - Language generation: `xlnet_model::XLNetLMHeadModel` implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information)
+//! - Language generation: `xlnet_model::XLNetLMHeadModel` implementing the common `generation_utils::LanguageGenerator` trait shared between the models used for generation (see `pipelines` for more information)
 //! - Multiple choices: `xlnet_model:XLNetForMultipleChoice`
 //! - Question answering: `xlnet_model::XLNetForQuestionAnswering`
 //! - Sequence classification: `xlnet_model::XLNetForSequenceClassification`

@@ -356,7 +356,7 @@ impl OpenAIGPTLMHeadModel {
     /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::Gpt2Config;
     /// use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
-    /// use rust_bert::pipelines::generation_utils::{LMHeadModel, Cache};
+    /// use rust_bert::pipelines::generation_utils::Cache;
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
