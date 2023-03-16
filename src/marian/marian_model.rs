@@ -21,6 +21,7 @@ use crate::pipelines::translation::Language;
 use crate::{Config, RustBertError};
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use std::borrow::Borrow;
+use tch::nn::Init;
 use tch::{nn, Kind, Tensor};
 
 /// # Marian Pretrained model weight files
@@ -529,6 +530,7 @@ pub type MarianConfig = BartConfig;
 /// - `linear`: Linear layer with bias tied to the weights of the token id embeddings
 pub struct MarianForConditionalGeneration {
     base_model: BartModel,
+    final_logits_bias: Tensor,
 }
 
 impl MarianForConditionalGeneration {
@@ -560,7 +562,15 @@ impl MarianForConditionalGeneration {
     {
         let p = p.borrow();
         let base_model = BartModel::new(p / "model", config);
-        MarianForConditionalGeneration { base_model }
+        let final_logits_bias = p.var(
+            "final_logits_bias",
+            &[1, config.vocab_size],
+            Init::Const(0.),
+        );
+        MarianForConditionalGeneration {
+            base_model,
+            final_logits_bias,
+        }
     }
 
     /// Forward pass through the model
@@ -640,7 +650,8 @@ impl MarianForConditionalGeneration {
 
         let lm_logits = base_model_output
             .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None);
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+            + &self.final_logits_bias;
         BartModelOutput {
             decoder_output: lm_logits,
             ..base_model_output
@@ -844,8 +855,8 @@ impl PrivateLanguageGenerator for MarianGenerator {
             Cache::BARTCache(cached_layer_states) => self.model.forward_t(
                 input_ids,
                 attention_mask,
-                decoder_input_ids,
                 encoder_outputs,
+                decoder_input_ids,
                 None,
                 cached_layer_states,
                 train,
@@ -853,8 +864,8 @@ impl PrivateLanguageGenerator for MarianGenerator {
             Cache::None => self.model.forward_t(
                 input_ids,
                 attention_mask,
-                decoder_input_ids,
                 encoder_outputs,
+                decoder_input_ids,
                 None,
                 None,
                 train,

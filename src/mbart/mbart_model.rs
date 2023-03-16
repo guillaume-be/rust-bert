@@ -884,8 +884,8 @@ impl PrivateLanguageGenerator for MBartGenerator {
             Cache::BARTCache(cached_layer_states) => self.model.forward_t(
                 input_ids,
                 attention_mask,
-                decoder_input_ids,
                 encoder_outputs,
+                decoder_input_ids,
                 None,
                 cached_layer_states,
                 train,
@@ -894,8 +894,8 @@ impl PrivateLanguageGenerator for MBartGenerator {
             Cache::None => self.model.forward_t(
                 input_ids,
                 attention_mask,
-                decoder_input_ids,
                 encoder_outputs,
+                decoder_input_ids,
                 None,
                 None,
                 train,

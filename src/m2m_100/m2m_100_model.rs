@@ -634,8 +634,8 @@ impl PrivateLanguageGenerator for M2M100Generator {
             Cache::BARTCache(cached_layer_states) => self.model.forward_t(
                 input_ids,
                 attention_mask,
-                decoder_input_ids,
                 encoder_outputs,
+                decoder_input_ids,
                 None,
                 cached_layer_states,
                 train,
@@ -644,8 +644,8 @@ impl PrivateLanguageGenerator for M2M100Generator {
             Cache::None => self.model.forward_t(
                 input_ids,
                 attention_mask,
-                decoder_input_ids,
                 encoder_outputs,
+                decoder_input_ids,
                 None,
                 None,
                 train,
@@ -812,7 +812,7 @@ mod test {
 
         //    Set-up masked LM model
         let device = Device::cuda_if_available();
-        let vs = tch::nn::VarStore::new(device);
+        let vs = nn::VarStore::new(device);
         let config = M2M100Config::from_file(config_path);
 
         let _: Box<dyn Send> = Box::new(M2M100Model::new(vs.root(), &config));

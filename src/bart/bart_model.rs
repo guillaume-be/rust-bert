@@ -824,7 +824,7 @@ impl BartForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = BartConfig::from_file(config_path);
-    /// # let bart_model: BartForSequenceClassification = BartForSequenceClassification::new(&vs.root(), &config).unwrap();;
+    /// # let bart_model: BartForSequenceClassification = BartForSequenceClassification::new(&vs.root(), &config).unwrap();
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -1088,8 +1088,8 @@ impl PrivateLanguageGenerator for BartGenerator {
             Cache::BARTCache(cached_layer_states) => self.model.forward_t(
                 input_ids,
                 attention_mask,
-                decoder_input_ids,
                 encoder_outputs,
+                decoder_input_ids,
                 None,
                 cached_layer_states,
                 train,
@@ -1098,8 +1098,8 @@ impl PrivateLanguageGenerator for BartGenerator {
             Cache::None => self.model.forward_t(
                 input_ids,
                 attention_mask,
-                decoder_input_ids,
                 encoder_outputs,
+                decoder_input_ids,
                 None,
                 None,
                 train,
