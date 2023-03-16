@@ -18,12 +18,8 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
-use crate::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
-};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::{Activation, Config, RustBertError};
-use rust_tokenizers::tokenizer::Gpt2Tokenizer;
-use rust_tokenizers::vocab::Gpt2Vocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::{nn, Kind, Tensor};
@@ -570,52 +566,6 @@ impl GptNeoForCausalLM {
     }
 }
 
-impl LMHeadModel for GptNeoForCausalLM {
-    fn forward_t(
-        &self,
-        input_ids: Option<&Tensor>,
-        layer_past: Cache,
-        attention_mask: Option<&Tensor>,
-        token_type_ids: Option<&Tensor>,
-        position_ids: Option<&Tensor>,
-        input_embeds: Option<&Tensor>,
-        _encoder_outputs: Option<&Tensor>,
-        _decoder_input_ids: Option<&Tensor>,
-        train: bool,
-    ) -> Result<LMModelOutput, RustBertError> {
-        let base_model_output = match layer_past {
-            Cache::GPTNeoCache(layer_past) => self.forward_t(
-                input_ids,
-                input_embeds,
-                token_type_ids,
-                position_ids,
-                layer_past,
-                attention_mask,
-                train,
-            ),
-            Cache::None => self.forward_t(
-                input_ids,
-                input_embeds,
-                token_type_ids,
-                position_ids,
-                None,
-                attention_mask,
-                train,
-            ),
-            _ => {
-                return Err(RustBertError::ValueError(
-                    "Cache not compatible with GPT-Neo Model".into(),
-                ));
-            }
-        }?;
-
-        Ok(LMModelOutput {
-            lm_logits: base_model_output.lm_logits,
-            cache: Cache::GPTNeoCache(base_model_output.next_cache),
-        })
-    }
-}
-
 /// Container for the GPT-Neo model output.
 pub struct GptNeoModelOutput {
     /// Last hidden states from the model
@@ -743,10 +693,7 @@ impl GptNeoGenerator {
     }
 }
 
-impl PrivateLanguageGenerator<GptNeoForCausalLM, Gpt2Vocab, Gpt2Tokenizer> for GptNeoGenerator {
-    fn get_model(&self) -> &GptNeoForCausalLM {
-        &self.model
-    }
+impl PrivateLanguageGenerator for GptNeoGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -777,10 +724,54 @@ impl PrivateLanguageGenerator<GptNeoForCausalLM, Gpt2Vocab, Gpt2Tokenizer> for G
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
     }
+
     fn get_max_positions_embeddings(&self) -> i64 {
         self.max_position_embeddings
     }
 
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        layer_past: Cache,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match layer_past {
+            Cache::GPTNeoCache(layer_past) => self.model.forward_t(
+                input_ids,
+                input_embeds,
+                token_type_ids,
+                position_ids,
+                layer_past,
+                attention_mask,
+                train,
+            ),
+            Cache::None => self.model.forward_t(
+                input_ids,
+                input_embeds,
+                token_type_ids,
+                position_ids,
+                None,
+                attention_mask,
+                train,
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with GPT-Neo Model".into(),
+                ));
+            }
+        }?;
+
+        Ok(LMModelOutput {
+            lm_logits: base_model_output.lm_logits,
+            cache: Cache::GPTNeoCache(base_model_output.next_cache),
+        })
+    }
     fn prepare_inputs_for_generation<'a>(
         &self,
         input_ids: Tensor,
@@ -851,4 +842,4 @@ impl PrivateLanguageGenerator<GptNeoForCausalLM, Gpt2Vocab, Gpt2Tokenizer> for G
     }
 }
 
-impl LanguageGenerator<GptNeoForCausalLM, Gpt2Vocab, Gpt2Tokenizer> for GptNeoGenerator {}
+impl LanguageGenerator for GptNeoGenerator {}
