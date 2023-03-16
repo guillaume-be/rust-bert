@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Changed
 - Bumped the tokenizers dependency from 7.x to 8.x, exposing additional options for special token mapping and adding the NLLBTokenizer.
+- (BREAKING) Simplified the generation traits (removal of LMHeadModel and elimination of unnecessary specification for LanguageGenerator)
 
 ## Fixed
 - MIN/MAX computation for float-like (was set to infinity instead of min/max)
