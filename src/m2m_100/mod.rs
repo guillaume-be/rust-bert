@@ -2,7 +2,7 @@
 //!
 //! Implementation of the M2M-100 language model ([Beyond English-Centric Multilingual Machine Translation](https://arxiv.org/abs/2010.11125) Fan, Bhosale, Schwenk, Ma, El-Kishky, Goyal, Baines, Celebi, Wenzel, Chaudhary, Goyal, Birch, Liptchinsky, Edunov, Grave, Auli, Joulin, 2020).
 //! The base model is implemented in the `m2m_100::M2M100Model` struct. The model also includes a language model head: `m2m_100::M2M100ForConditionalGeneration`
-//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! implementing the common `generation_utils::LanguageGenerator` trait shared between the models used for generation (see `pipelines` for more information).
 //! This model allows for direct translation between 100 languages.
 //! The translation capabilities are illustrated in `examples/translation_m2m100`, run with `cargo run --example translation_m2m100`.
 //!

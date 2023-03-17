@@ -19,12 +19,8 @@ use crate::gpt2::Gpt2Config;
 use crate::openai_gpt::transformer::Block;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
-use crate::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
-};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::{Config, RustBertError};
-use rust_tokenizers::tokenizer::OpenAiGptTokenizer;
-use rust_tokenizers::vocab::OpenAiGptVocab;
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
@@ -326,9 +322,7 @@ impl OpenAIGPTLMHeadModel {
             lm_head,
         }
     }
-}
 
-impl LMHeadModel for OpenAIGPTLMHeadModel {
     /// Forward pass through the model
     ///
     /// # Arguments
@@ -362,7 +356,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     /// # use tch::kind::Kind::{Int64, Double};
     /// use rust_bert::gpt2::Gpt2Config;
     /// use rust_bert::openai_gpt::OpenAIGPTLMHeadModel;
-    /// use rust_bert::pipelines::generation_utils::{LMHeadModel, Cache};
+    /// use rust_bert::pipelines::generation_utils::Cache;
     /// # let config_path = Path::new("path/to/config.json");
     /// # let vocab_path = Path::new("path/to/vocab.txt");
     /// # let device = Device::Cpu;
@@ -388,7 +382,7 @@ impl LMHeadModel for OpenAIGPTLMHeadModel {
     ///                    false).unwrap()
     ///    });
     /// ```
-    fn forward_t(
+    pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
         _layer_past: Cache,
@@ -531,12 +525,7 @@ impl OpenAIGenerator {
     }
 }
 
-impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
-    for OpenAIGenerator
-{
-    fn get_model(&self) -> &OpenAIGPTLMHeadModel {
-        &self.model
-    }
+impl PrivateLanguageGenerator for OpenAIGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -570,9 +559,31 @@ impl PrivateLanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTok
     fn get_max_positions_embeddings(&self) -> i64 {
         self.max_position_embeddings
     }
+
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        _layer_past: Cache,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        self.model.forward_t(
+            input_ids,
+            _layer_past,
+            attention_mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            _encoder_outputs,
+            _decoder_input_ids,
+            train,
+        )
+    }
 }
 
-impl LanguageGenerator<OpenAIGPTLMHeadModel, OpenAiGptVocab, OpenAiGptTokenizer>
-    for OpenAIGenerator
-{
-}
+impl LanguageGenerator for OpenAIGenerator {}

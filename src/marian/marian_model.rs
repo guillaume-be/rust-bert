@@ -16,13 +16,10 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
-use crate::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
-};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::pipelines::translation::Language;
 use crate::{Config, RustBertError};
-use rust_tokenizers::tokenizer::{MarianTokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::MarianVocab;
+use rust_tokenizers::tokenizer::TruncationStrategy;
 use std::borrow::Borrow;
 use tch::nn::Init;
 use tch::{nn, Kind, Tensor};
@@ -653,7 +650,8 @@ impl MarianForConditionalGeneration {
 
         let lm_logits = base_model_output
             .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None);
+            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
+            + &self.final_logits_bias;
         BartModelOutput {
             decoder_output: lm_logits,
             ..base_model_output
@@ -670,114 +668,6 @@ impl MarianForConditionalGeneration {
                 false,
             )
             .hidden_state
-    }
-}
-
-impl LMHeadModel for MarianForConditionalGeneration {
-    /// Forward pass through the model
-    ///
-    /// # Arguments
-    ///
-    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
-    /// * `layer_past` - Unused for BART
-    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `input_embeds` - Unused for BART
-    /// * `token_type_ids` - Unused for BART
-    /// * `position_ids` - Unused for BART
-    /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
-    /// These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
-    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
-    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
-    ///
-    ///
-    /// # Returns
-    ///
-    /// * `LMModelOutput` containing:
-    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
-    ///   - `cache` - `BartCache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
-    ///     both the self attention and the encoder cross attention of each layer of the decoder.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use tch::{nn, Device, Tensor, no_grad};
-    /// # use rust_bert::Config;
-    /// # use std::path::Path;
-    /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::bart::BartConfig;
-    /// use rust_bert::marian::MarianForConditionalGeneration;
-    /// # let config_path = Path::new("path/to/config.json");
-    /// # let vocab_path = Path::new("path/to/vocab.txt");
-    /// # let device = Device::Cpu;
-    /// # let vs = nn::VarStore::new(device);
-    /// # let config = BartConfig::from_file(config_path);
-    /// # let marian_model = MarianForConditionalGeneration::new(&vs.root(), &config);
-    /// let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
-    /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
-    /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
-    /// let encoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
-    /// let decoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
-    ///
-    /// let model_output = no_grad(|| {
-    ///     marian_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&encoder_attention_mask),
-    ///         None,
-    ///         Some(&target_tensor),
-    ///         Some(&decoder_attention_mask),
-    ///         None,
-    ///         false,
-    ///     )
-    /// });
-    /// ```
-    fn forward_t(
-        &self,
-        input_ids: Option<&Tensor>,
-        cache: Cache,
-        attention_mask: Option<&Tensor>,
-        _token_type_ids: Option<&Tensor>,
-        _position_ids: Option<&Tensor>,
-        _input_embeds: Option<&Tensor>,
-        encoder_outputs: Option<&Tensor>,
-        decoder_input_ids: Option<&Tensor>,
-        train: bool,
-    ) -> Result<LMModelOutput, RustBertError> {
-        let base_model_output = match cache {
-            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
-                input_ids,
-                attention_mask,
-                decoder_input_ids,
-                encoder_outputs,
-                None,
-                cached_layer_states,
-                train,
-            ),
-            Cache::None => self.base_model.forward_t(
-                input_ids,
-                attention_mask,
-                decoder_input_ids,
-                encoder_outputs,
-                None,
-                None,
-                train,
-            ),
-            _ => {
-                return Err(RustBertError::ValueError(
-                    "Cache not compatible with Marian Model".into(),
-                ));
-            }
-        };
-
-        let lm_logits = base_model_output
-            .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None)
-            + &self.final_logits_bias;
-        Ok(LMModelOutput {
-            lm_logits,
-            cache: Cache::BARTCache(base_model_output.cache),
-        })
     }
 }
 
@@ -914,12 +804,7 @@ impl MarianGenerator {
     }
 }
 
-impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokenizer>
-    for MarianGenerator
-{
-    fn get_model(&self) -> &MarianForConditionalGeneration {
-        &self.model
-    }
+impl PrivateLanguageGenerator for MarianGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -954,6 +839,50 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
         self.max_position_embeddings
     }
 
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        cache: Cache,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match cache {
+            Cache::BARTCache(cached_layer_states) => self.model.forward_t(
+                input_ids,
+                attention_mask,
+                encoder_outputs,
+                decoder_input_ids,
+                None,
+                cached_layer_states,
+                train,
+            ),
+            Cache::None => self.model.forward_t(
+                input_ids,
+                attention_mask,
+                encoder_outputs,
+                decoder_input_ids,
+                None,
+                None,
+                train,
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with Marian Model".into(),
+                ));
+            }
+        };
+
+        Ok(LMModelOutput {
+            lm_logits: base_model_output.decoder_output,
+            cache: Cache::BARTCache(base_model_output.cache),
+        })
+    }
+
     fn prepare_scores_for_generation(
         &self,
         scores: &mut Tensor,
@@ -976,7 +905,7 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
     }
 
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
-        Some(self.get_model().encode(input_ids, attention_mask))
+        Some(self.model.encode(input_ids, attention_mask))
     }
 
     fn prepare_inputs_for_generation<'a>(
@@ -1086,7 +1015,4 @@ impl PrivateLanguageGenerator<MarianForConditionalGeneration, MarianVocab, Maria
     }
 }
 
-impl LanguageGenerator<MarianForConditionalGeneration, MarianVocab, MarianTokenizer>
-    for MarianGenerator
-{
-}
+impl LanguageGenerator for MarianGenerator {}

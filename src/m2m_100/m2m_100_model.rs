@@ -18,13 +18,10 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
-use crate::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
-};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::pipelines::translation::Language;
 use crate::{Config, RustBertError};
-use rust_tokenizers::tokenizer::{M2M100Tokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::M2M100Vocab;
+use rust_tokenizers::tokenizer::TruncationStrategy;
 use std::borrow::Borrow;
 use tch::nn::{embedding, EmbeddingConfig};
 use tch::{nn, Kind, Tensor};
@@ -458,109 +455,6 @@ impl M2M100ForConditionalGeneration {
     }
 }
 
-impl LMHeadModel for M2M100ForConditionalGeneration {
-    /// Forward pass through the model
-    ///
-    /// # Arguments
-    ///
-    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
-    /// * `layer_past` - Optional vector of length `num_layers` containing tuples of optional `LayerStates` containing the last calculated key and value pairs for the decoder. This avoids recomputing attention weights at past positions and speeds up decoding.
-    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `input_embeds` - Unused for M2M100
-    /// * `token_type_ids` - Unused for M2M100
-    /// * `position_ids` - Unused for M2M100
-    /// * `encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *hidden_size*). When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
-    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
-    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
-    ///
-    /// # Returns
-    ///
-    /// * `LMModelOutput` containing:
-    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
-    ///   - `cache` - `BARTCache` made of `Option<Vec<(Option<Vec<&LayerState, &LayerState>>)>>` of length *n_layer* containing the encoder past keys and values for
-    ///     both the self attention and the encoder cross attention of each layer of the decoder.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use tch::{nn, Device, Tensor, no_grad};
-    /// # use rust_bert::Config;
-    /// # use std::path::Path;
-    /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::pipelines::generation_utils::LMHeadModel;
-    /// use rust_bert::m2m_100::{M2M100ForConditionalGeneration, M2M100Config};
-    /// # let config_path = Path::new("path/to/config.json");
-    /// # let vocab_path = Path::new("path/to/vocab.txt");
-    /// # let device = Device::Cpu;
-    /// # let vs = nn::VarStore::new(device);
-    /// # let config = M2M100Config::from_file(config_path);
-    /// # let m2m100_model: M2M100ForConditionalGeneration = M2M100ForConditionalGeneration::new(&vs.root(), &config);
-    ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
-    ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
-    ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
-    ///  let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
-    ///  let decoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
-    ///
-    ///  let model_output = no_grad(|| {
-    ///    m2m100_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&encoder_attention_mask),
-    ///                    None,
-    ///                    Some(&target_tensor),
-    ///                    Some(&decoder_attention_mask),
-    ///                    None,
-    ///                    false)
-    ///    });
-    /// ```
-    fn forward_t(
-        &self,
-        input_ids: Option<&Tensor>,
-        cache: Cache,
-        attention_mask: Option<&Tensor>,
-        _token_type_ids: Option<&Tensor>,
-        _position_ids: Option<&Tensor>,
-        _input_embeds: Option<&Tensor>,
-        encoder_outputs: Option<&Tensor>,
-        decoder_input_ids: Option<&Tensor>,
-        train: bool,
-    ) -> Result<LMModelOutput, RustBertError> {
-        let base_model_output = match cache {
-            Cache::BARTCache(cached_layer_states) => self.base_model.forward_t(
-                input_ids,
-                attention_mask,
-                decoder_input_ids,
-                encoder_outputs,
-                None,
-                cached_layer_states,
-                train,
-            ),
-
-            Cache::None => self.base_model.forward_t(
-                input_ids,
-                attention_mask,
-                decoder_input_ids,
-                encoder_outputs,
-                None,
-                None,
-                train,
-            ),
-            _ => {
-                return Err(RustBertError::ValueError(
-                    "Cache not compatible with M2M100 Model".into(),
-                ));
-            }
-        };
-
-        let lm_logits = base_model_output
-            .decoder_output
-            .linear::<Tensor>(&self.base_model.embeddings.ws, None);
-        Ok(LMModelOutput {
-            lm_logits,
-            cache: Cache::BARTCache(base_model_output.cache),
-        })
-    }
-}
-
 /// # Language generation model based on the M2M100 architecture
 pub struct M2M100Generator {
     model: M2M100ForConditionalGeneration,
@@ -689,12 +583,7 @@ impl M2M100Generator {
     }
 }
 
-impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M100Tokenizer>
-    for M2M100Generator
-{
-    fn get_model(&self) -> &M2M100ForConditionalGeneration {
-        &self.model
-    }
+impl PrivateLanguageGenerator for M2M100Generator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -725,9 +614,53 @@ impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M10
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
     }
-
     fn get_max_positions_embeddings(&self) -> i64 {
         self.max_position_embeddings
+    }
+
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        cache: Cache,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match cache {
+            Cache::BARTCache(cached_layer_states) => self.model.forward_t(
+                input_ids,
+                attention_mask,
+                encoder_outputs,
+                decoder_input_ids,
+                None,
+                cached_layer_states,
+                train,
+            ),
+
+            Cache::None => self.model.forward_t(
+                input_ids,
+                attention_mask,
+                encoder_outputs,
+                decoder_input_ids,
+                None,
+                None,
+                train,
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with M2M100 Model".into(),
+                ));
+            }
+        };
+
+        Ok(LMModelOutput {
+            lm_logits: base_model_output.decoder_output,
+            cache: Cache::BARTCache(base_model_output.cache),
+        })
     }
 
     fn prepare_scores_for_generation(
@@ -747,7 +680,7 @@ impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M10
     }
 
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
-        Some(self.get_model().encode(input_ids, attention_mask))
+        Some(self.model.encode(input_ids, attention_mask))
     }
 
     fn prepare_inputs_for_generation<'a>(
@@ -856,10 +789,7 @@ impl PrivateLanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M10
     }
 }
 
-impl LanguageGenerator<M2M100ForConditionalGeneration, M2M100Vocab, M2M100Tokenizer>
-    for M2M100Generator
-{
-}
+impl LanguageGenerator for M2M100Generator {}
 
 #[cfg(test)]
 mod test {
@@ -882,7 +812,7 @@ mod test {
 
         //    Set-up masked LM model
         let device = Device::cuda_if_available();
-        let vs = tch::nn::VarStore::new(device);
+        let vs = nn::VarStore::new(device);
         let config = M2M100Config::from_file(config_path);
 
         let _: Box<dyn Send> = Box::new(M2M100Model::new(vs.root(), &config));

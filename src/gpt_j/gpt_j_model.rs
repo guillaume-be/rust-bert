@@ -20,12 +20,8 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
-use crate::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
-};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::{Config, RustBertError};
-use rust_tokenizers::tokenizer::Gpt2Tokenizer;
-use rust_tokenizers::vocab::Gpt2Vocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::{embedding, Linear};
@@ -46,7 +42,7 @@ pub struct GptJMergesResources;
 /// Model weights for Rust are not available out of the box for GPT-J but can be created
 /// simply with the following command:
 ///
-/// ```
+/// ```ignore
 /// python utils/convert_model.py path/to/gpt_j/pytorch_model.bin
 /// ```
 ///
@@ -57,7 +53,6 @@ pub struct GptJMergesResources;
 ///
 /// [gpt-j-6B]: https://huggingface.co/EleutherAI/gpt-j-6B/tree/main
 /// [gpt-j-6B-float16]:https://huggingface.co/EleutherAI/gpt-j-6B/tree/float16
-///
 impl GptJModelResources {
     pub const GPT_J_TINY_RANDOM: (&'static str, &'static str) = (
         "gpt-j-tiny-random/model",
@@ -335,7 +330,7 @@ impl GptJModel {
     ///     gpt_j_model
     ///         .forward_t(
     ///             Some(&input_tensor),
-    ///             Some(&past),
+    ///             Some(past),
     ///             Some(&attention_mask),
     ///             Some(&token_type_ids),
     ///             None,
@@ -450,7 +445,7 @@ impl GptJLMHeadModel {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::gpt_j::{GptJLMHeadModel, GptJConfig};
+    /// use rust_bert::gpt_j::{GptJConfig, GptJLMHeadModel};
     /// use rust_bert::Config;
     /// use std::path::Path;
     /// use tch::{nn, Device};
@@ -483,82 +478,8 @@ impl GptJLMHeadModel {
             lm_head,
         }
     }
-}
 
-impl LMHeadModel for GptJLMHeadModel {
-    /// Forward pass through the model
-    ///
-    /// # Arguments
-    ///
-    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
-    /// * `layer_past` - Optional vector of size *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*). When provided, these are concatenated with the current input keys and values.
-    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
-    /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
-    /// * `_position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
-    /// * `_encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*). Unused for GPT-J
-    /// * `_decoder_input_ids` - Optional tensor of shape (*batch size*, *target_sequence_length*). Unused for GPT_J
-    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
-    ///
-    ///
-    /// # Returns
-    ///
-    /// * `LMModelOutput` containing:
-    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
-    ///   - `cache` - `GptJCache` made of `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use tch::{nn, Device, Tensor, no_grad};
-    /// # use rust_bert::Config;
-    /// # use std::path::Path;
-    /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt_j::{GptJLMHeadModel, GptJConfig};
-    /// use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
-    /// # let config_path = Path::new("path/to/config.json");
-    /// # let vocab_path = Path::new("path/to/vocab.txt");
-    /// # let device = Device::Cpu;
-    /// # let vs = nn::VarStore::new(device);
-    /// # let config = GptJConfig::from_file(config_path);
-    /// # let mut gpt_j_model: GptJLMHeadModel = GptJLMHeadModel::new(&vs.root(), &config);
-    /// let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    /// let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
-    /// for _ in 0..config.n_layer as usize {
-    ///     past.push(Tensor::rand(
-    ///         &[
-    ///             2,
-    ///             batch_size,
-    ///             config.n_head,
-    ///             past_sequence_length,
-    ///             config.n_embd / config.n_head,
-    ///         ],
-    ///         (Double, device),
-    ///     ))
-    /// }
-    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
-    ///
-    /// let model_output = no_grad(|| {
-    ///     gpt_j_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Cache::GPTJCache(Some(past)),
-    ///             Some(&attention_mask),
-    ///             Some(&token_type_ids),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
-    /// });
-    /// ```
-    fn forward_t(
+    pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
         layer_past: Cache,
@@ -648,7 +569,7 @@ impl GptJGenerator {
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     ///
     /// let generate_config = GenerateConfig {
-    ///     max_length: 30,
+    ///     max_length: Some(30),
     ///     do_sample: true,
     ///     num_beams: 5,
     ///     temperature: 1.1,
@@ -728,10 +649,7 @@ impl GptJGenerator {
     }
 }
 
-impl PrivateLanguageGenerator<GptJLMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GptJGenerator {
-    fn get_model(&self) -> &GptJLMHeadModel {
-        &self.model
-    }
+impl PrivateLanguageGenerator for GptJGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -764,6 +682,52 @@ impl PrivateLanguageGenerator<GptJLMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for Gpt
     }
     fn get_max_positions_embeddings(&self) -> i64 {
         self.max_position_embeddings
+    }
+
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        layer_past: Cache,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match layer_past {
+            Cache::GPTJCache(layer_past) => self.model.transformer.forward_t(
+                input_ids,
+                layer_past,
+                attention_mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            ),
+            Cache::None => self.model.transformer.forward_t(
+                input_ids,
+                None,
+                attention_mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            ),
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with GPT-J Model".into(),
+                ));
+            }
+        }?;
+
+        let lm_logits = base_model_output.output.apply(&self.model.lm_head);
+
+        Ok(LMModelOutput {
+            lm_logits,
+            cache: Cache::GPTJCache(base_model_output.cache),
+        })
     }
 
     fn prepare_inputs_for_generation<'a>(
@@ -833,4 +797,4 @@ impl PrivateLanguageGenerator<GptJLMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for Gpt
     }
 }
 
-impl LanguageGenerator<GptJLMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GptJGenerator {}
+impl LanguageGenerator for GptJGenerator {}

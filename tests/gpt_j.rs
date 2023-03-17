@@ -2,7 +2,7 @@ use rust_bert::gpt_j::{
     GptJConfig, GptJConfigResources, GptJLMHeadModel, GptJMergesResources, GptJModelResources,
     GptJVocabResources,
 };
-use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
+use rust_bert::pipelines::generation_utils::Cache;
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer};
