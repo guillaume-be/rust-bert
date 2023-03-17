@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use serde::{Deserialize, Serialize};
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
@@ -943,11 +943,11 @@ impl PrivateLanguageGenerator for ProphetNetConditionalGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        *&self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -1094,7 +1094,7 @@ impl PrivateLanguageGenerator for ProphetNetConditionalGenerator {
                 input.extend(temp);
                 input
             })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_device()))
             .collect::<Vec<Tensor>>();
 
         Tensor::stack(&token_ids, 0)

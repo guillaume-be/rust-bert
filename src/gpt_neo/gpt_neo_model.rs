@@ -22,7 +22,7 @@ use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, L
 use crate::{Activation, Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 /// # GPT-Neo Pretrained model weight files
 pub struct GptNeoModelResources;
@@ -697,11 +697,11 @@ impl PrivateLanguageGenerator for GptNeoGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        *&self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config

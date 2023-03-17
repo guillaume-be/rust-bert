@@ -85,6 +85,7 @@ use self::ordered_float::OrderedFloat;
 use crate::pipelines::common::TokenizerOption;
 
 use crate::pipelines::onnx::conversion::ONNXLayerCache;
+use crate::RustBertError;
 #[cfg(feature = "remote")]
 use crate::{
     gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
@@ -284,8 +285,8 @@ pub(crate) mod private_generation_utils {
 
     pub trait PrivateLanguageGenerator {
         fn _get_tokenizer(&self) -> &TokenizerOption;
-        fn get_var_store(&self) -> &nn::VarStore;
-        fn get_var_store_mut(&mut self) -> &mut nn::VarStore;
+        fn get_device(&self) -> Device;
+        fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError>;
         fn get_config(&self) -> &GenerateConfig;
         fn get_bos_id(&self) -> Option<i64>;
         fn get_eos_ids(&self) -> Option<&Vec<i64>>;
@@ -404,7 +405,7 @@ pub(crate) mod private_generation_utils {
                     temp.extend(input);
                     temp
                 })
-                .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+                .map(|tokens| Tensor::of_slice(&tokens).to(self.get_device()))
                 .collect::<Vec<Tensor>>();
             Tensor::stack(&token_ids, 0)
         }
@@ -767,9 +768,9 @@ pub(crate) mod private_generation_utils {
             output_scores: bool,
         ) -> GeneratedOutputWithScores {
             let mut unfinished_sentences =
-                Tensor::ones(&[batch_size], (Kind::Int64, self.get_var_store().device()));
+                Tensor::ones(&[batch_size], (Kind::Int64, self.get_device()));
             let mut sentence_lengths: Tensor =
-                Tensor::ones(&[batch_size], (Kind::Int64, self.get_var_store().device()));
+                Tensor::ones(&[batch_size], (Kind::Int64, self.get_device()));
             let (bad_word_ids_length_1, bad_word_ids_length_greater_than_1) =
                 self.split_bad_word_ids(gen_opt.bad_word_ids);
             let mut static_bad_words_mask: Option<Tensor> = None;
@@ -1024,7 +1025,7 @@ pub(crate) mod private_generation_utils {
             let vocab_size = self.get_vocab_size();
             let beam_scores = Tensor::ones(
                 &[batch_size, gen_opt.num_beams],
-                (Kind::Float, self.get_var_store().device()),
+                (Kind::Float, self.get_device()),
             ) * -1e9;
             let _ = beam_scores
                 .slice(1, 0, *beam_scores.size().last().unwrap(), num_sub_beams)
@@ -1033,11 +1034,11 @@ pub(crate) mod private_generation_utils {
             let mut beam_scores = beam_scores.view_(&[-1]);
             let mut beam_tokens = Tensor::zeros(
                 &[batch_size * gen_opt.num_beams],
-                (Kind::Int64, self.get_var_store().device()),
+                (Kind::Int64, self.get_device()),
             );
             let mut beam_indices = Tensor::zeros(
                 &[batch_size * gen_opt.num_beams],
-                (Kind::Int64, self.get_var_store().device()),
+                (Kind::Int64, self.get_device()),
             );
             let mut saved_beam_scores: Option<Vec<Tensor>> =
                 if output_scores { Some(vec![]) } else { None };
@@ -1810,9 +1811,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                 self.encode_prompt_text(prompts, encoding_max_len, pad_token_id)
             }
             None => match self.get_bos_id() {
-                Some(bos_id) => {
-                    Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * bos_id
-                }
+                Some(bos_id) => Tensor::ones(&[1, 1], (Int64, self.get_device())) * bos_id,
                 None => panic!(
                     "A model with a BOS token must be used to start generation with an empty input"
                 ),
@@ -2142,16 +2141,16 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         self._get_tokenizer()
     }
 
-    fn half(&mut self) {
-        self.get_var_store_mut().half();
+    fn half(&mut self) -> Result<(), RustBertError> {
+        Ok(self.get_var_store_mut()?.half())
     }
 
-    fn float(&mut self) {
-        self.get_var_store_mut().float();
+    fn float(&mut self) -> Result<(), RustBertError> {
+        Ok(self.get_var_store_mut()?.float())
     }
 
-    fn set_device(&mut self, device: Device) {
-        self.get_var_store_mut().set_device(device);
+    fn set_device(&mut self, device: Device) -> Result<(), RustBertError> {
+        Ok(self.get_var_store_mut()?.set_device(device))
     }
 }
 

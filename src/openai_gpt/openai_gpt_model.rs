@@ -24,7 +24,7 @@ use crate::{Config, RustBertError};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
-use tch::{nn, Tensor};
+use tch::{nn, Device, Tensor};
 
 /// # GPT Pretrained model weight files
 pub struct OpenAiGptModelResources;
@@ -529,11 +529,11 @@ impl PrivateLanguageGenerator for OpenAIGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        *&self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config

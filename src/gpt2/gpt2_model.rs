@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 /// # GPT2 Pretrained model weight files
 pub struct Gpt2ModelResources;
@@ -677,11 +677,11 @@ impl PrivateLanguageGenerator for GPT2Generator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        *&self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config

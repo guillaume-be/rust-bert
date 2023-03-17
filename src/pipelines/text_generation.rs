@@ -302,7 +302,7 @@ impl TextGenerationOption {
         }
     }
 
-    pub fn half(&mut self) {
+    pub fn half(&mut self) -> Result<(), RustBertError> {
         match self {
             Self::GPT(model_ref) => model_ref.half(),
             Self::GPT2(model_ref) => model_ref.half(),
@@ -313,7 +313,7 @@ impl TextGenerationOption {
         }
     }
 
-    pub fn float(&mut self) {
+    pub fn float(&mut self) -> Result<(), RustBertError> {
         match self {
             Self::GPT(model_ref) => model_ref.float(),
             Self::GPT2(model_ref) => model_ref.float(),
@@ -324,7 +324,7 @@ impl TextGenerationOption {
         }
     }
 
-    pub fn set_device(&mut self, device: Device) {
+    pub fn set_device(&mut self, device: Device) -> Result<(), RustBertError> {
         match self {
             Self::GPT(model_ref) => model_ref.set_device(device),
             Self::GPT2(model_ref) => model_ref.set_device(device),
@@ -400,16 +400,16 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         })
     }
 
-    pub fn half(&mut self) {
-        self.model.half();
+    pub fn half(&mut self) -> Result<(), RustBertError> {
+        self.model.half()
     }
 
-    pub fn float(&mut self) {
-        self.model.float();
+    pub fn float(&mut self) -> Result<(), RustBertError> {
+        self.model.float()
     }
 
-    pub fn set_device(&mut self, device: Device) {
-        self.model.set_device(device);
+    pub fn set_device(&mut self, device: Device) -> Result<(), RustBertError> {
+        self.model.set_device(device)
     }
 
     /// Generate texts from provided prompts

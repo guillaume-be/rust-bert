@@ -23,7 +23,7 @@ use rust_tokenizers::tokenizer::TruncationStrategy;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use tch::nn::{embedding, LinearConfig};
-use tch::{nn, Tensor};
+use tch::{nn, Device, Tensor};
 
 /// # LongT5 Pretrained model weight files
 pub struct LongT5ModelResources;
@@ -625,11 +625,11 @@ impl PrivateLanguageGenerator for LongT5Generator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        *&self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -772,7 +772,7 @@ impl PrivateLanguageGenerator for LongT5Generator {
                 input.extend(temp);
                 input
             })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_device()))
             .collect::<Vec<Tensor>>();
 
         Tensor::stack(&token_ids, 0)
