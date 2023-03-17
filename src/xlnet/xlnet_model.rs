@@ -19,14 +19,10 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
-use crate::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
-};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::xlnet::attention::LayerState;
 use crate::xlnet::encoder::XLNetLayer;
 use crate::{Config, RustBertError};
-use rust_tokenizers::tokenizer::XLNetTokenizer;
-use rust_tokenizers::vocab::XLNetVocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashMap;
@@ -788,102 +784,6 @@ impl XLNetLMHeadModel {
             lm_logits,
             cache: Cache::XLNetCache(base_model_output.next_cache),
         })
-    }
-}
-
-impl LMHeadModel for XLNetLMHeadModel {
-    /// Forward pass through the model
-    ///
-    /// # Arguments
-    ///
-    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). This or `input_embeds` must be provided.
-    /// * `attention_mask` - Optional attention mask of shape (*batch size*, *sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
-    /// * `perm_mask` - Optional tensor of shape (*batch size*, *sequence_length*, *sequence_length*). Mask to indicate the attention pattern for each input token (only used for pre-training over permutations, rather than simple token masking).
-    /// * `target_mapping ` - Optional tensor of shape (*batch size*, *num_tokens*, *sequence_length*) indicating the position of the masked words to predict.
-    /// * `token_type_ids` - Optional tensor (*batch size*, *sequence_length*) indicating the sentence ID of the token (0: first sentence, 1: second sentence).
-    /// * `input_embeds` - Optional input tensor of shape (*batch size*, *sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
-    /// * `old_layer_states` - Optional vector of length `num_layers` containing optional `LayerStates` containing the last calculated content for the attention layers. This avoids recomputing attention weights at past positions and speeds up decoding.
-    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
-    ///
-    /// # Returns
-    ///
-    /// * `LMModelOutput` containing:
-    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
-    ///   - `cache` - `XLNetCache` made of `Option<Vec<Option<LayerState>>>` of length *n_layers*  and shape (*past_sequence_length*, *batch size*, *hidden_size*) containing the previous content
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use tch::{nn, Device, Tensor, no_grad, Kind};
-    /// # use rust_bert::Config;
-    /// # use std::path::Path;
-    /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::xlnet::{XLNetConfig, XLNetLMHeadModel};
-    /// # let config_path = Path::new("path/to/config.json");
-    /// # let vocab_path = Path::new("path/to/vocab.txt");
-    /// # let device = Device::Cpu;
-    /// # let vs = nn::VarStore::new(device);
-    /// # let config = XLNetConfig::from_file(config_path);
-    /// # let xlnet_model: XLNetLMHeadModel = XLNetLMHeadModel::new(&vs.root(), &config);
-    /// let (batch_size, sequence_length) = (64, 128);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    /// let target_mapping = Tensor::zeros(&[64, 1, 128], (Kind::Float, device));
-    /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
-    ///
-    /// let model_output = no_grad(|| {
-    ///     xlnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&target_mapping),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false,
-    ///     )
-    /// });
-    /// ```
-    fn forward_t(
-        &self,
-        input_ids: Option<&Tensor>,
-        layer_past: Cache,
-        attention_mask: Option<&Tensor>,
-        _token_type_ids: Option<&Tensor>,
-        _position_ids: Option<&Tensor>,
-        _input_embeds: Option<&Tensor>,
-        _encoder_outputs: Option<&Tensor>,
-        decoder_input_ids: Option<&Tensor>,
-        train: bool,
-    ) -> Result<LMModelOutput, RustBertError> {
-        match layer_past {
-            Cache::XLNetCache(layer_past) => self.forward_t(
-                input_ids,
-                None,
-                layer_past,
-                attention_mask,
-                // For XLNet the decoder_input_ids are used as a placeholder for the target mapping
-                decoder_input_ids,
-                None,
-                None,
-                train,
-            ),
-            Cache::None => self.forward_t(
-                input_ids,
-                None,
-                None,
-                attention_mask,
-                // For XLNet the decoder_input_ids are used as a placeholder for the target mapping
-                decoder_input_ids,
-                None,
-                None,
-                train,
-            ),
-            _ => Err(RustBertError::ValueError(
-                "Cache not compatible with XLNet Model".into(),
-            )),
-        }
     }
 }
 
@@ -1684,10 +1584,7 @@ impl XLNetGenerator {
     }
 }
 
-impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {
-    fn get_model(&self) -> &XLNetLMHeadModel {
-        &self.model
-    }
+impl PrivateLanguageGenerator for XLNetGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -1721,6 +1618,47 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
 
     fn get_max_positions_embeddings(&self) -> i64 {
         self.max_position_embeddings
+    }
+
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        layer_past: Cache,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        match layer_past {
+            Cache::XLNetCache(layer_past) => self.model.forward_t(
+                input_ids,
+                None,
+                layer_past,
+                attention_mask,
+                // For XLNet the decoder_input_ids are used as a placeholder for the target mapping
+                decoder_input_ids,
+                None,
+                None,
+                train,
+            ),
+            Cache::None => self.model.forward_t(
+                input_ids,
+                None,
+                None,
+                attention_mask,
+                // For XLNet the decoder_input_ids are used as a placeholder for the target mapping
+                decoder_input_ids,
+                None,
+                None,
+                train,
+            ),
+            _ => Err(RustBertError::ValueError(
+                "Cache not compatible with XLNet Model".into(),
+            )),
+        }
     }
 
     fn prepare_inputs_for_generation<'a>(
@@ -1842,4 +1780,4 @@ impl PrivateLanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for 
     }
 }
 
-impl LanguageGenerator<XLNetLMHeadModel, XLNetVocab, XLNetTokenizer> for XLNetGenerator {}
+impl LanguageGenerator for XLNetGenerator {}

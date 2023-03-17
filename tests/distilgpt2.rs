@@ -2,7 +2,7 @@ use rust_bert::gpt2::{
     GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources,
     Gpt2VocabResources,
 };
-use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
+use rust_bert::pipelines::generation_utils::Cache;
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer, TruncationStrategy};
@@ -61,17 +61,7 @@ fn distilgpt2_lm_model() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output = gpt2_model
-        .forward_t(
-            Some(&input_tensor),
-            Cache::None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            false,
-        )
+        .forward_t(Some(&input_tensor), None, None, None, None, None, false)
         .unwrap();
 
     let next_word_id = model_output

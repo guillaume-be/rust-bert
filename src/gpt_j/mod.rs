@@ -9,7 +9,7 @@
 //! #
 //! use tch::{nn, Device};
 //! # use std::path::PathBuf;
-//! use rust_bert::gpt_j::{GptJLMHeadModel, GptJConfig};
+//! use rust_bert::gpt_j::{GptJConfig, GptJLMHeadModel};
 //! use rust_bert::resources::{LocalResource, ResourceProvider};
 //! use rust_bert::Config;
 //! use rust_tokenizers::tokenizer::Gpt2Tokenizer;

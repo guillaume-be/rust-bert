@@ -13,8 +13,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
-use rust_tokenizers::tokenizer::{ProphetNetTokenizer, TruncationStrategy};
-use rust_tokenizers::vocab::ProphetNetVocab;
+use rust_tokenizers::tokenizer::TruncationStrategy;
 use serde::{Deserialize, Serialize};
 use tch::{nn, Kind, Tensor};
 
@@ -22,9 +21,7 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
-use crate::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
-};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::prophetnet::attention::LayerState;
 use crate::prophetnet::decoder::ProphetNetDecoder;
 use crate::prophetnet::encoder::ProphetNetEncoder;
@@ -585,56 +582,6 @@ impl ProphetNetForConditionalGeneration {
     }
 }
 
-impl LMHeadModel for ProphetNetForConditionalGeneration {
-    fn forward_t(
-        &self,
-        input_ids: Option<&Tensor>,
-        cache: Cache,
-        attention_mask: Option<&Tensor>,
-        _token_type_ids: Option<&Tensor>,
-        _position_ids: Option<&Tensor>,
-        input_embeds: Option<&Tensor>,
-        encoder_outputs: Option<&Tensor>,
-        decoder_input_ids: Option<&Tensor>,
-        train: bool,
-    ) -> Result<LMModelOutput, RustBertError> {
-        let base_model_output = match cache {
-            Cache::ProphetNetCache(cached_layer_states) => self.forward_t(
-                input_ids,
-                attention_mask,
-                input_embeds,
-                decoder_input_ids,
-                None,
-                encoder_outputs,
-                cached_layer_states,
-                None,
-                train,
-            )?,
-            Cache::None => self.forward_t(
-                input_ids,
-                attention_mask,
-                input_embeds,
-                decoder_input_ids,
-                None,
-                encoder_outputs,
-                None,
-                None,
-                train,
-            )?,
-            _ => {
-                return Err(RustBertError::ValueError(
-                    "Cache not compatible with ProphetNet Model".into(),
-                ));
-            }
-        };
-
-        Ok(LMModelOutput {
-            lm_logits: base_model_output.logits,
-            cache: Cache::ProphetNetCache(base_model_output.next_decoder_cache),
-        })
-    }
-}
-
 /// # ProphetNet Model for causal generation
 /// ProphetNet decoder with a vocabulary decoding head
 /// It is made of the following blocks:
@@ -992,16 +939,7 @@ impl ProphetNetConditionalGenerator {
     }
 }
 
-impl
-    PrivateLanguageGenerator<
-        ProphetNetForConditionalGeneration,
-        ProphetNetVocab,
-        ProphetNetTokenizer,
-    > for ProphetNetConditionalGenerator
-{
-    fn get_model(&self) -> &ProphetNetForConditionalGeneration {
-        &self.model
-    }
+impl PrivateLanguageGenerator for ProphetNetConditionalGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -1036,9 +974,57 @@ impl
         self.max_position_embeddings
     }
 
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        cache: Cache,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        encoder_outputs: Option<&Tensor>,
+        decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let base_model_output = match cache {
+            Cache::ProphetNetCache(cached_layer_states) => self.model.forward_t(
+                input_ids,
+                attention_mask,
+                input_embeds,
+                decoder_input_ids,
+                None,
+                encoder_outputs,
+                cached_layer_states,
+                None,
+                train,
+            )?,
+            Cache::None => self.model.forward_t(
+                input_ids,
+                attention_mask,
+                input_embeds,
+                decoder_input_ids,
+                None,
+                encoder_outputs,
+                None,
+                None,
+                train,
+            )?,
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with ProphetNet Model".into(),
+                ));
+            }
+        };
+
+        Ok(LMModelOutput {
+            lm_logits: base_model_output.logits,
+            cache: Cache::ProphetNetCache(base_model_output.next_decoder_cache),
+        })
+    }
+
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
         Some(
-            self.get_model()
+            self.model
                 .encode(Some(input_ids), attention_mask, None)
                 .unwrap(),
         )
@@ -1150,7 +1136,4 @@ impl
     }
 }
 
-impl LanguageGenerator<ProphetNetForConditionalGeneration, ProphetNetVocab, ProphetNetTokenizer>
-    for ProphetNetConditionalGenerator
-{
-}
+impl LanguageGenerator for ProphetNetConditionalGenerator {}
