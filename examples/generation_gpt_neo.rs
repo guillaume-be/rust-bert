@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     let mut model = TextGenerationModel::new(generate_config)?;
-    model.set_device(Device::cuda_if_available());
+    model.set_device(Device::cuda_if_available())?;
 
     let input_context_1 = "It was a very nice and sunny";
     let input_context_2 = "It was a gloom winter night, and";
