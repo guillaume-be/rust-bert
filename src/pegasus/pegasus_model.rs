@@ -511,14 +511,13 @@ impl PegasusConditionalGenerator {
         var_store.load(weights_path)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
-        let eos_token_ids = Some(match config.eos_token_id {
-            Some(value) => vec![value],
-            None => vec![1],
-        });
+        let eos_token_ids = config
+            .eos_token_id
+            .map_or(Some(vec![1]), |value| Some(vec![value]));
         let pad_token_id = Some(config.pad_token_id.unwrap_or(0));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(0);
+        let decoder_start_id = config.decoder_start_token_id.or(Some(0));
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(PegasusConditionalGenerator {

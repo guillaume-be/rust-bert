@@ -140,6 +140,7 @@ pub struct GptNeoConfig {
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub resid_dropout: f64,
+    pub decoder_start_token_id: Option<i64>,
 }
 
 impl Config for GptNeoConfig {}
@@ -175,6 +176,7 @@ impl Default for GptNeoConfig {
             output_attentions: None,
             output_hidden_states: None,
             resid_dropout: 0.0,
+            decoder_start_token_id: None,
         }
     }
 }
@@ -674,7 +676,7 @@ impl GptNeoGenerator {
         let pad_token_id = tokenizer.get_pad_id();
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(GptNeoGenerator {

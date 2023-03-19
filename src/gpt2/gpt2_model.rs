@@ -194,6 +194,7 @@ pub struct Gpt2Config {
     pub output_hidden_states: Option<bool>,
     pub resid_pdrop: Option<f64>,
     pub vocab_size: i64,
+    pub decoder_start_token_id: Option<i64>,
 }
 
 impl Config for Gpt2Config {}
@@ -218,6 +219,7 @@ impl Default for Gpt2Config {
             output_hidden_states: None,
             resid_pdrop: Some(0.1),
             vocab_size: 50257,
+            decoder_start_token_id: None,
         }
     }
 }
@@ -655,7 +657,7 @@ impl GPT2Generator {
         let max_position_embeddings = config.n_positions;
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
 
         Ok(GPT2Generator {
             model,

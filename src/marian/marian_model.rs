@@ -774,10 +774,10 @@ impl MarianGenerator {
 
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id =
-            Some(tokenizer.get_pad_id().ok_or(RustBertError::TokenizerError(
-                "The tokenizer must contain a pad token ID to be used as BOS".to_string(),
-            ))?);
+        let decoder_start_id = match config.decoder_start_token_id {
+            Some(start_token_id) => Some(start_token_id),
+            None => pad_token_id,
+        };
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(MarianGenerator {

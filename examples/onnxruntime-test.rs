@@ -1,8 +1,11 @@
+use rust_tokenizers::tokenizer::Gpt2Tokenizer;
 use std::path::PathBuf;
 
 use rust_bert::pipelines::generation_utils::GenerateConfig;
 use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
 
+use rust_bert::gpt2::Gpt2Config;
+use rust_bert::pipelines::common::{ConfigOption, TokenizerOption};
 use rust_bert::pipelines::onnx::models::ONNXCausalDecoder;
 use tch::{Kind, Tensor};
 
@@ -18,6 +21,15 @@ fn main() -> anyhow::Result<()> {
         )),
         &ONNXEnvironmentConfig::default(),
         GenerateConfig::default(),
+        TokenizerOption::GPT2(
+            Gpt2Tokenizer::from_file(
+                "E:/Coding/distilgpt2-onnx/vocab.json",
+                "E:/Coding/distilgpt2-onnx/merges.txt",
+                false,
+            )
+            .unwrap(),
+        ),
+        ConfigOption::GPT2(Gpt2Config::default()),
         None,
     )?;
 

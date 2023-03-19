@@ -324,6 +324,64 @@ impl ConfigOption {
             Self::Roberta(config) => Some(config.max_position_embeddings),
         }
     }
+
+    pub fn get_vocab_size(&self) -> i64 {
+        match self {
+            Self::Bart(config) => config.vocab_size,
+            Self::Bert(config) => config.vocab_size,
+            Self::Deberta(config) => config.vocab_size,
+            Self::DebertaV2(config) => config.vocab_size,
+            Self::DistilBert(config) => config.vocab_size,
+            Self::Electra(config) => config.vocab_size,
+            Self::Marian(config) => config.vocab_size,
+            Self::MobileBert(config) => config.vocab_size,
+            Self::T5(config) => config.vocab_size,
+            Self::LongT5(config) => config.vocab_size,
+            Self::Albert(config) => config.vocab_size,
+            Self::XLNet(config) => config.vocab_size,
+            Self::GPT2(config) => config.vocab_size,
+            Self::GPTJ(config) => config.vocab_size,
+            Self::Reformer(config) => config.vocab_size,
+            Self::ProphetNet(config) => config.vocab_size,
+            Self::Longformer(config) => config.vocab_size,
+            Self::Pegasus(config) => config.vocab_size,
+            Self::OpenAiGpt(config) => config.vocab_size,
+            Self::GPTNeo(config) => config.vocab_size,
+            Self::MBart(config) => config.vocab_size,
+            Self::M2M100(config) => config.vocab_size,
+            Self::FNet(config) => config.vocab_size,
+            Self::Roberta(config) => config.vocab_size,
+        }
+    }
+
+    pub fn get_decoder_start_token_id(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => config.decoder_start_token_id,
+            Self::Bert(_) => None,
+            Self::Deberta(_) => None,
+            Self::DebertaV2(_) => None,
+            Self::DistilBert(_) => None,
+            Self::Electra(_) => None,
+            Self::Marian(config) => config.decoder_start_token_id,
+            Self::MobileBert(_) => None,
+            Self::T5(config) => config.decoder_start_token_id,
+            Self::LongT5(config) => config.decoder_start_token_id,
+            Self::Albert(_) => None,
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => config.decoder_start_token_id,
+            Self::GPTJ(config) => config.decoder_start_token_id,
+            Self::Reformer(config) => config.decoder_start_token_id,
+            Self::ProphetNet(config) => config.decoder_start_token_id,
+            Self::Longformer(_) => None,
+            Self::Pegasus(config) => config.decoder_start_token_id,
+            Self::OpenAiGpt(config) => config.decoder_start_token_id,
+            Self::GPTNeo(config) => config.decoder_start_token_id,
+            Self::MBart(config) => config.decoder_start_token_id,
+            Self::M2M100(config) => config.decoder_start_token_id,
+            Self::FNet(config) => config.decoder_start_token_id,
+            Self::Roberta(_) => None,
+        }
+    }
 }
 
 impl TryFrom<&ConfigOption> for BertConfig {

@@ -771,7 +771,7 @@ impl T5Generator {
         let pad_token_id = Some(config.pad_token_id.unwrap_or(0));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(0);
+        let decoder_start_id = config.decoder_start_token_id;
         // T5 do not have an embedding matrix for position IDs and relies on relative positions instead
         let max_position_embeddings = i64::MAX;
 

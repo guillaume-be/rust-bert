@@ -809,7 +809,7 @@ impl MBartGenerator {
         let pad_token_id = Some(config.pad_token_id.unwrap_or(1));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(2);
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(MBartGenerator {

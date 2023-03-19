@@ -106,6 +106,7 @@ pub struct ReformerConfig {
     pub label2id: Option<HashMap<String, i64>>,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
+    pub decoder_start_token_id: Option<i64>,
 }
 
 impl Config for ReformerConfig {}
@@ -157,6 +158,7 @@ impl Default for ReformerConfig {
             label2id: None,
             output_attentions: None,
             output_hidden_states: None,
+            decoder_start_token_id: None,
         }
     }
 }
@@ -1058,7 +1060,7 @@ impl ReformerGenerator {
         let pad_token_id = Some(config.pad_token_id);
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = false;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(ReformerGenerator {

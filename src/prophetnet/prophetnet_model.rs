@@ -83,7 +83,7 @@ pub struct ProphetNetConfig {
     pub activation_dropout: f64,
     pub attention_dropout: f64,
     pub decoder_ffn_dim: i64,
-    pub decoder_start_token_id: i64,
+    pub decoder_start_token_id: Option<i64>,
     pub disable_ngram_loss: bool,
     pub dropout: f64,
     pub encoder_ffn_dim: i64,
@@ -120,7 +120,7 @@ impl Default for ProphetNetConfig {
             activation_dropout: 0.1,
             attention_dropout: 0.1,
             decoder_ffn_dim: 4096,
-            decoder_start_token_id: 0,
+            decoder_start_token_id: Some(0),
             disable_ngram_loss: false,
             dropout: 0.1,
             encoder_ffn_dim: 4096,
@@ -381,7 +381,11 @@ impl ProphetNetForConditionalGeneration {
             linear_config,
         );
 
-        let decoder_start_token_id = config.decoder_start_token_id;
+        let decoder_start_token_id = config.decoder_start_token_id.ok_or_else(|| {
+            RustBertError::InvalidConfigurationError(
+                "`decoder_start_token_id` must be provided for ProphetNet models".to_string(),
+            )
+        })?;
         let pad_token_id = config.pad_token_id;
         let ngram = config.ngram;
 
@@ -920,7 +924,7 @@ impl ProphetNetConditionalGenerator {
         let pad_token_id = Some(config.pad_token_id);
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(config.decoder_start_token_id);
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(ProphetNetConditionalGenerator {

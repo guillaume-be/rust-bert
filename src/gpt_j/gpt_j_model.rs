@@ -135,6 +135,7 @@ pub struct GptJConfig {
     pub use_float16: bool,
     #[serde(default = "default_preload_on_cpu")]
     pub preload_on_cpu: bool,
+    pub decoder_start_token_id: Option<i64>,
 }
 
 impl Config for GptJConfig {}
@@ -163,6 +164,7 @@ impl Default for GptJConfig {
             scale_attn_weights: Some(true),
             use_float16: default_use_float16(),
             preload_on_cpu: default_preload_on_cpu(),
+            decoder_start_token_id: None,
         }
     }
 }
@@ -631,7 +633,7 @@ impl GptJGenerator {
         let max_position_embeddings = config.n_positions;
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
 
         Ok(GptJGenerator {
             model,

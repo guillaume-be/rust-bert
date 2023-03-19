@@ -506,7 +506,7 @@ impl OpenAIGenerator {
         let pad_token_id = tokenizer.get_pad_id();
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.n_positions;
 
         Ok(OpenAIGenerator {
