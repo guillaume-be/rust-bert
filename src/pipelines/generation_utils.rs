@@ -294,7 +294,7 @@ pub(crate) mod private_generation_utils {
         fn is_encoder_decoder(&self) -> bool;
         fn get_vocab_size(&self) -> i64;
         fn get_decoder_start_id(&self) -> Option<i64>;
-        fn get_max_positions_embeddings(&self) -> i64;
+        fn get_max_positions_embeddings(&self) -> Option<i64>;
 
         fn forward_t(
             &self,
@@ -1797,7 +1797,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
             generate_options.max_length
         });
         let encoding_max_len = if self.is_encoder_decoder() {
-            Some(self.get_max_positions_embeddings())
+            self.get_max_positions_embeddings()
         } else {
             max_length
         };

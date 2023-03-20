@@ -1,18 +1,41 @@
 use crate::pipelines::common::{ConfigOption, TokenizerOption};
+use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput};
 use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
 use crate::pipelines::onnx::decoder::ONNXDecoder;
-use crate::RustBertError;
+use crate::{Config, RustBertError};
 use ort::{Environment, ExecutionProvider};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tch::Tensor;
+use tch::{nn, Device, Tensor};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ONNXModelConfig {
+    pub bos_token_id: Option<i64>,
+    pub eos_token_ids: Option<Vec<i64>>,
+    pub pad_token_id: Option<i64>,
+    pub vocab_size: i64,
+    pub decoder_start_token_id: Option<i64>,
+    pub max_position_embeddings: Option<i64>,
+    pub id2label: Option<HashMap<i64, String>>,
+}
+
+impl Config for ONNXModelConfig {}
 
 pub struct ONNXCausalDecoder {
-    pub decoder_without_past: Option<ONNXDecoder>,
-    pub decoder_with_past: Option<ONNXDecoder>,
-    pub generate_config: GenerateConfig,
-    pub tokenizer: TokenizerOption,
+    decoder_without_past: Option<ONNXDecoder>,
+    decoder_with_past: Option<ONNXDecoder>,
+    generate_config: GenerateConfig,
+    tokenizer: TokenizerOption,
+    bos_token_id: Option<i64>,
+    eos_token_ids: Option<Vec<i64>>,
+    pad_token_id: Option<i64>,
+    is_encoder_decoder: bool,
+    vocab_size: i64,
+    decoder_start_id: Option<i64>,
+    max_position_embeddings: Option<i64>,
 }
 
 impl ONNXCausalDecoder {
@@ -81,6 +104,13 @@ impl ONNXCausalDecoder {
             decoder_with_past,
             generate_config,
             tokenizer,
+            bos_token_id,
+            eos_token_ids,
+            pad_token_id,
+            is_encoder_decoder,
+            vocab_size,
+            decoder_start_id,
+            max_position_embeddings,
         })
     }
 
@@ -143,145 +173,123 @@ impl ONNXCausalDecoder {
         }
     }
 }
-//
-// impl PrivateLanguageGenerator for ONNXCausalDecoder {
-//     fn _get_tokenizer(&self) -> &TokenizerOption {
-//         &self.tokenizer
-//     }
-//     fn get_device(&self) -> Device {
-//         Device::Cpu
-//     }
-//     fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
-//         Err(RustBertError::ValueError(
-//             "No VarStore available for ONNX models".to_string(),
-//         ))
-//     }
-//     fn get_config(&self) -> &GenerateConfig {
-//         &self.generate_config
-//     }
-//     fn get_bos_id(&self) -> Option<i64> {
-//         self.bos_token_id
-//     }
-//     fn get_eos_ids(&self) -> Option<&Vec<i64>> {
-//         self.eos_token_ids.as_ref()
-//     }
-//     fn get_pad_id(&self) -> Option<i64> {
-//         self.pad_token_id
-//     }
-//     fn is_encoder_decoder(&self) -> bool {
-//         self.is_encoder_decoder
-//     }
-//     fn get_vocab_size(&self) -> i64 {
-//         self.vocab_size
-//     }
-//     fn get_decoder_start_id(&self) -> Option<i64> {
-//         self.decoder_start_id
-//     }
-//     fn get_max_positions_embeddings(&self) -> i64 {
-//         self.max_position_embeddings
-//     }
-//
-//     fn forward_t(
-//         &self,
-//         input_ids: Option<&Tensor>,
-//         layer_past: Cache,
-//         attention_mask: Option<&Tensor>,
-//         token_type_ids: Option<&Tensor>,
-//         position_ids: Option<&Tensor>,
-//         input_embeds: Option<&Tensor>,
-//         _encoder_outputs: Option<&Tensor>,
-//         _decoder_input_ids: Option<&Tensor>,
-//         train: bool,
-//     ) -> Result<LMModelOutput, RustBertError> {
-//         match layer_past {
-//             Cache::GPT2Cache(layer_past) => self.model.forward_t(
-//                 input_ids,
-//                 layer_past.as_ref(),
-//                 attention_mask,
-//                 token_type_ids,
-//                 position_ids,
-//                 input_embeds,
-//                 train,
-//             ),
-//             Cache::None => self.model.forward_t(
-//                 input_ids,
-//                 None,
-//                 attention_mask,
-//                 token_type_ids,
-//                 position_ids,
-//                 input_embeds,
-//                 train,
-//             ),
-//             _ => Err(RustBertError::ValueError(
-//                 "Cache not compatible with GPT2 Model".into(),
-//             )),
-//         }
-//     }
-//
-//     fn prepare_inputs_for_generation<'a>(
-//         &self,
-//         input_ids: Tensor,
-//         _encoder_outputs: Option<&'a Tensor>,
-//         past: Cache,
-//         attention_mask: Tensor,
-//     ) -> PreparedInput<'a> {
-//         let position_ids = (attention_mask.totype(Kind::Int64).cumsum(-1, Kind::Int64) - 1)
-//             .masked_fill(&attention_mask.eq(0), 1);
-//
-//         match past {
-//             Cache::GPT2Cache(past) => {
-//                 if past.is_some() {
-//                     PreparedInput {
-//                         prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
-//                         prepared_attention_mask: Some(attention_mask),
-//                         prepared_encoder_output: None,
-//                         prepared_decoder_input: None,
-//                         prepared_position_ids: Some(position_ids.select(1, -1).unsqueeze(-1)),
-//                         prepared_past: Cache::GPT2Cache(past),
-//                     }
-//                 } else {
-//                     PreparedInput {
-//                         prepared_input: Some(input_ids),
-//                         prepared_attention_mask: Some(attention_mask),
-//                         prepared_encoder_output: None,
-//                         prepared_decoder_input: None,
-//                         prepared_position_ids: Some(position_ids),
-//                         prepared_past: Cache::GPT2Cache(None),
-//                     }
-//                 }
-//             }
-//             Cache::None => PreparedInput {
-//                 prepared_input: Some(input_ids),
-//                 prepared_attention_mask: Some(attention_mask),
-//                 prepared_encoder_output: None,
-//                 prepared_decoder_input: None,
-//                 prepared_position_ids: Some(position_ids),
-//                 prepared_past: Cache::GPT2Cache(None),
-//             },
-//             _ => panic!("Cache type incompatible with GPT2"),
-//         }
-//     }
-//
-//     fn reorder_cache(
-//         &self,
-//         past: &mut Cache,
-//         _encoder_outputs: Option<Tensor>,
-//         beam_indices: &Tensor,
-//     ) -> Option<Tensor> {
-//         match past {
-//             Cache::GPT2Cache(cached_decoder_state) => match cached_decoder_state {
-//                 Some(value) => {
-//                     for layer_past in value.iter_mut() {
-//                         *layer_past = layer_past.index_select(1, beam_indices);
-//                     }
-//                     None
-//                 }
-//                 None => None,
-//             },
-//             Cache::None => None,
-//             _ => {
-//                 panic!("Invalid cache for GPT2 model");
-//             }
-//         }
-//     }
-// }
+
+impl PrivateLanguageGenerator for ONNXCausalDecoder {
+    fn _get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+    fn get_device(&self) -> Device {
+        Device::Cpu
+    }
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Err(RustBertError::ValueError(
+            "No VarStore available for ONNX models".to_string(),
+        ))
+    }
+    fn get_config(&self) -> &GenerateConfig {
+        &self.generate_config
+    }
+    fn get_bos_id(&self) -> Option<i64> {
+        self.bos_token_id
+    }
+    fn get_eos_ids(&self) -> Option<&Vec<i64>> {
+        self.eos_token_ids.as_ref()
+    }
+    fn get_pad_id(&self) -> Option<i64> {
+        self.pad_token_id
+    }
+    fn is_encoder_decoder(&self) -> bool {
+        self.is_encoder_decoder
+    }
+    fn get_vocab_size(&self) -> i64 {
+        self.vocab_size
+    }
+    fn get_decoder_start_id(&self) -> Option<i64> {
+        self.decoder_start_id
+    }
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        self.max_position_embeddings
+    }
+
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        layer_past: Cache,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
+        _train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        self.forward(input_ids, attention_mask, None, None, Some(&layer_past))
+    }
+    //
+    // fn prepare_inputs_for_generation<'a>(
+    //     &self,
+    //     input_ids: Tensor,
+    //     _encoder_outputs: Option<&'a Tensor>,
+    //     past: Cache,
+    //     attention_mask: Tensor,
+    // ) -> PreparedInput<'a> {
+    //     let position_ids = (attention_mask.totype(Kind::Int64).cumsum(-1, Kind::Int64) - 1)
+    //         .masked_fill(&attention_mask.eq(0), 1);
+    //
+    //     match past {
+    //         Cache::ONNXCache(past) => {
+    //             if past.is_some() {
+    //                 PreparedInput {
+    //                     prepared_input: Some(input_ids.select(1, -1).unsqueeze(-1)),
+    //                     prepared_attention_mask: Some(attention_mask),
+    //                     prepared_encoder_output: None,
+    //                     prepared_decoder_input: None,
+    //                     prepared_position_ids: Some(position_ids.select(1, -1).unsqueeze(-1)),
+    //                     prepared_past: Cache::GPT2Cache(past),
+    //                 }
+    //             } else {
+    //                 PreparedInput {
+    //                     prepared_input: Some(input_ids),
+    //                     prepared_attention_mask: Some(attention_mask),
+    //                     prepared_encoder_output: None,
+    //                     prepared_decoder_input: None,
+    //                     prepared_position_ids: Some(position_ids),
+    //                     prepared_past: Cache::GPT2Cache(None),
+    //                 }
+    //             }
+    //         }
+    //         Cache::None => PreparedInput {
+    //             prepared_input: Some(input_ids),
+    //             prepared_attention_mask: Some(attention_mask),
+    //             prepared_encoder_output: None,
+    //             prepared_decoder_input: None,
+    //             prepared_position_ids: Some(position_ids),
+    //             prepared_past: Cache::GPT2Cache(None),
+    //         },
+    //         _ => panic!("Cache type incompatible with ONNX Models"),
+    //     }
+    // }
+    //
+    // fn reorder_cache(
+    //     &self,
+    //     past: &mut Cache,
+    //     _encoder_outputs: Option<Tensor>,
+    //     beam_indices: &Tensor,
+    // ) -> Option<Tensor> {
+    //     match past {
+    //         Cache::GPT2Cache(cached_decoder_state) => match cached_decoder_state {
+    //             Some(value) => {
+    //                 for layer_past in value.iter_mut() {
+    //                     *layer_past = layer_past.index_select(1, beam_indices);
+    //                 }
+    //                 None
+    //             }
+    //             None => None,
+    //         },
+    //         Cache::None => None,
+    //         _ => {
+    //             panic!("Invalid cache for GPT2 model");
+    //         }
+    //     }
+    // }
+}

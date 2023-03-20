@@ -36,6 +36,7 @@ use crate::mbart::MBartConfig;
 use crate::mobilebert::MobileBertConfig;
 use crate::openai_gpt::OpenAiGptConfig;
 use crate::pegasus::PegasusConfig;
+use crate::pipelines::onnx::models::ONNXModelConfig;
 use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
 use crate::roberta::RobertaConfig;
@@ -89,6 +90,7 @@ pub enum ModelType {
     MBart,
     M2M100,
     FNet,
+    ONNXCausalDecoder,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -141,6 +143,8 @@ pub enum ConfigOption {
     M2M100(M2M100Config),
     /// FNet configuration
     FNet(FNetConfig),
+    /// ONNX Model configuration
+    ONNX(ONNXModelConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -213,6 +217,7 @@ impl ConfigOption {
             ModelType::MBart => ConfigOption::MBart(MBartConfig::from_file(path)),
             ModelType::M2M100 => ConfigOption::M2M100(M2M100Config::from_file(path)),
             ModelType::FNet => ConfigOption::FNet(FNetConfig::from_file(path)),
+            ModelType::ONNXCausalDecoder => ConfigOption::ONNX(ONNXModelConfig::from_file(path)),
         }
     }
 
@@ -286,6 +291,10 @@ impl ConfigOption {
                 .id2label
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
+            Self::ONNX(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
             Self::LongT5(_) => panic!("LongT5 does not use a label mapping"),
             Self::OpenAiGpt(_) => panic!("OpenAI GPT does not use a label mapping"),
@@ -322,6 +331,7 @@ impl ConfigOption {
             Self::M2M100(config) => Some(config.max_position_embeddings),
             Self::FNet(config) => Some(config.max_position_embeddings),
             Self::Roberta(config) => Some(config.max_position_embeddings),
+            Self::ONNX(config) => config.max_position_embeddings,
         }
     }
 
@@ -351,6 +361,7 @@ impl ConfigOption {
             Self::M2M100(config) => config.vocab_size,
             Self::FNet(config) => config.vocab_size,
             Self::Roberta(config) => config.vocab_size,
+            Self::ONNX(config) => config.vocab_size,
         }
     }
 
@@ -380,6 +391,7 @@ impl ConfigOption {
             Self::M2M100(config) => config.decoder_start_token_id,
             Self::FNet(config) => config.decoder_start_token_id,
             Self::Roberta(_) => None,
+            Self::ONNX(config) => config.decoder_start_token_id,
         }
     }
 }
@@ -702,6 +714,9 @@ impl TokenizerOption {
                 lower_case,
                 strip_accents.unwrap_or(false),
             )?),
+            ModelType::ONNXCausalDecoder => Err(RustBertError::InvalidConfigurationError(
+                "Default Tokenizer not defined for generic ONNX models.".to_string(),
+            ))?,
         };
         Ok(tokenizer)
     }

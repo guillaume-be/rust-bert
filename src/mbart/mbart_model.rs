@@ -913,8 +913,8 @@ impl PrivateLanguageGenerator for MBartGenerator {
         })
     }
 
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn prepare_scores_for_generation(
