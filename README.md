@@ -77,8 +77,8 @@ This cache location defaults to `~/.cache/.rustbert`, but can be changed by sett
 
 ### Manual installation (recommended)
 
-1. Download `libtorch` from https://pytorch.org/get-started/locally/. This package requires `v1.13.1`: if this version is no longer available on the "get started" page,
-the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-1.13.1%2Bcu117.zip` for a Linux version with CUDA11. **NOTE:** When using `rust-bert` as dependency from [crates.io](https://crates.io), please check the required `LIBTORCH` on the published package [readme](https://crates.io/crates/rust-bert) as it may differ from the version documented here (applying to the current repository version).
+1. Download `libtorch` from https://pytorch.org/get-started/locally/. This package requires `v2.0.0`: if this version is no longer available on the "get started" page,
+the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.0.0%2Bcu118.zip` for a Linux version with CUDA11. **NOTE:** When using `rust-bert` as dependency from [crates.io](https://crates.io), please check the required `LIBTORCH` on the published package [readme](https://crates.io/crates/rust-bert) as it may differ from the version documented here (applying to the current repository version).
 2. Extract the library to a location of your choice
 3. Set the following environment variables
 ##### Linux:
@@ -96,7 +96,7 @@ $Env:Path += ";X:\path\to\libtorch\lib"
 ### Automatic installation
 
 Alternatively, you can let the `build` script automatically download the `libtorch` library for you.
-The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu117`.
+The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu118`.
 Note that the libtorch library is large (order of several GBs for the CUDA-enabled version) and the first build may therefore take several minutes to complete.
 
 ## Ready-to-use pipelines
