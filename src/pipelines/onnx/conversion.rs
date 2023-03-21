@@ -1,28 +1,13 @@
 use crate::RustBertError;
-use ndarray::{Dimension, IxDyn};
+use ndarray::IxDyn;
 use ort::tensor::{DynOrtTensor, FromArray, InputTensor};
-use ort::{OrtApiError, OrtError};
 use std::collections::HashMap;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use tch::{Kind, Tensor};
 
 pub fn ort_tensor_to_tch(ort_tensor: &DynOrtTensor<IxDyn>) -> Result<Tensor, RustBertError> {
-    let ort_tensor = ort_tensor.try_extract::<f32>()?;
-    let dim = ort_tensor
-        .view()
-        .dim()
-        .as_array_view()
-        .iter()
-        .map(|dim| *dim as i64)
-        .collect::<Vec<_>>();
-    Ok(
-        Tensor::of_slice(ort_tensor.view().as_slice().ok_or_else(|| {
-            OrtError::FailedTensorCheck(OrtApiError::Msg(
-                "Non-contiguous tensor encountered during conversion to tch".to_string(),
-            ))
-        })?)
-        .view(dim.as_slice()),
-    )
+    let ort_tensor = ort_tensor.try_extract::<f32>()?.view().to_owned();
+    Ok(Tensor::try_from(ort_tensor)?)
 }
 
 pub fn tch_tensor_to_ort(tch_tensor: &Tensor) -> Result<InputTensor, RustBertError> {
