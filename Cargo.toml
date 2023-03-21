@@ -79,7 +79,7 @@ uuid = { version = "1", features = ["v4"] }
 thiserror = "1"
 half = "2"
 regex = "1.6"
-ort = {git = "https://github.com/pykeio/ort.git", branch="main", default-features=false}
+ort = {version="1.14.3", default-features=false}
 ndarray = "0.15"
 
 cached-path = { version = "0.6", optional = true }
@@ -95,4 +95,4 @@ torch-sys = {path="E:/Coding/tch-rs/torch-sys"}
 tempfile = "3"
 itertools = "0.10"
 tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt" ] }
-ort = {git = "https://github.com/pykeio/ort.git", branch="main", features = ["load-dynamic"]}
+ort = {version="1.14.3", features = ["load-dynamic"]}

@@ -2,7 +2,7 @@ use crate::pipelines::common::{ConfigOption, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
-use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
 use crate::pipelines::onnx::decoder::ONNXDecoder;
 use crate::{Config, RustBertError};
@@ -260,27 +260,26 @@ impl PrivateLanguageGenerator for ONNXCausalDecoder {
             },
         }
     }
-    //
-    // fn reorder_cache(
-    //     &self,
-    //     past: &mut Cache,
-    //     _encoder_outputs: Option<Tensor>,
-    //     beam_indices: &Tensor,
-    // ) -> Option<Tensor> {
-    //     match past {
-    //         Cache::GPT2Cache(cached_decoder_state) => match cached_decoder_state {
-    //             Some(value) => {
-    //                 for layer_past in value.iter_mut() {
-    //                     *layer_past = layer_past.index_select(1, beam_indices);
-    //                 }
-    //                 None
-    //             }
-    //             None => None,
-    //         },
-    //         Cache::None => None,
-    //         _ => {
-    //             panic!("Invalid cache for GPT2 model");
-    //         }
-    //     }
-    // }
+
+    fn reorder_cache(
+        &self,
+        past: &mut Cache,
+        _encoder_outputs: Option<Tensor>,
+        beam_indices: &Tensor,
+    ) -> Option<Tensor> {
+        match past {
+            Cache::ONNXCache(cached_decoder_state) => {
+                for (_, layer_past) in cached_decoder_state.values.iter_mut() {
+                    *layer_past = layer_past.index_select(0, beam_indices);
+                }
+                None
+            }
+            Cache::None => None,
+            _ => {
+                panic!("Invalid cache for ONNX model");
+            }
+        }
+    }
 }
+
+impl LanguageGenerator for ONNXCausalDecoder {}
