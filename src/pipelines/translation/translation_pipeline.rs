@@ -17,8 +17,7 @@ use crate::common::error::RustBertError;
 use crate::m2m_100::M2M100Generator;
 use crate::marian::MarianGenerator;
 use crate::mbart::MBartGenerator;
-use crate::pipelines::common::ModelType;
-use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
+use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
@@ -542,6 +541,8 @@ pub enum TranslationOption {
     MBart(MBartGenerator),
     /// Translator based on M2M100 model
     M2M100(M2M100Generator),
+    // /// Translator based on ONNX model
+    // ONNX(ONNXConditionalGenerator),
 }
 
 impl TranslationOption {
@@ -564,6 +565,8 @@ impl TranslationOption {
         }
     }
 
+    // ToDo: add new_with_tokenizer (to be used for ONNX models)
+
     /// Returns the `ModelType` for this TranslationOption
     pub fn model_type(&self) -> ModelType {
         match *self {
@@ -571,152 +574,19 @@ impl TranslationOption {
             Self::T5(_) => ModelType::T5,
             Self::MBart(_) => ModelType::MBart,
             Self::M2M100(_) => ModelType::M2M100,
+            // Self::ONNX(_) => ModelType::ONNXConditionalGenerator,
         }
     }
 
-    fn validate_and_get_prefix_and_forced_bos_id(
-        &self,
-        source_language: Option<&Language>,
-        target_language: Option<&Language>,
-        supported_source_languages: &HashSet<Language>,
-        supported_target_languages: &HashSet<Language>,
-    ) -> Result<(Option<String>, Option<i64>), RustBertError> {
-        if let Some(source_language) = source_language {
-            if !supported_source_languages.contains(source_language) {
-                return Err(RustBertError::ValueError(format!(
-                    "{source_language} not in list of supported languages: {supported_source_languages:?}",
-                )));
-            }
+    /// Returns the `Toeknizer` for this TranslationOption
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        match self {
+            Self::Marian(ref generator) => generator.get_tokenizer(),
+            Self::T5(ref generator) => generator.get_tokenizer(),
+            Self::MBart(ref generator) => generator.get_tokenizer(),
+            Self::M2M100(ref generator) => generator.get_tokenizer(),
+            // Self::ONNX(_) => ModelType::ONNXConditionalGenerator,
         }
-
-        if let Some(target_language) = target_language {
-            if !supported_target_languages.contains(target_language) {
-                return Err(RustBertError::ValueError(format!(
-                    "{target_language} not in list of supported languages: {supported_target_languages:?}"
-                )));
-            }
-        }
-
-        Ok(match *self {
-            Self::Marian(_) => {
-                if supported_target_languages.len() > 1 {
-                    (
-                        Some(format!(
-                            ">>{}<< ",
-                            match target_language {
-                                Some(value) => value.get_iso_639_1_code(),
-                                None => {
-                                    return Err(RustBertError::ValueError(format!(
-                                        "Missing target language for Marian \
-                                        (multiple languages supported by model: {supported_target_languages:?}, \
-                                        need to specify target language)",
-                                    )));
-                                }
-                            }
-                        )),
-                        None,
-                    )
-                } else {
-                    (None, None)
-                }
-            }
-            Self::T5(_) => (
-                Some(format!(
-                    "translate {} to {}:",
-                    match source_language {
-                        Some(value) => value,
-                        None => {
-                            return Err(RustBertError::ValueError(
-                                "Missing source language for T5".to_string(),
-                            ));
-                        }
-                    },
-                    match target_language {
-                        Some(value) => value,
-                        None => {
-                            return Err(RustBertError::ValueError(
-                                "Missing target language for T5".to_string(),
-                            ));
-                        }
-                    }
-                )),
-                None,
-            ),
-            Self::MBart(ref model) => (
-                Some(format!(
-                    ">>{}<< ",
-                    match source_language {
-                        Some(value) => value.get_iso_639_1_code(),
-                        None => {
-                            return Err(RustBertError::ValueError(format!(
-                                "Missing source language for MBart\
-                                (multiple languages supported by model: {supported_source_languages:?}, \
-                                need to specify target language)"
-                            )));
-                        }
-                    }
-                )),
-                if let Some(target_language) = target_language {
-                    Some(
-                        model._get_tokenizer().convert_tokens_to_ids(&[format!(
-                            ">>{}<<",
-                            target_language.get_iso_639_1_code()
-                        )])[0],
-                    )
-                } else {
-                    return Err(RustBertError::ValueError(format!(
-                        "Missing target language for MBart\
-                        (multiple languages supported by model: {supported_target_languages:?}, \
-                        need to specify target language)"
-                    )));
-                },
-            ),
-            Self::M2M100(ref model) => (
-                Some(match source_language {
-                    Some(value) => {
-                        let language_code = value.get_iso_639_1_code();
-                        match language_code.len() {
-                            2 => format!(">>{language_code}.<< "),
-                            3 => format!(">>{language_code}<< "),
-                            _ => {
-                                return Err(RustBertError::ValueError(
-                                    "Invalid ISO 639-3 code".to_string(),
-                                ));
-                            }
-                        }
-                    }
-                    None => {
-                        return Err(RustBertError::ValueError(format!(
-                            "Missing source language for M2M100 \
-                            (multiple languages supported by model: {supported_source_languages:?}, \
-                            need to specify target language)"
-                        )));
-                    }
-                }),
-                if let Some(target_language) = target_language {
-                    let language_code = target_language.get_iso_639_1_code();
-                    Some(
-                        model._get_tokenizer().convert_tokens_to_ids(&[
-                            match language_code.len() {
-                                2 => format!(">>{language_code}.<<"),
-                                3 => format!(">>{language_code}<<"),
-                                _ => {
-                                    return Err(RustBertError::ValueError(
-                                        "Invalid ISO 639-3 code".to_string(),
-                                    ));
-                                }
-                            },
-                        ])[0],
-                    )
-                } else {
-                    return Err(RustBertError::ValueError(format!(
-                        "Missing target language for M2M100 \
-                        (multiple languages supported by model: {supported_target_languages:?}, \
-                        need to specify target language)",
-                    )));
-                },
-            ),
-        })
     }
 
     /// Interface method to generate() of the particular models.
@@ -884,12 +754,13 @@ impl TranslationModel {
     where
         S: AsRef<str> + Sync,
     {
-        let (prefix, forced_bos_token_id) = self.model.validate_and_get_prefix_and_forced_bos_id(
-            source_language.into().as_ref(),
-            target_language.into().as_ref(),
-            &self.supported_source_languages,
-            &self.supported_target_languages,
-        )?;
+        let (prefix, forced_bos_token_id) =
+            self.model.get_tokenizer().get_prefix_and_forced_bos_id(
+                source_language.into().as_ref(),
+                target_language.into().as_ref(),
+                &self.supported_source_languages,
+                &self.supported_target_languages,
+            )?;
 
         Ok(match prefix {
             Some(value) => {

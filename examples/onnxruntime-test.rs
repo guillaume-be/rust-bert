@@ -7,12 +7,12 @@ use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
 
 use rust_bert::gpt2::Gpt2Config;
 use rust_bert::pipelines::common::{ConfigOption, TokenizerOption};
-use rust_bert::pipelines::onnx::models::ONNXCausalDecoder;
+use rust_bert::pipelines::onnx::models::ONNXCausalGenerator;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let onnx_causal_decoder = ONNXCausalDecoder::new(
+    let onnx_causal_decoder = ONNXCausalGenerator::new(
         Some(PathBuf::from(
             "E:/Coding/distilgpt2-onnx/decoder_model.onnx",
         )),

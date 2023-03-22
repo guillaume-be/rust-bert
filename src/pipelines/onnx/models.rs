@@ -26,7 +26,7 @@ pub struct ONNXModelConfig {
 
 impl Config for ONNXModelConfig {}
 
-pub struct ONNXCausalDecoder {
+pub struct ONNXCausalGenerator {
     decoder_without_past: Option<ONNXDecoder>,
     decoder_with_past: Option<ONNXDecoder>,
     generate_config: GenerateConfig,
@@ -41,7 +41,7 @@ pub struct ONNXCausalDecoder {
     use_past: bool,
 }
 
-impl ONNXCausalDecoder {
+impl ONNXCausalGenerator {
     pub fn new(
         decoder_without_past_file: Option<PathBuf>,
         decoder_with_past_file: Option<PathBuf>,
@@ -179,7 +179,7 @@ impl ONNXCausalDecoder {
     }
 }
 
-impl PrivateLanguageGenerator for ONNXCausalDecoder {
+impl PrivateLanguageGenerator for ONNXCausalGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -282,4 +282,4 @@ impl PrivateLanguageGenerator for ONNXCausalDecoder {
     }
 }
 
-impl LanguageGenerator for ONNXCausalDecoder {}
+impl LanguageGenerator for ONNXCausalGenerator {}
