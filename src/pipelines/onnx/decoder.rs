@@ -1,4 +1,5 @@
 use crate::pipelines::generation_utils::{Cache, LMModelOutput};
+use crate::pipelines::onnx::common::{get_input_output_mapping, InputOutputNameMapping};
 use crate::pipelines::onnx::config::{
     ONNXEnvironmentConfig, ATTENTION_MASK_NAME, ENCODER_ATTENTION_MASK_NAME,
     ENCODER_HIDDEN_STATES_NAME, INPUT_IDS_NAME,
@@ -11,43 +12,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tch::Tensor;
 
-#[derive(Debug)]
-pub struct DecoderNameMapping {
-    pub decoder_input_names: Vec<String>,
-    pub decoder_output_names: HashMap<String, usize>,
-    pub decoder_key_value_output_names: HashMap<String, usize>,
-}
-
-pub fn get_input_output_mapping(session: &Session) -> DecoderNameMapping {
-    let decoder_input_names = session
-        .inputs
-        .iter()
-        .map(|input| input.name.clone())
-        .collect::<Vec<String>>();
-
-    let decoder_output_names = session
-        .outputs
-        .iter()
-        .enumerate()
-        .map(|(pos, output)| (output.name.clone(), pos))
-        .collect::<HashMap<String, usize>>();
-
-    let decoder_key_value_output_names = decoder_output_names
-        .iter()
-        .filter(|(name, _)| name.contains(".key") | name.contains(".value"))
-        .map(|(name, pos)| (name.clone(), *pos))
-        .collect::<HashMap<String, usize>>();
-
-    DecoderNameMapping {
-        decoder_input_names,
-        decoder_output_names,
-        decoder_key_value_output_names,
-    }
-}
-
 pub struct ONNXDecoder {
     session: Session,
-    name_mapping: DecoderNameMapping,
+    name_mapping: InputOutputNameMapping,
     use_cache: bool,
 }
 
@@ -93,7 +60,7 @@ impl ONNXDecoder {
 
         let inputs = self
             .name_mapping
-            .decoder_input_names
+            .input_names
             .iter()
             .map(|input_name| {
                 if let Some(tensor) = input_dict.remove(input_name.as_str()) {
@@ -116,17 +83,12 @@ impl ONNXDecoder {
 
         let outputs = self.session.run(inputs)?;
 
-        let lm_logits = ort_tensor_to_tch(
-            &outputs[*self
-                .name_mapping
-                .decoder_output_names
-                .get("logits")
-                .unwrap()],
-        )?;
+        let lm_logits =
+            ort_tensor_to_tch(&outputs[*self.name_mapping.output_names.get("logits").unwrap()])?;
         let cache = if self.use_cache {
             Cache::ONNXCache(ONNXLayerCache::from_ort_output(
                 &outputs,
-                &self.name_mapping.decoder_key_value_output_names,
+                &self.name_mapping.key_value_output_names,
             )?)
         } else {
             Cache::None

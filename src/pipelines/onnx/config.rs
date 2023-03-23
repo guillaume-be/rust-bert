@@ -8,6 +8,10 @@ pub static INPUT_IDS_NAME: &str = "input_ids";
 pub static ATTENTION_MASK_NAME: &str = "attention_mask";
 pub static ENCODER_HIDDEN_STATES_NAME: &str = "encoder_hidden_states";
 pub static ENCODER_ATTENTION_MASK_NAME: &str = "encoder_attention_mask";
+pub static TOKEN_TYPE_IDS: &str = "token_type_ids";
+pub static POSITION_IDS: &str = "position_ids";
+pub static INPUT_EMBEDS: &str = "input_embeds";
+pub static LAST_HIDDEN_STATE: &str = "last_hidden_state";
 
 #[derive(Default)]
 pub struct ONNXEnvironmentConfig {
