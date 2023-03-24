@@ -8,6 +8,7 @@ use crate::pipelines::onnx::decoder::ONNXDecoder;
 use crate::pipelines::onnx::encoder::ONNXEncoder;
 use crate::{Config, RustBertError};
 use ort::{Environment, ExecutionProvider};
+use rust_tokenizers::tokenizer::TruncationStrategy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -400,7 +401,7 @@ impl ONNXConditionalGenerator {
             None
         };
         let encoder_hidden_states =
-            encoder_hidden_states.unwrap_or(calc_encoder_output.as_ref().unwrap());
+            encoder_hidden_states.unwrap_or_else(|| calc_encoder_output.as_ref().unwrap());
 
         match (
             &self.decoder_without_past,
@@ -549,24 +550,67 @@ impl PrivateLanguageGenerator for ONNXConditionalGenerator {
         }
     }
 
+    fn encode_prompt_text<S>(
+        &self,
+        prompt_text: &[S],
+        max_len: Option<i64>,
+        pad_token_id: Option<i64>,
+    ) -> Tensor
+    where
+        S: AsRef<str> + Sync,
+    {
+        let tokens = self.get_tokenizer().encode_list(
+            prompt_text,
+            max_len
+                .map(|max_len| max_len as usize)
+                .unwrap_or(usize::MAX),
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
+        let token_ids = tokens
+            .into_iter()
+            .map(|tokenized_input| tokenized_input.token_ids)
+            .collect::<Vec<Vec<i64>>>();
+
+        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
+
+        let pad_token = match pad_token_id {
+            Some(value) => value,
+            None => self.get_tokenizer().get_unk_id(),
+        };
+
+        let token_ids = token_ids
+            .into_iter()
+            .map(|mut input| {
+                let temp = vec![pad_token; max_len - input.len()];
+                input.extend(temp);
+                input
+            })
+            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_device()))
+            .collect::<Vec<Tensor>>();
+
+        Tensor::stack(&token_ids, 0)
+    }
+
     fn reorder_cache(
         &self,
         past: &mut Cache,
-        _encoder_outputs: Option<Tensor>,
+        encoder_outputs: Option<Tensor>,
         beam_indices: &Tensor,
     ) -> Option<Tensor> {
+        let encoder_outputs = encoder_outputs.map(|value| value.index_select(0, beam_indices));
         match past {
             Cache::ONNXCache(cached_decoder_state) => {
                 for (_, layer_past) in cached_decoder_state.values.iter_mut() {
                     *layer_past = layer_past.index_select(0, beam_indices);
                 }
-                None
             }
-            Cache::None => None,
+            Cache::None => {}
             _ => {
                 panic!("Invalid cache for ONNX model");
             }
         }
+        encoder_outputs
     }
 }
 
