@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use ort::{Environment, ExecutionProvider};
+use rust_bert::pipelines::generation_utils::Cache;
 use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
+use rust_bert::pipelines::onnx::decoder::ONNXDecoder;
 use rust_bert::pipelines::onnx::encoder::ONNXEncoder;
 use tch::{Kind, Tensor};
 
@@ -32,44 +34,54 @@ fn main() -> anyhow::Result<()> {
         &onnx_config,
     )?;
 
+    let decoder = ONNXDecoder::new(
+        PathBuf::from("E:/Coding/opus-mt-en-fr-onnx/decoder_model.onnx"),
+        true,
+        &environment,
+        &onnx_config,
+    )?;
+
+    let decoder_with_past = ONNXDecoder::new(
+        PathBuf::from("E:/Coding/opus-mt-en-fr-onnx/decoder_with_past_model.onnx"),
+        true,
+        &environment,
+        &onnx_config,
+    )?;
+
     let encoder_outputs =
         encoder.forward(Some(&input_ids), Some(&attention_mask), None, None, None)?;
 
     println!("{}", encoder_outputs.last_hidden_state);
 
-    // let decoder = ONNXDecoder::new(
-    //     PathBuf::from("E:/Coding/distilgpt2-onnx/decoder_model.onnx"),
-    //     true,
-    //     &environment,
-    //     &onnx_config,
-    // )?;
-    //
-    // let decoder_with_past = ONNXDecoder::new(
-    //     PathBuf::from("E:/Coding/distilgpt2-onnx/decoder_with_past_model.onnx"),
-    //     true,
-    //     &environment,
-    //     &onnx_config,
-    // )?;
-    //
+    let decoder_outputs = decoder.forward(
+        Some(&input_ids),
+        Some(&attention_mask),
+        Some(&encoder_outputs.last_hidden_state),
+        None,
+        None,
+    )?;
 
-    //
-    // let outputs = decoder.forward(Some(&input_ids), Some(&attention_mask), None)?;
-    //
+    println!("{}", decoder_outputs.lm_logits);
 
-    //
-    // // Second decoder forward pass (without past)
-    // let input_ids = Tensor::of_slice(&[649]).unsqueeze(0);
-    // let attention_mask = &Tensor::of_slice(&[1, 1, 1, 1]).unsqueeze(0);
-    //
-    // let cache = match outputs.cache {
-    //     Cache::ONNXCache(ref cache) => cache,
-    //     _ => unreachable!(),
-    // };
-    //
-    // let outputs =
-    //     decoder_with_past.forward(Some(&input_ids), Some(&attention_mask), Some(cache))?;
-    //
-    // println!("{} - {:?}", outputs.lm_logits, outputs.cache);
+    // Second decoder forward pass (without past)
+    let input_ids = Tensor::of_slice(&[649]).unsqueeze(0).totype(Kind::Int64);
+    let attention_mask = &Tensor::of_slice(&[1, 1, 1, 1])
+        .unsqueeze(0)
+        .totype(Kind::Int64);
+
+    let cache = match decoder_outputs.cache {
+        Cache::ONNXCache(ref cache) => cache,
+        _ => unreachable!(),
+    };
+    let outputs = decoder_with_past.forward(
+        Some(&input_ids),
+        Some(&attention_mask),
+        Some(&encoder_outputs.last_hidden_state),
+        None,
+        Some(cache),
+    )?;
+
+    println!("{} - {:?}", outputs.lm_logits, outputs.cache);
 
     Ok(())
 }
