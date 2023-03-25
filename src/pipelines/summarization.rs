@@ -67,7 +67,7 @@ use tch::Device;
 use crate::bart::BartGenerator;
 use crate::common::error::RustBertError;
 use crate::pegasus::PegasusConditionalGenerator;
-use crate::pipelines::common::ModelType;
+use crate::pipelines::common::{ModelResources, ModelType};
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::prophetnet::ProphetNetConditionalGenerator;
 use crate::resources::ResourceProvider;
@@ -87,7 +87,7 @@ pub struct SummarizationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResources,
     /// Config resource (default: pretrained BART model on CNN-DM)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BART model on CNN-DM)
@@ -132,25 +132,24 @@ impl SummarizationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * model_resource - The `ModelResources` pointing to the model to load (e.g.  model.ot)
     /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
-    pub fn new<RM, RC, RV>(
+    pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResources,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
     ) -> SummarizationConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         SummarizationConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -178,7 +177,9 @@ impl Default for SummarizationConfig {
     fn default() -> SummarizationConfig {
         SummarizationConfig::new(
             ModelType::Bart,
-            RemoteResource::from_pretrained(BartModelResources::BART_CNN),
+            ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+                BartModelResources::BART_CNN,
+            ))),
             RemoteResource::from_pretrained(BartConfigResources::BART_CNN),
             RemoteResource::from_pretrained(BartVocabResources::BART_CNN),
             Some(RemoteResource::from_pretrained(

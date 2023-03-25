@@ -493,7 +493,7 @@ impl OpenAIGenerator {
         generate_config.validate();
 
         let config_path = generate_config.config_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_torch_local_path()?;
         let device = generate_config.device;
 
         let mut var_store = nn::VarStore::new(device);

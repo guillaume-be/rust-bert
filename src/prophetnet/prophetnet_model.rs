@@ -910,7 +910,7 @@ impl ProphetNetConditionalGenerator {
         tokenizer: TokenizerOption,
     ) -> Result<ProphetNetConditionalGenerator, RustBertError> {
         let config_path = generate_config.config_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
+        let weights_path = generate_config.model_resource.get_torch_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();

@@ -40,6 +40,7 @@ use crate::pipelines::onnx::models::ONNXModelConfig;
 use crate::pipelines::translation::Language;
 use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
+use crate::resources::ResourceProvider;
 use crate::roberta::RobertaConfig;
 use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
@@ -55,7 +56,37 @@ use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
-use std::path::Path;
+use std::fmt::Debug;
+use std::path::{Path, PathBuf};
+
+#[derive(Debug)]
+/// Container for ONNX model resources, containing 3 optional resources (Encoder, Decoder and Decoder with past)
+pub struct ONNXModelResources {
+    /// Model encoder resource
+    pub encoder_resource: Option<Box<dyn ResourceProvider + Send>>,
+    /// Model encoder resource
+    pub decoder_resource: Option<Box<dyn ResourceProvider + Send>>,
+    /// Model encoder resource
+    pub decoder_with_past_resource: Option<Box<dyn ResourceProvider + Send>>,
+}
+
+#[derive(Debug)]
+/// Variants to store either a Torch model resource or ONNX resources
+pub enum ModelResources {
+    TORCH(Box<dyn ResourceProvider + Send>),
+    ONNX(ONNXModelResources),
+}
+
+impl ModelResources {
+    /// Provides the torch resource local path.
+    /// Returns an error if the variant is not a `ModelResources::TORCH`
+    pub fn get_torch_local_path(&self) -> Result<PathBuf, RustBertError> {
+        match self {
+            ModelResources::TORCH(torch_resource) => torch_resource.get_local_path(),
+            _ => Err(RustBertError::InvalidConfigurationError(format!("Attempting to get the Torch local path but ONNX weights filepaths were given: {:?}", self)))
+        }
+    }
+}
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
 /// # Identifies the type of model
@@ -91,7 +122,7 @@ pub enum ModelType {
     MBart,
     M2M100,
     FNet,
-    ONNXCausalDecoder,
+    ONNX,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -218,7 +249,7 @@ impl ConfigOption {
             ModelType::MBart => ConfigOption::MBart(MBartConfig::from_file(path)),
             ModelType::M2M100 => ConfigOption::M2M100(M2M100Config::from_file(path)),
             ModelType::FNet => ConfigOption::FNet(FNetConfig::from_file(path)),
-            ModelType::ONNXCausalDecoder => ConfigOption::ONNX(ONNXModelConfig::from_file(path)),
+            ModelType::ONNX => ConfigOption::ONNX(ONNXModelConfig::from_file(path)),
         }
     }
 
@@ -715,7 +746,7 @@ impl TokenizerOption {
                 lower_case,
                 strip_accents.unwrap_or(false),
             )?),
-            ModelType::ONNXCausalDecoder => Err(RustBertError::InvalidConfigurationError(
+            ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
                 "Default Tokenizer not defined for generic ONNX models.".to_string(),
             ))?,
         };

@@ -21,10 +21,11 @@ mod local;
 
 use crate::common::error::RustBertError;
 pub use local::LocalResource;
+use std::fmt::Debug;
 use std::path::PathBuf;
 
 /// # Resource Trait that can provide the location of the model, configuration or vocabulary resources
-pub trait ResourceProvider {
+pub trait ResourceProvider: Debug + Send {
     /// Provides the local path for a resource.
     ///
     /// # Returns

@@ -38,7 +38,7 @@ use crate::gpt2::GPT2Generator;
 use crate::gpt_j::GptJGenerator;
 use crate::gpt_neo::GptNeoGenerator;
 use crate::openai_gpt::OpenAIGenerator;
-use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::reformer::ReformerGenerator;
@@ -58,7 +58,7 @@ pub struct TextGenerationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResources,
     /// Config resource (default: pretrained BART model on CNN-DM)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BART model on CNN-DM)
@@ -103,25 +103,24 @@ impl TextGenerationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * model_resource - The `ModelResources` pointing to the model to load (e.g.  model.ot)
     /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
-    pub fn new<RM, RC, RV>(
+    pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResources,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
     ) -> TextGenerationConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         TextGenerationConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -149,7 +148,9 @@ impl Default for TextGenerationConfig {
     fn default() -> TextGenerationConfig {
         TextGenerationConfig::new(
             ModelType::GPT2,
-            RemoteResource::from_pretrained(Gpt2ModelResources::GPT2_MEDIUM),
+            ModelResources::TORCH(Box::New(RemoteResource::from_pretrained(
+                Gpt2ModelResources::GPT2_MEDIUM,
+            ))),
             RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2_MEDIUM),
             RemoteResource::from_pretrained(Gpt2VocabResources::GPT2_MEDIUM),
             Some(RemoteResource::from_pretrained(
