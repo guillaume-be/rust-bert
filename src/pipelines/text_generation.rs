@@ -148,7 +148,7 @@ impl Default for TextGenerationConfig {
     fn default() -> TextGenerationConfig {
         TextGenerationConfig::new(
             ModelType::GPT2,
-            ModelResources::TORCH(Box::New(RemoteResource::from_pretrained(
+            ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
                 Gpt2ModelResources::GPT2_MEDIUM,
             ))),
             RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2_MEDIUM),
@@ -163,6 +163,7 @@ impl Default for TextGenerationConfig {
 impl From<TextGenerationConfig> for GenerateConfig {
     fn from(config: TextGenerationConfig) -> GenerateConfig {
         GenerateConfig {
+            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,

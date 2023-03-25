@@ -192,6 +192,7 @@ impl Default for SummarizationConfig {
 impl From<SummarizationConfig> for GenerateConfig {
     fn from(config: SummarizationConfig) -> GenerateConfig {
         GenerateConfig {
+            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,

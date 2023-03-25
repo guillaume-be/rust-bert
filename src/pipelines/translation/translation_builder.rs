@@ -1,4 +1,4 @@
-use crate::pipelines::common::ModelType;
+use crate::pipelines::common::{ModelResources, ModelType};
 use crate::pipelines::translation::Language;
 use std::fmt::Debug;
 use tch::Device;
@@ -379,7 +379,7 @@ impl TranslationModelBuilder {
 
         let translation_config = TranslationConfig::new(
             translation_resources.model_type,
-            translation_resources.model_resource,
+            ModelResources::TORCH(Box::new(translation_resources.model_resource)),
             translation_resources.config_resource,
             translation_resources.vocab_resource,
             Some(translation_resources.merges_resource),

@@ -461,7 +461,7 @@ impl TranslationConfig {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new<RM, RC, RV, S, T>(
+    pub fn new<RC, RV, S, T>(
         model_type: ModelType,
         model_resource: ModelResources,
         config_resource: RC,
@@ -509,6 +509,7 @@ impl TranslationConfig {
 impl From<TranslationConfig> for GenerateConfig {
     fn from(config: TranslationConfig) -> GenerateConfig {
         GenerateConfig {
+            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -549,7 +550,7 @@ pub enum TranslationOption {
 
 impl TranslationOption {
     pub fn new(config: TranslationConfig) -> Result<Self, RustBertError> {
-        match (config.model_type) {
+        match config.model_type {
             // match (config.model_type, config.model_resource) {
             // (_, ModelResources::ONNX(_)) => Ok(TranslationOption::ONNX(ONNXConditionalGenerator::new()))
             ModelType::Marian => Ok(TranslationOption::Marian(MarianGenerator::new(
