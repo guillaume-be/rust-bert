@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file. The format 
 - (BREAKING) Changed the return type of the `LanguageGenerator` and pipelines functions `float`, `half`, `set_device` to `Result<(), RustBertError>` as these become fallible for ONNX models
 - (BREAKING) Wrapped the model resources specification for the pipeline `Config` objects into an `Enum` to allow handling both torch-based and ONNX models. 
   The `model_resources` field now needs to be wrapped in the corresponding enum variant, e.g. `model_resources: ModelResources::TORCH(model_resource)` for Torch-based models
+- (BREAKING) Added the `forced_bos_token_id` and `forced_eos_token_id` fields to text generation models. 
+  If these are not None, this will trigger a forced BOS/EOS token generation at the first of `max_length` positions (aligns with the Pytorch Transformers library)
 
 ## Fixed
 - MIN/MAX computation for float-like (was set to infinity instead of min/max)

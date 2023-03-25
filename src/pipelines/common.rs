@@ -450,6 +450,66 @@ impl ConfigOption {
             Self::ONNX(config) => config.decoder_start_token_id,
         }
     }
+
+    pub fn get_forced_bos_token_id(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => config.forced_bos_token_id,
+            Self::Bert(_) => None,
+            Self::Deberta(_) => None,
+            Self::DebertaV2(_) => None,
+            Self::DistilBert(_) => None,
+            Self::Electra(_) => None,
+            Self::Marian(config) => config.forced_bos_token_id,
+            Self::MobileBert(_) => None,
+            Self::T5(config) => config.forced_bos_token_id,
+            Self::LongT5(config) => config.forced_bos_token_id,
+            Self::Albert(_) => None,
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => config.forced_bos_token_id,
+            Self::GPTJ(config) => config.forced_bos_token_id,
+            Self::Reformer(config) => config.forced_bos_token_id,
+            Self::ProphetNet(config) => config.forced_bos_token_id,
+            Self::Longformer(_) => None,
+            Self::Pegasus(config) => config.forced_bos_token_id,
+            Self::OpenAiGpt(config) => config.forced_bos_token_id,
+            Self::GPTNeo(config) => config.forced_bos_token_id,
+            Self::MBart(config) => config.forced_bos_token_id,
+            Self::M2M100(config) => config.forced_bos_token_id,
+            Self::FNet(_) => None,
+            Self::Roberta(_) => None,
+            Self::ONNX(config) => config.forced_bos_token_id,
+        }
+    }
+
+    pub fn get_forced_eos_token_id(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => config.forced_eos_token_id,
+            Self::Bert(_) => None,
+            Self::Deberta(_) => None,
+            Self::DebertaV2(_) => None,
+            Self::DistilBert(_) => None,
+            Self::Electra(_) => None,
+            Self::Marian(config) => config.forced_eos_token_id,
+            Self::MobileBert(_) => None,
+            Self::T5(config) => config.forced_eos_token_id,
+            Self::LongT5(config) => config.forced_eos_token_id,
+            Self::Albert(_) => None,
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => config.forced_eos_token_id,
+            Self::GPTJ(config) => config.forced_eos_token_id,
+            Self::Reformer(config) => config.forced_eos_token_id,
+            Self::ProphetNet(config) => config.forced_eos_token_id,
+            Self::Longformer(_) => None,
+            Self::Pegasus(config) => config.forced_eos_token_id,
+            Self::OpenAiGpt(config) => config.forced_eos_token_id,
+            Self::GPTNeo(config) => config.forced_eos_token_id,
+            Self::MBart(config) => config.forced_eos_token_id,
+            Self::M2M100(config) => config.forced_eos_token_id,
+            Self::FNet(_) => None,
+            Self::Roberta(_) => None,
+            Self::ONNX(config) => config.forced_eos_token_id,
+        }
+    }
 }
 
 impl TryFrom<&ConfigOption> for BertConfig {

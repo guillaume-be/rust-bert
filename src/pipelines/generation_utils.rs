@@ -295,6 +295,12 @@ pub(crate) mod private_generation_utils {
         fn get_config(&self) -> &GenerateConfig;
         fn get_bos_id(&self) -> Option<i64>;
         fn get_eos_ids(&self) -> Option<&Vec<i64>>;
+        fn get_forced_bos_token_id(&self) -> Option<i64> {
+            None
+        }
+        fn get_forced_eos_token_id(&self) -> Option<i64> {
+            None
+        }
         fn get_pad_id(&self) -> Option<i64>;
         fn is_encoder_decoder(&self) -> bool;
         fn get_vocab_size(&self) -> i64;
@@ -316,11 +322,32 @@ pub(crate) mod private_generation_utils {
 
         fn prepare_scores_for_generation(
             &self,
-            _scores: &mut Tensor,
-            _current_length: i64,
-            _max_length: Option<i64>,
-            _forced_bos_token_id: Option<i64>,
+            scores: &mut Tensor,
+            current_length: i64,
+            max_length: Option<i64>,
+            forced_bos_token_id: Option<i64>,
         ) {
+            if current_length == 1 {
+                if let Some(forced_bos_token_id) =
+                    forced_bos_token_id.or(self.get_forced_bos_token_id())
+                {
+                    force_token_id_generation(
+                        scores,
+                        &[forced_bos_token_id],
+                        self.get_vocab_size(),
+                    );
+                }
+            } else if let Some(max_length) = max_length {
+                if let Some(forced_eos_token_id) = self.get_forced_eos_token_id() {
+                    if current_length == max_length - 1 {
+                        force_token_id_generation(
+                            scores,
+                            &[forced_eos_token_id],
+                            self.get_vocab_size(),
+                        );
+                    }
+                }
+            }
         }
 
         fn encode(&self, _input_ids: &Tensor, _attention_mask: Option<&Tensor>) -> Option<Tensor> {

@@ -17,7 +17,7 @@ use crate::pegasus::encoder::PegasusEncoder;
 use crate::pegasus::LayerState;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    force_token_id_generation, PreparedInput, PrivateLanguageGenerator,
+    PreparedInput, PrivateLanguageGenerator,
 };
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::{Config, RustBertError};
@@ -612,24 +612,6 @@ impl PrivateLanguageGenerator for PegasusConditionalGenerator {
             lm_logits: base_model_output.decoder_output,
             cache: Cache::BARTCache(base_model_output.cache),
         })
-    }
-
-    fn prepare_scores_for_generation(
-        &self,
-        scores: &mut Tensor,
-        current_length: i64,
-        max_length: Option<i64>,
-        _forced_bos_token_id: Option<i64>,
-    ) {
-        if let Some(max_length) = max_length {
-            if current_length == max_length - 1 {
-                force_token_id_generation(
-                    scores,
-                    self.get_eos_ids().as_ref().unwrap(),
-                    self.get_vocab_size(),
-                );
-            }
-        }
     }
 
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {

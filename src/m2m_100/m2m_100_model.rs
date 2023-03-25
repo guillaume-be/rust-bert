@@ -16,7 +16,7 @@ use crate::m2m_100::LayerState;
 use crate::mbart::{MBartConfig, MBartModelOutput};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    force_token_id_generation, PreparedInput, PrivateLanguageGenerator,
+    PreparedInput, PrivateLanguageGenerator,
 };
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::pipelines::translation::Language;
@@ -653,30 +653,6 @@ impl PrivateLanguageGenerator for M2M100Generator {
             lm_logits: base_model_output.decoder_output,
             cache: Cache::BARTCache(base_model_output.cache),
         })
-    }
-
-    fn prepare_scores_for_generation(
-        &self,
-        scores: &mut Tensor,
-        current_length: i64,
-        max_length: Option<i64>,
-        forced_bos_token_id: Option<i64>,
-    ) {
-        if current_length == 1 {
-            force_token_id_generation(
-                scores,
-                &[forced_bos_token_id.unwrap_or(250004)],
-                self.get_vocab_size(),
-            );
-        } else if let Some(max_length) = max_length {
-            if current_length == max_length - 1 {
-                force_token_id_generation(
-                    scores,
-                    self.get_eos_ids().as_ref().unwrap(),
-                    self.get_vocab_size(),
-                );
-            }
-        }
     }
 
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {

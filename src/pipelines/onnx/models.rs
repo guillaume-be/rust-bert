@@ -20,6 +20,8 @@ pub struct ONNXModelConfig {
     pub bos_token_id: Option<i64>,
     pub eos_token_ids: Option<Vec<i64>>,
     pub pad_token_id: Option<i64>,
+    pub forced_bos_token_id: Option<i64>,
+    pub forced_eos_token_id: Option<i64>,
     pub vocab_size: i64,
     pub decoder_start_token_id: Option<i64>,
     pub max_position_embeddings: Option<i64>,
@@ -35,6 +37,8 @@ pub struct ONNXCausalGenerator {
     tokenizer: TokenizerOption,
     bos_token_id: Option<i64>,
     eos_token_ids: Option<Vec<i64>>,
+    forced_bos_token_id: Option<i64>,
+    forced_eos_token_id: Option<i64>,
     pad_token_id: Option<i64>,
     is_encoder_decoder: bool,
     vocab_size: i64,
@@ -139,6 +143,8 @@ impl ONNXCausalGenerator {
 
         let bos_token_id = tokenizer.get_bos_id();
         let eos_token_ids = tokenizer.get_eos_id().map(|id| vec![id]);
+        let forced_bos_token_id = model_config.get_forced_bos_token_id();
+        let forced_eos_token_id = model_config.get_forced_eos_token_id();
         let pad_token_id = tokenizer.get_pad_id();
         let max_position_embeddings = model_config.get_max_len();
         let is_encoder_decoder = false;
@@ -153,6 +159,8 @@ impl ONNXCausalGenerator {
             tokenizer,
             bos_token_id,
             eos_token_ids,
+            forced_bos_token_id,
+            forced_eos_token_id,
             pad_token_id,
             is_encoder_decoder,
             vocab_size,
@@ -242,6 +250,12 @@ impl PrivateLanguageGenerator for ONNXCausalGenerator {
     }
     fn get_eos_ids(&self) -> Option<&Vec<i64>> {
         self.eos_token_ids.as_ref()
+    }
+    fn get_forced_bos_token_id(&self) -> Option<i64> {
+        self.forced_bos_token_id
+    }
+    fn get_forced_eos_token_id(&self) -> Option<i64> {
+        self.forced_eos_token_id
     }
     fn get_pad_id(&self) -> Option<i64> {
         self.pad_token_id
@@ -335,6 +349,8 @@ pub struct ONNXConditionalGenerator {
     tokenizer: TokenizerOption,
     bos_token_id: Option<i64>,
     eos_token_ids: Option<Vec<i64>>,
+    forced_bos_token_id: Option<i64>,
+    forced_eos_token_id: Option<i64>,
     pad_token_id: Option<i64>,
     is_encoder_decoder: bool,
     vocab_size: i64,
@@ -442,6 +458,8 @@ impl ONNXConditionalGenerator {
 
         let bos_token_id = tokenizer.get_bos_id();
         let eos_token_ids = tokenizer.get_eos_id().map(|id| vec![id]);
+        let forced_bos_token_id = model_config.get_forced_bos_token_id();
+        let forced_eos_token_id = model_config.get_forced_eos_token_id();
         let pad_token_id = tokenizer.get_pad_id();
         let max_position_embeddings = model_config.get_max_len();
         let is_encoder_decoder = true;
@@ -457,6 +475,8 @@ impl ONNXConditionalGenerator {
             tokenizer,
             bos_token_id,
             eos_token_ids,
+            forced_bos_token_id,
+            forced_eos_token_id,
             pad_token_id,
             is_encoder_decoder,
             vocab_size,
@@ -559,6 +579,12 @@ impl PrivateLanguageGenerator for ONNXConditionalGenerator {
     }
     fn get_eos_ids(&self) -> Option<&Vec<i64>> {
         self.eos_token_ids.as_ref()
+    }
+    fn get_forced_bos_token_id(&self) -> Option<i64> {
+        self.forced_bos_token_id
+    }
+    fn get_forced_eos_token_id(&self) -> Option<i64> {
+        self.forced_eos_token_id
     }
     fn get_pad_id(&self) -> Option<i64> {
         self.pad_token_id

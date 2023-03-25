@@ -17,7 +17,7 @@ use crate::mbart::encoder::MBartEncoder;
 use crate::mbart::LayerState;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    force_token_id_generation, PreparedInput, PrivateLanguageGenerator,
+    PreparedInput, PrivateLanguageGenerator,
 };
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::pipelines::translation::Language;
@@ -99,6 +99,7 @@ pub struct MBartConfig {
     pub bos_token_id: Option<i64>,
     pub eos_token_id: Option<i64>,
     pub pad_token_id: Option<i64>,
+    pub forced_bos_token_id: Option<i64>,
     pub forced_eos_token_id: Option<i64>,
     pub decoder_start_token_id: Option<i64>,
     pub id2label: Option<HashMap<i64, String>>,
@@ -138,6 +139,7 @@ impl Default for MBartConfig {
             bos_token_id: Some(0),
             eos_token_id: Some(2),
             pad_token_id: Some(1),
+            forced_bos_token_id: None,
             forced_eos_token_id: Some(2),
             decoder_start_token_id: None,
             id2label: None,
@@ -725,6 +727,7 @@ pub struct MBartGenerator {
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
     eos_token_ids: Option<Vec<i64>>,
+    forced_eos_token_id: Option<i64>,
     pad_token_id: Option<i64>,
     is_encoder_decoder: bool,
     vocab_size: i64,
@@ -806,6 +809,7 @@ impl MBartGenerator {
             Some(value) => vec![value],
             None => vec![2],
         });
+        let forced_eos_token_id = config.forced_eos_token_id;
         let pad_token_id = Some(config.pad_token_id.unwrap_or(1));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
@@ -819,6 +823,7 @@ impl MBartGenerator {
             generate_config,
             bos_token_id,
             eos_token_ids,
+            forced_eos_token_id,
             pad_token_id,
             is_encoder_decoder,
             vocab_size,
@@ -846,6 +851,9 @@ impl PrivateLanguageGenerator for MBartGenerator {
     }
     fn get_eos_ids(&self) -> Option<&Vec<i64>> {
         self.eos_token_ids.as_ref()
+    }
+    fn get_forced_eos_token_id(&self) -> Option<i64> {
+        self.forced_eos_token_id
     }
     fn get_pad_id(&self) -> Option<i64> {
         self.pad_token_id
@@ -907,30 +915,6 @@ impl PrivateLanguageGenerator for MBartGenerator {
 
     fn get_max_positions_embeddings(&self) -> Option<i64> {
         Some(self.max_position_embeddings)
-    }
-
-    fn prepare_scores_for_generation(
-        &self,
-        scores: &mut Tensor,
-        current_length: i64,
-        max_length: Option<i64>,
-        forced_bos_token_id: Option<i64>,
-    ) {
-        if current_length == 1 {
-            force_token_id_generation(
-                scores,
-                &[forced_bos_token_id.unwrap_or(250004)],
-                self.get_vocab_size(),
-            );
-        } else if let Some(max_length) = max_length {
-            if current_length == max_length - 1 {
-                force_token_id_generation(
-                    scores,
-                    self.get_eos_ids().as_ref().unwrap(),
-                    self.get_vocab_size(),
-                );
-            }
-        }
     }
 
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {

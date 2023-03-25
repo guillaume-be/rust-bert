@@ -19,7 +19,7 @@ use crate::common::dropout::Dropout;
 use crate::common::kind::get_min;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    force_token_id_generation, PreparedInput, PrivateLanguageGenerator,
+    PreparedInput, PrivateLanguageGenerator,
 };
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::{Config, RustBertError};
@@ -100,12 +100,12 @@ impl BartConfigResources {
     /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-6-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
         "distilbart-cnn-6-6/config",
-        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/config.json",
+        "https://huggingface.co/sshleifer/distilbart-cnn-6-6/resolve/main/config.json",
     );
     /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-12-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
         "distilbart-cnn-12-6/config",
-        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/config.json",
+        "https://huggingface.co/sshleifer/distilbart-cnn-12-6/resolve/main/config.json",
     );
 }
 
@@ -133,12 +133,12 @@ impl BartVocabResources {
     /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-6-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
         "distilbart-cnn-6-6/vocab",
-        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/vocab.json",
+        "https://huggingface.co/sshleifer/distilbart-cnn-6-6/resolve/main/vocab.json",
     );
     /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-12-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
         "distilbart-cnn-12-6/vocab",
-        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/vocab.json",
+        "https://huggingface.co/sshleifer/distilbart-cnn-12-6/resolve/main/vocab.json",
     );
 }
 
@@ -166,12 +166,12 @@ impl BartMergesResources {
     /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-6-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_6_6: (&'static str, &'static str) = (
         "distilbart-cnn-6-6/merges",
-        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-6-6/merges.txt",
+        "https://huggingface.co/sshleifer/distilbart-cnn-6-6/resolve/main/merges.txt",
     );
     /// Shared under Apache 2.0 license by the Hugging Face team at <https://huggingface.co/sshleifer/distilbart-cnn-12-6>. Modified with conversion to C-array format.
     pub const DISTILBART_CNN_12_6: (&'static str, &'static str) = (
         "distilbart-cnn-12-6/merges",
-        "https://cdn.huggingface.co/sshleifer/distilbart-cnn-12-6/merges.txt",
+        "https://huggingface.co/sshleifer/distilbart-cnn-12-6/resolve/main/merges.txt",
     );
 }
 
@@ -197,6 +197,8 @@ pub struct BartConfig {
     pub encoder_layers: i64,
     pub bos_token_id: Option<i64>,
     pub eos_token_id: Option<i64>,
+    pub forced_bos_token_id: Option<i64>,
+    pub forced_eos_token_id: Option<i64>,
     pub pad_token_id: Option<i64>,
     pub id2label: Option<HashMap<i64, String>>,
     pub label2id: Option<HashMap<String, i64>>,
@@ -920,6 +922,8 @@ pub struct BartGenerator {
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
     eos_token_ids: Option<Vec<i64>>,
+    forced_bos_token_id: Option<i64>,
+    forced_eos_token_id: Option<i64>,
     pad_token_id: Option<i64>,
     is_encoder_decoder: bool,
     vocab_size: i64,
@@ -1009,11 +1013,15 @@ impl BartGenerator {
             Some(value) => vec![value],
             None => vec![2],
         });
+        let forced_bos_token_id = config.forced_bos_token_id;
+        let forced_eos_token_id = config.forced_eos_token_id;
         let pad_token_id = Some(config.pad_token_id.unwrap_or(1));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
         let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
+
+        println!("{:?}", forced_bos_token_id);
 
         Ok(BartGenerator {
             model,
@@ -1022,6 +1030,8 @@ impl BartGenerator {
             generate_config,
             bos_token_id,
             eos_token_ids,
+            forced_bos_token_id,
+            forced_eos_token_id,
             pad_token_id,
             is_encoder_decoder,
             vocab_size,
@@ -1049,6 +1059,12 @@ impl PrivateLanguageGenerator for BartGenerator {
     }
     fn get_eos_ids(&self) -> Option<&Vec<i64>> {
         self.eos_token_ids.as_ref()
+    }
+    fn get_forced_bos_token_id(&self) -> Option<i64> {
+        self.forced_bos_token_id
+    }
+    fn get_forced_eos_token_id(&self) -> Option<i64> {
+        self.forced_eos_token_id
     }
     fn get_pad_id(&self) -> Option<i64> {
         self.pad_token_id
@@ -1109,30 +1125,6 @@ impl PrivateLanguageGenerator for BartGenerator {
             lm_logits: base_model_output.decoder_output,
             cache: Cache::BARTCache(base_model_output.cache),
         })
-    }
-
-    fn prepare_scores_for_generation(
-        &self,
-        scores: &mut Tensor,
-        current_length: i64,
-        max_length: Option<i64>,
-        forced_bos_token_id: Option<i64>,
-    ) {
-        if current_length == 1 {
-            force_token_id_generation(
-                scores,
-                &[forced_bos_token_id.unwrap_or_else(|| self.get_bos_id().unwrap())],
-                self.get_vocab_size(),
-            );
-        } else if let Some(max_length) = max_length {
-            if current_length == max_length - 1 {
-                force_token_id_generation(
-                    scores,
-                    self.get_eos_ids().as_ref().unwrap(),
-                    self.get_vocab_size(),
-                );
-            }
-        }
     }
 
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {

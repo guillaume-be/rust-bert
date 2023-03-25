@@ -195,6 +195,8 @@ pub struct Gpt2Config {
     pub resid_pdrop: Option<f64>,
     pub vocab_size: i64,
     pub decoder_start_token_id: Option<i64>,
+    pub forced_bos_token_id: Option<i64>,
+    pub forced_eos_token_id: Option<i64>,
 }
 
 impl Config for Gpt2Config {}
@@ -220,6 +222,8 @@ impl Default for Gpt2Config {
             resid_pdrop: Some(0.1),
             vocab_size: 50257,
             decoder_start_token_id: None,
+            forced_bos_token_id: None,
+            forced_eos_token_id: None,
         }
     }
 }

@@ -136,6 +136,8 @@ pub struct GptJConfig {
     #[serde(default = "default_preload_on_cpu")]
     pub preload_on_cpu: bool,
     pub decoder_start_token_id: Option<i64>,
+    pub forced_bos_token_id: Option<i64>,
+    pub forced_eos_token_id: Option<i64>,
 }
 
 impl Config for GptJConfig {}
@@ -165,6 +167,8 @@ impl Default for GptJConfig {
             use_float16: default_use_float16(),
             preload_on_cpu: default_preload_on_cpu(),
             decoder_start_token_id: None,
+            forced_bos_token_id: None,
+            forced_eos_token_id: None,
         }
     }
 }
