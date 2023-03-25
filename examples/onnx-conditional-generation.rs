@@ -1,17 +1,13 @@
-use std::path::PathBuf;
-
-use ort::ExecutionProvider;
 use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
 use rust_bert::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
-use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
-
 use rust_bert::pipelines::onnx::models::ONNXConditionalGenerator;
 use rust_bert::resources::LocalResource;
+use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let onnx_causal_decoder = ONNXConditionalGenerator::new(
+    let onnx_conditional_generator = ONNXConditionalGenerator::new(
         GenerateConfig {
             model_type: ModelType::Marian,
             model_resource: ModelResources::ONNX(ONNXModelResources {
@@ -39,13 +35,10 @@ fn main() -> anyhow::Result<()> {
             ..Default::default()
         },
         None,
-        Some(&ONNXEnvironmentConfig {
-            execution_providers: Some(vec![ExecutionProvider::cuda()]),
-            ..Default::default()
-        }),
+        None,
     )?;
 
-    let output = onnx_causal_decoder.generate(Some(&["Hello my name is John."]), None);
+    let output = onnx_conditional_generator.generate(Some(&["Hello my name is John."]), None);
     println!("{:?}", output);
     Ok(())
 }

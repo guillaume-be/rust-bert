@@ -19,7 +19,7 @@
 //!
 //! ```no_run
 //! # fn main() -> anyhow::Result<()> {
-//! use rust_bert::pipelines::common::ModelType;
+//! use rust_bert::pipelines::common::{ModelResources, ModelType};
 //! use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 //! use rust_bert::resources::RemoteResource;
@@ -35,7 +35,7 @@
 //! ));
 //! let generate_config = TextGenerationConfig {
 //!     model_type: ModelType::XLNet,
-//!     model_resource,
+//!     model_resource: ModelResources::TORCH(model_resource),
 //!     config_resource,
 //!     vocab_resource,
 //!     merges_resource: None,

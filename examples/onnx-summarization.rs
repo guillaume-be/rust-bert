@@ -1,35 +1,41 @@
-// Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
-// Copyright 2019 Guillaume Becquin
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+use std::path::PathBuf;
 
-extern crate anyhow;
-
-use rust_bert::pipelines::common::{ModelResources, ModelType};
+use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
-use rust_bert::resources::RemoteResource;
-use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
+use rust_bert::resources::LocalResource;
 
 fn main() -> anyhow::Result<()> {
-    let config_resource = RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL);
-    let vocab_resource = RemoteResource::from_pretrained(T5VocabResources::T5_SMALL);
-    let weights_resource = RemoteResource::from_pretrained(T5ModelResources::T5_SMALL);
+    tracing_subscriber::fmt::init();
 
-    let summarization_config = SummarizationConfig::new(
-        ModelType::T5,
-        ModelResources::TORCH(Box::new(weights_resource)),
-        config_resource,
-        vocab_resource,
-        None,
-    );
-    let summarization_model = SummarizationModel::new(summarization_config)?;
+    let summarization_model = SummarizationModel::new(SummarizationConfig {
+        model_type: ModelType::Bart,
+        model_resource: ModelResources::ONNX(ONNXModelResources {
+            encoder_resource: Some(Box::new(LocalResource::from(PathBuf::from(
+                "E:/Coding/distilbart-cnn-6-6/encoder_model.onnx",
+            )))),
+            decoder_resource: Some(Box::new(LocalResource::from(PathBuf::from(
+                "E:/Coding/distilbart-cnn-6-6/decoder_model.onnx",
+            )))),
+            decoder_with_past_resource: Some(Box::new(LocalResource::from(PathBuf::from(
+                "E:/Coding/distilbart-cnn-6-6/decoder_with_past_model.onnx",
+            )))),
+        }),
+        config_resource: Box::new(LocalResource::from(PathBuf::from(
+            "E:/Coding/distilbart-cnn-6-6/config.json",
+        ))),
+        vocab_resource: Box::new(LocalResource::from(PathBuf::from(
+            "E:/Coding/distilbart-cnn-6-6/vocab.json",
+        ))),
+        merges_resource: Some(Box::new(LocalResource::from(PathBuf::from(
+            "E:/Coding/distilbart-cnn-6-6/merges.txt",
+        )))),
+        num_beams: 1,
+        length_penalty: 1.0,
+        min_length: 56,
+        max_length: Some(142),
+        do_sample: false,
+        ..Default::default()
+    })?;
 
     let input = ["In findings published Tuesday in Cornell University's arXiv by a team of scientists \
 from the University of Montreal and a separate report published Wednesday in Nature Astronomy by a team \
@@ -53,11 +59,7 @@ on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optim
 telescope — scheduled for launch in 2021 — and the European Space Agency's 2028 ARIEL program, could reveal more \
 about exoplanets like K2-18b."];
 
-    //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let _output = summarization_model.summarize(&input);
-    for sentence in _output {
-        println!("{sentence}");
-    }
-
+    let output = summarization_model.summarize(&input);
+    println!("{:?}", output);
     Ok(())
 }

@@ -19,7 +19,7 @@ use crate::common::dropout::Dropout;
 use crate::common::kind::get_min;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    PreparedInput, PrivateLanguageGenerator,
+    force_token_id_generation, PreparedInput, PrivateLanguageGenerator,
 };
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::{Config, RustBertError};
@@ -240,6 +240,8 @@ impl Default for BartConfig {
             bos_token_id: Some(0),
             eos_token_id: Some(2),
             pad_token_id: Some(1),
+            forced_bos_token_id: Some(0),
+            forced_eos_token_id: Some(2),
             id2label: None,
             label2id: None,
             init_std: 0.02,
@@ -1027,14 +1029,6 @@ impl BartGenerator {
             max_position_embeddings,
         })
     }
-
-    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
-            .filter(|pos| !token_ids.contains(pos))
-            .collect();
-        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
-    }
 }
 
 impl PrivateLanguageGenerator for BartGenerator {
@@ -1125,13 +1119,18 @@ impl PrivateLanguageGenerator for BartGenerator {
         forced_bos_token_id: Option<i64>,
     ) {
         if current_length == 1 {
-            self.force_token_id_generation(
+            force_token_id_generation(
                 scores,
                 &[forced_bos_token_id.unwrap_or_else(|| self.get_bos_id().unwrap())],
+                self.get_vocab_size(),
             );
         } else if let Some(max_length) = max_length {
             if current_length == max_length - 1 {
-                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+                force_token_id_generation(
+                    scores,
+                    self.get_eos_ids().as_ref().unwrap(),
+                    self.get_vocab_size(),
+                );
             }
         }
     }

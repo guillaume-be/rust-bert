@@ -7,11 +7,11 @@ use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
 use crate::pipelines::onnx::decoder::ONNXDecoder;
 use crate::pipelines::onnx::encoder::ONNXEncoder;
 use crate::{Config, RustBertError};
+
 use ort::{Environment, ExecutionProvider};
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tch::{nn, Device, Kind, Tensor};
 
@@ -45,22 +45,64 @@ pub struct ONNXCausalGenerator {
 
 impl ONNXCausalGenerator {
     pub fn new(
-        decoder_without_past_file: Option<PathBuf>,
-        decoder_with_past_file: Option<PathBuf>,
-        onnx_config: &ONNXEnvironmentConfig,
+        generate_config: GenerateConfig,
+        environment: Option<&Arc<Environment>>,
+        onnx_config: Option<&ONNXEnvironmentConfig>,
+    ) -> Result<Self, RustBertError> {
+        let vocab_path = generate_config.vocab_resource.get_local_path()?;
+        let merges_path = generate_config
+            .merges_resource
+            .as_ref()
+            .map(|r| r.get_local_path())
+            .transpose()?;
+
+        let tokenizer = TokenizerOption::from_file(
+            generate_config.model_type,
+            vocab_path.to_str().unwrap(),
+            merges_path.as_ref().and_then(|path| path.to_str()),
+            false,
+            None,
+            None,
+        )?;
+
+        Self::new_with_tokenizer(generate_config, tokenizer, environment, onnx_config)
+    }
+
+    pub fn new_with_tokenizer(
         generate_config: GenerateConfig,
         tokenizer: TokenizerOption,
-        model_config: ConfigOption,
         environment: Option<&Arc<Environment>>,
+        onnx_config: Option<&ONNXEnvironmentConfig>,
     ) -> Result<Self, RustBertError> {
+        let config_path = generate_config.config_resource.get_local_path()?;
+        let model_config = ConfigOption::from_file(generate_config.model_type, config_path);
+
+        let (_, decoder_without_past_file, decoder_with_past_file) =
+            generate_config.model_resource.get_onnx_local_paths()?;
+
         if decoder_without_past_file.is_none() & decoder_with_past_file.is_none() {
             return Err(RustBertError::InvalidConfigurationError("Must provide at least one of `decoder_without_past_file`, `decoder_with_past_file`, both set to None".to_string()));
         }
 
+        let default_onnx_config = if onnx_config.is_none() {
+            let mut execution_providers = Vec::new();
+            if let Device::Cuda(_) = generate_config.device {
+                execution_providers.push(ExecutionProvider::cuda());
+            };
+            execution_providers.push(ExecutionProvider::cpu());
+            Some(ONNXEnvironmentConfig {
+                execution_providers: Some(execution_providers),
+                ..Default::default()
+            })
+        } else {
+            None
+        };
+        let onnx_config = onnx_config.unwrap_or_else(|| &default_onnx_config.as_ref().unwrap());
+
         let local_environment = if environment.is_none() {
             Some(Arc::new(
                 Environment::builder()
-                    .with_name("ONNXCausalGenerator environment")
+                    .with_name("ONNXConditionalGenerator environment")
                     .with_execution_providers(
                         onnx_config
                             .execution_providers
@@ -84,7 +126,6 @@ impl ONNXCausalGenerator {
         } else {
             None
         };
-
         let decoder_with_past = if let Some(model_file) = decoder_with_past_file {
             Some(ONNXDecoder::new(
                 model_file,
@@ -344,7 +385,15 @@ impl ONNXConditionalGenerator {
         }
 
         let default_onnx_config = if onnx_config.is_none() {
-            Some(ONNXEnvironmentConfig::default())
+            let mut execution_providers = Vec::new();
+            if let Device::Cuda(_) = generate_config.device {
+                execution_providers.push(ExecutionProvider::cuda());
+            };
+            execution_providers.push(ExecutionProvider::cpu());
+            Some(ONNXEnvironmentConfig {
+                execution_providers: Some(execution_providers),
+                ..Default::default()
+            })
         } else {
             None
         };
@@ -416,85 +465,6 @@ impl ONNXConditionalGenerator {
             use_past,
         })
     }
-
-    // pub fn new(
-    //     encoder_file: PathBuf,
-    //     decoder_without_past_file: Option<PathBuf>,
-    //     decoder_with_past_file: Option<PathBuf>,
-    //     onnx_config: &ONNXEnvironmentConfig,
-    //     generate_config: GenerateConfig,
-    //     tokenizer: TokenizerOption,
-    //     model_config: ConfigOption,
-    //     environment: Option<&Arc<Environment>>,
-    // ) -> Result<Self, RustBertError> {
-    //     if decoder_without_past_file.is_none() & decoder_with_past_file.is_none() {
-    //         return Err(RustBertError::InvalidConfigurationError("Must provide at least one of `decoder_without_past_file`, `decoder_with_past_file`, both set to None".to_string()));
-    //     }
-    //
-    //     let local_environment = if environment.is_none() {
-    //         Some(Arc::new(
-    //             Environment::builder()
-    //                 .with_name("ONNXConditionalGenerator environment")
-    //                 .with_execution_providers(
-    //                     onnx_config
-    //                         .execution_providers
-    //                         .clone()
-    //                         .unwrap_or(vec![ExecutionProvider::cpu()]),
-    //                 )
-    //                 .build()?,
-    //         ))
-    //     } else {
-    //         None
-    //     };
-    //     let environment = environment.unwrap_or_else(|| local_environment.as_ref().unwrap());
-    //
-    //     let encoder = ONNXEncoder::new(encoder_file, environment, onnx_config)?;
-    //     let decoder_without_past = if let Some(model_file) = decoder_without_past_file {
-    //         Some(ONNXDecoder::new(
-    //             model_file,
-    //             true,
-    //             environment,
-    //             onnx_config,
-    //         )?)
-    //     } else {
-    //         None
-    //     };
-    //     let decoder_with_past = if let Some(model_file) = decoder_with_past_file {
-    //         Some(ONNXDecoder::new(
-    //             model_file,
-    //             true,
-    //             environment,
-    //             onnx_config,
-    //         )?)
-    //     } else {
-    //         None
-    //     };
-    //
-    //     let bos_token_id = tokenizer.get_bos_id();
-    //     let eos_token_ids = tokenizer.get_eos_id().map(|id| vec![id]);
-    //     let pad_token_id = tokenizer.get_pad_id();
-    //     let max_position_embeddings = model_config.get_max_len();
-    //     let is_encoder_decoder = true;
-    //     let vocab_size = model_config.get_vocab_size();
-    //     let decoder_start_id = model_config.get_decoder_start_token_id();
-    //     let use_past = decoder_with_past.is_some();
-    //
-    //     Ok(Self {
-    //         encoder,
-    //         decoder_without_past,
-    //         decoder_with_past,
-    //         generate_config,
-    //         tokenizer,
-    //         bos_token_id,
-    //         eos_token_ids,
-    //         pad_token_id,
-    //         is_encoder_decoder,
-    //         vocab_size,
-    //         decoder_start_id,
-    //         max_position_embeddings,
-    //         use_past,
-    //     })
-    // }
 
     pub fn forward(
         &self,

@@ -249,7 +249,7 @@ pub(crate) mod private_generation_utils {
     };
 
     use super::ordered_float::OrderedFloat;
-    use crate::common::kind::get_positive_infinity;
+    use crate::common::kind::{get_negative_infinity, get_positive_infinity};
     use crate::RustBertError;
 
     pub struct InternalGenerateOptions<'a> {
@@ -1520,6 +1520,18 @@ pub(crate) mod private_generation_utils {
                 }
             }
         }
+    }
+
+    pub fn force_token_id_generation(scores: &mut Tensor, token_ids: &[i64], vocab_size: i64) {
+        let impossible_tokens: Vec<i64> = (0..vocab_size)
+            .filter(|pos| !token_ids.contains(pos))
+            .collect();
+        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
+        let _ = scores.index_fill_(
+            1,
+            &impossible_tokens,
+            get_negative_infinity(scores.kind()).unwrap(),
+        );
     }
 }
 

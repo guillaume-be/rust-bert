@@ -16,7 +16,7 @@ use crate::m2m_100::LayerState;
 use crate::mbart::{MBartConfig, MBartModelOutput};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    PreparedInput, PrivateLanguageGenerator,
+    force_token_id_generation, PreparedInput, PrivateLanguageGenerator,
 };
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::pipelines::translation::Language;
@@ -573,14 +573,6 @@ impl M2M100Generator {
             max_position_embeddings,
         })
     }
-
-    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
-            .filter(|pos| !token_ids.contains(pos))
-            .collect();
-        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
-    }
 }
 
 impl PrivateLanguageGenerator for M2M100Generator {
@@ -671,10 +663,18 @@ impl PrivateLanguageGenerator for M2M100Generator {
         forced_bos_token_id: Option<i64>,
     ) {
         if current_length == 1 {
-            self.force_token_id_generation(scores, &[forced_bos_token_id.unwrap_or(250004)]);
+            force_token_id_generation(
+                scores,
+                &[forced_bos_token_id.unwrap_or(250004)],
+                self.get_vocab_size(),
+            );
         } else if let Some(max_length) = max_length {
             if current_length == max_length - 1 {
-                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+                force_token_id_generation(
+                    scores,
+                    self.get_eos_ids().as_ref().unwrap(),
+                    self.get_vocab_size(),
+                );
             }
         }
     }

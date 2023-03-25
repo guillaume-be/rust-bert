@@ -1,10 +1,11 @@
-use crate::pipelines::common::{ModelResources, ModelType};
+use crate::pipelines::common::ModelType;
 use crate::pipelines::translation::Language;
 use std::fmt::Debug;
 use tch::Device;
 
 #[cfg(feature = "remote")]
 use crate::{
+    pipelines::common::ModelResources,
     pipelines::translation::{TranslationConfig, TranslationModel},
     resources::ResourceProvider,
     RustBertError,

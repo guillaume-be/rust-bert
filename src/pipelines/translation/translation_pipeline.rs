@@ -550,17 +550,18 @@ pub enum TranslationOption {
 
 impl TranslationOption {
     pub fn new(config: TranslationConfig) -> Result<Self, RustBertError> {
-        match config.model_type {
-            // match (config.model_type, config.model_resource) {
-            // (_, ModelResources::ONNX(_)) => Ok(TranslationOption::ONNX(ONNXConditionalGenerator::new()))
-            ModelType::Marian => Ok(TranslationOption::Marian(MarianGenerator::new(
+        match (config.model_type, &config.model_resource) {
+            (_, &ModelResources::ONNX(_)) => Ok(TranslationOption::ONNX(
+                ONNXConditionalGenerator::new(config.into(), None, None)?,
+            )),
+            (ModelType::Marian, _) => Ok(TranslationOption::Marian(MarianGenerator::new(
                 config.into(),
             )?)),
-            ModelType::T5 => Ok(TranslationOption::T5(T5Generator::new(config.into())?)),
-            ModelType::MBart => Ok(TranslationOption::MBart(MBartGenerator::new(
+            (ModelType::T5, _) => Ok(TranslationOption::T5(T5Generator::new(config.into())?)),
+            (ModelType::MBart, _) => Ok(TranslationOption::MBart(MBartGenerator::new(
                 config.into(),
             )?)),
-            ModelType::M2M100 => Ok(TranslationOption::M2M100(M2M100Generator::new(
+            (ModelType::M2M100, _) => Ok(TranslationOption::M2M100(M2M100Generator::new(
                 config.into(),
             )?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
@@ -570,8 +571,33 @@ impl TranslationOption {
         }
     }
 
-    // ToDo: rework all pipeline configs and store the model configs in an enum with either TorchModelResources or ONNXModelResources
-    // ToDo: add new_with_tokenizer (to be used for ONNX models)
+    pub fn new_with_tokenizer(
+        config: TranslationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<Self, RustBertError> {
+        match (config.model_type, &config.model_resource) {
+            (_, &ModelResources::ONNX(_)) => Ok(TranslationOption::ONNX(
+                ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
+            )),
+            (ModelType::Marian, _) => Ok(TranslationOption::Marian(
+                MarianGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            (ModelType::T5, _) => Ok(TranslationOption::T5(T5Generator::new_with_tokenizer(
+                config.into(),
+                tokenizer,
+            )?)),
+            (ModelType::MBart, _) => Ok(TranslationOption::MBart(
+                MBartGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            (ModelType::M2M100, _) => Ok(TranslationOption::M2M100(
+                M2M100Generator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Translation not implemented for {:?}!",
+                config.model_type
+            ))),
+        }
+    }
 
     /// Returns the `ModelType` for this TranslationOption
     pub fn model_type(&self) -> ModelType {

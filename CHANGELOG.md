@@ -12,7 +12,8 @@ All notable changes to this project will be documented in this file. The format 
 - Upgraded to `torch` 2.0 (via `tch` 0.11.0)
 - Read the `decoder_start_token_id` from the provided configuration rather than using a hard-coded default value
 - (BREAKING) Changed the return type of the `LanguageGenerator` and pipelines functions `float`, `half`, `set_device` to `Result<(), RustBertError>` as these become fallible for ONNX models
-- (BREAKING) Wrapped the model resources specification for the pipeline `Config` objects into an `Enum` to allow handling both torch-based and ONNX models.
+- (BREAKING) Wrapped the model resources specification for the pipeline `Config` objects into an `Enum` to allow handling both torch-based and ONNX models. 
+  The `model_resources` field now needs to be wrapped in the corresponding enum variant, e.g. `model_resources: ModelResources::TORCH(model_resource)` for Torch-based models
 
 ## Fixed
 - MIN/MAX computation for float-like (was set to infinity instead of min/max)

@@ -67,13 +67,14 @@ use tch::Device;
 use crate::bart::BartGenerator;
 use crate::common::error::RustBertError;
 use crate::pegasus::PegasusConditionalGenerator;
-use crate::pipelines::common::{ModelResources, ModelType};
+use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::prophetnet::ProphetNetConditionalGenerator;
 use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 
 use crate::longt5::LongT5Generator;
+use crate::pipelines::onnx::models::ONNXConditionalGenerator;
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
@@ -228,23 +229,59 @@ pub enum SummarizationOption {
     ProphetNet(ProphetNetConditionalGenerator),
     /// Summarizer based on Pegasus model
     Pegasus(PegasusConditionalGenerator),
+    /// Summarizer based on ONNX model
+    ONNX(ONNXConditionalGenerator),
 }
 
 impl SummarizationOption {
     pub fn new(config: SummarizationConfig) -> Result<Self, RustBertError> {
-        match config.model_type {
-            ModelType::Bart => Ok(SummarizationOption::Bart(BartGenerator::new(
+        match (config.model_type, &config.model_resource) {
+            (_, &ModelResources::ONNX(_)) => Ok(SummarizationOption::ONNX(
+                ONNXConditionalGenerator::new(config.into(), None, None)?,
+            )),
+            (ModelType::Bart, _) => Ok(SummarizationOption::Bart(BartGenerator::new(
                 config.into(),
             )?)),
-            ModelType::T5 => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
-            ModelType::LongT5 => Ok(SummarizationOption::LongT5(LongT5Generator::new(
+            (ModelType::T5, _) => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
+            (ModelType::LongT5, _) => Ok(SummarizationOption::LongT5(LongT5Generator::new(
                 config.into(),
             )?)),
-            ModelType::ProphetNet => Ok(SummarizationOption::ProphetNet(
+            (ModelType::ProphetNet, _) => Ok(SummarizationOption::ProphetNet(
                 ProphetNetConditionalGenerator::new(config.into())?,
             )),
-            ModelType::Pegasus => Ok(SummarizationOption::Pegasus(
+            (ModelType::Pegasus, _) => Ok(SummarizationOption::Pegasus(
                 PegasusConditionalGenerator::new(config.into())?,
+            )),
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Summarization not implemented for {:?}!",
+                config.model_type
+            ))),
+        }
+    }
+
+    pub fn new_with_tokenizer(
+        config: SummarizationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<Self, RustBertError> {
+        match (config.model_type, &config.model_resource) {
+            (_, &ModelResources::ONNX(_)) => Ok(SummarizationOption::ONNX(
+                ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
+            )),
+            (ModelType::Bart, _) => Ok(SummarizationOption::Bart(
+                BartGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            (ModelType::T5, _) => Ok(SummarizationOption::T5(T5Generator::new_with_tokenizer(
+                config.into(),
+                tokenizer,
+            )?)),
+            (ModelType::LongT5, _) => Ok(SummarizationOption::LongT5(
+                LongT5Generator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            (ModelType::ProphetNet, _) => Ok(SummarizationOption::ProphetNet(
+                ProphetNetConditionalGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            (ModelType::Pegasus, _) => Ok(SummarizationOption::Pegasus(
+                PegasusConditionalGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Summarization not implemented for {:?}!",
@@ -261,6 +298,7 @@ impl SummarizationOption {
             Self::LongT5(_) => ModelType::LongT5,
             Self::ProphetNet(_) => ModelType::ProphetNet,
             Self::Pegasus(_) => ModelType::Pegasus,
+            Self::ONNX(_) => ModelType::ONNX,
         }
     }
 
@@ -291,6 +329,11 @@ impl SummarizationOption {
                 .map(|output| output.text)
                 .collect(),
             Self::Pegasus(ref model) => model
+                .generate(prompt_texts, None)
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
+            Self::ONNX(ref model) => model
                 .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)

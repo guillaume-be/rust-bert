@@ -11,14 +11,13 @@
 // limitations under the License.
 
 use crate::bart::BartModelOutput;
-use crate::common::kind::get_negative_infinity;
 use crate::mbart::MBartConfig;
 use crate::pegasus::decoder::PegasusDecoder;
 use crate::pegasus::encoder::PegasusEncoder;
 use crate::pegasus::LayerState;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    PreparedInput, PrivateLanguageGenerator,
+    force_token_id_generation, PreparedInput, PrivateLanguageGenerator,
 };
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::{Config, RustBertError};
@@ -534,18 +533,6 @@ impl PegasusConditionalGenerator {
             max_position_embeddings,
         })
     }
-
-    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
-            .filter(|pos| !token_ids.contains(pos))
-            .collect();
-        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(
-            1,
-            &impossible_tokens,
-            get_negative_infinity(scores.kind()).unwrap(),
-        );
-    }
 }
 
 impl PrivateLanguageGenerator for PegasusConditionalGenerator {
@@ -636,7 +623,11 @@ impl PrivateLanguageGenerator for PegasusConditionalGenerator {
     ) {
         if let Some(max_length) = max_length {
             if current_length == max_length - 1 {
-                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+                force_token_id_generation(
+                    scores,
+                    self.get_eos_ids().as_ref().unwrap(),
+                    self.get_vocab_size(),
+                );
             }
         }
     }

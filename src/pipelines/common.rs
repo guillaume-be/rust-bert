@@ -59,7 +59,7 @@ use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 /// Container for ONNX model resources, containing 3 optional resources (Encoder, Decoder and Decoder with past)
 pub struct ONNXModelResources {
     /// Model encoder resource

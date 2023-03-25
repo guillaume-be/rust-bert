@@ -16,7 +16,7 @@ use rust_bert::mbart::{
     MBartConfigResources, MBartModelResources, MBartSourceLanguages, MBartTargetLanguages,
     MBartVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResources, ModelType};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::RemoteResource;
 use tch::Device;
@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
 
     let translation_config = TranslationConfig::new(
         ModelType::MBart,
-        model_resource,
+        ModelResources::TORCH(Box::new(model_resource)),
         config_resource,
         vocab_resource,
         None,
