@@ -225,8 +225,8 @@ impl SequenceClassificationOption {
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &SequenceClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::TORCH(_) => SequenceClassificationOption::new_torch(config),
-            ModelResources::ONNX(_) => SequenceClassificationOption::new_onnx(config),
+            ModelResources::TORCH(_) => Self::new_torch(config),
+            ModelResources::ONNX(_) => Self::new_onnx(config),
         }
     }
 
@@ -397,7 +397,7 @@ impl SequenceClassificationOption {
         let environment = onnx_config.get_environment()?;
         let (encoder_file, _, _) = config.model_resource.get_onnx_local_paths()?;
 
-        Ok(SequenceClassificationOption::ONNX(ONNXEncoder::new(
+        Ok(Self::ONNX(ONNXEncoder::new(
             encoder_file.ok_or(RustBertError::InvalidConfigurationError(
                 "An encoder file must be provided for Sequence classification ONNX models."
                     .to_string(),

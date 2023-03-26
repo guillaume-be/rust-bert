@@ -345,12 +345,12 @@ impl TokenClassificationOption {
     ///
     /// # Arguments
     ///
-    /// * `SequenceClassificationConfig` - Sequence classification pipeline configuration. The type of model created will be inferred from the
+    /// * `TokenClassificationConfig` - Token classification pipeline configuration. The type of model created will be inferred from the
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::TORCH(_) => TokenClassificationOption::new_torch(config),
-            ModelResources::ONNX(_) => TokenClassificationOption::new_onnx(config),
+            ModelResources::TORCH(_) => Self::new_torch(config),
+            ModelResources::ONNX(_) => Self::new_onnx(config),
         }
     }
 
@@ -510,7 +510,7 @@ impl TokenClassificationOption {
         let environment = onnx_config.get_environment()?;
         let (encoder_file, _, _) = config.model_resource.get_onnx_local_paths()?;
 
-        Ok(TokenClassificationOption::ONNX(ONNXEncoder::new(
+        Ok(Self::ONNX(ONNXEncoder::new(
             encoder_file.ok_or(RustBertError::InvalidConfigurationError(
                 "An encoder file must be provided for Token classification ONNX models."
                     .to_string(),

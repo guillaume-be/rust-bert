@@ -249,12 +249,12 @@ impl ZeroShotClassificationOption {
     ///
     /// # Arguments
     ///
-    /// * `SequenceClassificationConfig` - Sequence classification pipeline configuration. The type of model created will be inferred from the
+    /// * `ZeroShotClassificationConfig` - Zero-shot classification pipeline configuration. The type of model created will be inferred from the
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &ZeroShotClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::TORCH(_) => ZeroShotClassificationOption::new_torch(config),
-            ModelResources::ONNX(_) => ZeroShotClassificationOption::new_onnx(config),
+            ModelResources::TORCH(_) => Self::new_torch(config),
+            ModelResources::ONNX(_) => Self::new_onnx(config),
         }
     }
 
@@ -394,7 +394,7 @@ impl ZeroShotClassificationOption {
 
         Ok(Self::ONNX(ONNXEncoder::new(
             encoder_file.ok_or(RustBertError::InvalidConfigurationError(
-                "An encoder file must be provided for Sequence classification ONNX models."
+                "An encoder file must be provided for Zero-shot classification ONNX models."
                     .to_string(),
             ))?,
             &environment,
