@@ -142,6 +142,14 @@ impl Default for POSConfig {
     }
 }
 
+impl Into<POSConfig> for TokenClassificationConfig {
+    fn into(self) -> POSConfig {
+        POSConfig {
+            token_classification_config: self,
+        }
+    }
+}
+
 impl From<POSConfig> for TokenClassificationConfig {
     fn from(pos_config: POSConfig) -> Self {
         pos_config.token_classification_config
