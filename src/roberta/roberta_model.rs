@@ -42,7 +42,7 @@ impl RobertaModelResources {
     /// Shared under Apache 2.0 license by the Hugging Face Inc. team at <https://huggingface.co/distilroberta-base>. Modified with conversion to C-array format.
     pub const DISTILROBERTA_BASE: (&'static str, &'static str) = (
         "distilroberta-base/model",
-        "https://cdn.huggingface.co/distilroberta-base-rust_model.ot",
+        "https://huggingface.co/distilroberta-base/resolve/main/rust_model.ot",
     );
     /// Shared under Apache 2.0 license by [deepset](https://deepset.ai) at <https://huggingface.co/deepset/roberta-base-squad2>. Modified with conversion to C-array format.
     pub const ROBERTA_QA: (&'static str, &'static str) = (
