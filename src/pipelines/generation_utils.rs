@@ -456,7 +456,7 @@ pub(crate) mod private_generation_utils {
                         input.extend(temp);
                         input
                     } else {
-                        // pad
+                        // Pad left for causal generation
                         temp.extend(input);
                         temp
                     }
