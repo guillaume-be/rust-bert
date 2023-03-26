@@ -85,6 +85,7 @@ use crate::common::error::RustBertError;
 use crate::pipelines::token_classification::{TokenClassificationConfig, TokenClassificationModel};
 use serde::{Deserialize, Serialize};
 
+use crate::pipelines::common::ModelResources;
 #[cfg(feature = "remote")]
 use {
     crate::{
@@ -120,9 +121,9 @@ impl Default for POSConfig {
         POSConfig {
             token_classification_config: TokenClassificationConfig {
                 model_type: ModelType::MobileBert,
-                model_resource: Box::new(RemoteResource::from_pretrained(
+                model_resource: ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
                     MobileBertModelResources::MOBILEBERT_ENGLISH_POS,
-                )),
+                ))),
                 config_resource: Box::new(RemoteResource::from_pretrained(
                     MobileBertConfigResources::MOBILEBERT_ENGLISH_POS,
                 )),

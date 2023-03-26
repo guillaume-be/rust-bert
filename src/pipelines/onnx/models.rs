@@ -8,7 +8,7 @@ use crate::pipelines::onnx::decoder::ONNXDecoder;
 use crate::pipelines::onnx::encoder::ONNXEncoder;
 use crate::{Config, RustBertError};
 
-use ort::{Environment, ExecutionProvider};
+use ort::Environment;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -88,32 +88,14 @@ impl ONNXCausalGenerator {
         }
 
         let default_onnx_config = if onnx_config.is_none() {
-            let mut execution_providers = Vec::new();
-            if let Device::Cuda(_) = generate_config.device {
-                execution_providers.push(ExecutionProvider::cuda());
-            };
-            execution_providers.push(ExecutionProvider::cpu());
-            Some(ONNXEnvironmentConfig {
-                execution_providers: Some(execution_providers),
-                ..Default::default()
-            })
+            Some(ONNXEnvironmentConfig::from_device(generate_config.device))
         } else {
             None
         };
         let onnx_config = onnx_config.unwrap_or_else(|| &default_onnx_config.as_ref().unwrap());
 
         let local_environment = if environment.is_none() {
-            Some(Arc::new(
-                Environment::builder()
-                    .with_name("ONNXConditionalGenerator environment")
-                    .with_execution_providers(
-                        onnx_config
-                            .execution_providers
-                            .clone()
-                            .unwrap_or(vec![ExecutionProvider::cpu()]),
-                    )
-                    .build()?,
-            ))
+            Some(onnx_config.get_environment()?)
         } else {
             None
         };
@@ -407,17 +389,7 @@ impl ONNXConditionalGenerator {
         let onnx_config = onnx_config.unwrap_or_else(|| &default_onnx_config.as_ref().unwrap());
 
         let local_environment = if environment.is_none() {
-            Some(Arc::new(
-                Environment::builder()
-                    .with_name("ONNXConditionalGenerator environment")
-                    .with_execution_providers(
-                        onnx_config
-                            .execution_providers
-                            .clone()
-                            .unwrap_or(vec![ExecutionProvider::cpu()]),
-                    )
-                    .build()?,
-            ))
+            Some(onnx_config.get_environment()?)
         } else {
             None
         };

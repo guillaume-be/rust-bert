@@ -21,11 +21,12 @@
 //! use rust_bert::pipelines::common::ModelType;
 //! # fn main() -> anyhow::Result<()> {
 //!
+//! use rust_bert::pipelines::common::ModelResources;
 //! //Load a configuration
 //! use rust_bert::pipelines::token_classification::LabelAggregationOption;
 //! let config = TokenClassificationConfig::new(
 //!    ModelType::Bert,
-//!    RemoteResource::from_pretrained(BertModelResources::BERT_NER),
+//!    ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_NER))),
 //!    RemoteResource::from_pretrained(BertVocabResources::BERT_NER),
 //!    RemoteResource::from_pretrained(BertConfigResources::BERT_NER),
 //!    None, //merges resource only relevant with ModelType::Roberta
@@ -120,7 +121,7 @@ use crate::electra::ElectraForTokenClassification;
 use crate::fnet::FNetForTokenClassification;
 use crate::longformer::LongformerForTokenClassification;
 use crate::mobilebert::MobileBertForTokenClassification;
-use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::pipelines::common::{ConfigOption, ModelResources, ModelType, TokenizerOption};
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
@@ -131,13 +132,14 @@ use rust_tokenizers::{
     TokenizedInput,
 };
 use serde::{Deserialize, Serialize};
-use std::borrow::Borrow;
 use std::cmp::min;
 use std::collections::HashMap;
 use tch::nn::VarStore;
-use tch::{nn, no_grad, Device, Kind, Tensor};
+use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::deberta_v2::DebertaV2ForTokenClassification;
+use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
+use crate::pipelines::onnx::encoder::ONNXEncoder;
 #[cfg(feature = "remote")]
 use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
@@ -195,6 +197,8 @@ struct InputFeature {
     offsets: Vec<Option<Offset>>,
     /// Token category (mask)
     mask: Vec<Mask>,
+    /// Token type ids (mask)
+    token_type_ids: Vec<i64>,
     /// per-token flag indicating if this feature carries the output label for this token
     reference_feature: Vec<bool>,
     /// Reference example index (long inputs may be broken into multiple input features)
@@ -222,7 +226,7 @@ pub struct TokenClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResources,
     /// Config resource (default: pretrained BERT model on CoNLL)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
@@ -254,9 +258,9 @@ impl TokenClassificationConfig {
     /// * vocab - The `ResourceProvider` pointing to the tokenizers' vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `ResourceProvider` pointing to the tokenizers' merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new<RM, RC, RV>(
+    pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResources,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -266,13 +270,12 @@ impl TokenClassificationConfig {
         label_aggregation_function: LabelAggregationOption,
     ) -> TokenClassificationConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         TokenClassificationConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -292,7 +295,9 @@ impl Default for TokenClassificationConfig {
     fn default() -> TokenClassificationConfig {
         TokenClassificationConfig::new(
             ModelType::Bert,
-            RemoteResource::from_pretrained(BertModelResources::BERT_NER),
+            ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+                BertModelResources::BERT_NER,
+            ))),
             RemoteResource::from_pretrained(BertConfigResources::BERT_NER),
             RemoteResource::from_pretrained(BertVocabResources::BERT_NER),
             None,
@@ -331,30 +336,36 @@ pub enum TokenClassificationOption {
     Longformer(LongformerForTokenClassification),
     /// FNet for Token Classification
     FNet(FNetForTokenClassification),
+    /// ONNX model for Token Classification
+    ONNX(ONNXEncoder),
 }
 
 impl TokenClassificationOption {
-    /// Instantiate a new token sequence classification model of the supplied type.
+    /// Instantiate a new sequence classification model of the supplied type.
     ///
     /// # Arguments
     ///
-    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded)
-    /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
-    /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
-    /// `model_type`)
-    pub fn new<'p, P>(
-        model_type: ModelType,
-        p: P,
-        config: &ConfigOption,
-    ) -> Result<Self, RustBertError>
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        match model_type {
+    /// * `SequenceClassificationConfig` - Sequence classification pipeline configuration. The type of model created will be inferred from the
+    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    pub fn new(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
+        match config.model_resource {
+            ModelResources::TORCH(_) => TokenClassificationOption::new_torch(config),
+            ModelResources::ONNX(_) => TokenClassificationOption::new_onnx(config),
+        }
+    }
+
+    fn new_torch(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
+        let device = config.device;
+        let weights_path = config.model_resource.get_torch_local_path()?;
+        let mut var_store = VarStore::new(device);
+        let model_config =
+            &ConfigOption::from_file(config.model_type, config.config_resource.get_local_path()?);
+        let model_type = config.model_type;
+        let model = match model_type {
             ModelType::Bert => {
-                if let ConfigOption::Bert(config) = config {
+                if let ConfigOption::Bert(config) = model_config {
                     Ok(TokenClassificationOption::Bert(
-                        BertForTokenClassification::new(p, config)?,
+                        BertForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -363,9 +374,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::Deberta => {
-                if let ConfigOption::Deberta(config) = config {
+                if let ConfigOption::Deberta(config) = model_config {
                     Ok(TokenClassificationOption::Deberta(
-                        DebertaForTokenClassification::new(p, config)?,
+                        DebertaForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -374,9 +385,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::DebertaV2 => {
-                if let ConfigOption::DebertaV2(config) = config {
+                if let ConfigOption::DebertaV2(config) = model_config {
                     Ok(TokenClassificationOption::DebertaV2(
-                        DebertaV2ForTokenClassification::new(p, config)?,
+                        DebertaV2ForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -385,9 +396,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::DistilBert => {
-                if let ConfigOption::DistilBert(config) = config {
+                if let ConfigOption::DistilBert(config) = model_config {
                     Ok(TokenClassificationOption::DistilBert(
-                        DistilBertForTokenClassification::new(p, config)?,
+                        DistilBertForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -396,9 +407,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::MobileBert => {
-                if let ConfigOption::MobileBert(config) = config {
+                if let ConfigOption::MobileBert(config) = model_config {
                     Ok(TokenClassificationOption::MobileBert(
-                        MobileBertForTokenClassification::new(p, config)?,
+                        MobileBertForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -407,9 +418,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Roberta(config) = config {
+                if let ConfigOption::Roberta(config) = model_config {
                     Ok(TokenClassificationOption::Roberta(
-                        RobertaForTokenClassification::new(p, config)?,
+                        RobertaForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -418,9 +429,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::XLMRoberta => {
-                if let ConfigOption::Roberta(config) = config {
+                if let ConfigOption::Roberta(config) = model_config {
                     Ok(TokenClassificationOption::XLMRoberta(
-                        RobertaForTokenClassification::new(p, config)?,
+                        RobertaForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -429,9 +440,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::Electra => {
-                if let ConfigOption::Electra(config) = config {
+                if let ConfigOption::Electra(config) = model_config {
                     Ok(TokenClassificationOption::Electra(
-                        ElectraForTokenClassification::new(p, config)?,
+                        ElectraForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -440,9 +451,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::Albert => {
-                if let ConfigOption::Albert(config) = config {
+                if let ConfigOption::Albert(config) = model_config {
                     Ok(TokenClassificationOption::Albert(
-                        AlbertForTokenClassification::new(p, config)?,
+                        AlbertForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -451,9 +462,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::XLNet => {
-                if let ConfigOption::XLNet(config) = config {
+                if let ConfigOption::XLNet(config) = model_config {
                     Ok(TokenClassificationOption::XLNet(
-                        XLNetForTokenClassification::new(p, config)?,
+                        XLNetForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -462,9 +473,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::Longformer => {
-                if let ConfigOption::Longformer(config) = config {
+                if let ConfigOption::Longformer(config) = model_config {
                     Ok(TokenClassificationOption::Longformer(
-                        LongformerForTokenClassification::new(p, config)?,
+                        LongformerForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -473,9 +484,9 @@ impl TokenClassificationOption {
                 }
             }
             ModelType::FNet => {
-                if let ConfigOption::FNet(config) = config {
+                if let ConfigOption::FNet(config) = model_config {
                     Ok(TokenClassificationOption::FNet(
-                        FNetForTokenClassification::new(p, config)?,
+                        FNetForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -483,10 +494,30 @@ impl TokenClassificationOption {
                     ))
                 }
             }
+            ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
+                "A `ModelType::ONNX` ModelType was provided in the configuration with `ModelResources::TORCH`, these are incompatible".to_string(),
+            )),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Token classification not implemented for {model_type:?}!"
             ))),
-        }
+        }?;
+        var_store.load(weights_path)?;
+        Ok(model)
+    }
+
+    pub fn new_onnx(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
+        let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
+        let environment = onnx_config.get_environment()?;
+        let (encoder_file, _, _) = config.model_resource.get_onnx_local_paths()?;
+
+        Ok(TokenClassificationOption::ONNX(ONNXEncoder::new(
+            encoder_file.ok_or(RustBertError::InvalidConfigurationError(
+                "An encoder file must be provided for Token classification ONNX models."
+                    .to_string(),
+            ))?,
+            &environment,
+            &onnx_config,
+        )?))
     }
 
     /// Returns the `ModelType` for this TokenClassificationOption
@@ -504,6 +535,7 @@ impl TokenClassificationOption {
             Self::XLNet(_) => ModelType::XLNet,
             Self::Longformer(_) => ModelType::Longformer,
             Self::FNet(_) => ModelType::FNet,
+            Self::ONNX(_) => ModelType::ONNX,
         }
     }
 
@@ -637,6 +669,12 @@ impl TokenClassificationOption {
                     .expect("Error in fnet forward_t")
                     .logits
             }
+
+            Self::ONNX(ref model) => model
+                .forward(input_ids, mask, token_type_ids, position_ids, input_embeds)
+                .expect("Error in ONNX forward pass.")
+                .logits
+                .unwrap(),
         }
     }
 }
@@ -646,7 +684,7 @@ pub struct TokenClassificationModel {
     tokenizer: TokenizerOption,
     token_sequence_classifier: TokenClassificationOption,
     label_mapping: HashMap<i64, String>,
-    var_store: VarStore,
+    device: Device,
     label_aggregation_function: LabelAggregationOption,
     max_length: usize,
     batch_size: usize,
@@ -673,14 +711,16 @@ impl TokenClassificationModel {
         config: TokenClassificationConfig,
     ) -> Result<TokenClassificationModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
+        let model_config = ConfigOption::from_file(config.model_type, config_path);
+
+        let token_sequence_classifier = TokenClassificationOption::new(&config)?;
+
         let vocab_path = config.vocab_resource.get_local_path()?;
-        let weights_path = config.model_resource.get_local_path()?;
         let merges_path = if let Some(merges_resource) = &config.merges_resource {
             Some(merges_resource.get_local_path()?)
         } else {
             None
         };
-        let device = config.device;
         let label_aggregation_function = config.label_aggregation_function;
 
         let tokenizer = TokenizerOption::from_file(
@@ -691,22 +731,22 @@ impl TokenClassificationModel {
             config.strip_accents,
             config.add_prefix_space,
         )?;
-        let mut var_store = VarStore::new(device);
-        let model_config = ConfigOption::from_file(config.model_type, config_path);
         let max_length = model_config
             .get_max_len()
             .map(|v| v as usize)
             .unwrap_or(usize::MAX);
-        let token_sequence_classifier =
-            TokenClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping().clone();
         let batch_size = config.batch_size;
-        var_store.load(weights_path)?;
+        let device = if let ModelResources::ONNX(_) = config.model_resource {
+            Device::Cpu
+        } else {
+            config.device
+        };
         Ok(TokenClassificationModel {
             tokenizer,
             token_sequence_classifier,
             label_mapping,
-            var_store,
+            device,
             label_aggregation_function,
             max_length,
             batch_size,
@@ -773,6 +813,11 @@ impl TokenClassificationModel {
                 input_ids: encoded_span.token_ids,
                 offsets: encoded_span.token_offsets,
                 mask: encoded_span.mask,
+                token_type_ids: encoded_span
+                    .segment_ids
+                    .into_iter()
+                    .map(|segment_id| segment_id as i64)
+                    .collect(),
                 reference_feature,
                 example_index,
             };
@@ -881,11 +926,12 @@ impl TokenClassificationModel {
 
             no_grad(|| {
                 let batch_features = &mut features[start..end];
-                let (input_ids, attention_masks) = self.pad_features(batch_features);
+                let (input_ids, attention_masks, token_type_ids) =
+                    self.pad_features(batch_features);
                 let output = self.token_sequence_classifier.forward_t(
                     Some(&input_ids),
                     Some(&attention_masks),
-                    None,
+                    Some(&token_type_ids),
                     None,
                     None,
                     false,
@@ -943,7 +989,7 @@ impl TokenClassificationModel {
         tokens
     }
 
-    fn pad_features(&self, features: &mut [InputFeature]) -> (Tensor, Tensor) {
+    fn pad_features(&self, features: &mut [InputFeature]) -> (Tensor, Tensor, Tensor) {
         let max_len = features
             .iter()
             .map(|feature| feature.input_ids.len())
@@ -955,8 +1001,8 @@ impl TokenClassificationModel {
             .map(|feature| &feature.input_ids)
             .map(|input| {
                 let mut attention_mask = Vec::with_capacity(max_len);
-                attention_mask.resize(input.len(), 1);
-                attention_mask.resize(max_len, 0);
+                attention_mask.resize(input.len(), 1i64);
+                attention_mask.resize(max_len, 0i64);
                 attention_mask
             })
             .map(|input| Tensor::of_slice(&(input)))
@@ -969,6 +1015,7 @@ impl TokenClassificationModel {
         for feature in features.iter_mut() {
             feature.input_ids.resize(max_len, padding_index);
             feature.offsets.resize(max_len, None);
+            feature.token_type_ids.resize(max_len, padding_index);
             feature.reference_feature.resize(max_len, false);
         }
 
@@ -977,9 +1024,15 @@ impl TokenClassificationModel {
             .map(|input| Tensor::of_slice(input.input_ids.as_slice()))
             .collect::<Vec<_>>();
 
-        let input_ids = Tensor::stack(&padded_input_ids, 0).to(self.var_store.device());
-        let attention_masks = Tensor::stack(&attention_masks, 0).to(self.var_store.device());
-        (input_ids, attention_masks)
+        let padded_token_type_ids = features
+            .iter()
+            .map(|input| Tensor::of_slice(input.token_type_ids.as_slice()))
+            .collect::<Vec<_>>();
+
+        let input_ids = Tensor::stack(&padded_input_ids, 0).to(self.device);
+        let attention_masks = Tensor::stack(&attention_masks, 0).to(self.device);
+        let token_type_ids = Tensor::stack(&padded_token_type_ids, 0).to(self.device);
+        (input_ids, attention_masks, token_type_ids)
     }
 
     fn decode_token(

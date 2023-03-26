@@ -82,4 +82,17 @@ impl ONNXEnvironmentConfig {
         }
         Ok(session_builder)
     }
+
+    pub fn get_environment(&self) -> Result<Arc<Environment>, RustBertError> {
+        Ok(Arc::new(
+            Environment::builder()
+                .with_name("Default environment")
+                .with_execution_providers(
+                    self.execution_providers
+                        .clone()
+                        .unwrap_or(vec![ExecutionProvider::cpu()]),
+                )
+                .build()?,
+        ))
+    }
 }

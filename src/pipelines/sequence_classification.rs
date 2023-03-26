@@ -72,12 +72,10 @@ use crate::reformer::ReformerForSequenceClassification;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
-use ort::{Environment, ExecutionProvider};
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use rust_tokenizers::TokenizedInput;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use tch::nn::VarStore;
 use tch::{no_grad, Device, Kind, Tensor};
 
@@ -396,17 +394,7 @@ impl SequenceClassificationOption {
 
     pub fn new_onnx(config: &SequenceClassificationConfig) -> Result<Self, RustBertError> {
         let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
-        let environment = Arc::new(
-            Environment::builder()
-                .with_name("ONNXForSequenceClassification environment")
-                .with_execution_providers(
-                    onnx_config
-                        .execution_providers
-                        .clone()
-                        .unwrap_or(vec![ExecutionProvider::cpu()]),
-                )
-                .build()?,
-        );
+        let environment = onnx_config.get_environment()?;
         let (encoder_file, _, _) = config.model_resource.get_onnx_local_paths()?;
 
         Ok(SequenceClassificationOption::ONNX(ONNXEncoder::new(
