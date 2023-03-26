@@ -400,15 +400,7 @@ impl ONNXConditionalGenerator {
         }
 
         let default_onnx_config = if onnx_config.is_none() {
-            let mut execution_providers = Vec::new();
-            if let Device::Cuda(_) = generate_config.device {
-                execution_providers.push(ExecutionProvider::cuda());
-            };
-            execution_providers.push(ExecutionProvider::cpu());
-            Some(ONNXEnvironmentConfig {
-                execution_providers: Some(execution_providers),
-                ..Default::default()
-            })
+            Some(ONNXEnvironmentConfig::from_device(generate_config.device))
         } else {
             None
         };
@@ -431,7 +423,7 @@ impl ONNXConditionalGenerator {
         };
         let environment = environment.unwrap_or_else(|| local_environment.as_ref().unwrap());
         let encoder_file = encoder_file.ok_or_else(|| {return
-            RustBertError::InvalidConfigurationError(format!("ONNXConditionalGenerator requires an `enoder_path` to be provided in the `ModelResources`, got {:?}", generate_config.model_resource))})?;
+            RustBertError::InvalidConfigurationError(format!("ONNXConditionalGenerator requires an `encoder_path` to be provided in the `ModelResources`, got {:?}", generate_config.model_resource))})?;
 
         let encoder = ONNXEncoder::new(encoder_file, environment, onnx_config)?;
         let decoder_without_past = if let Some(model_file) = decoder_without_past_file {
@@ -498,7 +490,12 @@ impl ONNXConditionalGenerator {
             Some(
                 self.encoder
                     .forward(input_ids, encoder_attention_mask, None, None, None)?
-                    .last_hidden_state,
+                    .last_hidden_state
+                    .ok_or_else(|| {
+                        return RustBertError::ValueError(
+                            "`last_hidden_state` not found in ONNX model outputs.".to_string(),
+                        );
+                    })?,
             )
         } else {
             None
@@ -628,7 +625,7 @@ impl PrivateLanguageGenerator for ONNXConditionalGenerator {
             self.encoder
                 .forward(Some(input_ids), attention_mask, None, None, None)
                 .unwrap()
-                .last_hidden_state,
+                .last_hidden_state?,
         )
     }
 

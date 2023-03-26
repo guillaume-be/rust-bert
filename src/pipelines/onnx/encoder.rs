@@ -1,7 +1,7 @@
 use crate::pipelines::onnx::common::{get_input_output_mapping, InputOutputNameMapping};
 use crate::pipelines::onnx::config::{
-    ONNXEnvironmentConfig, ATTENTION_MASK_NAME, INPUT_EMBEDS, INPUT_IDS_NAME, LAST_HIDDEN_STATE,
-    POSITION_IDS, TOKEN_TYPE_IDS,
+    ONNXEnvironmentConfig, ATTENTION_MASK_NAME, END_LOGITS, INPUT_EMBEDS, INPUT_IDS_NAME,
+    LAST_HIDDEN_STATE, LOGITS, POSITION_IDS, START_LOGITS, TOKEN_TYPE_IDS,
 };
 use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, tch_tensor_to_ort};
 use crate::RustBertError;
@@ -74,13 +74,31 @@ impl ONNXEncoder {
 
         let outputs = self.session.run(inputs)?;
 
-        let last_hidden_state = ort_tensor_to_tch(
-            &outputs[*self
-                .name_mapping
-                .output_names
-                .get(LAST_HIDDEN_STATE)
-                .unwrap()],
-        )?;
+        let last_hidden_state = self
+            .name_mapping
+            .output_names
+            .get(LAST_HIDDEN_STATE)
+            .map(|pos| ort_tensor_to_tch(&outputs[*pos]))
+            .transpose()?;
+        let logits = self
+            .name_mapping
+            .output_names
+            .get(LOGITS)
+            .map(|pos| ort_tensor_to_tch(&outputs[*pos]))
+            .transpose()?;
+        let start_logits = self
+            .name_mapping
+            .output_names
+            .get(START_LOGITS)
+            .map(|pos| ort_tensor_to_tch(&outputs[*pos]))
+            .transpose()?;
+        let end_logits = self
+            .name_mapping
+            .output_names
+            .get(END_LOGITS)
+            .map(|pos| ort_tensor_to_tch(&outputs[*pos]))
+            .transpose()?;
+
         let (hidden_states, attentions) = if self.name_mapping.output_names.len() > 1 {
             let hidden_states = self
                 .name_mapping
@@ -105,6 +123,9 @@ impl ONNXEncoder {
         };
         Ok(ONNXEncoderModelOutput {
             last_hidden_state,
+            logits,
+            start_logits,
+            end_logits,
             hidden_states,
             attentions,
         })
@@ -112,7 +133,10 @@ impl ONNXEncoder {
 }
 
 pub struct ONNXEncoderModelOutput {
-    pub last_hidden_state: Tensor,
+    pub last_hidden_state: Option<Tensor>,
+    pub logits: Option<Tensor>,
+    pub start_logits: Option<Tensor>,
+    pub end_logits: Option<Tensor>,
     pub hidden_states: Option<Vec<Tensor>>,
     pub attentions: Option<Vec<Tensor>>,
 }

@@ -3,6 +3,7 @@ use ort::{
     AllocatorType, Environment, ExecutionProvider, GraphOptimizationLevel, MemType, SessionBuilder,
 };
 use std::sync::Arc;
+use tch::Device;
 
 pub static INPUT_IDS_NAME: &str = "input_ids";
 pub static ATTENTION_MASK_NAME: &str = "attention_mask";
@@ -12,6 +13,9 @@ pub static TOKEN_TYPE_IDS: &str = "token_type_ids";
 pub static POSITION_IDS: &str = "position_ids";
 pub static INPUT_EMBEDS: &str = "input_embeds";
 pub static LAST_HIDDEN_STATE: &str = "last_hidden_state";
+pub static LOGITS: &str = "logits";
+pub static START_LOGITS: &str = "start_logits";
+pub static END_LOGITS: &str = "end_logits";
 
 #[derive(Default)]
 pub struct ONNXEnvironmentConfig {
@@ -26,6 +30,18 @@ pub struct ONNXEnvironmentConfig {
 }
 
 impl ONNXEnvironmentConfig {
+    pub fn from_device(device: Device) -> Self {
+        let mut execution_providers = Vec::new();
+        if let Device::Cuda(_) = device {
+            execution_providers.push(ExecutionProvider::cuda());
+        };
+        execution_providers.push(ExecutionProvider::cpu());
+        ONNXEnvironmentConfig {
+            execution_providers: Some(execution_providers),
+            ..Default::default()
+        }
+    }
+
     pub(crate) fn get_session_builder(
         &self,
         environment: &Arc<Environment>,
