@@ -85,14 +85,16 @@ use crate::common::error::RustBertError;
 use crate::pipelines::token_classification::{TokenClassificationConfig, TokenClassificationModel};
 use serde::{Deserialize, Serialize};
 
-use crate::pipelines::common::ModelResources;
 #[cfg(feature = "remote")]
 use {
     crate::{
         mobilebert::{
             MobileBertConfigResources, MobileBertModelResources, MobileBertVocabResources,
         },
-        pipelines::{common::ModelType, token_classification::LabelAggregationOption},
+        pipelines::{
+            common::{ModelResources, ModelType},
+            token_classification::LabelAggregationOption,
+        },
         resources::RemoteResource,
     },
     tch::Device,

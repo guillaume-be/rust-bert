@@ -364,7 +364,7 @@ impl TokenClassificationOption {
         let model = match model_type {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = model_config {
-                    Ok(TokenClassificationOption::Bert(
+                    Ok(Self::Bert(
                         BertForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -375,7 +375,7 @@ impl TokenClassificationOption {
             }
             ModelType::Deberta => {
                 if let ConfigOption::Deberta(config) = model_config {
-                    Ok(TokenClassificationOption::Deberta(
+                    Ok(Self::Deberta(
                         DebertaForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -386,7 +386,7 @@ impl TokenClassificationOption {
             }
             ModelType::DebertaV2 => {
                 if let ConfigOption::DebertaV2(config) = model_config {
-                    Ok(TokenClassificationOption::DebertaV2(
+                    Ok(Self::DebertaV2(
                         DebertaV2ForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -397,7 +397,7 @@ impl TokenClassificationOption {
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = model_config {
-                    Ok(TokenClassificationOption::DistilBert(
+                    Ok(Self::DistilBert(
                         DistilBertForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -408,7 +408,7 @@ impl TokenClassificationOption {
             }
             ModelType::MobileBert => {
                 if let ConfigOption::MobileBert(config) = model_config {
-                    Ok(TokenClassificationOption::MobileBert(
+                    Ok(Self::MobileBert(
                         MobileBertForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -419,7 +419,7 @@ impl TokenClassificationOption {
             }
             ModelType::Roberta => {
                 if let ConfigOption::Roberta(config) = model_config {
-                    Ok(TokenClassificationOption::Roberta(
+                    Ok(Self::Roberta(
                         RobertaForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -430,7 +430,7 @@ impl TokenClassificationOption {
             }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Roberta(config) = model_config {
-                    Ok(TokenClassificationOption::XLMRoberta(
+                    Ok(Self::XLMRoberta(
                         RobertaForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -441,7 +441,7 @@ impl TokenClassificationOption {
             }
             ModelType::Electra => {
                 if let ConfigOption::Electra(config) = model_config {
-                    Ok(TokenClassificationOption::Electra(
+                    Ok(Self::Electra(
                         ElectraForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -452,7 +452,7 @@ impl TokenClassificationOption {
             }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = model_config {
-                    Ok(TokenClassificationOption::Albert(
+                    Ok(Self::Albert(
                         AlbertForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -463,7 +463,7 @@ impl TokenClassificationOption {
             }
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = model_config {
-                    Ok(TokenClassificationOption::XLNet(
+                    Ok(Self::XLNet(
                         XLNetForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -474,7 +474,7 @@ impl TokenClassificationOption {
             }
             ModelType::Longformer => {
                 if let ConfigOption::Longformer(config) = model_config {
-                    Ok(TokenClassificationOption::Longformer(
+                    Ok(Self::Longformer(
                         LongformerForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -485,7 +485,7 @@ impl TokenClassificationOption {
             }
             ModelType::FNet => {
                 if let ConfigOption::FNet(config) = model_config {
-                    Ok(TokenClassificationOption::FNet(
+                    Ok(Self::FNet(
                         FNetForTokenClassification::new(var_store.root(), config)?,
                     ))
                 } else {

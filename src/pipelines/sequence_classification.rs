@@ -240,7 +240,7 @@ impl SequenceClassificationOption {
         let model = match model_type {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = model_config {
-                    Ok(SequenceClassificationOption::Bert(
+                    Ok(Self::Bert(
                         BertForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -251,7 +251,7 @@ impl SequenceClassificationOption {
             }
             ModelType::Deberta => {
                 if let ConfigOption::Deberta(config) = model_config {
-                    Ok(SequenceClassificationOption::Deberta(
+                    Ok(Self::Deberta(
                         DebertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -262,7 +262,7 @@ impl SequenceClassificationOption {
             }
             ModelType::DebertaV2 => {
                 if let ConfigOption::DebertaV2(config) = model_config {
-                    Ok(SequenceClassificationOption::DebertaV2(
+                    Ok(Self::DebertaV2(
                         DebertaV2ForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -273,7 +273,7 @@ impl SequenceClassificationOption {
             }
             ModelType::DistilBert => {
                 if let ConfigOption::DistilBert(config) = model_config {
-                    Ok(SequenceClassificationOption::DistilBert(
+                    Ok(Self::DistilBert(
                         DistilBertModelClassifier::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -284,7 +284,7 @@ impl SequenceClassificationOption {
             }
             ModelType::MobileBert => {
                 if let ConfigOption::MobileBert(config) = model_config {
-                    Ok(SequenceClassificationOption::MobileBert(
+                    Ok(Self::MobileBert(
                         MobileBertForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -295,7 +295,7 @@ impl SequenceClassificationOption {
             }
             ModelType::Roberta => {
                 if let ConfigOption::Roberta(config) = model_config {
-                    Ok(SequenceClassificationOption::Roberta(
+                    Ok(Self::Roberta(
                         RobertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -306,7 +306,7 @@ impl SequenceClassificationOption {
             }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Roberta(config) = model_config {
-                    Ok(SequenceClassificationOption::XLMRoberta(
+                    Ok(Self::XLMRoberta(
                         RobertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -317,7 +317,7 @@ impl SequenceClassificationOption {
             }
             ModelType::Albert => {
                 if let ConfigOption::Albert(config) = model_config {
-                    Ok(SequenceClassificationOption::Albert(
+                    Ok(Self::Albert(
                         AlbertForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -328,7 +328,7 @@ impl SequenceClassificationOption {
             }
             ModelType::XLNet => {
                 if let ConfigOption::XLNet(config) = model_config {
-                    Ok(SequenceClassificationOption::XLNet(
+                    Ok(Self::XLNet(
                         XLNetForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -339,7 +339,7 @@ impl SequenceClassificationOption {
             }
             ModelType::Bart => {
                 if let ConfigOption::Bart(config) = model_config {
-                    Ok(SequenceClassificationOption::Bart(
+                    Ok(Self::Bart(
                         BartForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -350,7 +350,7 @@ impl SequenceClassificationOption {
             }
             ModelType::Reformer => {
                 if let ConfigOption::Reformer(config) = model_config {
-                    Ok(SequenceClassificationOption::Reformer(
+                    Ok(Self::Reformer(
                         ReformerForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -361,7 +361,7 @@ impl SequenceClassificationOption {
             }
             ModelType::Longformer => {
                 if let ConfigOption::Longformer(config) = model_config {
-                    Ok(SequenceClassificationOption::Longformer(
+                    Ok(Self::Longformer(
                         LongformerForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
@@ -372,7 +372,7 @@ impl SequenceClassificationOption {
             }
             ModelType::FNet => {
                 if let ConfigOption::FNet(config) = model_config {
-                    Ok(SequenceClassificationOption::FNet(
+                    Ok(Self::FNet(
                         FNetForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
