@@ -239,8 +239,7 @@ pub(crate) mod private_generation_utils {
     use std::collections::HashMap;
     use std::mem;
 
-    use rust_tokenizers::tokenizer::{truncate_sequences, TruncationStrategy};
-    use rust_tokenizers::TokenIdsWithOffsets;
+    use rust_tokenizers::tokenizer::TruncationStrategy;
     use tch::{nn, Device, Kind, Tensor};
 
     use crate::pipelines::common::TokenizerOption;
@@ -380,47 +379,17 @@ pub(crate) mod private_generation_utils {
         where
             S: AsRef<str> + Sync,
         {
-            let tokens = self._get_tokenizer().tokenize_list(prompt_text);
+            let tokens = self._get_tokenizer().encode_list(
+                prompt_text,
+                max_len
+                    .map(|max_len| max_len as usize)
+                    .unwrap_or(usize::MAX),
+                &TruncationStrategy::LongestFirst,
+                0,
+            );
             let token_ids = tokens
                 .into_iter()
-                .map(|prompt_tokens| self._get_tokenizer().convert_tokens_to_ids(&prompt_tokens))
-                .collect::<Vec<Vec<i64>>>();
-
-            let num_truncated_tokens = token_ids
-                .iter()
-                .map(|token_ids| {
-                    max_len
-                        .map(|max_len| {
-                            if token_ids.len() > max_len as usize {
-                                token_ids.len() - max_len as usize
-                            } else {
-                                0
-                            }
-                        })
-                        .unwrap_or(0)
-                })
-                .collect::<Vec<usize>>();
-
-            let token_ids = token_ids
-                .into_iter()
-                .zip(num_truncated_tokens)
-                .map(|(tokens, num_truncated_tokens)| {
-                    truncate_sequences(
-                        TokenIdsWithOffsets {
-                            ids: tokens,
-                            offsets: vec![],
-                            reference_offsets: vec![],
-                            masks: vec![],
-                        },
-                        None,
-                        num_truncated_tokens,
-                        &TruncationStrategy::LongestFirst,
-                        0,
-                    )
-                    .unwrap()
-                    .0
-                    .ids
-                })
+                .map(|tokenized_input| tokenized_input.token_ids)
                 .collect::<Vec<Vec<i64>>>();
 
             let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
@@ -432,13 +401,19 @@ pub(crate) mod private_generation_utils {
 
             let token_ids = token_ids
                 .into_iter()
-                .map(|input| {
+                .map(|mut input| {
                     let mut temp = vec![pad_token; max_len - input.len()];
-                    temp.extend(input);
-                    temp
+                    if self.is_encoder_decoder() {
+                        input.extend(temp);
+                        input
+                    } else {
+                        temp.extend(input);
+                        temp
+                    }
                 })
                 .map(|tokens| Tensor::of_slice(&tokens).to(self.get_device()))
                 .collect::<Vec<Tensor>>();
+
             Tensor::stack(&token_ids, 0)
         }
 

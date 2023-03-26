@@ -22,7 +22,6 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::pipelines::translation::Language;
 use crate::{Activation, Config, RustBertError};
-use rust_tokenizers::tokenizer::TruncationStrategy;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -947,48 +946,6 @@ impl PrivateLanguageGenerator for MBartGenerator {
             },
             _ => panic!("Cache type incompatible with MBart"),
         }
-    }
-
-    fn encode_prompt_text<S>(
-        &self,
-        prompt_text: &[S],
-        max_len: Option<i64>,
-        pad_token_id: Option<i64>,
-    ) -> Tensor
-    where
-        S: AsRef<str> + Sync,
-    {
-        let tokens = self._get_tokenizer().encode_list(
-            prompt_text,
-            max_len
-                .map(|max_len| max_len as usize)
-                .unwrap_or(usize::MAX),
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let token_ids = tokens
-            .into_iter()
-            .map(|tokenized_input| tokenized_input.token_ids)
-            .collect::<Vec<Vec<i64>>>();
-
-        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
-
-        let pad_token = match pad_token_id {
-            Some(value) => value,
-            None => self._get_tokenizer().get_unk_id(),
-        };
-
-        let token_ids = token_ids
-            .into_iter()
-            .map(|mut input| {
-                let temp = vec![pad_token; max_len - input.len()];
-                input.extend(temp);
-                input
-            })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_device()))
-            .collect::<Vec<Tensor>>();
-
-        Tensor::stack(&token_ids, 0)
     }
 
     fn reorder_cache(
