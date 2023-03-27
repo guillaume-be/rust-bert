@@ -22,11 +22,19 @@ pub(crate) fn get_input_output_mapping(session: &Session) -> InputOutputNameMapp
         .map(|(pos, output)| (output.name.clone(), pos))
         .collect::<HashMap<String, usize>>();
 
-    let key_value_output_names = output_names
+    let mut key_value_output_names = output_names
         .iter()
         .filter(|(name, _)| name.contains(".key") | name.contains(".value"))
         .map(|(name, pos)| (name.clone(), *pos))
         .collect::<HashMap<String, usize>>();
+
+    if key_value_output_names.is_empty() {
+        key_value_output_names = output_names
+            .iter()
+            .filter(|(name, _)| name.contains("key_value"))
+            .map(|(name, pos)| (name.clone(), *pos))
+            .collect::<HashMap<String, usize>>();
+    }
 
     InputOutputNameMapping {
         input_names,

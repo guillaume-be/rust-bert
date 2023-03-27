@@ -475,6 +475,17 @@ impl ONNXConditionalGenerator {
         let encoder_hidden_states =
             encoder_hidden_states.unwrap_or_else(|| calc_encoder_output.as_ref().unwrap());
 
+        let calc_encoder_attention_mask = if encoder_attention_mask.is_none() {
+            Some(Tensor::ones(
+                &encoder_hidden_states.size()[..2],
+                (Kind::Int64, encoder_hidden_states.device()),
+            ))
+        } else {
+            None
+        };
+        let encoder_attention_mask =
+            encoder_attention_mask.unwrap_or_else(|| calc_encoder_attention_mask.as_ref().unwrap());
+
         match (
             &self.decoder_without_past,
             &self.decoder_with_past,
@@ -486,7 +497,7 @@ impl ONNXConditionalGenerator {
                     decoder_input_ids,
                     attention_mask,
                     Some(encoder_hidden_states),
-                    encoder_attention_mask,
+                    Some(encoder_attention_mask),
                     None,
                 ),
             (_, Some(ref decoder_with_past), Some(Cache::ONNXCache(ref onnx_cache))) => {
@@ -494,7 +505,7 @@ impl ONNXConditionalGenerator {
                     decoder_input_ids,
                     attention_mask,
                     Some(encoder_hidden_states),
-                    encoder_attention_mask,
+                    Some(encoder_attention_mask),
                     Some(onnx_cache),
                 )
             }
@@ -503,7 +514,7 @@ impl ONNXConditionalGenerator {
                     decoder_input_ids,
                     attention_mask,
                     Some(encoder_hidden_states),
-                    encoder_attention_mask,
+                    Some(encoder_attention_mask),
                     None,
                 )
             }

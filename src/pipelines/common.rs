@@ -58,6 +58,7 @@ use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
+use tch::{Device, Kind, Tensor};
 
 #[derive(Debug, Default)]
 /// Container for ONNX model resources, containing 3 optional resources (Encoder, Decoder and Decoder with past)
@@ -2049,5 +2050,54 @@ impl TokenizerOption {
             Self::ProphetNet(_) => None,
             Self::OpenAiGpt(_) => None,
         }
+    }
+
+    pub fn tokenize_and_pad<'a, S>(
+        &self,
+        input: S,
+        max_length: usize,
+        device: Device,
+    ) -> (Tensor, Tensor)
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let mut tokenized_input: Vec<TokenizedInput> = self.encode_list(
+            input.as_ref(),
+            max_length,
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
+        let max_len = tokenized_input
+            .iter()
+            .map(|input| input.token_ids.len())
+            .max()
+            .unwrap();
+        let pad_id = self
+            .get_pad_id()
+            .expect("The Tokenizer used for sequence classification should contain a PAD id");
+        let tokenized_input_tensors: Vec<Tensor> = tokenized_input
+            .iter_mut()
+            .map(|input| {
+                input.token_ids.resize(max_len, pad_id);
+                Tensor::of_slice(&(input.token_ids))
+            })
+            .collect::<Vec<_>>();
+
+        let token_type_ids: Vec<Tensor> = tokenized_input
+            .iter_mut()
+            .map(|input| {
+                input
+                    .segment_ids
+                    .resize(max_len, *input.segment_ids.last().unwrap_or(&0));
+                Tensor::of_slice(&(input.segment_ids))
+            })
+            .collect::<Vec<_>>();
+
+        (
+            Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(device),
+            Tensor::stack(token_type_ids.as_slice(), 0)
+                .to(device)
+                .to_kind(Kind::Int64),
+        )
     }
 }

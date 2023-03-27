@@ -627,7 +627,7 @@ impl ZeroShotClassificationModel {
         labels: T,
         template: Option<ZeroShotTemplate>,
         max_len: usize,
-    ) -> Result<(Tensor, Tensor), RustBertError>
+    ) -> Result<(Tensor, Tensor, Tensor), RustBertError>
     where
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
@@ -655,7 +655,7 @@ impl ZeroShotClassificationModel {
             })
             .collect::<Vec<(&str, &str)>>();
 
-        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_pair_list(
+        let mut tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_pair_list(
             text_pair_list.as_ref(),
             max_len,
             &TruncationStrategy::LongestFirst,
@@ -671,25 +671,35 @@ impl ZeroShotClassificationModel {
             .tokenizer
             .get_pad_id()
             .expect("The Tokenizer used for sequence classification should contain a PAD id");
-        let tokenized_input_tensors = tokenized_input
-            .into_iter()
-            .map(|mut input| {
+        let input_ids = tokenized_input
+            .iter_mut()
+            .map(|input| {
                 input.token_ids.resize(max_len, pad_id);
                 Tensor::of_slice(&(input.token_ids))
             })
             .collect::<Vec<_>>();
+        let token_type_ids = tokenized_input
+            .iter_mut()
+            .map(|input| {
+                input
+                    .segment_ids
+                    .resize(max_len, *input.segment_ids.last().unwrap_or(&0));
+                Tensor::of_slice(&(input.segment_ids))
+            })
+            .collect::<Vec<_>>();
 
-        let tokenized_input_tensors =
-            Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.device);
-
-        let mask = tokenized_input_tensors
+        let input_ids = Tensor::stack(input_ids.as_slice(), 0).to(self.device);
+        let token_type_ids = Tensor::stack(token_type_ids.as_slice(), 0)
+            .to(self.device)
+            .to_kind(Kind::Int64);
+        let mask = input_ids
             .ne(self
                 .tokenizer
                 .get_pad_id()
                 .expect("The Tokenizer used for zero shot classification should contain a PAD id"))
             .to_kind(Bool);
 
-        Ok((tokenized_input_tensors, mask))
+        Ok((input_ids, mask, token_type_ids))
     }
 
     /// Zero shot classification with 1 (and exactly 1) true label.
@@ -758,14 +768,14 @@ impl ZeroShotClassificationModel {
         T: AsRef<[&'a str]>,
     {
         let num_inputs = inputs.as_ref().len();
-        let (input_tensor, mask) =
+        let (input_tensor, mask, token_type_ids) =
             self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
 
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(&input_tensor),
                 Some(&mask),
-                None,
+                Some(&token_type_ids),
                 None,
                 None,
                 false,
@@ -900,14 +910,14 @@ impl ZeroShotClassificationModel {
         T: AsRef<[&'a str]>,
     {
         let num_inputs = inputs.as_ref().len();
-        let (input_tensor, mask) =
+        let (input_tensor, mask, token_type_ids) =
             self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
 
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(&input_tensor),
                 Some(&mask),
-                None,
+                Some(&token_type_ids),
                 None,
                 None,
                 false,

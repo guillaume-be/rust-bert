@@ -1015,7 +1015,9 @@ impl TokenClassificationModel {
         for feature in features.iter_mut() {
             feature.input_ids.resize(max_len, padding_index);
             feature.offsets.resize(max_len, None);
-            feature.token_type_ids.resize(max_len, padding_index);
+            feature
+                .token_type_ids
+                .resize(max_len, *feature.token_type_ids.last().unwrap_or(&0));
             feature.reference_feature.resize(max_len, false);
         }
 

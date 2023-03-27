@@ -69,7 +69,7 @@ impl ONNXLayerCache {
     ) -> Result<ONNXLayerCache, RustBertError> {
         let values = key_value_names
             .iter()
-            .filter(|(name, _)| name.contains(".key") | name.contains(".value"))
+            .filter(|(name, _)| name.contains("key") | name.contains("value"))
             .map(|(name, pos)| {
                 let value = &ort_output[*pos];
                 Ok((name.to_string(), ort_tensor_to_tch(value)?))

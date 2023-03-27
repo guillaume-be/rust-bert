@@ -1,9 +1,7 @@
-use std::path::PathBuf;
-
 use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
 use rust_bert::pipelines::sentiment::SentimentModel;
 use rust_bert::pipelines::sequence_classification::SequenceClassificationConfig;
-use rust_bert::resources::LocalResource;
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -11,17 +9,20 @@ fn main() -> anyhow::Result<()> {
     let classification_model = SentimentModel::new(SequenceClassificationConfig::new(
         ModelType::DistilBert,
         ModelResources::ONNX(ONNXModelResources {
-            encoder_resource: Some(Box::new(LocalResource::from(PathBuf::from(
-                "E:/Coding/distilbert-base-uncased-finetuned-sst-2-english/model.onnx",
-            )))),
+            encoder_resource: Some(Box::new(RemoteResource::new(
+                "https://huggingface.co/optimum/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/model.onnx",
+                "onnx-distilbert-base-uncased-finetuned-sst-2-english",
+            ))),
             ..Default::default()
         }),
-        LocalResource::from(PathBuf::from(
-            "E:/Coding/distilbert-base-uncased-finetuned-sst-2-english/config.json",
-        )),
-        LocalResource::from(PathBuf::from(
-            "E:/Coding/distilbert-base-uncased-finetuned-sst-2-english/vocab.txt",
-        )),
+        RemoteResource::new(
+            "https://huggingface.co/optimum/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/config.json",
+            "onnx-distilbert-base-uncased-finetuned-sst-2-english",
+        ),
+        RemoteResource::new(
+            "https://huggingface.co/optimum/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/vocab.txt",
+            "onnx-distilbert-base-uncased-finetuned-sst-2-english",
+        ),
         None,
         true,
         None,

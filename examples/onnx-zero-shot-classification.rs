@@ -1,28 +1,31 @@
-use std::path::PathBuf;
-
 use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
 use rust_bert::pipelines::zero_shot_classification::{
     ZeroShotClassificationConfig, ZeroShotClassificationModel,
 };
-use rust_bert::resources::LocalResource;
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let classification_model =
         ZeroShotClassificationModel::new(ZeroShotClassificationConfig::new(
-            ModelType::Deberta,
+            ModelType::DistilBert,
             ModelResources::ONNX(ONNXModelResources {
-                encoder_resource: Some(Box::new(LocalResource::from(PathBuf::from(
-                    "E:/Coding/deberta-base-mnli/model.onnx",
-                )))),
+                encoder_resource: Some(Box::new(RemoteResource::new(
+                    "https://huggingface.co/optimum/optimum/distilbert-base-uncased-mnli/resolve/main/model.onnx",
+                    "onnx-distilbert-base-uncased-mnli",
+                ))),
                 ..Default::default()
             }),
-            LocalResource::from(PathBuf::from("E:/Coding/ddeberta-base-mnli/config.json")),
-            LocalResource::from(PathBuf::from("E:/Coding/deberta-base-mnli/vocab.json")),
-            Some(LocalResource::from(PathBuf::from(
-                "E:/Coding/deberta-base-mnli/merges.txt",
-            ))),
+            RemoteResource::new(
+                "https://huggingface.co/optimum/optimum/distilbert-base-uncased-mnli/resolve/main/config.json",
+                "onnx-distilbert-base-uncased-mnli",
+            ),
+            RemoteResource::new(
+                "https://huggingface.co/optimum/optimum/distilbert-base-uncased-mnli/resolve/main/vocab.txt",
+                "onnx-distilbert-base-uncased-mnli",
+            ),
+            None,
             false,
             None,
             None,

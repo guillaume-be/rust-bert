@@ -61,8 +61,6 @@ use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
     resources::RemoteResource,
 };
-use rust_tokenizers::tokenizer::TruncationStrategy;
-use rust_tokenizers::TokenizedInput;
 use tch::nn::VarStore;
 use tch::{no_grad, Device, Tensor};
 
@@ -489,33 +487,6 @@ impl MaskedLanguageModel {
         Ok(output)
     }
 
-    fn prepare_for_model<'a, S>(&self, input: S) -> Tensor
-    where
-        S: AsRef<[&'a str]>,
-    {
-        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_list(
-            input.as_ref(),
-            self.max_length,
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let max_len = tokenized_input
-            .iter()
-            .map(|input| input.token_ids.len())
-            .max()
-            .unwrap();
-        let tokenized_input_tensors = tokenized_input
-            .iter()
-            .map(|input| input.token_ids.clone())
-            .map(|mut input| {
-                input.extend(vec![0; max_len - input.len()]);
-                input
-            })
-            .map(|input| Tensor::of_slice(&(input)))
-            .collect::<Vec<_>>();
-        Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.device)
-    }
-
     /// Mask texts
     ///
     /// # Arguments
@@ -552,16 +523,20 @@ impl MaskedLanguageModel {
     where
         S: AsRef<[&'a str]>,
     {
-        let input_tensor = if let Some(mask_token) = &self.mask_token {
+        let (input_ids, token_type_ids) = if let Some(mask_token) = &self.mask_token {
             let input_with_replaced_mask = self.replace_mask_token(input.as_ref(), mask_token)?;
-            self.prepare_for_model(
+            self.tokenizer.tokenize_and_pad(
                 input_with_replaced_mask
                     .iter()
                     .map(|w| w.as_str())
-                    .collect::<Vec<&str>>(),
+                    .collect::<Vec<&str>>()
+                    .as_slice(),
+                self.max_length,
+                self.device,
             )
         } else {
-            self.prepare_for_model(input.as_ref())
+            self.tokenizer
+                .tokenize_and_pad(input.as_ref(), self.max_length, self.device)
         };
 
         // get the position of mask_token in input texts
@@ -571,13 +546,13 @@ impl MaskedLanguageModel {
                 .ok_or_else(|| RustBertError::InvalidConfigurationError(
                     "Tokenizer does not have a mask token id, Please use a tokenizer/model with a mask token.".into(),
                 ))?;
-        let mask_token_mask = input_tensor.eq(mask_token_id);
+        let mask_token_mask = input_ids.eq(mask_token_id);
 
         let output = no_grad(|| {
             self.language_encode.forward_t(
-                Some(&input_tensor),
+                Some(&input_ids),
                 None,
-                None,
+                Some(&token_type_ids),
                 None,
                 None,
                 None,

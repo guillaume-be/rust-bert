@@ -66,17 +66,26 @@ impl ONNXDecoder {
                 if let Some(tensor) = input_dict.remove(input_name.as_str()) {
                     Ok(tch_tensor_to_ort(tensor)?)
                 } else {
-                    tch_tensor_to_ort(
-                        layer_states
-                            .ok_or_else(|| {
-                                return RustBertError::OrtError(format!(
-                                    "{input_name} not found and cache was not provided."
-                                ));
-                            })?
-                            .values
-                            .get(&input_name.replace("past_key_values", "present"))
-                            .unwrap(),
-                    )
+                    let layer_states = layer_states.ok_or_else(|| {
+                        return RustBertError::OrtError(format!(
+                            "{input_name} not found and cache was not provided."
+                        ));
+                    })?;
+                    let input_pos = layer_states
+                        .values
+                        .get(&input_name.replace("past", "present"))
+                        .or_else(|| {
+                            layer_states
+                                .values
+                                .get(&input_name.replace("past_key_values", "present"))
+                        })
+                        .ok_or_else(|| {
+                            let found_keys = layer_states.values.keys().collect::<Vec<&String>>();
+                            return RustBertError::OrtError(format!(
+                                "{input_name} not found in cache ({found_keys:?})."
+                            ));
+                        })?;
+                    tch_tensor_to_ort(input_pos)
                 }
             })
             .collect::<Result<Vec<_>, RustBertError>>()?;

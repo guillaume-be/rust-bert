@@ -89,6 +89,7 @@ pub struct QaInput {
 struct QaFeature {
     pub input_ids: Vec<i64>,
     pub offsets: Vec<Option<Offset>>,
+    pub token_type_ids: Vec<i8>,
     pub p_mask: Vec<i8>,
     pub example_index: i64,
 }
@@ -510,6 +511,7 @@ impl QuestionAnsweringOption {
         input_ids: Option<&Tensor>,
         mask: Option<&Tensor>,
         input_embeds: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Tensor) {
         match *self {
@@ -577,7 +579,7 @@ impl QuestionAnsweringOption {
                     .forward(
                         input_ids,
                         mask.map(|tensor| tensor.to_kind(Kind::Int64)).as_ref(),
-                        None,
+                        token_type_ids,
                         None,
                         input_embeds,
                     )
@@ -744,11 +746,16 @@ impl QuestionAnsweringModel {
             let end = start + min(len_features - start, batch_size);
             let batch_features = &mut features[start..end];
             no_grad(|| {
-                let (input_ids, attention_masks) = self.pad_features(batch_features);
+                let (input_ids, attention_masks, token_type_ids) =
+                    self.pad_features(batch_features);
 
-                let (start_logits, end_logits) =
-                    self.qa_model
-                        .forward_t(Some(&input_ids), Some(&attention_masks), None, false);
+                let (start_logits, end_logits) = self.qa_model.forward_t(
+                    Some(&input_ids),
+                    Some(&attention_masks),
+                    None,
+                    Some(&token_type_ids),
+                    false,
+                );
 
                 let start_logits = start_logits.detach();
                 let end_logits = end_logits.detach();
@@ -921,6 +928,7 @@ impl QuestionAnsweringModel {
             let qa_feature = QaFeature {
                 input_ids: encoded_span.token_ids,
                 offsets: encoded_span.token_offsets,
+                token_type_ids: encoded_span.segment_ids,
                 p_mask,
                 example_index,
             };
@@ -933,7 +941,7 @@ impl QuestionAnsweringModel {
         spans
     }
 
-    fn pad_features(&self, features: &mut [QaFeature]) -> (Tensor, Tensor) {
+    fn pad_features(&self, features: &mut [QaFeature]) -> (Tensor, Tensor, Tensor) {
         let max_len = features
             .iter()
             .map(|feature| feature.input_ids.len())
@@ -956,6 +964,9 @@ impl QuestionAnsweringModel {
             feature.offsets.resize(max_len, None);
             feature.p_mask.resize(max_len, 1);
             feature.input_ids.resize(max_len, self.pad_idx);
+            feature
+                .token_type_ids
+                .resize(max_len, *feature.token_type_ids.last().unwrap_or(&0));
         }
 
         let padded_input_ids = features
@@ -963,9 +974,17 @@ impl QuestionAnsweringModel {
             .map(|input| Tensor::of_slice(input.input_ids.as_slice()))
             .collect::<Vec<_>>();
 
+        let padded_token_type_ids = features
+            .iter_mut()
+            .map(|input| Tensor::of_slice(input.token_type_ids.as_slice()))
+            .collect::<Vec<_>>();
+
         let input_ids = Tensor::stack(&padded_input_ids, 0).to(self.device);
         let attention_masks = Tensor::stack(&attention_masks, 0).to(self.device);
-        (input_ids, attention_masks)
+        let token_type_ids = Tensor::stack(&padded_token_type_ids, 0)
+            .to(self.device)
+            .to_kind(Kind::Int64);
+        (input_ids, attention_masks, token_type_ids)
     }
 
     fn get_mask(&self, encoded_span: &TokenizedInput) -> Vec<i8> {

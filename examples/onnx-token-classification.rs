@@ -1,43 +1,38 @@
-use std::path::PathBuf;
-
 use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
-use rust_bert::pipelines::pos_tagging::POSModel;
+use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::token_classification::{
     LabelAggregationOption, TokenClassificationConfig,
 };
-use rust_bert::resources::LocalResource;
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let classification_model = POSModel::new(
-        TokenClassificationConfig::new(
-            ModelType::MobileBert,
-            ModelResources::ONNX(ONNXModelResources {
-                encoder_resource: Some(Box::new(LocalResource::from(PathBuf::from(
-                    "E:/Coding/mobilebert-finetuned-pos/model.onnx",
-                )))),
-                ..Default::default()
-            }),
-            LocalResource::from(PathBuf::from(
-                "E:/Coding/mobilebert-finetuned-pos/config.json",
-            )),
-            LocalResource::from(PathBuf::from(
-                "E:/Coding/mobilebert-finetuned-pos/vocab.txt",
-            )),
-            None,
-            true,
-            Some(true),
-            None,
-            LabelAggregationOption::First,
-        )
-        .into(),
-    )?;
-    let input = [
-        "My name is Amélie. My email is amelie@somemail.com.",
-        "A liter of milk costs 0.95 Euros!",
-    ];
-    let output = classification_model.predict(&input);
+    let token_classification_model = NERModel::new(TokenClassificationConfig::new(
+        ModelType::MobileBert,
+        ModelResources::ONNX(ONNXModelResources {
+            encoder_resource: Some(Box::new(RemoteResource::new(
+                "https://huggingface.co/optimum/optimum/bert-base-NER/resolve/main/model.onnx",
+                "onnx-bert-base-NER",
+            ))),
+            ..Default::default()
+        }),
+        RemoteResource::new(
+            "https://huggingface.co/optimum/optimum/bert-base-NER/resolve/main/config.json",
+            "onnx-bert-base-NER",
+        ),
+        RemoteResource::new(
+            "https://huggingface.co/optimum/optimum/bert-base-NER/resolve/main/vocab.txt",
+            "onnx-bert-base-NER",
+        ),
+        None,
+        false,
+        None,
+        None,
+        LabelAggregationOption::First,
+    ))?;
+    let input = ["Asked John Smith about Acme Corp", "Let's go to New York!"];
+    let output = token_classification_model.predict(&input);
     println!("{:?}", output);
     Ok(())
 }

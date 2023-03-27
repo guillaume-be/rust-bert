@@ -72,8 +72,6 @@ use crate::reformer::ReformerForSequenceClassification;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
-use rust_tokenizers::tokenizer::TruncationStrategy;
-use rust_tokenizers::TokenizedInput;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tch::nn::VarStore;
@@ -649,35 +647,6 @@ impl SequenceClassificationModel {
         })
     }
 
-    fn prepare_for_model<'a, S>(&self, input: S) -> Tensor
-    where
-        S: AsRef<[&'a str]>,
-    {
-        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_list(
-            input.as_ref(),
-            self.max_length,
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let max_len = tokenized_input
-            .iter()
-            .map(|input| input.token_ids.len())
-            .max()
-            .unwrap();
-        let pad_id = self
-            .tokenizer
-            .get_pad_id()
-            .expect("The Tokenizer used for sequence classification should contain a PAD id");
-        let tokenized_input_tensors: Vec<tch::Tensor> = tokenized_input
-            .into_iter()
-            .map(|mut input| {
-                input.token_ids.resize(max_len, pad_id);
-                Tensor::of_slice(&(input.token_ids))
-            })
-            .collect::<Vec<_>>();
-        Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.device)
-    }
-
     /// Classify texts
     ///
     /// # Arguments
@@ -708,12 +677,14 @@ impl SequenceClassificationModel {
     where
         S: AsRef<[&'a str]>,
     {
-        let input_tensor = self.prepare_for_model(input.as_ref());
+        let (input_ids, token_type_ids) =
+            self.tokenizer
+                .tokenize_and_pad(input.as_ref(), self.max_length, self.device);
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
-                Some(&input_tensor),
+                Some(&input_ids),
                 None,
-                None,
+                Some(&token_type_ids),
                 None,
                 None,
                 false,
@@ -777,12 +748,14 @@ impl SequenceClassificationModel {
         input: &[&str],
         threshold: f64,
     ) -> Result<Vec<Vec<Label>>, RustBertError> {
-        let input_tensor = self.prepare_for_model(input);
+        let (input_ids, token_type_ids) =
+            self.tokenizer
+                .tokenize_and_pad(input.as_ref(), self.max_length, self.device);
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
-                Some(&input_tensor),
+                Some(&input_ids),
                 None,
-                None,
+                Some(&token_type_ids),
                 None,
                 None,
                 false,
