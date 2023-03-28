@@ -95,7 +95,6 @@ pub enum ModelType {
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
-#[enum_dispatch::enum_dispatch(Tokenizer)]
 pub enum ConfigOption {
     /// Bart configuration
     Bart(BartConfig),
@@ -148,7 +147,6 @@ pub enum ConfigOption {
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
-#[enum_dispatch::enum_dispatch(Tokenizer)]
 pub enum TokenizerOption {
     /// Bert Tokenizer
     Bert(BertTokenizer),

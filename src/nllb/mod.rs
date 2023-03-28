@@ -72,7 +72,7 @@ impl NLLBSpecialMap {
 
 impl NLLBLanguages {
     #[rustfmt::skip]
-    pub const NLLB_600M_DISTILLED: [Language; 201] = [
+    pub const NLLB: [Language; 201] = [
         Afrikaans, Danish, Dutch, German, English, Icelandic, Luxembourgish, Swedish,
         Asturian, Catalan, French, Galician, Italian, Occitan, Portuguese, Romanian, Spanish,
         Belarusian, Bosnian, Bulgarian, Croatian, Czech, Macedonian, Polish, Russian, Serbian, Slovak,

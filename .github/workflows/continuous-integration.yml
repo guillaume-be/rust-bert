@@ -132,6 +132,7 @@ jobs:
             --test sentence_embeddings
             --test longt5
             --test gpt_j
+            --test nllb
 
   convert-model:
     name: Model conversion test

@@ -1124,7 +1124,7 @@ impl TranslationOption {
                     ModelType::NLLB,
                     config.vocab_resource.get_local_path()?.to_str().unwrap(),
                     Some(
-                        &config
+                        config
                             .merges_resource
                             .as_ref()
                             .ok_or_else(|| {
@@ -1133,8 +1133,8 @@ impl TranslationOption {
                                 )
                             })?
                             .get_local_path()?
-                            .display()
-                            .to_string(),
+                            .to_str()
+                            .unwrap(),
                     ),
                     false,
                     None,
@@ -1192,16 +1192,11 @@ impl TranslationOption {
                     (
                         Some(format!(
                             ">>{}<< ",
-                            match target_language.and_then(|l| l.get_iso_639_1_code()) {
-                                Some(value) => value,
-                                None => {
-                                    return Err(RustBertError::ValueError(format!(
+                            target_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
                                         "Missing target language for Marian \
                                         (multiple languages supported by model: {supported_target_languages:?}, \
                                         need to specify target language)",
-                                    )));
-                                }
-                            }
+                                    )))?
                         )),
                         None,
                     )
@@ -1212,22 +1207,12 @@ impl TranslationOption {
             Self::T5(_) => (
                 Some(format!(
                     "translate {} to {}:",
-                    match source_language {
-                        Some(value) => value,
-                        None => {
-                            return Err(RustBertError::ValueError(
+                    source_language.ok_or_else(|| RustBertError::ValueError(
                                 "Missing source language for T5".to_string(),
-                            ));
-                        }
-                    },
-                    match target_language {
-                        Some(value) => value,
-                        None => {
-                            return Err(RustBertError::ValueError(
+                            ))?,
+                    target_language.ok_or_else(|| RustBertError::ValueError(
                                 "Missing target language for T5".to_string(),
-                            ));
-                        }
-                    }
+                            ))?,
                 )),
                 None,
             ),
@@ -1235,19 +1220,11 @@ impl TranslationOption {
                 (
                     Some(format!(
                         ">>{}<< ",
-                        match source_language {
-                            Some(value) =>
-                                value.get_iso_639_1_code().ok_or(RustBertError::ValueError(
-                                    format!("Value {value} has no ISO 631 language code.")
-                                ))?,
-                            None => {
-                                return Err(RustBertError::ValueError(format!(
+                        source_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
                                 "Missing source language for MBart\
                                 (multiple languages supported by model: {supported_source_languages:?}, \
                                 need to specify target language)"
-                            )));
-                            }
-                        }
+                            )))?
                     )),
                     if let Some(target_language) = target_language {
                         Some(
@@ -1326,15 +1303,15 @@ impl TranslationOption {
             ),
             Self::NLLB(ref model) => {
                 let source_language = source_language
-                    .map(Language::get_nllb_code)
-                    .and_then(|code| code.map(str::to_string))
+                    .and_then(Language::get_nllb_code)
+                    .map(str::to_string)
                     .ok_or_else(|| RustBertError::ValueError(
                         format!("Missing source language for NLLB. Need to specify one from: {supported_source_languages:?}")
                 ))?;
 
                 let target_language = target_language
-                    .map(Language::get_nllb_code)
-                    .and_then(|code| code.map(str::to_string))
+                    .and_then(Language::get_nllb_code)
+                    .map(str::to_string)
                     .map(|code| model._get_tokenizer().convert_tokens_to_ids(&[code])[0])
                     .ok_or_else(|| RustBertError::ValueError(
                         format!("Missing target language for NLLB. Need to specify one from: {supported_target_languages:?}")

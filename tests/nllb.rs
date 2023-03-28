@@ -14,8 +14,8 @@ fn nllb_translation() -> anyhow::Result<()> {
     let merges_resource = RemoteResource::from_pretrained(NLLBMergeResources::NLLB_600M_DISTILLED);
     // let special_map = RemoteResource::from_pretrained(NLLBSpecialMap::NLLB_600M_DISTILLED);
 
-    let source_languages = NLLBLanguages::NLLB_600M_DISTILLED;
-    let target_languages = NLLBLanguages::NLLB_600M_DISTILLED;
+    let source_languages = NLLBLanguages::NLLB;
+    let target_languages = NLLBLanguages::NLLB;
 
     let translation_config = TranslationConfig::new(
         ModelType::NLLB,
@@ -41,8 +41,8 @@ fn nllb_translation() -> anyhow::Result<()> {
         outputs[0],
         " Cette phrase sera traduite en plusieurs langues."
     );
-    // assert_eq!(outputs[1], " Esta frase se traducirá en varios idiomas.");
-    // assert_eq!(outputs[2], " यह वाक्यांश कई भाषाओं में अनुवादित किया जाएगा।");
+    assert_eq!(outputs[1], " Esta frase será traducida a varios idiomas.");
+    assert_eq!(outputs[2], " यह वाक्य कई भाषाओं में अनुवादित किया जाएगा।");
 
     Ok(())
 }
