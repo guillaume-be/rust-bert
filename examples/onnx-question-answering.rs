@@ -1,29 +1,33 @@
-use std::path::PathBuf;
-
 use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
-use rust_bert::resources::LocalResource;
+use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let qa_model = QuestionAnsweringModel::new(QuestionAnsweringConfig::new(
-        ModelType::DistilBert,
+        ModelType::Roberta,
         ModelResources::ONNX(ONNXModelResources {
-            encoder_resource: Some(Box::new(LocalResource::from(PathBuf::from(
-                "E:/Coding/distilbert-base-cased-distilled-squad/model.onnx",
-            )))),
+            encoder_resource: Some(Box::new(RemoteResource::new(
+                "https://huggingface.co/optimum/roberta-base-squad2/resolve/main/model.onnx",
+                "onnx-roberta-base-squad2",
+            ))),
             ..Default::default()
         }),
-        LocalResource::from(PathBuf::from(
-            "E:/Coding/distilbert-base-cased-distilled-squad/config.json",
+        RemoteResource::new(
+            "https://huggingface.co/optimum/roberta-base-squad2/resolve/main/config.json",
+            "onnx-roberta-base-squad2",
+        ),
+        RemoteResource::new(
+            "https://huggingface.co/optimum/roberta-base-squad2/resolve/main/vocab.json",
+            "onnx-roberta-base-squad2",
+        ),
+        Some(RemoteResource::new(
+            "https://huggingface.co/optimum/roberta-base-squad2/resolve/main/merges.txt",
+            "onnx-roberta-base-squad2",
         )),
-        LocalResource::from(PathBuf::from(
-            "E:/Coding/distilbert-base-cased-distilled-squad/vocab.txt",
-        )),
-        None,
         false,
         None,
         None,

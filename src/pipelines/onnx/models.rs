@@ -157,6 +157,7 @@ impl ONNXCausalGenerator {
         attention_mask: Option<&Tensor>,
         encoder_hidden_states: Option<&Tensor>,
         encoder_attention_mask: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
         layer_states: Option<&Cache>,
     ) -> Result<LMModelOutput, RustBertError> {
         match (
@@ -171,6 +172,7 @@ impl ONNXCausalGenerator {
                     attention_mask,
                     encoder_hidden_states,
                     encoder_attention_mask,
+                    position_ids,
                     None,
                 ),
             (_, Some(ref decoder_with_past), Some(Cache::ONNXCache(ref onnx_cache))) => {
@@ -179,6 +181,7 @@ impl ONNXCausalGenerator {
                     attention_mask,
                     encoder_hidden_states,
                     encoder_attention_mask,
+                    position_ids,
                     Some(onnx_cache),
                 )
             }
@@ -188,6 +191,7 @@ impl ONNXCausalGenerator {
                     attention_mask,
                     encoder_hidden_states,
                     encoder_attention_mask,
+                    position_ids,
                     None,
                 )
             }
@@ -260,13 +264,20 @@ impl PrivateLanguageGenerator for ONNXCausalGenerator {
         layer_past: Cache,
         attention_mask: Option<&Tensor>,
         _token_type_ids: Option<&Tensor>,
-        _position_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
         _input_embeds: Option<&Tensor>,
         _encoder_outputs: Option<&Tensor>,
         _decoder_input_ids: Option<&Tensor>,
         _train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
-        self.forward(input_ids, attention_mask, None, None, Some(&layer_past))
+        self.forward(
+            input_ids,
+            attention_mask,
+            None,
+            None,
+            position_ids,
+            Some(&layer_past),
+        )
     }
 
     fn prepare_inputs_for_generation<'a>(
@@ -499,6 +510,7 @@ impl ONNXConditionalGenerator {
                     Some(encoder_hidden_states),
                     Some(encoder_attention_mask),
                     None,
+                    None,
                 ),
             (_, Some(ref decoder_with_past), Some(Cache::ONNXCache(ref onnx_cache))) => {
                 decoder_with_past.forward(
@@ -506,6 +518,7 @@ impl ONNXConditionalGenerator {
                     attention_mask,
                     Some(encoder_hidden_states),
                     Some(encoder_attention_mask),
+                    None,
                     Some(onnx_cache),
                 )
             }
@@ -515,6 +528,7 @@ impl ONNXConditionalGenerator {
                     attention_mask,
                     Some(encoder_hidden_states),
                     Some(encoder_attention_mask),
+                    None,
                     None,
                 )
             }

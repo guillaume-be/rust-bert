@@ -2,7 +2,7 @@ use crate::pipelines::generation_utils::{Cache, LMModelOutput};
 use crate::pipelines::onnx::common::{get_input_output_mapping, InputOutputNameMapping};
 use crate::pipelines::onnx::config::{
     ONNXEnvironmentConfig, ATTENTION_MASK_NAME, ENCODER_ATTENTION_MASK_NAME,
-    ENCODER_HIDDEN_STATES_NAME, INPUT_IDS_NAME,
+    ENCODER_HIDDEN_STATES_NAME, INPUT_IDS_NAME, POSITION_IDS,
 };
 use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, tch_tensor_to_ort, ONNXLayerCache};
 use crate::RustBertError;
@@ -42,6 +42,7 @@ impl ONNXDecoder {
         attention_mask: Option<&Tensor>,
         encoder_hidden_states: Option<&Tensor>,
         encoder_attention_mask: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
         layer_states: Option<&ONNXLayerCache>,
     ) -> Result<LMModelOutput, RustBertError> {
         let mut input_dict = HashMap::new();
@@ -56,6 +57,9 @@ impl ONNXDecoder {
         }
         if let Some(encoder_attention_mask) = encoder_attention_mask {
             input_dict.insert(ENCODER_ATTENTION_MASK_NAME, encoder_attention_mask);
+        }
+        if let Some(position_ids) = position_ids {
+            input_dict.insert(POSITION_IDS, position_ids);
         }
 
         let inputs = self
