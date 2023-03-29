@@ -7,6 +7,7 @@ use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 #[test]
+// #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn nllb_translation() -> anyhow::Result<()> {
     let model_resource = ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
         NLLBResources::NLLB_600M_DISTILLED,
@@ -27,7 +28,7 @@ fn nllb_translation() -> anyhow::Result<()> {
         Some(merges_resource),
         source_languages,
         target_languages,
-        Device::cuda_if_available(),
+        Device::Cpu,
     );
     let model = TranslationModel::new(translation_config)?;
 

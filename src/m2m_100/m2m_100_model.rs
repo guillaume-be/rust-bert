@@ -14,7 +14,7 @@ use crate::m2m_100::decoder::M2M100Decoder;
 use crate::m2m_100::encoder::M2M100Encoder;
 use crate::m2m_100::LayerState;
 use crate::mbart::{MBartConfig, MBartModelOutput};
-use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::common::TokenizerOption;
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
@@ -521,7 +521,7 @@ impl M2M100Generator {
             .get_local_path()?;
 
         let tokenizer = TokenizerOption::from_file(
-            ModelType::M2M100,
+            generate_config.model_type,
             vocab_path.to_str().unwrap(),
             Some(merges_path.to_str().unwrap()),
             false,
