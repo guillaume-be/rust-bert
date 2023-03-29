@@ -36,7 +36,6 @@ use crate::mbart::MBartConfig;
 use crate::mobilebert::MobileBertConfig;
 use crate::openai_gpt::OpenAiGptConfig;
 use crate::pegasus::PegasusConfig;
-use crate::pipelines::onnx::models::ONNXModelConfig;
 use crate::pipelines::translation::Language;
 use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
@@ -60,6 +59,9 @@ use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use tch::{Device, Kind, Tensor};
 
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::models::ONNXModelConfig;
+
 #[derive(Debug, Default)]
 /// Container for ONNX model resources, containing 3 optional resources (Encoder, Decoder and Decoder with past)
 pub struct ONNXModelResources {
@@ -75,6 +77,7 @@ pub struct ONNXModelResources {
 /// Variants to store either a Torch model resource or ONNX resources
 pub enum ModelResources {
     TORCH(Box<dyn ResourceProvider + Send>),
+    #[cfg(feature = "onnx")]
     ONNX(ONNXModelResources),
 }
 
@@ -84,10 +87,12 @@ impl ModelResources {
     pub fn get_torch_local_path(&self) -> Result<PathBuf, RustBertError> {
         match self {
             ModelResources::TORCH(torch_resource) => torch_resource.get_local_path(),
+            #[cfg(feature = "onnx")]
             _ => Err(RustBertError::InvalidConfigurationError(format!("Attempting to get the Torch local path but other weights variants were given: {:?}", self)))
         }
     }
 
+    #[cfg(feature = "onnx")]
     pub fn get_onnx_local_paths(
         &self,
     ) -> Result<(Option<PathBuf>, Option<PathBuf>, Option<PathBuf>), RustBertError> {
@@ -111,6 +116,15 @@ impl ModelResources {
             decoder_with_past_path.transpose()?,
         ))
     }
+}
+
+pub(crate) fn get_device(_model_resource: ModelResources, device: Device) -> Device {
+    #[cfg(feature = "onnx")]
+    let device = get_onnx_device(_model_resource, device);
+
+    #[cfg(not(feature = "onnx"))]
+    let device = device;
+    device
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -147,6 +161,7 @@ pub enum ModelType {
     MBart,
     M2M100,
     FNet,
+    #[cfg(feature = "onnx")]
     ONNX,
 }
 
@@ -201,6 +216,7 @@ pub enum ConfigOption {
     /// FNet configuration
     FNet(FNetConfig),
     /// ONNX Model configuration
+    #[cfg(feature = "onnx")]
     ONNX(ONNXModelConfig),
 }
 
@@ -274,6 +290,7 @@ impl ConfigOption {
             ModelType::MBart => ConfigOption::MBart(MBartConfig::from_file(path)),
             ModelType::M2M100 => ConfigOption::M2M100(M2M100Config::from_file(path)),
             ModelType::FNet => ConfigOption::FNet(FNetConfig::from_file(path)),
+            #[cfg(feature = "onnx")]
             ModelType::ONNX => ConfigOption::ONNX(ONNXModelConfig::from_file(path)),
         }
     }
@@ -348,6 +365,7 @@ impl ConfigOption {
                 .id2label
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
+            #[cfg(feature = "onnx")]
             Self::ONNX(config) => config
                 .id2label
                 .as_ref()
@@ -388,6 +406,7 @@ impl ConfigOption {
             Self::M2M100(config) => Some(config.max_position_embeddings),
             Self::FNet(config) => Some(config.max_position_embeddings),
             Self::Roberta(config) => Some(config.max_position_embeddings),
+            #[cfg(feature = "onnx")]
             Self::ONNX(config) => config.max_position_embeddings,
         }
     }
@@ -418,6 +437,7 @@ impl ConfigOption {
             Self::M2M100(config) => config.vocab_size,
             Self::FNet(config) => config.vocab_size,
             Self::Roberta(config) => config.vocab_size,
+            #[cfg(feature = "onnx")]
             Self::ONNX(config) => config.vocab_size,
         }
     }
@@ -448,6 +468,7 @@ impl ConfigOption {
             Self::M2M100(config) => config.decoder_start_token_id,
             Self::FNet(config) => config.decoder_start_token_id,
             Self::Roberta(_) => None,
+            #[cfg(feature = "onnx")]
             Self::ONNX(config) => config.decoder_start_token_id,
         }
     }
@@ -478,6 +499,7 @@ impl ConfigOption {
             Self::M2M100(config) => config.forced_bos_token_id,
             Self::FNet(_) => None,
             Self::Roberta(_) => None,
+            #[cfg(feature = "onnx")]
             Self::ONNX(config) => config.forced_bos_token_id,
         }
     }
@@ -508,6 +530,7 @@ impl ConfigOption {
             Self::M2M100(config) => config.forced_eos_token_id,
             Self::FNet(_) => None,
             Self::Roberta(_) => None,
+            #[cfg(feature = "onnx")]
             Self::ONNX(config) => config.forced_eos_token_id,
         }
     }
@@ -831,6 +854,7 @@ impl TokenizerOption {
                 lower_case,
                 strip_accents.unwrap_or(false),
             )?),
+            #[cfg(feature = "onnx")]
             ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
                 "Default Tokenizer not defined for generic ONNX models.".to_string(),
             ))?,

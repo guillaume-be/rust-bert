@@ -121,7 +121,9 @@ use crate::electra::ElectraForTokenClassification;
 use crate::fnet::FNetForTokenClassification;
 use crate::longformer::LongformerForTokenClassification;
 use crate::mobilebert::MobileBertForTokenClassification;
-use crate::pipelines::common::{ConfigOption, ModelResources, ModelType, TokenizerOption};
+use crate::pipelines::common::{
+    get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
+};
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
@@ -138,8 +140,8 @@ use tch::nn::VarStore;
 use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::deberta_v2::DebertaV2ForTokenClassification;
-use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
-use crate::pipelines::onnx::encoder::ONNXEncoder;
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
 #[cfg(feature = "remote")]
 use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
@@ -337,6 +339,7 @@ pub enum TokenClassificationOption {
     /// FNet for Token Classification
     FNet(FNetForTokenClassification),
     /// ONNX model for Token Classification
+    #[cfg(feature = "onnx")]
     ONNX(ONNXEncoder),
 }
 
@@ -350,6 +353,7 @@ impl TokenClassificationOption {
     pub fn new(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResources::TORCH(_) => Self::new_torch(config),
+            #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }
     }
@@ -494,6 +498,7 @@ impl TokenClassificationOption {
                     ))
                 }
             }
+            #[cfg(feature = "onnx")]
             ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
                 "A `ModelType::ONNX` ModelType was provided in the configuration with `ModelResources::TORCH`, these are incompatible".to_string(),
             )),
@@ -505,6 +510,7 @@ impl TokenClassificationOption {
         Ok(model)
     }
 
+    #[cfg(feature = "onnx")]
     pub fn new_onnx(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
         let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
         let environment = onnx_config.get_environment()?;
@@ -535,6 +541,7 @@ impl TokenClassificationOption {
             Self::XLNet(_) => ModelType::XLNet,
             Self::Longformer(_) => ModelType::Longformer,
             Self::FNet(_) => ModelType::FNet,
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
         }
     }
@@ -669,7 +676,7 @@ impl TokenClassificationOption {
                     .expect("Error in fnet forward_t")
                     .logits
             }
-
+            #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => model
                 .forward(input_ids, mask, token_type_ids, position_ids, input_embeds)
                 .expect("Error in ONNX forward pass.")
@@ -737,11 +744,7 @@ impl TokenClassificationModel {
             .unwrap_or(usize::MAX);
         let label_mapping = model_config.get_label_mapping().clone();
         let batch_size = config.batch_size;
-        let device = if let ModelResources::ONNX(_) = config.model_resource {
-            Device::Cpu
-        } else {
-            config.device
-        };
+        let device = get_device(config.model_resource, config.device);
         Ok(TokenClassificationModel {
             tokenizer,
             token_sequence_classifier,

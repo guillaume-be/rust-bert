@@ -67,7 +67,9 @@ use crate::distilbert::DistilBertModelClassifier;
 use crate::fnet::FNetForSequenceClassification;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
-use crate::pipelines::common::{ConfigOption, ModelResources, ModelType, TokenizerOption};
+use crate::pipelines::common::{
+    get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
+};
 use crate::reformer::ReformerForSequenceClassification;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
@@ -78,8 +80,8 @@ use tch::nn::VarStore;
 use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::deberta_v2::DebertaV2ForSequenceClassification;
-use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
-use crate::pipelines::onnx::encoder::ONNXEncoder;
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
@@ -211,6 +213,7 @@ pub enum SequenceClassificationOption {
     /// FNet for Sequence Classification
     FNet(FNetForSequenceClassification),
     /// ONNX Model for Sequence Classification
+    #[cfg(feature = "onnx")]
     ONNX(ONNXEncoder),
 }
 
@@ -224,6 +227,7 @@ impl SequenceClassificationOption {
     pub fn new(config: &SequenceClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResources::TORCH(_) => Self::new_torch(config),
+            #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }
     }
@@ -379,6 +383,7 @@ impl SequenceClassificationOption {
                     ))
                 }
             }
+            #[cfg(feature = "onnx")]
             ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
                 "A `ModelType::ONNX` ModelType was provided in the configuration with `ModelResources::TORCH`, these are incompatible".to_string(),
             )),
@@ -390,6 +395,7 @@ impl SequenceClassificationOption {
         Ok(model)
     }
 
+    #[cfg(feature = "onnx")]
     pub fn new_onnx(config: &SequenceClassificationConfig) -> Result<Self, RustBertError> {
         let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
         let environment = onnx_config.get_environment()?;
@@ -421,6 +427,7 @@ impl SequenceClassificationOption {
             Self::Reformer(_) => ModelType::Reformer,
             Self::Longformer(_) => ModelType::Longformer,
             Self::FNet(_) => ModelType::FNet,
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
         }
     }
@@ -562,6 +569,7 @@ impl SequenceClassificationOption {
                     .expect("Error in FNet forward pass.")
                     .logits
             }
+            #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => {
                 let attention_mask = input_ids.unwrap().ones_like();
                 model
@@ -633,11 +641,7 @@ impl SequenceClassificationModel {
             .map(|v| v as usize)
             .unwrap_or(usize::MAX);
         let label_mapping = model_config.get_label_mapping().clone();
-        let device = if let ModelResources::ONNX(_) = config.model_resource {
-            Device::Cpu
-        } else {
-            config.device
-        };
+        let device = get_device(config.model_resource, config.device);
         Ok(SequenceClassificationModel {
             tokenizer,
             sequence_classifier,

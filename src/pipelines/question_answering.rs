@@ -51,7 +51,9 @@ use crate::distilbert::DistilBertForQuestionAnswering;
 use crate::fnet::FNetForQuestionAnswering;
 use crate::longformer::LongformerForQuestionAnswering;
 use crate::mobilebert::MobileBertForQuestionAnswering;
-use crate::pipelines::common::{ConfigOption, ModelResources, ModelType, TokenizerOption};
+use crate::pipelines::common::{
+    get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
+};
 use crate::reformer::ReformerForQuestionAnswering;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForQuestionAnswering;
@@ -67,8 +69,9 @@ use tch::nn::VarStore;
 use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::deberta_v2::DebertaV2ForQuestionAnswering;
-use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
-use crate::pipelines::onnx::encoder::ONNXEncoder;
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
+
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
@@ -304,6 +307,7 @@ pub enum QuestionAnsweringOption {
     /// FNet for Question Answering
     FNet(FNetForQuestionAnswering),
     /// ONNX model for Question Answering
+    #[cfg(feature = "onnx")]
     ONNX(ONNXEncoder),
 }
 
@@ -317,6 +321,7 @@ impl QuestionAnsweringOption {
     pub fn new(config: &QuestionAnsweringConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResources::TORCH(_) => Self::new_torch(config),
+            #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }
     }
@@ -472,6 +477,7 @@ impl QuestionAnsweringOption {
         Ok(model)
     }
 
+    #[cfg(feature = "onnx")]
     pub fn new_onnx(config: &QuestionAnsweringConfig) -> Result<Self, RustBertError> {
         let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
         let environment = onnx_config.get_environment()?;
@@ -501,6 +507,7 @@ impl QuestionAnsweringOption {
             Self::Reformer(_) => ModelType::Reformer,
             Self::Longformer(_) => ModelType::Longformer,
             Self::FNet(_) => ModelType::FNet,
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
         }
     }
@@ -511,7 +518,7 @@ impl QuestionAnsweringOption {
         input_ids: Option<&Tensor>,
         mask: Option<&Tensor>,
         input_embeds: Option<&Tensor>,
-        token_type_ids: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Tensor) {
         match *self {
@@ -574,12 +581,13 @@ impl QuestionAnsweringOption {
                     .expect("Error in fnet forward pass");
                 (outputs.start_logits, outputs.end_logits)
             }
+            #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => {
                 let outputs = model
                     .forward(
                         input_ids,
                         mask.map(|tensor| tensor.to_kind(Kind::Int64)).as_ref(),
-                        token_type_ids,
+                        _token_type_ids,
                         None,
                         input_embeds,
                     )
@@ -662,12 +670,10 @@ impl QuestionAnsweringModel {
                 question_answering_config.doc_stride
             )));
         }
-
-        let device = if let ModelResources::ONNX(_) = question_answering_config.model_resource {
-            Device::Cpu
-        } else {
-            question_answering_config.device
-        };
+        let device = get_device(
+            question_answering_config.model_resource,
+            question_answering_config.device,
+        );
         Ok(QuestionAnsweringModel {
             tokenizer,
             pad_idx,

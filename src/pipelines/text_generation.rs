@@ -44,6 +44,7 @@ use crate::reformer::ReformerGenerator;
 use crate::resources::ResourceProvider;
 use crate::xlnet::XLNetGenerator;
 
+#[cfg(feature = "onnx")]
 use crate::pipelines::onnx::models::ONNXCausalGenerator;
 #[cfg(feature = "remote")]
 use crate::{
@@ -202,12 +203,14 @@ pub enum TextGenerationOption {
     /// Text Generator based on Reformer model
     Reformer(ReformerGenerator),
     /// ONNX model for text generation
+    #[cfg(feature = "onnx")]
     ONNX(ONNXCausalGenerator),
 }
 
 impl TextGenerationOption {
     pub fn new(config: TextGenerationConfig) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
             (_, &ModelResources::ONNX(_)) => Ok(TextGenerationOption::ONNX(
                 ONNXCausalGenerator::new(config.into(), None, None)?,
             )),
@@ -241,6 +244,7 @@ impl TextGenerationOption {
         tokenizer: TokenizerOption,
     ) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
             (_, &ModelResources::ONNX(_)) => Ok(TextGenerationOption::ONNX(
                 ONNXCausalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
             )),
@@ -278,6 +282,7 @@ impl TextGenerationOption {
             Self::GPTJ(_) => ModelType::GPTJ,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
         }
     }
@@ -291,6 +296,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.get_tokenizer(),
             Self::XLNet(model_ref) => model_ref.get_tokenizer(),
             Self::Reformer(model_ref) => model_ref.get_tokenizer(),
+            #[cfg(feature = "onnx")]
             Self::ONNX(model_ref) => model_ref.get_tokenizer(),
         }
     }
@@ -341,6 +347,7 @@ impl TextGenerationOption {
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
+            #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => model
                 .generate_indices(prompt_texts, generate_options)
                 .into_iter()
@@ -357,6 +364,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.half(),
             Self::XLNet(model_ref) => model_ref.half(),
             Self::Reformer(model_ref) => model_ref.half(),
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => Err(RustBertError::OrtError(
                 "Type casting not supported for ONNX models.".to_string(),
             )),
@@ -371,6 +379,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.float(),
             Self::XLNet(model_ref) => model_ref.float(),
             Self::Reformer(model_ref) => model_ref.float(),
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => Err(RustBertError::OrtError(
                 "Type casting not supported for ONNX models.".to_string(),
             )),
@@ -385,6 +394,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.set_device(device),
             Self::XLNet(model_ref) => model_ref.set_device(device),
             Self::Reformer(model_ref) => model_ref.set_device(device),
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => Err(RustBertError::OrtError(
                 "Device assignment not supported for ONNX models.".to_string(),
             )),

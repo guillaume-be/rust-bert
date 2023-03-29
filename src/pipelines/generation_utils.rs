@@ -84,6 +84,8 @@ use crate::xlnet::LayerState as XLNetLayerState;
 use self::ordered_float::OrderedFloat;
 use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
 
+extern crate ordered_float;
+#[cfg(feature = "onnx")]
 use crate::pipelines::onnx::conversion::ONNXLayerCache;
 use crate::RustBertError;
 #[cfg(feature = "remote")]
@@ -91,8 +93,6 @@ use crate::{
     gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
     resources::RemoteResource,
 };
-
-extern crate ordered_float;
 
 /// # Configuration for text generation
 pub struct GenerateConfig {
@@ -230,6 +230,7 @@ pub enum Cache {
     ProphetNetCache(Option<Vec<(Option<ProphetNetLayerState>, Option<ProphetNetLayerState>)>>),
     GPTNeoCache(Option<Vec<Option<GPTNeoLayerState>>>),
     GPTJCache(Option<Vec<Option<GPTJLayerState>>>),
+    #[cfg(feature = "onnx")]
     ONNXCache(ONNXLayerCache),
     None,
 }

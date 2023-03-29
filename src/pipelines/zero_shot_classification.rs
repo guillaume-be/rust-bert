@@ -105,7 +105,9 @@ use crate::deberta::DebertaForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
-use crate::pipelines::common::{ConfigOption, ModelResources, ModelType, TokenizerOption};
+use crate::pipelines::common::{
+    get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
+};
 use crate::pipelines::sequence_classification::Label;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
@@ -114,18 +116,17 @@ use crate::RustBertError;
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use rust_tokenizers::TokenizedInput;
 
-use std::ops::Deref;
-use tch::kind::Kind::{Bool, Float};
-use tch::nn::VarStore;
-use tch::{no_grad, Device, Kind, Tensor};
-
-use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
-use crate::pipelines::onnx::encoder::ONNXEncoder;
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
     resources::RemoteResource,
 };
+use std::ops::Deref;
+use tch::kind::Kind::{Bool, Float};
+use tch::nn::VarStore;
+use tch::{no_grad, Device, Kind, Tensor};
 
 /// # Configuration for ZeroShotClassificationModel
 /// Contains information regarding the model to load and device to place the model on.
@@ -241,6 +242,7 @@ pub enum ZeroShotClassificationOption {
     /// Longformer for Sequence Classification
     Longformer(LongformerForSequenceClassification),
     /// ONNX model for Sequence Classification
+    #[cfg(feature = "onnx")]
     ONNX(ONNXEncoder),
 }
 
@@ -254,6 +256,7 @@ impl ZeroShotClassificationOption {
     pub fn new(config: &ZeroShotClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResources::TORCH(_) => Self::new_torch(config),
+            #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }
     }
@@ -376,6 +379,7 @@ impl ZeroShotClassificationOption {
                     ))
                 }
             }
+            #[cfg(feature = "onnx")]
             ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
                 "A `ModelType::ONNX` ModelType was provided in the configuration with `ModelResources::TORCH`, these are incompatible".to_string(),
             )),
@@ -387,6 +391,7 @@ impl ZeroShotClassificationOption {
         Ok(model)
     }
 
+    #[cfg(feature = "onnx")]
     pub fn new_onnx(config: &ZeroShotClassificationConfig) -> Result<Self, RustBertError> {
         let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
         let environment = onnx_config.get_environment()?;
@@ -415,6 +420,7 @@ impl ZeroShotClassificationOption {
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Longformer(_) => ModelType::Longformer,
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
         }
     }
@@ -531,6 +537,7 @@ impl ZeroShotClassificationOption {
                     .expect("Error in Longformer forward pass.")
                     .logits
             }
+            #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => model
                 .forward(
                     input_ids,
@@ -609,11 +616,7 @@ impl ZeroShotClassificationModel {
             config.add_prefix_space,
         )?;
 
-        let device = if let ModelResources::ONNX(_) = config.model_resource {
-            Device::Cpu
-        } else {
-            config.device
-        };
+        let device = get_device(config.model_resource, config.device);
         Ok(ZeroShotClassificationModel {
             tokenizer,
             zero_shot_classifier,

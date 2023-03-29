@@ -74,6 +74,7 @@ use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 
 use crate::longt5::LongT5Generator;
+#[cfg(feature = "onnx")]
 use crate::pipelines::onnx::models::ONNXConditionalGenerator;
 #[cfg(feature = "remote")]
 use crate::{
@@ -230,12 +231,14 @@ pub enum SummarizationOption {
     /// Summarizer based on Pegasus model
     Pegasus(PegasusConditionalGenerator),
     /// Summarizer based on ONNX model
+    #[cfg(feature = "onnx")]
     ONNX(ONNXConditionalGenerator),
 }
 
 impl SummarizationOption {
     pub fn new(config: SummarizationConfig) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
             (_, &ModelResources::ONNX(_)) => Ok(SummarizationOption::ONNX(
                 ONNXConditionalGenerator::new(config.into(), None, None)?,
             )),
@@ -264,6 +267,7 @@ impl SummarizationOption {
         tokenizer: TokenizerOption,
     ) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
             (_, &ModelResources::ONNX(_)) => Ok(SummarizationOption::ONNX(
                 ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
             )),
@@ -298,6 +302,7 @@ impl SummarizationOption {
             Self::LongT5(_) => ModelType::LongT5,
             Self::ProphetNet(_) => ModelType::ProphetNet,
             Self::Pegasus(_) => ModelType::Pegasus,
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
         }
     }
@@ -333,6 +338,7 @@ impl SummarizationOption {
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
+            #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => model
                 .generate(prompt_texts, None)
                 .into_iter()

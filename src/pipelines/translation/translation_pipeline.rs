@@ -19,6 +19,7 @@ use crate::marian::MarianGenerator;
 use crate::mbart::MBartGenerator;
 use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
+#[cfg(feature = "onnx")]
 use crate::pipelines::onnx::models::ONNXConditionalGenerator;
 use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
@@ -26,7 +27,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::{Debug, Display};
-
 /// Language
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Language {
@@ -545,12 +545,14 @@ pub enum TranslationOption {
     /// Translator based on M2M100 model
     M2M100(M2M100Generator),
     /// Translator based on ONNX model
+    #[cfg(feature = "onnx")]
     ONNX(ONNXConditionalGenerator),
 }
 
 impl TranslationOption {
     pub fn new(config: TranslationConfig) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
             (_, &ModelResources::ONNX(_)) => Ok(TranslationOption::ONNX(
                 ONNXConditionalGenerator::new(config.into(), None, None)?,
             )),
@@ -576,6 +578,7 @@ impl TranslationOption {
         tokenizer: TokenizerOption,
     ) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
             (_, &ModelResources::ONNX(_)) => Ok(TranslationOption::ONNX(
                 ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
             )),
@@ -606,6 +609,7 @@ impl TranslationOption {
             Self::T5(_) => ModelType::T5,
             Self::MBart(_) => ModelType::MBart,
             Self::M2M100(_) => ModelType::M2M100,
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
         }
     }
@@ -617,6 +621,7 @@ impl TranslationOption {
             Self::T5(ref generator) => generator.get_tokenizer(),
             Self::MBart(ref generator) => generator.get_tokenizer(),
             Self::M2M100(ref generator) => generator.get_tokenizer(),
+            #[cfg(feature = "onnx")]
             Self::ONNX(ref generator) => generator.get_tokenizer(),
         }
     }
@@ -663,6 +668,7 @@ impl TranslationOption {
                     .map(|output| output.text)
                     .collect()
             }
+            #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => {
                 let generate_options =
                     forced_bos_token_id.map(|forced_bos_token_id| GenerateOptions {

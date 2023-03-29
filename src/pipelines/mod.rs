@@ -480,7 +480,6 @@ pub mod generation_utils;
 pub mod keywords_extraction;
 pub mod masked_language;
 pub mod ner;
-pub mod onnx;
 pub mod pos_tagging;
 pub mod question_answering;
 pub mod sentence_embeddings;
@@ -491,3 +490,6 @@ pub mod text_generation;
 pub mod token_classification;
 pub mod translation;
 pub mod zero_shot_classification;
+
+#[cfg(feature = "onnx")]
+pub mod onnx;

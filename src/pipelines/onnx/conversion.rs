@@ -5,12 +5,12 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use tch::{Kind, Tensor};
 
-pub fn ort_tensor_to_tch(ort_tensor: &DynOrtTensor<IxDyn>) -> Result<Tensor, RustBertError> {
+pub(crate) fn ort_tensor_to_tch(ort_tensor: &DynOrtTensor<IxDyn>) -> Result<Tensor, RustBertError> {
     let ort_tensor = ort_tensor.try_extract::<f32>()?.view().to_owned();
     Ok(Tensor::try_from(ort_tensor)?)
 }
 
-pub fn tch_tensor_to_ort(tch_tensor: &Tensor) -> Result<InputTensor, RustBertError> {
+pub(crate) fn tch_tensor_to_ort(tch_tensor: &Tensor) -> Result<InputTensor, RustBertError> {
     let kind = tch_tensor.kind();
     Ok(match kind{
         Kind::Int64 => {

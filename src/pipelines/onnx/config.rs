@@ -42,7 +42,7 @@ impl ONNXEnvironmentConfig {
         }
     }
 
-    pub(crate) fn get_session_builder(
+    pub fn get_session_builder(
         &self,
         environment: &Arc<Environment>,
     ) -> Result<SessionBuilder, RustBertError> {

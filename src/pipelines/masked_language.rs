@@ -51,11 +51,16 @@ use crate::common::error::RustBertError;
 use crate::deberta::DebertaForMaskedLM;
 use crate::deberta_v2::DebertaV2ForMaskedLM;
 use crate::fnet::FNetForMaskedLM;
-use crate::pipelines::common::{ConfigOption, ModelResources, ModelType, TokenizerOption};
-use crate::pipelines::onnx::config::ONNXEnvironmentConfig;
-use crate::pipelines::onnx::encoder::ONNXEncoder;
+use crate::pipelines::common::{
+    get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
+};
+
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForMaskedLM;
+
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
+
 #[cfg(feature = "remote")]
 use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
@@ -177,6 +182,7 @@ pub enum MaskedLanguageOption {
     /// FNet for Masked Language
     FNet(FNetForMaskedLM),
     /// ONNX model for Masked Language
+    #[cfg(feature = "onnx")]
     ONNX(ONNXEncoder),
 }
 impl MaskedLanguageOption {
@@ -189,6 +195,7 @@ impl MaskedLanguageOption {
     pub fn new(config: &MaskedLanguageConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResources::TORCH(_) => Self::new_torch(config),
+            #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }
     }
@@ -281,6 +288,7 @@ impl MaskedLanguageOption {
         Ok(model)
     }
 
+    #[cfg(feature = "onnx")]
     pub fn new_onnx(config: &MaskedLanguageConfig) -> Result<Self, RustBertError> {
         let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
         let environment = onnx_config.get_environment()?;
@@ -303,6 +311,7 @@ impl MaskedLanguageOption {
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::FNet(_) => ModelType::FNet,
+            #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
         }
     }
@@ -382,6 +391,7 @@ impl MaskedLanguageOption {
                     .expect("Error in FNet forward pass.")
                     .prediction_scores
             }
+            #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => {
                 let attention_mask = input_ids.unwrap().ones_like();
                 model
@@ -453,11 +463,7 @@ impl MaskedLanguageModel {
             .unwrap_or(usize::MAX);
 
         let mask_token = config.mask_token;
-        let device = if let ModelResources::ONNX(_) = config.model_resource {
-            Device::Cpu
-        } else {
-            config.device
-        };
+        let device = get_device(config.model_resource, config.device);
         Ok(MaskedLanguageModel {
             tokenizer,
             language_encode,
