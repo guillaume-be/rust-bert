@@ -6,8 +6,6 @@ use rust_bert::pipelines::token_classification::{
 use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-
     let token_classification_model = NERModel::new(TokenClassificationConfig::new(
         ModelType::Bert,
         ModelResources::ONNX(ONNXModelResources {

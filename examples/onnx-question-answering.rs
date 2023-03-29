@@ -5,8 +5,6 @@ use rust_bert::pipelines::question_answering::{
 use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-
     let qa_model = QuestionAnsweringModel::new(QuestionAnsweringConfig::new(
         ModelType::Roberta,
         ModelResources::ONNX(ONNXModelResources {

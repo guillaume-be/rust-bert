@@ -3,8 +3,6 @@ use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGeneration
 use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-
     let text_generation_model = TextGenerationModel::new(TextGenerationConfig {
         model_type: ModelType::GPT2,
         model_resource: ModelResources::ONNX(ONNXModelResources {

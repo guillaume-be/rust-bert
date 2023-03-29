@@ -4,8 +4,6 @@ use rust_bert::pipelines::sequence_classification::SequenceClassificationConfig;
 use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-
     let classification_model = SentimentModel::new(SequenceClassificationConfig::new(
         ModelType::DistilBert,
         ModelResources::ONNX(ONNXModelResources {

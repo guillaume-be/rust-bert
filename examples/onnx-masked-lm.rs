@@ -3,8 +3,6 @@ use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguage
 use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-
     let masked_lm = MaskedLanguageModel::new(MaskedLanguageConfig::new(
         ModelType::Bert,
         ModelResources::ONNX(ONNXModelResources {
