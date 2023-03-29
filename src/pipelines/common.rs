@@ -1540,138 +1540,154 @@ impl TokenizerOption {
         if let Some(source_language) = source_language {
             if !supported_source_languages.contains(source_language) {
                 return Err(RustBertError::ValueError(format!(
-                    "{source_language} not in list of supported languages: {supported_source_languages:?}",
-                )));
+                        "{source_language} not in list of supported languages: {supported_source_languages:?}",
+                    )));
             }
         }
 
         if let Some(target_language) = target_language {
             if !supported_target_languages.contains(target_language) {
                 return Err(RustBertError::ValueError(format!(
-                    "{target_language} not in list of supported languages: {supported_target_languages:?}"
-                )));
+                        "{target_language} not in list of supported languages: {supported_target_languages:?}"
+                    )));
             }
         }
 
-        Ok(match self {
-            Self::Marian(_) => {
-                if supported_target_languages.len() > 1 {
+        Ok(match *self {
+                Self::Marian(_) => {
+                    if supported_target_languages.len() > 1 {
+                        (
+                            Some(format!(
+                                ">>{}<< ",
+                                target_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
+                                    "Missing target language for Marian \
+                                        (multiple languages supported by model: {supported_target_languages:?}, \
+                                        need to specify target language)",
+                                )))?
+                            )),
+                            None,
+                        )
+                    } else {
+                        (None, None)
+                    }
+                }
+                Self::T5(_) => (
+                    Some(format!(
+                        "translate {} to {}:",
+                        source_language.ok_or_else(|| RustBertError::ValueError(
+                            "Missing source language for T5".to_string(),
+                        ))?,
+                        target_language.ok_or_else(|| RustBertError::ValueError(
+                            "Missing target language for T5".to_string(),
+                        ))?,
+                    )),
+                    None,
+                ),
+                Self::MBart50(_) => {
                     (
                         Some(format!(
                             ">>{}<< ",
-                            match target_language {
-                                Some(value) => value.get_iso_639_1_code(),
-                                None => {
-                                    return Err(RustBertError::ValueError(format!(
-                                        "Missing target language for Marian \
-                                        (multiple languages supported by model: {supported_target_languages:?}, \
-                                        need to specify target language)",
-                                    )));
-                                }
-                            }
-                        )),
-                        None,
-                    )
-                } else {
-                    (None, None)
-                }
-            }
-            Self::T5(_) => (
-                Some(format!(
-                    "translate {} to {}:",
-                    match source_language {
-                        Some(value) => value,
-                        None => {
-                            return Err(RustBertError::ValueError(
-                                "Missing source language for T5".to_string(),
-                            ));
-                        }
-                    },
-                    match target_language {
-                        Some(value) => value,
-                        None => {
-                            return Err(RustBertError::ValueError(
-                                "Missing target language for T5".to_string(),
-                            ));
-                        }
-                    }
-                )),
-                None,
-            ),
-            Self::MBart50(ref model) => (
-                Some(format!(
-                    ">>{}<< ",
-                    match source_language {
-                        Some(value) => value.get_iso_639_1_code(),
-                        None => {
-                            return Err(RustBertError::ValueError(format!(
+                            source_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
                                 "Missing source language for MBart\
                                 (multiple languages supported by model: {supported_source_languages:?}, \
                                 need to specify target language)"
-                            )));
-                        }
-                    }
-                )),
-                if let Some(target_language) = target_language {
-                    Some(
-                        model.convert_tokens_to_ids(&[format!(
-                            ">>{}<<",
-                            target_language.get_iso_639_1_code()
-                        )])[0],
-                    )
-                } else {
-                    return Err(RustBertError::ValueError(format!(
-                        "Missing target language for MBart\
+                            )))?
+                        )),
+                        if let Some(target_language) = target_language {
+                            Some(
+                                self.convert_tokens_to_ids(&[format!(
+                                    ">>{}<<",
+                                    target_language.get_iso_639_1_code().ok_or_else(|| {
+                                        RustBertError::ValueError(format!(
+                                            "This language has no ISO639-I code. Languages supported by model: {supported_source_languages:?}."
+                                        ))
+                                    })?
+                                )])[0],
+                            )
+                        } else {
+                            return Err(RustBertError::ValueError(format!(
+                                "Missing target language for MBart\
                         (multiple languages supported by model: {supported_target_languages:?}, \
                         need to specify target language)"
-                    )));
-                },
-            ),
-            Self::M2M100(ref model) => (
-                Some(match source_language {
-                    Some(value) => {
-                        let language_code = value.get_iso_639_1_code();
-                        match language_code.len() {
-                            2 => format!(">>{language_code}.<< "),
-                            3 => format!(">>{language_code}<< "),
-                            _ => {
-                                return Err(RustBertError::ValueError(
-                                    "Invalid ISO 639-3 code".to_string(),
-                                ));
+                            )));
+                        },
+                    )
+                }
+                Self::M2M100(_) => (
+                    Some(match source_language {
+                        Some(value) => {
+                            let language_code = value.get_iso_639_1_code().ok_or_else(|| {
+                                RustBertError::ValueError(format!(
+                                    "This language has no ISO639-I language code representation. \
+                                languages supported by the model: {supported_target_languages:?}"
+                                ))
+                            })?;
+                            match language_code.len() {
+                                2 => format!(">>{language_code}.<< "),
+                                3 => format!(">>{language_code}<< "),
+                                _ => {
+                                    return Err(RustBertError::ValueError(
+                                        "Invalid ISO 639-I code".to_string(),
+                                    ));
+                                }
                             }
                         }
-                    }
-                    None => {
-                        return Err(RustBertError::ValueError(format!(
-                            "Missing source language for M2M100 \
+                        None => {
+                            return Err(RustBertError::ValueError(format!(
+                                "Missing source language for M2M100 \
                             (multiple languages supported by model: {supported_source_languages:?}, \
                             need to specify target language)"
-                        )));
-                    }
-                }),
-                if let Some(target_language) = target_language {
-                    let language_code = target_language.get_iso_639_1_code();
-                    Some(
-                        model.convert_tokens_to_ids(&[match language_code.len() {
-                            2 => format!(">>{language_code}.<<"),
-                            3 => format!(">>{language_code}<<"),
-                            _ => {
-                                return Err(RustBertError::ValueError(
-                                    "Invalid ISO 639-3 code".to_string(),
-                                ));
-                            }
-                        }])[0],
-                    )
-                } else {
-                    return Err(RustBertError::ValueError(format!(
-                        "Missing target language for M2M100 \
+                            )));
+                        }
+                    }),
+                    if let Some(target_language) = target_language {
+                        let language_code = target_language.get_iso_639_1_code().ok_or_else(|| {
+                            RustBertError::ValueError(format!(
+                                "This language has no ISO639-I language code representation. \
+                            languages supported by the model: {supported_target_languages:?}"
+                            ))
+                        })?;
+                        Some(
+                            self.convert_tokens_to_ids(&[
+                                match language_code.len() {
+                                    2 => format!(">>{language_code}.<<"),
+                                    3 => format!(">>{language_code}<<"),
+                                    _ => {
+                                        return Err(RustBertError::ValueError(
+                                            "Invalid ISO 639-3 code".to_string(),
+                                        ));
+                                    }
+                                },
+                            ])[0],
+                        )
+                    } else {
+                        return Err(RustBertError::ValueError(format!(
+                            "Missing target language for M2M100 \
                         (multiple languages supported by model: {supported_target_languages:?}, \
                         need to specify target language)",
-                    )));
-                },
-            ),
-            _ => (None, None),
-        })
+                        )));
+                    },
+                ),
+                Self::NLLB(_) => {
+                    let source_language = source_language
+                        .and_then(Language::get_nllb_code)
+                        .map(str::to_string)
+                        .ok_or_else(|| RustBertError::ValueError(
+                            format!("Missing source language for NLLB. Need to specify one from: {supported_source_languages:?}")
+                        ))?;
+
+                    let target_language = target_language
+                        .and_then(Language::get_nllb_code)
+                        .map(str::to_string)
+                        .map(|code| self.convert_tokens_to_ids(&[code])[0])
+                        .ok_or_else(|| RustBertError::ValueError(
+                            format!("Missing target language for NLLB. Need to specify one from: {supported_target_languages:?}")
+                        ))?;
+
+                    (Some(source_language), Some(target_language))
+                }
+                _ => (None, None),
+            })
     }
 
     /// Interface method to convert tokens to ids

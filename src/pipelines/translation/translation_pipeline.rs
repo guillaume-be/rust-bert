@@ -19,7 +19,6 @@ use crate::marian::MarianGenerator;
 use crate::mbart::MBartGenerator;
 use crate::nllb::NLLBGenerator;
 use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
-use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 #[cfg(feature = "onnx")]
 use crate::pipelines::onnx::models::ONNXConditionalGenerator;
@@ -1192,6 +1191,7 @@ impl TranslationOption {
             Self::T5(ref generator) => generator.get_tokenizer(),
             Self::MBart(ref generator) => generator.get_tokenizer(),
             Self::M2M100(ref generator) => generator.get_tokenizer(),
+            Self::NLLB(ref generator) => generator.get_tokenizer(),
             #[cfg(feature = "onnx")]
             Self::ONNX(ref generator) => generator.get_tokenizer(),
         }
