@@ -2212,15 +2212,18 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     }
 
     fn half(&mut self) -> Result<(), RustBertError> {
-        Ok(self.get_var_store_mut()?.half())
+        self.get_var_store_mut()?.half();
+        Ok(())
     }
 
     fn float(&mut self) -> Result<(), RustBertError> {
-        Ok(self.get_var_store_mut()?.float())
+        self.get_var_store_mut()?.float();
+        Ok(())
     }
 
     fn set_device(&mut self, device: Device) -> Result<(), RustBertError> {
-        Ok(self.get_var_store_mut()?.set_device(device))
+        self.get_var_store_mut()?.set_device(device);
+        Ok(())
     }
 }
 

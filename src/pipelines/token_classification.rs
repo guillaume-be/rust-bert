@@ -514,13 +514,17 @@ impl TokenClassificationOption {
     pub fn new_onnx(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
         let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
         let environment = onnx_config.get_environment()?;
-        let (encoder_file, _, _) = config.model_resource.get_onnx_local_paths()?;
+        let encoder_file = config
+            .model_resource
+            .get_onnx_local_paths()?
+            .encoder_path
+            .ok_or(RustBertError::InvalidConfigurationError(
+                "An encoder file must be provided for token classification ONNX models."
+                    .to_string(),
+            ))?;
 
         Ok(Self::ONNX(ONNXEncoder::new(
-            encoder_file.ok_or(RustBertError::InvalidConfigurationError(
-                "An encoder file must be provided for Token classification ONNX models."
-                    .to_string(),
-            ))?,
+            encoder_file,
             &environment,
             &onnx_config,
         )?))

@@ -262,8 +262,8 @@ fn onnx_translation() -> anyhow::Result<()> {
             "https://huggingface.co/optimum/m2m100_418M/resolve/main/sentencepiece.bpe.model",
             "onnx-m2m100_418M",
         )),
-        &M2M100SourceLanguages::M2M100_418M,
-        &M2M100TargetLanguages::M2M100_418M,
+        M2M100SourceLanguages::M2M100_418M,
+        M2M100TargetLanguages::M2M100_418M,
         Device::cuda_if_available(),
     ))?;
 

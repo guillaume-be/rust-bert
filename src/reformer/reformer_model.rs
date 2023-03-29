@@ -1088,7 +1088,7 @@ impl PrivateLanguageGenerator for ReformerGenerator {
         &self.tokenizer
     }
     fn get_device(&self) -> Device {
-        *&self.var_store.device()
+        self.var_store.device()
     }
     fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
         Ok(&mut self.var_store)

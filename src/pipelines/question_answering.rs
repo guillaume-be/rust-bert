@@ -373,7 +373,7 @@ impl QuestionAnsweringOption {
                 if let ConfigOption::DistilBert(ref mut config) = model_config {
                     config.sinusoidal_pos_embds = false;
                     Ok(QuestionAnsweringOption::DistilBert(
-                        DistilBertForQuestionAnswering::new(var_store.root(), &config),
+                        DistilBertForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -481,12 +481,16 @@ impl QuestionAnsweringOption {
     pub fn new_onnx(config: &QuestionAnsweringConfig) -> Result<Self, RustBertError> {
         let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
         let environment = onnx_config.get_environment()?;
-        let (encoder_file, _, _) = config.model_resource.get_onnx_local_paths()?;
+        let encoder_file = config
+            .model_resource
+            .get_onnx_local_paths()?
+            .encoder_path
+            .ok_or(RustBertError::InvalidConfigurationError(
+                "An encoder file must be provided for question answering ONNX models.".to_string(),
+            ))?;
 
         Ok(Self::ONNX(ONNXEncoder::new(
-            encoder_file.ok_or(RustBertError::InvalidConfigurationError(
-                "An encoder file must be provided for Question answering ONNX models.".to_string(),
-            ))?,
+            encoder_file,
             &environment,
             &onnx_config,
         )?))

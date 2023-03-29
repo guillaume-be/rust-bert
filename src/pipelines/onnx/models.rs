@@ -80,8 +80,11 @@ impl ONNXCausalGenerator {
         let config_path = generate_config.config_resource.get_local_path()?;
         let model_config = ConfigOption::from_file(generate_config.model_type, config_path);
 
-        let (_, decoder_without_past_file, decoder_with_past_file) =
-            generate_config.model_resource.get_onnx_local_paths()?;
+        let onnx_local_paths = generate_config.model_resource.get_onnx_local_paths()?;
+        let (decoder_without_past_file, decoder_with_past_file) = (
+            onnx_local_paths.decoder_path,
+            onnx_local_paths.decoder_with_past_path,
+        );
 
         if decoder_without_past_file.is_none() & decoder_with_past_file.is_none() {
             return Err(RustBertError::InvalidConfigurationError("Must provide at least one of `decoder_without_past_file`, `decoder_with_past_file`, both set to None".to_string()));
@@ -92,7 +95,7 @@ impl ONNXCausalGenerator {
         } else {
             None
         };
-        let onnx_config = onnx_config.unwrap_or_else(|| &default_onnx_config.as_ref().unwrap());
+        let onnx_config = onnx_config.unwrap_or_else(|| default_onnx_config.as_ref().unwrap());
 
         let local_environment = if environment.is_none() {
             Some(onnx_config.get_environment()?)
@@ -195,22 +198,16 @@ impl ONNXCausalGenerator {
                     None,
                 )
             }
-            (None, _, None) => {
-                return Err(RustBertError::ValueError(
-                    "No decoder_without_cache loaded and no cache provided.".to_string(),
-                ));
-            }
-            (None, None, _) => {
-                return Err(RustBertError::ValueError(
-                    "No decoder provided.".to_string(),
-                ));
-            }
-            (_, _, Some(cache)) => {
-                return Err(RustBertError::ValueError(format!(
-                    "Invalid cache type provided, expected Cache::ONNXLayerCache, got {:?}.",
-                    cache
-                )));
-            }
+            (None, _, None) => Err(RustBertError::ValueError(
+                "No decoder_without_cache loaded and no cache provided.".to_string(),
+            )),
+            (None, None, _) => Err(RustBertError::ValueError(
+                "No decoder provided.".to_string(),
+            )),
+            (_, _, Some(cache)) => Err(RustBertError::ValueError(format!(
+                "Invalid cache type provided, expected Cache::ONNXLayerCache, got {:?}.",
+                cache
+            ))),
         }
     }
 }
@@ -385,8 +382,12 @@ impl ONNXConditionalGenerator {
         let config_path = generate_config.config_resource.get_local_path()?;
         let model_config = ConfigOption::from_file(generate_config.model_type, config_path);
 
-        let (encoder_file, decoder_without_past_file, decoder_with_past_file) =
-            generate_config.model_resource.get_onnx_local_paths()?;
+        let onnx_local_paths = generate_config.model_resource.get_onnx_local_paths()?;
+        let (encoder_file, decoder_without_past_file, decoder_with_past_file) = (
+            onnx_local_paths.encoder_path,
+            onnx_local_paths.decoder_path,
+            onnx_local_paths.decoder_with_past_path,
+        );
 
         if decoder_without_past_file.is_none() & decoder_with_past_file.is_none() {
             return Err(RustBertError::InvalidConfigurationError("Must provide at least one of `decoder_without_past_file`, `decoder_with_past_file`, both set to None".to_string()));
@@ -397,7 +398,7 @@ impl ONNXConditionalGenerator {
         } else {
             None
         };
-        let onnx_config = onnx_config.unwrap_or_else(|| &default_onnx_config.as_ref().unwrap());
+        let onnx_config = onnx_config.unwrap_or_else(|| default_onnx_config.as_ref().unwrap());
 
         let local_environment = if environment.is_none() {
             Some(onnx_config.get_environment()?)
@@ -405,8 +406,7 @@ impl ONNXConditionalGenerator {
             None
         };
         let environment = environment.unwrap_or_else(|| local_environment.as_ref().unwrap());
-        let encoder_file = encoder_file.ok_or_else(|| {return
-            RustBertError::InvalidConfigurationError(format!("ONNXConditionalGenerator requires an `encoder_path` to be provided in the `ModelResources`, got {:?}", generate_config.model_resource))})?;
+        let encoder_file = encoder_file.ok_or(RustBertError::InvalidConfigurationError(format!("ONNXConditionalGenerator requires an `encoder_path` to be provided in the `ModelResources`, got {:?}", generate_config.model_resource)))?;
 
         let encoder = ONNXEncoder::new(encoder_file, environment, onnx_config)?;
         let decoder_without_past = if let Some(model_file) = decoder_without_past_file {
@@ -474,11 +474,9 @@ impl ONNXConditionalGenerator {
                 self.encoder
                     .forward(input_ids, encoder_attention_mask, None, None, None)?
                     .last_hidden_state
-                    .ok_or_else(|| {
-                        return RustBertError::ValueError(
-                            "`last_hidden_state` not found in ONNX model outputs.".to_string(),
-                        );
-                    })?,
+                    .ok_or(RustBertError::ValueError(
+                        "`last_hidden_state` not found in ONNX model outputs.".to_string(),
+                    ))?,
             )
         } else {
             None
@@ -532,22 +530,16 @@ impl ONNXConditionalGenerator {
                     None,
                 )
             }
-            (None, _, None) => {
-                return Err(RustBertError::ValueError(
-                    "No decoder_without_cache loaded and no cache provided.".to_string(),
-                ));
-            }
-            (None, None, _) => {
-                return Err(RustBertError::ValueError(
-                    "No decoder provided.".to_string(),
-                ));
-            }
-            (_, _, Some(cache)) => {
-                return Err(RustBertError::ValueError(format!(
-                    "Invalid cache type provided, expected Cache::ONNXLayerCache, got {:?}.",
-                    cache
-                )));
-            }
+            (None, _, None) => Err(RustBertError::ValueError(
+                "No decoder_without_cache loaded and no cache provided.".to_string(),
+            )),
+            (None, None, _) => Err(RustBertError::ValueError(
+                "No decoder provided.".to_string(),
+            )),
+            (_, _, Some(cache)) => Err(RustBertError::ValueError(format!(
+                "Invalid cache type provided, expected Cache::ONNXLayerCache, got {:?}.",
+                cache
+            ))),
         }
     }
 }
@@ -618,12 +610,10 @@ impl PrivateLanguageGenerator for ONNXConditionalGenerator {
     }
 
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
-        Some(
-            self.encoder
-                .forward(Some(input_ids), attention_mask, None, None, None)
-                .unwrap()
-                .last_hidden_state?,
-        )
+        self.encoder
+            .forward(Some(input_ids), attention_mask, None, None, None)
+            .unwrap()
+            .last_hidden_state
     }
 
     fn prepare_inputs_for_generation<'a>(

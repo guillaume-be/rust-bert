@@ -71,9 +71,9 @@ impl ONNXDecoder {
                     Ok(tch_tensor_to_ort(tensor)?)
                 } else {
                     let layer_states = layer_states.ok_or_else(|| {
-                        return RustBertError::OrtError(format!(
+                        RustBertError::OrtError(format!(
                             "{input_name} not found and cache was not provided."
-                        ));
+                        ))
                     })?;
                     let input_pos = layer_states
                         .values
@@ -85,9 +85,9 @@ impl ONNXDecoder {
                         })
                         .ok_or_else(|| {
                             let found_keys = layer_states.values.keys().collect::<Vec<&String>>();
-                            return RustBertError::OrtError(format!(
+                            RustBertError::OrtError(format!(
                                 "{input_name} not found in cache ({found_keys:?})."
-                            ));
+                            ))
                         })?;
                     tch_tensor_to_ort(input_pos)
                 }

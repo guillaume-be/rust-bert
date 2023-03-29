@@ -82,6 +82,12 @@ pub enum ModelResources {
     ONNX(ONNXModelResources),
 }
 
+pub struct ONNXLocalPaths {
+    pub encoder_path: Option<PathBuf>,
+    pub decoder_path: Option<PathBuf>,
+    pub decoder_with_past_path: Option<PathBuf>,
+}
+
 impl ModelResources {
     /// Provides the torch resource local path.
     /// Returns an error if the variant is not a `ModelResources::TORCH`
@@ -94,9 +100,7 @@ impl ModelResources {
     }
 
     #[cfg(feature = "onnx")]
-    pub fn get_onnx_local_paths(
-        &self,
-    ) -> Result<(Option<PathBuf>, Option<PathBuf>, Option<PathBuf>), RustBertError> {
+    pub fn get_onnx_local_paths(&self) -> Result<ONNXLocalPaths, RustBertError> {
         let (encoder_path, decoder_path, decoder_with_past_path) = match self {
             ModelResources::ONNX(onnx_model_resources) => Ok((
                 onnx_model_resources
@@ -111,11 +115,11 @@ impl ModelResources {
             )),
             _ => Err(RustBertError::InvalidConfigurationError(format!("Attempting to get the ONNX local paths but other weights variants were given: {:?}", self)))
         }?;
-        Ok((
-            encoder_path.transpose()?,
-            decoder_path.transpose()?,
-            decoder_with_past_path.transpose()?,
-        ))
+        Ok(ONNXLocalPaths {
+            encoder_path: encoder_path.transpose()?,
+            decoder_path: decoder_path.transpose()?,
+            decoder_with_past_path: decoder_with_past_path.transpose()?,
+        })
     }
 }
 
