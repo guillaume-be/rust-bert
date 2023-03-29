@@ -58,6 +58,6 @@ fn main() -> anyhow::Result<()> {
         Language::Hindi,
     )?);
 
-    println!("{:?}", output);
+    println!("{:?}", outputs);
     Ok(())
 }

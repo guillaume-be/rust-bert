@@ -120,7 +120,11 @@ impl ModelResources {
 
 pub(crate) fn get_device(_model_resource: ModelResources, device: Device) -> Device {
     #[cfg(feature = "onnx")]
-    let device = get_onnx_device(_model_resource, device);
+    let device = if let ModelResources::ONNX(_) = _model_resource {
+        Device::Cpu
+    } else {
+        device
+    };
 
     #[cfg(not(feature = "onnx"))]
     let device = device;

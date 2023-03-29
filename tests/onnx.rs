@@ -18,6 +18,7 @@ use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 #[test]
+#[cfg(feature = "onnx")]
 fn onnx_masked_lm() -> anyhow::Result<()> {
     let masked_lm = MaskedLanguageModel::new(MaskedLanguageConfig::new(
         ModelType::Bert,
@@ -64,6 +65,7 @@ fn onnx_masked_lm() -> anyhow::Result<()> {
 }
 
 #[test]
+#[cfg(feature = "onnx")]
 fn onnx_question_answering() -> anyhow::Result<()> {
     let qa_model = QuestionAnsweringModel::new(QuestionAnsweringConfig::new(
         ModelType::Roberta,
@@ -103,6 +105,7 @@ fn onnx_question_answering() -> anyhow::Result<()> {
 }
 
 #[test]
+#[cfg(feature = "onnx")]
 fn onnx_sequence_classification() -> anyhow::Result<()> {
     let classification_model = SentimentModel::new(SequenceClassificationConfig::new(
         ModelType::DistilBert,
@@ -143,6 +146,7 @@ fn onnx_sequence_classification() -> anyhow::Result<()> {
 }
 
 #[test]
+#[cfg(feature = "onnx")]
 fn onnx_token_classification() -> anyhow::Result<()> {
     let token_classification_model = NERModel::new(TokenClassificationConfig::new(
         ModelType::Bert,
@@ -186,6 +190,7 @@ fn onnx_token_classification() -> anyhow::Result<()> {
 }
 
 #[test]
+#[cfg(feature = "onnx")]
 fn onnx_text_generation() -> anyhow::Result<()> {
     let text_generation_model = TextGenerationModel::new(TextGenerationConfig {
         model_type: ModelType::GPT2,
@@ -227,6 +232,7 @@ fn onnx_text_generation() -> anyhow::Result<()> {
 }
 
 #[test]
+#[cfg(feature = "onnx")]
 fn onnx_translation() -> anyhow::Result<()> {
     let translation_model = TranslationModel::new(TranslationConfig::new(
         ModelType::M2M100,
