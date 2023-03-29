@@ -716,6 +716,7 @@ pub mod m2m_100;
 pub mod marian;
 pub mod mbart;
 pub mod mobilebert;
+pub mod nllb;
 pub mod openai_gpt;
 pub mod pegasus;
 pub mod pipelines;
