@@ -70,7 +70,7 @@ use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::deberta_v2::DebertaV2ForQuestionAnswering;
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
 
 #[cfg(feature = "remote")]
 use crate::{
@@ -256,7 +256,7 @@ impl QuestionAnsweringConfig {
 impl Default for QuestionAnsweringConfig {
     fn default() -> QuestionAnsweringConfig {
         QuestionAnsweringConfig {
-            model_resource: ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+            model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
                 DistilBertModelResources::DISTIL_BERT_SQUAD,
             ))),
             config_resource: Box::new(RemoteResource::from_pretrained(
@@ -320,7 +320,7 @@ impl QuestionAnsweringOption {
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &QuestionAnsweringConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::TORCH(_) => Self::new_torch(config),
+            ModelResources::Torch(_) => Self::new_torch(config),
             #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }

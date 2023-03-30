@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
     //    Load a configuration
     let config = TokenClassificationConfig::new(
         ModelType::Bert,
-        ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
             BertModelResources::BERT_NER,
         ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT_NER),

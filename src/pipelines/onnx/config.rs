@@ -18,6 +18,8 @@ pub static START_LOGITS: &str = "start_logits";
 pub static END_LOGITS: &str = "end_logits";
 
 #[derive(Default)]
+/// # ONNX Environment configuration
+/// See https://onnxruntime.ai/docs/api/python/api_summary.html#sessionoptions
 pub struct ONNXEnvironmentConfig {
     pub optimization_level: Option<GraphOptimizationLevel>,
     pub execution_providers: Option<Vec<ExecutionProvider>>,
@@ -30,6 +32,8 @@ pub struct ONNXEnvironmentConfig {
 }
 
 impl ONNXEnvironmentConfig {
+    /// Create a new `ONNXEnvironmentConfig` from a `tch::Device`.
+    /// This helper function maps torch device to ONNXRuntime execution providers
     pub fn from_device(device: Device) -> Self {
         let mut execution_providers = Vec::new();
         if let Device::Cuda(_) = device {
@@ -42,6 +46,7 @@ impl ONNXEnvironmentConfig {
         }
     }
 
+    ///Build a session builder from an `ONNXEnvironmentConfig`.
     pub fn get_session_builder(
         &self,
         environment: &Arc<Environment>,
@@ -83,6 +88,7 @@ impl ONNXEnvironmentConfig {
         Ok(session_builder)
     }
 
+    ///Build an ONNXEnvironment from an `ONNXEnvironmentConfig`.
     pub fn get_environment(&self) -> Result<Arc<Environment>, RustBertError> {
         Ok(Arc::new(
             Environment::builder()

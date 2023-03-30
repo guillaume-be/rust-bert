@@ -9,7 +9,7 @@ use tch::Device;
 #[test]
 // #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn nllb_translation() -> anyhow::Result<()> {
-    let model_resource = ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+    let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
         NLLBResources::NLLB_600M_DISTILLED,
     )));
     let config_resource = RemoteResource::from_pretrained(NLLBConfigResources::NLLB_600M_DISTILLED);

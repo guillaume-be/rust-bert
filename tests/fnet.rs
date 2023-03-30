@@ -90,7 +90,7 @@ fn fnet_for_sequence_classification() -> anyhow::Result<()> {
     let vocab_resource = Box::new(RemoteResource::from_pretrained(
         FNetVocabResources::BASE_SST2,
     ));
-    let model_resource = ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+    let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
         FNetModelResources::BASE_SST2,
     )));
 

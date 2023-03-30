@@ -34,7 +34,7 @@
 //!    use rust_bert::pipelines::common::ModelResources;
 //! let config = QuestionAnsweringConfig::new(
 //!        ModelType::Longformer,
-//!        ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+//!        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
 //!            LongformerModelResources::LONGFORMER_BASE_SQUAD1,
 //!        ))),
 //!        RemoteResource::from_pretrained(

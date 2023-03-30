@@ -22,7 +22,7 @@ fn prophetnet_summarization_greedy() -> anyhow::Result<()> {
 
     let summarization_config = SummarizationConfig {
         model_type: ModelType::ProphetNet,
-        model_resource: ModelResources::TORCH(weights_resource),
+        model_resource: ModelResources::Torch(weights_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,

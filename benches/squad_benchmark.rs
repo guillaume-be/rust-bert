@@ -17,7 +17,7 @@ static BATCH_SIZE: usize = 64;
 fn create_qa_model() -> QuestionAnsweringModel {
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,
-        ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
             BertModelResources::BERT_QA,
         ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT_QA),
@@ -54,7 +54,7 @@ fn qa_load_model(iters: u64) -> Duration {
         let start = Instant::now();
         let config = QuestionAnsweringConfig::new(
             ModelType::Bert,
-            ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
                 BertModelResources::BERT_QA,
             ))),
             RemoteResource::from_pretrained(BertConfigResources::BERT_QA),

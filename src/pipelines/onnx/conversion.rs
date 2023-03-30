@@ -58,11 +58,14 @@ pub(crate) fn tch_tensor_to_ort(tch_tensor: &Tensor) -> Result<InputTensor, Rust
 }
 
 #[derive(Debug)]
+/// Container used to store key-value cached states for efficient decoding.
 pub struct ONNXLayerCache {
     pub values: HashMap<String, Tensor>,
 }
 
 impl ONNXLayerCache {
+    /// Helper function to create a cache layer from an ONNX model output.
+    /// Assumes that the output names for cached keys and values contain `key` and `value` in their name, respectively.
     pub fn from_ort_output(
         ort_output: &[DynOrtTensor<IxDyn>],
         key_value_names: &HashMap<String, usize>,

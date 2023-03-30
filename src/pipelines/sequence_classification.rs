@@ -24,7 +24,7 @@
 //! //Load a configuration
 //! use rust_bert::pipelines::common::ModelResources;
 //! let config = SequenceClassificationConfig::new(ModelType::DistilBert,
-//!    ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2))),
+//!    ModelResources::Torch(Box::new(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2))),
 //!    RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
 //!    RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
 //!    None, // Merge resources
@@ -81,7 +81,7 @@ use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::deberta_v2::DebertaV2ForSequenceClassification;
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
@@ -170,7 +170,7 @@ impl Default for SequenceClassificationConfig {
     fn default() -> SequenceClassificationConfig {
         SequenceClassificationConfig::new(
             ModelType::DistilBert,
-            ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
                 DistilBertModelResources::DISTIL_BERT_SST2,
             ))),
             RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
@@ -226,7 +226,7 @@ impl SequenceClassificationOption {
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &SequenceClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::TORCH(_) => Self::new_torch(config),
+            ModelResources::Torch(_) => Self::new_torch(config),
             #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }

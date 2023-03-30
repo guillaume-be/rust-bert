@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
 
     let summarization_config = SummarizationConfig::new(
         ModelType::T5,
-        ModelResources::TORCH(Box::new(weights_resource)),
+        ModelResources::Torch(Box::new(weights_resource)),
         config_resource,
         vocab_resource,
         None,

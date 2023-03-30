@@ -15,6 +15,17 @@ use std::sync::Arc;
 use tch::{nn, Device, Kind, Tensor};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// # ONNX Model configuration
+/// Represents a shared subset of commonly used model parameters used for text generation
+/// or classifications tasks. Note that pipelines are compatible with the use of an ONNXModel
+/// matched with the corresponding model configuration (e.g. an ONNX exported BERT model would
+/// be compatible in pipelines with a `BertConfig`).
+///
+/// This is provided for extending the support of models in pipelines to models that have
+/// not yet been ported to the Torch version in this crate.
+///
+/// The fields for this configuration are described at
+/// https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig
 pub struct ONNXModelConfig {
     pub bos_token_id: Option<i64>,
     pub eos_token_ids: Option<Vec<i64>>,
@@ -29,6 +40,13 @@ pub struct ONNXModelConfig {
 
 impl Config for ONNXModelConfig {}
 
+/// # ONNX Causal Generator
+/// Container for an ONNX decoder model and the corresponding sessions. This model can be used for
+/// causal generation or prefix language models. It may contain one or two sessions to handle the
+/// initial generation stage (no cached key values present) and subsequent generation stages (cached
+/// keys and values are available from the previous token generated, avoiding unnecessary re-computation).
+///
+/// The recommended instantiation is done via the `new` and `new_with_tokenizer` methods.
 pub struct ONNXCausalGenerator {
     decoder_without_past: Option<ONNXDecoder>,
     decoder_with_past: Option<ONNXDecoder>,
@@ -47,6 +65,60 @@ pub struct ONNXCausalGenerator {
 }
 
 impl ONNXCausalGenerator {
+    /// Create a new `ONNXCausalGenerator` from a `GenerateConfig`.
+    ///
+    /// Extract the required model, tokenizer and configuration resources from a `GenerateConfig`.
+    /// Note that the `model_resources` field of the `GenerateConfig` provided should be of the
+    /// `ModelResources::ONNX` type, passing a `ModelResources::ONNX` resource will cause the model
+    /// to fail.
+    ///
+    /// The tokenizer is automatically created based on the `model_type` field of the `GenerateConfig`.
+    /// In order to create an `ONNXCausalGenerator` the user must therefore provide an actual (non-ONNX)
+    /// `model_type` paired with a set of ONNX resources.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use ort::Environment;
+    /// use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
+    /// use rust_bert::pipelines::onnx::ONNXCausalGenerator;
+    /// use rust_bert::resources::RemoteResource;
+    /// use std::sync::Arc;
+    /// let generate_config = GenerateConfig {
+    ///     model_type: ModelType::GPT2,
+    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///         encoder_resource: None,
+    ///         decoder_resource: Some(Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
+    ///             "onnx-gpt2",
+    ///         ))),
+    ///         decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_with_past_model.onnx",
+    ///             "onnx-gpt2",
+    ///         ))),
+    ///     }),
+    ///     config_resource: Box::new(RemoteResource::new(
+    ///         "https://huggingface.co/optimum/gpt2/resolve/main/config.json",
+    ///         "onnx-gpt2",
+    ///     )),
+    ///     vocab_resource: Box::new(RemoteResource::new(
+    ///         "https://huggingface.co/gpt2/resolve/main/vocab.json",
+    ///         "onnx-gpt2",
+    ///     )),
+    ///     merges_resource: Some(Box::new(RemoteResource::new(
+    ///         "https://huggingface.co/gpt2/resolve/main/merges.txt",
+    ///         "onnx-gpt2",
+    ///     ))),
+    ///     ..Default::default()
+    /// };
+    /// let environment = Some(Arc::new(Environment::default()));
+    /// let onnx_config = Some(ONNXEnvironmentConfig::default());
+    /// let onnx_causal_generator =
+    ///     ONNXCausalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///         .unwrap();
+    /// ```
     pub fn new(
         generate_config: GenerateConfig,
         environment: Option<&Arc<Environment>>,
@@ -71,6 +143,67 @@ impl ONNXCausalGenerator {
         Self::new_with_tokenizer(generate_config, tokenizer, environment, onnx_config)
     }
 
+    /// Create a new `ONNXCausalGenerator` from a `GenerateConfig` and `TokenizerOption`.
+    ///
+    /// Extract the required model and configuration resources from a `GenerateConfig`.
+    /// Note that the `model_resources` field of the `GenerateConfig` provided should be of the
+    /// `ModelResources::ONNX` type, passing a `ModelResources::ONNX` resource will cause the model
+    /// to fail.
+    ///
+    /// A tokenizer must be provided by the user and can be customized to use non-default settings.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use ort::Environment;
+    /// use rust_bert::pipelines::common::{
+    ///     ModelResources, ModelType, ONNXModelResources, TokenizerOption,
+    /// };
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
+    /// use rust_bert::pipelines::onnx::ONNXCausalGenerator;
+    /// use rust_bert::resources::RemoteResource;
+    /// use std::sync::Arc;
+    /// let generate_config = GenerateConfig {
+    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///         encoder_resource: None,
+    ///         decoder_resource: Some(Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
+    ///             "onnx-gpt2",
+    ///         ))),
+    ///         decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_with_past_model.onnx",
+    ///             "onnx-gpt2",
+    ///         ))),
+    ///     }),
+    ///     config_resource: Box::new(RemoteResource::new(
+    ///         "https://huggingface.co/optimum/gpt2/resolve/main/config.json",
+    ///         "onnx-gpt2",
+    ///     )),
+    ///     ..Default::default()
+    /// };
+    /// let environment = Some(Arc::new(Environment::default()));
+    /// let onnx_config = Some(ONNXEnvironmentConfig::default());
+    /// let lower_case = false;
+    /// let strip_accents = None;
+    /// let add_prefix_space = None;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::GPT2,
+    ///     "path/to/vocab.json",
+    ///     Some("path/to/merges.txt"),
+    ///     lower_case,
+    ///     strip_accents,
+    ///     add_prefix_space,
+    /// )
+    /// .unwrap();
+    /// let onnx_causal_generator = ONNXCausalGenerator::new_with_tokenizer(
+    ///     generate_config,
+    ///     tokenizer,
+    ///     environment.as_ref(),
+    ///     onnx_config.as_ref(),
+    /// )
+    /// .unwrap();
+    /// ```
     pub fn new_with_tokenizer(
         generate_config: GenerateConfig,
         tokenizer: TokenizerOption,
@@ -154,6 +287,87 @@ impl ONNXCausalGenerator {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `encoder_hidden_states` - Optional tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*). These correspond to the encoder last hidden state.
+    /// * `encoder_attention_mask` - Optional attention mask for the encoder outputs. Positions with a mask with value 0 will be masked.
+    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
+    /// * `layer_states` - Optional `Cache` container containing the past keys and values. When provided, these are concatenated with the current input keys and values.
+    ///
+    /// # Returns
+    ///
+    /// * `LMModelOutput` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the activations of the last hidden state
+    ///   - `cache` - `Cache`  containing the past keys and values of each layer.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use ort::Environment;
+    /// use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+    /// use rust_bert::pipelines::generation_utils::{Cache, GenerateConfig};
+    /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
+    /// use rust_bert::pipelines::onnx::ONNXCausalGenerator;
+    /// use rust_bert::resources::RemoteResource;
+    /// use std::sync::Arc;
+    /// use tch::Kind::Int64;
+    /// use tch::{Device, Tensor};
+    /// let generate_config = GenerateConfig {
+    ///     model_type: ModelType::GPT2,
+    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///         encoder_resource: None,
+    ///         decoder_resource: Some(Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
+    ///             "onnx-gpt2",
+    ///         ))),
+    ///         decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_with_past_model.onnx",
+    ///             "onnx-gpt2",
+    ///         ))),
+    ///     }),
+    ///     config_resource: Box::new(RemoteResource::new(
+    ///         "https://huggingface.co/optimum/gpt2/resolve/main/config.json",
+    ///         "onnx-gpt2",
+    ///     )),
+    ///     vocab_resource: Box::new(RemoteResource::new(
+    ///         "https://huggingface.co/gpt2/resolve/main/vocab.json",
+    ///         "onnx-gpt2",
+    ///     )),
+    ///     merges_resource: Some(Box::new(RemoteResource::new(
+    ///         "https://huggingface.co/gpt2/resolve/main/merges.txt",
+    ///         "onnx-gpt2",
+    ///     ))),
+    ///     ..Default::default()
+    /// };
+    /// let environment = Some(Arc::new(Environment::default()));
+    /// let onnx_config = Some(ONNXEnvironmentConfig::default());
+    /// let onnx_causal_generator =
+    ///     ONNXCausalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///         .unwrap();
+    /// let past = Cache::None;
+    /// let (batch_size, sequence_length) = (64, 128);
+    /// let device = Device::cuda_if_available();
+    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
+    /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
+    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
+    ///     .expand(&[batch_size, sequence_length], true);
+    ///
+    /// let model_output = onnx_causal_generator
+    ///     .forward(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         None,
+    ///         None,
+    ///         Some(&position_ids),
+    ///         Some(&past),
+    ///     )
+    ///     .unwrap();
+    /// ```
     pub fn forward(
         &self,
         input_ids: Option<&Tensor>,
@@ -330,6 +544,13 @@ impl PrivateLanguageGenerator for ONNXCausalGenerator {
 
 impl LanguageGenerator for ONNXCausalGenerator {}
 
+/// # ONNX Conditional Generator
+/// Container for an ONNX encoder/decoder model and the corresponding sessions. This model can be used for
+/// conditional language models. It may contain two or three sessions to handle the encoding,
+/// initial generation stage (no cached key values present) and optionally subsequent generation stages (cached
+/// keys and values are available from the previous token generated, avoiding unnecessary re-computation).
+///
+/// The recommended instantiation is done via the `new` and `new_with_tokenizer` methods.
 pub struct ONNXConditionalGenerator {
     encoder: ONNXEncoder,
     decoder_without_past: Option<ONNXDecoder>,
@@ -349,6 +570,63 @@ pub struct ONNXConditionalGenerator {
 }
 
 impl ONNXConditionalGenerator {
+    /// Create a new `ONNXConditionalGenerator` from a `GenerateConfig`.
+    ///
+    /// Extract the required model, tokenizer and configuration resources from a `GenerateConfig`.
+    /// Note that the `model_resources` field of the `GenerateConfig` provided should be of the
+    /// `ModelResources::ONNX` type, passing a `ModelResources::ONNX` resource will cause the model
+    /// to fail.
+    ///
+    /// The tokenizer is automatically created based on the `model_type` field of the `GenerateConfig`.
+    /// In order to create an `ONNXConditionalGenerator` the user must therefore provide an actual (non-ONNX)
+    /// `model_type` paired with a set of ONNX resources.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use ort::Environment;
+    /// use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
+    /// use rust_bert::pipelines::onnx::ONNXConditionalGenerator;
+    /// use rust_bert::resources::RemoteResource;
+    /// use std::sync::Arc;
+    /// let generate_config = GenerateConfig {
+    ///     model_type: ModelType::M2M100,
+    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///              encoder_resource: Some(Box::new(RemoteResource::new(
+    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
+    ///                 "onnx-m2m100_418M",
+    ///             ))),
+    ///             decoder_resource: Some(Box::new(RemoteResource::new(
+    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
+    ///                 "onnx-m2m100_418M",
+    ///             ))),
+    ///             decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
+    ///                 "onnx-m2m100_418M",
+    ///             ))),
+    ///         }),
+    ///         config_resource: Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/config.json",
+    ///             "onnx-m2m100_418M",
+    ///         )),
+    ///         vocab_resource: Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/vocab.json",
+    ///             "onnx-m2m100_418M",
+    ///         )),
+    ///         merges_resource: Some(Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/sentencepiece.bpe.model",
+    ///             "onnx-m2m100_418M",
+    ///         ))),
+    ///     ..Default::default()
+    /// };
+    /// let environment = Some(Arc::new(Environment::default()));
+    /// let onnx_config = Some(ONNXEnvironmentConfig::default());
+    /// let onnx_conditional_generator =
+    ///     ONNXConditionalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///         .unwrap();
+    /// ```
     pub fn new(
         generate_config: GenerateConfig,
         environment: Option<&Arc<Environment>>,
@@ -373,6 +651,70 @@ impl ONNXConditionalGenerator {
         Self::new_with_tokenizer(generate_config, tokenizer, environment, onnx_config)
     }
 
+    /// Create a new `ONNXConditionalGenerator` from a `GenerateConfig` and `TokenizerOption`.
+    ///
+    /// Extract the required model and configuration resources from a `GenerateConfig`.
+    /// Note that the `model_resources` field of the `GenerateConfig` provided should be of the
+    /// `ModelResources::ONNX` type, passing a `ModelResources::ONNX` resource will cause the model
+    /// to fail.
+    ///
+    /// A tokenizer must be provided by the user and can be customized to use non-default settings.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use ort::Environment;
+    /// use rust_bert::pipelines::common::{
+    ///     ModelResources, ModelType, ONNXModelResources, TokenizerOption,
+    /// };
+    /// use rust_bert::pipelines::generation_utils::GenerateConfig;
+    /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
+    /// use rust_bert::pipelines::onnx::ONNXConditionalGenerator;
+    /// use rust_bert::resources::RemoteResource;
+    /// use std::sync::Arc;
+    /// let generate_config = GenerateConfig {
+    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///              encoder_resource: Some(Box::new(RemoteResource::new(
+    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
+    ///                 "onnx-m2m100_418M",
+    ///             ))),
+    ///             decoder_resource: Some(Box::new(RemoteResource::new(
+    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
+    ///                 "onnx-m2m100_418M",
+    ///             ))),
+    ///             decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
+    ///                 "onnx-m2m100_418M",
+    ///             ))),
+    ///         }),
+    ///         config_resource: Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/config.json",
+    ///             "onnx-m2m100_418M",
+    ///         )),
+    ///     ..Default::default()
+    /// };
+    /// let environment = Some(Arc::new(Environment::default()));
+    /// let onnx_config = Some(ONNXEnvironmentConfig::default());
+    /// let lower_case = false;
+    /// let strip_accents = None;
+    /// let add_prefix_space = None;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::M2M100,
+    ///     "path/to/vocab.json",
+    ///     Some("path/to/merges.txt"),
+    ///     lower_case,
+    ///     strip_accents,
+    ///     add_prefix_space,
+    /// )
+    /// .unwrap();
+    /// let onnx_conditional_generator = ONNXConditionalGenerator::new_with_tokenizer(
+    ///     generate_config,
+    ///     tokenizer,
+    ///     environment.as_ref(),
+    ///     onnx_config.as_ref(),
+    /// )
+    /// .unwrap();
+    /// ```
     pub fn new_with_tokenizer(
         generate_config: GenerateConfig,
         tokenizer: TokenizerOption,
@@ -460,6 +802,91 @@ impl ONNXConditionalGenerator {
         })
     }
 
+    /// Forward pass through the model
+    ///
+    /// # Arguments
+    ///
+    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
+    /// * `attention_mask` -  Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
+    /// * `encoder_hidden_states` - Optional tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*). These correspond to the encoder last hidden state.
+    /// * `encoder_attention_mask` - Optional mask of shape (*batch size*, *sequence_length*) for the encoder hidden states. Masked position have value 0, non-masked value 1. If None set to 1
+    /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
+    /// * `layer_states` - Optional `Cache` container containing the past keys and values. When provided, these are concatenated with the current input keys and values.
+    ///
+    /// # Returns
+    ///
+    /// * `LMModelOutput` containing:
+    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the activations of the last hidden state
+    ///   - `cache` - `Cache`  containing the past keys and values of each layer.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use ort::Environment;
+    /// use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+    /// use rust_bert::pipelines::generation_utils::{Cache, GenerateConfig};
+    /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
+    /// use rust_bert::pipelines::onnx::ONNXConditionalGenerator;
+    /// use rust_bert::resources::RemoteResource;
+    /// use std::sync::Arc;
+    /// use tch::Kind::{Float, Int64};
+    /// use tch::{Device, Tensor};
+    /// let generate_config = GenerateConfig {
+    ///     model_type: ModelType::M2M100,
+    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///              encoder_resource: Some(Box::new(RemoteResource::new(
+    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
+    ///                 "onnx-m2m100_418M",
+    ///             ))),
+    ///             decoder_resource: Some(Box::new(RemoteResource::new(
+    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
+    ///                 "onnx-m2m100_418M",
+    ///             ))),
+    ///             decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
+    ///                 "onnx-m2m100_418M",
+    ///             ))),
+    ///         }),
+    ///         config_resource: Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/config.json",
+    ///             "onnx-m2m100_418M",
+    ///         )),
+    ///         vocab_resource: Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/vocab.json",
+    ///             "onnx-m2m100_418M",
+    ///         )),
+    ///         merges_resource: Some(Box::new(RemoteResource::new(
+    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/sentencepiece.bpe.model",
+    ///             "onnx-m2m100_418M",
+    ///         ))),
+    ///     ..Default::default()
+    /// };
+    /// let environment = Some(Arc::new(Environment::default()));
+    /// let onnx_config = Some(ONNXEnvironmentConfig::default());
+    /// let onnx_conditional_generator =
+    ///     ONNXConditionalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///         .unwrap();
+    /// let device = Device::cuda_if_available();
+    /// let past = Cache::None;
+    /// let device = Device::cuda_if_available();
+    /// let (batch_size, source_sequence_length, target_sequence_length, hidden_state_dim) = (64, 128, 56, 512);
+    /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
+    /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
+    /// let attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    /// let encoder_hidden_states = Tensor::zeros(&[batch_size, source_sequence_length, hidden_state_dim], (Float, device));
+    /// let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///
+    /// let model_output = onnx_conditional_generator
+    ///     .forward(
+    ///         Some(&input_tensor),
+    ///         Some(&attention_mask),
+    ///         Some(&encoder_hidden_states),
+    ///         Some(&encoder_attention_mask),
+    ///         Some(&target_tensor),
+    ///         Some(&past),
+    ///     )
+    ///     .unwrap();
+    /// ```
     pub fn forward(
         &self,
         input_ids: Option<&Tensor>,

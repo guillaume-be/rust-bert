@@ -117,7 +117,7 @@ use rust_tokenizers::tokenizer::TruncationStrategy;
 use rust_tokenizers::TokenizedInput;
 
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
@@ -196,7 +196,7 @@ impl Default for ZeroShotClassificationConfig {
     fn default() -> ZeroShotClassificationConfig {
         ZeroShotClassificationConfig {
             model_type: ModelType::Bart,
-            model_resource: ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+            model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
                 BartModelResources::BART_MNLI,
             ))),
             config_resource: Box::new(RemoteResource::from_pretrained(
@@ -255,7 +255,7 @@ impl ZeroShotClassificationOption {
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &ZeroShotClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::TORCH(_) => Self::new_torch(config),
+            ModelResources::Torch(_) => Self::new_torch(config),
             #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }

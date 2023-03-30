@@ -93,7 +93,7 @@
 //! use rust_bert::pipelines::common::ModelResources;
 //! let ner_config = TokenClassificationConfig {
 //!     model_type: ModelType::XLMRoberta,
-//!     model_resource: ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+//!     model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
 //!         RobertaModelResources::XLM_ROBERTA_NER_DE,
 //!     ))),
 //!     config_resource: Box::new(RemoteResource::from_pretrained(

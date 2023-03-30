@@ -125,7 +125,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
     //    Set-up model
     let generation_config = TextGenerationConfig {
         model_type: ModelType::GPTNeo,
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),

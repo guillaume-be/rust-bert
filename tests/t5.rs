@@ -26,7 +26,7 @@ fn test_translation_t5() -> anyhow::Result<()> {
 
     let translation_config = TranslationConfig::new(
         ModelType::T5,
-        ModelResources::TORCH(Box::new(model_resource)),
+        ModelResources::Torch(Box::new(model_resource)),
         config_resource,
         vocab_resource,
         None,
@@ -65,7 +65,7 @@ fn test_summarization_t5() -> anyhow::Result<()> {
     //    Set-up translation model
     let summarization_config = SummarizationConfig {
         model_type: ModelType::T5,
-        model_resource: ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+        model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
             T5ModelResources::T5_SMALL,
         ))),
         config_resource: Box::new(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL)),

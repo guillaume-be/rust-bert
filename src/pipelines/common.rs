@@ -61,7 +61,7 @@ use std::path::{Path, PathBuf};
 use tch::{Device, Kind, Tensor};
 
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::models::ONNXModelConfig;
+use crate::pipelines::onnx::ONNXModelConfig;
 
 #[derive(Debug, Default)]
 /// Container for ONNX model resources, containing 3 optional resources (Encoder, Decoder and Decoder with past)
@@ -77,7 +77,7 @@ pub struct ONNXModelResources {
 #[derive(Debug)]
 /// Variants to store either a Torch model resource or ONNX resources
 pub enum ModelResources {
-    TORCH(Box<dyn ResourceProvider + Send>),
+    Torch(Box<dyn ResourceProvider + Send>),
     #[cfg(feature = "onnx")]
     ONNX(ONNXModelResources),
 }
@@ -93,7 +93,7 @@ impl ModelResources {
     /// Returns an error if the variant is not a `ModelResources::TORCH`
     pub fn get_torch_local_path(&self) -> Result<PathBuf, RustBertError> {
         match self {
-            ModelResources::TORCH(torch_resource) => torch_resource.get_local_path(),
+            ModelResources::Torch(torch_resource) => torch_resource.get_local_path(),
             #[cfg(feature = "onnx")]
             _ => Err(RustBertError::InvalidConfigurationError(format!("Attempting to get the Torch local path but other weights variants were given: {:?}", self)))
         }

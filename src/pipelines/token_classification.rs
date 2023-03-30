@@ -26,7 +26,7 @@
 //! use rust_bert::pipelines::token_classification::LabelAggregationOption;
 //! let config = TokenClassificationConfig::new(
 //!    ModelType::Bert,
-//!    ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_NER))),
+//!    ModelResources::Torch(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_NER))),
 //!    RemoteResource::from_pretrained(BertVocabResources::BERT_NER),
 //!    RemoteResource::from_pretrained(BertConfigResources::BERT_NER),
 //!    None, //merges resource only relevant with ModelType::Roberta
@@ -141,7 +141,7 @@ use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::deberta_v2::DebertaV2ForTokenClassification;
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
 #[cfg(feature = "remote")]
 use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
@@ -297,7 +297,7 @@ impl Default for TokenClassificationConfig {
     fn default() -> TokenClassificationConfig {
         TokenClassificationConfig::new(
             ModelType::Bert,
-            ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
                 BertModelResources::BERT_NER,
             ))),
             RemoteResource::from_pretrained(BertConfigResources::BERT_NER),
@@ -352,7 +352,7 @@ impl TokenClassificationOption {
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::TORCH(_) => Self::new_torch(config),
+            ModelResources::Torch(_) => Self::new_torch(config),
             #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }

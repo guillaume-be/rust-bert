@@ -143,7 +143,7 @@ impl Default for GenerateConfig {
     fn default() -> GenerateConfig {
         GenerateConfig {
             model_type: ModelType::GPT2,
-            model_resource: ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+            model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
                 Gpt2ModelResources::GPT2,
             ))),
             config_resource: Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)),

@@ -19,7 +19,7 @@ fn main() -> anyhow::Result<()> {
     //    Set-up model
     let config = MaskedLanguageConfig::new(
         ModelType::Bert,
-        ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
             BertModelResources::BERT,
         ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT),

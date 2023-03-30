@@ -106,7 +106,7 @@ fn bert_masked_lm_pipeline() -> anyhow::Result<()> {
     //    Set-up model
     let config = MaskedLanguageConfig::new(
         ModelType::Bert,
-        ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
             BertModelResources::BERT,
         ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT),
@@ -454,7 +454,7 @@ fn bert_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let config = QuestionAnsweringConfig {
         model_type: ModelType::Bert,
-        model_resource: ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+        model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
             BertModelResources::BERT_QA,
         ))),
         config_resource: Box::new(RemoteResource::from_pretrained(

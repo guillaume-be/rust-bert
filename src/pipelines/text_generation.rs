@@ -45,7 +45,7 @@ use crate::resources::ResourceProvider;
 use crate::xlnet::XLNetGenerator;
 
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::models::ONNXCausalGenerator;
+use crate::pipelines::onnx::ONNXCausalGenerator;
 #[cfg(feature = "remote")]
 use crate::{
     gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
@@ -149,7 +149,7 @@ impl Default for TextGenerationConfig {
     fn default() -> TextGenerationConfig {
         TextGenerationConfig::new(
             ModelType::GPT2,
-            ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
                 Gpt2ModelResources::GPT2_MEDIUM,
             ))),
             RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2_MEDIUM),

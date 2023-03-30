@@ -20,7 +20,7 @@ fn pegasus_summarization_greedy() -> anyhow::Result<()> {
 
     let summarization_config = SummarizationConfig {
         model_type: ModelType::Pegasus,
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,

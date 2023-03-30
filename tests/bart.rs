@@ -91,7 +91,7 @@ fn bart_summarization_greedy() -> anyhow::Result<()> {
         BartModelResources::DISTILBART_CNN_6_6,
     ));
     let summarization_config = SummarizationConfig {
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -152,7 +152,7 @@ fn bart_summarization_beam_search() -> anyhow::Result<()> {
         BartModelResources::DISTILBART_CNN_6_6,
     ));
     let summarization_config = SummarizationConfig {
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),

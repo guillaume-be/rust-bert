@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::XLNet,
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,

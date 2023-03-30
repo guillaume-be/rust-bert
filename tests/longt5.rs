@@ -8,7 +8,7 @@ fn test_summarization_longt5() -> anyhow::Result<()> {
     //    Set-up translation model
     let summarization_config = SummarizationConfig {
         model_type: ModelType::LongT5,
-        model_resource: ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+        model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
             LongT5ModelResources::TGLOBAL_BASE_BOOK_SUMMARY,
         ))),
         config_resource: Box::new(RemoteResource::from_pretrained(

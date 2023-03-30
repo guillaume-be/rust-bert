@@ -67,7 +67,7 @@ fn main() -> anyhow::Result<()> {
 
     let generation_config = TextGenerationConfig {
         model_type: ModelType::GPTJ,
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),

@@ -23,7 +23,7 @@ fn main() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,
-        ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
             BertModelResources::BERT_QA,
         ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT_QA),

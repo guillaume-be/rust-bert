@@ -119,7 +119,7 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -161,7 +161,7 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -214,7 +214,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -283,7 +283,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource: ModelResources::TORCH(model_resource),
+        model_resource: ModelResources::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),

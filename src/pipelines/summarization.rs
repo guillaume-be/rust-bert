@@ -75,7 +75,7 @@ use crate::t5::T5Generator;
 
 use crate::longt5::LongT5Generator;
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::models::ONNXConditionalGenerator;
+use crate::pipelines::onnx::ONNXConditionalGenerator;
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
@@ -179,7 +179,7 @@ impl Default for SummarizationConfig {
     fn default() -> SummarizationConfig {
         SummarizationConfig::new(
             ModelType::Bart,
-            ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
                 BartModelResources::BART_CNN,
             ))),
             RemoteResource::from_pretrained(BartConfigResources::BART_CNN),

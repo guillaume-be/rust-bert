@@ -25,7 +25,7 @@
 //!     use rust_bert::pipelines::common::ModelResources;
 //! let config = MaskedLanguageConfig::new(
 //!         ModelType::Bert,
-//!         ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT))),
+//!         ModelResources::Torch(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT))),
 //!         RemoteResource::from_pretrained(BertConfigResources::BERT),
 //!         RemoteResource::from_pretrained(BertVocabResources::BERT),
 //!         None,
@@ -59,7 +59,7 @@ use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForMaskedLM;
 
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, encoder::ONNXEncoder};
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
 
 #[cfg(feature = "remote")]
 use crate::{
@@ -152,7 +152,7 @@ impl Default for MaskedLanguageConfig {
     fn default() -> MaskedLanguageConfig {
         MaskedLanguageConfig::new(
             ModelType::Bert,
-            ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
                 BertModelResources::BERT,
             ))),
             RemoteResource::from_pretrained(BertConfigResources::BERT),
@@ -194,7 +194,7 @@ impl MaskedLanguageOption {
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &MaskedLanguageConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::TORCH(_) => Self::new_torch(config),
+            ModelResources::Torch(_) => Self::new_torch(config),
             #[cfg(feature = "onnx")]
             ModelResources::ONNX(_) => Self::new_onnx(config),
         }

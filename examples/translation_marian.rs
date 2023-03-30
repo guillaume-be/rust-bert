@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
 
     let translation_config = TranslationConfig::new(
         ModelType::Marian,
-        ModelResources::TORCH(Box::new(model_resource)),
+        ModelResources::Torch(Box::new(model_resource)),
         config_resource,
         vocab_resource,
         Some(merges_resource),

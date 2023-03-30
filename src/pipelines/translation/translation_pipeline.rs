@@ -21,7 +21,7 @@ use crate::nllb::NLLBGenerator;
 use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::models::ONNXConditionalGenerator;
+use crate::pipelines::onnx::ONNXConditionalGenerator;
 use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 use serde::{Deserialize, Serialize};
@@ -1000,7 +1000,7 @@ impl TranslationConfig {
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ROMANCE2ENGLISH,
     /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
@@ -1283,7 +1283,7 @@ impl TranslationModel {
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ROMANCE2ENGLISH,
     /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
@@ -1341,7 +1341,7 @@ impl TranslationModel {
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ENGLISH2ROMANCE,
     /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ENGLISH2ROMANCE);
@@ -1412,7 +1412,7 @@ mod test {
     #[test]
     #[ignore] // no need to run, compilation is enough to verify it is Send
     fn test() {
-        let model_resource = ModelResources::TORCH(Box::new(RemoteResource::from_pretrained(
+        let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
             MarianModelResources::ROMANCE2ENGLISH,
         )));
         let config_resource =
