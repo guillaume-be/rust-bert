@@ -1,7 +1,6 @@
 use crate::RustBertError;
 use ndarray::IxDyn;
 use ort::tensor::{DynOrtTensor, FromArray, InputTensor};
-use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use tch::{Kind, Tensor};
 
@@ -55,30 +54,4 @@ pub(crate) fn tch_tensor_to_ort(tch_tensor: &Tensor) -> Result<InputTensor, Rust
             )))
         }
     })
-}
-
-#[derive(Debug)]
-/// Container used to store key-value cached states for efficient decoding.
-pub struct ONNXLayerCache {
-    pub values: HashMap<String, Tensor>,
-}
-
-impl ONNXLayerCache {
-    /// Helper function to create a cache layer from an ONNX model output.
-    /// Assumes that the output names for cached keys and values contain `key` and `value` in their name, respectively.
-    pub fn from_ort_output(
-        ort_output: &[DynOrtTensor<IxDyn>],
-        key_value_names: &HashMap<String, usize>,
-    ) -> Result<ONNXLayerCache, RustBertError> {
-        let values = key_value_names
-            .iter()
-            .filter(|(name, _)| name.contains("key") | name.contains("value"))
-            .map(|(name, pos)| {
-                let value = &ort_output[*pos];
-                Ok((name.to_string(), ort_tensor_to_tch(value)?))
-            })
-            .collect::<Result<HashMap<String, Tensor>, RustBertError>>()?;
-
-        Ok(ONNXLayerCache { values })
-    }
 }

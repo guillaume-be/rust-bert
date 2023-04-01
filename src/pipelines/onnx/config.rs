@@ -1,3 +1,4 @@
+/// # Configuration for ONNX environment and sessions
 use crate::RustBertError;
 use ort::{
     AllocatorType, Environment, ExecutionProvider, GraphOptimizationLevel, MemType, SessionBuilder,
@@ -5,21 +6,21 @@ use ort::{
 use std::sync::Arc;
 use tch::Device;
 
-pub static INPUT_IDS_NAME: &str = "input_ids";
-pub static ATTENTION_MASK_NAME: &str = "attention_mask";
-pub static ENCODER_HIDDEN_STATES_NAME: &str = "encoder_hidden_states";
-pub static ENCODER_ATTENTION_MASK_NAME: &str = "encoder_attention_mask";
-pub static TOKEN_TYPE_IDS: &str = "token_type_ids";
-pub static POSITION_IDS: &str = "position_ids";
-pub static INPUT_EMBEDS: &str = "input_embeds";
-pub static LAST_HIDDEN_STATE: &str = "last_hidden_state";
-pub static LOGITS: &str = "logits";
-pub static START_LOGITS: &str = "start_logits";
-pub static END_LOGITS: &str = "end_logits";
+pub(crate) static INPUT_IDS_NAME: &str = "input_ids";
+pub(crate) static ATTENTION_MASK_NAME: &str = "attention_mask";
+pub(crate) static ENCODER_HIDDEN_STATES_NAME: &str = "encoder_hidden_states";
+pub(crate) static ENCODER_ATTENTION_MASK_NAME: &str = "encoder_attention_mask";
+pub(crate) static TOKEN_TYPE_IDS: &str = "token_type_ids";
+pub(crate) static POSITION_IDS: &str = "position_ids";
+pub(crate) static INPUT_EMBEDS: &str = "input_embeds";
+pub(crate) static LAST_HIDDEN_STATE: &str = "last_hidden_state";
+pub(crate) static LOGITS: &str = "logits";
+pub(crate) static START_LOGITS: &str = "start_logits";
+pub(crate) static END_LOGITS: &str = "end_logits";
 
 #[derive(Default)]
 /// # ONNX Environment configuration
-/// See https://onnxruntime.ai/docs/api/python/api_summary.html#sessionoptions
+/// See <https://onnxruntime.ai/docs/api/python/api_summary.html#sessionoptions>
 pub struct ONNXEnvironmentConfig {
     pub optimization_level: Option<GraphOptimizationLevel>,
     pub execution_providers: Option<Vec<ExecutionProvider>>,

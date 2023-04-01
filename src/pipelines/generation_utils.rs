@@ -86,7 +86,7 @@ use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
 
 extern crate ordered_float;
 #[cfg(feature = "onnx")]
-use crate::pipelines::onnx::conversion::ONNXLayerCache;
+use crate::pipelines::onnx::ONNXLayerCache;
 use crate::RustBertError;
 #[cfg(feature = "remote")]
 use crate::{

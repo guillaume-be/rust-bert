@@ -12,7 +12,7 @@
 //! For troubleshooting  issues when using an ONNX model, it is recommended to add the `tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt" ] }`
 //! dependency, and use the `tracing_subscriber::fmt::init();` instruction in the `main` binary.
 //!
-//! Most architectures (including encoders, decoders and encoder-decoders) are supported
+//! Most architectures (including encoders, decoders and encoder-decoders) are supported.
 //! the library aims at keeping compatibility with models exported using the [optimum](https://github.com/huggingface/optimum) library.
 //! A detailed guide on how to export a Transformer model to ONNX using optimum is available at https://huggingface.co/docs/optimum/main/en/exporters/onnx/usage_guides/export_a_model
 //!
@@ -104,12 +104,12 @@
 //! }
 //! ```
 
-pub(crate) mod common;
+mod common;
 pub mod config;
-pub mod conversion;
+mod conversion;
 mod decoder;
 mod encoder;
 mod models;
 
 pub use encoder::{ONNXEncoder, ONNXEncoderModelOutput};
-pub use models::{ONNXCausalGenerator, ONNXConditionalGenerator, ONNXModelConfig};
+pub use models::{ONNXCausalGenerator, ONNXConditionalGenerator, ONNXLayerCache, ONNXModelConfig};

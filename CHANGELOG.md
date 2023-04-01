@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file. The format 
 ## Added
 - Addition of the [LongT5](https://arxiv.org/abs/2112.07916) model architecture and pretrained weights
 - `get_vocab_size`, `get_decoder_start_token_id` and `get_prefix_and_forced_bos_id`  for the `TokenizerOption` in pipelines
+- Addition of the [GPT-J](https://www.eleuther.ai/artifacts/gpt-j) model architecture
+- Addition of the [NLLB](https://arxiv.org/abs/2207.04672) model architecture and pretrained weights
+- Addition of support for ONNX models (encoder, decoders, encoder-decoders) via the [ort](https://github.com/pykeio/ort) onnxruntime bindings
+- Integration of ONNX models to the sequence classification, token classification, question answering, zero-shot classification, text generation, summarization and translation pipelines
 
 ## Changed
 - Bumped the tokenizers dependency from 7.x to 8.x, exposing additional options for special token mapping and adding the NLLBTokenizer

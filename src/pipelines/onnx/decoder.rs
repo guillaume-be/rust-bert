@@ -4,7 +4,8 @@ use crate::pipelines::onnx::config::{
     ONNXEnvironmentConfig, ATTENTION_MASK_NAME, ENCODER_ATTENTION_MASK_NAME,
     ENCODER_HIDDEN_STATES_NAME, INPUT_IDS_NAME, POSITION_IDS,
 };
-use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, tch_tensor_to_ort, ONNXLayerCache};
+use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, tch_tensor_to_ort};
+use crate::pipelines::onnx::models::ONNXLayerCache;
 use crate::RustBertError;
 use ort::{Environment, Session};
 use std::collections::HashMap;
