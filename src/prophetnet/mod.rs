@@ -2,7 +2,7 @@
 //!
 //! Implementation of the ProphetNet language model ([ProphetNet: Predicting Future N-gram for Sequence-to-Sequence Pre-training](https://arxiv.org/abs/2001.04063) Qi, Yan, Gong, Liu, Duan, Chen, Zhang, Zhou, 2020).
 //! The base model is implemented in the `prophetnet_model::ProphetNetModel` struct. Two language model heads have also been implemented:
-//! - Conditional language generation (encoder-decoder architecture): `prophetnet_model::ProphetNetForConditionalGeneration` implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information)
+//! - Conditional language generation (encoder-decoder architecture): `prophetnet_model::ProphetNetForConditionalGeneration` implementing the common `generation_utils::LanguageGenerator` trait shared between the models used for generation (see `pipelines` for more information)
 //! - Causal language generation (decoder architecture): `prophetnet_model::ProphetNetForCausalGeneration`
 //!
 //! # Model set-up and pre-trained weights loading

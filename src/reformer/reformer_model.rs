@@ -14,8 +14,6 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
-use rust_tokenizers::tokenizer::ReformerTokenizer;
-use rust_tokenizers::vocab::ReformerVocab;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tch::{nn, Device, Kind, Tensor};
@@ -27,9 +25,7 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
-use crate::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
-};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::reformer::attention::{AttentionType, LayerState};
 use crate::reformer::attention_utils::{get_least_common_mult_chunk_len, get_min_chunk_len};
 use crate::reformer::embeddings::ReformerEmbeddings;
@@ -649,44 +645,6 @@ impl ReformerModelWithLMHead {
     }
 }
 
-impl LMHeadModel for ReformerModelWithLMHead {
-    fn forward_t(
-        &self,
-        input_ids: Option<&Tensor>,
-        cache: Cache,
-        attention_mask: Option<&Tensor>,
-        _token_type_ids: Option<&Tensor>,
-        _position_ids: Option<&Tensor>,
-        _input_embeds: Option<&Tensor>,
-        _encoder_outputs: Option<&Tensor>,
-        _decoder_input_ids: Option<&Tensor>,
-        train: bool,
-    ) -> Result<LMModelOutput, RustBertError> {
-        let output = match cache {
-            Cache::ReformerCache(cached_layer_states) => self.forward_t(
-                input_ids,
-                None,
-                None,
-                attention_mask,
-                None,
-                cached_layer_states,
-                train,
-            ),
-            Cache::None => self.forward_t(input_ids, None, None, attention_mask, None, None, train),
-            _ => {
-                return Err(RustBertError::ValueError(
-                    "Cache not compatible with Reformer Model".into(),
-                ));
-            }
-        }?;
-
-        Ok(LMModelOutput {
-            lm_logits: output.logits,
-            cache: Cache::ReformerCache(output.next_cache),
-        })
-    }
-}
-
 pub struct ReformerClassificationHead {
     dense: nn::Linear,
     dropout: Dropout,
@@ -1119,12 +1077,7 @@ impl ReformerGenerator {
     }
 }
 
-impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTokenizer>
-    for ReformerGenerator
-{
-    fn get_model(&self) -> &ReformerModelWithLMHead {
-        &self.model
-    }
+impl PrivateLanguageGenerator for ReformerGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -1157,6 +1110,45 @@ impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTo
     }
     fn get_max_positions_embeddings(&self) -> i64 {
         self.max_position_embeddings
+    }
+
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        cache: Cache,
+        attention_mask: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
+        _position_ids: Option<&Tensor>,
+        _input_embeds: Option<&Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        let output = match cache {
+            Cache::ReformerCache(cached_layer_states) => self.model.forward_t(
+                input_ids,
+                None,
+                None,
+                attention_mask,
+                None,
+                cached_layer_states,
+                train,
+            ),
+            Cache::None => {
+                self.model
+                    .forward_t(input_ids, None, None, attention_mask, None, None, train)
+            }
+            _ => {
+                return Err(RustBertError::ValueError(
+                    "Cache not compatible with Reformer Model".into(),
+                ));
+            }
+        }?;
+
+        Ok(LMModelOutput {
+            lm_logits: output.logits,
+            cache: Cache::ReformerCache(output.next_cache),
+        })
     }
 
     fn prepare_inputs_for_generation<'a>(
@@ -1213,7 +1205,4 @@ impl PrivateLanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTo
     }
 }
 
-impl LanguageGenerator<ReformerModelWithLMHead, ReformerVocab, ReformerTokenizer>
-    for ReformerGenerator
-{
-}
+impl LanguageGenerator for ReformerGenerator {}

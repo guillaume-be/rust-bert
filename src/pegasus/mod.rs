@@ -2,7 +2,7 @@
 //!
 //! Implementation of the Pegasus language model ([PEGASUS: Pre-training with Extracted Gap-sentences for Abstractive Summarization](https://arxiv.org/abs/1912.08777) Zhang, Zhao, Saleh, Liu, 2019).
 //! The base model is implemented in the `pegasus_model::PegasusModel` struct and leverages an implementation that is broadly similar to BART. The model also includes a language model head: `pegasus_model::PegasusForConditionalGeneration`
-//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! implementing the common `generation_utils::LanguageGenerator` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!

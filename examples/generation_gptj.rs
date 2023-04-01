@@ -44,7 +44,6 @@ use tch::Device;
 /// ```
 ///
 /// [gpt-j-6B-float16]: https://huggingface.co/EleutherAI/gpt-j-6B/tree/float16
-///
 fn main() -> anyhow::Result<()> {
     // Resources paths
 

@@ -20,12 +20,8 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
     PreparedInput, PrivateLanguageGenerator,
 };
-use crate::pipelines::generation_utils::{
-    Cache, GenerateConfig, LMHeadModel, LMModelOutput, LanguageGenerator,
-};
+use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::{Config, RustBertError};
-use rust_tokenizers::tokenizer::Gpt2Tokenizer;
-use rust_tokenizers::vocab::Gpt2Vocab;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
@@ -529,118 +525,26 @@ impl GPT2LMHeadModel {
 
         GPT2LMHeadModel { transformer }
     }
-}
 
-impl LMHeadModel for GPT2LMHeadModel {
-    /// Forward pass through the model
-    ///
-    /// # Arguments
-    ///
-    /// * `input_ids` - Optional input tensor of shape (*batch size*, *sequence_length*). If None, pre-computed embeddings must be provided (see `input_embeds`)
-    /// * `layer_past` - Optional vector of size *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*). When provided, these are concatenated with the current input keys and values.
-    /// * `attention_mask` - Optional mask of shape (*batch size*, *sequence_length*). Masked position have value 0, non-masked value 1. If None set to 1
-    /// * `input_embeds` - Optional pre-computed input embeddings of shape (*batch size*, *sequence_length*, *hidden_size*). If None, input ids must be provided (see `input_ids`)
-    /// * `token_type_ids` - Optional token type ids used to indicate the portion of the input the token belongs to. If not None, token type embeddings will be added to the token and position embeddings.
-    /// * `position_ids` - Optional position ids of shape (*batch size*, *sequence_length*). If None, will be incremented starting from the length of the past input.
-    /// * `_encoder_outputs` - Optional tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*). Unused for GPT2
-    /// * `_decoder_input_ids` - Optional tensor of shape (*batch size*, *target_sequence_length*). Unused for GPT2
-    /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
-    ///
-    ///
-    /// # Returns
-    ///
-    /// * `LMModelOutput` containing:
-    ///   - `lm_logits` - `Tensor` of shape (*batch size*, *sequence_length*, *vocab_size*) representing the logits for each vocab item and position
-    ///   - `cache` - `Gpt2Cache` made of `Option<Vec<Tensor>>` of length *n_layer* containing the past keys and values of each layer of shape (*2*, *batch size*, *number of heads*, *past_sequence_length*, *hidden size per head*)
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use tch::{nn, Device, Tensor, no_grad};
-    /// # use rust_bert::Config;
-    /// # use std::path::Path;
-    /// # use tch::kind::Kind::{Int64, Double};
-    /// use rust_bert::gpt2::{GPT2LMHeadModel, Gpt2Config};
-    /// use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
-    /// # let config_path = Path::new("path/to/config.json");
-    /// # let vocab_path = Path::new("path/to/vocab.txt");
-    /// # let device = Device::Cpu;
-    /// # let vs = nn::VarStore::new(device);
-    /// # let config = Gpt2Config::from_file(config_path);
-    /// # let mut gpt2_model: GPT2LMHeadModel = GPT2LMHeadModel::new(&vs.root(), &config);
-    /// let (batch_size, sequence_length, past_sequence_length) = (64, 128, 56);
-    /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
-    /// let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
-    /// for _ in 0..config.n_layer as usize {
-    ///     past.push(Tensor::rand(
-    ///         &[
-    ///             2,
-    ///             batch_size,
-    ///             config.n_head,
-    ///             past_sequence_length,
-    ///             config.n_embd / config.n_head,
-    ///         ],
-    ///         (Double, device),
-    ///     ))
-    /// }
-    /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
-    /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
-    /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
-    ///
-    /// let model_output = no_grad(|| {
-    ///     gpt2_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Cache::GPT2Cache(Some(past)),
-    ///             Some(&attention_mask),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
-    /// });
-    /// ```
-    fn forward_t(
+    pub fn forward_t(
         &self,
         input_ids: Option<&Tensor>,
-        layer_past: Cache,
+        layer_past: Option<&Vec<Tensor>>,
         attention_mask: Option<&Tensor>,
         token_type_ids: Option<&Tensor>,
         position_ids: Option<&Tensor>,
         input_embeds: Option<&Tensor>,
-        _encoder_outputs: Option<&Tensor>,
-        _decoder_input_ids: Option<&Tensor>,
         train: bool,
     ) -> Result<LMModelOutput, RustBertError> {
-        let base_model_output = match layer_past {
-            Cache::GPT2Cache(layer_past) => self.transformer.forward_t(
-                input_ids,
-                layer_past.as_ref(),
-                attention_mask,
-                token_type_ids,
-                position_ids,
-                input_embeds,
-                train,
-            ),
-            Cache::None => self.transformer.forward_t(
-                input_ids,
-                None,
-                attention_mask,
-                token_type_ids,
-                position_ids,
-                input_embeds,
-                train,
-            ),
-            _ => {
-                return Err(RustBertError::ValueError(
-                    "Cache not compatible with GPT2 Model".into(),
-                ));
-            }
-        }?;
+        let base_model_output = self.transformer.forward_t(
+            input_ids,
+            layer_past,
+            attention_mask,
+            token_type_ids,
+            position_ids,
+            input_embeds,
+            train,
+        )?;
 
         let lm_logits = base_model_output
             .output
@@ -769,10 +673,7 @@ impl GPT2Generator {
     }
 }
 
-impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {
-    fn get_model(&self) -> &GPT2LMHeadModel {
-        &self.model
-    }
+impl PrivateLanguageGenerator for GPT2Generator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
@@ -805,6 +706,43 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     }
     fn get_max_positions_embeddings(&self) -> i64 {
         self.max_position_embeddings
+    }
+
+    fn forward_t(
+        &self,
+        input_ids: Option<&Tensor>,
+        layer_past: Cache,
+        attention_mask: Option<&Tensor>,
+        token_type_ids: Option<&Tensor>,
+        position_ids: Option<&Tensor>,
+        input_embeds: Option<&Tensor>,
+        _encoder_outputs: Option<&Tensor>,
+        _decoder_input_ids: Option<&Tensor>,
+        train: bool,
+    ) -> Result<LMModelOutput, RustBertError> {
+        match layer_past {
+            Cache::GPT2Cache(layer_past) => self.model.forward_t(
+                input_ids,
+                layer_past.as_ref(),
+                attention_mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            ),
+            Cache::None => self.model.forward_t(
+                input_ids,
+                None,
+                attention_mask,
+                token_type_ids,
+                position_ids,
+                input_embeds,
+                train,
+            ),
+            _ => Err(RustBertError::ValueError(
+                "Cache not compatible with GPT2 Model".into(),
+            )),
+        }
     }
 
     fn prepare_inputs_for_generation<'a>(
@@ -875,4 +813,4 @@ impl PrivateLanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT
     }
 }
 
-impl LanguageGenerator<GPT2LMHeadModel, Gpt2Vocab, Gpt2Tokenizer> for GPT2Generator {}
+impl LanguageGenerator for GPT2Generator {}

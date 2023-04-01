@@ -2,7 +2,7 @@
 //!
 //! Implementation of the LongT5 language model ([LongT5: Efficient Text-To-Text Transformer for Long Sequences](https://arxiv.org/abs/2112.07916) Guo, Ainslie, Uthus, Ontanon, Ni, Sung, Yang, 2021).
 //! The base model is implemented in the `longt5_model::LongT5Model` struct. This model includes a language model head: `longt5_model::LongT5ForConditionalGeneration`
-//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! implementing the common `generation_utils::LanguageGenerator` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!
