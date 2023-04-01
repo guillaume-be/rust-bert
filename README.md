@@ -427,7 +427,7 @@ Generate sentence embeddings (vector representation). These can be used for appl
         "each sentence is converted"
     ];
     
-    let output = model.predict(&sentences);
+    let output = model.encode(&sentences)?;
 ```
 Output:
 ```
