@@ -559,7 +559,7 @@ impl BertForMaskedLM {
     {
         let p = p.borrow();
 
-        let bert = BertModel::new(p / "bert", config);
+        let bert = BertModel::new_with_optional_pooler(p / "bert", config, false);
         let cls = BertLMPredictionHead::new(p / "cls", config);
 
         BertForMaskedLM { bert, cls }
