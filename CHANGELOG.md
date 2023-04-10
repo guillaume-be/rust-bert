@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Fixed
 - MIN/MAX computation for float-like (was set to infinity instead of min/max)
+- Remove the (unused) pooler from the set of weights for BERT Masked LM architecture
 
 ## [0.20.0] - 2023-01-21
 ## Added
