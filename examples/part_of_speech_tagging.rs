@@ -16,7 +16,7 @@ use rust_bert::pipelines::pos_tagging::POSModel;
 
 fn main() -> anyhow::Result<()> {
     //    Set-up model
-    let pos_model = POSModel::new(Default::default())?;
+    let pos_model = POSModel::new(Default::default(), true)?;
 
     //    Define input
     let input = ["My name is Bob"];

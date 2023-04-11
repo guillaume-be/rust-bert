@@ -346,6 +346,7 @@ impl TokenClassificationOption {
         model_type: ModelType,
         p: P,
         config: &ConfigOption,
+        add_pooling_layer: bool
     ) -> Result<Self, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
@@ -354,7 +355,7 @@ impl TokenClassificationOption {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = config {
                     Ok(TokenClassificationOption::Bert(
-                        BertForTokenClassification::new(p, config)?,
+                        BertForTokenClassification::new(p, config, add_pooling_layer)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -671,6 +672,7 @@ impl TokenClassificationModel {
     /// ```
     pub fn new(
         config: TokenClassificationConfig,
+        add_pooling_layer: bool
     ) -> Result<TokenClassificationModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
         let vocab_path = config.vocab_resource.get_local_path()?;
@@ -698,7 +700,7 @@ impl TokenClassificationModel {
             .map(|v| v as usize)
             .unwrap_or(usize::MAX);
         let token_sequence_classifier =
-            TokenClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
+            TokenClassificationOption::new(config.model_type, var_store.root(), &model_config, add_pooling_layer)?;
         let label_mapping = model_config.get_label_mapping().clone();
         let batch_size = config.batch_size;
         var_store.load(weights_path)?;

@@ -16,7 +16,7 @@ use rust_bert::pipelines::ner::NERModel;
 
 fn main() -> anyhow::Result<()> {
     //    Set-up model
-    let ner_model = NERModel::new(Default::default())?;
+    let ner_model = NERModel::new(Default::default(), true)?;
 
     //    Define input
     let input = [

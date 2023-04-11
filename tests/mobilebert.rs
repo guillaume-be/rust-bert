@@ -325,7 +325,7 @@ fn mobilebert_for_question_answering() -> anyhow::Result<()> {
 #[test]
 fn mobilebert_part_of_speech_tagging() -> anyhow::Result<()> {
     //    Set-up question answering model
-    let pos_model = POSModel::new(Default::default())?;
+    let pos_model = POSModel::new(Default::default(), true)?;
 
     //    Define input
     let input = [

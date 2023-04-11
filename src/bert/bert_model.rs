@@ -983,13 +983,14 @@ impl BertForTokenClassification {
     pub fn new<'p, P>(
         p: P,
         config: &BertConfig,
+        add_pooling_layer: bool
     ) -> Result<BertForTokenClassification, RustBertError>
     where
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow();
 
-        let bert = BertModel::new(p / "bert", config);
+        let bert = BertModel::new_with_optional_pooler(p / "bert", config, add_pooling_layer);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config
             .id2label

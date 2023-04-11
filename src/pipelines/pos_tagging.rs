@@ -169,8 +169,8 @@ impl POSModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(pos_config: POSConfig) -> Result<POSModel, RustBertError> {
-        let model = TokenClassificationModel::new(pos_config.into())?;
+    pub fn new(pos_config: POSConfig, add_pooling_layer: bool) -> Result<POSModel, RustBertError> {
+        let model = TokenClassificationModel::new(pos_config.into(), add_pooling_layer)?;
         Ok(POSModel {
             token_classification_model: model,
         })
@@ -243,6 +243,6 @@ mod test {
     #[ignore] // no need to run, compilation is enough to verify it is Send
     fn test() {
         let config = POSConfig::default();
-        let _: Box<dyn Send> = Box::new(POSModel::new(config));
+        let _: Box<dyn Send> = Box::new(POSModel::new(config, true));
     }
 }

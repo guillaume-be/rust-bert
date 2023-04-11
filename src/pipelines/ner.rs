@@ -171,8 +171,8 @@ impl NERModel {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(ner_config: NERConfig) -> Result<NERModel, RustBertError> {
-        let model = TokenClassificationModel::new(ner_config)?;
+    pub fn new(ner_config: NERConfig, add_pooling_layer: bool) -> Result<NERModel, RustBertError> {
+        let model = TokenClassificationModel::new(ner_config, add_pooling_layer)?;
         Ok(NERModel {
             token_classification_model: model,
         })
@@ -417,6 +417,6 @@ mod test {
     #[ignore] // no need to run, compilation is enough to verify it is Send
     fn test() {
         let config = NERConfig::default();
-        let _: Box<dyn Send> = Box::new(NERModel::new(config));
+        let _: Box<dyn Send> = Box::new(NERModel::new(config, true));
     }
 }

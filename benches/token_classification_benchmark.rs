@@ -9,7 +9,7 @@ fn create_model() -> TokenClassificationModel {
         device: Device::cuda_if_available(),
         ..Default::default()
     };
-    TokenClassificationModel::new(config).unwrap()
+    TokenClassificationModel::new(config, true).unwrap()
 }
 
 fn bench_token_classification_predict(c: &mut Criterion) {
