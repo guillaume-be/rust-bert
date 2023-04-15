@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     //    Create the model
-    let token_classification_model = NERModel::new(config, true)?;
+    let token_classification_model = NERModel::new(config)?;
     let input = [
         "My name is Amélie. I live in Москва.",
         "Chongqing is a city in China.",

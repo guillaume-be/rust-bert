@@ -283,7 +283,7 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
     config.id2label = Some(dummy_label_mapping);
     config.output_attentions = Some(true);
     config.output_hidden_states = Some(true);
-    let bert_model = BertForTokenClassification::new(vs.root(), &config, true)?;
+    let bert_model = BertForTokenClassification::new(vs.root(), &config)?;
 
     //    Define input
     let input = [
@@ -385,7 +385,7 @@ fn bert_for_question_answering() -> anyhow::Result<()> {
 #[test]
 fn bert_pre_trained_ner() -> anyhow::Result<()> {
     //    Set-up model
-    let ner_model = NERModel::new(Default::default(), true)?;
+    let ner_model = NERModel::new(Default::default())?;
 
     //    Define input
     let input = [
@@ -422,7 +422,7 @@ fn bert_pre_trained_ner() -> anyhow::Result<()> {
 #[test]
 fn bert_pre_trained_ner_full_entities() -> anyhow::Result<()> {
     //    Set-up model
-    let ner_model = NERModel::new(Default::default(), true)?;
+    let ner_model = NERModel::new(Default::default())?;
 
     //    Define input
     let input = ["Asked John Smith about Acme Corp", "Let's go to New York!"];

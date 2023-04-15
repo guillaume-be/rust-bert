@@ -368,7 +368,7 @@ fn xlm_roberta_german_ner() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    let ner_model = NERModel::new(ner_config, true)?;
+    let ner_model = NERModel::new(ner_config)?;
 
     //    Define input
     let input = [
