@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 ## Added
 - Addition of the [LongT5](https://arxiv.org/abs/2112.07916) model architecture and pretrained weights.
+- Addition of `add_tokens` and `add_extra_ids` interafce methods to the `TokenizerOption`. Allow building most pipeline with custom tokenizer via `new_with_tokenizer`.
 
 ## Changed
 - Bumped the tokenizers dependency from 7.x to 8.x, exposing additional options for special token mapping and adding the NLLBTokenizer.
