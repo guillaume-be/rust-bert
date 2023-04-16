@@ -180,6 +180,6 @@ impl SentenceEmbeddingsBuilder<Remote> {
 
     pub fn create_model(mut self) -> Result<SentenceEmbeddingsModel, RustBertError> {
         self.inner.config.device = self.device;
-        SentenceEmbeddingsModel::new(config)
+        SentenceEmbeddingsModel::new(self.inner.config)
     }
 }
