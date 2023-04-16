@@ -708,6 +708,22 @@ impl ConversationOption {
         }
     }
 
+    pub fn new_with_tokenizer(
+        config: ConversationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<Self, RustBertError> {
+        match config.model_type {
+            ModelType::GPT2 => Ok(ConversationOption::GPT2(GPT2Generator::new_with_tokenizer(
+                config.into(),
+                tokenizer,
+            )?)),
+            _ => Err(RustBertError::InvalidConfigurationError(
+                "GPT2 is currently the only supported model for conversation generation"
+                    .to_string(),
+            )),
+        }
+    }
+
     pub fn get_eos_id(&self) -> Result<i64, RustBertError> {
         match self {
             Self::GPT2(model_ref) => {
@@ -779,6 +795,49 @@ impl ConversationModel {
             .map(|max_length| max_length - conversation_config.min_length_for_response);
         let device = conversation_config.device;
         let model = ConversationOption::new(conversation_config)?;
+        let eos_token_id = model.get_eos_id()?;
+        Ok(ConversationModel {
+            model,
+            eos_token_id,
+            max_allowed_context_length: max_allowed_length,
+            device,
+        })
+    }
+
+    /// Build a new `ConversationModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `conversation_config` - `ConversationConfig` object containing the resource references (model, vocabulary, configuration), conversation options and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for conversation
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::conversation::ConversationModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::GPT2,
+    ///     "path/to/vocab.json",
+    ///     Some("path/to/merges.txt"),
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let conversation_model = ConversationModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        conversation_config: ConversationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<ConversationModel, RustBertError> {
+        let max_allowed_length = conversation_config
+            .max_length
+            .map(|max_length| max_length - conversation_config.min_length_for_response);
+        let device = conversation_config.device;
+        let model = ConversationOption::new_with_tokenizer(conversation_config, tokenizer)?;
         let eos_token_id = model.get_eos_id()?;
         Ok(ConversationModel {
             model,
