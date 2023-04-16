@@ -1486,8 +1486,8 @@ impl TranslationModel {
     ///
     /// let tokenizer = TokenizerOption::from_file(
     ///     ModelType::Marian,
-    ///     vocab_resource.get_local_path()?.to_str()?,
-    ///     Some(spm_resource.get_local_path()?.to_str()?),
+    ///     vocab_resource.get_local_path()?.to_str().unwrap(),
+    ///     Some(spm_resource.get_local_path()?.to_str().unwrap()),
     ///     false,
     ///     None,
     ///     None,

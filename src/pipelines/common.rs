@@ -1792,4 +1792,54 @@ impl TokenizerOption {
             Self::OpenAiGpt(_) => None,
         }
     }
+
+    /// Interface method
+    pub fn add_extra_ids(&mut self, num_extra_ids: i64) {
+        match *self {
+            Self::Bert(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Deberta(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::DebertaV2(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Roberta(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Bart(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Marian(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::T5(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::XLMRoberta(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Albert(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::XLNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::GPT2(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::OpenAiGpt(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Reformer(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::ProphetNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Pegasus(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::MBart50(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::M2M100(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::NLLB(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::FNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+        }
+    }
+
+    /// Interface method
+    pub fn add_tokens(&mut self, tokens: &[&str]) {
+        match *self {
+            Self::Bert(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Deberta(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::DebertaV2(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Roberta(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Bart(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Marian(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::T5(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::XLMRoberta(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Albert(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::XLNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::GPT2(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::OpenAiGpt(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Reformer(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::ProphetNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Pegasus(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::MBart50(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::M2M100(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::NLLB(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::FNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+        }
+    }
 }

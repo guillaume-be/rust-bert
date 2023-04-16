@@ -25,7 +25,7 @@ fn nllb_translation() -> anyhow::Result<()> {
         Some(merges_resource),
         source_languages,
         target_languages,
-        Device::cuda_if_available(),
+        Device::Cpu,
     );
     let model = TranslationModel::new(translation_config)?;
 
