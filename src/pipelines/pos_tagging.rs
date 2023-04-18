@@ -85,6 +85,7 @@ use crate::common::error::RustBertError;
 use crate::pipelines::token_classification::{TokenClassificationConfig, TokenClassificationModel};
 use serde::{Deserialize, Serialize};
 
+use crate::pipelines::common::TokenizerOption;
 #[cfg(feature = "remote")]
 use {
     crate::{
@@ -171,6 +172,41 @@ impl POSModel {
     /// ```
     pub fn new(pos_config: POSConfig) -> Result<POSModel, RustBertError> {
         let model = TokenClassificationModel::new(pos_config.into())?;
+        Ok(POSModel {
+            token_classification_model: model,
+        })
+    }
+
+    /// Build a new `POSModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `pos_config` - `POSConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for POS tagging.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::pos_tagging::POSModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Bert,
+    ///     "path/to/vocab.txt",
+    ///     None,
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let pos_model = POSModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        pos_config: POSConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<POSModel, RustBertError> {
+        let model = TokenClassificationModel::new_with_tokenizer(pos_config.into(), tokenizer)?;
         Ok(POSModel {
             token_classification_model: model,
         })

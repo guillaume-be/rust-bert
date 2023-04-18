@@ -553,15 +553,12 @@ impl ZeroShotClassificationModel {
     pub fn new(
         config: ZeroShotClassificationConfig,
     ) -> Result<ZeroShotClassificationModel, RustBertError> {
-        let config_path = config.config_resource.get_local_path()?;
         let vocab_path = config.vocab_resource.get_local_path()?;
-        let weights_path = config.model_resource.get_local_path()?;
-        let merges_path = if let Some(merges_resource) = &config.merges_resource {
-            Some(merges_resource.get_local_path()?)
-        } else {
-            None
-        };
-        let device = config.device;
+        let merges_path = config
+            .merges_resource
+            .as_ref()
+            .map(|resource| resource.get_local_path())
+            .transpose()?;
 
         let tokenizer = TokenizerOption::from_file(
             config.model_type,
@@ -571,6 +568,42 @@ impl ZeroShotClassificationModel {
             config.strip_accents,
             config.add_prefix_space,
         )?;
+        Self::new_with_tokenizer(config, tokenizer)
+    }
+
+    /// Build a new `ZeroShotClassificationModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - `SequenceClassificationConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for zero-shot classification.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Bert,
+    ///     "path/to/vocab.txt",
+    ///     None,
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let model = SequenceClassificationModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn new_with_tokenizer(
+        config: ZeroShotClassificationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<ZeroShotClassificationModel, RustBertError> {
+        let config_path = config.config_resource.get_local_path()?;
+        let weights_path = config.model_resource.get_local_path()?;
+        let device = config.device;
+
         let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let zero_shot_classifier =

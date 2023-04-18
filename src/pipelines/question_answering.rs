@@ -584,16 +584,12 @@ impl QuestionAnsweringModel {
     pub fn new(
         question_answering_config: QuestionAnsweringConfig,
     ) -> Result<QuestionAnsweringModel, RustBertError> {
-        let config_path = question_answering_config.config_resource.get_local_path()?;
         let vocab_path = question_answering_config.vocab_resource.get_local_path()?;
-        let weights_path = question_answering_config.model_resource.get_local_path()?;
-        let merges_path = if let Some(merges_resource) = &question_answering_config.merges_resource
-        {
-            Some(merges_resource.get_local_path()?)
-        } else {
-            None
-        };
-        let device = question_answering_config.device;
+        let merges_path = question_answering_config
+            .merges_resource
+            .as_ref()
+            .map(|resource| resource.get_local_path())
+            .transpose()?;
 
         let tokenizer = TokenizerOption::from_file(
             question_answering_config.model_type,
@@ -603,6 +599,42 @@ impl QuestionAnsweringModel {
             question_answering_config.strip_accents,
             question_answering_config.add_prefix_space,
         )?;
+        Self::new_with_tokenizer(question_answering_config, tokenizer)
+    }
+
+    /// Build a new `QuestionAnsweringModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `question_answering_config` - `QuestionAnsweringConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for question answering.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::question_answering::QuestionAnsweringModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Bert,
+    ///     "path/to/vocab.txt",
+    ///     None,
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let qa_model = QuestionAnsweringModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        question_answering_config: QuestionAnsweringConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<QuestionAnsweringModel, RustBertError> {
+        let config_path = question_answering_config.config_resource.get_local_path()?;
+        let weights_path = question_answering_config.model_resource.get_local_path()?;
+        let device = question_answering_config.device;
+
         let pad_idx = tokenizer
             .get_pad_id()
             .expect("The Tokenizer used for Question Answering should contain a PAD id");

@@ -127,6 +127,7 @@
 //! Dutch| XLM_ROBERTA_NER_NL |
 
 use crate::common::error::RustBertError;
+use crate::pipelines::common::TokenizerOption;
 use crate::pipelines::token_classification::{
     Token, TokenClassificationConfig, TokenClassificationModel,
 };
@@ -173,6 +174,41 @@ impl NERModel {
     /// ```
     pub fn new(ner_config: NERConfig) -> Result<NERModel, RustBertError> {
         let model = TokenClassificationModel::new(ner_config)?;
+        Ok(NERModel {
+            token_classification_model: model,
+        })
+    }
+
+    /// Build a new `NERModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `ner_config` - `NERConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for token classification
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::ner::NERModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Bert,
+    ///     "path/to/vocab.txt",
+    ///     None,
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let ner_model = NERModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        ner_config: NERConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<NERModel, RustBertError> {
+        let model = TokenClassificationModel::new_with_tokenizer(ner_config, tokenizer)?;
         Ok(NERModel {
             token_classification_model: model,
         })

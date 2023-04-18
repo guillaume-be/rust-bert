@@ -1152,6 +1152,35 @@ impl TranslationOption {
         }
     }
 
+    pub fn new_with_tokenizer(
+        config: TranslationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<Self, RustBertError> {
+        match config.model_type {
+            ModelType::Marian => Ok(TranslationOption::Marian(
+                MarianGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            ModelType::T5 => Ok(TranslationOption::T5(T5Generator::new_with_tokenizer(
+                config.into(),
+                tokenizer,
+            )?)),
+            ModelType::MBart => Ok(TranslationOption::MBart(
+                MBartGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            ModelType::M2M100 => Ok(TranslationOption::M2M100(
+                M2M100Generator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            ModelType::NLLB => Ok(TranslationOption::NLLB(NLLBGenerator::new_with_tokenizer(
+                config.into(),
+                tokenizer,
+            )?)),
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Translation not implemented for {:?}!",
+                config.model_type
+            ))),
+        }
+    }
+
     /// Returns the `ModelType` for this TranslationOption
     pub fn model_type(&self) -> ModelType {
         match *self {
@@ -1422,6 +1451,74 @@ impl TranslationModel {
         let supported_target_languages = translation_config.target_languages.clone();
 
         let model = TranslationOption::new(translation_config)?;
+
+        Ok(TranslationModel {
+            model,
+            supported_source_languages,
+            supported_target_languages,
+        })
+    }
+
+    /// Build a new `TranslationModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `translation_config` - `TranslationConfig` object containing the resource references (model, vocabulary, configuration), translation options and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for translation
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {     ///
+    /// use rust_bert::marian::{
+    ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
+    ///     MarianTargetLanguages, MarianVocabResources,
+    /// };
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
+    /// use rust_bert::resources::{RemoteResource, ResourceProvider};
+    /// use tch::Device;
+    ///
+    /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
+    /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
+    /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
+    /// let spm_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
+    ///
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Marian,
+    ///     vocab_resource.get_local_path()?.to_str().unwrap(),
+    ///     Some(spm_resource.get_local_path()?.to_str().unwrap()),
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    ///
+    /// let source_languages = MarianSourceLanguages::ROMANCE2ENGLISH;
+    /// let target_languages = MarianTargetLanguages::ROMANCE2ENGLISH;
+    ///
+    /// let translation_config = TranslationConfig::new(
+    ///     ModelType::Marian,
+    ///     model_resource,
+    ///     config_resource,
+    ///     vocab_resource,
+    ///     Some(spm_resource),
+    ///     source_languages,
+    ///     target_languages,
+    ///     Device::cuda_if_available(),
+    /// );
+    /// let mut summarization_model =
+    ///     TranslationModel::new_with_tokenizer(translation_config, tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        translation_config: TranslationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<TranslationModel, RustBertError> {
+        let supported_source_languages = translation_config.source_languages.clone();
+        let supported_target_languages = translation_config.target_languages.clone();
+
+        let model = TranslationOption::new_with_tokenizer(translation_config, tokenizer)?;
 
         Ok(TranslationModel {
             model,
