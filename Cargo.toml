@@ -70,7 +70,7 @@ onnx = ["ort", "ndarray"]
 features = ["doc-only"]
 
 [dependencies]
-rust_tokenizers = "8.0.0"
+rust_tokenizers = "8.1"
 tch = {git = "https://github.com/LaurentMazare/tch-rs.git", branch="main"}
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }

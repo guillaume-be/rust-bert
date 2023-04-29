@@ -621,17 +621,13 @@ impl SequenceClassificationModel {
     pub fn new(
         config: SequenceClassificationConfig,
     ) -> Result<SequenceClassificationModel, RustBertError> {
-        let config_path = config.config_resource.get_local_path()?;
-        let model_config = ConfigOption::from_file(config.model_type, config_path);
-
-        let sequence_classifier = SequenceClassificationOption::new(&config)?;
-
         let vocab_path = config.vocab_resource.get_local_path()?;
-        let merges_path = if let Some(merges_resource) = &config.merges_resource {
-            Some(merges_resource.get_local_path()?)
-        } else {
-            None
-        };
+        let merges_path = config
+            .merges_resource
+            .as_ref()
+            .map(|resource| resource.get_local_path())
+            .transpose()?;
+
         let tokenizer = TokenizerOption::from_file(
             config.model_type,
             vocab_path.to_str().unwrap(),
@@ -640,6 +636,42 @@ impl SequenceClassificationModel {
             config.strip_accents,
             config.add_prefix_space,
         )?;
+        Self::new_with_tokenizer(config, tokenizer)
+    }
+
+    /// Build a new `SequenceClassificationModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - `SequenceClassificationConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for sequence classification.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Bert,
+    ///     "path/to/vocab.txt",
+    ///     None,
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let model = SequenceClassificationModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        config: SequenceClassificationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<SequenceClassificationModel, RustBertError> {
+        let config_path = config.config_resource.get_local_path()?;
+        let sequence_classifier = SequenceClassificationOption::new(&config)?;
+
+        let model_config = ConfigOption::from_file(config.model_type, config_path);
         let max_length = model_config
             .get_max_len()
             .map(|v| v as usize)

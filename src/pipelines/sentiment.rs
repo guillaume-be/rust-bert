@@ -55,6 +55,7 @@
 //! ```
 
 use crate::common::error::RustBertError;
+use crate::pipelines::common::TokenizerOption;
 use crate::pipelines::sequence_classification::{
     SequenceClassificationConfig, SequenceClassificationModel,
 };
@@ -102,6 +103,42 @@ impl SentimentModel {
     /// ```
     pub fn new(sentiment_config: SentimentConfig) -> Result<SentimentModel, RustBertError> {
         let sequence_classification_model = SequenceClassificationModel::new(sentiment_config)?;
+        Ok(SentimentModel {
+            sequence_classification_model,
+        })
+    }
+
+    /// Build a new `SentimentModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `sentiment_config` - `SentimentConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for sentiment classification.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::sentiment::SentimentModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Bert,
+    ///     "path/to/vocab.txt",
+    ///     None,
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let sentiment_model = SentimentModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        sentiment_config: SentimentConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<SentimentModel, RustBertError> {
+        let sequence_classification_model =
+            SequenceClassificationModel::new_with_tokenizer(sentiment_config, tokenizer)?;
         Ok(SentimentModel {
             sequence_classification_model,
         })

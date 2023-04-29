@@ -383,6 +383,45 @@ impl SummarizationModel {
         Ok(SummarizationModel { model, prefix })
     }
 
+    /// Build a new `SummarizationModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `summarization_config` - `SummarizationConfig` object containing the resource references (model, vocabulary, configuration), summarization options and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for summarization.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::summarization::SummarizationModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Bart,
+    ///     "path/to/vocab.json",
+    ///     Some("path/to/merges.txt"),
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let mut summarization_model =
+    ///     SummarizationModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        summarization_config: SummarizationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<SummarizationModel, RustBertError> {
+        let prefix = match summarization_config.model_type {
+            ModelType::T5 => Some("summarize: ".to_string()),
+            _ => None,
+        };
+        let model = SummarizationOption::new_with_tokenizer(summarization_config, tokenizer)?;
+
+        Ok(SummarizationModel { model, prefix })
+    }
+
     /// Summarize texts provided
     ///
     /// # Arguments
