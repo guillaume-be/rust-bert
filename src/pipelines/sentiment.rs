@@ -144,6 +144,16 @@ impl SentimentModel {
         })
     }
 
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        self.sequence_classification_model.get_tokenizer()
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self.sequence_classification_model.get_tokenizer_mut()
+    }
+
     /// Extract sentiment form an array of text inputs
     ///
     /// # Arguments

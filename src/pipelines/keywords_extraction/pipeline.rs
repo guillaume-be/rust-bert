@@ -1,3 +1,4 @@
+use crate::pipelines::common::TokenizerOption;
 /// Derived from https://github.com/MaartenGr/KeyBERT, shared under MIT License
 ///
 /// Copyright (c) 2020, Maarten P. Grootendorst
@@ -176,6 +177,16 @@ impl<'a> KeywordExtractionModel<'a> {
             diversity: config.diversity,
             max_sum_candidates: config.max_sum_candidates,
         })
+    }
+
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        self.sentence_embeddings_model.get_tokenizer()
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self.sentence_embeddings_model.get_tokenizer_mut()
     }
 
     /// Extract keywords from a list of input texts.

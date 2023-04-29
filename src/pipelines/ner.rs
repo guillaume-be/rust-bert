@@ -214,6 +214,16 @@ impl NERModel {
         })
     }
 
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        self.token_classification_model.get_tokenizer()
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self.token_classification_model.get_tokenizer_mut()
+    }
+
     /// Extract entities from a text
     ///
     /// # Arguments

@@ -451,6 +451,16 @@ impl MaskedLanguageModel {
         })
     }
 
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
+    }
+
     /// Replace custom user-provided mask token by language model mask token.
     fn replace_mask_token<'a, S>(
         &self,

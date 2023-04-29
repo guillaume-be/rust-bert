@@ -625,6 +625,9 @@ impl PrivateLanguageGenerator for LongT5Generator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
+    fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
+    }
     fn get_var_store(&self) -> &nn::VarStore {
         &self.var_store
     }
