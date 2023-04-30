@@ -16,6 +16,7 @@ use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::reformer::ReformerConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
+use std::convert::TryFrom;
 use tch::nn::Init;
 use tch::{nn, Kind, Tensor};
 
@@ -92,7 +93,7 @@ impl AxialPositionEmbeddings {
                 )
             }
         } else {
-            let max_position_id = i64::from(position_ids.max());
+            let max_position_id = i64::try_from(position_ids.max()).unwrap();
             let required_pos_encodings_columns =
                 (max_position_id + 1) / self.axial_pos_shape[1] + 1;
             let position_encodings = Tensor::cat(

@@ -105,9 +105,7 @@ use crate::deberta::DebertaForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
-use crate::pipelines::common::{
-    get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
-};
+use crate::pipelines::common::{ConfigOption, ModelResources, ModelType, TokenizerOption};
 use crate::pipelines::sequence_classification::Label;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
@@ -650,12 +648,9 @@ impl ZeroShotClassificationModel {
         config: ZeroShotClassificationConfig,
         tokenizer: TokenizerOption,
     ) -> Result<ZeroShotClassificationModel, RustBertError> {
-        let weights_path = config.model_resource.get_local_path()?;
         let device = config.device;
         let zero_shot_classifier = ZeroShotClassificationOption::new(&config)?;
 
-        let mut var_store = VarStore::new(device);
-        var_store.load(weights_path)?;
         Ok(ZeroShotClassificationModel {
             tokenizer,
             zero_shot_classifier,

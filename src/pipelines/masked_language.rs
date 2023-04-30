@@ -54,9 +54,9 @@ use crate::fnet::FNetForMaskedLM;
 use crate::pipelines::common::{
     get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
 };
-
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForMaskedLM;
+use std::convert::TryFrom;
 
 #[cfg(feature = "onnx")]
 use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
@@ -605,7 +605,7 @@ impl MaskedLanguageModel {
         for input_id in 0..input.as_ref().len() as i64 {
             let mut sequence_tokens = vec![];
             let sequence_mask = mask_token_mask.get(input_id);
-            if bool::from(sequence_mask.any()) {
+            if bool::try_from(sequence_mask.any())? {
                 let mask_scores = output
                     .get(input_id)
                     .index_select(0, &sequence_mask.argwhere().squeeze_dim(1));

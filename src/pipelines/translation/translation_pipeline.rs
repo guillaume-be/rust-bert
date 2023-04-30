@@ -1171,35 +1171,6 @@ impl TranslationOption {
         }
     }
 
-    pub fn new_with_tokenizer(
-        config: TranslationConfig,
-        tokenizer: TokenizerOption,
-    ) -> Result<Self, RustBertError> {
-        match config.model_type {
-            ModelType::Marian => Ok(TranslationOption::Marian(
-                MarianGenerator::new_with_tokenizer(config.into(), tokenizer)?,
-            )),
-            ModelType::T5 => Ok(TranslationOption::T5(T5Generator::new_with_tokenizer(
-                config.into(),
-                tokenizer,
-            )?)),
-            ModelType::MBart => Ok(TranslationOption::MBart(
-                MBartGenerator::new_with_tokenizer(config.into(), tokenizer)?,
-            )),
-            ModelType::M2M100 => Ok(TranslationOption::M2M100(
-                M2M100Generator::new_with_tokenizer(config.into(), tokenizer)?,
-            )),
-            ModelType::NLLB => Ok(TranslationOption::NLLB(NLLBGenerator::new_with_tokenizer(
-                config.into(),
-                tokenizer,
-            )?)),
-            _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Translation not implemented for {:?}!",
-                config.model_type
-            ))),
-        }
-    }
-
     /// Returns the `ModelType` for this TranslationOption
     pub fn model_type(&self) -> ModelType {
         match *self {
@@ -1213,7 +1184,7 @@ impl TranslationOption {
         }
     }
 
-    /// Returns the `Toeknizer` for this TranslationOption
+    /// Returns the `Tokenizer` for this TranslationOption
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
             Self::Marian(ref generator) => generator.get_tokenizer(),
@@ -1364,12 +1335,14 @@ impl TranslationModel {
     ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     ///     MarianTargetLanguages, MarianVocabResources,
     /// };
-    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::common::{ModelResources, ModelType, TokenizerOption};
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
     /// use rust_bert::resources::{RemoteResource, ResourceProvider};
     /// use tch::Device;
     ///
-    /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
+    /// let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+    ///     MarianModelResources::ROMANCE2ENGLISH,
+    /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
     /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
     /// let spm_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);

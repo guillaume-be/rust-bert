@@ -307,7 +307,11 @@ impl XLNetModel {
         inverse_frequency: &Tensor,
         batch_size: Option<i64>,
     ) -> Tensor {
-        let sinusoid = Tensor::einsum("i,d->id", &[position_sequence, inverse_frequency], None);
+        let sinusoid = Tensor::einsum(
+            "i,d->id",
+            &[position_sequence, inverse_frequency],
+            None::<i64>,
+        );
         let mut positional_embeddings =
             Tensor::cat(&[sinusoid.sin(), sinusoid.cos()], -1).unsqueeze(1);
 
