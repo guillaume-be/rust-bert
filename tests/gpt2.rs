@@ -7,7 +7,7 @@ use rust_bert::pipelines::conversation::{
     ConversationConfig, ConversationManager, ConversationModel,
 };
 use rust_bert::pipelines::generation_utils::{
-    Cache, GenerateConfig, GenerateOptions, LMHeadModel, LanguageGenerator,
+    Cache, GenerateConfig, GenerateOptions, LanguageGenerator,
 };
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, ResourceProvider};
@@ -59,17 +59,7 @@ fn gpt2_lm_model() -> anyhow::Result<()> {
 
     //    Forward pass
     let model_output = gpt2_model
-        .forward_t(
-            Some(&input_tensor),
-            Cache::None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            false,
-        )
+        .forward_t(Some(&input_tensor), None, None, None, None, None, false)
         .unwrap();
 
     let next_word_id = model_output

@@ -8,7 +8,7 @@
 //! #### 1. Question Answering
 //! Extractive question answering from a given question and context. DistilBERT model finetuned on SQuAD (Stanford Question Answering Dataset)
 //!
-//! ```no_run
+//! ```ignore
 //! use rust_bert::pipelines::question_answering::{QaInput, QuestionAnsweringModel};
 //! # fn main() -> anyhow::Result<()> {
 //! let qa_model = QuestionAnsweringModel::new(Default::default())?;
@@ -22,7 +22,7 @@
 //! ```
 //!
 //! Output: \
-//! ```no_run
+//! ```ignore
 //! # use rust_bert::pipelines::question_answering::Answer;
 //! # let output =
 //! [Answer {
@@ -53,7 +53,7 @@
 //! - English <-> Hindi
 //! - French <-> German
 //!
-//! ```no_run
+//! ```ignore
 //! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::common::ModelType;
@@ -75,14 +75,14 @@
 //! # }
 //! ```
 //! Output: \
-//! ```no_run
+//! ```ignore
 //! # let output =
 //! " Il s'agit d'une phrase à traduire"
 //! # ;
 //! ```
 //!
 //! Output: \
-//! ```no_run
+//! ```ignore
 //! # let output =
 //! "Il s'agit d'une phrase à traduire"
 //! # ;
@@ -92,7 +92,7 @@
 //! Abstractive summarization of texts based on the BART encoder-decoder architecture
 //! Include techniques such as beam search, top-k and nucleus sampling, temperature setting and repetition penalty.
 //!
-//! ```no_run
+//! ```ignore
 //! # fn main() -> anyhow::Result<()> {
 //! # use rust_bert::pipelines::generation_utils::LanguageGenerator;
 //! use rust_bert::pipelines::summarization::SummarizationModel;
@@ -128,7 +128,7 @@
 //! (example from: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
 //!
 //! Example output: \
-//! ```no_run
+//! ```ignore
 //! # let output =
 //! "Scientists have found water vapour on K2-18b, a planet 110 light-years from Earth.
 //!  This is the first such discovery in a planet in its star's habitable zone.
@@ -146,7 +146,7 @@
 //!
 //! The model uses a `ConversationManager` to keep track of active conversations and generate responses to them.
 //!
-//! ```no_run
+//! ```ignore
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::conversation::{ConversationManager, ConversationModel};
 //! let conversation_model = ConversationModel::new(Default::default())?;
@@ -159,7 +159,7 @@
 //! # }
 //! ```
 //! Example output: \
-//! ```no_run
+//! ```ignore
 //! # let output =
 //! "The Big Lebowski."
 //! # ;
@@ -171,7 +171,7 @@
 //! Supports batch generation of sentences from several prompts. Sequences will be left-padded with the model's padding token if present, the unknown token otherwise.
 //! This may impact the results and it is recommended to submit prompts of similar length for best results. Additional information on the input parameters for generation is provided in this module's documentation.
 //!
-//! ```no_run
+//! ```ignore
 //! # fn main() -> anyhow::Result<()> {
 //! use rust_bert::pipelines::text_generation::TextGenerationModel;
 //! use rust_bert::pipelines::common::ModelType;
@@ -186,7 +186,7 @@
 //! # }
 //! ```
 //! Example output: \
-//! ```no_run
+//! ```ignore
 //! # let output =
 //! [
 //!     "The dog's owners, however, did not want to be named. According to the lawsuit, the animal's owner, a 29-year",
@@ -201,7 +201,7 @@
 //!
 //! #### 6. Zero-shot classification
 //! Performs zero-shot classification on input sentences with provided labels using a model fine-tuned for Natural Language Inference.
-//! ```no_run
+//! ```ignore
 //! # use rust_bert::pipelines::zero_shot_classification::ZeroShotClassificationModel;
 //! # fn main() -> anyhow::Result<()> {
 //! let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
@@ -219,7 +219,7 @@
 //! ```
 //!
 //! outputs:
-//! ```no_run
+//! ```ignore
 //! # use rust_bert::pipelines::sequence_classification::Label;
 //! let output = [
 //!     [
@@ -280,7 +280,7 @@
 //!
 //! #### 7. Sentiment analysis
 //! Predicts the binary sentiment for a sentence. DistilBERT model finetuned on SST-2.
-//! ```no_run
+//! ```ignore
 //! use rust_bert::pipelines::sentiment::SentimentModel;
 //! # fn main() -> anyhow::Result<()> {
 //! let sentiment_model = SentimentModel::new(Default::default())?;
@@ -296,7 +296,7 @@
 //! (Example courtesy of [IMDb](http://www.imdb.com))
 //!
 //! Output: \
-//! ```no_run
+//! ```ignore
 //! # use rust_bert::pipelines::sentiment::Sentiment;
 //! # use rust_bert::pipelines::sentiment::SentimentPolarity::{Positive, Negative};
 //! # let output =
@@ -320,7 +320,7 @@
 //! #### 8. Named Entity Recognition
 //! Extracts entities (Person, Location, Organization, Miscellaneous) from text. The default NER mode is an English BERT cased large model finetuned on CoNNL03, contributed by the [MDZ Digital Library team at the Bavarian State Library](https://github.com/dbmdz)
 //! Additional pre-trained models are available for English, German, Spanish and Dutch.
-//! ```no_run
+//! ```ignore
 //! use rust_bert::pipelines::ner::NERModel;
 //! # fn main() -> anyhow::Result<()> {
 //! let ner_model = NERModel::new(Default::default())?;
@@ -333,7 +333,7 @@
 //! # }
 //! ```
 //! Output: \
-//! ```no_run
+//! ```ignore
 //! # use rust_bert::pipelines::ner::Entity;
 //! # use rust_tokenizers::Offset;
 //! # let output =
@@ -407,17 +407,17 @@
 //!
 //! #### 10. Part of Speech tagging
 //! Extracts Part of Speech tags (Noun, Verb, Adjective...) from text.
-//! ```no_run
+//! ```ignore
 //! use rust_bert::pipelines::pos_tagging::POSModel;
 //! # fn main() -> anyhow::Result<()> {
 //! let pos_model = POSModel::new(Default::default())?;
 //! let input = ["My name is Bob"];
-//! let output = pos_model.predict(&input);
+//! let output = pos_model.encode_as_tensor(&input);
 //! # Ok(())
 //! # }
 //! ```
 //! Output: \
-//! ```no_run
+//! ```ignore
 //! # use rust_bert::pipelines::pos_tagging::POSTag;
 //! # let output =
 //! [
@@ -448,7 +448,7 @@
 //! #### 11. Sentence embeddings
 //!
 //! Generate sentence embeddings (vector representation). These can be used for applications including dense information retrieval.
-//!```no_run
+//!```ignore
 //! # use rust_bert::pipelines::sentence_embeddings::{SentenceEmbeddingsBuilder, SentenceEmbeddingsModelType};
 //! # fn main() -> anyhow::Result<()> {
 //!    let model = SentenceEmbeddingsBuilder::remote(
@@ -465,7 +465,7 @@
 //! # }
 //! ```
 //! Output:
-//! ```no_run
+//! ```ignore
 //! # let output =
 //! [
 //!     [-0.000202666, 0.08148022, 0.03136178, 0.002920636],

@@ -559,7 +559,7 @@ impl BertForMaskedLM {
     {
         let p = p.borrow();
 
-        let bert = BertModel::new(p / "bert", config);
+        let bert = BertModel::new_with_optional_pooler(p / "bert", config, false);
         let cls = BertLMPredictionHead::new(p / "cls", config);
 
         BertForMaskedLM { bert, cls }
@@ -989,7 +989,7 @@ impl BertForTokenClassification {
     {
         let p = p.borrow();
 
-        let bert = BertModel::new(p / "bert", config);
+        let bert = BertModel::new_with_optional_pooler(p / "bert", config, false);
         let dropout = Dropout::new(config.hidden_dropout_prob);
         let num_labels = config
             .id2label

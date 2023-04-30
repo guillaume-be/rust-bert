@@ -50,7 +50,7 @@ fn main() -> anyhow::Result<()> {
     outputs.extend(model.translate(&[source_sentence], Language::English, Language::Hindi)?);
 
     for sentence in outputs {
-        println!("{}", sentence);
+        println!("{sentence}");
     }
     Ok(())
 }

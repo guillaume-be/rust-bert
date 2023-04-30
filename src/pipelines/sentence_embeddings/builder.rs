@@ -88,8 +88,7 @@ impl SentenceEmbeddingsBuilder<Local> {
             ModelType::T5 => (model_dir.join("spiece.model"), None),
             _ => {
                 return Err(RustBertError::InvalidConfigurationError(format!(
-                    "Unsupported transformer model {:?} for Sentence Embeddings",
-                    transformer_type
+                    "Unsupported transformer model {transformer_type:?} for Sentence Embeddings",
                 )));
             }
         };
@@ -179,7 +178,8 @@ impl SentenceEmbeddingsBuilder<Remote> {
         self
     }
 
-    pub fn create_model(self) -> Result<SentenceEmbeddingsModel, RustBertError> {
+    pub fn create_model(mut self) -> Result<SentenceEmbeddingsModel, RustBertError> {
+        self.inner.config.device = self.device;
         SentenceEmbeddingsModel::new(self.inner.config)
     }
 }

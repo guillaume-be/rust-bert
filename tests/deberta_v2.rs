@@ -17,7 +17,7 @@ fn deberta_v2_masked_lm() -> anyhow::Result<()> {
         DebertaV2ConfigResources::DEBERTA_V3_BASE,
     ));
     let config_path = config_resource.get_local_path()?;
-    let device = Device::cuda_if_available();
+    let device = Device::Cpu;
     let vs = nn::VarStore::new(device);
     let mut config = DebertaV2Config::from_file(config_path);
     config.output_attentions = Some(true);

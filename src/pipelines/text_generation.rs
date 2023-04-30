@@ -35,6 +35,7 @@ use tch::Device;
 
 use crate::common::error::RustBertError;
 use crate::gpt2::GPT2Generator;
+use crate::gpt_j::GptJGenerator;
 use crate::gpt_neo::GptNeoGenerator;
 use crate::openai_gpt::OpenAIGenerator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
@@ -192,6 +193,8 @@ pub enum TextGenerationOption {
     GPT(OpenAIGenerator),
     /// Text Generator based on GPT-Neo model
     GPTNeo(GptNeoGenerator),
+    /// Text Generator based on GPT-J model
+    GPTJ(GptJGenerator),
     /// Text Generator based on XLNet model
     XLNet(XLNetGenerator),
     /// Text Generator based on Reformer model
@@ -216,6 +219,39 @@ impl TextGenerationOption {
             ModelType::GPTNeo => Ok(TextGenerationOption::GPTNeo(GptNeoGenerator::new(
                 config.into(),
             )?)),
+            ModelType::GPTJ => Ok(TextGenerationOption::GPTJ(GptJGenerator::new(
+                config.into(),
+            )?)),
+            _ => Err(RustBertError::InvalidConfigurationError(format!(
+                "Text generation not implemented for {:?}!",
+                config.model_type
+            ))),
+        }
+    }
+
+    pub fn new_with_tokenizer(
+        config: TextGenerationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<Self, RustBertError> {
+        match config.model_type {
+            ModelType::GPT2 => Ok(TextGenerationOption::GPT2(
+                GPT2Generator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            ModelType::OpenAiGpt => Ok(TextGenerationOption::GPT(
+                OpenAIGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            ModelType::XLNet => Ok(TextGenerationOption::XLNet(
+                XLNetGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            ModelType::Reformer => Ok(TextGenerationOption::Reformer(
+                ReformerGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            ModelType::GPTNeo => Ok(TextGenerationOption::GPTNeo(
+                GptNeoGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
+            ModelType::GPTJ => Ok(TextGenerationOption::GPTJ(
+                GptJGenerator::new_with_tokenizer(config.into(), tokenizer)?,
+            )),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Text generation not implemented for {:?}!",
                 config.model_type
@@ -229,6 +265,7 @@ impl TextGenerationOption {
             Self::GPT(_) => ModelType::OpenAiGpt,
             Self::GPT2(_) => ModelType::GPT2,
             Self::GPTNeo(_) => ModelType::GPTNeo,
+            Self::GPTJ(_) => ModelType::GPTJ,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
         }
@@ -240,6 +277,7 @@ impl TextGenerationOption {
             Self::GPT(model_ref) => model_ref._get_tokenizer(),
             Self::GPT2(model_ref) => model_ref._get_tokenizer(),
             Self::GPTNeo(model_ref) => model_ref._get_tokenizer(),
+            Self::GPTJ(model_ref) => model_ref._get_tokenizer(),
             Self::XLNet(model_ref) => model_ref._get_tokenizer(),
             Self::Reformer(model_ref) => model_ref._get_tokenizer(),
         }
@@ -276,6 +314,11 @@ impl TextGenerationOption {
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
+            Self::GPTJ(ref model) => model
+                .generate_indices(prompt_texts, generate_options)
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
             Self::XLNet(ref model) => model
                 .generate_indices(prompt_texts, generate_options)
                 .into_iter()
@@ -294,6 +337,7 @@ impl TextGenerationOption {
             Self::GPT(model_ref) => model_ref.half(),
             Self::GPT2(model_ref) => model_ref.half(),
             Self::GPTNeo(model_ref) => model_ref.half(),
+            Self::GPTJ(model_ref) => model_ref.half(),
             Self::XLNet(model_ref) => model_ref.half(),
             Self::Reformer(model_ref) => model_ref.half(),
         }
@@ -304,6 +348,7 @@ impl TextGenerationOption {
             Self::GPT(model_ref) => model_ref.float(),
             Self::GPT2(model_ref) => model_ref.float(),
             Self::GPTNeo(model_ref) => model_ref.float(),
+            Self::GPTJ(model_ref) => model_ref.float(),
             Self::XLNet(model_ref) => model_ref.float(),
             Self::Reformer(model_ref) => model_ref.float(),
         }
@@ -314,6 +359,7 @@ impl TextGenerationOption {
             Self::GPT(model_ref) => model_ref.set_device(device),
             Self::GPT2(model_ref) => model_ref.set_device(device),
             Self::GPTNeo(model_ref) => model_ref.set_device(device),
+            Self::GPTJ(model_ref) => model_ref.set_device(device),
             Self::XLNet(model_ref) => model_ref.set_device(device),
             Self::Reformer(model_ref) => model_ref.set_device(device),
         }
@@ -335,7 +381,6 @@ impl TextGenerationModel {
     /// # Arguments
     ///
     /// * `generation_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
-    /// * `model_type` - `ModelType` enum variant indicating the type of model to use for generation
     ///
     /// # Example
     ///
@@ -351,6 +396,69 @@ impl TextGenerationModel {
     pub fn new(
         generation_config: TextGenerationConfig,
     ) -> Result<TextGenerationModel, RustBertError> {
+        let (prefix, min_length, max_length) =
+            TextGenerationModel::get_prefix_min_max_length(&generation_config);
+        let model = TextGenerationOption::new(generation_config)?;
+        let prefix_length = prefix
+            .as_ref()
+            .map(|prefix| model.get_tokenizer().tokenize(prefix).len() as i64);
+        Ok(TextGenerationModel {
+            model,
+            prefix,
+            prefix_length,
+            min_length,
+            max_length,
+        })
+    }
+
+    /// Build a new `TextGenerationModel` with a given tokenizer
+    ///
+    /// # Arguments
+    ///
+    /// * `generation_config` - `GenerateConfig` object containing the resource references (model, vocabulary, configuration), generation options and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for text generation
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::text_generation::TextGenerationModel;
+    ///
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::GPT2,
+    ///     "path/to/vocab.json",
+    ///     Some("path/to/merges.txt"),
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let generation_model = TextGenerationModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        generation_config: TextGenerationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<TextGenerationModel, RustBertError> {
+        let (prefix, min_length, max_length) =
+            TextGenerationModel::get_prefix_min_max_length(&generation_config);
+        let model = TextGenerationOption::new_with_tokenizer(generation_config, tokenizer)?;
+        let prefix_length = prefix
+            .as_ref()
+            .map(|prefix| model.get_tokenizer().tokenize(prefix).len() as i64);
+        Ok(TextGenerationModel {
+            model,
+            prefix,
+            prefix_length,
+            min_length,
+            max_length,
+        })
+    }
+
+    fn get_prefix_min_max_length(
+        generation_config: &TextGenerationConfig,
+    ) -> (Option<String>, i64, Option<i64>) {
         let prefix = match generation_config.model_type {
             ModelType::XLNet => Some(
                 "In 1991, the remains of Russian Tsar Nicholas II and his family \
@@ -370,18 +478,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
 
         let min_length = generation_config.min_length;
         let max_length = generation_config.max_length;
-        let model = TextGenerationOption::new(generation_config)?;
-        let prefix_length = prefix
-            .as_ref()
-            .map(|prefix| model.get_tokenizer().tokenize(prefix).len() as i64);
-
-        Ok(TextGenerationModel {
-            model,
-            prefix,
-            prefix_length,
-            min_length,
-            max_length,
-        })
+        (prefix, min_length, max_length)
     }
 
     pub fn half(&mut self) {

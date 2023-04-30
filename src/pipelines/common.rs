@@ -26,8 +26,10 @@ use crate::distilbert::DistilBertConfig;
 use crate::electra::ElectraConfig;
 use crate::fnet::FNetConfig;
 use crate::gpt2::Gpt2Config;
+use crate::gpt_j::GptJConfig;
 use crate::gpt_neo::GptNeoConfig;
 use crate::longformer::LongformerConfig;
+use crate::longt5::LongT5Config;
 use crate::m2m_100::M2M100Config;
 use crate::marian::MarianConfig;
 use crate::mbart::MBartConfig;
@@ -43,14 +45,11 @@ use crate::Config;
 use rust_tokenizers::tokenizer::{
     AlbertTokenizer, BertTokenizer, DeBERTaTokenizer, DeBERTaV2Tokenizer, FNetTokenizer,
     Gpt2Tokenizer, M2M100Tokenizer, MBart50Tokenizer, MarianTokenizer, MultiThreadedTokenizer,
-    OpenAiGptTokenizer, PegasusTokenizer, ProphetNetTokenizer, ReformerTokenizer, RobertaTokenizer,
-    T5Tokenizer, Tokenizer, TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
+    NLLBTokenizer, OpenAiGptTokenizer, PegasusTokenizer, ProphetNetTokenizer, ReformerTokenizer,
+    RobertaTokenizer, T5Tokenizer, Tokenizer, TruncationStrategy, XLMRobertaTokenizer,
+    XLNetTokenizer,
 };
-use rust_tokenizers::vocab::{
-    AlbertVocab, BertVocab, DeBERTaV2Vocab, DeBERTaVocab, FNetVocab, Gpt2Vocab, M2M100Vocab,
-    MBart50Vocab, MarianVocab, OpenAiGptVocab, PegasusVocab, ProphetNetVocab, ReformerVocab,
-    RobertaVocab, T5Vocab, Vocab, XLMRobertaVocab, XLNetVocab,
-};
+use rust_tokenizers::vocab::Vocab;
 use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -75,10 +74,13 @@ pub enum ModelType {
     MobileBert,
     #[serde(alias = "t5")]
     T5,
+    #[serde(alias = "longt5")]
+    LongT5,
     #[serde(alias = "albert")]
     Albert,
     XLNet,
     GPT2,
+    GPTJ,
     OpenAiGpt,
     Reformer,
     ProphetNet,
@@ -87,6 +89,8 @@ pub enum ModelType {
     GPTNeo,
     MBart,
     M2M100,
+    #[serde(alias = "m2m100")]
+    NLLB,
     FNet,
 }
 
@@ -112,12 +116,16 @@ pub enum ConfigOption {
     OpenAiGpt(OpenAiGptConfig),
     /// T5 configuration
     T5(T5Config),
+    /// LongT5 configuration
+    LongT5(LongT5Config),
     /// Albert configuration
     Albert(AlbertConfig),
     /// XLNet configuration
     XLNet(XLNetConfig),
     /// GPT2 configuration
     GPT2(Gpt2Config),
+    /// GPT-J configuration
+    GPTJ(GptJConfig),
     /// Reformer configuration
     Reformer(ReformerConfig),
     /// RoBERTa configuration
@@ -172,6 +180,8 @@ pub enum TokenizerOption {
     MBart50(MBart50Tokenizer),
     /// M2M100 Tokenizer
     M2M100(M2M100Tokenizer),
+    /// NLLB tokenizer.
+    NLLB(NLLBTokenizer),
     /// FNet Tokenizer
     FNet(FNetTokenizer),
     /// Bart Tokenizer
@@ -191,9 +201,11 @@ impl ConfigOption {
             ModelType::Marian => ConfigOption::Marian(MarianConfig::from_file(path)),
             ModelType::MobileBert => ConfigOption::MobileBert(MobileBertConfig::from_file(path)),
             ModelType::T5 => ConfigOption::T5(T5Config::from_file(path)),
+            ModelType::LongT5 => ConfigOption::LongT5(LongT5Config::from_file(path)),
             ModelType::Albert => ConfigOption::Albert(AlbertConfig::from_file(path)),
             ModelType::XLNet => ConfigOption::XLNet(XLNetConfig::from_file(path)),
             ModelType::GPT2 => ConfigOption::GPT2(Gpt2Config::from_file(path)),
+            ModelType::GPTJ => ConfigOption::GPTJ(GptJConfig::from_file(path)),
             ModelType::GPTNeo => ConfigOption::GPTNeo(GptNeoConfig::from_file(path)),
             ModelType::OpenAiGpt => ConfigOption::OpenAiGpt(OpenAiGptConfig::from_file(path)),
             ModelType::Reformer => ConfigOption::Reformer(ReformerConfig::from_file(path)),
@@ -204,7 +216,9 @@ impl ConfigOption {
                 ConfigOption::Roberta(RobertaConfig::from_file(path))
             }
             ModelType::MBart => ConfigOption::MBart(MBartConfig::from_file(path)),
-            ModelType::M2M100 => ConfigOption::M2M100(M2M100Config::from_file(path)),
+            ModelType::M2M100 | ModelType::NLLB => {
+                ConfigOption::M2M100(M2M100Config::from_file(path))
+            }
             ModelType::FNet => ConfigOption::FNet(FNetConfig::from_file(path)),
         }
     }
@@ -280,8 +294,10 @@ impl ConfigOption {
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
+            Self::LongT5(_) => panic!("LongT5 does not use a label mapping"),
             Self::OpenAiGpt(_) => panic!("OpenAI GPT does not use a label mapping"),
             Self::GPT2(_) => panic!("GPT2 does not use a label mapping"),
+            Self::GPTJ(_) => panic!("GPT-J does not use a label mapping"),
             Self::GPTNeo(_) => panic!("GPT-Neo does not use a label mapping"),
             Self::Pegasus(_) => panic!("Pegasus does not use a label mapping"),
         }
@@ -298,9 +314,11 @@ impl ConfigOption {
             Self::Marian(config) => Some(config.max_position_embeddings),
             Self::MobileBert(config) => Some(config.max_position_embeddings),
             Self::T5(_) => None,
+            Self::LongT5(_) => None,
             Self::Albert(config) => Some(config.max_position_embeddings),
             Self::XLNet(_) => None,
             Self::GPT2(config) => Some(config.n_positions),
+            Self::GPTJ(config) => Some(config.n_positions),
             Self::Reformer(config) => Some(config.max_position_embeddings),
             Self::ProphetNet(config) => Some(config.max_position_embeddings),
             Self::Longformer(config) => Some(config.max_position_embeddings),
@@ -477,7 +495,7 @@ impl TokenizerOption {
                     lower_case,
                 )?)
             }
-            ModelType::T5 => {
+            ModelType::T5 | ModelType::LongT5 => {
                 if strip_accents.is_some() {
                     return Err(RustBertError::InvalidConfigurationError(format!(
                         "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
@@ -551,11 +569,13 @@ impl TokenizerOption {
                 }
                 TokenizerOption::Reformer(ReformerTokenizer::from_file(vocab_path, lower_case)?)
             }
-            ModelType::GPT2 | ModelType::GPTNeo => TokenizerOption::GPT2(Gpt2Tokenizer::from_file(
-                vocab_path,
-                merges_path.expect("No merges specified!"),
-                lower_case,
-            )?),
+            ModelType::GPT2 | ModelType::GPTNeo | ModelType::GPTJ => {
+                TokenizerOption::GPT2(Gpt2Tokenizer::from_file(
+                    vocab_path,
+                    merges_path.expect("No merges specified!"),
+                    lower_case,
+                )?)
+            }
             ModelType::OpenAiGpt => TokenizerOption::OpenAiGpt(OpenAiGptTokenizer::from_file(
                 vocab_path,
                 merges_path.expect("No merges specified!"),
@@ -626,6 +646,25 @@ impl TokenizerOption {
                     lower_case,
                 )?)
             }
+            ModelType::NLLB => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::NLLB(NLLBTokenizer::from_files(
+                    vocab_path,
+                    merges_path.expect("No merges specified."),
+                )?)
+            }
             ModelType::FNet => TokenizerOption::FNet(FNetTokenizer::from_file(
                 vocab_path,
                 lower_case,
@@ -654,7 +693,7 @@ impl TokenizerOption {
             Self::ProphetNet(_) => ModelType::ProphetNet,
             Self::Pegasus(_) => ModelType::Pegasus,
             Self::MBart50(_) => ModelType::MBart,
-            Self::M2M100(_) => ModelType::M2M100,
+            Self::M2M100(_) | Self::NLLB(_) => ModelType::M2M100,
             Self::FNet(_) => ModelType::FNet,
         }
     }
@@ -797,6 +836,13 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::NLLB(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
         }
     }
 
@@ -928,6 +974,13 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::NLLB(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
             Self::FNet(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
                 tokenizer,
                 text_pair_list,
@@ -999,6 +1052,9 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => {
                 tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
+            Self::NLLB(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
             Self::FNet(ref tokenizer) => {
                 tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
@@ -1025,6 +1081,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => tokenizer.tokenize(text),
             Self::MBart50(ref tokenizer) => tokenizer.tokenize(text),
             Self::M2M100(ref tokenizer) => tokenizer.tokenize(text),
+            Self::NLLB(ref tokenizer) => tokenizer.tokenize(text),
             Self::FNet(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
@@ -1049,6 +1106,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::MBart50(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::M2M100(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::NLLB(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::FNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
         }
     }
@@ -1084,6 +1142,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::MBart50(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::M2M100(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::NLLB(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::FNet(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
         }
     }
@@ -1145,6 +1204,9 @@ impl TokenizerOption {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
             Self::M2M100(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
+            Self::NLLB(ref tokenizer) => {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
             Self::FNet(ref tokenizer) => {
@@ -1228,6 +1290,10 @@ impl TokenizerOption {
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
             ),
+            Self::NLLB(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
             Self::FNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
@@ -1268,6 +1334,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::MBart50(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::M2M100(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::NLLB(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::FNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
@@ -1275,174 +1342,152 @@ impl TokenizerOption {
     /// Interface method
     pub fn get_unk_id(&self) -> i64 {
         match *self {
-            Self::Bert(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(BertVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::Deberta(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(DeBERTaVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::DebertaV2(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(DeBERTaV2Vocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::Roberta(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(RobertaVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::Bart(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(RobertaVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::XLMRoberta(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(XLMRobertaVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::Marian(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(MarianVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::T5(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(T5Vocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::Albert(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(AlbertVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::XLNet(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(XLNetVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::GPT2(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(Gpt2Vocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::OpenAiGpt(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(OpenAiGptVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::Reformer(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(ReformerVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::ProphetNet(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(ProphetNetVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::Pegasus(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(PegasusVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::MBart50(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(MBart50Vocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::M2M100(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(M2M100Vocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
-            Self::FNet(ref tokenizer) => *MultiThreadedTokenizer::vocab(tokenizer)
-                .special_values
-                .get(FNetVocab::unknown_value())
-                .expect("UNK token not found in vocabulary"),
+            Self::Bert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::Deberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::DebertaV2(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::Roberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::Bart(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::Marian(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::T5(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::Albert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::XLNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::GPT2(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::OpenAiGpt(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::Reformer(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::ProphetNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::Pegasus(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::MBart50(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::M2M100(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
+            Self::FNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
         }
     }
 
     /// Interface method
     pub fn get_pad_id(&self) -> Option<i64> {
         match *self {
-            Self::Bert(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(BertVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::Deberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::DebertaV2(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaV2Vocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::Roberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::Bart(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::pad_value())
-                    .unwrap_or(&1),
-            ),
-            Self::XLMRoberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLMRobertaVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::Marian(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(MarianVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::T5(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(T5Vocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::Albert(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(AlbertVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::XLNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLNetVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::ProphetNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(ProphetNetVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::Pegasus(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(PegasusVocab::pad_value())
-                    .unwrap_or(&0),
-            ),
-            Self::MBart50(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(MBart50Vocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
-            Self::M2M100(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(M2M100Vocab::pad_value())
-                    .unwrap_or(&1),
-            ),
-            Self::FNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(FNetVocab::pad_value())
-                    .expect("PAD token not found in vocabulary"),
-            ),
+            Self::Bert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::Deberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::DebertaV2(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::Roberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::Bart(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::Marian(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::T5(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::Albert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::XLNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::ProphetNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::Pegasus(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::MBart50(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::M2M100(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
+            Self::FNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
             Self::Reformer(_) => None,
             Self::GPT2(_) => None,
             Self::OpenAiGpt(_) => None,
@@ -1452,78 +1497,58 @@ impl TokenizerOption {
     /// Interface method
     pub fn get_sep_id(&self) -> Option<i64> {
         match *self {
-            Self::Bert(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(BertVocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::Deberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaVocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::DebertaV2(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaV2Vocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::Roberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::Bart(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::XLMRoberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLMRobertaVocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::Albert(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(AlbertVocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::XLNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLNetVocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::ProphetNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(ProphetNetVocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::MBart50(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(MBart50Vocab::sep_value())
-                    .unwrap_or(&1),
-            ),
-            Self::M2M100(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(M2M100Vocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
-            Self::FNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(FNetVocab::sep_value())
-                    .expect("SEP token not found in vocabulary"),
-            ),
+            Self::Bert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::Deberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::DebertaV2(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::Roberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::Bart(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::Albert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::XLNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::ProphetNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::MBart50(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::M2M100(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
+            Self::FNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
             Self::Marian(_) => None,
             Self::T5(_) => None,
             Self::GPT2(_) => None,
@@ -1536,80 +1561,57 @@ impl TokenizerOption {
     /// Interface method
     pub fn get_mask_id(&self) -> Option<i64> {
         match *self {
-            Self::Bert(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(BertVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::Deberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::DebertaV2(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaV2Vocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::Roberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::Bart(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::XLMRoberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLMRobertaVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::Albert(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(AlbertVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::XLNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLNetVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::ProphetNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(ProphetNetVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::MBart50(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(MBart50Vocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::FNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(FNetVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
-            Self::Pegasus(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(PegasusVocab::mask_value())
-                    .expect("MASK token not found in vocabulary"),
-            ),
+            Self::Bert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::Deberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::DebertaV2(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::Roberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::Bart(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::Albert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::XLNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::ProphetNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::MBart50(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::FNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
+            Self::Pegasus(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_mask_value()))
+            }
             Self::Marian(_) => None,
             Self::M2M100(_) => None,
+            Self::NLLB(_) => None,
             Self::T5(_) => None,
             Self::GPT2(_) => None,
             Self::OpenAiGpt(_) => None,
@@ -1620,84 +1622,95 @@ impl TokenizerOption {
     /// Interface method
     pub fn get_mask_value(&self) -> Option<&str> {
         match self {
-            Self::Bert(_) => Some(BertVocab::mask_value()),
-            Self::Deberta(_) => Some(DeBERTaVocab::mask_value()),
-            Self::DebertaV2(_) => Some(DeBERTaV2Vocab::mask_value()),
-            Self::Roberta(_) => Some(RobertaVocab::mask_value()),
-            Self::Bart(_) => Some(RobertaVocab::mask_value()),
-            Self::XLMRoberta(_) => Some(XLMRobertaVocab::mask_value()),
-            Self::Albert(_) => Some(AlbertVocab::mask_value()),
-            Self::XLNet(_) => Some(XLNetVocab::mask_value()),
-            Self::ProphetNet(_) => Some(ProphetNetVocab::mask_value()),
-            Self::MBart50(_) => Some(MBart50Vocab::mask_value()),
-            Self::FNet(_er) => Some(FNetVocab::mask_value()),
+            Self::Bert(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::Deberta(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::DebertaV2(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::Roberta(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::Bart(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::Albert(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::XLNet(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::ProphetNet(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::MBart50(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::FNet(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
+            Self::Pegasus(ref tokenizer) => {
+                Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
+            }
             Self::M2M100(_) => None,
+            Self::NLLB(_) => None,
             Self::Marian(_) => None,
             Self::T5(_) => None,
             Self::GPT2(_) => None,
             Self::OpenAiGpt(_) => None,
             Self::Reformer(_) => None,
-            Self::Pegasus(_) => None,
         }
     }
 
     /// Interface method
     pub fn get_bos_id(&self) -> Option<i64> {
         match *self {
-            Self::Roberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::bos_value())
-                    .expect("BOS token not found in vocabulary"),
-            ),
-            Self::Bart(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::bos_value())
-                    .unwrap_or(&0),
-            ),
-            Self::DebertaV2(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaV2Vocab::bos_value())
-                    .expect("BOS token not found in vocabulary"),
-            ),
-            Self::XLMRoberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLMRobertaVocab::bos_value())
-                    .expect("BOS token not found in vocabulary"),
-            ),
-            Self::Albert(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(AlbertVocab::bos_value())
-                    .expect("BOS token not found in vocabulary"),
-            ),
-            Self::XLNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLNetVocab::bos_value())
-                    .expect("BOS token not found in vocabulary"),
-            ),
-            Self::M2M100(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(M2M100Vocab::bos_value())
-                    .unwrap_or(&0),
-            ),
-            Self::GPT2(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(Gpt2Vocab::bos_value())
-                    .expect("BOS token not found in vocabulary"),
-            ),
-            Self::Deberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaVocab::bos_value())
-                    .expect("BOS token not found in vocabulary"),
-            ),
+            Self::Roberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
+            Self::Bart(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
+            Self::DebertaV2(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
+            Self::Albert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
+            Self::XLNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
+            Self::M2M100(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
+            Self::GPT2(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
+            Self::Deberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
             Self::MBart50(_) => Some(0),
             Self::FNet(_) => None,
             Self::Bert(_) => None,
@@ -1713,94 +1726,120 @@ impl TokenizerOption {
     /// Interface method
     pub fn get_eos_id(&self) -> Option<i64> {
         match *self {
-            Self::Roberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::Bart(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(RobertaVocab::eos_value())
-                    .unwrap_or(&2),
-            ),
-            Self::DebertaV2(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaV2Vocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::XLMRoberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLMRobertaVocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::Albert(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(AlbertVocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::XLNet(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(XLNetVocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::MBart50(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(MBart50Vocab::eos_value())
-                    .unwrap_or(&2),
-            ),
-            Self::M2M100(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(M2M100Vocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::GPT2(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(Gpt2Vocab::eos_value())
-                    .unwrap_or(&2),
-            ),
-            Self::Deberta(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(DeBERTaVocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::Marian(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(MarianVocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::T5(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(T5Vocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::Reformer(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(ReformerVocab::eos_value())
-                    .expect("EOS token not found in vocabulary"),
-            ),
-            Self::Pegasus(ref tokenizer) => Some(
-                *MultiThreadedTokenizer::vocab(tokenizer)
-                    .special_values
-                    .get(PegasusVocab::eos_value())
-                    .unwrap_or(&1),
-            ),
+            Self::Roberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::Bart(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::DebertaV2(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::XLMRoberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::Albert(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::XLNet(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::MBart50(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::M2M100(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::GPT2(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::Deberta(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::Marian(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::T5(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::Reformer(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
+            Self::Pegasus(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
             Self::FNet(_) => None,
             Self::Bert(_) => None,
             Self::ProphetNet(_) => None,
             Self::OpenAiGpt(_) => None,
+        }
+    }
+
+    /// Interface method
+    pub fn add_extra_ids(&mut self, num_extra_ids: i64) {
+        match *self {
+            Self::Bert(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Deberta(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::DebertaV2(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Roberta(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Bart(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Marian(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::T5(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::XLMRoberta(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Albert(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::XLNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::GPT2(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::OpenAiGpt(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Reformer(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::ProphetNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Pegasus(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::MBart50(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::M2M100(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::NLLB(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::FNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+        }
+    }
+
+    /// Interface method
+    pub fn add_tokens(&mut self, tokens: &[&str]) {
+        match *self {
+            Self::Bert(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Deberta(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::DebertaV2(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Roberta(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Bart(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Marian(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::T5(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::XLMRoberta(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Albert(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::XLNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::GPT2(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::OpenAiGpt(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Reformer(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::ProphetNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Pegasus(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::MBart50(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::M2M100(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::NLLB(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::FNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
         }
     }
 }

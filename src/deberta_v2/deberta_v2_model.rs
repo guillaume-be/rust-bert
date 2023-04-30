@@ -118,8 +118,7 @@ impl FromStr for NormRelEmbedType {
         match s {
             "layer_norm" => Ok(NormRelEmbedType::layer_norm),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
-                "Layer normalization type `{}` not in accepted variants (`layer_norm`)",
-                s
+                "Layer normalization type `{s}` not in accepted variants (`layer_norm`)",
             ))),
         }
     }

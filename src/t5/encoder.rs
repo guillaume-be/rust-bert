@@ -17,20 +17,21 @@ use crate::t5::attention::{LayerState, T5LayerCrossAttention, T5LayerSelfAttenti
 use crate::t5::layer_norm::T5LayerNorm;
 use crate::t5::t5_model::FeedForwardProj;
 use crate::t5::T5Config;
-use crate::Activation::gelu_new;
+use crate::Activation::{gelu_new, relu};
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
 use tch::nn::LinearConfig;
 use tch::{nn, Kind, Scalar, Tensor};
 
-pub struct T5DenseReluDense {
+pub struct T5DenseActDense {
     wi: nn::Linear,
     wo: nn::Linear,
     dropout: Dropout,
+    activation_function: TensorFunction,
 }
 
-impl T5DenseReluDense {
-    pub fn new<'p, P>(p: P, config: &T5Config) -> T5DenseReluDense
+impl T5DenseActDense {
+    pub fn new<'p, P>(p: P, config: &T5Config) -> T5DenseActDense
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -42,29 +43,36 @@ impl T5DenseReluDense {
         let wi = nn::linear(p / "wi", config.d_model, config.d_ff, linear_config);
         let wo = nn::linear(p / "wo", config.d_ff, config.d_model, linear_config);
         let dropout = Dropout::new(config.dropout_rate);
+        let activation_function = match config.feed_forward_proj {
+            None | Some(FeedForwardProj::Relu) => relu.get_function(),
+            Some(FeedForwardProj::GatedGelu) => gelu_new.get_function(),
+        };
 
-        T5DenseReluDense { wi, wo, dropout }
+        T5DenseActDense {
+            wi,
+            wo,
+            dropout,
+            activation_function,
+        }
     }
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
-        hidden_states
-            .apply(&self.wi)
-            .relu()
+        self.activation_function.get_fn()(&hidden_states.apply(&self.wi))
             .apply_t(&self.dropout, train)
             .apply(&self.wo)
     }
 }
 
-pub struct T5DenseGatedGeluDense {
+pub struct T5DenseGatedActDense {
     wi_0: nn::Linear,
     wi_1: nn::Linear,
     wo: nn::Linear,
     dropout: Dropout,
-    activation: TensorFunction,
+    activation_function: TensorFunction,
 }
 
-impl T5DenseGatedGeluDense {
-    pub fn new<'p, P>(p: P, config: &T5Config) -> T5DenseGatedGeluDense
+impl T5DenseGatedActDense {
+    pub fn new<'p, P>(p: P, config: &T5Config) -> T5DenseGatedActDense
     where
         P: Borrow<nn::Path<'p>>,
     {
@@ -77,19 +85,22 @@ impl T5DenseGatedGeluDense {
         let wi_1 = nn::linear(p / "wi_1", config.d_model, config.d_ff, linear_config);
         let wo = nn::linear(p / "wo", config.d_ff, config.d_model, linear_config);
         let dropout = Dropout::new(config.dropout_rate);
-        let activation = gelu_new.get_function();
+        let activation_function = match config.feed_forward_proj {
+            None | Some(FeedForwardProj::Relu) => relu.get_function(),
+            Some(FeedForwardProj::GatedGelu) => gelu_new.get_function(),
+        };
 
-        T5DenseGatedGeluDense {
+        T5DenseGatedActDense {
             wi_0,
             wi_1,
             wo,
             dropout,
-            activation,
+            activation_function,
         }
     }
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
-        let hidden_gelu = self.activation.get_fn()(&hidden_states.apply(&self.wi_0));
+        let hidden_gelu = self.activation_function.get_fn()(&hidden_states.apply(&self.wi_0));
         let hidden_linear = hidden_states.apply(&self.wi_1);
         (hidden_gelu * hidden_linear)
             .apply_t(&self.dropout, train)
@@ -98,8 +109,8 @@ impl T5DenseGatedGeluDense {
 }
 
 pub enum T5FeedForwardLayer {
-    T5DenseReluDense(T5DenseReluDense),
-    T5DenseGatedGeluDense(T5DenseGatedGeluDense),
+    T5DenseActDense(T5DenseActDense),
+    T5DenseGatedActDense(T5DenseGatedActDense),
 }
 
 impl T5FeedForwardLayer {
@@ -109,20 +120,18 @@ impl T5FeedForwardLayer {
     {
         match config.feed_forward_proj.unwrap_or(FeedForwardProj::Relu) {
             FeedForwardProj::Relu => {
-                T5FeedForwardLayer::T5DenseReluDense(T5DenseReluDense::new(p, config))
+                T5FeedForwardLayer::T5DenseActDense(T5DenseActDense::new(p, config))
             }
             FeedForwardProj::GatedGelu => {
-                T5FeedForwardLayer::T5DenseGatedGeluDense(T5DenseGatedGeluDense::new(p, config))
+                T5FeedForwardLayer::T5DenseGatedActDense(T5DenseGatedActDense::new(p, config))
             }
         }
     }
 
     pub fn forward_t(&self, hidden_states: &Tensor, train: bool) -> Tensor {
         match self {
-            T5FeedForwardLayer::T5DenseReluDense(ref model) => {
-                model.forward_t(hidden_states, train)
-            }
-            T5FeedForwardLayer::T5DenseGatedGeluDense(ref model) => {
+            T5FeedForwardLayer::T5DenseActDense(ref model) => model.forward_t(hidden_states, train),
+            T5FeedForwardLayer::T5DenseGatedActDense(ref model) => {
                 model.forward_t(hidden_states, train)
             }
         }
@@ -217,7 +226,7 @@ impl T5Block {
         }
     }
 
-    fn clamp_hidden_states(hidden_states: Tensor) -> Tensor {
+    pub(crate) fn clamp_hidden_states(hidden_states: Tensor) -> Tensor {
         if (hidden_states.kind() != Kind::Float) & bool::from(hidden_states.isinf().any()) {
             let clamp_value = match hidden_states.kind() {
                 Kind::Half => half::f16::MAX.to_f64() - 1000.,

@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
     let output = model.generate(&[input_context], None);
 
     for sentence in output {
-        println!("{:?}", sentence);
+        println!("{sentence:?}");
     }
     Ok(())
 }

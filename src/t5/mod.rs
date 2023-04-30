@@ -2,7 +2,7 @@
 //!
 //! Implementation of the T5 language model ([Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer](https://arxiv.org/abs/1910.10683) Raffel, Shazeer, Roberts, Lee, Narang, Matena, Zhou, Li, Liu, 2019).
 //! The base model is implemented in the `t5_model::T5Model` struct. This model includes a language model head: `t5_model::T5ForConditionalGeneration`
-//! implementing the common `generation_utils::LMHeadModel` trait shared between the models used for generation (see `pipelines` for more information).
+//! implementing the common `generation_utils::LanguageGenerator` trait shared between the models used for generation (see `pipelines` for more information).
 //!
 //! # Model set-up and pre-trained weights loading
 //!
@@ -54,6 +54,10 @@ mod layer_norm;
 mod t5_model;
 
 pub use attention::LayerState;
+pub(crate) use attention::{get_relative_position_bucket, T5Attention, T5LayerCrossAttention};
+pub(crate) use encoder::{T5Block, T5BlockOutput, T5LayerFF, T5StackOutput};
+pub(crate) use layer_norm::T5LayerNorm;
+pub(crate) use t5_model::{FeedForwardProj, TaskSpecificParams};
 pub use t5_model::{
     T5Config, T5ConfigResources, T5ForConditionalGeneration, T5ForSentenceEmbeddings, T5Generator,
     T5Model, T5ModelOutput, T5ModelResources, T5Prefix, T5SourceLanguages, T5TargetLanguages,
