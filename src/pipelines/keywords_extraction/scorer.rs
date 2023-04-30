@@ -75,7 +75,8 @@ fn cosine_similarity_score(
     word_embeddings: Tensor,
     num_keywords: usize,
 ) -> Vec<(usize, f32)> {
-    let similarities = cosine_similarity(Some(&document_embedding), &word_embeddings).squeeze();
+    let similarities = cosine_similarity(Some(&document_embedding), &word_embeddings).view([-1]);
+
     let (top_scores, top_keywords) = similarities.topk(num_keywords as i64, 0, true, false);
     top_scores
         .iter::<f64>()
@@ -92,7 +93,7 @@ fn maximal_margin_relevance_score(
     diversity: f64,
 ) -> Vec<(usize, f32)> {
     let word_document_similarities =
-        cosine_similarity(Some(&document_embedding), &word_embeddings).squeeze();
+        cosine_similarity(Some(&document_embedding), &word_embeddings).view([-1]);
     let word_similarities = cosine_similarity(None, &word_embeddings);
 
     let mut keyword_indices = vec![i64::from(word_document_similarities.argmax(0, false))];
@@ -139,7 +140,7 @@ fn max_sum_score(
 ) -> Vec<(usize, f32)> {
     let max_sum_candidates = max(num_keywords, max_sum_candidates);
     let word_document_similarities =
-        cosine_similarity(Some(&document_embedding), &word_embeddings).squeeze();
+        cosine_similarity(Some(&document_embedding), &word_embeddings).view([-1]);
     let word_similarities = cosine_similarity(None, &word_embeddings);
     let (_, top_keywords) =
         word_document_similarities.topk(max_sum_candidates as i64, 0, true, false);
