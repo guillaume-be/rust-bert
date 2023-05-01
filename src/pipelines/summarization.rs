@@ -74,6 +74,7 @@ use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 
 use crate::longt5::LongT5Generator;
+use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
@@ -290,6 +291,28 @@ impl SummarizationOption {
         }
     }
 
+    /// Interface method to access tokenizer
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        match self {
+            Self::Bart(model_ref) => model_ref._get_tokenizer(),
+            Self::T5(model_ref) => model_ref._get_tokenizer(),
+            Self::LongT5(model_ref) => model_ref._get_tokenizer(),
+            Self::ProphetNet(model_ref) => model_ref._get_tokenizer(),
+            Self::Pegasus(model_ref) => model_ref._get_tokenizer(),
+        }
+    }
+
+    /// Interface method to access tokenizer
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        match self {
+            Self::Bart(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::LongT5(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::ProphetNet(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::Pegasus(model_ref) => model_ref._get_tokenizer_mut(),
+        }
+    }
+
     /// Interface method to generate() of the particular models.
     pub fn generate<S>(&self, prompt_texts: Option<&[S]>) -> Vec<String>
     where
@@ -397,6 +420,16 @@ impl SummarizationModel {
         let model = SummarizationOption::new_with_tokenizer(summarization_config, tokenizer)?;
 
         Ok(SummarizationModel { model, prefix })
+    }
+
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        self.model.get_tokenizer()
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self.model.get_tokenizer_mut()
     }
 
     /// Summarize texts provided

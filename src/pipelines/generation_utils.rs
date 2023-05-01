@@ -282,6 +282,7 @@ pub(crate) mod private_generation_utils {
 
     pub trait PrivateLanguageGenerator {
         fn _get_tokenizer(&self) -> &TokenizerOption;
+        fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption;
         fn get_var_store(&self) -> &nn::VarStore;
         fn get_var_store_mut(&mut self) -> &mut nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
@@ -2138,6 +2139,10 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     /// ```
     fn get_tokenizer(&self) -> &TokenizerOption {
         self._get_tokenizer()
+    }
+
+    fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self._get_tokenizer_mut()
     }
 
     fn half(&mut self) {

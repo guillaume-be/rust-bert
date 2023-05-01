@@ -732,9 +732,17 @@ impl ConversationOption {
         }
     }
 
+    /// Get a reference to the model tokenizer.
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
             Self::GPT2(model_ref) => model_ref._get_tokenizer(),
+        }
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &TokenizerOption {
+        match self {
+            Self::GPT2(model_ref) => model_ref._get_tokenizer_mut(),
         }
     }
 

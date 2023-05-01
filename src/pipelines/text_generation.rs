@@ -283,6 +283,18 @@ impl TextGenerationOption {
         }
     }
 
+    /// Interface method to access tokenizer
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        match self {
+            Self::GPT(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::GPT2(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::GPTNeo(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::GPTJ(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::XLNet(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::Reformer(model_ref) => model_ref._get_tokenizer_mut(),
+        }
+    }
+
     /// Interface method to generate() of the particular models.
     pub fn generate_indices<S>(
         &self,
@@ -479,6 +491,14 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         let min_length = generation_config.min_length;
         let max_length = generation_config.max_length;
         (prefix, min_length, max_length)
+    }
+
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        self.model.get_tokenizer()
+    }
+
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self.model.get_tokenizer_mut()
     }
 
     pub fn half(&mut self) {

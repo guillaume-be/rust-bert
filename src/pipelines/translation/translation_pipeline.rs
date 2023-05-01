@@ -1192,6 +1192,28 @@ impl TranslationOption {
         }
     }
 
+    /// Interface method to access tokenizer
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        match self {
+            Self::Marian(model_ref) => model_ref._get_tokenizer(),
+            Self::T5(model_ref) => model_ref._get_tokenizer(),
+            Self::MBart(model_ref) => model_ref._get_tokenizer(),
+            Self::M2M100(model_ref) => model_ref._get_tokenizer(),
+            Self::NLLB(model_ref) => model_ref._get_tokenizer(),
+        }
+    }
+
+    /// Interface method to access tokenizer
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        match self {
+            Self::Marian(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::MBart(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::M2M100(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::NLLB(model_ref) => model_ref._get_tokenizer_mut(),
+        }
+    }
+
     fn validate_and_get_prefix_and_forced_bos_id(
         &self,
         source_language: Option<&Language>,
@@ -1525,6 +1547,16 @@ impl TranslationModel {
             supported_source_languages,
             supported_target_languages,
         })
+    }
+
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        self.model.get_tokenizer()
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self.model.get_tokenizer_mut()
     }
 
     /// Translates texts provided
