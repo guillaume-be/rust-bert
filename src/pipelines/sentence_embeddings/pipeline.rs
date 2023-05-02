@@ -337,7 +337,7 @@ impl SentenceEmbeddingsModel {
     pub fn encode_as_tensor<S>(
         &self,
         inputs: &[S],
-    ) -> Result<SentenceEmbeddingsModelOuput, RustBertError>
+    ) -> Result<SentenceEmbeddingsModelOutput, RustBertError>
     where
         S: AsRef<str> + Sync,
     {
@@ -368,7 +368,7 @@ impl SentenceEmbeddingsModel {
             maybe_linear
         };
 
-        Ok(SentenceEmbeddingsModelOuput {
+        Ok(SentenceEmbeddingsModelOutput {
             embeddings: maybe_normalized,
             all_attentions,
         })
@@ -379,7 +379,7 @@ impl SentenceEmbeddingsModel {
     where
         S: AsRef<str> + Sync,
     {
-        let SentenceEmbeddingsModelOuput { embeddings, .. } = self.encode_as_tensor(inputs)?;
+        let SentenceEmbeddingsModelOutput { embeddings, .. } = self.encode_as_tensor(inputs)?;
         Ok(Vec::from(embeddings))
     }
 
@@ -423,7 +423,7 @@ impl SentenceEmbeddingsModel {
     where
         S: AsRef<str> + Sync,
     {
-        let SentenceEmbeddingsModelOuput {
+        let SentenceEmbeddingsModelOutput {
             embeddings,
             all_attentions,
         } = self.encode_as_tensor(inputs)?;
@@ -463,7 +463,7 @@ pub struct SentenceEmbeddingsTokenizerOuput {
 }
 
 /// Container for the SentenceEmbeddings model output.
-pub struct SentenceEmbeddingsModelOuput {
+pub struct SentenceEmbeddingsModelOutput {
     pub embeddings: Tensor,
     pub all_attentions: Option<Vec<Tensor>>,
 }
