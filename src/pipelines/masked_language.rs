@@ -428,7 +428,6 @@ impl MaskedLanguageModel {
         tokenizer: TokenizerOption,
     ) -> Result<MaskedLanguageModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
-        let weights_path = config.model_resource.get_local_path()?;
         let device = config.device;
 
         let mut var_store = VarStore::new(device);
@@ -440,7 +439,7 @@ impl MaskedLanguageModel {
 
         let language_encode =
             MaskedLanguageOption::new(config.model_type, var_store.root(), &model_config)?;
-        var_store.load(weights_path)?;
+        crate::resources::load_weights(&*config.model_resource, &mut var_store)?;
         let mask_token = config.mask_token;
         Ok(MaskedLanguageModel {
             tokenizer,
