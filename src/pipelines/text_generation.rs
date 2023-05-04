@@ -43,6 +43,7 @@ use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguag
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::reformer::ReformerGenerator;
 use crate::resources::ResourceProvider;
+use crate::t5::T5Generator;
 use crate::xlnet::XLNetGenerator;
 
 #[cfg(feature = "remote")]
@@ -199,6 +200,8 @@ pub enum TextGenerationOption {
     XLNet(XLNetGenerator),
     /// Text Generator based on Reformer model
     Reformer(ReformerGenerator),
+    /// Text Generator based on T5 model
+    T5(T5Generator),
 }
 
 impl TextGenerationOption {
@@ -222,6 +225,7 @@ impl TextGenerationOption {
             ModelType::GPTJ => Ok(TextGenerationOption::GPTJ(GptJGenerator::new(
                 config.into(),
             )?)),
+            ModelType::T5 => Ok(TextGenerationOption::T5(T5Generator::new(config.into())?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Text generation not implemented for {:?}!",
                 config.model_type
@@ -252,6 +256,10 @@ impl TextGenerationOption {
             ModelType::GPTJ => Ok(TextGenerationOption::GPTJ(
                 GptJGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
+            ModelType::T5 => Ok(TextGenerationOption::T5(T5Generator::new_with_tokenizer(
+                config.into(),
+                tokenizer,
+            )?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Text generation not implemented for {:?}!",
                 config.model_type
@@ -268,6 +276,7 @@ impl TextGenerationOption {
             Self::GPTJ(_) => ModelType::GPTJ,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
+            Self::T5(_) => ModelType::T5,
         }
     }
 
@@ -280,6 +289,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref._get_tokenizer(),
             Self::XLNet(model_ref) => model_ref._get_tokenizer(),
             Self::Reformer(model_ref) => model_ref._get_tokenizer(),
+            Self::T5(model_ref) => model_ref._get_tokenizer(),
         }
     }
 
@@ -292,6 +302,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref._get_tokenizer_mut(),
             Self::XLNet(model_ref) => model_ref._get_tokenizer_mut(),
             Self::Reformer(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
         }
     }
 
@@ -341,6 +352,11 @@ impl TextGenerationOption {
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
+            Self::T5(ref model) => model
+                .generate_indices(prompt_texts, generate_options)
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
         }
     }
 
@@ -352,6 +368,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.half(),
             Self::XLNet(model_ref) => model_ref.half(),
             Self::Reformer(model_ref) => model_ref.half(),
+            Self::T5(model_ref) => model_ref.half(),
         }
     }
 
@@ -363,6 +380,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.float(),
             Self::XLNet(model_ref) => model_ref.float(),
             Self::Reformer(model_ref) => model_ref.float(),
+            Self::T5(model_ref) => model_ref.float(),
         }
     }
 
@@ -374,6 +392,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.set_device(device),
             Self::XLNet(model_ref) => model_ref.set_device(device),
             Self::Reformer(model_ref) => model_ref.set_device(device),
+            Self::T5(model_ref) => model_ref.set_device(device),
         }
     }
 }
