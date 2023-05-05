@@ -42,7 +42,7 @@ pub use config::{
 };
 pub use pipeline::{
     SentenceEmbeddingsModel, SentenceEmbeddingsModelOutput, SentenceEmbeddingsOption,
-    SentenceEmbeddingsTokenizerOuput,
+    SentenceEmbeddingsTokenizerOutput,
 };
 
 pub use resources::{

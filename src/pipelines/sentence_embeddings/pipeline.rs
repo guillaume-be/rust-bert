@@ -283,7 +283,7 @@ impl SentenceEmbeddingsModel {
     }
 
     /// Tokenizes the inputs
-    pub fn tokenize<S>(&self, inputs: &[S]) -> SentenceEmbeddingsTokenizerOuput
+    pub fn tokenize<S>(&self, inputs: &[S]) -> SentenceEmbeddingsTokenizerOutput
     where
         S: AsRef<str> + Sync,
     {
@@ -327,7 +327,7 @@ impl SentenceEmbeddingsModel {
             .map(|input| Tensor::of_slice(&(input)))
             .collect::<Vec<_>>();
 
-        SentenceEmbeddingsTokenizerOuput {
+        SentenceEmbeddingsTokenizerOutput {
             tokens_ids,
             tokens_masks,
         }
@@ -341,7 +341,7 @@ impl SentenceEmbeddingsModel {
     where
         S: AsRef<str> + Sync,
     {
-        let SentenceEmbeddingsTokenizerOuput {
+        let SentenceEmbeddingsTokenizerOutput {
             tokens_ids,
             tokens_masks,
         } = self.tokenize(inputs);
@@ -457,7 +457,7 @@ impl SentenceEmbeddingsModel {
 }
 
 /// Container for the SentenceEmbeddings tokenizer output.
-pub struct SentenceEmbeddingsTokenizerOuput {
+pub struct SentenceEmbeddingsTokenizerOutput {
     pub tokens_ids: Vec<Tensor>,
     pub tokens_masks: Vec<Tensor>,
 }
