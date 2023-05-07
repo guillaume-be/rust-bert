@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 - Addition of the [LongT5](https://arxiv.org/abs/2112.07916) model architecture and pretrained weights.
 - Addition of `add_tokens` and `add_extra_ids` interface methods to the `TokenizerOption`. Allow building most pipeline with custom tokenizer via `new_with_tokenizer`.
 - Addition of `get_tokenizer` and `get_tokenizer_mut` methods to all pipelines allowing to get a (mutable) reference to the pipeline tokenizer.
+- Addition of a `get_embedding_dim` method to get the dimension of the embeddings for sentence embeddings pipelines
 
 ## Changed
 - Bumped the tokenizers dependency from 7.x to 8.x, exposing additional options for special token mapping and adding the NLLBTokenizer.

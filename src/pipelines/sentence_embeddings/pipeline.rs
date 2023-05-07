@@ -167,6 +167,7 @@ pub struct SentenceEmbeddingsModel {
     pooling_layer: Pooling,
     dense_layer: Option<Dense>,
     normalize_embeddings: bool,
+    embeddings_dim: i64,
 }
 
 impl SentenceEmbeddingsModel {
@@ -196,7 +197,6 @@ impl SentenceEmbeddingsModel {
                 .validate()?;
 
         // Setup tokenizer
-
         let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
             tokenizer_config_resource.get_local_path()?,
         );
@@ -223,7 +223,6 @@ impl SentenceEmbeddingsModel {
         )?;
 
         // Setup transformer
-
         let mut var_store = nn::VarStore::new(device);
         let transformer_config = ConfigOption::from_file(
             transformer_type,
@@ -234,15 +233,15 @@ impl SentenceEmbeddingsModel {
         var_store.load(transformer_weights_resource.get_local_path()?)?;
 
         // Setup pooling layer
-
         let pooling_config = PoolingConfig::from_file(pooling_config_resource.get_local_path()?);
+        let mut embeddings_dim = pooling_config.word_embedding_dimension;
         let pooling_layer = Pooling::new(pooling_config);
 
         // Setup dense layer
-
         let dense_layer = if modules.dense_module().is_some() {
             let dense_config =
                 DenseConfig::from_file(dense_config_resource.unwrap().get_local_path()?);
+            embeddings_dim = dense_config.out_features;
             Some(Dense::new(
                 dense_config,
                 dense_weights_resource.unwrap().get_local_path()?,
@@ -264,6 +263,7 @@ impl SentenceEmbeddingsModel {
             pooling_layer,
             dense_layer,
             normalize_embeddings,
+            embeddings_dim,
         })
     }
 
@@ -280,6 +280,11 @@ impl SentenceEmbeddingsModel {
     /// Sets the tokenizer's truncation strategy
     pub fn set_tokenizer_truncation(&mut self, truncation_strategy: TruncationStrategy) {
         self.tokenizer_truncation_strategy = truncation_strategy;
+    }
+
+    /// Return the embedding output dimension
+    pub fn get_embedding_dim(&self) -> Result<i64, RustBertError> {
+        Ok(self.embeddings_dim)
     }
 
     /// Tokenizes the inputs
