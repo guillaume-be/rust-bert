@@ -61,6 +61,7 @@ use crate::{
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use rust_tokenizers::TokenizedInput;
 use std::borrow::Borrow;
+use std::convert::TryFrom;
 use tch::nn::VarStore;
 use tch::{nn, no_grad, Device, Tensor};
 
@@ -580,7 +581,7 @@ impl MaskedLanguageModel {
         for input_id in 0..input.as_ref().len() as i64 {
             let mut sequence_tokens = vec![];
             let sequence_mask = mask_token_mask.get(input_id);
-            if bool::from(sequence_mask.any()) {
+            if bool::try_from(sequence_mask.any())? {
                 let mask_scores = output
                     .get(input_id)
                     .index_select(0, &sequence_mask.argwhere().squeeze_dim(1));

@@ -229,6 +229,7 @@ pub enum Cache {
 pub(crate) mod private_generation_utils {
     use std::cmp::{max, min};
     use std::collections::HashMap;
+    use std::convert::TryFrom;
     use std::mem;
 
     use rust_tokenizers::tokenizer::{truncate_sequences, TruncationStrategy};
@@ -931,7 +932,7 @@ pub(crate) mod private_generation_utils {
                         );
                         unfinished_sentences = -unfinished_sentences * (sentence_with_eos - 1);
                     }
-                    if i64::from(unfinished_sentences.max()) == 0 {
+                    if i64::try_from(unfinished_sentences.max()).unwrap() == 0 {
                         break;
                     }
                 }
@@ -1391,7 +1392,7 @@ pub(crate) mod private_generation_utils {
                     let beam_saved_token_scores = saved_beam_scores.as_mut().map(|saved_tokens| {
                         mem::replace(&mut saved_tokens[effective_beam_id as usize], Tensor::new())
                     });
-                    let final_score = f64::from(beam_scores.get(effective_beam_id));
+                    let final_score = f64::try_from(beam_scores.get(effective_beam_id)).unwrap();
                     let final_tokens = input_ids.get(effective_beam_id);
                     hypotheses[batch_index as usize].add(
                         final_tokens,
@@ -1457,14 +1458,21 @@ pub(crate) mod private_generation_utils {
             }
             let sentence_max_length = gen_opt
                 .max_length
-                .map(|max_length| min(i64::from(sentence_lengths.max()) + 1, max_length))
-                .unwrap_or(i64::from(sentence_lengths.max()) + 1);
+                .map(|max_length| {
+                    min(
+                        i64::try_from(sentence_lengths.max()).unwrap() + 1,
+                        max_length,
+                    )
+                })
+                .unwrap_or(i64::try_from(sentence_lengths.max()).unwrap() + 1);
 
             let mut decoded = input_ids.new_empty(
                 &[output_batch_size, sentence_max_length],
                 (Kind::Int64, input_ids.device()),
             );
-            if i64::from(sentence_lengths.max()) != i64::from(sentence_lengths.min()) {
+            if i64::try_from(sentence_lengths.max()).unwrap()
+                != i64::try_from(sentence_lengths.min()).unwrap()
+            {
                 let _ = decoded.fill_(
                     gen_opt
                         .pad_token_id
@@ -1476,15 +1484,16 @@ pub(crate) mod private_generation_utils {
                     0,
                     &Tensor::arange_start(
                         0,
-                        i64::from(sentence_lengths.get(hypothesis_index as i64)),
+                        i64::try_from(sentence_lengths.get(hypothesis_index as i64)).unwrap(),
                         (Kind::Int64, input_ids.device()),
                     ),
                     best_id,
                 );
-                let sentence_length = i64::from(sentence_lengths.get(hypothesis_index as i64));
+                let sentence_length =
+                    i64::try_from(sentence_lengths.get(hypothesis_index as i64)).unwrap();
                 let sentence_length_max = gen_opt
                     .max_length
-                    .unwrap_or_else(|| i64::from(sentence_lengths.max()));
+                    .unwrap_or_else(|| i64::try_from(sentence_lengths.max()).unwrap());
                 if sentence_length < sentence_length_max {
                     let _ = decoded.get(hypothesis_index as i64).index_fill_(
                         0,

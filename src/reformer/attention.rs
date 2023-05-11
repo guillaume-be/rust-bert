@@ -256,7 +256,7 @@ impl LSHSelfAttention {
         Tensor::einsum(
             "balh,ahr->balr",
             &[hidden_states, &per_head_query_key],
-            None,
+            None::<i64>,
         )
     }
 
@@ -270,7 +270,11 @@ impl LSHSelfAttention {
                 self.hidden_size,
             ])
             .transpose(-2, -1);
-        Tensor::einsum("balh,ahr->balr", &[hidden_states, &per_head_value], None)
+        Tensor::einsum(
+            "balh,ahr->balr",
+            &[hidden_states, &per_head_value],
+            None::<i64>,
+        )
     }
 
     fn hash_vectors(
@@ -308,8 +312,11 @@ impl LSHSelfAttention {
             rotation_size / 2,
         ];
         let random_rotations = Tensor::randn(&rotations_shape, (vectors.kind(), vectors.device()));
-        let rotated_vectors =
-            Tensor::einsum("bmtd,mdhr->bmhtr", &[vectors, random_rotations], None);
+        let rotated_vectors = Tensor::einsum(
+            "bmtd,mdhr->bmhtr",
+            &[vectors, random_rotations],
+            None::<i64>,
+        );
 
         let mut buckets = match &self.num_buckets {
             NumBuckets::Integer(_) => {
@@ -341,7 +348,7 @@ impl LSHSelfAttention {
         };
 
         if let Some(attention_mask_value) = attention_mask {
-            if i64::from(attention_mask_value.sum(Kind::Int))
+            if i64::try_from(attention_mask_value.sum(Kind::Int)).unwrap()
                 < batch_size * *attention_mask_value.size().last().unwrap()
             {
                 num_buckets += 1;
@@ -432,7 +439,7 @@ impl LSHSelfAttention {
             query_shape[sorted_bucket_indices_per_hash.dim() - 1] = 1;
             let query_bucket_idx = sorted_bucket_indices_per_hash.new_full(
                 query_shape.as_slice(),
-                i64::from(sorted_bucket_indices_per_hash.max()),
+                i64::try_from(sorted_bucket_indices_per_hash.max()).unwrap(),
                 (Kind::Int64, sorted_bucket_indices_per_hash.device()),
             );
             (query_bucket_idx, sorted_bucket_indices_per_hash)
@@ -555,7 +562,8 @@ impl LSHSelfAttention {
         let hidden_states_shape = hidden_states.size();
         let (batch_size, sequence_length) = (hidden_states_shape[0], hidden_states_shape[1]);
         let max_bucket = self.num_buckets.max_bucket();
-        let increase_num_buckets = i64::from(past_buckets.max()) > num_hashes * max_bucket - 1;
+        let increase_num_buckets =
+            i64::try_from(past_buckets.max()).unwrap() > num_hashes * max_bucket - 1;
 
         let query_buckets = self.hash_vectors(
             query_vectors,

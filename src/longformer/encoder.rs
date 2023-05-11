@@ -15,6 +15,7 @@ use crate::common::dropout::Dropout;
 use crate::longformer::attention::LongformerSelfAttention;
 use crate::longformer::LongformerConfig;
 use std::borrow::{Borrow, BorrowMut};
+use std::convert::TryFrom;
 use tch::nn::Module;
 use tch::{nn, Tensor};
 
@@ -293,7 +294,7 @@ impl LongformerEncoder {
     ) -> LongformerEncoderOutput {
         let is_index_masked = attention_mask.lt(0);
         let is_index_global_attention = attention_mask.gt(0);
-        let is_global_attention = bool::from(is_index_global_attention.any());
+        let is_global_attention = bool::try_from(is_index_global_attention.any()).unwrap();
 
         let mut all_hidden_states: Option<Vec<Tensor>> = if self.output_hidden_states {
             Some(vec![])

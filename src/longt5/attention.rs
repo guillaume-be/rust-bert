@@ -190,7 +190,7 @@ fn create_global_aggregates(
             hidden_states,
             &one_hot_block_ids.to_kind(hidden_states.kind()),
         ],
-        None,
+        None::<i64>,
     )
 }
 
@@ -322,7 +322,11 @@ impl LongT5LocalAttention {
         let key_states = concatenate_3_blocks(&key_states, 1, 2, None);
         let value_states = concatenate_3_blocks(&value_states, 1, 2, None);
 
-        let mut scores = Tensor::einsum("...qhd,...khd->...hqk", &[query_states, key_states], None);
+        let mut scores = Tensor::einsum(
+            "...qhd,...khd->...hqk",
+            &[query_states, key_states],
+            None::<i64>,
+        );
         let calc_position_bias = if position_bias.is_none() {
             let mut position_bias = if !self.has_relative_attention_bias {
                 Tensor::zeros(
@@ -356,7 +360,7 @@ impl LongT5LocalAttention {
         let attention_output = unshape(&Tensor::einsum(
             "...hqk,...khd->...qhd",
             &[&attention_weights, &value_states],
-            None,
+            None::<i64>,
         ))
         .narrow(1, 0, seq_length)
         .apply(&self.output);
@@ -551,7 +555,11 @@ impl LongT5TransientGlobalAttention {
         let key_states = Tensor::cat(&[key_states, side_key_states], 2);
         let value_states = Tensor::cat(&[value_states, side_value_states], 2);
 
-        let mut scores = Tensor::einsum("...qhd,...khd->...hqk", &[query_states, key_states], None);
+        let mut scores = Tensor::einsum(
+            "...qhd,...khd->...hqk",
+            &[query_states, key_states],
+            None::<i64>,
+        );
         let local_attention_mask = mask.map(|mask| {
             let local_attention_mask = get_local_attention_mask(mask, self.block_length);
             local_attention_mask
@@ -610,7 +618,7 @@ impl LongT5TransientGlobalAttention {
         let attention_output = unshape(&Tensor::einsum(
             "...hqk,...khd->...qhd",
             &[&attention_weights, &value_states],
-            None,
+            None::<i64>,
         ))
         .narrow(1, 0, seq_length)
         .apply(&self.output);

@@ -20,6 +20,7 @@ use crate::t5::T5Config;
 use crate::Activation::{gelu_new, relu};
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
+use std::convert::TryFrom;
 use tch::nn::LinearConfig;
 use tch::{nn, Kind, Scalar, Tensor};
 
@@ -227,7 +228,9 @@ impl T5Block {
     }
 
     pub(crate) fn clamp_hidden_states(hidden_states: Tensor) -> Tensor {
-        if (hidden_states.kind() != Kind::Float) & bool::from(hidden_states.isinf().any()) {
+        if (hidden_states.kind() != Kind::Float)
+            & bool::try_from(hidden_states.isinf().any()).unwrap()
+        {
             let clamp_value = match hidden_states.kind() {
                 Kind::Half => half::f16::MAX.to_f64() - 1000.,
                 Kind::BFloat16 => half::bf16::MAX.to_f64() - 1000.,
