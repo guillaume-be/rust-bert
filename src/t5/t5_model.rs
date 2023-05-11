@@ -61,6 +61,11 @@ impl T5ModelResources {
         "sentence-t5-base/model",
         "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/rust_model.ot",
     );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/GODEL-v1_1-base-seq2seq>. Modified with conversion to C-array format.
+    pub const GODEL_V1_1_BASE: (&'static str, &'static str) = (
+        "godel-v1-1-base/model",
+        "https://huggingface.co/microsoft/GODEL-v1_1-base-seq2seq/resolve/main/rust_model.ot",
+    );
 }
 
 impl T5ConfigResources {
@@ -79,6 +84,11 @@ impl T5ConfigResources {
         "sentence-t5-base/config",
         "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/config.json",
     );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/GODEL-v1_1-base-seq2seq>. Modified with conversion to C-array format.
+    pub const GODEL_V1_1_BASE: (&'static str, &'static str) = (
+        "godel-v1-1-base/config",
+        "https://huggingface.co/microsoft/GODEL-v1_1-base-seq2seq/resolve/main/config.json",
+    );
 }
 
 impl T5VocabResources {
@@ -96,6 +106,11 @@ impl T5VocabResources {
     pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
         "sentence-t5-base/spiece",
         "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/spiece.model",
+    );
+    /// Shared under MIT license by the Microsoft team at <https://huggingface.co/microsoft/GODEL-v1_1-base-seq2seq>. Modified with conversion to C-array format.
+    pub const GODEL_V1_1_BASE: (&'static str, &'static str) = (
+        "godel-v1-1-base/spiece",
+        "https://huggingface.co/microsoft/GODEL-v1_1-base-seq2seq/resolve/main/spiece.model",
     );
 }
 

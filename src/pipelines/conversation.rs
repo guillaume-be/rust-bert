@@ -12,7 +12,8 @@
 // limitations under the License.
 
 //! # Multi-turn dialogue
-//! Conversation model based on Microsoft's [DialoGPT](https://github.com/microsoft/DialoGPT).
+//! Conversation model based on Microsoft's [DialoGPT](https://github.com/microsoft/DialoGPT) or
+//! [GODEL](https://github.com/microsoft/GODEL).
 //! This pipeline allows the generation of single or multi-turn conversations between a human and a model.
 //! The DialoGPT's page states that
 //! > The human evaluation results indicate that the response generated from DialoGPT is comparable to human response quality
@@ -55,6 +56,7 @@
 //! from the 3rd party utilization of the pretrained system.
 use crate::common::error::RustBertError;
 use crate::gpt2::GPT2Generator;
+use crate::t5::T5Generator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
@@ -695,12 +697,14 @@ impl Default for ConversationManager {
 pub enum ConversationOption {
     /// Conversation based on GPT2 model
     GPT2(GPT2Generator),
+    T5(T5Generator),
 }
 
 impl ConversationOption {
     pub fn new(config: ConversationConfig) -> Result<Self, RustBertError> {
         match config.model_type {
             ModelType::GPT2 => Ok(ConversationOption::GPT2(GPT2Generator::new(config.into())?)),
+            ModelType::T5 => Ok(ConversationOption::T5(T5Generator::new(config.into())?)),
             _ => Err(RustBertError::InvalidConfigurationError(
                 "GPT2 is currently the only supported model for conversation generation"
                     .to_string(),
@@ -717,6 +721,10 @@ impl ConversationOption {
                 config.into(),
                 tokenizer,
             )?)),
+            ModelType::T5 => Ok(ConversationOption::T5(T5Generator::new_with_tokenizer(
+                config.into(),
+                tokenizer,
+            )?)),
             _ => Err(RustBertError::InvalidConfigurationError(
                 "GPT2 is currently the only supported model for conversation generation"
                     .to_string(),
@@ -729,6 +737,9 @@ impl ConversationOption {
             Self::GPT2(model_ref) => {
                 Ok(*model_ref.get_eos_ids().as_ref().unwrap().first().unwrap())
             }
+            Self::T5(model_ref) => {
+                Ok(*model_ref.get_eos_ids().as_ref().unwrap().first().unwrap())
+            }
         }
     }
 
@@ -736,6 +747,7 @@ impl ConversationOption {
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
             Self::GPT2(model_ref) => model_ref._get_tokenizer(),
+            Self::T5(model_ref) => model_ref._get_tokenizer(),
         }
     }
 
@@ -743,6 +755,7 @@ impl ConversationOption {
     pub fn get_tokenizer_mut(&mut self) -> &TokenizerOption {
         match self {
             Self::GPT2(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
         }
     }
 
@@ -750,6 +763,7 @@ impl ConversationOption {
     pub fn model_type(&self) -> ModelType {
         match *self {
             Self::GPT2(_) => ModelType::GPT2,
+            Self::T5(_) => ModelType::T5,
         }
     }
 
@@ -761,6 +775,11 @@ impl ConversationOption {
     ) -> Vec<Vec<i64>> {
         match *self {
             Self::GPT2(ref model) => model
+                .generate_from_ids_and_past(input_ids, attention_mask, None)
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
+            Self::T5(ref model) => model
                 .generate_from_ids_and_past(input_ids, attention_mask, None)
                 .into_iter()
                 .map(|output| output.indices)
