@@ -925,6 +925,8 @@ impl ConversationModel {
 
             let mut output = HashMap::with_capacity(active_uuid.len());
 
+            println!("generated: {:#?}, prompt_ids: {:#?}", &generated, &prompt_ids);
+
             for (
                 ((conversation, (generated_sequence, conversation_promp_ids)), uuid),
                 removed_padding,
