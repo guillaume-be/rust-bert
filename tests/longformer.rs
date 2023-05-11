@@ -16,6 +16,7 @@ use rust_bert::Config;
 use rust_tokenizers::tokenizer::{MultiThreadedTokenizer, RobertaTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use tch::{nn, no_grad, Device, Tensor};
 
 #[test]
@@ -116,12 +117,12 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
         .prediction_scores
         .get(0)
         .get(4)
-        .double_value(&[i64::from(&index_1)]);
+        .double_value(&[i64::try_from(&index_1).unwrap()]);
     let score_2 = model_output
         .prediction_scores
         .get(1)
         .get(7)
-        .double_value(&[i64::from(&index_2)]);
+        .double_value(&[i64::try_from(&index_2).unwrap()]);
 
     assert_eq!("Ġeye", word_1); // Outputs "person" : "Looks like one [eye] is missing"
     assert_eq!("Ġsunny", word_2); // Outputs "pear" : "It was a nice and [sunny] day"

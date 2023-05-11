@@ -654,7 +654,7 @@ pub(crate) mod private_generation_utils {
             bad_words_id_length_1: &[i64],
         ) -> Tensor {
             let mut static_bad_words_mask =
-                Tensor::zeros(&[scores.size()[1]], (Kind::Int8, scores.device()));
+                Tensor::zeros([scores.size()[1]], (Kind::Int8, scores.device()));
             let _ = static_bad_words_mask.index_fill_(
                 0,
                 &Tensor::of_slice(bad_words_id_length_1).to_device(scores.device()),
@@ -767,9 +767,9 @@ pub(crate) mod private_generation_utils {
             output_scores: bool,
         ) -> GeneratedOutputWithScores {
             let mut unfinished_sentences =
-                Tensor::ones(&[batch_size], (Kind::Int64, self.get_var_store().device()));
+                Tensor::ones([batch_size], (Kind::Int64, self.get_var_store().device()));
             let mut sentence_lengths: Tensor =
-                Tensor::ones(&[batch_size], (Kind::Int64, self.get_var_store().device()));
+                Tensor::ones([batch_size], (Kind::Int64, self.get_var_store().device()));
             let (bad_word_ids_length_1, bad_word_ids_length_greater_than_1) =
                 self.split_bad_word_ids(gen_opt.bad_word_ids);
             let mut static_bad_words_mask: Option<Tensor> = None;
@@ -903,7 +903,7 @@ pub(crate) mod private_generation_utils {
                     prev_scores.push(
                         next_token_logits
                             .log_softmax(-1, next_token_logits.kind())
-                            .gather(1, &next_token.reshape(&[-1, 1]), true)
+                            .gather(1, &next_token.reshape([-1, 1]), true)
                             .squeeze()
                             .masked_fill(&finished_mask, 0),
                     );
@@ -941,7 +941,7 @@ pub(crate) mod private_generation_utils {
                         &[
                             attention_mask.as_ref(),
                             Tensor::ones(
-                                &[*attention_mask.size().first().unwrap(), 1],
+                                [*attention_mask.size().first().unwrap(), 1],
                                 (Kind::Int64, attention_mask.device()),
                             )
                             .as_ref(),
@@ -1023,20 +1023,20 @@ pub(crate) mod private_generation_utils {
 
             let vocab_size = self.get_vocab_size();
             let beam_scores = Tensor::ones(
-                &[batch_size, gen_opt.num_beams],
+                [batch_size, gen_opt.num_beams],
                 (Kind::Float, self.get_var_store().device()),
             ) * -1e9;
             let _ = beam_scores
                 .slice(1, 0, *beam_scores.size().last().unwrap(), num_sub_beams)
                 .fill_(0);
 
-            let mut beam_scores = beam_scores.view_(&[-1]);
+            let mut beam_scores = beam_scores.view_([-1]);
             let mut beam_tokens = Tensor::zeros(
-                &[batch_size * gen_opt.num_beams],
+                [batch_size * gen_opt.num_beams],
                 (Kind::Int64, self.get_var_store().device()),
             );
             let mut beam_indices = Tensor::zeros(
-                &[batch_size * gen_opt.num_beams],
+                [batch_size * gen_opt.num_beams],
                 (Kind::Int64, self.get_var_store().device()),
             );
             let mut saved_beam_scores: Option<Vec<Tensor>> =
@@ -1053,7 +1053,7 @@ pub(crate) mod private_generation_utils {
             loop {
                 if num_beam_groups > 1 {
                     current_tokens = Tensor::zeros(
-                        &[batch_size * gen_opt.num_beams],
+                        [batch_size * gen_opt.num_beams],
                         (input_ids.kind(), input_ids.device()),
                     );
                 }
@@ -1365,7 +1365,7 @@ pub(crate) mod private_generation_utils {
                         &[
                             attention_mask.as_ref(),
                             Tensor::ones(
-                                &[*attention_mask.size().first().unwrap(), 1],
+                                [*attention_mask.size().first().unwrap(), 1],
                                 (Kind::Int64, attention_mask.device()),
                             )
                             .as_ref(),
@@ -1412,7 +1412,7 @@ pub(crate) mod private_generation_utils {
             };
 
             let mut sentence_lengths =
-                Tensor::zeros(&[output_batch_size], (Kind::Int64, input_ids.device()));
+                Tensor::zeros([output_batch_size], (Kind::Int64, input_ids.device()));
             let mut best_ids = vec![];
 
             let mut scores_output = if output_scores {
@@ -1467,7 +1467,7 @@ pub(crate) mod private_generation_utils {
                 .unwrap_or(i64::try_from(sentence_lengths.max()).unwrap() + 1);
 
             let mut decoded = input_ids.new_empty(
-                &[output_batch_size, sentence_max_length],
+                [output_batch_size, sentence_max_length],
                 (Kind::Int64, input_ids.device()),
             );
             if i64::try_from(sentence_lengths.max()).unwrap()
@@ -1819,7 +1819,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
             }
             None => match self.get_bos_id() {
                 Some(bos_id) => {
-                    Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * bos_id
+                    Tensor::ones([1, 1], (Int64, self.get_var_store().device())) * bos_id
                 }
                 None => panic!(
                     "A model with a BOS token must be used to start generation with an empty input"
@@ -1925,13 +1925,13 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         let mut input_ids_len = *input_id_size.last().unwrap();
         if input_ids_len == 0 {
             input_ids = Tensor::ones(
-                &[*input_id_size.first().unwrap(), 1],
+                [*input_id_size.first().unwrap(), 1],
                 (Int64, input_ids.device()),
             ) * self
                 .get_bos_id()
                 .expect("`bos_token_id` has to be defined when no `input_ids` are provided.");
             attention_mask = Some(Tensor::ones(
-                &[*input_id_size.first().unwrap(), 1],
+                [*input_id_size.first().unwrap(), 1],
                 (Int64, input_ids.device()),
             ));
             input_ids_len += 1;
@@ -1961,7 +1961,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
             let encoder_outputs = self.encode(&input_ids, Some(&attention_mask)).unwrap();
             let expanded_batch_indices = Tensor::arange(batch_size, (Int64, input_ids.device()))
                 .view((-1, 1))
-                .repeat(&[1, num_beams * effective_batch_mult])
+                .repeat([1, num_beams * effective_batch_mult])
                 .view(-1);
             Some(encoder_outputs.index_select(0, &expanded_batch_indices))
         } else {
@@ -1974,7 +1974,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                     input_ids
                         .unsqueeze(1)
                         .expand(
-                            &[batch_size, effective_batch_mult * num_beams, cur_len],
+                            [batch_size, effective_batch_mult * num_beams, cur_len],
                             true,
                         )
                         .contiguous()
@@ -1982,7 +1982,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                     attention_mask
                         .unsqueeze(1)
                         .expand(
-                            &[batch_size, effective_batch_mult * num_beams, cur_len],
+                            [batch_size, effective_batch_mult * num_beams, cur_len],
                             true,
                         )
                         .contiguous()
@@ -1997,7 +1997,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                     .expect("decoder start id must be specified for encoder decoders")
             });
             let input_ids = Tensor::full(
-                &[effective_batch_size * num_beams, 1],
+                [effective_batch_size * num_beams, 1],
                 decoder_start_token_id,
                 (Int64, input_ids.device()),
             );
@@ -2005,7 +2005,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                 attention_mask
                     .unsqueeze(1)
                     .expand(
-                        &[batch_size, effective_batch_mult * num_beams, input_ids_len],
+                        [batch_size, effective_batch_mult * num_beams, input_ids_len],
                         true,
                     )
                     .contiguous()
@@ -2237,7 +2237,7 @@ impl BeamHypotheses {
                     1,
                     0,
                     Some(Tensor::zeros(
-                        &[1],
+                        [1],
                         (scores_tensor.kind(), scores_tensor.device()),
                     )),
                     None,

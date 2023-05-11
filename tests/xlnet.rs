@@ -59,10 +59,10 @@ fn xlnet_base_model() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     // Forward pass
-    let perm_mask = Tensor::zeros(&[1, 4, 4], (Kind::Float, device));
+    let perm_mask = Tensor::zeros([1, 4, 4], (Kind::Float, device));
     let _ = perm_mask.narrow(2, 3, 1).fill_(1.0);
 
-    let target_mapping = Tensor::zeros(&[1, 1, 4], (Kind::Float, device));
+    let target_mapping = Tensor::zeros([1, 1, 4], (Kind::Float, device));
     let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     let model_output = no_grad(|| {
         xlnet_model
@@ -164,10 +164,10 @@ fn xlnet_lm_model() -> anyhow::Result<()> {
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     // Forward pass
-    let perm_mask = Tensor::zeros(&[1, 4, 4], (Kind::Float, device));
+    let perm_mask = Tensor::zeros([1, 4, 4], (Kind::Float, device));
     let _ = perm_mask.narrow(2, 3, 1).fill_(1.0);
 
-    let target_mapping = Tensor::zeros(&[1, 1, 4], (Kind::Float, device));
+    let target_mapping = Tensor::zeros([1, 1, 4], (Kind::Float, device));
     let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     let model_output = no_grad(|| {
         xlnet_model

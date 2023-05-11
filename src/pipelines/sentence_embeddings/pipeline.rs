@@ -365,7 +365,7 @@ impl SentenceEmbeddingsModel {
         };
         let maybe_normalized = if self.normalize_embeddings {
             let norm = &maybe_linear
-                .norm_scalaropt_dim(2, &[1], true)
+                .norm_scalaropt_dim(2, [1], true)
                 .clamp_min(1e-12)
                 .expand_as(&maybe_linear);
             maybe_linear / norm

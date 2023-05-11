@@ -70,7 +70,7 @@ impl GptNeoSelfAttention {
         let p = p.borrow();
         let max_positions = config.max_position_embeddings;
 
-        let mut bias = Tensor::ones(&[max_positions, max_positions], (Kind::Uint8, p.device()))
+        let mut bias = Tensor::ones([max_positions, max_positions], (Kind::Uint8, p.device()))
             .tril(0)
             .view([1, 1, max_positions, max_positions])
             .requires_grad_(false);
@@ -135,11 +135,11 @@ impl GptNeoSelfAttention {
         let _ = new_shape.pop();
         new_shape.extend_from_slice(&[num_heads, attention_head_size]);
         let reshaped_tensor = input_tensor.view(new_shape.as_slice());
-        reshaped_tensor.permute(&[0, 2, 1, 3])
+        reshaped_tensor.permute([0, 2, 1, 3])
     }
 
     fn merge_heads(input_tensor: &Tensor, num_heads: i64, attention_head_size: i64) -> Tensor {
-        let output_tensor = input_tensor.permute(&[0, 2, 1, 3]).contiguous();
+        let output_tensor = input_tensor.permute([0, 2, 1, 3]).contiguous();
         let mut new_shape = output_tensor.size();
         new_shape.truncate(new_shape.len() - 2);
         new_shape.push(num_heads * attention_head_size);

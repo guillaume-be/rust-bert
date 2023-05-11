@@ -114,7 +114,7 @@ impl MobileBertEmbeddings {
 
         let updated_input_embeddings = if self.trigram_input {
             let padding_tensor = Tensor::zeros(
-                &[input_shape[0], 1, self.embedding_size],
+                [input_shape[0], 1, self.embedding_size],
                 (input_embeddings.kind(), input_embeddings.device()),
             );
             let input_embeddings = Tensor::cat(

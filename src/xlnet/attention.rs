@@ -150,9 +150,9 @@ impl XLNetRelativeAttention {
 
     fn rel_shift_bnij(&self, x: &Tensor, klen: i64) -> Tensor {
         let shape = x.size();
-        x.reshape(&[shape[0], shape[1], shape[3], shape[2]])
+        x.reshape([shape[0], shape[1], shape[3], shape[2]])
             .narrow(2, 1, shape[3] - 1)
-            .reshape(&[shape[0], shape[1], shape[2], shape[3] - 1])
+            .reshape([shape[0], shape[1], shape[2], shape[3] - 1])
             .index_select(3, &Tensor::arange(klen, (Kind::Int64, x.device())))
     }
 
@@ -189,13 +189,13 @@ impl XLNetRelativeAttention {
                 );
                 Tensor::einsum("ijbs,ibns->bnij", &[seg_mat, &ef], None::<i64>)
             }
-            None => Tensor::zeros(&[1], (ac.kind(), ac.device())),
+            None => Tensor::zeros([1], (ac.kind(), ac.device())),
         };
         let mut attention_score = (ac + bd + ef) * self.scale;
         if let Some(value) = attention_mask {
             let target_kind = attention_score.kind();
             attention_score =
-                (attention_score - value.permute(&[2, 3, 0, 1]) * 1e30).to_kind(target_kind);
+                (attention_score - value.permute([2, 3, 0, 1]) * 1e30).to_kind(target_kind);
         };
 
         let attention_probas = attention_score
@@ -211,7 +211,7 @@ impl XLNetRelativeAttention {
         if self.output_attentions {
             (
                 attention_vector,
-                Some(attention_probas.permute(&[2, 3, 0, 1])),
+                Some(attention_probas.permute([2, 3, 0, 1])),
             )
         } else {
             (attention_vector, None)
