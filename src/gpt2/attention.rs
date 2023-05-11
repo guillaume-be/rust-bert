@@ -71,7 +71,7 @@ impl Attention {
     {
         let p = p.borrow();
 
-        let bias = Tensor::ones(&[config.n_ctx, config.n_ctx], (Float, p.device()))
+        let bias = Tensor::ones([config.n_ctx, config.n_ctx], (Float, p.device()))
             .tril(0)
             .view((1, 1, config.n_ctx, config.n_ctx));
 
@@ -111,9 +111,9 @@ impl Attention {
     fn split_heads(&self, x: &Tensor, k: bool) -> Tensor {
         let x = x.view((x.size()[0], -1, self.n_head, self.dim_per_head));
         if k {
-            x.permute(&[0, 2, 3, 1])
+            x.permute([0, 2, 3, 1])
         } else {
-            x.permute(&[0, 2, 1, 3])
+            x.permute([0, 2, 1, 3])
         }
     }
 

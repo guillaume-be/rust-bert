@@ -37,7 +37,7 @@ pub trait DisentangledSelfAttention {
 pub fn build_relative_position(query_size: i64, key_size: i64, device: Device) -> Tensor {
     let q_ids = Tensor::arange(query_size, (Kind::Int64, device));
     let k_ids = Tensor::arange(key_size, (Kind::Int64, device));
-    let rel_pos_ids = q_ids.unsqueeze(-1) - k_ids.view([1, -1]).repeat(&[query_size, 1]);
+    let rel_pos_ids = q_ids.unsqueeze(-1) - k_ids.view([1, -1]).repeat([query_size, 1]);
     rel_pos_ids.slice(0, 0, query_size, 1).unsqueeze(0)
 }
 
@@ -62,7 +62,7 @@ impl DebertaDisentangledSelfAttention {
         let mut new_shape = x.size();
         let _ = new_shape.pop();
         new_shape.extend_from_slice(&[self.num_attention_heads, -1]);
-        x.view(new_shape.as_slice()).permute(&[0, 2, 1, 3])
+        x.view(new_shape.as_slice()).permute([0, 2, 1, 3])
     }
 
     fn linear(&self, weights: &Tensor, bias: Option<&Tensor>, x: &Tensor) -> Tensor {
@@ -81,7 +81,7 @@ impl DebertaDisentangledSelfAttention {
     ) -> Tensor {
         let query_layer_size = query_layer.size();
         c2p_pos.expand(
-            &[
+            [
                 query_layer_size[0],
                 query_layer_size[1],
                 query_layer_size[2],
@@ -101,7 +101,7 @@ impl DebertaDisentangledSelfAttention {
         let mut key_layer_size = key_layer.size();
         key_layer_size.reverse();
         c2p_pos.expand(
-            &[
+            [
                 query_layer_size[0],
                 query_layer_size[1],
                 key_layer_size[1],
@@ -182,7 +182,7 @@ impl DebertaDisentangledSelfAttention {
             )
             .unsqueeze(0);
 
-        let mut score = Tensor::zeros(&[1], (query_layer.kind(), key_layer.device()));
+        let mut score = Tensor::zeros([1], (query_layer.kind(), key_layer.device()));
 
         // content -> position
         if let Some(pos_proj) = &self.pos_proj {
@@ -410,9 +410,9 @@ impl DisentangledSelfAttention for DebertaDisentangledSelfAttention {
 
         if let Some(head_logits_proj) = &self.head_logits_proj {
             attention_scores = attention_scores
-                .permute(&[0, 2, 3, 1])
+                .permute([0, 2, 3, 1])
                 .apply(head_logits_proj)
-                .permute(&[0, 3, 1, 2]);
+                .permute([0, 3, 1, 2]);
         }
 
         let mut attention_probs =
@@ -420,14 +420,14 @@ impl DisentangledSelfAttention for DebertaDisentangledSelfAttention {
 
         if let Some(head_weights_proj) = &self.head_weights_proj {
             attention_probs = attention_probs
-                .permute(&[0, 2, 3, 1])
+                .permute([0, 2, 3, 1])
                 .apply(head_weights_proj)
-                .permute(&[0, 3, 1, 2]);
+                .permute([0, 3, 1, 2]);
         }
 
         let context_layer = attention_probs
             .matmul(&value_layer)
-            .permute(&[0, 2, 1, 3])
+            .permute([0, 2, 1, 3])
             .contiguous();
 
         let mut new_context_layer_shape = context_layer.size();

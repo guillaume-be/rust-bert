@@ -176,7 +176,7 @@ impl BartAttention {
             .bmm(&value_states)
             .view([bs, self.num_heads, target_length, self.head_dim])
             .transpose(1, 2)
-            .reshape(&[bs, target_length, embed_dim])
+            .reshape([bs, target_length, embed_dim])
             .apply(&self.out_proj);
 
         (attention_output, saved_attention_weights, new_layer_state)

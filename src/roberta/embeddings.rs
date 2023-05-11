@@ -194,7 +194,7 @@ impl BertEmbedding for RobertaEmbeddings {
 
         let calc_token_type_ids = if token_type_ids.is_none() {
             Some(Tensor::zeros(
-                &input_shape,
+                input_shape,
                 (Kind::Int64, input_embeddings.device()),
             ))
         } else {

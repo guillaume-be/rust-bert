@@ -78,10 +78,10 @@ impl ConvLayer {
         train: bool,
     ) -> Tensor {
         let out = hidden_states
-            .permute(&[0, 2, 1])
+            .permute([0, 2, 1])
             .contiguous()
             .apply(&self.conv)
-            .permute(&[0, 2, 1])
+            .permute([0, 2, 1])
             .contiguous();
         let reverse_mask: Tensor = 1 - input_mask;
         let out = out.masked_fill(
