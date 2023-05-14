@@ -56,11 +56,11 @@
 //! from the 3rd party utilization of the pretrained system.
 use crate::common::error::RustBertError;
 use crate::gpt2::GPT2Generator;
-use crate::t5::T5Generator;
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::resources::ResourceProvider;
+use crate::t5::T5Generator;
 use std::collections::HashMap;
 use tch::{Device, Kind, Tensor};
 use uuid::Uuid;
@@ -737,9 +737,7 @@ impl ConversationOption {
             Self::GPT2(model_ref) => {
                 Ok(*model_ref.get_eos_ids().as_ref().unwrap().first().unwrap())
             }
-            Self::T5(model_ref) => {
-                Ok(*model_ref.get_eos_ids().as_ref().unwrap().first().unwrap())
-            }
+            Self::T5(model_ref) => Ok(*model_ref.get_eos_ids().as_ref().unwrap().first().unwrap()),
         }
     }
 
@@ -784,6 +782,14 @@ impl ConversationOption {
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
+        }
+    }
+
+    /// Interface method to get the model family (encoder-decoder or decoder)
+    fn is_encoder_decoder(&self) -> bool {
+        match *self {
+            Self::GPT2(ref generator) => generator.is_encoder_decoder(),
+            Self::T5(ref generator) => generator.is_encoder_decoder(),
         }
     }
 }
@@ -925,8 +931,6 @@ impl ConversationModel {
 
             let mut output = HashMap::with_capacity(active_uuid.len());
 
-            println!("generated: {:#?}, prompt_ids: {:#?}", &generated, &prompt_ids);
-
             for (
                 ((conversation, (generated_sequence, conversation_promp_ids)), uuid),
                 removed_padding,
@@ -936,7 +940,11 @@ impl ConversationModel {
                 .zip(active_uuid.into_iter())
                 .zip(removed_padding_quantities.into_iter())
             {
-                let generated_response = &generated_sequence[input_length - removed_padding.0..];
+                let generated_response = if self.model.is_encoder_decoder() {
+                    generated_sequence.as_slice()
+                } else {
+                    &generated_sequence[input_length - removed_padding.0..]
+                };
                 conversation
                     .generated_responses
                     .push(
@@ -1044,9 +1052,14 @@ impl ConversationModel {
                     .get(input_idx as i64)
                     .slice(0, 0, (max_len - input.len()) as i64, 1)
                     .fill_(0);
-                let mut padded_input = vec![pad_token; max_len - input.len()];
-                padded_input.extend(input);
-                padded_input
+                let padding = vec![pad_token; max_len - input.len()];
+                if self.model.is_encoder_decoder() {
+                    // right padding assumed for encoder-decoders
+                    [input, &padding].concat()
+                } else {
+                    // left padding assumed for decoders
+                    [&padding, input].concat()
+                }
             })
             .map(|tokens| Tensor::of_slice(&tokens).to(self.device))
             .collect::<Vec<Tensor>>();
