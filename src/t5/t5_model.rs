@@ -112,10 +112,20 @@ impl T5VocabResources {
         "t5-base/spiece",
         "https://huggingface.co/t5-base/resolve/main/spiece.model",
     );
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
+    pub const T5_LARGE: (&'static str, &'static str) = (
+        "t5-large/spiece",
+        "https://huggingface.co/t5-large/resolve/main/spiece.model",
+    );
     /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
     pub const SENTENCE_T5_BASE: (&'static str, &'static str) = (
         "sentence-t5-base/spiece",
         "https://huggingface.co/sentence-transformers/sentence-t5-base/resolve/main/spiece.model",
+    );
+    /// Shared under Apache 2.0 license at <https://huggingface.co/sentence-transformers/sentence-t5-base>. Modified with conversion to C-array format.
+    pub const SENTENCE_T5_LARGE: (&'static str, &'static str) = (
+        "sentence-t5-large/spiece",
+        "https://huggingface.co/sentence-transformers/sentence-t5-large/resolve/main/spiece.model",
     );
     /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/text-to-text-transfer-transformer>.
     pub const GODEL_V1_1_BASE: (&'static str, &'static str) = (

@@ -1,4 +1,7 @@
 use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::conversation::{
+    ConversationConfig, ConversationManager, ConversationModel,
+};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::RemoteResource;
@@ -108,6 +111,233 @@ about exoplanets like K2-18b."];
     this is the first such discovery in a planet in its star's habitable zone. \
     previous discoveries were made on planets with high temperatures or other pronounced differences from Earth."
     );
+
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
+fn godel_single_multi_turn_conversation() -> anyhow::Result<()> {
+    //    Set-up conversation model
+    let conversation_config = ConversationConfig {
+        model_type: ModelType::T5,
+        do_sample: false,
+        device: Device::Cpu,
+        model_resource: Box::new(RemoteResource::from_pretrained(
+            T5ModelResources::GODEL_V1_1_LARGE,
+        )),
+        config_resource: Box::new(RemoteResource::from_pretrained(
+            T5ConfigResources::GODEL_V1_1_LARGE,
+        )),
+        vocab_resource: Box::new(RemoteResource::from_pretrained(
+            T5VocabResources::GODEL_V1_1_LARGE,
+        )),
+        merges_resource: None,
+        ..Default::default()
+    };
+    let conversation_model = ConversationModel::new(conversation_config)?;
+
+    // Set-up conversation manager and add a conversation
+    let mut conversation_manager = ConversationManager::new();
+    let conversation_id =
+        conversation_manager.create("Going to the movies tonight - any suggestions?");
+
+    // Turn 1
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(output.get(&conversation_id).unwrap(), &" I'd recommend The Last Airbender. It's a great comedy and a great movie if you like comedy.");
+
+    // Turn 2
+    let _ = conversation_manager
+        .get(&conversation_id)
+        .unwrap()
+        .add_user_input("Is it an action movie?");
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(
+        output.get(&conversation_id).unwrap(),
+        &" I'm not sure, but I've heard it's a great comedy."
+    );
+
+    // Turn 3 (no new user input)
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
+fn godel_multiple_multi_turn_conversation() -> anyhow::Result<()> {
+    //    Set-up conversation model
+    let conversation_config = ConversationConfig {
+        model_type: ModelType::T5,
+        do_sample: false,
+        device: Device::Cpu,
+        model_resource: Box::new(RemoteResource::from_pretrained(
+            T5ModelResources::GODEL_V1_1_LARGE,
+        )),
+        config_resource: Box::new(RemoteResource::from_pretrained(
+            T5ConfigResources::GODEL_V1_1_LARGE,
+        )),
+        vocab_resource: Box::new(RemoteResource::from_pretrained(
+            T5VocabResources::GODEL_V1_1_LARGE,
+        )),
+        merges_resource: None,
+        ..Default::default()
+    };
+    let conversation_model = ConversationModel::new(conversation_config)?;
+
+    // Set-up conversation manager and add a conversation
+    let mut conversation_manager = ConversationManager::new();
+    let conversation_1_id =
+        conversation_manager.create("Going to the movies tonight - any suggestions?");
+    let conversation_2_id = conversation_manager.create("What's the last book you have read?");
+
+    // Turn 1
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output.get(&conversation_1_id).unwrap(), &" I'd recommend The Last Airbender. It's a great comedy and a great movie if you like comedy.");
+    assert_eq!(
+        output.get(&conversation_2_id).unwrap(),
+        &" I read The Last of Us. It was a great book."
+    );
+
+    // Turn 2
+    let _ = conversation_manager
+        .get(&conversation_1_id)
+        .unwrap()
+        .add_user_input("Is it an action movie?");
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(
+        output.get(&conversation_1_id).unwrap(),
+        &" I'm not sure, but I've heard it's a great comedy."
+    );
+
+    // Turn 3 (no new user input)
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
+fn godel_multiple_multi_turn_conversation_with_truncation() -> anyhow::Result<()> {
+    //    Set-up conversation model
+    let conversation_config = ConversationConfig {
+        model_type: ModelType::T5,
+        max_length: Some(36),
+        min_length_for_response: 24,
+        do_sample: false,
+        device: Device::Cpu,
+        model_resource: Box::new(RemoteResource::from_pretrained(
+            T5ModelResources::GODEL_V1_1_LARGE,
+        )),
+        config_resource: Box::new(RemoteResource::from_pretrained(
+            T5ConfigResources::GODEL_V1_1_LARGE,
+        )),
+        vocab_resource: Box::new(RemoteResource::from_pretrained(
+            T5VocabResources::GODEL_V1_1_LARGE,
+        )),
+        merges_resource: None,
+        ..Default::default()
+    };
+    let conversation_model = ConversationModel::new(conversation_config)?;
+
+    // Set-up conversation manager and add a conversation
+    let mut conversation_manager = ConversationManager::new();
+    let conversation_1_id =
+        conversation_manager.create("Going to the movies tonight - any suggestions?");
+    let conversation_2_id = conversation_manager.create("Hello how are you today?");
+
+    // Turn 1
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output.get(&conversation_1_id).unwrap(), &" I'd recommend The Last Airbender. It's a great comedy and a great movie if you like comedy.");
+    assert_eq!(
+        output.get(&conversation_2_id).unwrap(),
+        &" i am a little tired from work"
+    );
+
+    // Turn 2
+    let _ = conversation_manager
+        .get(&conversation_1_id)
+        .unwrap()
+        .add_user_input("Is it an action movie?");
+    let _ = conversation_manager
+        .get(&conversation_2_id)
+        .unwrap()
+        .add_user_input("Fine.");
+
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 2);
+    assert_eq!(
+        output.get(&conversation_1_id).unwrap(),
+        &" No, it's a comedy."
+    );
+
+    // Turn 3 (no new user input)
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "all-tests"), ignore)]
+fn godel_multiple_multi_turn_conversation_with_conversation_deletion() -> anyhow::Result<()> {
+    //    Set-up conversation model
+    let conversation_config = ConversationConfig {
+        model_type: ModelType::T5,
+        do_sample: false,
+        device: Device::Cpu,
+        model_resource: Box::new(RemoteResource::from_pretrained(
+            T5ModelResources::GODEL_V1_1_LARGE,
+        )),
+        config_resource: Box::new(RemoteResource::from_pretrained(
+            T5ConfigResources::GODEL_V1_1_LARGE,
+        )),
+        vocab_resource: Box::new(RemoteResource::from_pretrained(
+            T5VocabResources::GODEL_V1_1_LARGE,
+        )),
+        merges_resource: None,
+        ..Default::default()
+    };
+    let conversation_model = ConversationModel::new(conversation_config)?;
+
+    // Set-up conversation manager and add a conversation
+    let mut conversation_manager = ConversationManager::new();
+    let conversation_1_id =
+        conversation_manager.create("Going to the movies tonight - any suggestions?");
+    let conversation_2_id = conversation_manager.create("What's the last book you have read?");
+
+    // Turn 1
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output.get(&conversation_1_id).unwrap(), &" I'd recommend The Last Airbender. It's a great comedy and a great movie if you like comedy.");
+    assert_eq!(
+        output.get(&conversation_2_id).unwrap(),
+        &" I read The Last of Us. It was a great book."
+    );
+
+    // Turn 2
+    let _ = conversation_manager.remove(&conversation_1_id);
+    let _ = conversation_manager
+        .get(&conversation_2_id)
+        .unwrap()
+        .add_user_input("Why do you recommend it?");
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 1);
+    assert_eq!(
+        output.get(&conversation_2_id).unwrap(),
+        &" I've read it, but I'm not sure if I'd like it again. I'm not a huge fan of the genre."
+    );
+
+    // Turn 3 (no new user input)
+    let output = conversation_model.generate_responses(&mut conversation_manager);
+    assert_eq!(output.len(), 0);
 
     Ok(())
 }
