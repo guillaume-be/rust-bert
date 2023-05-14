@@ -706,7 +706,7 @@ impl ConversationOption {
             ModelType::GPT2 => Ok(ConversationOption::GPT2(GPT2Generator::new(config.into())?)),
             ModelType::T5 => Ok(ConversationOption::T5(T5Generator::new(config.into())?)),
             _ => Err(RustBertError::InvalidConfigurationError(
-                "GPT2 is currently the only supported model for conversation generation"
+                "GPT-2 and T5 are currently the only supported model for conversation generation"
                     .to_string(),
             )),
         }
@@ -726,7 +726,7 @@ impl ConversationOption {
                 tokenizer,
             )?)),
             _ => Err(RustBertError::InvalidConfigurationError(
-                "GPT2 is currently the only supported model for conversation generation"
+                "GPT-2 and T5 are currently the only supported model for conversation generation"
                     .to_string(),
             )),
         }
