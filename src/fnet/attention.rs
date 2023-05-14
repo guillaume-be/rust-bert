@@ -42,7 +42,9 @@ impl FNetFourierTransform {
     }
 
     pub fn forward(&self, hidden_states: &Tensor) -> Tensor {
-        let self_outputs = hidden_states.fft_fft2(None, &[1, 2], "backward").real();
+        let self_outputs = hidden_states
+            .fft_fft2(None::<i64>, [1, 2], "backward")
+            .real();
         (self_outputs + hidden_states).apply(&self.layer_norm)
     }
 }

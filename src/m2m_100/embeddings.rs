@@ -82,7 +82,7 @@ impl SinusoidalPositionalEmbedding {
             sinusoidal_embedding = Tensor::cat(
                 &[
                     sinusoidal_embedding,
-                    Tensor::zeros(&[num_embeddings, 1], (Kind::Float, device)),
+                    Tensor::zeros([num_embeddings, 1], (Kind::Float, device)),
                 ],
                 1,
             );

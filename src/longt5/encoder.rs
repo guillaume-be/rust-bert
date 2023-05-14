@@ -306,7 +306,7 @@ impl LongT5Stack {
 
         let calculated_attention_mask = if attention_mask.is_none() {
             Some(Tensor::ones(
-                &[batch_size, mask_seq_length],
+                [batch_size, mask_seq_length],
                 (Kind::Int64, input_embeddings.device()),
             ))
         } else {
@@ -324,7 +324,7 @@ impl LongT5Stack {
                             sequence_length,
                             (input_embeddings.kind(), input_embeddings.device()),
                         );
-                        let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&[
+                        let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat([
                             batch_size,
                             sequence_length,
                             1,
@@ -358,7 +358,7 @@ impl LongT5Stack {
             let new_shape = &encoder_hidden_states.as_ref().unwrap().size()[..2];
             let calculated_encoder_attention_mask = if encoder_attention_mask.is_none() {
                 Some(Tensor::ones(
-                    &[batch_size, new_shape[1]],
+                    [batch_size, new_shape[1]],
                     (Kind::Int64, input_embeddings.device()),
                 ))
             } else {

@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use tch::{nn, Tensor};
@@ -365,7 +365,7 @@ impl SentenceEmbeddingsModel {
         };
         let maybe_normalized = if self.normalize_embeddings {
             let norm = &maybe_linear
-                .norm_scalaropt_dim(2, &[1], true)
+                .norm_scalaropt_dim(2, [1], true)
                 .clamp_min(1e-12)
                 .expand_as(&maybe_linear);
             maybe_linear / norm
@@ -385,7 +385,7 @@ impl SentenceEmbeddingsModel {
         S: AsRef<str> + Sync,
     {
         let SentenceEmbeddingsModelOutput { embeddings, .. } = self.encode_as_tensor(inputs)?;
-        Ok(Vec::from(embeddings))
+        Ok(Vec::try_from(embeddings)?)
     }
 
     fn nb_layers(&self) -> usize {
@@ -433,7 +433,7 @@ impl SentenceEmbeddingsModel {
             all_attentions,
         } = self.encode_as_tensor(inputs)?;
 
-        let embeddings = Vec::from(embeddings);
+        let embeddings = Vec::try_from(embeddings)?;
         let all_attentions = all_attentions.ok_or_else(|| {
             RustBertError::InvalidConfigurationError("No attention outputted".into())
         })?;
@@ -448,7 +448,7 @@ impl SentenceEmbeddingsModel {
                             .slice(0, i, i + 1, 1)
                             .slice(1, head as i64, head as i64 + 1, 1)
                             .squeeze();
-                        let attention_head = AttentionHead::from(attention_slice);
+                        let attention_head = AttentionHead::try_from(attention_slice).unwrap();
                         attention_layer.push(attention_head);
                     }
                     attention_output.push(attention_layer);

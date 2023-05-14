@@ -20,6 +20,7 @@ use crate::t5::T5Config;
 use crate::Activation::{gelu_new, relu};
 use crate::RustBertError;
 use std::borrow::{Borrow, BorrowMut};
+use std::convert::TryFrom;
 use tch::nn::LinearConfig;
 use tch::{nn, Kind, Scalar, Tensor};
 
@@ -227,7 +228,9 @@ impl T5Block {
     }
 
     pub(crate) fn clamp_hidden_states(hidden_states: Tensor) -> Tensor {
-        if (hidden_states.kind() != Kind::Float) & bool::from(hidden_states.isinf().any()) {
+        if (hidden_states.kind() != Kind::Float)
+            & bool::try_from(hidden_states.isinf().any()).unwrap()
+        {
             let clamp_value = match hidden_states.kind() {
                 Kind::Half => half::f16::MAX.to_f64() - 1000.,
                 Kind::BFloat16 => half::bf16::MAX.to_f64() - 1000.,
@@ -398,7 +401,7 @@ impl T5Stack {
 
         let calculated_attention_mask = if attention_mask.is_none() {
             Some(Tensor::ones(
-                &[batch_size, mask_seq_length],
+                [batch_size, mask_seq_length],
                 (Kind::Int64, input_embeddings.device()),
             ))
         } else {
@@ -416,7 +419,7 @@ impl T5Stack {
                         input_shape[1],
                         (input_embeddings.kind(), input_embeddings.device()),
                     );
-                    let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&[
+                    let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat([
                         input_shape[0],
                         input_shape[1],
                         1,
@@ -445,7 +448,7 @@ impl T5Stack {
             let encoder_mask = match encoder_attention_mask {
                 Some(value) => value.copy(),
                 None => Tensor::ones(
-                    &[
+                    [
                         encoder_hidden_states_shape[0],
                         encoder_hidden_states_shape[1],
                     ],

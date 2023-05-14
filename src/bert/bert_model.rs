@@ -370,7 +370,7 @@ impl<T: BertEmbedding> BertModel<T> {
             2 => {
                 if self.is_decoder {
                     let seq_ids = Tensor::arange(input_shape[1], (Kind::Int8, device));
-                    let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat(&[
+                    let causal_mask = seq_ids.unsqueeze(0).unsqueeze(0).repeat([
                         input_shape[0],
                         input_shape[1],
                         1,
@@ -407,7 +407,7 @@ impl<T: BertEmbedding> BertModel<T> {
                 let encoder_mask = match encoder_mask {
                     Some(value) => value.copy(),
                     None => Tensor::ones(
-                        &[
+                        [
                             encoder_hidden_states_shape[0],
                             encoder_hidden_states_shape[1],
                         ],

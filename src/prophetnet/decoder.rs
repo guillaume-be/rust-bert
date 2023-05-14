@@ -25,7 +25,7 @@ use tch::nn::init::DEFAULT_KAIMING_UNIFORM;
 use tch::{nn, Device, Kind, Tensor};
 
 fn ngram_attention_bias(sequence_length: i64, ngram: i64, device: Device, kind: Kind) -> Tensor {
-    let left_block = Tensor::ones(&[ngram, sequence_length, sequence_length], (kind, device))
+    let left_block = Tensor::ones([ngram, sequence_length, sequence_length], (kind, device))
         * get_min(kind).unwrap();
     let right_block = left_block.copy();
     for stream_idx in 0..ngram {
@@ -302,7 +302,7 @@ impl ProphetNetDecoder {
                     ngram_hidden_states.push(
                         (&self.ngram_embeddings.get(ngram - 1) + &predicting_stream_pos_embed)
                             .transpose(0, 1)
-                            .repeat(&[1, batch_size, 1]),
+                            .repeat([1, batch_size, 1]),
                     );
                 }
                 (ngram_hidden_states, None, None)
@@ -328,7 +328,7 @@ impl ProphetNetDecoder {
         let extended_encoder_attention_mask =
             encoder_attention_mask.map(|encoder_attention_mask_value| {
                 encoder_attention_mask_value.ones_like()
-                    - encoder_attention_mask_value.unsqueeze(1).repeat(&[
+                    - encoder_attention_mask_value.unsqueeze(1).repeat([
                         self.num_attention_heads,
                         1,
                         1,
@@ -471,7 +471,7 @@ impl ProphetNetDecoder {
             self.max_target_positions,
             (Kind::Int64, position_ids.device()),
         )
-        .repeat(&[1, 1]);
+        .repeat([1, 1]);
 
         let (main_relative_buckets, predict_relative_buckets) = compute_all_stream_relative_buckets(
             self.num_buckets,
@@ -482,7 +482,7 @@ impl ProphetNetDecoder {
         let main_relative_buckets = main_relative_buckets
             .slice(1, 0, sequence_length, 1)
             .slice(2, 0, sequence_length, 1)
-            .repeat(&[batch_size, 1, 1]);
+            .repeat([batch_size, 1, 1]);
 
         let predict_relative_buckets = Tensor::cat(
             &[
@@ -500,7 +500,7 @@ impl ProphetNetDecoder {
             ],
             2,
         )
-        .repeat(&[batch_size, 1, 1]);
+        .repeat([batch_size, 1, 1]);
 
         (main_relative_buckets, predict_relative_buckets)
     }
@@ -514,7 +514,7 @@ impl ProphetNetDecoder {
         let (sequence_length, batch_size) = (input_size[0], input_size[1]);
 
         let causal_mask = Tensor::full(
-            &[sequence_length, sequence_length],
+            [sequence_length, sequence_length],
             get_min(hidden_states.kind()).unwrap(),
             (hidden_states.kind(), hidden_states.device()),
         )
@@ -522,7 +522,7 @@ impl ProphetNetDecoder {
 
         let extended_causal_mask = causal_mask
             .unsqueeze(0)
-            .expand(&[batch_size, sequence_length, sequence_length], true);
+            .expand([batch_size, sequence_length, sequence_length], true);
 
         let extended_attention_mask = if let Some(attention_mask_value) = attention_mask {
             let extended_attention_mask =
@@ -533,7 +533,7 @@ impl ProphetNetDecoder {
             extended_causal_mask
         };
 
-        extended_attention_mask.repeat(&[self.num_attention_heads, 1, 1])
+        extended_attention_mask.repeat([self.num_attention_heads, 1, 1])
     }
 
     fn prepare_predict_attention_mask(
@@ -579,7 +579,7 @@ impl ProphetNetDecoder {
                 - attention_mask_value.unsqueeze(0).unsqueeze(2))
                 * -10000.0;
             let extended_attention_mask = extended_attention_mask.expand(
-                &[self.ngram, batch_size, sequence_length, sequence_length],
+                [self.ngram, batch_size, sequence_length, sequence_length],
                 true,
             );
             let extended_attention_mask = Tensor::cat(
@@ -594,7 +594,7 @@ impl ProphetNetDecoder {
             extended_predict_causal_mask
         };
 
-        extended_attention_mask.repeat(&[1, self.num_attention_heads, 1, 1])
+        extended_attention_mask.repeat([1, self.num_attention_heads, 1, 1])
     }
 }
 

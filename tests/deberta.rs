@@ -99,10 +99,10 @@ fn deberta_masked_lm() -> anyhow::Result<()> {
     let deberta_model = DebertaForMaskedLM::new(vs.root(), &config);
 
     //    Generate random input
-    let input_tensor = Tensor::randint(42, &[32, 128], (Kind::Int64, device));
-    let attention_mask = Tensor::ones(&[32, 128], (Kind::Int64, device));
+    let input_tensor = Tensor::randint(42, [32, 128], (Kind::Int64, device));
+    let attention_mask = Tensor::ones([32, 128], (Kind::Int64, device));
     let position_ids = Tensor::arange(128, (Kind::Int64, device)).unsqueeze(0);
-    let token_type_ids = Tensor::zeros(&[32, 128], (Kind::Int64, device));
+    let token_type_ids = Tensor::zeros([32, 128], (Kind::Int64, device));
 
     //    Forward pass
     let model_output = no_grad(|| {

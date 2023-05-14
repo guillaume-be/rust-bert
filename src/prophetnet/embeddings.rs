@@ -55,8 +55,7 @@ impl ProphetNetPositionalEmbeddings {
                 if let Some(prev_num_input_ids_value) = prev_num_input_ids {
                     let num_input_ids = input_shape[1] + prev_num_input_ids_value;
 
-                    Tensor::ones(&[1, 1], (Kind::Int64, device))
-                        * (self.padding_idx + num_input_ids)
+                    Tensor::ones([1, 1], (Kind::Int64, device)) * (self.padding_idx + num_input_ids)
                 } else {
                     let calc_attention_mask = if attention_mask.is_none() {
                         Some(Tensor::ones(input_shape, (Kind::Int64, device)))

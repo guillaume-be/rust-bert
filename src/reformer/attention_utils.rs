@@ -21,7 +21,7 @@ pub fn stable_argsort(input_tensor: &Tensor, dim: i64) -> Tensor {
     let scaling_dim = input_tensor.size()[dim as usize];
     let scaled_offset = Tensor::arange(scaling_dim, (Kind::Int, input_tensor.device()))
         .view([1, 1, -1])
-        .expand(&input_tensor.size(), true);
+        .expand(input_tensor.size(), true);
     let scaled_tensor = scaling_dim * input_tensor + (scaled_offset / scaling_dim);
     scaled_tensor.argsort(dim, false)
 }
@@ -138,7 +138,7 @@ pub fn merge_hidden_size_dim(
         -1,
         num_attention_heads * attention_head_size,
     ];
-    input.permute(&[0, 2, 1, 3]).reshape(&new_shape)
+    input.permute([0, 2, 1, 3]).reshape(new_shape)
 }
 
 pub fn split_seq_length_dim_to(

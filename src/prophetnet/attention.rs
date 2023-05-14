@@ -531,7 +531,7 @@ impl ProphetNetNgramAttention {
         let predict_attention_weights = Tensor::einsum(
             "nbtc,nbsc->nbts",
             &[predict_query_states, predict_key_states],
-            None,
+            None::<i64>,
         );
 
         let predict_relative_pos_embeddings = self.get_predict_relative_pos_embeddings(
@@ -555,7 +555,7 @@ impl ProphetNetNgramAttention {
         let predict_attention_output = Tensor::einsum(
             "nbts,nbsc->nbtc",
             &[&predict_attention_probas, &predict_value_states],
-            None,
+            None::<i64>,
         )
         .transpose(1, 2)
         .contiguous()
@@ -611,11 +611,11 @@ impl ProphetNetNgramAttention {
             )
             .unsqueeze(0)
             .unsqueeze(0)
-            .repeat(&[batch_size, sequence_length, 1]);
+            .repeat([batch_size, sequence_length, 1]);
             let relative_positions = relative_positions
                 - position_ids
                     .unsqueeze(0)
-                    .repeat(&[batch_size, sequence_length, 1]);
+                    .repeat([batch_size, sequence_length, 1]);
             Some(compute_relative_buckets(
                 self.num_buckets,
                 self.relative_max_distance,
@@ -637,11 +637,11 @@ impl ProphetNetNgramAttention {
                 self.num_buckets,
                 self.num_attention_heads,
             ])
-            .permute(&[0, 3, 1, 2])
-            .reshape(&[-1, self.num_buckets]);
+            .permute([0, 3, 1, 2])
+            .reshape([-1, self.num_buckets]);
 
         let main_relative_position_buckets = main_relative_position_buckets
-            .repeat(&[1, self.num_attention_heads, 1])
+            .repeat([1, self.num_attention_heads, 1])
             .view([-1, *main_relative_position_buckets.size().last().unwrap()]);
 
         let mut new_shape = attention_weights
@@ -672,11 +672,11 @@ impl ProphetNetNgramAttention {
                 Tensor::arange(key_sequence_length, (Kind::Int64, hidden_states.device()))
                     .unsqueeze(0)
                     .unsqueeze(0)
-                    .repeat(&[batch_size, sequence_length, 1]);
+                    .repeat([batch_size, sequence_length, 1]);
             let relative_positions = relative_positions
                 - position_ids
                     .unsqueeze(0)
-                    .repeat(&[batch_size, sequence_length, 1]);
+                    .repeat([batch_size, sequence_length, 1]);
             Some(compute_relative_buckets(
                 self.num_buckets,
                 self.relative_max_distance,
@@ -700,12 +700,12 @@ impl ProphetNetNgramAttention {
                 self.num_buckets,
                 self.num_attention_heads,
             ])
-            .permute(&[0, 1, 4, 2, 3])
-            .reshape(&[-1, self.num_buckets]);
+            .permute([0, 1, 4, 2, 3])
+            .reshape([-1, self.num_buckets]);
 
         let predict_relative_position_buckets = predict_relative_position_buckets
             .unsqueeze(0)
-            .repeat(&[self.ngram, 1, self.num_attention_heads, 1])
+            .repeat([self.ngram, 1, self.num_attention_heads, 1])
             .view([
                 -1,
                 *predict_relative_position_buckets.size().last().unwrap(),
@@ -770,12 +770,12 @@ pub(crate) fn compute_all_stream_relative_buckets(
     let main_stream_relative_positions =
         position_ids
             .unsqueeze(1)
-            .repeat(&[1, *position_ids.size().last().unwrap(), 1])
+            .repeat([1, *position_ids.size().last().unwrap(), 1])
             - position_ids.unsqueeze(-1);
 
     let predicting_stream_relative_positions = Tensor::cat(&[&(position_ids - 1), position_ids], 1)
         .unsqueeze(1)
-        .repeat(&[1, *position_ids.size().last().unwrap(), 1])
+        .repeat([1, *position_ids.size().last().unwrap(), 1])
         - position_ids.unsqueeze(-1);
 
     let main_relative_position_buckets = compute_relative_buckets(

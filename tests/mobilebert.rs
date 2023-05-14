@@ -10,6 +10,7 @@ use rust_bert::Config;
 use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use tch::{nn, no_grad, Device, Tensor};
 
 #[test]
@@ -73,12 +74,12 @@ fn mobilebert_masked_model() -> anyhow::Result<()> {
         .logits
         .get(0)
         .get(4)
-        .double_value(&[i64::from(&index_1)]);
+        .double_value(&[i64::try_from(&index_1).unwrap()]);
     let score_2 = model_output
         .logits
         .get(1)
         .get(7)
-        .double_value(&[i64::from(&index_2)]);
+        .double_value(&[i64::try_from(&index_2).unwrap()]);
 
     assert_eq!("thing", word_1); // Outputs "person" : "Looks like one [person] is missing"
     assert_eq!("sunny", word_2); // Outputs "sunny" : "It was a very nice and [sunny] day"

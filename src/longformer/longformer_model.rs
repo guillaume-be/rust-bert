@@ -393,7 +393,7 @@ impl LongformerModel {
             .map(|value| self.pad_with_nonzero_value(value, &[0, padding_length], pad_token_id));
         let inputs_embeds = input_embeds.map(|value| {
             let input_ids_padding = Tensor::full(
-                &[batch_size, padding_length],
+                [batch_size, padding_length],
                 pad_token_id,
                 (Kind::Int64, value.device()),
             );
@@ -407,8 +407,7 @@ impl LongformerModel {
 
         let attention_mask =
             attention_mask.map(|value| self.pad_with_boolean(value, &[0, padding_length], false));
-        let token_type_ids =
-            token_type_ids.map(|value| value.constant_pad_nd(&[0, padding_length]));
+        let token_type_ids = token_type_ids.map(|value| value.constant_pad_nd([0, padding_length]));
         Ok(PaddedInput {
             input_ids,
             position_ids,
@@ -584,7 +583,7 @@ impl LongformerModel {
                     let mut causal_mask = sequence_ids
                         .unsqueeze(0)
                         .unsqueeze(0)
-                        .repeat(&[batch_size, sequence_length, 1])
+                        .repeat([batch_size, sequence_length, 1])
                         .le_tensor(&sequence_ids.unsqueeze(-1).unsqueeze(0))
                         .totype(Kind::Int);
                     if causal_mask.size()[1] < padded_attention_mask.size()[1] {
@@ -593,7 +592,7 @@ impl LongformerModel {
                         causal_mask = Tensor::cat(
                             &[
                                 Tensor::ones(
-                                    &[batch_size, sequence_length, prefix_sequence_length],
+                                    [batch_size, sequence_length, prefix_sequence_length],
                                     (Kind::Int, device),
                                 ),
                                 causal_mask,
@@ -975,7 +974,7 @@ impl LongformerForSequenceClassification {
 
             let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
             let global_attention_mask =
-                Tensor::zeros(&[batch_size, sequence_length], (Kind::Int, device));
+                Tensor::zeros([batch_size, sequence_length], (Kind::Int, device));
             let _ = global_attention_mask.select(1, 0).fill_(1);
             Some(global_attention_mask)
         } else {
