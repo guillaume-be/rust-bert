@@ -257,7 +257,7 @@ impl AlbertModel {
             get_shape_and_device_from_ids_embeddings_pair(input_ids, input_embeds)?;
 
         let calc_mask = if mask.is_none() {
-            Some(Tensor::ones(&input_shape, (Kind::Int64, device)))
+            Some(Tensor::ones(input_shape, (Kind::Int64, device)))
         } else {
             None
         };

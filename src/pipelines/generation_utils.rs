@@ -229,6 +229,7 @@ pub enum Cache {
 pub(crate) mod private_generation_utils {
     use std::cmp::{max, min};
     use std::collections::HashMap;
+    use std::convert::TryFrom;
     use std::mem;
 
     use rust_tokenizers::tokenizer::{truncate_sequences, TruncationStrategy};
@@ -653,7 +654,7 @@ pub(crate) mod private_generation_utils {
             bad_words_id_length_1: &[i64],
         ) -> Tensor {
             let mut static_bad_words_mask =
-                Tensor::zeros(&[scores.size()[1]], (Kind::Int8, scores.device()));
+                Tensor::zeros([scores.size()[1]], (Kind::Int8, scores.device()));
             let _ = static_bad_words_mask.index_fill_(
                 0,
                 &Tensor::of_slice(bad_words_id_length_1).to_device(scores.device()),
@@ -766,9 +767,9 @@ pub(crate) mod private_generation_utils {
             output_scores: bool,
         ) -> GeneratedOutputWithScores {
             let mut unfinished_sentences =
-                Tensor::ones(&[batch_size], (Kind::Int64, self.get_var_store().device()));
+                Tensor::ones([batch_size], (Kind::Int64, self.get_var_store().device()));
             let mut sentence_lengths: Tensor =
-                Tensor::ones(&[batch_size], (Kind::Int64, self.get_var_store().device()));
+                Tensor::ones([batch_size], (Kind::Int64, self.get_var_store().device()));
             let (bad_word_ids_length_1, bad_word_ids_length_greater_than_1) =
                 self.split_bad_word_ids(gen_opt.bad_word_ids);
             let mut static_bad_words_mask: Option<Tensor> = None;
@@ -902,7 +903,7 @@ pub(crate) mod private_generation_utils {
                     prev_scores.push(
                         next_token_logits
                             .log_softmax(-1, next_token_logits.kind())
-                            .gather(1, &next_token.reshape(&[-1, 1]), true)
+                            .gather(1, &next_token.reshape([-1, 1]), true)
                             .squeeze()
                             .masked_fill(&finished_mask, 0),
                     );
@@ -931,7 +932,7 @@ pub(crate) mod private_generation_utils {
                         );
                         unfinished_sentences = -unfinished_sentences * (sentence_with_eos - 1);
                     }
-                    if i64::from(unfinished_sentences.max()) == 0 {
+                    if i64::try_from(unfinished_sentences.max()).unwrap() == 0 {
                         break;
                     }
                 }
@@ -940,7 +941,7 @@ pub(crate) mod private_generation_utils {
                         &[
                             attention_mask.as_ref(),
                             Tensor::ones(
-                                &[*attention_mask.size().first().unwrap(), 1],
+                                [*attention_mask.size().first().unwrap(), 1],
                                 (Kind::Int64, attention_mask.device()),
                             )
                             .as_ref(),
@@ -1022,20 +1023,20 @@ pub(crate) mod private_generation_utils {
 
             let vocab_size = self.get_vocab_size();
             let beam_scores = Tensor::ones(
-                &[batch_size, gen_opt.num_beams],
+                [batch_size, gen_opt.num_beams],
                 (Kind::Float, self.get_var_store().device()),
             ) * -1e9;
             let _ = beam_scores
                 .slice(1, 0, *beam_scores.size().last().unwrap(), num_sub_beams)
                 .fill_(0);
 
-            let mut beam_scores = beam_scores.view_(&[-1]);
+            let mut beam_scores = beam_scores.view_([-1]);
             let mut beam_tokens = Tensor::zeros(
-                &[batch_size * gen_opt.num_beams],
+                [batch_size * gen_opt.num_beams],
                 (Kind::Int64, self.get_var_store().device()),
             );
             let mut beam_indices = Tensor::zeros(
-                &[batch_size * gen_opt.num_beams],
+                [batch_size * gen_opt.num_beams],
                 (Kind::Int64, self.get_var_store().device()),
             );
             let mut saved_beam_scores: Option<Vec<Tensor>> =
@@ -1052,7 +1053,7 @@ pub(crate) mod private_generation_utils {
             loop {
                 if num_beam_groups > 1 {
                     current_tokens = Tensor::zeros(
-                        &[batch_size * gen_opt.num_beams],
+                        [batch_size * gen_opt.num_beams],
                         (input_ids.kind(), input_ids.device()),
                     );
                 }
@@ -1364,7 +1365,7 @@ pub(crate) mod private_generation_utils {
                         &[
                             attention_mask.as_ref(),
                             Tensor::ones(
-                                &[*attention_mask.size().first().unwrap(), 1],
+                                [*attention_mask.size().first().unwrap(), 1],
                                 (Kind::Int64, attention_mask.device()),
                             )
                             .as_ref(),
@@ -1391,7 +1392,7 @@ pub(crate) mod private_generation_utils {
                     let beam_saved_token_scores = saved_beam_scores.as_mut().map(|saved_tokens| {
                         mem::replace(&mut saved_tokens[effective_beam_id as usize], Tensor::new())
                     });
-                    let final_score = f64::from(beam_scores.get(effective_beam_id));
+                    let final_score = f64::try_from(beam_scores.get(effective_beam_id)).unwrap();
                     let final_tokens = input_ids.get(effective_beam_id);
                     hypotheses[batch_index as usize].add(
                         final_tokens,
@@ -1411,7 +1412,7 @@ pub(crate) mod private_generation_utils {
             };
 
             let mut sentence_lengths =
-                Tensor::zeros(&[output_batch_size], (Kind::Int64, input_ids.device()));
+                Tensor::zeros([output_batch_size], (Kind::Int64, input_ids.device()));
             let mut best_ids = vec![];
 
             let mut scores_output = if output_scores {
@@ -1457,14 +1458,21 @@ pub(crate) mod private_generation_utils {
             }
             let sentence_max_length = gen_opt
                 .max_length
-                .map(|max_length| min(i64::from(sentence_lengths.max()) + 1, max_length))
-                .unwrap_or(i64::from(sentence_lengths.max()) + 1);
+                .map(|max_length| {
+                    min(
+                        i64::try_from(sentence_lengths.max()).unwrap() + 1,
+                        max_length,
+                    )
+                })
+                .unwrap_or(i64::try_from(sentence_lengths.max()).unwrap() + 1);
 
             let mut decoded = input_ids.new_empty(
-                &[output_batch_size, sentence_max_length],
+                [output_batch_size, sentence_max_length],
                 (Kind::Int64, input_ids.device()),
             );
-            if i64::from(sentence_lengths.max()) != i64::from(sentence_lengths.min()) {
+            if i64::try_from(sentence_lengths.max()).unwrap()
+                != i64::try_from(sentence_lengths.min()).unwrap()
+            {
                 let _ = decoded.fill_(
                     gen_opt
                         .pad_token_id
@@ -1476,15 +1484,16 @@ pub(crate) mod private_generation_utils {
                     0,
                     &Tensor::arange_start(
                         0,
-                        i64::from(sentence_lengths.get(hypothesis_index as i64)),
+                        i64::try_from(sentence_lengths.get(hypothesis_index as i64)).unwrap(),
                         (Kind::Int64, input_ids.device()),
                     ),
                     best_id,
                 );
-                let sentence_length = i64::from(sentence_lengths.get(hypothesis_index as i64));
+                let sentence_length =
+                    i64::try_from(sentence_lengths.get(hypothesis_index as i64)).unwrap();
                 let sentence_length_max = gen_opt
                     .max_length
-                    .unwrap_or_else(|| i64::from(sentence_lengths.max()));
+                    .unwrap_or_else(|| i64::try_from(sentence_lengths.max()).unwrap());
                 if sentence_length < sentence_length_max {
                     let _ = decoded.get(hypothesis_index as i64).index_fill_(
                         0,
@@ -1810,7 +1819,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
             }
             None => match self.get_bos_id() {
                 Some(bos_id) => {
-                    Tensor::ones(&[1, 1], (Int64, self.get_var_store().device())) * bos_id
+                    Tensor::ones([1, 1], (Int64, self.get_var_store().device())) * bos_id
                 }
                 None => panic!(
                     "A model with a BOS token must be used to start generation with an empty input"
@@ -1916,13 +1925,13 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         let mut input_ids_len = *input_id_size.last().unwrap();
         if input_ids_len == 0 {
             input_ids = Tensor::ones(
-                &[*input_id_size.first().unwrap(), 1],
+                [*input_id_size.first().unwrap(), 1],
                 (Int64, input_ids.device()),
             ) * self
                 .get_bos_id()
                 .expect("`bos_token_id` has to be defined when no `input_ids` are provided.");
             attention_mask = Some(Tensor::ones(
-                &[*input_id_size.first().unwrap(), 1],
+                [*input_id_size.first().unwrap(), 1],
                 (Int64, input_ids.device()),
             ));
             input_ids_len += 1;
@@ -1952,7 +1961,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
             let encoder_outputs = self.encode(&input_ids, Some(&attention_mask)).unwrap();
             let expanded_batch_indices = Tensor::arange(batch_size, (Int64, input_ids.device()))
                 .view((-1, 1))
-                .repeat(&[1, num_beams * effective_batch_mult])
+                .repeat([1, num_beams * effective_batch_mult])
                 .view(-1);
             Some(encoder_outputs.index_select(0, &expanded_batch_indices))
         } else {
@@ -1965,7 +1974,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                     input_ids
                         .unsqueeze(1)
                         .expand(
-                            &[batch_size, effective_batch_mult * num_beams, cur_len],
+                            [batch_size, effective_batch_mult * num_beams, cur_len],
                             true,
                         )
                         .contiguous()
@@ -1973,7 +1982,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                     attention_mask
                         .unsqueeze(1)
                         .expand(
-                            &[batch_size, effective_batch_mult * num_beams, cur_len],
+                            [batch_size, effective_batch_mult * num_beams, cur_len],
                             true,
                         )
                         .contiguous()
@@ -1988,7 +1997,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                     .expect("decoder start id must be specified for encoder decoders")
             });
             let input_ids = Tensor::full(
-                &[effective_batch_size * num_beams, 1],
+                [effective_batch_size * num_beams, 1],
                 decoder_start_token_id,
                 (Int64, input_ids.device()),
             );
@@ -1996,7 +2005,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                 attention_mask
                     .unsqueeze(1)
                     .expand(
-                        &[batch_size, effective_batch_mult * num_beams, input_ids_len],
+                        [batch_size, effective_batch_mult * num_beams, input_ids_len],
                         true,
                     )
                     .contiguous()
@@ -2228,7 +2237,7 @@ impl BeamHypotheses {
                     1,
                     0,
                     Some(Tensor::zeros(
-                        &[1],
+                        [1],
                         (scores_tensor.kind(), scores_tensor.device()),
                     )),
                     None,

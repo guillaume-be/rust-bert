@@ -251,8 +251,8 @@ impl XLNetModel {
     }
 
     fn create_mask(&self, q_len: i64, m_len: i64, device: Device) -> Tensor {
-        let attention_mask = Tensor::ones(&[q_len, q_len], (Kind::Int64, device));
-        let attention_mask_pad = Tensor::zeros(&[q_len, m_len], (Kind::Int64, device));
+        let attention_mask = Tensor::ones([q_len, q_len], (Kind::Int64, device));
+        let attention_mask_pad = Tensor::zeros([q_len, m_len], (Kind::Int64, device));
         let mask_up = attention_mask.triu(1);
         let mut output = Tensor::cat(&[&attention_mask_pad, &mask_up], 1);
         if self.same_length {
@@ -307,12 +307,16 @@ impl XLNetModel {
         inverse_frequency: &Tensor,
         batch_size: Option<i64>,
     ) -> Tensor {
-        let sinusoid = Tensor::einsum("i,d->id", &[position_sequence, inverse_frequency], None);
+        let sinusoid = Tensor::einsum(
+            "i,d->id",
+            &[position_sequence, inverse_frequency],
+            None::<i64>,
+        );
         let mut positional_embeddings =
             Tensor::cat(&[sinusoid.sin(), sinusoid.cos()], -1).unsqueeze(1);
 
         if let Some(bsz) = batch_size {
-            positional_embeddings = positional_embeddings.expand(&[-1, bsz, -1], true)
+            positional_embeddings = positional_embeddings.expand([-1, bsz, -1], true)
         };
         positional_embeddings
     }
@@ -466,13 +470,13 @@ impl XLNetModel {
         let perm_mask = perm_mask.map(|perm_mask| {
             perm_mask
                 .to_kind(word_emb_k.kind())
-                .permute(&[1, 2, 0])
+                .permute([1, 2, 0])
                 .contiguous()
         });
         let target_mapping = target_mapping.map(|target_mapping| {
             target_mapping
                 .to_kind(word_emb_k.kind())
-                .permute(&[1, 2, 0])
+                .permute([1, 2, 0])
                 .contiguous()
         });
 
@@ -511,7 +515,7 @@ impl XLNetModel {
         if let Some(data_mask_value) = &data_mask {
             if m_len > 0 {
                 let mems_mask = Tensor::zeros(
-                    &[data_mask_value.size()[0], m_len, batch_size],
+                    [data_mask_value.size()[0], m_len, batch_size],
                     (Kind::Bool, data_mask_value.device()),
                 );
                 data_mask = Some(Tensor::cat(&[&mems_mask, data_mask_value], 1))
@@ -528,7 +532,7 @@ impl XLNetModel {
             if m_len > 0 {
                 non_tgt_mask = Tensor::cat(
                     &[
-                        Tensor::zeros(&[q_len, m_len], (Kind::Int64, attn_mask_value.device())),
+                        Tensor::zeros([q_len, m_len], (Kind::Int64, attn_mask_value.device())),
                         non_tgt_mask,
                     ],
                     -1,
@@ -542,14 +546,14 @@ impl XLNetModel {
         let mut output_h = word_emb_k.apply_t(&self.dropout, train);
         let mut output_g = target_mapping.as_ref().map(|target_mapping_value| {
             self.mask_emb
-                .expand(&[target_mapping_value.size()[0], batch_size, -1], true)
+                .expand([target_mapping_value.size()[0], batch_size, -1], true)
                 .apply_t(&self.dropout, train)
         });
 
         let seg_mat = if let Some(token_type_ids_value) = token_type_ids {
             let cat_ids = if m_len > 0 {
                 let mem_pad = Tensor::zeros(
-                    &[m_len, batch_size],
+                    [m_len, batch_size],
                     (Kind::Int64, token_type_ids_value.device()),
                 );
                 Tensor::cat(&[mem_pad, token_type_ids_value.copy()], 0)
@@ -636,7 +640,7 @@ impl XLNetModel {
             output_h
         }
         .apply_t(&self.dropout, train)
-        .permute(&[1, 0, 2])
+        .permute([1, 0, 2])
         .contiguous();
 
         Ok(XLNetModelOutput {
@@ -1673,10 +1677,8 @@ impl PrivateLanguageGenerator for XLNetGenerator {
     ) -> PreparedInput<'a> {
         let effective_batch_size = input_ids.size()[0];
         let sequence_length = input_ids.size()[1];
-        let dummy_token = Tensor::zeros(
-            &[effective_batch_size, 1],
-            (Kind::Int64, input_ids.device()),
-        );
+        let dummy_token =
+            Tensor::zeros([effective_batch_size, 1], (Kind::Int64, input_ids.device()));
         let offset = 2i64;
         let input_ids = match &past {
             Cache::XLNetCache(past) => {
@@ -1696,13 +1698,13 @@ impl PrivateLanguageGenerator for XLNetGenerator {
         };
         let sequence_length = input_ids.size()[1];
         let perm_mask = Tensor::zeros(
-            &[effective_batch_size, sequence_length, sequence_length],
+            [effective_batch_size, sequence_length, sequence_length],
             (Kind::Float, input_ids.device()),
         );
         let _ = perm_mask.narrow(2, sequence_length - 1, 1).fill_(1.0);
 
         let target_mapping = Tensor::zeros(
-            &[effective_batch_size, 1, sequence_length],
+            [effective_batch_size, 1, sequence_length],
             (Kind::Float, input_ids.device()),
         );
         let _ = target_mapping.narrow(2, sequence_length - 1, 1).fill_(1.0);

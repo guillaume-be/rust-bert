@@ -12,6 +12,7 @@ use rust_bert::Config;
 use rust_tokenizers::tokenizer::{FNetTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use tch::{nn, no_grad, Device, Tensor};
 
 #[test]
@@ -75,7 +76,9 @@ fn fnet_masked_lm() -> anyhow::Result<()> {
 
     assert_eq!("▁one", word_1);
     assert_eq!("▁the", word_2);
-    let value = (f64::from(model_output.prediction_scores.get(0).get(4).max()) - 13.1721).abs();
+    let value = (f64::try_from(model_output.prediction_scores.get(0).get(4).max()).unwrap()
+        - 13.1721)
+        .abs();
     dbg!(value);
     assert!(value < 1e-3);
     Ok(())

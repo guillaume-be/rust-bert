@@ -150,9 +150,9 @@ impl XLNetRelativeAttention {
 
     fn rel_shift_bnij(&self, x: &Tensor, klen: i64) -> Tensor {
         let shape = x.size();
-        x.reshape(&[shape[0], shape[1], shape[3], shape[2]])
+        x.reshape([shape[0], shape[1], shape[3], shape[2]])
             .narrow(2, 1, shape[3] - 1)
-            .reshape(&[shape[0], shape[1], shape[2], shape[3] - 1])
+            .reshape([shape[0], shape[1], shape[2], shape[3] - 1])
             .index_select(3, &Tensor::arange(klen, (Kind::Int64, x.device())))
     }
 
@@ -169,13 +169,13 @@ impl XLNetRelativeAttention {
         let ac = Tensor::einsum(
             "ibnd,jbnd->bnij",
             &[&(q_head + &self.r_w_bias), k_head_h],
-            None,
+            None::<i64>,
         );
         let bd = self.rel_shift_bnij(
             &Tensor::einsum(
                 "ibnd,jbnd->bnij",
                 &[&(q_head + &self.r_r_bias), k_head_r],
-                None,
+                None::<i64>,
             ),
             ac.size()[3],
         );
@@ -185,30 +185,33 @@ impl XLNetRelativeAttention {
                 let ef = Tensor::einsum(
                     "ibnd,snd->ibns",
                     &[&(q_head + &self.r_s_bias), &self.seg_embed],
-                    None,
+                    None::<i64>,
                 );
-                Tensor::einsum("ijbs,ibns->bnij", &[seg_mat, &ef], None)
+                Tensor::einsum("ijbs,ibns->bnij", &[seg_mat, &ef], None::<i64>)
             }
-            None => Tensor::zeros(&[1], (ac.kind(), ac.device())),
+            None => Tensor::zeros([1], (ac.kind(), ac.device())),
         };
         let mut attention_score = (ac + bd + ef) * self.scale;
         if let Some(value) = attention_mask {
             let target_kind = attention_score.kind();
             attention_score =
-                (attention_score - value.permute(&[2, 3, 0, 1]) * 1e30).to_kind(target_kind);
+                (attention_score - value.permute([2, 3, 0, 1]) * 1e30).to_kind(target_kind);
         };
 
         let attention_probas = attention_score
             .softmax(3, attention_score.kind())
             .apply_t(&self.dropout, train);
 
-        let attention_vector =
-            Tensor::einsum("bnij,jbnd->ibnd", &[&attention_probas, v_head_h], None);
+        let attention_vector = Tensor::einsum(
+            "bnij,jbnd->ibnd",
+            &[&attention_probas, v_head_h],
+            None::<i64>,
+        );
 
         if self.output_attentions {
             (
                 attention_vector,
-                Some(attention_probas.permute(&[2, 3, 0, 1])),
+                Some(attention_probas.permute([2, 3, 0, 1])),
             )
         } else {
             (attention_vector, None)
@@ -222,9 +225,12 @@ impl XLNetRelativeAttention {
         residual: bool,
         train: bool,
     ) -> Tensor {
-        let mut attention_out =
-            Tensor::einsum("ibnd,hnd->ibh", &[attention_vector, &self.output], None)
-                .apply_t(&self.dropout, train);
+        let mut attention_out = Tensor::einsum(
+            "ibnd,hnd->ibh",
+            &[attention_vector, &self.output],
+            None::<i64>,
+        )
+        .apply_t(&self.dropout, train);
         if residual {
             attention_out = attention_out + h;
         };
@@ -256,10 +262,10 @@ impl XLNetRelativeAttention {
             Some(value) => value,
             None => h,
         };
-        let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.query], None);
-        let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.key], None);
-        let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.value], None);
-        let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.pos], None);
+        let q_head_h = Tensor::einsum("ibh,hnd->ibnd", &[h, &self.query], None::<i64>);
+        let k_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.key], None::<i64>);
+        let v_head_h = Tensor::einsum("ibh,hnd->ibnd", &[cat, &self.value], None::<i64>);
+        let k_head_r = Tensor::einsum("ibh,hnd->ibnd", &[r, &self.pos], None::<i64>);
 
         let (attention_vec_h, attention_probas_h) = self.rel_attention_core(
             &q_head_h,
@@ -273,12 +279,12 @@ impl XLNetRelativeAttention {
         let output_h = self.post_attention(h, &attention_vec_h, true, train);
 
         let (output_g, attention_probas_g) = if let Some(g) = g {
-            let q_head_g = Tensor::einsum("ibh,hnd->ibnd", &[g, &self.query], None);
+            let q_head_g = Tensor::einsum("ibh,hnd->ibnd", &[g, &self.query], None::<i64>);
 
             let (attention_vec_g, attention_probas_g) = match target_mapping {
                 Some(target_mapping) => {
                     let q_head_g =
-                        Tensor::einsum("mbnd,mlb->lbnd", &[&q_head_g, target_mapping], None);
+                        Tensor::einsum("mbnd,mlb->lbnd", &[&q_head_g, target_mapping], None::<i64>);
                     let (attention_vec_g, attention_probas_g) = self.rel_attention_core(
                         &q_head_g,
                         &k_head_h,
@@ -288,8 +294,11 @@ impl XLNetRelativeAttention {
                         attn_mask_g,
                         train,
                     );
-                    let attention_vec_g =
-                        Tensor::einsum("lbnd,mlb->mbnd", &[&attention_vec_g, target_mapping], None);
+                    let attention_vec_g = Tensor::einsum(
+                        "lbnd,mlb->mbnd",
+                        &[&attention_vec_g, target_mapping],
+                        None::<i64>,
+                    );
                     (attention_vec_g, attention_probas_g)
                 }
                 None => self.rel_attention_core(

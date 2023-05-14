@@ -93,7 +93,7 @@ impl LongformerEmbeddings {
             (Kind::Int64, inputs_embeds.device()),
         )
         .unsqueeze(0)
-        .expand(&[batch_size, sequence_length], true)
+        .expand([batch_size, sequence_length], true)
     }
 
     pub fn forward_t(

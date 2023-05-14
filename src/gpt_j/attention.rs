@@ -68,7 +68,7 @@ impl GptJAttention {
         let p = p.borrow();
 
         let max_positions = config.n_positions;
-        let bias = Tensor::ones(&[max_positions, max_positions], (Kind::Uint8, p.device()))
+        let bias = Tensor::ones([max_positions, max_positions], (Kind::Uint8, p.device()))
             .tril(0)
             .view([1, 1, max_positions, max_positions])
             .requires_grad_(false);
@@ -142,9 +142,9 @@ impl GptJAttention {
         if rotary {
             tensor
         } else if tensor.size().len() == 5 {
-            tensor.permute(&[0, 1, 3, 2, 4]) // (batch, blocks, head, block_length, head_features)
+            tensor.permute([0, 1, 3, 2, 4]) // (batch, blocks, head, block_length, head_features)
         } else if tensor.size().len() == 4 {
-            tensor.permute(&[0, 2, 1, 3]) // (batch, head, seq_length, head_features)
+            tensor.permute([0, 2, 1, 3]) // (batch, head, seq_length, head_features)
         } else {
             panic!(
                 "Input tensor should either be a rotary head, or its rank be one of [4, 5] but is: {}",
@@ -155,9 +155,9 @@ impl GptJAttention {
 
     fn merge_heads(tensor: &Tensor, num_heads: i64, attention_head_size: i64) -> Tensor {
         let tensor = if tensor.size().len() == 5 {
-            tensor.permute(&[0, 1, 3, 2, 4]).contiguous()
+            tensor.permute([0, 1, 3, 2, 4]).contiguous()
         } else if tensor.size().len() == 4 {
-            tensor.permute(&[0, 2, 1, 3]).contiguous()
+            tensor.permute([0, 2, 1, 3]).contiguous()
         } else {
             panic!(
                 "Input tensor rank should be one of [4, 5], but is: {}",
@@ -197,7 +197,7 @@ impl GptJAttention {
 
         let mask_value = get_min(attention_weights.kind()).unwrap();
         let mask_value = Tensor::full(
-            &attention_weights.size(),
+            attention_weights.size(),
             mask_value,
             (attention_weights.kind(), attention_weights.device()),
         );
@@ -261,8 +261,8 @@ impl GptJAttention {
             query = apply_rotary_pos_emb(&query, &sincos, offset);
         }
 
-        key = key.permute(&[0, 2, 1, 3]);
-        query = query.permute(&[0, 2, 1, 3]);
+        key = key.permute([0, 2, 1, 3]);
+        query = query.permute([0, 2, 1, 3]);
 
         if let Some(layer_past) = layer_past {
             key = Tensor::cat(&[&layer_past.prev_key, &key], -2);
@@ -297,7 +297,7 @@ fn fixed_pos_embedding(x: &Tensor, seq_len: i64) -> (Tensor, Tensor) {
     let sinusoid_inp = Tensor::einsum(
         "i , j -> i j",
         &[Tensor::arange(seq_len, (x.kind(), x.device())), inv_freq],
-        None,
+        None::<i64>,
     );
     (sinusoid_inp.sin(), sinusoid_inp.cos())
 }
@@ -312,7 +312,7 @@ fn apply_rotary_pos_emb(x: &Tensor, (sin, cos): &(Tensor, Tensor), offset: i64) 
 fn duplicate_interleave(m: &Tensor) -> Tensor {
     let dim0 = m.size()[0];
     m.view([-1, 1]) // flatten the matrix
-        .repeat(&[1, 2]) // repeat all elements into the 2nd dimension
+        .repeat([1, 2]) // repeat all elements into the 2nd dimension
         .view([dim0, -1]) // reshape into a matrix, interleaving the copy
 }
 
