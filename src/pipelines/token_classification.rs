@@ -1002,7 +1002,7 @@ impl TokenClassificationModel {
                 attention_mask.resize(max_len, 0);
                 attention_mask
             })
-            .map(|input| Tensor::of_slice(&(input)))
+            .map(|input| Tensor::from_slice(&(input)))
             .collect::<Vec<_>>();
 
         let padding_index = self
@@ -1017,7 +1017,7 @@ impl TokenClassificationModel {
 
         let padded_input_ids = features
             .iter()
-            .map(|input| Tensor::of_slice(input.input_ids.as_slice()))
+            .map(|input| Tensor::from_slice(input.input_ids.as_slice()))
             .collect::<Vec<_>>();
 
         let input_ids = Tensor::stack(&padded_input_ids, 0).to(self.var_store.device());

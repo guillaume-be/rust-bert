@@ -504,7 +504,7 @@ impl MaskedLanguageModel {
                 input.extend(vec![0; max_len - input.len()]);
                 input
             })
-            .map(|input| Tensor::of_slice(&(input)))
+            .map(|input| Tensor::from_slice(&(input)))
             .collect::<Vec<_>>();
         Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())
     }

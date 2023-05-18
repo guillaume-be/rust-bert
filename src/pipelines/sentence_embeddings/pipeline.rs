@@ -318,7 +318,7 @@ impl SentenceEmbeddingsModel {
         let tokens_masks = tokens_ids
             .iter()
             .map(|input| {
-                Tensor::of_slice(
+                Tensor::from_slice(
                     &input
                         .iter()
                         .map(|&e| i64::from(e != pad_token_id))
@@ -329,7 +329,7 @@ impl SentenceEmbeddingsModel {
 
         let tokens_ids = tokens_ids
             .into_iter()
-            .map(|input| Tensor::of_slice(&(input)))
+            .map(|input| Tensor::from_slice(&(input)))
             .collect::<Vec<_>>();
 
         SentenceEmbeddingsTokenizerOutput {
