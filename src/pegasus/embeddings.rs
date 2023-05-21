@@ -66,7 +66,7 @@ impl SinusoidalPositionalEmbedding {
                     temp_vec.push(base_value.cos());
                 }
             }
-            let temp_vec = Tensor::of_slice(&temp_vec);
+            let temp_vec = Tensor::from_slice(&temp_vec);
 
             sinusoidal_embedding.push(temp_vec);
         }

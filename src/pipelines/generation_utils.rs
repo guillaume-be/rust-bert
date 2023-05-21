@@ -404,7 +404,7 @@ pub(crate) mod private_generation_utils {
                     temp.extend(input);
                     temp
                 })
-                .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+                .map(|tokens| Tensor::from_slice(&tokens).to(self.get_var_store().device()))
                 .collect::<Vec<Tensor>>();
             Tensor::stack(&token_ids, 0)
         }
@@ -424,7 +424,7 @@ pub(crate) mod private_generation_utils {
                     if updated_value < &0f64 {
                         let _ = next_token_logits.get(i).index_fill_(
                             0,
-                            &Tensor::of_slice(&[token])
+                            &Tensor::from_slice(&[token])
                                 .to_kind(Kind::Int64)
                                 .to_device(next_token_logits.device()),
                             updated_value * repetition_penalty,
@@ -432,7 +432,7 @@ pub(crate) mod private_generation_utils {
                     } else {
                         let _ = next_token_logits.get(i).index_fill_(
                             0,
-                            &Tensor::of_slice(&[token])
+                            &Tensor::from_slice(&[token])
                                 .to_kind(Kind::Int64)
                                 .to_device(next_token_logits.device()),
                             updated_value / repetition_penalty,
@@ -536,7 +536,7 @@ pub(crate) mod private_generation_utils {
                 );
                 let _ = sorted_indices_to_remove.index_fill_(
                     1,
-                    &Tensor::of_slice(&[0])
+                    &Tensor::from_slice(&[0])
                         .to_kind(Kind::Int64)
                         .to_device(sorted_indices_to_remove.device()),
                     0,
@@ -600,7 +600,7 @@ pub(crate) mod private_generation_utils {
                     prefix_allowed_tokens_fn(batch_id, &input_ids.get(idx));
                 let _ = mask.get(idx).index_fill_(
                     0,
-                    &Tensor::of_slice(allowed_tokens.as_slice()).to(scores.device()),
+                    &Tensor::from_slice(allowed_tokens.as_slice()).to(scores.device()),
                     0,
                 );
             }
@@ -657,7 +657,7 @@ pub(crate) mod private_generation_utils {
                 Tensor::zeros([scores.size()[1]], (Kind::Int8, scores.device()));
             let _ = static_bad_words_mask.index_fill_(
                 0,
-                &Tensor::of_slice(bad_words_id_length_1).to_device(scores.device()),
+                &Tensor::from_slice(bad_words_id_length_1).to_device(scores.device()),
                 1,
             );
             static_bad_words_mask.unsqueeze(0).totype(Kind::Bool)
@@ -720,7 +720,7 @@ pub(crate) mod private_generation_utils {
                     if !sequence_ban_tokens.is_empty() {
                         let _ = dynamic_banned_mask.get(sequence_index as i64).index_fill_(
                             0,
-                            &Tensor::of_slice(sequence_ban_tokens).to_device(scores.device()),
+                            &Tensor::from_slice(sequence_ban_tokens).to_device(scores.device()),
                             1,
                         );
                     }
@@ -847,7 +847,7 @@ pub(crate) mod private_generation_utils {
                     {
                         let _ = next_token_logits.get(batch_index).index_fill_(
                             0,
-                            &Tensor::of_slice(&index_banned_token)
+                            &Tensor::from_slice(&index_banned_token)
                                 .to_device(next_token_logits.device()),
                             f64::NEG_INFINITY,
                         );
@@ -868,7 +868,7 @@ pub(crate) mod private_generation_utils {
                 if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
                     let _ = next_token_logits.index_fill_(
                         1,
-                        &Tensor::of_slice(gen_opt.eos_token_ids.as_ref().unwrap())
+                        &Tensor::from_slice(gen_opt.eos_token_ids.as_ref().unwrap())
                             .to(next_token_logits.device()),
                         f64::NEG_INFINITY,
                     );
@@ -1094,7 +1094,8 @@ pub(crate) mod private_generation_utils {
                             )
                         }
                         let batch_group_indices =
-                            Tensor::of_slice(batch_group_indices.as_slice()).to(input_ids.device());
+                            Tensor::from_slice(batch_group_indices.as_slice())
+                                .to(input_ids.device());
                         (
                             Some(input_ids.index_select(0, &batch_group_indices)),
                             Some(batch_group_indices),
@@ -1137,7 +1138,7 @@ pub(crate) mod private_generation_utils {
                     if (gen_opt.eos_token_ids.is_some()) & (current_length < gen_opt.min_length) {
                         let _ = scores.index_fill_(
                             1,
-                            &Tensor::of_slice(gen_opt.eos_token_ids.as_ref().unwrap())
+                            &Tensor::from_slice(gen_opt.eos_token_ids.as_ref().unwrap())
                                 .to(scores.device()),
                             f64::NEG_INFINITY,
                         );
@@ -1173,7 +1174,7 @@ pub(crate) mod private_generation_utils {
                         {
                             let _ = scores.get(batch_index).index_fill_(
                                 0,
-                                &Tensor::of_slice(&index_banned_token)
+                                &Tensor::from_slice(&index_banned_token)
                                     .to_device(next_token_logits.device()),
                                 f64::NEG_INFINITY,
                             );
@@ -1438,7 +1439,7 @@ pub(crate) mod private_generation_utils {
                         sorted_hypotheses.beams.pop().unwrap();
                     let _ = sentence_lengths.index_fill_(
                         0,
-                        &Tensor::of_slice(&[effective_batch_index]).to(sentence_lengths.device()),
+                        &Tensor::from_slice(&[effective_batch_index]).to(sentence_lengths.device()),
                         *best_hyp.size().first().unwrap(),
                     );
                     best_ids.push(best_hyp);
@@ -1497,7 +1498,7 @@ pub(crate) mod private_generation_utils {
                 if sentence_length < sentence_length_max {
                     let _ = decoded.get(hypothesis_index as i64).index_fill_(
                         0,
-                        &Tensor::of_slice(&[sentence_length]).to_device(input_ids.device()),
+                        &Tensor::from_slice(&[sentence_length]).to_device(input_ids.device()),
                         gen_opt.eos_token_ids.as_ref().unwrap()[0],
                     );
                 }

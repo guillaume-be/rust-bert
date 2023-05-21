@@ -1032,7 +1032,7 @@ impl BartGenerator {
         let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
             .filter(|pos| !token_ids.contains(pos))
             .collect();
-        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
+        let impossible_tokens = Tensor::from_slice(&impossible_tokens).to_device(scores.device());
         let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
     }
 }
@@ -1207,7 +1207,7 @@ impl PrivateLanguageGenerator for BartGenerator {
                 input.extend(temp);
                 input
             })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .map(|tokens| Tensor::from_slice(&tokens).to(self.get_var_store().device()))
             .collect::<Vec<Tensor>>();
 
         Tensor::stack(&token_ids, 0)

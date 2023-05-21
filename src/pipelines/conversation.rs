@@ -1027,7 +1027,7 @@ impl ConversationModel {
                 padded_input.extend(input);
                 padded_input
             })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.device))
+            .map(|tokens| Tensor::from_slice(&tokens).to(self.device))
             .collect::<Vec<Tensor>>();
 
         (Tensor::stack(&concatenated_inputs, 0), attention_mask)

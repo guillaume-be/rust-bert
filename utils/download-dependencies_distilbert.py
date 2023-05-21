@@ -27,7 +27,7 @@ if __name__ == "__main__":
     toml_location = (Path(__file__).resolve() / '..' / '..' / 'Cargo.toml').resolve()
 
     subprocess.call(
-        ['cargo', 'run', '--bin=convert-tensor', '--manifest-path=%s' % toml_location, '--', source, target])
+        ['cargo', 'run', '--bin=convert-tensor', '--features', 'download-libtorch', '--manifest-path=%s' % toml_location, '--', source, target])
 
     os.remove(str(target_path / 'pytorch_model.bin'))
     os.remove(str(target_path / 'model.npz'))
