@@ -20,7 +20,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --features --download-libtorch
+          args: --features download-libtorch
 
   build-no-defaults:
     name: Build no defaults
@@ -35,7 +35,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --no-default-features --features --download-libtorch
+          args: --no-default-features --features download-libtorch
 
   build-windows:
     name: Build Windows
@@ -50,7 +50,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --features --download-libtorch
+          args: --features download-libtorch
 
   build-mac-os:
     name: Build macOS
@@ -65,7 +65,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --features --download-libtorch
+          args: --features download-libtorch
 
   test-batch-0:
     name: Integration tests (batch 0)
@@ -92,7 +92,7 @@ jobs:
             --test fnet
             --test deberta
             --test deberta_v2
-            --features --download-libtorch
+            --features download-libtorch
 
   test-batch-1:
     name: Integration tests (batch 1)
@@ -118,7 +118,7 @@ jobs:
             --test longformer
             --test pegasus
             --test gpt_neo
-            --features --download-libtorch
+            --features download-libtorch
 
   test-batch-2:
     name: Integration tests (batch 2)
@@ -138,7 +138,7 @@ jobs:
             --test longt5
             --test gpt_j
             --test nllb
-            --features --download-libtorch
+            --features download-libtorch
 
   convert-model:
     name: Model conversion test
@@ -154,7 +154,7 @@ jobs:
         with:
           python-version: '3.10'
       - run: |
-          cargo build --package rust-bert --features --download-libtorch
+          cargo build --package rust-bert --features download-libtorch
           pip install -r requirements.txt --progress-bar off
           python ./utils/download-dependencies_distilbert.py
 
