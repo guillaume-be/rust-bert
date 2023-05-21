@@ -102,7 +102,7 @@ fn gpt_j_correctness() -> anyhow::Result<()> {
     let token_masks = token_ids
         .iter()
         .map(|input| {
-            Tensor::of_slice(
+            Tensor::from_slice(
                 &input
                     .iter()
                     .map(|&e| i64::from(e != pad_token))
@@ -114,7 +114,7 @@ fn gpt_j_correctness() -> anyhow::Result<()> {
 
     let token_ids = token_ids
         .into_iter()
-        .map(|tokens| Tensor::of_slice(&tokens).to(device))
+        .map(|tokens| Tensor::from_slice(&tokens).to(device))
         .collect::<Vec<Tensor>>();
 
     let input_tensor = Tensor::stack(&token_ids, 0);

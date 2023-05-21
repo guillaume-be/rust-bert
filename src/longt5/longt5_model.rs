@@ -775,7 +775,7 @@ impl PrivateLanguageGenerator for LongT5Generator {
                 input.extend(temp);
                 input
             })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.get_var_store().device()))
+            .map(|tokens| Tensor::from_slice(&tokens).to(self.get_var_store().device()))
             .collect::<Vec<Tensor>>();
 
         Tensor::stack(&token_ids, 0)

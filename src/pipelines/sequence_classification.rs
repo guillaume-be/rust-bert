@@ -670,7 +670,7 @@ impl SequenceClassificationModel {
             .into_iter()
             .map(|mut input| {
                 input.token_ids.resize(max_len, pad_id);
-                Tensor::of_slice(&(input.token_ids))
+                Tensor::from_slice(&(input.token_ids))
             })
             .collect::<Vec<_>>();
         Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())

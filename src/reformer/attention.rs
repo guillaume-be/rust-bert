@@ -210,15 +210,19 @@ impl LSHSelfAttention {
         let query_key = nn::linear(p / "query_key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
-        let self_mask_value_fp32 = Tensor::of_slice(&[-1e5])
+        let self_mask_value_fp32 = Tensor::from_slice(&[-1e5])
             .to_kind(Kind::Float)
             .to(p.device());
-        let mask_value_fp32 = Tensor::of_slice(&[-1e9])
+        let mask_value_fp32 = Tensor::from_slice(&[-1e9])
             .to_kind(Kind::Float)
             .to(p.device());
 
-        let self_mask_value_fp16 = Tensor::of_slice(&[-1e3]).to_kind(Kind::Half).to(p.device());
-        let mask_value_fp16 = Tensor::of_slice(&[-1e4]).to_kind(Kind::Half).to(p.device());
+        let self_mask_value_fp16 = Tensor::from_slice(&[-1e3])
+            .to_kind(Kind::Half)
+            .to(p.device());
+        let mask_value_fp16 = Tensor::from_slice(&[-1e4])
+            .to_kind(Kind::Half)
+            .to(p.device());
 
         Ok(LSHSelfAttention {
             chunk_length,
@@ -359,7 +363,7 @@ impl LSHSelfAttention {
                     .to_kind(Kind::Bool);
                 buckets = buckets.where_self(
                     &buckets_mask,
-                    &Tensor::of_slice(&[num_buckets - 1])
+                    &Tensor::from_slice(&[num_buckets - 1])
                         .to_kind(buckets.kind())
                         .to(buckets_mask.device()),
                 )
@@ -667,7 +671,7 @@ impl LSHSelfAttention {
 
     fn len_and_dim_norm(&self, input_tensor: &Tensor) -> Tensor {
         self.len_norm(input_tensor, 1e-6)
-            * Tensor::of_slice(&[self.attention_head_size])
+            * Tensor::from_slice(&[self.attention_head_size])
                 .to_kind(input_tensor.kind())
                 .to_device(input_tensor.device())
                 .rsqrt()
@@ -994,11 +998,13 @@ impl LocalSelfAttention {
         let key = nn::linear(p / "key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
-        let mask_value_fp32 = Tensor::of_slice(&[-1e9])
+        let mask_value_fp32 = Tensor::from_slice(&[-1e9])
             .to_kind(Kind::Float)
             .to(p.device());
 
-        let mask_value_fp16 = Tensor::of_slice(&[-1e4]).to_kind(Kind::Half).to(p.device());
+        let mask_value_fp16 = Tensor::from_slice(&[-1e4])
+            .to_kind(Kind::Half)
+            .to(p.device());
 
         LocalSelfAttention {
             chunk_length,
@@ -1096,7 +1102,7 @@ impl LocalSelfAttention {
 
         let key_kind_device = (key_vectors.kind(), key_vectors.device());
         let mut key_vectors = key_vectors
-            / Tensor::of_slice(&[self.attention_head_size])
+            / Tensor::from_slice(&[self.attention_head_size])
                 .to_kind(key_kind_device.0)
                 .to(key_kind_device.1)
                 .sqrt();

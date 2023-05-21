@@ -30,6 +30,11 @@ if __name__ == "__main__":
         "--dtype",
         help="Convert weights to a specific numpy DataType (float32, float16, ...)",
     )
+    parser.add_argument(
+        "--download_libtorch",
+        action="store_true",
+        help="Use this flag to enable automatic download of the libtorch library.",
+    )
     args = parser.parse_args()
 
     nps = {}
@@ -73,14 +78,15 @@ if __name__ == "__main__":
     target = str(target_folder / "rust_model.ot")
 
     toml_location = (Path(__file__).resolve() / ".." / ".." / "Cargo.toml").resolve()
-    subprocess.run(
-        [
-            "cargo",
-            "run",
-            "--bin=convert-tensor",
-            "--manifest-path=%s" % toml_location,
-            "--",
-            source,
-            target,
-        ],
-    )
+    cargo_args = [
+        "cargo",
+        "run",
+        "--bin=convert-tensor",
+        "--manifest-path=%s" % toml_location,
+        "--",
+        source,
+        target,
+        ]
+    if args.download_libtorch:
+        cargo_args += ["--features", "download-libtorch"]
+    subprocess.run(cargo_args)
