@@ -217,8 +217,12 @@ impl LSHSelfAttention {
             .to_kind(Kind::Float)
             .to(p.device());
 
-        let self_mask_value_fp16 = Tensor::from_slice(&[-1e3]).to_kind(Kind::Half).to(p.device());
-        let mask_value_fp16 = Tensor::from_slice(&[-1e4]).to_kind(Kind::Half).to(p.device());
+        let self_mask_value_fp16 = Tensor::from_slice(&[-1e3])
+            .to_kind(Kind::Half)
+            .to(p.device());
+        let mask_value_fp16 = Tensor::from_slice(&[-1e4])
+            .to_kind(Kind::Half)
+            .to(p.device());
 
         Ok(LSHSelfAttention {
             chunk_length,
@@ -998,7 +1002,9 @@ impl LocalSelfAttention {
             .to_kind(Kind::Float)
             .to(p.device());
 
-        let mask_value_fp16 = Tensor::from_slice(&[-1e4]).to_kind(Kind::Half).to(p.device());
+        let mask_value_fp16 = Tensor::from_slice(&[-1e4])
+            .to_kind(Kind::Half)
+            .to(p.device());
 
         LocalSelfAttention {
             chunk_length,

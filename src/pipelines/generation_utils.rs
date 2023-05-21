@@ -1094,7 +1094,8 @@ pub(crate) mod private_generation_utils {
                             )
                         }
                         let batch_group_indices =
-                            Tensor::from_slice(batch_group_indices.as_slice()).to(input_ids.device());
+                            Tensor::from_slice(batch_group_indices.as_slice())
+                                .to(input_ids.device());
                         (
                             Some(input_ids.index_select(0, &batch_group_indices)),
                             Some(batch_group_indices),
