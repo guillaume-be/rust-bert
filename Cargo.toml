@@ -8,6 +8,7 @@ repository = "https://github.com/guillaume-be/rust-bert"
 documentation = "https://docs.rs/rust-bert"
 license = "Apache-2.0"
 readme = "README.md"
+build = "build.rs"
 keywords = [
     "nlp",
     "deep-learning",
