@@ -65,7 +65,7 @@ default = ["remote"]
 doc-only = ["tch/doc-only"]
 all-tests = []
 remote = ["cached-path", "dirs", "lazy_static"]
-download-libtorch = ["torch-sys/download-libtorch"]
+download-libtorch = ["tch/download-libtorch"]
 
 [package.metadata.docs.rs]
 features = ["doc-only"]
