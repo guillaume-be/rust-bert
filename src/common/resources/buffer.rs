@@ -4,12 +4,13 @@ use std::path::PathBuf;
 
 /// # In-memory raw buffer resource
 #[derive(PartialEq, Eq, Clone)]
-pub struct BufferResource<'a> {
+pub struct BufferResource {
     /// The data representing the underlying resource
-    pub data: &'a [u8],
+    data: Vec<u8>,
+    is_valid: bool,
 }
 
-impl ResourceProvider for BufferResource<'_> {
+impl ResourceProvider for BufferResource {
     /// Not implemented for this resource type
     ///
     /// # Returns
@@ -30,26 +31,50 @@ impl ResourceProvider for BufferResource<'_> {
     /// ```no_run
     /// use rust_bert::resources::{BufferResource, ResourceProvider};
     /// let data = std::fs::read("path/to/rust_model.ot").unwrap();
-    /// let weights_resource = BufferResource { data: &data };
+    /// let weights_resource = BufferResource::from(data);
     /// let weights = weights_resource.get_resource();
     /// ```
     fn get_resource(&self) -> Result<Resource, RustBertError> {
-        Ok(Resource::Buffer(self.data))
+        if !self.is_valid {
+            Ok(Resource::Buffer(&self.data))
+        } else {
+            Err(RustBertError::ValueError(
+                "Resource has been consumed and its internal buffer is invalid".to_string(),
+            ))
+        }
+    }
+
+    /// Mark if a resource has been consumed.
+    ///
+    /// For some `ResourceProvider`, the buffer is consumed when loading the weights,
+    /// meaning they cannot be loaded twice (a new resource needs to be created)
+    fn mark_consumed(&mut self) {
+        self.is_valid = false;
+    }
+
+    /// Check if a resource is still valid for loading.
+    ///
+    /// For some `ResourceProvider`, the buffer is consumed when loading the weights,
+    /// meaning they cannot be loaded twice (a new resource needs to be created)
+    fn is_valid(&self) -> bool {
+        self.is_valid
     }
 }
 
-impl<'a> From<&'a Vec<u8>> for BufferResource<'a> {
-    fn from(data: &'a Vec<u8>) -> Self {
+impl From<Vec<u8>> for BufferResource {
+    fn from(data: Vec<u8>) -> Self {
         Self {
-            data: data.as_slice(),
+            data,
+            is_valid: false,
         }
     }
 }
 
-impl<'a> From<&'a Vec<u8>> for Box<dyn ResourceProvider + 'a> {
-    fn from(data: &'a Vec<u8>) -> Self {
+impl From<Vec<u8>> for Box<dyn ResourceProvider> {
+    fn from(data: Vec<u8>) -> Self {
         Box::new(BufferResource {
-            data: data.as_slice(),
+            data,
+            is_valid: false,
         })
     }
 }

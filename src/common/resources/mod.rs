@@ -31,12 +31,12 @@ use tch::nn::VarStore;
 
 pub enum Resource<'a> {
     PathBuf(PathBuf),
-    Buffer(&'a [u8]),
+    Buffer(&'a Vec<u8>),
 }
 
 /// # Resource Trait that can provide the location or data for the model, and location of
 /// configuration or vocabulary resources
-pub trait ResourceProvider {
+pub trait ResourceProvider: Send + Sync {
     /// Provides the local path for a resource.
     ///
     /// # Returns
@@ -67,6 +67,20 @@ pub trait ResourceProvider {
     /// use rust_bert::resources::{LocalResource, ResourceProvider, TensorResource};
     /// ```
     fn get_resource(&self) -> Result<Resource, RustBertError>;
+
+    /// Mark if a resource has been consumed.
+    ///
+    /// For some `ResourceProvider`, the buffer is consumed when loading the weights,
+    /// meaning they cannot be loaded twice (a new resource needs to be created)
+    fn mark_consumed(&mut self) {}
+
+    /// Check if a resource is still valid for loading.
+    ///
+    /// For some `ResourceProvider`, the buffer is consumed when loading the weights,
+    /// meaning they cannot be loaded twice (a new resource needs to be created)
+    fn is_valid(&self) -> bool {
+        true
+    }
 }
 
 impl<T: ResourceProvider + ?Sized> ResourceProvider for Box<T> {
@@ -76,15 +90,23 @@ impl<T: ResourceProvider + ?Sized> ResourceProvider for Box<T> {
     fn get_resource(&self) -> Result<Resource, RustBertError> {
         T::get_resource(self)
     }
+    fn mark_consumed(&mut self) {
+        T::mark_consumed(self)
+    }
 }
 
 /// Load the provided `VarStore` with named tensor values from the provided `ResourceProvider`
 pub fn load_weights(
-    rp: &(impl ResourceProvider + ?Sized),
+    rp: &mut (impl ResourceProvider + ?Sized),
     vs: &mut VarStore,
 ) -> Result<(), RustBertError> {
     match rp.get_resource()? {
-        Resource::Buffer(data) => Ok(vs.load_from_stream(std::io::Cursor::new(&data))?),
+        Resource::Buffer(mut data) => {
+            let src: Vec<u8> = Vec::new();
+            vs.load_from_stream(std::io::Cursor::new(std::mem::replace(&mut data, &src)))?;
+            rp.mark_consumed();
+            Ok(())
+        }
         Resource::PathBuf(path) => Ok(vs.load(path)?),
     }
 }

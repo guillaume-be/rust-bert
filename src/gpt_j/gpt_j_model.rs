@@ -605,7 +605,7 @@ impl GptJGenerator {
     }
 
     pub fn new_with_tokenizer(
-        generate_config: GenerateConfig,
+        mut generate_config: GenerateConfig,
         tokenizer: TokenizerOption,
     ) -> Result<GptJGenerator, RustBertError> {
         let config_path = generate_config.config_resource.get_local_path()?;
@@ -619,7 +619,7 @@ impl GptJGenerator {
         if config.preload_on_cpu && device != Device::Cpu {
             var_store.set_device(Device::Cpu);
         }
-        crate::resources::load_weights(&*generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(&mut generate_config.model_resource, &mut var_store)?;
         if device != Device::Cpu {
             var_store.set_device(device);
         }

@@ -628,7 +628,7 @@ impl QuestionAnsweringModel {
     /// # }
     /// ```
     pub fn new_with_tokenizer(
-        question_answering_config: QuestionAnsweringConfig,
+        mut question_answering_config: QuestionAnsweringConfig,
         tokenizer: TokenizerOption,
     ) -> Result<QuestionAnsweringModel, RustBertError> {
         let config_path = question_answering_config.config_resource.get_local_path()?;
@@ -669,7 +669,10 @@ impl QuestionAnsweringModel {
             )));
         }
 
-        crate::resources::load_weights(&*question_answering_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(
+            &mut question_answering_config.model_resource,
+            &mut var_store,
+        )?;
         Ok(QuestionAnsweringModel {
             tokenizer,
             pad_idx,
