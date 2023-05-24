@@ -1,13 +1,12 @@
 use crate::common::error::RustBertError;
 use crate::resources::{Resource, ResourceProvider};
 use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
 /// # In-memory raw buffer resource
-#[derive(PartialEq, Eq, Clone)]
 pub struct BufferResource {
     /// The data representing the underlying resource
-    data: Vec<u8>,
-    is_valid: bool,
+    pub data: Arc<RwLock<Vec<u8>>>,
 }
 
 impl ResourceProvider for BufferResource {
@@ -35,37 +34,14 @@ impl ResourceProvider for BufferResource {
     /// let weights = weights_resource.get_resource();
     /// ```
     fn get_resource(&self) -> Result<Resource, RustBertError> {
-        if !self.is_valid {
-            Ok(Resource::Buffer(&self.data))
-        } else {
-            Err(RustBertError::ValueError(
-                "Resource has been consumed and its internal buffer is invalid".to_string(),
-            ))
-        }
-    }
-
-    /// Mark if a resource has been consumed.
-    ///
-    /// For some `ResourceProvider`, the buffer is consumed when loading the weights,
-    /// meaning they cannot be loaded twice (a new resource needs to be created)
-    fn mark_consumed(&mut self) {
-        self.is_valid = false;
-    }
-
-    /// Check if a resource is still valid for loading.
-    ///
-    /// For some `ResourceProvider`, the buffer is consumed when loading the weights,
-    /// meaning they cannot be loaded twice (a new resource needs to be created)
-    fn is_valid(&self) -> bool {
-        self.is_valid
+        Ok(Resource::Buffer(self.data.write().unwrap()))
     }
 }
 
 impl From<Vec<u8>> for BufferResource {
     fn from(data: Vec<u8>) -> Self {
         Self {
-            data,
-            is_valid: false,
+            data: Arc::new(RwLock::new(data)),
         }
     }
 }
@@ -73,8 +49,23 @@ impl From<Vec<u8>> for BufferResource {
 impl From<Vec<u8>> for Box<dyn ResourceProvider> {
     fn from(data: Vec<u8>) -> Self {
         Box::new(BufferResource {
-            data,
-            is_valid: false,
+            data: Arc::new(RwLock::new(data)),
+        })
+    }
+}
+
+impl From<RwLock<Vec<u8>>> for BufferResource {
+    fn from(lock: RwLock<Vec<u8>>) -> Self {
+        Self {
+            data: Arc::new(lock),
+        }
+    }
+}
+
+impl From<RwLock<Vec<u8>>> for Box<dyn ResourceProvider> {
+    fn from(lock: RwLock<Vec<u8>>) -> Self {
+        Box::new(BufferResource {
+            data: Arc::new(lock),
         })
     }
 }
