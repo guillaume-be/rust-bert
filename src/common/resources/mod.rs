@@ -22,19 +22,18 @@
 
 mod buffer;
 mod local;
-mod named_tensors;
 
 use crate::common::error::RustBertError;
 pub use buffer::BufferResource;
 pub use local::LocalResource;
-pub use named_tensors::TensorResource;
-use std::{collections::HashMap, path::PathBuf, sync::RwLockReadGuard};
-use tch::{nn::VarStore, Tensor};
+use std::ops::DerefMut;
+use std::path::PathBuf;
+use std::sync::RwLockWriteGuard;
+use tch::nn::VarStore;
 
 pub enum Resource<'a> {
     PathBuf(PathBuf),
-    Buffer(&'a Vec<u8>),
-    NamedTensors(RwLockReadGuard<'a, HashMap<String, Tensor>>),
+    Buffer(RwLockWriteGuard<'a, Vec<u8>>),
 }
 
 /// # Resource Trait that can provide the location or data for the model, and location of
@@ -68,21 +67,30 @@ pub trait ResourceProvider: Send + Sync {
     ///
     /// ```no_run
     /// use rust_bert::resources::{LocalResource, ResourceProvider, TensorResource};
-    ///
-    ///
     /// ```
     fn get_resource(&self) -> Result<Resource, RustBertError>;
 }
 
+impl<T: ResourceProvider + ?Sized> ResourceProvider for Box<T> {
+    fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
+        T::get_local_path(self)
+    }
+    fn get_resource(&self) -> Result<Resource, RustBertError> {
+        T::get_resource(self)
+    }
+}
+
 /// Load the provided `VarStore` with named tensor values from the provided `ResourceProvider`
 pub fn load_weights(
-    rp: &(impl ResourceProvider + ?Sized),
+    rp: &mut (impl ResourceProvider + ?Sized),
     vs: &mut VarStore,
 ) -> Result<(), RustBertError> {
     match rp.get_resource()? {
-        Resource::Buffer(data) => Ok(vs.load_from_stream(std::io::Cursor::new(&data))?),
+        Resource::Buffer(mut data) => {
+            vs.load_from_stream(std::io::Cursor::new(data.deref_mut()))?;
+            Ok(())
+        }
         Resource::PathBuf(path) => Ok(vs.load(path)?),
-        Resource::NamedTensors(named_tensors) => named_tensors::load_weights(named_tensors, vs),
     }
 }
 

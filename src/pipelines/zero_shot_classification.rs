@@ -597,7 +597,7 @@ impl ZeroShotClassificationModel {
     /// # }
     /// ```
     fn new_with_tokenizer(
-        config: ZeroShotClassificationConfig,
+        mut config: ZeroShotClassificationConfig,
         tokenizer: TokenizerOption,
     ) -> Result<ZeroShotClassificationModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
@@ -607,7 +607,7 @@ impl ZeroShotClassificationModel {
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let zero_shot_classifier =
             ZeroShotClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
-        crate::resources::load_weights(&*config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(&mut config.model_resource, &mut var_store)?;
         Ok(ZeroShotClassificationModel {
             tokenizer,
             zero_shot_classifier,
