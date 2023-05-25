@@ -11,7 +11,6 @@
 //! resource location. Two types of resources are pre-defined:
 //! - LocalResource: points to a local file
 //! - RemoteResource: points to a remote file via a URL
-//! - TensorResource: refers to name/tensor mappings expected by tch
 //! - BufferResource: refers to a buffer that contains file contents for a resource (currently only
 //!                   usable for weights)
 //!
@@ -66,7 +65,7 @@ pub trait ResourceProvider: Send + Sync {
     /// # Example
     ///
     /// ```no_run
-    /// use rust_bert::resources::{LocalResource, ResourceProvider, TensorResource};
+    /// use rust_bert::resources::{BufferResource, LocalResource, ResourceProvider};
     /// ```
     fn get_resource(&self) -> Result<Resource, RustBertError>;
 }
@@ -80,9 +79,9 @@ impl<T: ResourceProvider + ?Sized> ResourceProvider for Box<T> {
     }
 }
 
-/// Load the provided `VarStore` with named tensor values from the provided `ResourceProvider`
+/// Load the provided `VarStore` with model weights from the provided `ResourceProvider`
 pub fn load_weights(
-    rp: &mut (impl ResourceProvider + ?Sized),
+    rp: &(impl ResourceProvider + ?Sized),
     vs: &mut VarStore,
 ) -> Result<(), RustBertError> {
     match rp.get_resource()? {

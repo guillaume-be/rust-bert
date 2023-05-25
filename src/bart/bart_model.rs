@@ -989,7 +989,7 @@ impl BartGenerator {
     }
 
     pub fn new_with_tokenizer(
-        mut generate_config: GenerateConfig,
+        generate_config: GenerateConfig,
         tokenizer: TokenizerOption,
     ) -> Result<BartGenerator, RustBertError> {
         let config_path = generate_config.config_resource.get_local_path()?;
@@ -999,7 +999,7 @@ impl BartGenerator {
         let mut var_store = nn::VarStore::new(device);
         let config = BartConfig::from_file(config_path);
         let model = BartForConditionalGeneration::new(var_store.root(), &config);
-        crate::resources::load_weights(&mut generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
         let eos_token_ids = Some(match config.eos_token_id {

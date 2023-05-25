@@ -185,7 +185,7 @@ impl SentenceEmbeddingsModel {
             tokenizer_merges_resource,
             transformer_type,
             transformer_config_resource,
-            mut transformer_weights_resource,
+            transformer_weights_resource,
             pooling_config_resource,
             dense_config_resource,
             dense_weights_resource,
@@ -230,7 +230,7 @@ impl SentenceEmbeddingsModel {
         );
         let transformer =
             SentenceEmbeddingsOption::new(transformer_type, var_store.root(), &transformer_config)?;
-        crate::resources::load_weights(&mut transformer_weights_resource, &mut var_store)?;
+        crate::resources::load_weights(&transformer_weights_resource, &mut var_store)?;
 
         // Setup pooling layer
         let pooling_config = PoolingConfig::from_file(pooling_config_resource.get_local_path()?);

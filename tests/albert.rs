@@ -22,7 +22,7 @@ fn albert_masked_lm() -> anyhow::Result<()> {
     let vocab_resource = Box::new(RemoteResource::from_pretrained(
         AlbertVocabResources::ALBERT_BASE_V2,
     ));
-    let mut weights_resource = Box::new(RemoteResource::from_pretrained(
+    let weights_resource = Box::new(RemoteResource::from_pretrained(
         AlbertModelResources::ALBERT_BASE_V2,
     ));
     let config_path = config_resource.get_local_path()?;
@@ -35,7 +35,7 @@ fn albert_masked_lm() -> anyhow::Result<()> {
         AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let config = AlbertConfig::from_file(config_path);
     let albert_model = AlbertForMaskedLM::new(vs.root(), &config);
-    load_weights(&mut weights_resource, &mut vs)?;
+    load_weights(&weights_resource, &mut vs)?;
 
     //    Define input
     let input = [

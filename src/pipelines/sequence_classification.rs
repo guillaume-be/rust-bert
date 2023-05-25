@@ -611,7 +611,7 @@ impl SequenceClassificationModel {
     /// # }
     /// ```
     pub fn new_with_tokenizer(
-        mut config: SequenceClassificationConfig,
+        config: SequenceClassificationConfig,
         tokenizer: TokenizerOption,
     ) -> Result<SequenceClassificationModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
@@ -626,7 +626,7 @@ impl SequenceClassificationModel {
         let sequence_classifier =
             SequenceClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping().clone();
-        crate::resources::load_weights(&mut config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(&config.model_resource, &mut var_store)?;
         Ok(SequenceClassificationModel {
             tokenizer,
             sequence_classifier,
