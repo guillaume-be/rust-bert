@@ -43,7 +43,7 @@ impl XDropout {
 impl ModuleT for XDropout {
     fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
         if train {
-            let mask = (Tensor::ones(&[1], (input.kind(), input.device()))
+            let mask = (Tensor::ones([1], (input.kind(), input.device()))
                 - input
                     .empty_like()
                     .bernoulli_float_(1_f64 - self.dropout_prob))

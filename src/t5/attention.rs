@@ -223,14 +223,14 @@ impl T5Attention {
             None
         };
 
-        let mut scores = Tensor::einsum("bnqd,bnkd->bnqk", &[q, k], None);
+        let mut scores = Tensor::einsum("bnqd,bnkd->bnqk", &[q, k], None::<i64>);
 
         let calculated_position_bias = if position_bias.is_none() {
             let mut temp_value = if self.has_relative_attention_bias {
                 self.compute_bias(real_seq_length, key_length, hidden_states.device())
             } else {
                 Tensor::zeros(
-                    &[1, self.n_heads, real_seq_length, key_length],
+                    [1, self.n_heads, real_seq_length, key_length],
                     (scores.kind(), scores.device()),
                 )
             };
@@ -289,7 +289,7 @@ impl T5Attention {
         );
         rp_bucket
             .apply(self.relative_attention_bias.as_ref().unwrap())
-            .permute(&[2, 0, 1])
+            .permute([2, 0, 1])
             .unsqueeze(0)
     }
 }

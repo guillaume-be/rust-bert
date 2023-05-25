@@ -66,14 +66,14 @@ impl SinusoidalPositionalEmbedding {
                     temp_vec.push(base_value.cos());
                 }
             }
-            let temp_vec = Tensor::of_slice(&temp_vec);
+            let temp_vec = Tensor::from_slice(&temp_vec);
 
             sinusoidal_embedding.push(temp_vec);
         }
         let sinusoidal_embeddings = Tensor::stack(&sinusoidal_embedding, 0).to_kind(Kind::Float);
 
         let reordered_sinusoidal_embeddings =
-            Tensor::empty(&[num_embeddings, embedding_dim], (Kind::Float, device));
+            Tensor::empty([num_embeddings, embedding_dim], (Kind::Float, device));
 
         reordered_sinusoidal_embeddings
             .slice(1, 0, sentinel, 1)

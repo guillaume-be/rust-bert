@@ -387,7 +387,7 @@ impl MobileBertModel {
         };
         let position_ids =
             Tensor::arange(config.max_position_embeddings, (Kind::Int64, p.device()))
-                .expand(&[1, -1], true);
+                .expand([1, -1], true);
         MobileBertModel {
             embeddings,
             encoder,

@@ -679,7 +679,7 @@ impl ZeroShotClassificationModel {
             .into_iter()
             .map(|mut input| {
                 input.token_ids.resize(max_len, pad_id);
-                Tensor::of_slice(&(input.token_ids))
+                Tensor::from_slice(&(input.token_ids))
             })
             .collect::<Vec<_>>();
 

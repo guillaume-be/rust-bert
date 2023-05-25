@@ -143,16 +143,16 @@ fn make_global_fixed_block_ids(
         global_block_ids
             .max_dim(-1, false)
             .0
-            .repeat(&[num_globals, 1])
+            .repeat([num_globals, 1])
             .transpose(0, 1)
     } else {
         Tensor::zeros(
-            &[batch_size, 0],
+            [batch_size, 0],
             (global_block_ids.kind(), global_block_ids.device()),
         )
     };
     let global_segment_ids = Tensor::ones(
-        &[batch_size, num_globals],
+        [batch_size, num_globals],
         (attention_mask.kind(), attention_mask.device()),
     )
     .cumsum(-1, attention_mask.kind())
@@ -190,7 +190,7 @@ fn create_global_aggregates(
             hidden_states,
             &one_hot_block_ids.to_kind(hidden_states.kind()),
         ],
-        None,
+        None::<i64>,
     )
 }
 
@@ -214,7 +214,7 @@ fn compute_bias(
     );
     rp_bucket
         .apply(relative_attention_bias)
-        .permute(&[2, 0, 1])
+        .permute([2, 0, 1])
         .unsqueeze(0)
         .unsqueeze(0)
 }
@@ -322,11 +322,15 @@ impl LongT5LocalAttention {
         let key_states = concatenate_3_blocks(&key_states, 1, 2, None);
         let value_states = concatenate_3_blocks(&value_states, 1, 2, None);
 
-        let mut scores = Tensor::einsum("...qhd,...khd->...hqk", &[query_states, key_states], None);
+        let mut scores = Tensor::einsum(
+            "...qhd,...khd->...hqk",
+            &[query_states, key_states],
+            None::<i64>,
+        );
         let calc_position_bias = if position_bias.is_none() {
             let mut position_bias = if !self.has_relative_attention_bias {
                 Tensor::zeros(
-                    &[1, 1, self.n_heads, self.block_length, 3 * self.block_length],
+                    [1, 1, self.n_heads, self.block_length, 3 * self.block_length],
                     (scores.kind(), scores.device()),
                 )
             } else {
@@ -356,7 +360,7 @@ impl LongT5LocalAttention {
         let attention_output = unshape(&Tensor::einsum(
             "...hqk,...khd->...qhd",
             &[&attention_weights, &value_states],
-            None,
+            None::<i64>,
         ))
         .narrow(1, 0, seq_length)
         .apply(&self.output);
@@ -492,7 +496,7 @@ impl LongT5TransientGlobalAttention {
         );
         let side_bias = side_relative_position_bucket
             .apply(self.global_relative_attention_bias.as_ref().unwrap())
-            .permute(&[0, 3, 1, 2]);
+            .permute([0, 3, 1, 2]);
         attention_side_bias + side_bias
     }
 
@@ -551,7 +555,11 @@ impl LongT5TransientGlobalAttention {
         let key_states = Tensor::cat(&[key_states, side_key_states], 2);
         let value_states = Tensor::cat(&[value_states, side_value_states], 2);
 
-        let mut scores = Tensor::einsum("...qhd,...khd->...hqk", &[query_states, key_states], None);
+        let mut scores = Tensor::einsum(
+            "...qhd,...khd->...hqk",
+            &[query_states, key_states],
+            None::<i64>,
+        );
         let local_attention_mask = mask.map(|mask| {
             let local_attention_mask = get_local_attention_mask(mask, self.block_length);
             local_attention_mask
@@ -562,7 +570,7 @@ impl LongT5TransientGlobalAttention {
         let calc_position_bias = if position_bias.is_none() {
             let mut position_bias = if !self.has_relative_attention_bias {
                 Tensor::zeros(
-                    &[1, 1, self.n_heads, self.block_length, 3 * self.block_length],
+                    [1, 1, self.n_heads, self.block_length, 3 * self.block_length],
                     (scores.kind(), scores.device()),
                 )
             } else {
@@ -579,7 +587,7 @@ impl LongT5TransientGlobalAttention {
             }
             let calc_mask = if mask.is_none() {
                 Some(Tensor::ones(
-                    &[batch_size, seq_length],
+                    [batch_size, seq_length],
                     (global_segment_ids.kind(), global_segment_ids.device()),
                 ))
             } else {
@@ -610,7 +618,7 @@ impl LongT5TransientGlobalAttention {
         let attention_output = unshape(&Tensor::einsum(
             "...hqk,...khd->...qhd",
             &[&attention_weights, &value_states],
-            None,
+            None::<i64>,
         ))
         .narrow(1, 0, seq_length)
         .apply(&self.output);

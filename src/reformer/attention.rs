@@ -210,15 +210,19 @@ impl LSHSelfAttention {
         let query_key = nn::linear(p / "query_key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
-        let self_mask_value_fp32 = Tensor::of_slice(&[-1e5])
+        let self_mask_value_fp32 = Tensor::from_slice(&[-1e5])
             .to_kind(Kind::Float)
             .to(p.device());
-        let mask_value_fp32 = Tensor::of_slice(&[-1e9])
+        let mask_value_fp32 = Tensor::from_slice(&[-1e9])
             .to_kind(Kind::Float)
             .to(p.device());
 
-        let self_mask_value_fp16 = Tensor::of_slice(&[-1e3]).to_kind(Kind::Half).to(p.device());
-        let mask_value_fp16 = Tensor::of_slice(&[-1e4]).to_kind(Kind::Half).to(p.device());
+        let self_mask_value_fp16 = Tensor::from_slice(&[-1e3])
+            .to_kind(Kind::Half)
+            .to(p.device());
+        let mask_value_fp16 = Tensor::from_slice(&[-1e4])
+            .to_kind(Kind::Half)
+            .to(p.device());
 
         Ok(LSHSelfAttention {
             chunk_length,
@@ -247,7 +251,7 @@ impl LSHSelfAttention {
         let per_head_query_key = self
             .query_key
             .ws
-            .reshape(&[
+            .reshape([
                 self.num_attention_heads,
                 self.attention_head_size,
                 self.hidden_size,
@@ -256,7 +260,7 @@ impl LSHSelfAttention {
         Tensor::einsum(
             "balh,ahr->balr",
             &[hidden_states, &per_head_query_key],
-            None,
+            None::<i64>,
         )
     }
 
@@ -264,13 +268,17 @@ impl LSHSelfAttention {
         let per_head_value = self
             .value
             .ws
-            .reshape(&[
+            .reshape([
                 self.num_attention_heads,
                 self.attention_head_size,
                 self.hidden_size,
             ])
             .transpose(-2, -1);
-        Tensor::einsum("balh,ahr->balr", &[hidden_states, &per_head_value], None)
+        Tensor::einsum(
+            "balh,ahr->balr",
+            &[hidden_states, &per_head_value],
+            None::<i64>,
+        )
     }
 
     fn hash_vectors(
@@ -307,9 +315,12 @@ impl LSHSelfAttention {
             num_hashes,
             rotation_size / 2,
         ];
-        let random_rotations = Tensor::randn(&rotations_shape, (vectors.kind(), vectors.device()));
-        let rotated_vectors =
-            Tensor::einsum("bmtd,mdhr->bmhtr", &[vectors, random_rotations], None);
+        let random_rotations = Tensor::randn(rotations_shape, (vectors.kind(), vectors.device()));
+        let rotated_vectors = Tensor::einsum(
+            "bmtd,mdhr->bmhtr",
+            &[vectors, random_rotations],
+            None::<i64>,
+        );
 
         let mut buckets = match &self.num_buckets {
             NumBuckets::Integer(_) => {
@@ -320,7 +331,7 @@ impl LSHSelfAttention {
             }
             NumBuckets::Array(buckets_array) => {
                 let (mut buckets, mut cur_sum, mut cur_product) = (
-                    Tensor::zeros(&[1], (rotated_vectors.kind(), rotated_vectors.device())),
+                    Tensor::zeros([1], (rotated_vectors.kind(), rotated_vectors.device())),
                     0,
                     1,
                 );
@@ -341,18 +352,18 @@ impl LSHSelfAttention {
         };
 
         if let Some(attention_mask_value) = attention_mask {
-            if i64::from(attention_mask_value.sum(Kind::Int))
+            if i64::try_from(attention_mask_value.sum(Kind::Int)).unwrap()
                 < batch_size * *attention_mask_value.size().last().unwrap()
             {
                 num_buckets += 1;
                 let buckets_mask = attention_mask_value
                     .unsqueeze(1)
                     .unsqueeze(1)
-                    .expand(&buckets.size(), true)
+                    .expand(buckets.size(), true)
                     .to_kind(Kind::Bool);
                 buckets = buckets.where_self(
                     &buckets_mask,
-                    &Tensor::of_slice(&[num_buckets - 1])
+                    &Tensor::from_slice(&[num_buckets - 1])
                         .to_kind(buckets.kind())
                         .to(buckets_mask.device()),
                 )
@@ -432,7 +443,7 @@ impl LSHSelfAttention {
             query_shape[sorted_bucket_indices_per_hash.dim() - 1] = 1;
             let query_bucket_idx = sorted_bucket_indices_per_hash.new_full(
                 query_shape.as_slice(),
-                i64::from(sorted_bucket_indices_per_hash.max()),
+                i64::try_from(sorted_bucket_indices_per_hash.max()).unwrap(),
                 (Kind::Int64, sorted_bucket_indices_per_hash.device()),
             );
             (query_bucket_idx, sorted_bucket_indices_per_hash)
@@ -486,7 +497,7 @@ impl LSHSelfAttention {
             )?;
         }
 
-        let mut logits = query_key_dots.logsumexp(&[-1], true);
+        let mut logits = query_key_dots.logsumexp([-1], true);
         let attention_probs = (query_key_dots - &logits)
             .exp()
             .apply_t(&self.dropout, train);
@@ -555,7 +566,8 @@ impl LSHSelfAttention {
         let hidden_states_shape = hidden_states.size();
         let (batch_size, sequence_length) = (hidden_states_shape[0], hidden_states_shape[1]);
         let max_bucket = self.num_buckets.max_bucket();
-        let increase_num_buckets = i64::from(past_buckets.max()) > num_hashes * max_bucket - 1;
+        let increase_num_buckets =
+            i64::try_from(past_buckets.max()).unwrap() > num_hashes * max_bucket - 1;
 
         let query_buckets = self.hash_vectors(
             query_vectors,
@@ -597,14 +609,14 @@ impl LSHSelfAttention {
             &relevant_bucket_indices_chunk + bucket_indices_batch_offset;
 
         let relevant_hidden_states = hidden_states
-            .reshape(&[-1, self.hidden_size])
+            .reshape([-1, self.hidden_size])
             .index_select(
                 0,
                 &relevant_bucket_indices_chunk_all_batch.to_kind(Kind::Int64),
             )
-            .reshape(&[batch_size, self.num_attention_heads, -1, self.hidden_size]);
+            .reshape([batch_size, self.num_attention_heads, -1, self.hidden_size]);
 
-        let relevant_bucket_indices_chunk = relevant_bucket_indices_chunk.reshape(&[
+        let relevant_bucket_indices_chunk = relevant_bucket_indices_chunk.reshape([
             batch_size,
             self.num_attention_heads,
             num_hashes,
@@ -633,18 +645,18 @@ impl LSHSelfAttention {
 
         let expanded_start_indices = start_indices_chunk
             .unsqueeze(-1)
-            .expand(&[indices.size()[0], total_chunk_size], true);
+            .expand([indices.size()[0], total_chunk_size], true);
         let chunk_sequence_indices = expanded_start_indices
             + Tensor::arange(total_chunk_size, (Kind::Int64, indices.device()))
                 .unsqueeze(0)
-                .expand(&[indices.size()[0], total_chunk_size], true);
+                .expand([indices.size()[0], total_chunk_size], true);
 
         let chunk_sequence_indices = chunk_sequence_indices
             .flatten(0, 1)
             .remainder(sequence_length);
         let indices = indices
             .unsqueeze(1)
-            .expand(&[indices.size()[0], total_chunk_size, -1], true)
+            .expand([indices.size()[0], total_chunk_size, -1], true)
             .flatten(0, 1);
 
         indices.select(1, -1).copy_(&chunk_sequence_indices);
@@ -659,7 +671,7 @@ impl LSHSelfAttention {
 
     fn len_and_dim_norm(&self, input_tensor: &Tensor) -> Tensor {
         self.len_norm(input_tensor, 1e-6)
-            * Tensor::of_slice(&[self.attention_head_size])
+            * Tensor::from_slice(&[self.attention_head_size])
                 .to_kind(input_tensor.kind())
                 .to_device(input_tensor.device())
                 .rsqrt()
@@ -668,9 +680,9 @@ impl LSHSelfAttention {
     fn gather_by_expansion(&self, vectors: &Tensor, indices: &Tensor, num_hashes: i64) -> Tensor {
         let expanded_indices = indices
             .unsqueeze(-1)
-            .expand(&[-1, -1, -1, self.attention_head_size], true);
+            .expand([-1, -1, -1, self.attention_head_size], true);
         vectors
-            .repeat(&[1, 1, num_hashes, 1])
+            .repeat([1, 1, num_hashes, 1])
             .gather(2, &expanded_indices, false)
     }
 
@@ -742,7 +754,7 @@ impl LSHSelfAttention {
                     Some(self.attention_head_size),
                 )?;
 
-                query_vectors = query_vectors.unsqueeze(2).repeat(&[1, 1, num_hashes, 1, 1]);
+                query_vectors = query_vectors.unsqueeze(2).repeat([1, 1, num_hashes, 1, 1]);
                 (
                     key_value_hidden_states,
                     query_key_vectors,
@@ -859,7 +871,7 @@ impl LSHSelfAttention {
         } else {
             (
                 Tensor::arange(sequence_length, (Kind::Int64, query_key_vectors.device()))
-                    .repeat(&[batch_size, self.num_attention_heads, 1]),
+                    .repeat([batch_size, self.num_attention_heads, 1]),
                 None,
             )
         };
@@ -986,11 +998,13 @@ impl LocalSelfAttention {
         let key = nn::linear(p / "key", hidden_size, all_head_size, linear_config);
         let value = nn::linear(p / "value", hidden_size, all_head_size, linear_config);
 
-        let mask_value_fp32 = Tensor::of_slice(&[-1e9])
+        let mask_value_fp32 = Tensor::from_slice(&[-1e9])
             .to_kind(Kind::Float)
             .to(p.device());
 
-        let mask_value_fp16 = Tensor::of_slice(&[-1e4]).to_kind(Kind::Half).to(p.device());
+        let mask_value_fp16 = Tensor::from_slice(&[-1e4])
+            .to_kind(Kind::Half)
+            .to(p.device());
 
         LocalSelfAttention {
             chunk_length,
@@ -1088,13 +1102,13 @@ impl LocalSelfAttention {
 
         let key_kind_device = (key_vectors.kind(), key_vectors.device());
         let mut key_vectors = key_vectors
-            / Tensor::of_slice(&[self.attention_head_size])
+            / Tensor::from_slice(&[self.attention_head_size])
                 .to_kind(key_kind_device.0)
                 .to(key_kind_device.1)
                 .sqrt();
 
         let indices = Tensor::arange(sequence_length, (Kind::Int64, query_vectors.device()))
-            .repeat(&[batch_size, self.num_attention_heads, 1]);
+            .repeat([batch_size, self.num_attention_heads, 1]);
 
         let do_standard_attention = sequence_length <= self.chunk_length;
 
@@ -1158,7 +1172,7 @@ impl LocalSelfAttention {
             )?;
         }
 
-        let logits = query_key_dots.logsumexp(&[-1], true);
+        let logits = query_key_dots.logsumexp([-1], true);
         let attention_probs = (query_key_dots - logits)
             .exp()
             .apply_t(&self.dropout, train);

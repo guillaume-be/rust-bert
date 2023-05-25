@@ -784,7 +784,7 @@ impl QuestionAnsweringModel {
                     let example = &qa_inputs[example_id];
                     for feature_idx in feature_id_start..max_feature_id {
                         let feature = &batch_features[feature_idx as usize];
-                        let p_mask = (Tensor::of_slice(&feature.p_mask) - 1)
+                        let p_mask = (Tensor::from_slice(&feature.p_mask) - 1)
                             .abs()
                             .to_device(start_logits.device())
                             .eq(0);
@@ -966,7 +966,7 @@ impl QuestionAnsweringModel {
                 attention_mask.resize(max_len, 0);
                 attention_mask
             })
-            .map(|input| Tensor::of_slice(&(input)))
+            .map(|input| Tensor::from_slice(&(input)))
             .collect::<Vec<_>>();
 
         for feature in features.iter_mut() {
@@ -977,7 +977,7 @@ impl QuestionAnsweringModel {
 
         let padded_input_ids = features
             .iter_mut()
-            .map(|input| Tensor::of_slice(input.input_ids.as_slice()))
+            .map(|input| Tensor::from_slice(input.input_ids.as_slice()))
             .collect::<Vec<_>>();
 
         let input_ids = Tensor::stack(&padded_input_ids, 0).to(self.var_store.device());

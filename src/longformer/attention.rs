@@ -14,6 +14,7 @@ use crate::common::dropout::Dropout;
 use crate::common::kind::get_negative_infinity;
 use crate::longformer::LongformerConfig;
 use std::borrow::Borrow;
+use std::convert::TryFrom;
 use tch::{nn, Kind, Tensor};
 
 pub struct LongformerSelfAttention {
@@ -119,7 +120,7 @@ impl LongformerSelfAttention {
         );
 
         chunked_hidden_states
-            .constant_pad_nd(&[0, window_overlap + 1])
+            .constant_pad_nd([0, window_overlap + 1])
             .view([total_num_heads, num_chunks, -1])
             .slice(2, 0, -window_overlap, 1)
             .view([
@@ -165,15 +166,15 @@ impl LongformerSelfAttention {
         ];
 
         let beginning_mask = Tensor::ones(
-            &[affected_sequence_length, affected_sequence_length + 1],
+            [affected_sequence_length, affected_sequence_length + 1],
             (Kind::Int, input_tensor.device()),
         )
         .tril(0)
-        .flip(&[0])
+        .flip([0])
         .unsqueeze(0)
         .unsqueeze(2);
 
-        let ending_mask = beginning_mask.flip(&[1, 3]);
+        let ending_mask = beginning_mask.flip([1, 3]);
 
         let beginning_mask = beginning_mask
             .expand(beginning_input_size.as_slice(), true)
@@ -214,21 +215,21 @@ impl LongformerSelfAttention {
         let query =
             query
                 .transpose(1, 2)
-                .reshape(&[batch_size * num_heads, sequence_length, head_dim]);
+                .reshape([batch_size * num_heads, sequence_length, head_dim]);
         let key = key
             .transpose(1, 2)
-            .reshape(&[batch_size * num_heads, sequence_length, head_dim]);
+            .reshape([batch_size * num_heads, sequence_length, head_dim]);
 
         let query = self.chunk(&query, window_overlap);
         let key = self.chunk(&key, window_overlap);
 
         let diagonal_chunked_attention_scores = self.pad_and_transpose_last_two_dims(
-            &Tensor::einsum("bcxd,bcyd->bcxy", &[query, key], None),
+            &Tensor::einsum("bcxd,bcyd->bcxy", &[query, key], None::<i64>),
             &[0, 0, 0, 1],
         );
 
         let diagonal_attention_scores = Tensor::empty(
-            &[
+            [
                 batch_size * num_heads,
                 chunks_count + 1,
                 window_overlap,
@@ -320,7 +321,7 @@ impl LongformerSelfAttention {
         let (batch_size, sequence_length, num_heads, head_dim) = value.size4().unwrap();
         let chunk_counts = sequence_length / window_overlap - 1;
 
-        let chunked_attention_probas = attention_probas.transpose(1, 2).reshape(&[
+        let chunked_attention_probas = attention_probas.transpose(1, 2).reshape([
             batch_size * num_heads,
             sequence_length / window_overlap,
             window_overlap,
@@ -330,9 +331,9 @@ impl LongformerSelfAttention {
         let value =
             value
                 .transpose(1, 2)
-                .reshape(&[batch_size * num_heads, sequence_length, head_dim]);
+                .reshape([batch_size * num_heads, sequence_length, head_dim]);
 
-        let padded_value = (value + 1).constant_pad_nd(&[0, 0, window_overlap, window_overlap]) - 1;
+        let padded_value = (value + 1).constant_pad_nd([0, 0, window_overlap, window_overlap]) - 1;
         let chunked_value_size = &[
             batch_size * num_heads,
             chunk_counts + 1,
@@ -353,7 +354,7 @@ impl LongformerSelfAttention {
         Tensor::einsum(
             "bcwd,bcdh->bcwh",
             &[chunked_attention_probas, chunked_value],
-            None,
+            None::<i64>,
         )
         .view([batch_size, num_heads, sequence_length, head_dim])
         .transpose(1, 2)
@@ -365,7 +366,8 @@ impl LongformerSelfAttention {
     ) -> GlobalAttentionIndices {
         let num_global_attention_indices =
             is_index_global_attn.sum_dim_intlist([1].as_slice(), false, Kind::Int64);
-        let max_num_global_attention_indices = i64::from(num_global_attention_indices.max());
+        let max_num_global_attention_indices =
+            i64::try_from(num_global_attention_indices.max()).unwrap();
         let is_index_global_attn_nonzero = is_index_global_attn
             .nonzero_numpy()
             .into_iter()
@@ -411,7 +413,7 @@ impl LongformerSelfAttention {
         let batch_size = key_vectors.size()[0];
 
         let mut key_vectors_only_global = Tensor::zeros(
-            &[
+            [
                 batch_size,
                 max_num_global_attention_indices,
                 self.num_heads,
@@ -429,7 +431,7 @@ impl LongformerSelfAttention {
         let attention_probas_from_global_key = Tensor::einsum(
             "blhd,bshd->blhs",
             &[query_vectors, &key_vectors_only_global],
-            None,
+            None::<i64>,
         );
 
         let _ = attention_probas_from_global_key
@@ -463,7 +465,7 @@ impl LongformerSelfAttention {
         let attention_probas_only_global =
             attention_probas.narrow(-1, 0, max_num_global_attention_indices);
         let mut value_vectors_only_global = Tensor::zeros(
-            &[
+            [
                 batch_size,
                 max_num_global_attention_indices,
                 self.num_heads,
@@ -513,7 +515,7 @@ impl LongformerSelfAttention {
         let (sequence_length, batch_size) = (hidden_states_shape[0], hidden_states_shape[1]);
 
         let mut global_attention_hidden_states = Tensor::zeros(
-            &[max_num_global_attention_indices, batch_size, self.embed_dim],
+            [max_num_global_attention_indices, batch_size, self.embed_dim],
             (hidden_states.kind(), hidden_states.device()),
         );
 
@@ -718,7 +720,7 @@ impl LongformerSelfAttention {
         let mut attention_output =
             attention_output
                 .transpose(0, 1)
-                .reshape(&[sequence_length, batch_size, embed_dim]);
+                .reshape([sequence_length, batch_size, embed_dim]);
 
         let global_attention_probas = if is_global_attention {
             let (global_attention_output, global_attention_probas) = self

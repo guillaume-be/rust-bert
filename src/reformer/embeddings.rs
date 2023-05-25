@@ -16,6 +16,7 @@ use crate::common::embeddings::process_ids_embeddings_pair;
 use crate::reformer::ReformerConfig;
 use crate::RustBertError;
 use std::borrow::Borrow;
+use std::convert::TryFrom;
 use tch::nn::Init;
 use tch::{nn, Kind, Tensor};
 
@@ -81,18 +82,18 @@ impl AxialPositionEmbeddings {
                     .transpose(2, 1)
                     .feature_dropout(self.dropout_prob, train)
                     .transpose(2, 1)
-                    .reshape(&[batch_size, sequence_length, -1])
+                    .reshape([batch_size, sequence_length, -1])
             } else {
                 Tensor::cat(
                     &broadcasted_weights
                         .iter()
-                        .map(|tensor| tensor.reshape(&[batch_size, sequence_length, -1]))
+                        .map(|tensor| tensor.reshape([batch_size, sequence_length, -1]))
                         .collect::<Vec<Tensor>>(),
                     -1,
                 )
             }
         } else {
-            let max_position_id = i64::from(position_ids.max());
+            let max_position_id = i64::try_from(position_ids.max()).unwrap();
             let required_pos_encodings_columns =
                 (max_position_id + 1) / self.axial_pos_shape[1] + 1;
             let position_encodings = Tensor::cat(
@@ -102,7 +103,7 @@ impl AxialPositionEmbeddings {
                     .collect::<Vec<Tensor>>(),
                 -1,
             );
-            let position_encodings = position_encodings.reshape(&[
+            let position_encodings = position_encodings.reshape([
                 batch_size,
                 -1,
                 *position_encodings.size().last().unwrap(),

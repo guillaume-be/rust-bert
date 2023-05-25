@@ -51,7 +51,7 @@ pub fn build_relative_position(
 ) -> Tensor {
     let q_ids = Tensor::arange(query_size, (Kind::Int64, device));
     let k_ids = Tensor::arange(key_size, (Kind::Int64, device));
-    let mut rel_pos_ids = q_ids.unsqueeze(-1) - k_ids.tile(&[q_ids.size()[0], 1]);
+    let mut rel_pos_ids = q_ids.unsqueeze(-1) - k_ids.tile([q_ids.size()[0], 1]);
     if (bucket_size > 0) & (max_position > 0) {
         rel_pos_ids = make_log_bucket_position(&rel_pos_ids, bucket_size, max_position);
     }
@@ -80,7 +80,7 @@ impl DebertaV2DisentangledSelfAttention {
         let _ = new_shape.pop();
         new_shape.extend_from_slice(&[self.num_attention_heads, -1]);
         let x = x.view(new_shape.as_slice());
-        x.permute(&[0, 2, 1, 3])
+        x.permute([0, 2, 1, 3])
             .contiguous()
             .view([-1, x.size()[1], *x.size().last().unwrap()])
     }
@@ -133,12 +133,12 @@ impl DebertaV2DisentangledSelfAttention {
 
         let pos_query_layer = self
             .transpose_for_scores(&relative_embeddings.apply(query_proj))
-            .repeat(&[query_layer.size()[0] / self.num_attention_heads, 1, 1]);
+            .repeat([query_layer.size()[0] / self.num_attention_heads, 1, 1]);
         let pos_key_layer = self
             .transpose_for_scores(&relative_embeddings.apply(key_proj))
-            .repeat(&[query_layer.size()[0] / self.num_attention_heads, 1, 1]);
+            .repeat([query_layer.size()[0] / self.num_attention_heads, 1, 1]);
 
-        let mut score = Tensor::zeros(&[1], (query_layer.kind(), query_layer.device()));
+        let mut score = Tensor::zeros([1], (query_layer.kind(), query_layer.device()));
 
         let c2p_pos = if self.pos_att_type.has_type(PositionAttentionType::c2p)
             | self.pos_att_type.has_type(PositionAttentionType::p2p)
@@ -149,7 +149,7 @@ impl DebertaV2DisentangledSelfAttention {
             let c2p_att = c2p_att.gather(
                 -1,
                 &c2p_pos.squeeze_dim(0).expand(
-                    &[
+                    [
                         query_layer.size()[0],
                         query_layer.size()[1],
                         *relative_pos.size().last().unwrap(),
@@ -186,7 +186,7 @@ impl DebertaV2DisentangledSelfAttention {
                 .gather(
                     -1,
                     &p2c_pos.squeeze_dim(0).expand(
-                        &[query_layer.size()[0], key_layer_size[1], key_layer_size[1]],
+                        [query_layer.size()[0], key_layer_size[1], key_layer_size[1]],
                         true,
                     ),
                     true,
@@ -203,7 +203,7 @@ impl DebertaV2DisentangledSelfAttention {
             let p2p_att = p2p_att.gather(
                 -1,
                 &c2p_pos.unwrap().expand(
-                    &[
+                    [
                         query_layer.size()[0],
                         query_layer.size()[1],
                         query_layer.size()[2],
@@ -402,7 +402,7 @@ impl DisentangledSelfAttention for DebertaV2DisentangledSelfAttention {
                 reverse_context_layer_size[1],
                 reverse_context_layer_size[0],
             ])
-            .permute(&[0, 2, 1, 3])
+            .permute([0, 2, 1, 3])
             .contiguous();
 
         let mut new_context_layer_shape = context_layer.size();

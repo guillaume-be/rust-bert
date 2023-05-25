@@ -95,7 +95,7 @@ $Env:Path += ";X:\path\to\libtorch\lib"
 
 ### Automatic installation
 
-Alternatively, you can let the `build` script automatically download the `libtorch` library for you.
+Alternatively, you can let the `build` script automatically download the `libtorch` library for you. The `download-libtorch` feature flag needs to be enabled.
 The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu118`.
 Note that the libtorch library is large (order of several GBs for the CUDA-enabled version) and the first build may therefore take several minutes to complete.
 
