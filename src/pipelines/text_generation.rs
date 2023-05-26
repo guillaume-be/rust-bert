@@ -235,7 +235,7 @@ impl TextGenerationOption {
             (ModelType::GPTJ, _) => Ok(TextGenerationOption::GPTJ(GptJGenerator::new(
                 config.into(),
             )?)),
-            ModelType::T5 => Ok(TextGenerationOption::T5(T5Generator::new(config.into())?)),
+            (ModelType::T5, _) => Ok(TextGenerationOption::T5(T5Generator::new(config.into())?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Text generation not implemented for {:?}!",
                 config.model_type
@@ -270,7 +270,7 @@ impl TextGenerationOption {
             (ModelType::GPTJ, _) => Ok(TextGenerationOption::GPTJ(
                 GptJGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::T5 => Ok(TextGenerationOption::T5(T5Generator::new_with_tokenizer(
+            (ModelType::T5, _) => Ok(TextGenerationOption::T5(T5Generator::new_with_tokenizer(
                 config.into(),
                 tokenizer,
             )?)),
@@ -298,13 +298,13 @@ impl TextGenerationOption {
     /// Interface method to access tokenizer
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
-            Self::GPT(model_ref) => model_ref._get_tokenizer(),
-            Self::GPT2(model_ref) => model_ref._get_tokenizer(),
-            Self::GPTNeo(model_ref) => model_ref._get_tokenizer(),
-            Self::GPTJ(model_ref) => model_ref._get_tokenizer(),
-            Self::XLNet(model_ref) => model_ref._get_tokenizer(),
-            Self::Reformer(model_ref) => model_ref._get_tokenizer(),
-            Self::T5(model_ref) => model_ref._get_tokenizer(),
+            Self::GPT(model_ref) => model_ref.get_tokenizer(),
+            Self::GPT2(model_ref) => model_ref.get_tokenizer(),
+            Self::GPTNeo(model_ref) => model_ref.get_tokenizer(),
+            Self::GPTJ(model_ref) => model_ref.get_tokenizer(),
+            Self::XLNet(model_ref) => model_ref.get_tokenizer(),
+            Self::Reformer(model_ref) => model_ref.get_tokenizer(),
+            Self::T5(model_ref) => model_ref.get_tokenizer(),
             #[cfg(feature = "onnx")]
             Self::ONNX(model_ref) => model_ref.get_tokenizer(),
         }
@@ -313,27 +313,15 @@ impl TextGenerationOption {
     /// Interface method to access tokenizer
     pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         match self {
-            Self::GPT(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::GPT2(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::GPTNeo(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::GPTJ(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::XLNet(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::Reformer(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::GPT(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::GPT2(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::GPTNeo(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::GPTJ(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::XLNet(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::Reformer(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref.get_tokenizer_mut(),
             #[cfg(feature = "onnx")]
-            Self::ONNX(model_ref) => model_ref._get_tokenizer_mut(),
-        }
-    }
-
-    /// Interface method to access tokenizer
-    pub fn get_tokenizer(&self) -> &TokenizerOption {
-        match self {
-            Self::GPT(model_ref) => model_ref._get_tokenizer(),
-            Self::GPT2(model_ref) => model_ref._get_tokenizer(),
-            Self::GPTNeo(model_ref) => model_ref._get_tokenizer(),
-            Self::GPTJ(model_ref) => model_ref._get_tokenizer(),
-            Self::XLNet(model_ref) => model_ref._get_tokenizer(),
-            Self::Reformer(model_ref) => model_ref._get_tokenizer(),
+            Self::ONNX(model_ref) => model_ref.get_tokenizer_mut(),
         }
     }
 

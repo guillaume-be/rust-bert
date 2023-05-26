@@ -66,9 +66,6 @@ use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
     resources::RemoteResource,
 };
-use rust_tokenizers::tokenizer::TruncationStrategy;
-use rust_tokenizers::TokenizedInput;
-use std::borrow::Borrow;
 use tch::nn::VarStore;
 use tch::{no_grad, Device, Tensor};
 

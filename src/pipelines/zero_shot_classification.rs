@@ -731,7 +731,7 @@ impl ZeroShotClassificationModel {
                 input
                     .segment_ids
                     .resize(max_len, *input.segment_ids.last().unwrap_or(&0));
-                Tensor::of_slice(&(input.segment_ids))
+                Tensor::from_slice(&(input.segment_ids))
             })
             .collect::<Vec<_>>();
 

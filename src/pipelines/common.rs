@@ -2203,7 +2203,7 @@ impl TokenizerOption {
             .iter_mut()
             .map(|input| {
                 input.token_ids.resize(max_len, pad_id);
-                Tensor::of_slice(&(input.token_ids))
+                Tensor::from_slice(&(input.token_ids))
             })
             .collect::<Vec<_>>();
 
@@ -2213,7 +2213,7 @@ impl TokenizerOption {
                 input
                     .segment_ids
                     .resize(max_len, *input.segment_ids.last().unwrap_or(&0));
-                Tensor::of_slice(&(input.segment_ids))
+                Tensor::from_slice(&(input.segment_ids))
             })
             .collect::<Vec<_>>();
 

@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::{Debug, Display};
+
 /// Language
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Language {
@@ -1200,11 +1201,13 @@ impl TranslationOption {
     /// Interface method to access tokenizer
     pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         match self {
-            Self::Marian(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::MBart(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::M2M100(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::NLLB(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::Marian(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::MBart(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::M2M100(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::NLLB(model_ref) => model_ref.get_tokenizer_mut(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(model_ref) => model_ref.get_tokenizer_mut(),
         }
     }
     /// Interface method to generate() of the particular models.

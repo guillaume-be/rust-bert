@@ -1077,7 +1077,7 @@ impl TokenClassificationModel {
 
         let padded_token_type_ids = features
             .iter()
-            .map(|input| Tensor::of_slice(input.token_type_ids.as_slice()))
+            .map(|input| Tensor::from_slice(input.token_type_ids.as_slice()))
             .collect::<Vec<_>>();
 
         let input_ids = Tensor::stack(&padded_input_ids, 0).to(self.device);

@@ -464,7 +464,7 @@ pub(crate) mod private_generation_utils {
                         temp
                     }
                 })
-                .map(|tokens| Tensor::of_slice(&tokens).to(self.get_device()))
+                .map(|tokens| Tensor::from_slice(&tokens).to(self.get_device()))
                 .collect::<Vec<Tensor>>();
 
             Tensor::stack(&token_ids, 0)
@@ -828,9 +828,9 @@ pub(crate) mod private_generation_utils {
             output_scores: bool,
         ) -> GeneratedOutputWithScores {
             let mut unfinished_sentences =
-                Tensor::ones(&[batch_size], (Kind::Int64, self.get_device()));
+                Tensor::ones([batch_size], (Kind::Int64, self.get_device()));
             let mut sentence_lengths: Tensor =
-                Tensor::ones(&[batch_size], (Kind::Int64, self.get_device()));
+                Tensor::ones([batch_size], (Kind::Int64, self.get_device()));
             let (bad_word_ids_length_1, bad_word_ids_length_greater_than_1) =
                 self.split_bad_word_ids(gen_opt.bad_word_ids);
             let mut static_bad_words_mask: Option<Tensor> = None;
@@ -1590,7 +1590,7 @@ pub(crate) mod private_generation_utils {
         let impossible_tokens: Vec<i64> = (0..vocab_size)
             .filter(|pos| !token_ids.contains(pos))
             .collect();
-        let impossible_tokens = Tensor::of_slice(&impossible_tokens).to_device(scores.device());
+        let impossible_tokens = Tensor::from_slice(&impossible_tokens).to_device(scores.device());
         let _ = scores.index_fill_(
             1,
             &impossible_tokens,
