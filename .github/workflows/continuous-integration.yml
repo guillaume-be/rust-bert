@@ -156,6 +156,7 @@ jobs:
           args: --package rust-bert
             --features onnx
             --test onnx
+            --features download-libtorch
 
   convert-model:
     name: Model conversion test
