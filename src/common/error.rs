@@ -34,6 +34,9 @@ pub enum RustBertError {
     #[error("Value error: {0}")]
     #[cfg(feature = "onnx")]
     NdArrayError(String),
+
+    #[error("Unsupported operation")]
+    UnsupportedError,
 }
 
 impl From<std::io::Error> for RustBertError {

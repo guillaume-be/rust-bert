@@ -93,6 +93,23 @@ impl ResourceProvider for RemoteResource {
             .cached_path_with_options(&self.url, &Options::default().subdir(&self.cache_subdir))?;
         Ok(cached_path)
     }
+
+    /// Gets a wrapper around the local path for a remote resource.
+    ///
+    /// # Returns
+    ///
+    /// * `Resource` wrapping a `PathBuf` pointing to the resource file
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::resources::{RemoteResource, ResourceProvider};
+    /// let config_resource = RemoteResource::new("http://config_json_location", "configs");
+    /// let config_path = config_resource.get_resource();
+    /// ```
+    fn get_resource(&self) -> Result<Resource, RustBertError> {
+        Ok(Resource::PathBuf(self.get_local_path()?))
+    }
 }
 
 lazy_static! {
