@@ -230,7 +230,7 @@ impl T5Attention {
                 self.compute_bias(real_seq_length, key_length, hidden_states.device())
             } else {
                 Tensor::zeros(
-                    &[1, self.n_heads, real_seq_length, key_length],
+                    [1, self.n_heads, real_seq_length, key_length],
                     (scores.kind(), scores.device()),
                 )
             };
@@ -289,7 +289,7 @@ impl T5Attention {
         );
         rp_bucket
             .apply(self.relative_attention_bias.as_ref().unwrap())
-            .permute(&[2, 0, 1])
+            .permute([2, 0, 1])
             .unsqueeze(0)
     }
 }

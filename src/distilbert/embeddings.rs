@@ -42,7 +42,7 @@ where
                 );
             }
         }
-        let temp_vec = Tensor::of_slice(&temp_vec);
+        let temp_vec = Tensor::from_slice(&temp_vec);
         sinusoidal_embedding.push(temp_vec);
     }
     let sinusoidal_embedding = Tensor::stack(&sinusoidal_embedding, 0)

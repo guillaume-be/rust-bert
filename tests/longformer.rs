@@ -75,12 +75,12 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
             ]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
     let mut global_attention_mask_vector = vec![0; max_len];
     global_attention_mask_vector[0] = 1;
-    let global_attention_mask = Tensor::of_slice(global_attention_mask_vector.as_slice());
+    let global_attention_mask = Tensor::from_slice(global_attention_mask_vector.as_slice());
     let global_attention_mask = Tensor::stack(
         vec![&global_attention_mask; tokenized_input.len()].as_slice(),
         0,
@@ -217,7 +217,7 @@ fn longformer_for_sequence_classification() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -287,7 +287,7 @@ fn longformer_for_multiple_choice() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0)
         .to(device)
@@ -357,7 +357,7 @@ fn longformer_for_token_classification() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 

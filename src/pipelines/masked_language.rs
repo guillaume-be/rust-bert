@@ -66,6 +66,9 @@ use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
     resources::RemoteResource,
 };
+use rust_tokenizers::tokenizer::TruncationStrategy;
+use rust_tokenizers::TokenizedInput;
+use std::borrow::Borrow;
 use tch::nn::VarStore;
 use tch::{no_grad, Device, Tensor};
 
@@ -505,6 +508,16 @@ impl MaskedLanguageModel {
             device,
             max_length,
         })
+    }
+
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
     }
 
     /// Replace custom user-provided mask token by language model mask token.

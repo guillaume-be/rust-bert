@@ -82,12 +82,12 @@ impl AxialPositionEmbeddings {
                     .transpose(2, 1)
                     .feature_dropout(self.dropout_prob, train)
                     .transpose(2, 1)
-                    .reshape(&[batch_size, sequence_length, -1])
+                    .reshape([batch_size, sequence_length, -1])
             } else {
                 Tensor::cat(
                     &broadcasted_weights
                         .iter()
-                        .map(|tensor| tensor.reshape(&[batch_size, sequence_length, -1]))
+                        .map(|tensor| tensor.reshape([batch_size, sequence_length, -1]))
                         .collect::<Vec<Tensor>>(),
                     -1,
                 )
@@ -103,7 +103,7 @@ impl AxialPositionEmbeddings {
                     .collect::<Vec<Tensor>>(),
                 -1,
             );
-            let position_encodings = position_encodings.reshape(&[
+            let position_encodings = position_encodings.reshape([
                 batch_size,
                 -1,
                 *position_encodings.size().last().unwrap(),

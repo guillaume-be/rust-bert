@@ -1197,6 +1197,16 @@ impl TranslationOption {
         }
     }
 
+    /// Interface method to access tokenizer
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        match self {
+            Self::Marian(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::MBart(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::M2M100(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::NLLB(model_ref) => model_ref._get_tokenizer_mut(),
+        }
+    }
     /// Interface method to generate() of the particular models.
     pub fn generate<S>(
         &self,
@@ -1388,6 +1398,16 @@ impl TranslationModel {
             supported_source_languages,
             supported_target_languages,
         })
+    }
+
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        self.model.get_tokenizer()
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self.model.get_tokenizer_mut()
     }
 
     /// Translates texts provided

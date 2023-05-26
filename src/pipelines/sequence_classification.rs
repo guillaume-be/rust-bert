@@ -687,6 +687,15 @@ impl SequenceClassificationModel {
         })
     }
 
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
+    }
     /// Classify texts
     ///
     /// # Arguments

@@ -42,6 +42,7 @@ use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::reformer::ReformerGenerator;
 use crate::resources::ResourceProvider;
+use crate::t5::T5Generator;
 use crate::xlnet::XLNetGenerator;
 
 #[cfg(feature = "onnx")]
@@ -202,6 +203,8 @@ pub enum TextGenerationOption {
     XLNet(XLNetGenerator),
     /// Text Generator based on Reformer model
     Reformer(ReformerGenerator),
+    /// Text Generator based on T5 model
+    T5(T5Generator),
     /// ONNX model for text generation
     #[cfg(feature = "onnx")]
     ONNX(ONNXCausalGenerator),
@@ -232,6 +235,7 @@ impl TextGenerationOption {
             (ModelType::GPTJ, _) => Ok(TextGenerationOption::GPTJ(GptJGenerator::new(
                 config.into(),
             )?)),
+            ModelType::T5 => Ok(TextGenerationOption::T5(T5Generator::new(config.into())?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Text generation not implemented for {:?}!",
                 config.model_type
@@ -266,6 +270,10 @@ impl TextGenerationOption {
             (ModelType::GPTJ, _) => Ok(TextGenerationOption::GPTJ(
                 GptJGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
+            ModelType::T5 => Ok(TextGenerationOption::T5(T5Generator::new_with_tokenizer(
+                config.into(),
+                tokenizer,
+            )?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Text generation not implemented for {:?}!",
                 config.model_type
@@ -282,22 +290,50 @@ impl TextGenerationOption {
             Self::GPTJ(_) => ModelType::GPTJ,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
+            Self::T5(_) => ModelType::T5,
             #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
+        }
+    }
+    /// Interface method to access tokenizer
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        match self {
+            Self::GPT(model_ref) => model_ref._get_tokenizer(),
+            Self::GPT2(model_ref) => model_ref._get_tokenizer(),
+            Self::GPTNeo(model_ref) => model_ref._get_tokenizer(),
+            Self::GPTJ(model_ref) => model_ref._get_tokenizer(),
+            Self::XLNet(model_ref) => model_ref._get_tokenizer(),
+            Self::Reformer(model_ref) => model_ref._get_tokenizer(),
+            Self::T5(model_ref) => model_ref._get_tokenizer(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(model_ref) => model_ref.get_tokenizer(),
+        }
+    }
+
+    /// Interface method to access tokenizer
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        match self {
+            Self::GPT(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::GPT2(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::GPTNeo(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::GPTJ(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::XLNet(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::Reformer(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(model_ref) => model_ref._get_tokenizer_mut(),
         }
     }
 
     /// Interface method to access tokenizer
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
-            Self::GPT(model_ref) => model_ref.get_tokenizer(),
-            Self::GPT2(model_ref) => model_ref.get_tokenizer(),
-            Self::GPTNeo(model_ref) => model_ref.get_tokenizer(),
-            Self::GPTJ(model_ref) => model_ref.get_tokenizer(),
-            Self::XLNet(model_ref) => model_ref.get_tokenizer(),
-            Self::Reformer(model_ref) => model_ref.get_tokenizer(),
-            #[cfg(feature = "onnx")]
-            Self::ONNX(model_ref) => model_ref.get_tokenizer(),
+            Self::GPT(model_ref) => model_ref._get_tokenizer(),
+            Self::GPT2(model_ref) => model_ref._get_tokenizer(),
+            Self::GPTNeo(model_ref) => model_ref._get_tokenizer(),
+            Self::GPTJ(model_ref) => model_ref._get_tokenizer(),
+            Self::XLNet(model_ref) => model_ref._get_tokenizer(),
+            Self::Reformer(model_ref) => model_ref._get_tokenizer(),
         }
     }
 
@@ -347,6 +383,11 @@ impl TextGenerationOption {
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
+            Self::T5(ref model) => model
+                .generate_indices(prompt_texts, generate_options)
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
             #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => model
                 .generate_indices(prompt_texts, generate_options)
@@ -364,6 +405,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.half(),
             Self::XLNet(model_ref) => model_ref.half(),
             Self::Reformer(model_ref) => model_ref.half(),
+            Self::T5(model_ref) => model_ref.half(),
             #[cfg(feature = "onnx")]
             Self::ONNX(_) => Err(RustBertError::OrtError(
                 "Type casting not supported for ONNX models.".to_string(),
@@ -379,6 +421,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.float(),
             Self::XLNet(model_ref) => model_ref.float(),
             Self::Reformer(model_ref) => model_ref.float(),
+            Self::T5(model_ref) => model_ref.float(),
             #[cfg(feature = "onnx")]
             Self::ONNX(_) => Err(RustBertError::OrtError(
                 "Type casting not supported for ONNX models.".to_string(),
@@ -394,6 +437,7 @@ impl TextGenerationOption {
             Self::GPTJ(model_ref) => model_ref.set_device(device),
             Self::XLNet(model_ref) => model_ref.set_device(device),
             Self::Reformer(model_ref) => model_ref.set_device(device),
+            Self::T5(model_ref) => model_ref.set_device(device),
             #[cfg(feature = "onnx")]
             Self::ONNX(_) => Err(RustBertError::OrtError(
                 "Device assignment not supported for ONNX models.".to_string(),
@@ -515,6 +559,14 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         let min_length = generation_config.min_length;
         let max_length = generation_config.max_length;
         (prefix, min_length, max_length)
+    }
+
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        self.model.get_tokenizer()
+    }
+
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self.model.get_tokenizer_mut()
     }
 
     pub fn half(&mut self) -> Result<(), RustBertError> {

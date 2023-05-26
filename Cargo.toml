@@ -8,6 +8,7 @@ repository = "https://github.com/guillaume-be/rust-bert"
 documentation = "https://docs.rs/rust-bert"
 license = "Apache-2.0"
 readme = "README.md"
+build = "build.rs"
 keywords = [
     "nlp",
     "deep-learning",
@@ -64,6 +65,7 @@ default = ["remote"]
 doc-only = ["tch/doc-only"]
 all-tests = []
 remote = ["cached-path", "dirs", "lazy_static"]
+download-libtorch = ["tch/download-libtorch"]
 onnx = ["ort", "ndarray"]
 
 [package.metadata.docs.rs]
@@ -71,7 +73,7 @@ features = ["doc-only"]
 
 [dependencies]
 rust_tokenizers = "8.1"
-tch = {git = "https://github.com/LaurentMazare/tch-rs.git", branch="main"}
+tch = "0.13.0"
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 ordered-float = "3"
@@ -91,7 +93,7 @@ anyhow = "1"
 csv = "1"
 criterion = "0.4"
 tokio = { version = "1.24", features = ["sync", "rt-multi-thread", "macros"] }
-torch-sys = {git = "https://github.com/LaurentMazare/tch-rs.git", branch="main"}
+torch-sys = "0.13.0"
 tempfile = "3"
 itertools = "0.10"
 tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt" ] }

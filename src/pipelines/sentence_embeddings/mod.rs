@@ -41,8 +41,8 @@ pub use config::{
     SentenceEmbeddingsTokenizerConfig,
 };
 pub use pipeline::{
-    SentenceEmbeddingsModel, SentenceEmbeddingsModelOuput, SentenceEmbeddingsOption,
-    SentenceEmbeddingsTokenizerOuput,
+    SentenceEmbeddingsModel, SentenceEmbeddingsModelOutput, SentenceEmbeddingsOption,
+    SentenceEmbeddingsTokenizerOutput,
 };
 
 pub use resources::{

@@ -273,7 +273,7 @@ pub(crate) fn _make_causal_mask(
     let target_length = input_ids_shape[1];
 
     let mut mask = Tensor::full(
-        &[target_length, target_length],
+        [target_length, target_length],
         get_min(dtype).unwrap(),
         (dtype, device),
     );
@@ -286,14 +286,14 @@ pub(crate) fn _make_causal_mask(
     if past_key_values_length > 0 {
         mask = Tensor::cat(
             &[
-                Tensor::zeros(&[target_length, past_key_values_length], (dtype, device)),
+                Tensor::zeros([target_length, past_key_values_length], (dtype, device)),
                 mask,
             ],
             -1,
         );
     }
     mask.unsqueeze(0).unsqueeze(0).expand(
-        &[
+        [
             batch_size,
             1,
             target_length,
@@ -309,7 +309,7 @@ pub(crate) fn _expand_mask(mask: &Tensor, target_length: Option<i64>, dtype: Kin
     let expanded_mask = mask
         .unsqueeze(1)
         .unsqueeze(1)
-        .expand(&[batch_size, 1, target_length, source_length], true)
+        .expand([batch_size, 1, target_length, source_length], true)
         .totype(dtype);
     let inverted_mask: Tensor = 1 - expanded_mask;
     inverted_mask.masked_fill(&inverted_mask.to_kind(Kind::Bool), get_min(dtype).unwrap())
@@ -866,7 +866,7 @@ impl BartForSequenceClassification {
         let reshape = eos_mask.sum_dim_intlist([1].as_slice(), true, input_ids.kind());
         let sentence_representation = base_model_output
             .decoder_output
-            .permute(&[2, 0, 1])
+            .permute([2, 0, 1])
             .masked_select(&eos_mask)
             .view((-1, reshape.size()[0] * reshape.int64_value(&[0, 0])))
             .transpose(0, 1)
@@ -1020,8 +1020,6 @@ impl BartGenerator {
         let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
 
-        println!("{:?}", forced_bos_token_id);
-
         Ok(BartGenerator {
             model,
             tokenizer,
@@ -1043,6 +1041,9 @@ impl BartGenerator {
 impl PrivateLanguageGenerator for BartGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
+    }
+    fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
     }
     fn get_device(&self) -> Device {
         self.var_store.device()

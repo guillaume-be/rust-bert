@@ -689,7 +689,7 @@ impl MBartForSequenceClassification {
         let reshape = eos_mask.sum_dim_intlist([1].as_slice(), true, Int64);
         let sentence_representation = base_model_output
             .decoder_output
-            .permute(&[2, 0, 1])
+            .permute([2, 0, 1])
             .masked_select(&eos_mask)
             .view((-1, reshape.size()[0] * reshape.int64_value(&[0, 0])))
             .transpose(0, 1)
@@ -835,6 +835,9 @@ impl MBartGenerator {
 impl PrivateLanguageGenerator for MBartGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
+    }
+    fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
     }
     fn get_device(&self) -> Device {
         self.var_store.device()

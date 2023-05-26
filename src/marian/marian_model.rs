@@ -799,6 +799,9 @@ impl PrivateLanguageGenerator for MarianGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
+    fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
+    }
     fn get_device(&self) -> Device {
         self.var_store.device()
     }
@@ -883,7 +886,7 @@ impl PrivateLanguageGenerator for MarianGenerator {
     ) {
         let _ = scores.index_fill_(
             1,
-            &Tensor::of_slice(&[self.get_pad_id().unwrap()])
+            &Tensor::from_slice(&[self.get_pad_id().unwrap()])
                 .to_kind(Kind::Int64)
                 .to_device(scores.device()),
             f64::NEG_INFINITY,

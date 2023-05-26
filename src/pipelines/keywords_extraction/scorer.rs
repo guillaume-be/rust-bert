@@ -76,7 +76,8 @@ fn cosine_similarity_score(
     word_embeddings: Tensor,
     num_keywords: usize,
 ) -> Vec<(usize, f32)> {
-    let similarities = cosine_similarity(Some(&document_embedding), &word_embeddings).squeeze();
+    let similarities = cosine_similarity(Some(&document_embedding), &word_embeddings).view([-1]);
+
     let (top_scores, top_keywords) = similarities.topk(num_keywords as i64, 0, true, false);
     top_scores
         .iter::<f64>()
@@ -93,7 +94,7 @@ fn maximal_margin_relevance_score(
     diversity: f64,
 ) -> Vec<(usize, f32)> {
     let word_document_similarities =
-        cosine_similarity(Some(&document_embedding), &word_embeddings).squeeze();
+        cosine_similarity(Some(&document_embedding), &word_embeddings).view([-1]);
     let word_similarities = cosine_similarity(None, &word_embeddings);
 
     let mut keyword_indices =
@@ -102,14 +103,14 @@ fn maximal_margin_relevance_score(
     let _ = candidate_indices.remove(keyword_indices[0] as usize);
     for _ in 0..min(num_keywords - 1, word_embeddings.size()[0] as usize) {
         let candidate_indices_tensor =
-            Tensor::of_slice(&candidate_indices).to(word_document_similarities.device());
+            Tensor::from_slice(&candidate_indices).to(word_document_similarities.device());
         let candidate_similarities =
             word_document_similarities.index_select(0, &candidate_indices_tensor);
         let (target_similarities, _) = word_similarities
             .index_select(0, &candidate_indices_tensor)
             .index_select(
                 1,
-                &Tensor::of_slice(&keyword_indices).to(word_similarities.device()),
+                &Tensor::from_slice(&keyword_indices).to(word_similarities.device()),
             )
             .max_dim(1, false);
         let mmr = candidate_similarities * (1.0 - diversity) - target_similarities * diversity;
@@ -141,7 +142,7 @@ fn max_sum_score(
 ) -> Vec<(usize, f32)> {
     let max_sum_candidates = max(num_keywords, max_sum_candidates);
     let word_document_similarities =
-        cosine_similarity(Some(&document_embedding), &word_embeddings).squeeze();
+        cosine_similarity(Some(&document_embedding), &word_embeddings).view([-1]);
     let word_similarities = cosine_similarity(None, &word_embeddings);
     let (_, top_keywords) =
         word_document_similarities.topk(max_sum_candidates as i64, 0, true, false);

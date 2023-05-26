@@ -659,6 +659,9 @@ impl PrivateLanguageGenerator for GptJGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
     }
+    fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
+    }
     fn get_device(&self) -> Device {
         self.var_store.device()
     }

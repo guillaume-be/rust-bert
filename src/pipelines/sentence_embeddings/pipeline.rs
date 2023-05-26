@@ -167,6 +167,7 @@ pub struct SentenceEmbeddingsModel {
     pooling_layer: Pooling,
     dense_layer: Option<Dense>,
     normalize_embeddings: bool,
+    embeddings_dim: i64,
 }
 
 impl SentenceEmbeddingsModel {
@@ -196,7 +197,6 @@ impl SentenceEmbeddingsModel {
                 .validate()?;
 
         // Setup tokenizer
-
         let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
             tokenizer_config_resource.get_local_path()?,
         );
@@ -223,7 +223,6 @@ impl SentenceEmbeddingsModel {
         )?;
 
         // Setup transformer
-
         let mut var_store = nn::VarStore::new(device);
         let transformer_config = ConfigOption::from_file(
             transformer_type,
@@ -234,15 +233,15 @@ impl SentenceEmbeddingsModel {
         var_store.load(transformer_weights_resource.get_local_path()?)?;
 
         // Setup pooling layer
-
         let pooling_config = PoolingConfig::from_file(pooling_config_resource.get_local_path()?);
+        let mut embeddings_dim = pooling_config.word_embedding_dimension;
         let pooling_layer = Pooling::new(pooling_config);
 
         // Setup dense layer
-
         let dense_layer = if modules.dense_module().is_some() {
             let dense_config =
                 DenseConfig::from_file(dense_config_resource.unwrap().get_local_path()?);
+            embeddings_dim = dense_config.out_features;
             Some(Dense::new(
                 dense_config,
                 dense_weights_resource.unwrap().get_local_path()?,
@@ -264,7 +263,18 @@ impl SentenceEmbeddingsModel {
             pooling_layer,
             dense_layer,
             normalize_embeddings,
+            embeddings_dim,
         })
+    }
+
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
     }
 
     /// Sets the tokenizer's truncation strategy
@@ -272,8 +282,13 @@ impl SentenceEmbeddingsModel {
         self.tokenizer_truncation_strategy = truncation_strategy;
     }
 
+    /// Return the embedding output dimension
+    pub fn get_embedding_dim(&self) -> Result<i64, RustBertError> {
+        Ok(self.embeddings_dim)
+    }
+
     /// Tokenizes the inputs
-    pub fn tokenize<S>(&self, inputs: &[S]) -> SentenceEmbeddingsTokenizerOuput
+    pub fn tokenize<S>(&self, inputs: &[S]) -> SentenceEmbeddingsTokenizerOutput
     where
         S: AsRef<str> + Sync,
     {
@@ -303,7 +318,7 @@ impl SentenceEmbeddingsModel {
         let tokens_masks = tokens_ids
             .iter()
             .map(|input| {
-                Tensor::of_slice(
+                Tensor::from_slice(
                     &input
                         .iter()
                         .map(|&e| i64::from(e != pad_token_id))
@@ -314,10 +329,10 @@ impl SentenceEmbeddingsModel {
 
         let tokens_ids = tokens_ids
             .into_iter()
-            .map(|input| Tensor::of_slice(&(input)))
+            .map(|input| Tensor::from_slice(&(input)))
             .collect::<Vec<_>>();
 
-        SentenceEmbeddingsTokenizerOuput {
+        SentenceEmbeddingsTokenizerOutput {
             tokens_ids,
             tokens_masks,
         }
@@ -327,11 +342,11 @@ impl SentenceEmbeddingsModel {
     pub fn encode_as_tensor<S>(
         &self,
         inputs: &[S],
-    ) -> Result<SentenceEmbeddingsModelOuput, RustBertError>
+    ) -> Result<SentenceEmbeddingsModelOutput, RustBertError>
     where
         S: AsRef<str> + Sync,
     {
-        let SentenceEmbeddingsTokenizerOuput {
+        let SentenceEmbeddingsTokenizerOutput {
             tokens_ids,
             tokens_masks,
         } = self.tokenize(inputs);
@@ -350,7 +365,7 @@ impl SentenceEmbeddingsModel {
         };
         let maybe_normalized = if self.normalize_embeddings {
             let norm = &maybe_linear
-                .norm_scalaropt_dim(2, &[1], true)
+                .norm_scalaropt_dim(2, [1], true)
                 .clamp_min(1e-12)
                 .expand_as(&maybe_linear);
             maybe_linear / norm
@@ -358,7 +373,7 @@ impl SentenceEmbeddingsModel {
             maybe_linear
         };
 
-        Ok(SentenceEmbeddingsModelOuput {
+        Ok(SentenceEmbeddingsModelOutput {
             embeddings: maybe_normalized,
             all_attentions,
         })
@@ -369,7 +384,7 @@ impl SentenceEmbeddingsModel {
     where
         S: AsRef<str> + Sync,
     {
-        let SentenceEmbeddingsModelOuput { embeddings, .. } = self.encode_as_tensor(inputs)?;
+        let SentenceEmbeddingsModelOutput { embeddings, .. } = self.encode_as_tensor(inputs)?;
         Ok(Vec::try_from(embeddings)?)
     }
 
@@ -413,7 +428,7 @@ impl SentenceEmbeddingsModel {
     where
         S: AsRef<str> + Sync,
     {
-        let SentenceEmbeddingsModelOuput {
+        let SentenceEmbeddingsModelOutput {
             embeddings,
             all_attentions,
         } = self.encode_as_tensor(inputs)?;
@@ -433,8 +448,7 @@ impl SentenceEmbeddingsModel {
                             .slice(0, i, i + 1, 1)
                             .slice(1, head as i64, head as i64 + 1, 1)
                             .squeeze();
-                        let attention_head =
-                            AttentionHead::from(Vec::try_from(attention_slice).unwrap());
+                        let attention_head = AttentionHead::try_from(attention_slice).unwrap();
                         attention_layer.push(attention_head);
                     }
                     attention_output.push(attention_layer);
@@ -448,13 +462,13 @@ impl SentenceEmbeddingsModel {
 }
 
 /// Container for the SentenceEmbeddings tokenizer output.
-pub struct SentenceEmbeddingsTokenizerOuput {
+pub struct SentenceEmbeddingsTokenizerOutput {
     pub tokens_ids: Vec<Tensor>,
     pub tokens_masks: Vec<Tensor>,
 }
 
 /// Container for the SentenceEmbeddings model output.
-pub struct SentenceEmbeddingsModelOuput {
+pub struct SentenceEmbeddingsModelOutput {
     pub embeddings: Tensor,
     pub all_attentions: Option<Vec<Tensor>>,
 }

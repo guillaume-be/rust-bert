@@ -658,6 +658,16 @@ impl ZeroShotClassificationModel {
         })
     }
 
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
+    }
+
     fn prepare_for_model<'a, S, T>(
         &self,
         inputs: S,
@@ -712,7 +722,7 @@ impl ZeroShotClassificationModel {
             .iter_mut()
             .map(|input| {
                 input.token_ids.resize(max_len, pad_id);
-                Tensor::of_slice(&(input.token_ids))
+                Tensor::from_slice(&(input.token_ids))
             })
             .collect::<Vec<_>>();
         let token_type_ids = tokenized_input

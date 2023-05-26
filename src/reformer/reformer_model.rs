@@ -434,14 +434,14 @@ impl ReformerModel {
         device: Device,
     ) -> Result<PaddedReformerInput, RustBertError> {
         let input_ids_padding = Tensor::full(
-            &[input_shape[0], padding_length],
+            [input_shape[0], padding_length],
             self.pad_token_id,
             (Kind::Int64, device),
         );
 
         let attention_mask = Some(if let Some(attention_mask) = attention_mask {
             let attention_mask_padding = Tensor::zeros(
-                &[input_shape[0], padding_length],
+                [input_shape[0], padding_length],
                 (attention_mask.kind(), device),
             );
             Tensor::cat(&[attention_mask, &attention_mask_padding], -1)
@@ -449,7 +449,7 @@ impl ReformerModel {
             Tensor::cat(
                 &[
                     Tensor::ones(input_shape, (Kind::Int8, device)),
-                    Tensor::zeros(&[input_shape[0], padding_length], (Kind::Int8, device)),
+                    Tensor::zeros([input_shape[0], padding_length], (Kind::Int8, device)),
                 ],
                 -1,
             )
@@ -467,7 +467,7 @@ impl ReformerModel {
                     (Kind::Int64, device),
                 )
                 .unsqueeze(0)
-                .expand(&[input_shape[0], padding_length], true);
+                .expand([input_shape[0], padding_length], true);
                 Some(Tensor::cat(&[position_ids, &position_ids_padding], -1))
             } else {
                 None
@@ -1086,6 +1086,9 @@ impl ReformerGenerator {
 impl PrivateLanguageGenerator for ReformerGenerator {
     fn _get_tokenizer(&self) -> &TokenizerOption {
         &self.tokenizer
+    }
+    fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
     }
     fn get_device(&self) -> Device {
         self.var_store.device()

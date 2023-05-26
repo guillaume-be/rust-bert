@@ -792,6 +792,16 @@ impl TokenClassificationModel {
         })
     }
 
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
+    }
+
     fn generate_features<S>(&self, input: S, example_index: usize) -> Vec<InputFeature>
     where
         S: AsRef<str>,
@@ -1044,7 +1054,7 @@ impl TokenClassificationModel {
                 attention_mask.resize(max_len, 0i64);
                 attention_mask
             })
-            .map(|input| Tensor::of_slice(&(input)))
+            .map(|input| Tensor::from_slice(&(input)))
             .collect::<Vec<_>>();
 
         let padding_index = self
@@ -1062,7 +1072,7 @@ impl TokenClassificationModel {
 
         let padded_input_ids = features
             .iter()
-            .map(|input| Tensor::of_slice(input.input_ids.as_slice()))
+            .map(|input| Tensor::from_slice(input.input_ids.as_slice()))
             .collect::<Vec<_>>();
 
         let padded_token_type_ids = features

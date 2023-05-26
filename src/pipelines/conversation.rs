@@ -733,9 +733,17 @@ impl ConversationOption {
         }
     }
 
+    /// Get a reference to the model tokenizer.
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
             Self::GPT2(model_ref) => model_ref._get_tokenizer(),
+        }
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &TokenizerOption {
+        match self {
+            Self::GPT2(model_ref) => model_ref._get_tokenizer_mut(),
         }
     }
 
@@ -1004,7 +1012,7 @@ impl ConversationModel {
             .unwrap();
 
         let attention_mask = Tensor::ones(
-            &[inputs.len() as i64, max_len as i64],
+            [inputs.len() as i64, max_len as i64],
             (Kind::Int8, self.device),
         );
 
@@ -1020,7 +1028,7 @@ impl ConversationModel {
                 padded_input.extend(input);
                 padded_input
             })
-            .map(|tokens| Tensor::of_slice(&tokens).to(self.device))
+            .map(|tokens| Tensor::from_slice(&tokens).to(self.device))
             .collect::<Vec<Tensor>>();
 
         (Tensor::stack(&concatenated_inputs, 0), attention_mask)
