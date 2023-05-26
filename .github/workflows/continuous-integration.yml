@@ -154,6 +154,7 @@ jobs:
         with:
           command: test
           args: --package rust-bert
+            --no-default-features
             --features onnx
             --test onnx
             --features download-libtorch
