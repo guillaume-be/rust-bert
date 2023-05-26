@@ -159,6 +159,7 @@ jobs:
             --test onnx
             --features download-libtorch
             --features download-onnx
+            --features remote
 
   convert-model:
     name: Model conversion test
