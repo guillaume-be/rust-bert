@@ -230,7 +230,7 @@ impl SentenceEmbeddingsModel {
         );
         let transformer =
             SentenceEmbeddingsOption::new(transformer_type, var_store.root(), &transformer_config)?;
-        var_store.load(transformer_weights_resource.get_local_path()?)?;
+        crate::resources::load_weights(&transformer_weights_resource, &mut var_store)?;
 
         // Setup pooling layer
         let pooling_config = PoolingConfig::from_file(pooling_config_resource.get_local_path()?);

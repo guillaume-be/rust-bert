@@ -4,7 +4,7 @@ use rust_bert::deberta::{
     DebertaConfig, DebertaConfigResources, DebertaForSequenceClassification,
     DebertaMergesResources, DebertaModelResources, DebertaVocabResources,
 };
-use rust_bert::resources::{RemoteResource, ResourceProvider};
+use rust_bert::resources::{load_weights, RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{DeBERTaTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use tch::{nn, no_grad, Device, Kind, Tensor};
@@ -27,7 +27,6 @@ fn main() -> anyhow::Result<()> {
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
     let merges_path = merges_resource.get_local_path()?;
-    let weights_path = model_resource.get_local_path()?;
 
     //    Set-up model
     let device = Device::Cpu;
@@ -39,7 +38,7 @@ fn main() -> anyhow::Result<()> {
     )?;
     let config = DebertaConfig::from_file(config_path);
     let model = DebertaForSequenceClassification::new(vs.root(), &config)?;
-    vs.load(weights_path)?;
+    load_weights(&model_resource, &mut vs)?;
 
     //    Define input
     let input = [("I love you.", "I like you.")];

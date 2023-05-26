@@ -639,7 +639,6 @@ impl GPT2Generator {
         tokenizer: TokenizerOption,
     ) -> Result<GPT2Generator, RustBertError> {
         let config_path = generate_config.config_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
 
         generate_config.validate();
@@ -647,7 +646,7 @@ impl GPT2Generator {
 
         let config = Gpt2Config::from_file(config_path);
         let model = GPT2LMHeadModel::new(var_store.root(), &config);
-        var_store.load(weights_path)?;
+        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
 
         let bos_token_id = tokenizer.get_bos_id();
         let eos_token_ids = tokenizer.get_eos_id().map(|id| vec![id]);

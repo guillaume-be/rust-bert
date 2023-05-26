@@ -493,13 +493,12 @@ impl OpenAIGenerator {
         generate_config.validate();
 
         let config_path = generate_config.config_resource.get_local_path()?;
-        let weights_path = generate_config.model_resource.get_local_path()?;
         let device = generate_config.device;
 
         let mut var_store = nn::VarStore::new(device);
         let config = Gpt2Config::from_file(config_path);
         let model = OpenAIGPTLMHeadModel::new(var_store.root(), &config);
-        var_store.load(weights_path)?;
+        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
 
         let bos_token_id = tokenizer.get_bos_id();
         let eos_token_ids = tokenizer.get_eos_id().map(|id| vec![id]);

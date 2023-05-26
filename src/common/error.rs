@@ -22,6 +22,9 @@ pub enum RustBertError {
 
     #[error("Value error: {0}")]
     ValueError(String),
+
+    #[error("Unsupported operation")]
+    UnsupportedError,
 }
 
 impl From<std::io::Error> for RustBertError {
