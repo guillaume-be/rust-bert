@@ -157,7 +157,6 @@ jobs:
             --features onnx
             --test onnx
             --features download-libtorch
-            --features download-onnx
 
   convert-model:
     name: Model conversion test
