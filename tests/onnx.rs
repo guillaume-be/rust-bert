@@ -3,7 +3,7 @@ mod tests {
     extern crate anyhow;
 
     use rust_bert::m2m_100::{M2M100SourceLanguages, M2M100TargetLanguages};
-    use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+    use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
     use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
     use rust_bert::pipelines::ner::NERModel;
     use rust_bert::pipelines::question_answering::{
@@ -23,7 +23,7 @@ mod tests {
     fn onnx_masked_lm() -> anyhow::Result<()> {
         let masked_lm = MaskedLanguageModel::new(MaskedLanguageConfig::new(
             ModelType::Bert,
-            ModelResources::ONNX(ONNXModelResources {
+            ModelResource::ONNX(ONNXModelResources {
                 encoder_resource: Some(Box::new(RemoteResource::new(
                     "https://huggingface.co/optimum/bert-base-uncased-for-masked-lm/resolve/main/model.onnx",
                     "onnx-bert-base-uncased-for-masked-lm",
@@ -69,7 +69,7 @@ mod tests {
     fn onnx_question_answering() -> anyhow::Result<()> {
         let qa_model = QuestionAnsweringModel::new(QuestionAnsweringConfig::new(
             ModelType::Roberta,
-            ModelResources::ONNX(ONNXModelResources {
+            ModelResource::ONNX(ONNXModelResources {
                 encoder_resource: Some(Box::new(RemoteResource::new(
                     "https://huggingface.co/optimum/roberta-base-squad2/resolve/main/model.onnx",
                     "onnx-roberta-base-squad2",
@@ -108,7 +108,7 @@ mod tests {
     fn onnx_sequence_classification() -> anyhow::Result<()> {
         let classification_model = SentimentModel::new(SequenceClassificationConfig::new(
             ModelType::DistilBert,
-            ModelResources::ONNX(ONNXModelResources {
+            ModelResource::ONNX(ONNXModelResources {
                 encoder_resource: Some(Box::new(RemoteResource::new(
                     "https://huggingface.co/optimum/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/model.onnx",
                     "onnx-distilbert-base-uncased-finetuned-sst-2-english",
@@ -148,7 +148,7 @@ mod tests {
     fn onnx_token_classification() -> anyhow::Result<()> {
         let token_classification_model = NERModel::new(TokenClassificationConfig::new(
             ModelType::Bert,
-            ModelResources::ONNX(ONNXModelResources {
+            ModelResource::ONNX(ONNXModelResources {
                 encoder_resource: Some(Box::new(RemoteResource::new(
                     "https://huggingface.co/optimum/bert-base-NER/resolve/main/model.onnx",
                     "onnx-bert-base-NER",
@@ -191,7 +191,7 @@ mod tests {
     fn onnx_text_generation() -> anyhow::Result<()> {
         let text_generation_model = TextGenerationModel::new(TextGenerationConfig {
             model_type: ModelType::GPT2,
-            model_resource: ModelResources::ONNX(ONNXModelResources {
+            model_resource: ModelResource::ONNX(ONNXModelResources {
                 encoder_resource: None,
                 decoder_resource: Some(Box::new(RemoteResource::new(
                     "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
@@ -232,7 +232,7 @@ mod tests {
     fn onnx_translation() -> anyhow::Result<()> {
         let translation_model = TranslationModel::new(TranslationConfig::new(
             ModelType::M2M100,
-            ModelResources::ONNX(ONNXModelResources {
+            ModelResource::ONNX(ONNXModelResources {
                 encoder_resource: Some(Box::new(RemoteResource::new(
                     "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
                     "onnx-m2m100_418M",

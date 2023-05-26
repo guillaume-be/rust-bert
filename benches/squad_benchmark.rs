@@ -3,7 +3,7 @@ extern crate criterion;
 
 use criterion::{black_box, Criterion};
 use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
-use rust_bert::pipelines::common::{ModelResources, ModelType};
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::question_answering::{
     squad_processor, QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
@@ -17,7 +17,7 @@ static BATCH_SIZE: usize = 64;
 fn create_qa_model() -> QuestionAnsweringModel {
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,
-        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
             BertModelResources::BERT_QA,
         ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT_QA),
@@ -54,7 +54,7 @@ fn qa_load_model(iters: u64) -> Duration {
         let start = Instant::now();
         let config = QuestionAnsweringConfig::new(
             ModelType::Bert,
-            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 BertModelResources::BERT_QA,
             ))),
             RemoteResource::from_pretrained(BertConfigResources::BERT_QA),

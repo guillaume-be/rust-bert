@@ -55,7 +55,7 @@
 //! from the 3rd party utilization of the pretrained system.
 use crate::common::error::RustBertError;
 use crate::gpt2::GPT2Generator;
-use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
+use crate::pipelines::common::{ModelResource, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::resources::ResourceProvider;
@@ -76,7 +76,7 @@ pub struct ConversationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: DialoGPT-medium)
-    pub model_resource: ModelResources,
+    pub model_resource: ModelResource,
     /// Config resource (default: DialoGPT-medium)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: DialoGPT-medium)
@@ -122,7 +122,7 @@ impl Default for ConversationConfig {
     fn default() -> ConversationConfig {
         ConversationConfig {
             model_type: ModelType::GPT2,
-            model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+            model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 Gpt2ModelResources::DIALOGPT_MEDIUM,
             ))),
             config_resource: Box::new(RemoteResource::from_pretrained(

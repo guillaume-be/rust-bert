@@ -31,10 +31,10 @@
 //!
 //! fn main() -> anyhow::Result<()> {
 //!    //    Set-up Question Answering model
-//!    use rust_bert::pipelines::common::ModelResources;
+//!    use rust_bert::pipelines::common::ModelResource;
 //! let config = QuestionAnsweringConfig::new(
 //!        ModelType::Longformer,
-//!        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+//!        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
 //!            LongformerModelResources::LONGFORMER_BASE_SQUAD1,
 //!        ))),
 //!        RemoteResource::from_pretrained(

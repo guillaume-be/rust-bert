@@ -67,7 +67,7 @@ use tch::Device;
 use crate::bart::BartGenerator;
 use crate::common::error::RustBertError;
 use crate::pegasus::PegasusConditionalGenerator;
-use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
+use crate::pipelines::common::{ModelResource, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::prophetnet::ProphetNetConditionalGenerator;
 use crate::resources::ResourceProvider;
@@ -89,7 +89,7 @@ pub struct SummarizationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
-    pub model_resource: ModelResources,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained BART model on CNN-DM)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BART model on CNN-DM)
@@ -140,7 +140,7 @@ impl SummarizationConfig {
     /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
     pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: ModelResources,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -179,7 +179,7 @@ impl Default for SummarizationConfig {
     fn default() -> SummarizationConfig {
         SummarizationConfig::new(
             ModelType::Bart,
-            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 BartModelResources::BART_CNN,
             ))),
             RemoteResource::from_pretrained(BartConfigResources::BART_CNN),
@@ -239,7 +239,7 @@ impl SummarizationOption {
     pub fn new(config: SummarizationConfig) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
-            (_, &ModelResources::ONNX(_)) => Ok(SummarizationOption::ONNX(
+            (_, &ModelResource::ONNX(_)) => Ok(SummarizationOption::ONNX(
                 ONNXConditionalGenerator::new(config.into(), None, None)?,
             )),
             (ModelType::Bart, _) => Ok(SummarizationOption::Bart(BartGenerator::new(
@@ -268,7 +268,7 @@ impl SummarizationOption {
     ) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
-            (_, &ModelResources::ONNX(_)) => Ok(SummarizationOption::ONNX(
+            (_, &ModelResource::ONNX(_)) => Ok(SummarizationOption::ONNX(
                 ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
             )),
             (ModelType::Bart, _) => Ok(SummarizationOption::Bart(

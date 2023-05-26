@@ -12,7 +12,7 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::common::{ModelResources, ModelType};
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
 use rust_bert::pipelines::sequence_classification::{
     SequenceClassificationConfig, SequenceClassificationModel,
@@ -26,7 +26,7 @@ fn main() -> anyhow::Result<()> {
     //    Language identification
     let sequence_classification_config = SequenceClassificationConfig::new(
         ModelType::Roberta,
-        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
             RobertaModelResources::CODEBERTA_LANGUAGE_ID,
         ))),
         RemoteResource::from_pretrained(RobertaConfigResources::CODEBERTA_LANGUAGE_ID),
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     // Masked language model
     let config = MaskedLanguageConfig::new(
         ModelType::Roberta,
-        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
             RobertaModelResources::CODEBERT_MLM,
         ))),
         RemoteResource::from_pretrained(RobertaConfigResources::CODEBERT_MLM),

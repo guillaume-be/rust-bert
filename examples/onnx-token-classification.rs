@@ -1,4 +1,4 @@
-use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
 use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::token_classification::{
     LabelAggregationOption, TokenClassificationConfig,
@@ -8,7 +8,7 @@ use rust_bert::resources::RemoteResource;
 fn main() -> anyhow::Result<()> {
     let token_classification_model = NERModel::new(TokenClassificationConfig::new(
         ModelType::Bert,
-        ModelResources::ONNX(ONNXModelResources {
+        ModelResource::ONNX(ONNXModelResources {
             encoder_resource: Some(Box::new(RemoteResource::new(
                 "https://huggingface.co/optimum/bert-base-NER/resolve/main/model.onnx",
                 "onnx-bert-base-NER",

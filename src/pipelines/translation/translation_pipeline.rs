@@ -18,7 +18,7 @@ use crate::m2m_100::M2M100Generator;
 use crate::marian::MarianGenerator;
 use crate::mbart::MBartGenerator;
 use crate::nllb::NLLBGenerator;
-use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
+use crate::pipelines::common::{ModelResource, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 #[cfg(feature = "onnx")]
 use crate::pipelines::onnx::ONNXConditionalGenerator;
@@ -937,7 +937,7 @@ pub struct TranslationConfig {
     /// Model type used for translation
     pub model_type: ModelType,
     /// Model weights resource
-    pub model_resource: ModelResources,
+    pub model_resource: ModelResource,
     /// Config resource
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource
@@ -996,12 +996,12 @@ impl TranslationConfig {
     ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     ///     MarianTargetLanguages, MarianVocabResources,
     /// };
-    /// use rust_bert::pipelines::common::{ModelResources, ModelType};
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType};
     /// use rust_bert::pipelines::translation::TranslationConfig;
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ROMANCE2ENGLISH,
     /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
@@ -1026,7 +1026,7 @@ impl TranslationConfig {
     /// ```
     pub fn new<RC, RV, S, T>(
         model_type: ModelType,
-        model_resource: ModelResources,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -1118,7 +1118,7 @@ impl TranslationOption {
     pub fn new(config: TranslationConfig) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
-            (_, &ModelResources::ONNX(_)) => Ok(TranslationOption::ONNX(
+            (_, &ModelResource::ONNX(_)) => Ok(TranslationOption::ONNX(
                 ONNXConditionalGenerator::new(config.into(), None, None)?,
             )),
             (ModelType::Marian, _) => Ok(TranslationOption::Marian(MarianGenerator::new(
@@ -1145,7 +1145,7 @@ impl TranslationOption {
     ) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
-            (_, &ModelResources::ONNX(_)) => Ok(TranslationOption::ONNX(
+            (_, &ModelResource::ONNX(_)) => Ok(TranslationOption::ONNX(
                 ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
             )),
             (ModelType::Marian, _) => Ok(TranslationOption::Marian(
@@ -1291,12 +1291,12 @@ impl TranslationModel {
     ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     ///     MarianTargetLanguages, MarianVocabResources,
     /// };
-    /// use rust_bert::pipelines::common::{ModelResources, ModelType};
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType};
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ROMANCE2ENGLISH,
     /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
@@ -1348,12 +1348,12 @@ impl TranslationModel {
     ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     ///     MarianTargetLanguages, MarianVocabResources,
     /// };
-    /// use rust_bert::pipelines::common::{ModelResources, ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType, TokenizerOption};
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
     /// use rust_bert::resources::{RemoteResource, ResourceProvider};
     /// use tch::Device;
     ///
-    /// let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ROMANCE2ENGLISH,
     /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
@@ -1429,12 +1429,12 @@ impl TranslationModel {
     ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     ///     MarianTargetLanguages, MarianVocabResources,
     /// };
-    /// use rust_bert::pipelines::common::{ModelResources, ModelType};
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType};
     /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+    /// let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
     ///     MarianModelResources::ENGLISH2ROMANCE,
     /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ENGLISH2ROMANCE);
@@ -1505,7 +1505,7 @@ mod test {
     #[test]
     #[ignore] // no need to run, compilation is enough to verify it is Send
     fn test() {
-        let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+        let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
             MarianModelResources::ROMANCE2ENGLISH,
         )));
         let config_resource =

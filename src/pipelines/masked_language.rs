@@ -22,10 +22,10 @@
 //!use rust_bert::resources::RemoteResource;
 //! fn main() -> anyhow::Result<()> {
 //!
-//!     use rust_bert::pipelines::common::ModelResources;
+//!     use rust_bert::pipelines::common::ModelResource;
 //! let config = MaskedLanguageConfig::new(
 //!         ModelType::Bert,
-//!         ModelResources::Torch(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT))),
+//!         ModelResource::Torch(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT))),
 //!         RemoteResource::from_pretrained(BertConfigResources::BERT),
 //!         RemoteResource::from_pretrained(BertVocabResources::BERT),
 //!         None,
@@ -52,7 +52,7 @@ use crate::deberta::DebertaForMaskedLM;
 use crate::deberta_v2::DebertaV2ForMaskedLM;
 use crate::fnet::FNetForMaskedLM;
 use crate::pipelines::common::{
-    get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
+    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
 };
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForMaskedLM;
@@ -86,7 +86,7 @@ pub struct MaskedLanguageConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: ModelResources,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained BERT model on CoNLL)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
@@ -119,7 +119,7 @@ impl MaskedLanguageConfig {
     /// * mask_token - A token used for model to predict masking words..
     pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: ModelResources,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -152,7 +152,7 @@ impl Default for MaskedLanguageConfig {
     fn default() -> MaskedLanguageConfig {
         MaskedLanguageConfig::new(
             ModelType::Bert,
-            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 BertModelResources::BERT,
             ))),
             RemoteResource::from_pretrained(BertConfigResources::BERT),
@@ -194,9 +194,9 @@ impl MaskedLanguageOption {
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &MaskedLanguageConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::Torch(_) => Self::new_torch(config),
+            ModelResource::Torch(_) => Self::new_torch(config),
             #[cfg(feature = "onnx")]
-            ModelResources::ONNX(_) => Self::new_onnx(config),
+            ModelResource::ONNX(_) => Self::new_onnx(config),
         }
     }
 

@@ -52,7 +52,7 @@ use crate::fnet::FNetForQuestionAnswering;
 use crate::longformer::LongformerForQuestionAnswering;
 use crate::mobilebert::MobileBertForQuestionAnswering;
 use crate::pipelines::common::{
-    get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
+    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
 };
 use crate::reformer::ReformerForQuestionAnswering;
 use crate::resources::ResourceProvider;
@@ -133,7 +133,7 @@ fn remove_duplicates<T: PartialEq + Clone>(vector: &mut Vec<T>) -> &mut Vec<T> {
 /// Contains information regarding the model to load and device to place the model on.
 pub struct QuestionAnsweringConfig {
     /// Model weights resource (default: pretrained DistilBERT model on SQuAD)
-    pub model_resource: ModelResources,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained DistilBERT model on SQuAD)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained DistilBERT model on SQuAD)
@@ -173,7 +173,7 @@ impl QuestionAnsweringConfig {
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: ModelResources,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -218,7 +218,7 @@ impl QuestionAnsweringConfig {
     /// * max_answer_length - Optional maximum token length for the extracted answer. Defaults to 15.
     pub fn custom_new<RC, RV>(
         model_type: ModelType,
-        model_resource: ModelResources,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -256,7 +256,7 @@ impl QuestionAnsweringConfig {
 impl Default for QuestionAnsweringConfig {
     fn default() -> QuestionAnsweringConfig {
         QuestionAnsweringConfig {
-            model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+            model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 DistilBertModelResources::DISTIL_BERT_SQUAD,
             ))),
             config_resource: Box::new(RemoteResource::from_pretrained(
@@ -320,9 +320,9 @@ impl QuestionAnsweringOption {
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &QuestionAnsweringConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::Torch(_) => Self::new_torch(config),
+            ModelResource::Torch(_) => Self::new_torch(config),
             #[cfg(feature = "onnx")]
-            ModelResources::ONNX(_) => Self::new_onnx(config),
+            ModelResource::ONNX(_) => Self::new_onnx(config),
         }
     }
 

@@ -1,4 +1,4 @@
-use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
@@ -7,7 +7,7 @@ use rust_bert::resources::RemoteResource;
 fn main() -> anyhow::Result<()> {
     let qa_model = QuestionAnsweringModel::new(QuestionAnsweringConfig::new(
         ModelType::Roberta,
-        ModelResources::ONNX(ONNXModelResources {
+        ModelResource::ONNX(ONNXModelResources {
             encoder_resource: Some(Box::new(RemoteResource::new(
                 "https://huggingface.co/optimum/roberta-base-squad2/resolve/main/model.onnx",
                 "onnx-roberta-base-squad2",

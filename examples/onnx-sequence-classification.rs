@@ -1,4 +1,4 @@
-use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
 use rust_bert::pipelines::sentiment::SentimentModel;
 use rust_bert::pipelines::sequence_classification::SequenceClassificationConfig;
 use rust_bert::resources::RemoteResource;
@@ -6,7 +6,7 @@ use rust_bert::resources::RemoteResource;
 fn main() -> anyhow::Result<()> {
     let classification_model = SentimentModel::new(SequenceClassificationConfig::new(
         ModelType::DistilBert,
-        ModelResources::ONNX(ONNXModelResources {
+        ModelResource::ONNX(ONNXModelResources {
             encoder_resource: Some(Box::new(RemoteResource::new(
                 "https://huggingface.co/optimum/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/model.onnx",
                 "onnx-distilbert-base-uncased-finetuned-sst-2-english",

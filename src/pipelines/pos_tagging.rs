@@ -93,7 +93,7 @@ use {
             MobileBertConfigResources, MobileBertModelResources, MobileBertVocabResources,
         },
         pipelines::{
-            common::{ModelResources, ModelType},
+            common::{ModelResource, ModelType},
             token_classification::LabelAggregationOption,
         },
         resources::RemoteResource,
@@ -124,7 +124,7 @@ impl Default for POSConfig {
         POSConfig {
             token_classification_config: TokenClassificationConfig {
                 model_type: ModelType::MobileBert,
-                model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+                model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                     MobileBertModelResources::MOBILEBERT_ENGLISH_POS,
                 ))),
                 config_resource: Box::new(RemoteResource::from_pretrained(

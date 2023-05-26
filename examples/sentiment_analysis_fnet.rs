@@ -13,7 +13,7 @@
 extern crate anyhow;
 
 use rust_bert::fnet::{FNetConfigResources, FNetModelResources, FNetVocabResources};
-use rust_bert::pipelines::common::{ModelResources, ModelType};
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::sentiment::{SentimentConfig, SentimentModel};
 use rust_bert::resources::RemoteResource;
 
@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     let vocab_resource = Box::new(RemoteResource::from_pretrained(
         FNetVocabResources::BASE_SST2,
     ));
-    let model_resource = ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+    let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
         FNetModelResources::BASE_SST2,
     )));
 

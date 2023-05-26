@@ -1,11 +1,11 @@
-use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
 use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
 use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     let masked_lm = MaskedLanguageModel::new(MaskedLanguageConfig::new(
         ModelType::Bert,
-        ModelResources::ONNX(ONNXModelResources {
+        ModelResource::ONNX(ONNXModelResources {
             encoder_resource: Some(Box::new(RemoteResource::new(
                 "https://huggingface.co/optimum/bert-base-uncased-for-masked-lm/resolve/main/model.onnx",
                 "onnx-bert-base-uncased-for-masked-lm",

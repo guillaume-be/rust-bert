@@ -1,5 +1,5 @@
 use rust_bert::longt5::{LongT5ConfigResources, LongT5ModelResources, LongT5VocabResources};
-use rust_bert::pipelines::common::{ModelResources, ModelType};
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::resources::RemoteResource;
 
@@ -8,7 +8,7 @@ fn test_summarization_longt5() -> anyhow::Result<()> {
     //    Set-up translation model
     let summarization_config = SummarizationConfig {
         model_type: ModelType::LongT5,
-        model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+        model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
             LongT5ModelResources::TGLOBAL_BASE_BOOK_SUMMARY,
         ))),
         config_resource: Box::new(RemoteResource::from_pretrained(

@@ -38,7 +38,7 @@ use crate::gpt2::GPT2Generator;
 use crate::gpt_j::GptJGenerator;
 use crate::gpt_neo::GptNeoGenerator;
 use crate::openai_gpt::OpenAIGenerator;
-use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
+use crate::pipelines::common::{ModelResource, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::reformer::ReformerGenerator;
 use crate::resources::ResourceProvider;
@@ -60,7 +60,7 @@ pub struct TextGenerationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
-    pub model_resource: ModelResources,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained BART model on CNN-DM)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BART model on CNN-DM)
@@ -111,7 +111,7 @@ impl TextGenerationConfig {
     /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
     pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: ModelResources,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -150,7 +150,7 @@ impl Default for TextGenerationConfig {
     fn default() -> TextGenerationConfig {
         TextGenerationConfig::new(
             ModelType::GPT2,
-            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 Gpt2ModelResources::GPT2_MEDIUM,
             ))),
             RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2_MEDIUM),
@@ -214,7 +214,7 @@ impl TextGenerationOption {
     pub fn new(config: TextGenerationConfig) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
-            (_, &ModelResources::ONNX(_)) => Ok(TextGenerationOption::ONNX(
+            (_, &ModelResource::ONNX(_)) => Ok(TextGenerationOption::ONNX(
                 ONNXCausalGenerator::new(config.into(), None, None)?,
             )),
             (ModelType::GPT2, _) => Ok(TextGenerationOption::GPT2(GPT2Generator::new(
@@ -249,7 +249,7 @@ impl TextGenerationOption {
     ) -> Result<Self, RustBertError> {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
-            (_, &ModelResources::ONNX(_)) => Ok(TextGenerationOption::ONNX(
+            (_, &ModelResource::ONNX(_)) => Ok(TextGenerationOption::ONNX(
                 ONNXCausalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
             )),
             (ModelType::GPT2, _) => Ok(TextGenerationOption::GPT2(

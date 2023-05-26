@@ -13,7 +13,7 @@
 extern crate anyhow;
 
 use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
-use rust_bert::pipelines::common::{ModelResources, ModelType};
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
@@ -23,7 +23,7 @@ fn main() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,
-        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
             BertModelResources::BERT_QA,
         ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT_QA),

@@ -7,7 +7,7 @@ use rust_bert::longformer::{
     LongformerForTokenClassification, LongformerMergesResources, LongformerModelResources,
     LongformerVocabResources,
 };
-use rust_bert::pipelines::common::{ModelResources, ModelType};
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
@@ -384,7 +384,7 @@ fn longformer_for_question_answering() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Longformer,
-        ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
             LongformerModelResources::LONGFORMER_BASE_SQUAD1,
         ))),
         RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_SQUAD1),

@@ -21,12 +21,12 @@
 //! use rust_bert::pipelines::common::ModelType;
 //! # fn main() -> anyhow::Result<()> {
 //!
-//! use rust_bert::pipelines::common::ModelResources;
+//! use rust_bert::pipelines::common::ModelResource;
 //! //Load a configuration
 //! use rust_bert::pipelines::token_classification::LabelAggregationOption;
 //! let config = TokenClassificationConfig::new(
 //!    ModelType::Bert,
-//!    ModelResources::Torch(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_NER))),
+//!    ModelResource::Torch(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_NER))),
 //!    RemoteResource::from_pretrained(BertVocabResources::BERT_NER),
 //!    RemoteResource::from_pretrained(BertConfigResources::BERT_NER),
 //!    None, //merges resource only relevant with ModelType::Roberta
@@ -122,7 +122,7 @@ use crate::fnet::FNetForTokenClassification;
 use crate::longformer::LongformerForTokenClassification;
 use crate::mobilebert::MobileBertForTokenClassification;
 use crate::pipelines::common::{
-    get_device, ConfigOption, ModelResources, ModelType, TokenizerOption,
+    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
 };
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForTokenClassification;
@@ -228,7 +228,7 @@ pub struct TokenClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: ModelResources,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained BERT model on CoNLL)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
@@ -262,7 +262,7 @@ impl TokenClassificationConfig {
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: ModelResources,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -297,7 +297,7 @@ impl Default for TokenClassificationConfig {
     fn default() -> TokenClassificationConfig {
         TokenClassificationConfig::new(
             ModelType::Bert,
-            ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 BertModelResources::BERT_NER,
             ))),
             RemoteResource::from_pretrained(BertConfigResources::BERT_NER),
@@ -352,9 +352,9 @@ impl TokenClassificationOption {
     ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
-            ModelResources::Torch(_) => Self::new_torch(config),
+            ModelResource::Torch(_) => Self::new_torch(config),
             #[cfg(feature = "onnx")]
-            ModelResources::ONNX(_) => Self::new_onnx(config),
+            ModelResource::ONNX(_) => Self::new_onnx(config),
         }
     }
 

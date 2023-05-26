@@ -1,14 +1,14 @@
 use rust_bert::m2m_100::{M2M100SourceLanguages, M2M100TargetLanguages};
 use tch::Device;
 
-use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     let translation_model = TranslationModel::new(TranslationConfig::new(
         ModelType::M2M100,
-        ModelResources::ONNX(ONNXModelResources {
+        ModelResource::ONNX(ONNXModelResources {
             encoder_resource: Some(Box::new(RemoteResource::new(
                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
                 "onnx-m2m100_418M",

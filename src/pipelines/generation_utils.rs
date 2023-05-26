@@ -82,7 +82,7 @@ use crate::t5::LayerState as T5LayerState;
 use crate::xlnet::LayerState as XLNetLayerState;
 
 use self::ordered_float::OrderedFloat;
-use crate::pipelines::common::{ModelResources, ModelType, TokenizerOption};
+use crate::pipelines::common::{ModelResource, ModelType, TokenizerOption};
 
 extern crate ordered_float;
 #[cfg(feature = "onnx")]
@@ -99,7 +99,7 @@ pub struct GenerateConfig {
     /// Model type used for generation
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained GPT2 model)
-    pub model_resource: ModelResources,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained GPT2 model)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained GPT2 model)
@@ -143,7 +143,7 @@ impl Default for GenerateConfig {
     fn default() -> GenerateConfig {
         GenerateConfig {
             model_type: ModelType::GPT2,
-            model_resource: ModelResources::Torch(Box::new(RemoteResource::from_pretrained(
+            model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 Gpt2ModelResources::GPT2,
             ))),
             config_resource: Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)),

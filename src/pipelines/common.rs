@@ -39,7 +39,7 @@ use crate::pegasus::PegasusConfig;
 use crate::pipelines::translation::Language;
 use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
-use crate::resources::ResourceProvider;
+use crate::resources::{Resource, ResourceProvider};
 use crate::roberta::RobertaConfig;
 use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
@@ -76,10 +76,27 @@ pub struct ONNXModelResources {
 
 #[derive(Debug)]
 /// Variants to store either a Torch model resource or ONNX resources
-pub enum ModelResources {
+pub enum ModelResource {
     Torch(Box<dyn ResourceProvider + Send>),
     #[cfg(feature = "onnx")]
     ONNX(ONNXModelResources),
+}
+
+impl ResourceProvider for ModelResource {
+    fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
+        match self {
+            ModelResource::Torch(ref resource) => resource.get_local_path(),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Err(RustBertError::UnsupportedError),
+        }
+    }
+    fn get_resource(&self) -> Result<Resource, RustBertError> {
+        match self {
+            ModelResource::Torch(ref resource) => resource.get_resource(),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Err(RustBertError::UnsupportedError),
+        }
+    }
 }
 
 pub struct ONNXLocalPaths {
@@ -88,12 +105,12 @@ pub struct ONNXLocalPaths {
     pub decoder_with_past_path: Option<PathBuf>,
 }
 
-impl ModelResources {
+impl ModelResource {
     /// Provides the torch resource local path.
     /// Returns an error if the variant is not a `ModelResources::TORCH`
     pub fn get_torch_local_path(&self) -> Result<PathBuf, RustBertError> {
         match self {
-            ModelResources::Torch(torch_resource) => torch_resource.get_local_path(),
+            ModelResource::Torch(torch_resource) => torch_resource.get_local_path(),
             #[cfg(feature = "onnx")]
             _ => Err(RustBertError::InvalidConfigurationError(format!("Attempting to get the Torch local path but other weights variants were given: {:?}", self)))
         }
@@ -102,7 +119,7 @@ impl ModelResources {
     #[cfg(feature = "onnx")]
     pub fn get_onnx_local_paths(&self) -> Result<ONNXLocalPaths, RustBertError> {
         let (encoder_path, decoder_path, decoder_with_past_path) = match self {
-            ModelResources::ONNX(onnx_model_resources) => Ok((
+            ModelResource::ONNX(onnx_model_resources) => Ok((
                 onnx_model_resources
                     .encoder_resource.as_ref()
                     .map(|r| r.get_local_path()),
@@ -123,9 +140,9 @@ impl ModelResources {
     }
 }
 
-pub(crate) fn get_device(_model_resource: ModelResources, device: Device) -> Device {
+pub(crate) fn get_device(_model_resource: ModelResource, device: Device) -> Device {
     #[cfg(feature = "onnx")]
-    let device = if let ModelResources::ONNX(_) = _model_resource {
+    let device = if let ModelResource::ONNX(_) = _model_resource {
         Device::Cpu
     } else {
         device

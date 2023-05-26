@@ -17,6 +17,7 @@ use std::sync::{Arc, RwLock};
 use rust_bert::bart::{
     BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
 };
+use rust_bert::pipelines::common::ModelResource;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::resources::{BufferResource, RemoteResource, ResourceProvider};
 use tch::Device;
@@ -80,7 +81,7 @@ fn config(device: Device, model_data: Arc<RwLock<Vec<u8>>>) -> SummarizationConf
     let merges_resource = Box::new(RemoteResource::from_pretrained(
         BartMergesResources::DISTILBART_CNN_6_6,
     ));
-    let model_resource = Box::new(BufferResource { data: model_data });
+    let model_resource = ModelResource::Torch(Box::new(BufferResource { data: model_data }));
 
     SummarizationConfig {
         model_resource,

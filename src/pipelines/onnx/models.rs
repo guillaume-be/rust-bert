@@ -83,7 +83,7 @@ impl ONNXCausalGenerator {
     ///
     /// ```no_run
     /// use ort::Environment;
-    /// use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
     /// use rust_bert::pipelines::onnx::ONNXCausalGenerator;
@@ -91,7 +91,7 @@ impl ONNXCausalGenerator {
     /// use std::sync::Arc;
     /// let generate_config = GenerateConfig {
     ///     model_type: ModelType::GPT2,
-    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
     ///         encoder_resource: None,
     ///         decoder_resource: Some(Box::new(RemoteResource::new(
     ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
@@ -160,7 +160,7 @@ impl ONNXCausalGenerator {
     /// ```no_run
     /// use ort::Environment;
     /// use rust_bert::pipelines::common::{
-    ///     ModelResources, ModelType, ONNXModelResources, TokenizerOption,
+    ///     ModelResource, ModelType, ONNXModelResources, TokenizerOption,
     /// };
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
@@ -168,7 +168,7 @@ impl ONNXCausalGenerator {
     /// use rust_bert::resources::RemoteResource;
     /// use std::sync::Arc;
     /// let generate_config = GenerateConfig {
-    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
     ///         encoder_resource: None,
     ///         decoder_resource: Some(Box::new(RemoteResource::new(
     ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
@@ -311,7 +311,7 @@ impl ONNXCausalGenerator {
     ///
     /// ```no_run
     /// use ort::Environment;
-    /// use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
     /// use rust_bert::pipelines::generation_utils::{Cache, GenerateConfig};
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
     /// use rust_bert::pipelines::onnx::ONNXCausalGenerator;
@@ -321,7 +321,7 @@ impl ONNXCausalGenerator {
     /// use tch::{Device, Tensor};
     /// let generate_config = GenerateConfig {
     ///     model_type: ModelType::GPT2,
-    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
     ///         encoder_resource: None,
     ///         decoder_resource: Some(Box::new(RemoteResource::new(
     ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
@@ -591,7 +591,7 @@ impl ONNXConditionalGenerator {
     ///
     /// ```no_run
     /// use ort::Environment;
-    /// use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
     /// use rust_bert::pipelines::onnx::ONNXConditionalGenerator;
@@ -599,7 +599,7 @@ impl ONNXConditionalGenerator {
     /// use std::sync::Arc;
     /// let generate_config = GenerateConfig {
     ///     model_type: ModelType::M2M100,
-    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
     ///              encoder_resource: Some(Box::new(RemoteResource::new(
     ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
     ///                 "onnx-m2m100_418M",
@@ -671,7 +671,7 @@ impl ONNXConditionalGenerator {
     /// ```no_run
     /// use ort::Environment;
     /// use rust_bert::pipelines::common::{
-    ///     ModelResources, ModelType, ONNXModelResources, TokenizerOption,
+    ///     ModelResource, ModelType, ONNXModelResources, TokenizerOption,
     /// };
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
@@ -679,7 +679,7 @@ impl ONNXConditionalGenerator {
     /// use rust_bert::resources::RemoteResource;
     /// use std::sync::Arc;
     /// let generate_config = GenerateConfig {
-    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
     ///              encoder_resource: Some(Box::new(RemoteResource::new(
     ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
     ///                 "onnx-m2m100_418M",
@@ -829,7 +829,7 @@ impl ONNXConditionalGenerator {
     ///
     /// ```no_run
     /// use ort::Environment;
-    /// use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
     /// use rust_bert::pipelines::generation_utils::{Cache, GenerateConfig};
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
     /// use rust_bert::pipelines::onnx::ONNXConditionalGenerator;
@@ -839,7 +839,7 @@ impl ONNXConditionalGenerator {
     /// use tch::{Device, Tensor};
     /// let generate_config = GenerateConfig {
     ///     model_type: ModelType::M2M100,
-    ///     model_resource: ModelResources::ONNX(ONNXModelResources {
+    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
     ///              encoder_resource: Some(Box::new(RemoteResource::new(
     ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
     ///                 "onnx-m2m100_418M",

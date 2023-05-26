@@ -1,11 +1,11 @@
-use rust_bert::pipelines::common::{ModelResources, ModelType, ONNXModelResources};
+use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::RemoteResource;
 
 fn main() -> anyhow::Result<()> {
     let text_generation_model = TextGenerationModel::new(TextGenerationConfig {
         model_type: ModelType::GPT2,
-        model_resource: ModelResources::ONNX(ONNXModelResources {
+        model_resource: ModelResource::ONNX(ONNXModelResources {
             encoder_resource: None,
             decoder_resource: Some(Box::new(RemoteResource::new(
                 "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
