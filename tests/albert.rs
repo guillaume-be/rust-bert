@@ -6,7 +6,7 @@ use rust_bert::albert::{
     AlbertForQuestionAnswering, AlbertForSequenceClassification, AlbertForTokenClassification,
     AlbertModelResources, AlbertVocabResources,
 };
-use rust_bert::resources::{RemoteResource, ResourceProvider};
+use rust_bert::resources::{load_weights, RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{AlbertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
@@ -27,7 +27,6 @@ fn albert_masked_lm() -> anyhow::Result<()> {
     ));
     let config_path = config_resource.get_local_path()?;
     let vocab_path = vocab_resource.get_local_path()?;
-    let weights_path = weights_resource.get_local_path()?;
 
     //    Set-up masked LM model
     let device = Device::Cpu;
@@ -36,7 +35,7 @@ fn albert_masked_lm() -> anyhow::Result<()> {
         AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let config = AlbertConfig::from_file(config_path);
     let albert_model = AlbertForMaskedLM::new(vs.root(), &config);
-    vs.load(weights_path)?;
+    load_weights(&weights_resource, &mut vs)?;
 
     //    Define input
     let input = [

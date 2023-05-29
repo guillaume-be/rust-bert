@@ -720,7 +720,6 @@ impl TokenClassificationModel {
         tokenizer: TokenizerOption,
     ) -> Result<TokenClassificationModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
-        let weights_path = config.model_resource.get_local_path()?;
         let device = config.device;
         let label_aggregation_function = config.label_aggregation_function;
 
@@ -734,7 +733,7 @@ impl TokenClassificationModel {
             TokenClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping().clone();
         let batch_size = config.batch_size;
-        var_store.load(weights_path)?;
+        crate::resources::load_weights(&config.model_resource, &mut var_store)?;
         Ok(TokenClassificationModel {
             tokenizer,
             token_sequence_classifier,
