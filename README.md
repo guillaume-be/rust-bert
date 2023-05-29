@@ -108,7 +108,7 @@ Note that the libtorch library is large (order of several GBs for the CUDA-enabl
 
 ### Verifying installation
 
-Verify your installation (and linking with PyTorch) by cloning the rust-bert source and running an example:
+Verify your installation (and linking with libtorch) by adding the `rust-bert` dependency to your `Cargo.toml` or by cloning the rust-bert source and running an example:
 
 ```bash
 git clone git@github.com:guillaume-be/rust-bert.git
