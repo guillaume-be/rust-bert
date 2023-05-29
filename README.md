@@ -93,11 +93,28 @@ $Env:LIBTORCH = "X:\path\to\libtorch"
 $Env:Path += ";X:\path\to\libtorch\lib"
 ```
 
+#### macOS + Homebrew
+```bash
+brew install pytorch jq
+export LIBTORCH=$(brew --cellar pytorch)/$(brew info --json pytorch | jq -r '.[0].installed[0].version')
+export LD_LIBRARY_PATH=${LIBTORCH}/lib:$LD_LIBRARY_PATH
+```
+
 ### Automatic installation
 
 Alternatively, you can let the `build` script automatically download the `libtorch` library for you. The `download-libtorch` feature flag needs to be enabled.
 The CPU version of libtorch will be downloaded by default. To download a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to `cu118`.
 Note that the libtorch library is large (order of several GBs for the CUDA-enabled version) and the first build may therefore take several minutes to complete.
+
+### Verifying installation
+
+Verify your installation (and linking with libtorch) by adding the `rust-bert` dependency to your `Cargo.toml` or by cloning the rust-bert source and running an example:
+
+```bash
+git clone git@github.com:guillaume-be/rust-bert.git
+cd rust-bert
+cargo run --example sentence_embeddings
+```
 
 ## Ready-to-use pipelines
 	
