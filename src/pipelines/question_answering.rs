@@ -51,23 +51,27 @@ use crate::distilbert::DistilBertForQuestionAnswering;
 use crate::fnet::FNetForQuestionAnswering;
 use crate::longformer::LongformerForQuestionAnswering;
 use crate::mobilebert::MobileBertForQuestionAnswering;
-use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::pipelines::common::{
+    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
+};
 use crate::reformer::ReformerForQuestionAnswering;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForQuestionAnswering;
 use crate::xlnet::XLNetForQuestionAnswering;
 use rust_tokenizers::{Offset, TokenIdsWithOffsets, TokenizedInput};
 use serde::{Deserialize, Serialize};
-use std::borrow::Borrow;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use tch::kind::Kind::Float;
 use tch::nn::VarStore;
-use tch::{nn, no_grad, Device, Tensor};
+use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::deberta_v2::DebertaV2ForQuestionAnswering;
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
+
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
@@ -88,6 +92,7 @@ pub struct QaInput {
 struct QaFeature {
     pub input_ids: Vec<i64>,
     pub offsets: Vec<Option<Offset>>,
+    pub token_type_ids: Vec<i8>,
     pub p_mask: Vec<i8>,
     pub example_index: i64,
 }
@@ -128,7 +133,7 @@ fn remove_duplicates<T: PartialEq + Clone>(vector: &mut Vec<T>) -> &mut Vec<T> {
 /// Contains information regarding the model to load and device to place the model on.
 pub struct QuestionAnsweringConfig {
     /// Model weights resource (default: pretrained DistilBERT model on SQuAD)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained DistilBERT model on SQuAD)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained DistilBERT model on SQuAD)
@@ -166,9 +171,9 @@ impl QuestionAnsweringConfig {
     /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new<RM, RC, RV>(
+    pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -177,13 +182,12 @@ impl QuestionAnsweringConfig {
         add_prefix_space: impl Into<Option<bool>>,
     ) -> QuestionAnsweringConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         QuestionAnsweringConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -212,9 +216,9 @@ impl QuestionAnsweringConfig {
     /// * max_query_length - Optional maximum question token length. Defaults to 64.
     /// * doc_stride - Optional stride to apply if a sliding window is required to process the input context. Represents the number of overlapping tokens between sliding windows. This should be lower than the max_seq_length minus max_query_length (otherwise there is a risk for the sliding window not to progress). Defaults to 128.
     /// * max_answer_length - Optional maximum token length for the extracted answer. Defaults to 15.
-    pub fn custom_new<RM, RC, RV>(
+    pub fn custom_new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -227,13 +231,12 @@ impl QuestionAnsweringConfig {
         max_answer_length: impl Into<Option<usize>>,
     ) -> QuestionAnsweringConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         QuestionAnsweringConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -253,9 +256,9 @@ impl QuestionAnsweringConfig {
 impl Default for QuestionAnsweringConfig {
     fn default() -> QuestionAnsweringConfig {
         QuestionAnsweringConfig {
-            model_resource: Box::new(RemoteResource::from_pretrained(
+            model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 DistilBertModelResources::DISTIL_BERT_SQUAD,
-            )),
+            ))),
             config_resource: Box::new(RemoteResource::from_pretrained(
                 DistilBertConfigResources::DISTIL_BERT_SQUAD,
             )),
@@ -303,6 +306,9 @@ pub enum QuestionAnsweringOption {
     Longformer(LongformerForQuestionAnswering),
     /// FNet for Question Answering
     FNet(FNetForQuestionAnswering),
+    /// ONNX model for Question Answering
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXEncoder),
 }
 
 impl QuestionAnsweringOption {
@@ -310,23 +316,30 @@ impl QuestionAnsweringOption {
     ///
     /// # Arguments
     ///
-    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded)
-    /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
-    /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
-    /// `model_type`)
-    pub fn new<'p, P>(
-        model_type: ModelType,
-        p: P,
-        config: &ConfigOption,
-    ) -> Result<Self, RustBertError>
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        match model_type {
+    /// * `QuestionAnsweringConfig` - Question answering pipeline configuration. The type of model created will be inferred from the
+    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    pub fn new(config: &QuestionAnsweringConfig) -> Result<Self, RustBertError> {
+        match config.model_resource {
+            ModelResource::Torch(_) => Self::new_torch(config),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Self::new_onnx(config),
+        }
+    }
+
+    fn new_torch(config: &QuestionAnsweringConfig) -> Result<Self, RustBertError> {
+        let device = config.device;
+        let weights_path = config.model_resource.get_torch_local_path()?;
+        let mut var_store = VarStore::new(device);
+        let model_config = &mut ConfigOption::from_file(
+            config.model_type,
+            config.config_resource.get_local_path()?,
+        );
+        let model_type = config.model_type;
+        let model = match model_type {
             ModelType::Bert => {
-                if let ConfigOption::Bert(config) = config {
+                if let ConfigOption::Bert(config) = model_config {
                     Ok(QuestionAnsweringOption::Bert(
-                        BertForQuestionAnswering::new(p, config),
+                        BertForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -335,9 +348,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::Deberta => {
-                if let ConfigOption::Deberta(config) = config {
+                if let ConfigOption::Deberta(config) = model_config {
                     Ok(QuestionAnsweringOption::Deberta(
-                        DebertaForQuestionAnswering::new(p, config),
+                        DebertaForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -346,9 +359,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::DebertaV2 => {
-                if let ConfigOption::DebertaV2(config) = config {
+                if let ConfigOption::DebertaV2(config) = model_config {
                     Ok(QuestionAnsweringOption::DebertaV2(
-                        DebertaV2ForQuestionAnswering::new(p, config),
+                        DebertaV2ForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -357,9 +370,10 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::DistilBert => {
-                if let ConfigOption::DistilBert(config) = config {
+                if let ConfigOption::DistilBert(ref mut config) = model_config {
+                    config.sinusoidal_pos_embds = false;
                     Ok(QuestionAnsweringOption::DistilBert(
-                        DistilBertForQuestionAnswering::new(p, config),
+                        DistilBertForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -368,9 +382,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::MobileBert => {
-                if let ConfigOption::MobileBert(config) = config {
+                if let ConfigOption::MobileBert(config) = model_config {
                     Ok(QuestionAnsweringOption::MobileBert(
-                        MobileBertForQuestionAnswering::new(p, config),
+                        MobileBertForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -379,9 +393,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Roberta(config) = config {
+                if let ConfigOption::Roberta(config) = model_config {
                     Ok(QuestionAnsweringOption::Roberta(
-                        RobertaForQuestionAnswering::new(p, config),
+                        RobertaForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -390,9 +404,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::XLMRoberta => {
-                if let ConfigOption::Bert(config) = config {
+                if let ConfigOption::Bert(config) = model_config {
                     Ok(QuestionAnsweringOption::XLMRoberta(
-                        RobertaForQuestionAnswering::new(p, config),
+                        RobertaForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -401,9 +415,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::Albert => {
-                if let ConfigOption::Albert(config) = config {
+                if let ConfigOption::Albert(config) = model_config {
                     Ok(QuestionAnsweringOption::Albert(
-                        AlbertForQuestionAnswering::new(p, config),
+                        AlbertForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -412,9 +426,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::XLNet => {
-                if let ConfigOption::XLNet(config) = config {
+                if let ConfigOption::XLNet(config) = model_config {
                     Ok(QuestionAnsweringOption::XLNet(
-                        XLNetForQuestionAnswering::new(p, config)?,
+                        XLNetForQuestionAnswering::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -423,9 +437,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::Reformer => {
-                if let ConfigOption::Reformer(config) = config {
+                if let ConfigOption::Reformer(config) = model_config {
                     Ok(QuestionAnsweringOption::Reformer(
-                        ReformerForQuestionAnswering::new(p, config)?,
+                        ReformerForQuestionAnswering::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -434,9 +448,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::Longformer => {
-                if let ConfigOption::Longformer(config) = config {
+                if let ConfigOption::Longformer(config) = model_config {
                     Ok(QuestionAnsweringOption::Longformer(
-                        LongformerForQuestionAnswering::new(p, config),
+                        LongformerForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -445,9 +459,9 @@ impl QuestionAnsweringOption {
                 }
             }
             ModelType::FNet => {
-                if let ConfigOption::FNet(config) = config {
+                if let ConfigOption::FNet(config) = model_config {
                     Ok(QuestionAnsweringOption::FNet(
-                        FNetForQuestionAnswering::new(p, config),
+                        FNetForQuestionAnswering::new(var_store.root(), config),
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -458,7 +472,28 @@ impl QuestionAnsweringOption {
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "QuestionAnswering not implemented for {model_type:?}!",
             ))),
-        }
+        }?;
+        var_store.load(weights_path)?;
+        Ok(model)
+    }
+
+    #[cfg(feature = "onnx")]
+    pub fn new_onnx(config: &QuestionAnsweringConfig) -> Result<Self, RustBertError> {
+        let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
+        let environment = onnx_config.get_environment()?;
+        let encoder_file = config
+            .model_resource
+            .get_onnx_local_paths()?
+            .encoder_path
+            .ok_or(RustBertError::InvalidConfigurationError(
+                "An encoder file must be provided for question answering ONNX models.".to_string(),
+            ))?;
+
+        Ok(Self::ONNX(ONNXEncoder::new(
+            encoder_file,
+            &environment,
+            &onnx_config,
+        )?))
     }
 
     /// Returns the `ModelType` for this SequenceClassificationOption
@@ -476,6 +511,8 @@ impl QuestionAnsweringOption {
             Self::Reformer(_) => ModelType::Reformer,
             Self::Longformer(_) => ModelType::Longformer,
             Self::FNet(_) => ModelType::FNet,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => ModelType::ONNX,
         }
     }
 
@@ -485,6 +522,7 @@ impl QuestionAnsweringOption {
         input_ids: Option<&Tensor>,
         mask: Option<&Tensor>,
         input_embeds: Option<&Tensor>,
+        _token_type_ids: Option<&Tensor>,
         train: bool,
     ) -> (Tensor, Tensor) {
         match *self {
@@ -547,6 +585,19 @@ impl QuestionAnsweringOption {
                     .expect("Error in fnet forward pass");
                 (outputs.start_logits, outputs.end_logits)
             }
+            #[cfg(feature = "onnx")]
+            Self::ONNX(ref model) => {
+                let outputs = model
+                    .forward(
+                        input_ids,
+                        mask.map(|tensor| tensor.to_kind(Kind::Int64)).as_ref(),
+                        _token_type_ids,
+                        None,
+                        input_embeds,
+                    )
+                    .expect("Error in ONNX forward pass.");
+                (outputs.start_logits.unwrap(), outputs.end_logits.unwrap())
+            }
         }
     }
 }
@@ -561,7 +612,7 @@ pub struct QuestionAnsweringModel {
     max_query_length: usize,
     max_answer_len: usize,
     qa_model: QuestionAnsweringOption,
-    var_store: VarStore,
+    device: Device,
 }
 
 impl QuestionAnsweringModel {
@@ -631,8 +682,7 @@ impl QuestionAnsweringModel {
         question_answering_config: QuestionAnsweringConfig,
         tokenizer: TokenizerOption,
     ) -> Result<QuestionAnsweringModel, RustBertError> {
-        let config_path = question_answering_config.config_resource.get_local_path()?;
-        let device = question_answering_config.device;
+        let qa_model = QuestionAnsweringOption::new(&question_answering_config)?;
 
         let pad_idx = tokenizer
             .get_pad_id()
@@ -640,19 +690,6 @@ impl QuestionAnsweringModel {
         let sep_idx = tokenizer
             .get_sep_id()
             .expect("The Tokenizer used for Question Answering should contain a SEP id");
-        let mut var_store = VarStore::new(device);
-        let mut model_config =
-            ConfigOption::from_file(question_answering_config.model_type, config_path);
-
-        if let ConfigOption::DistilBert(ref mut config) = model_config {
-            config.sinusoidal_pos_embds = false;
-        };
-
-        let qa_model = QuestionAnsweringOption::new(
-            question_answering_config.model_type,
-            var_store.root(),
-            &model_config,
-        )?;
 
         if question_answering_config.max_seq_length
             < (question_answering_config.max_query_length
@@ -668,8 +705,10 @@ impl QuestionAnsweringModel {
                 question_answering_config.doc_stride
             )));
         }
-
-        crate::resources::load_weights(&question_answering_config.model_resource, &mut var_store)?;
+        let device = get_device(
+            question_answering_config.model_resource,
+            question_answering_config.device,
+        );
         Ok(QuestionAnsweringModel {
             tokenizer,
             pad_idx,
@@ -679,7 +718,7 @@ impl QuestionAnsweringModel {
             max_query_length: question_answering_config.max_query_length,
             max_answer_len: question_answering_config.max_answer_length,
             qa_model,
-            var_store,
+            device,
         })
     }
 
@@ -758,11 +797,16 @@ impl QuestionAnsweringModel {
             let end = start + min(len_features - start, batch_size);
             let batch_features = &mut features[start..end];
             no_grad(|| {
-                let (input_ids, attention_masks) = self.pad_features(batch_features);
+                let (input_ids, attention_masks, token_type_ids) =
+                    self.pad_features(batch_features);
 
-                let (start_logits, end_logits) =
-                    self.qa_model
-                        .forward_t(Some(&input_ids), Some(&attention_masks), None, false);
+                let (start_logits, end_logits) = self.qa_model.forward_t(
+                    Some(&input_ids),
+                    Some(&attention_masks),
+                    None,
+                    Some(&token_type_ids),
+                    false,
+                );
 
                 let start_logits = start_logits.detach();
                 let end_logits = end_logits.detach();
@@ -935,6 +979,7 @@ impl QuestionAnsweringModel {
             let qa_feature = QaFeature {
                 input_ids: encoded_span.token_ids,
                 offsets: encoded_span.token_offsets,
+                token_type_ids: encoded_span.segment_ids,
                 p_mask,
                 example_index,
             };
@@ -947,7 +992,7 @@ impl QuestionAnsweringModel {
         spans
     }
 
-    fn pad_features(&self, features: &mut [QaFeature]) -> (Tensor, Tensor) {
+    fn pad_features(&self, features: &mut [QaFeature]) -> (Tensor, Tensor, Tensor) {
         let max_len = features
             .iter()
             .map(|feature| feature.input_ids.len())
@@ -970,6 +1015,9 @@ impl QuestionAnsweringModel {
             feature.offsets.resize(max_len, None);
             feature.p_mask.resize(max_len, 1);
             feature.input_ids.resize(max_len, self.pad_idx);
+            feature
+                .token_type_ids
+                .resize(max_len, *feature.token_type_ids.last().unwrap_or(&0));
         }
 
         let padded_input_ids = features
@@ -977,9 +1025,17 @@ impl QuestionAnsweringModel {
             .map(|input| Tensor::from_slice(input.input_ids.as_slice()))
             .collect::<Vec<_>>();
 
-        let input_ids = Tensor::stack(&padded_input_ids, 0).to(self.var_store.device());
-        let attention_masks = Tensor::stack(&attention_masks, 0).to(self.var_store.device());
-        (input_ids, attention_masks)
+        let padded_token_type_ids = features
+            .iter_mut()
+            .map(|input| Tensor::from_slice(input.token_type_ids.as_slice()))
+            .collect::<Vec<_>>();
+
+        let input_ids = Tensor::stack(&padded_input_ids, 0).to(self.device);
+        let attention_masks = Tensor::stack(&attention_masks, 0).to(self.device);
+        let token_type_ids = Tensor::stack(&padded_token_type_ids, 0)
+            .to(self.device)
+            .to_kind(Kind::Int64);
+        (input_ids, attention_masks, token_type_ids)
     }
 
     fn get_mask(&self, encoded_span: &TokenizedInput) -> Vec<i8> {

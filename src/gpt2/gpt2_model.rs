@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 /// # GPT2 Pretrained model weight files
 pub struct Gpt2ModelResources;
@@ -194,6 +194,9 @@ pub struct Gpt2Config {
     pub output_hidden_states: Option<bool>,
     pub resid_pdrop: Option<f64>,
     pub vocab_size: i64,
+    pub decoder_start_token_id: Option<i64>,
+    pub forced_bos_token_id: Option<i64>,
+    pub forced_eos_token_id: Option<i64>,
 }
 
 impl Config for Gpt2Config {}
@@ -218,6 +221,9 @@ impl Default for Gpt2Config {
             output_hidden_states: None,
             resid_pdrop: Some(0.1),
             vocab_size: 50257,
+            decoder_start_token_id: None,
+            forced_bos_token_id: None,
+            forced_eos_token_id: None,
         }
     }
 }
@@ -654,7 +660,7 @@ impl GPT2Generator {
         let max_position_embeddings = config.n_positions;
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
 
         Ok(GPT2Generator {
             model,
@@ -679,11 +685,11 @@ impl PrivateLanguageGenerator for GPT2Generator {
     fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -706,8 +712,8 @@ impl PrivateLanguageGenerator for GPT2Generator {
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
     }
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn forward_t(

@@ -1,7 +1,7 @@
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 
 use rust_bert::pegasus::{PegasusConfigResources, PegasusModelResources, PegasusVocabResources};
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::resources::RemoteResource;
 use tch::Device;
 
@@ -20,7 +20,7 @@ fn pegasus_summarization_greedy() -> anyhow::Result<()> {
 
     let summarization_config = SummarizationConfig {
         model_type: ModelType::Pegasus,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,

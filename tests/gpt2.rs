@@ -2,7 +2,7 @@ use rust_bert::gpt2::{
     GPT2Generator, GPT2LMHeadModel, Gpt2Config, Gpt2ConfigResources, Gpt2MergesResources,
     Gpt2ModelResources, Gpt2VocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::conversation::{
     ConversationConfig, ConversationManager, ConversationModel,
 };
@@ -107,7 +107,7 @@ fn gpt2_generation_greedy() -> anyhow::Result<()> {
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -139,7 +139,7 @@ fn gpt2_generation_beam_search() -> anyhow::Result<()> {
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -183,7 +183,7 @@ fn gpt2_generation_beam_search_multiple_prompts_without_padding() -> anyhow::Res
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -240,7 +240,7 @@ fn gpt2_generation_beam_search_multiple_prompts_with_padding() -> anyhow::Result
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -296,7 +296,7 @@ fn gpt2_diverse_beam_search_multiple_prompts_with_padding() -> anyhow::Result<()
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPT2,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -369,7 +369,7 @@ fn gpt2_prefix_allowed_token_greedy() -> anyhow::Result<()> {
 
     let generate_config = GenerateConfig {
         max_length: Some(56),
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -419,7 +419,7 @@ fn gpt2_bad_tokens_greedy() -> anyhow::Result<()> {
 
     let generate_config = GenerateConfig {
         max_length: Some(36),
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -485,7 +485,7 @@ fn gpt2_bad_tokens_beam_search() -> anyhow::Result<()> {
 
     let generate_config = GenerateConfig {
         max_length: Some(36),
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -566,7 +566,7 @@ fn gpt2_prefix_allowed_token_beam_search() -> anyhow::Result<()> {
 
     let generate_config = GenerateConfig {
         max_length: Some(32),
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -616,7 +616,7 @@ fn gpt2_greedy_token_scores() -> anyhow::Result<()> {
 
     let generate_config = GenerateConfig {
         max_length: Some(16),
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -672,7 +672,7 @@ fn gpt2_beam_search_token_scores() -> anyhow::Result<()> {
 
     let generate_config = GenerateConfig {
         max_length: Some(16),
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),

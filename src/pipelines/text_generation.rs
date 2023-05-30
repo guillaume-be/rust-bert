@@ -38,14 +38,15 @@ use crate::gpt2::GPT2Generator;
 use crate::gpt_j::GptJGenerator;
 use crate::gpt_neo::GptNeoGenerator;
 use crate::openai_gpt::OpenAIGenerator;
-use crate::pipelines::common::{ModelType, TokenizerOption};
-use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
+use crate::pipelines::common::{ModelResource, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
 use crate::reformer::ReformerGenerator;
 use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 use crate::xlnet::XLNetGenerator;
 
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::ONNXCausalGenerator;
 #[cfg(feature = "remote")]
 use crate::{
     gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
@@ -59,7 +60,7 @@ pub struct TextGenerationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained BART model on CNN-DM)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BART model on CNN-DM)
@@ -104,25 +105,24 @@ impl TextGenerationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * model_resource - The `ModelResources` pointing to the model to load (e.g.  model.ot)
     /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
-    pub fn new<RM, RC, RV>(
+    pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
     ) -> TextGenerationConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         TextGenerationConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -150,7 +150,9 @@ impl Default for TextGenerationConfig {
     fn default() -> TextGenerationConfig {
         TextGenerationConfig::new(
             ModelType::GPT2,
-            RemoteResource::from_pretrained(Gpt2ModelResources::GPT2_MEDIUM),
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+                Gpt2ModelResources::GPT2_MEDIUM,
+            ))),
             RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2_MEDIUM),
             RemoteResource::from_pretrained(Gpt2VocabResources::GPT2_MEDIUM),
             Some(RemoteResource::from_pretrained(
@@ -163,6 +165,7 @@ impl Default for TextGenerationConfig {
 impl From<TextGenerationConfig> for GenerateConfig {
     fn from(config: TextGenerationConfig) -> GenerateConfig {
         GenerateConfig {
+            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -202,30 +205,37 @@ pub enum TextGenerationOption {
     Reformer(ReformerGenerator),
     /// Text Generator based on T5 model
     T5(T5Generator),
+    /// ONNX model for text generation
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXCausalGenerator),
 }
 
 impl TextGenerationOption {
     pub fn new(config: TextGenerationConfig) -> Result<Self, RustBertError> {
-        match config.model_type {
-            ModelType::GPT2 => Ok(TextGenerationOption::GPT2(GPT2Generator::new(
+        match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
+            (_, &ModelResource::ONNX(_)) => Ok(TextGenerationOption::ONNX(
+                ONNXCausalGenerator::new(config.into(), None, None)?,
+            )),
+            (ModelType::GPT2, _) => Ok(TextGenerationOption::GPT2(GPT2Generator::new(
                 config.into(),
             )?)),
-            ModelType::OpenAiGpt => Ok(TextGenerationOption::GPT(OpenAIGenerator::new(
+            (ModelType::OpenAiGpt, _) => Ok(TextGenerationOption::GPT(OpenAIGenerator::new(
                 config.into(),
             )?)),
-            ModelType::XLNet => Ok(TextGenerationOption::XLNet(XLNetGenerator::new(
+            (ModelType::XLNet, _) => Ok(TextGenerationOption::XLNet(XLNetGenerator::new(
                 config.into(),
             )?)),
-            ModelType::Reformer => Ok(TextGenerationOption::Reformer(ReformerGenerator::new(
+            (ModelType::Reformer, _) => Ok(TextGenerationOption::Reformer(ReformerGenerator::new(
                 config.into(),
             )?)),
-            ModelType::GPTNeo => Ok(TextGenerationOption::GPTNeo(GptNeoGenerator::new(
+            (ModelType::GPTNeo, _) => Ok(TextGenerationOption::GPTNeo(GptNeoGenerator::new(
                 config.into(),
             )?)),
-            ModelType::GPTJ => Ok(TextGenerationOption::GPTJ(GptJGenerator::new(
+            (ModelType::GPTJ, _) => Ok(TextGenerationOption::GPTJ(GptJGenerator::new(
                 config.into(),
             )?)),
-            ModelType::T5 => Ok(TextGenerationOption::T5(T5Generator::new(config.into())?)),
+            (ModelType::T5, _) => Ok(TextGenerationOption::T5(T5Generator::new(config.into())?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Text generation not implemented for {:?}!",
                 config.model_type
@@ -237,26 +247,30 @@ impl TextGenerationOption {
         config: TextGenerationConfig,
         tokenizer: TokenizerOption,
     ) -> Result<Self, RustBertError> {
-        match config.model_type {
-            ModelType::GPT2 => Ok(TextGenerationOption::GPT2(
+        match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
+            (_, &ModelResource::ONNX(_)) => Ok(TextGenerationOption::ONNX(
+                ONNXCausalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
+            )),
+            (ModelType::GPT2, _) => Ok(TextGenerationOption::GPT2(
                 GPT2Generator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::OpenAiGpt => Ok(TextGenerationOption::GPT(
+            (ModelType::OpenAiGpt, _) => Ok(TextGenerationOption::GPT(
                 OpenAIGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::XLNet => Ok(TextGenerationOption::XLNet(
+            (ModelType::XLNet, _) => Ok(TextGenerationOption::XLNet(
                 XLNetGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::Reformer => Ok(TextGenerationOption::Reformer(
+            (ModelType::Reformer, _) => Ok(TextGenerationOption::Reformer(
                 ReformerGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::GPTNeo => Ok(TextGenerationOption::GPTNeo(
+            (ModelType::GPTNeo, _) => Ok(TextGenerationOption::GPTNeo(
                 GptNeoGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::GPTJ => Ok(TextGenerationOption::GPTJ(
+            (ModelType::GPTJ, _) => Ok(TextGenerationOption::GPTJ(
                 GptJGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::T5 => Ok(TextGenerationOption::T5(T5Generator::new_with_tokenizer(
+            (ModelType::T5, _) => Ok(TextGenerationOption::T5(T5Generator::new_with_tokenizer(
                 config.into(),
                 tokenizer,
             )?)),
@@ -277,32 +291,37 @@ impl TextGenerationOption {
             Self::XLNet(_) => ModelType::XLNet,
             Self::Reformer(_) => ModelType::Reformer,
             Self::T5(_) => ModelType::T5,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => ModelType::ONNX,
         }
     }
-
     /// Interface method to access tokenizer
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
-            Self::GPT(model_ref) => model_ref._get_tokenizer(),
-            Self::GPT2(model_ref) => model_ref._get_tokenizer(),
-            Self::GPTNeo(model_ref) => model_ref._get_tokenizer(),
-            Self::GPTJ(model_ref) => model_ref._get_tokenizer(),
-            Self::XLNet(model_ref) => model_ref._get_tokenizer(),
-            Self::Reformer(model_ref) => model_ref._get_tokenizer(),
-            Self::T5(model_ref) => model_ref._get_tokenizer(),
+            Self::GPT(model_ref) => model_ref.get_tokenizer(),
+            Self::GPT2(model_ref) => model_ref.get_tokenizer(),
+            Self::GPTNeo(model_ref) => model_ref.get_tokenizer(),
+            Self::GPTJ(model_ref) => model_ref.get_tokenizer(),
+            Self::XLNet(model_ref) => model_ref.get_tokenizer(),
+            Self::Reformer(model_ref) => model_ref.get_tokenizer(),
+            Self::T5(model_ref) => model_ref.get_tokenizer(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(model_ref) => model_ref.get_tokenizer(),
         }
     }
 
     /// Interface method to access tokenizer
     pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         match self {
-            Self::GPT(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::GPT2(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::GPTNeo(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::GPTJ(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::XLNet(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::Reformer(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::GPT(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::GPT2(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::GPTNeo(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::GPTJ(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::XLNet(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::Reformer(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref.get_tokenizer_mut(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(model_ref) => model_ref.get_tokenizer_mut(),
         }
     }
 
@@ -357,10 +376,16 @@ impl TextGenerationOption {
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(ref model) => model
+                .generate_indices(prompt_texts, generate_options)
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
         }
     }
 
-    pub fn half(&mut self) {
+    pub fn half(&mut self) -> Result<(), RustBertError> {
         match self {
             Self::GPT(model_ref) => model_ref.half(),
             Self::GPT2(model_ref) => model_ref.half(),
@@ -369,10 +394,14 @@ impl TextGenerationOption {
             Self::XLNet(model_ref) => model_ref.half(),
             Self::Reformer(model_ref) => model_ref.half(),
             Self::T5(model_ref) => model_ref.half(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => Err(RustBertError::OrtError(
+                "Type casting not supported for ONNX models.".to_string(),
+            )),
         }
     }
 
-    pub fn float(&mut self) {
+    pub fn float(&mut self) -> Result<(), RustBertError> {
         match self {
             Self::GPT(model_ref) => model_ref.float(),
             Self::GPT2(model_ref) => model_ref.float(),
@@ -381,10 +410,14 @@ impl TextGenerationOption {
             Self::XLNet(model_ref) => model_ref.float(),
             Self::Reformer(model_ref) => model_ref.float(),
             Self::T5(model_ref) => model_ref.float(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => Err(RustBertError::OrtError(
+                "Type casting not supported for ONNX models.".to_string(),
+            )),
         }
     }
 
-    pub fn set_device(&mut self, device: Device) {
+    pub fn set_device(&mut self, device: Device) -> Result<(), RustBertError> {
         match self {
             Self::GPT(model_ref) => model_ref.set_device(device),
             Self::GPT2(model_ref) => model_ref.set_device(device),
@@ -393,6 +426,10 @@ impl TextGenerationOption {
             Self::XLNet(model_ref) => model_ref.set_device(device),
             Self::Reformer(model_ref) => model_ref.set_device(device),
             Self::T5(model_ref) => model_ref.set_device(device),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => Err(RustBertError::OrtError(
+                "Device assignment not supported for ONNX models.".to_string(),
+            )),
         }
     }
 }
@@ -520,16 +557,16 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         self.model.get_tokenizer_mut()
     }
 
-    pub fn half(&mut self) {
-        self.model.half();
+    pub fn half(&mut self) -> Result<(), RustBertError> {
+        self.model.half()
     }
 
-    pub fn float(&mut self) {
-        self.model.float();
+    pub fn float(&mut self) -> Result<(), RustBertError> {
+        self.model.float()
     }
 
-    pub fn set_device(&mut self, device: Device) {
-        self.model.set_device(device);
+    pub fn set_device(&mut self, device: Device) -> Result<(), RustBertError> {
+        self.model.set_device(device)
     }
 
     /// Generate texts from provided prompts

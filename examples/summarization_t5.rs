@@ -12,7 +12,7 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::resources::RemoteResource;
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
 
     let summarization_config = SummarizationConfig::new(
         ModelType::T5,
-        weights_resource,
+        ModelResource::Torch(Box::new(weights_resource)),
         config_resource,
         vocab_resource,
         None,

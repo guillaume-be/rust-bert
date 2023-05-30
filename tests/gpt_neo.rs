@@ -2,7 +2,7 @@ use rust_bert::gpt_neo::{
     GptNeoConfig, GptNeoConfigResources, GptNeoForCausalLM, GptNeoMergesResources,
     GptNeoModelResources, GptNeoVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
@@ -125,7 +125,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
     //    Set-up model
     let generation_config = TextGenerationConfig {
         model_type: ModelType::GPTNeo,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),

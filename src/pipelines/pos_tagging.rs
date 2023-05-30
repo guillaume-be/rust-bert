@@ -92,7 +92,10 @@ use {
         mobilebert::{
             MobileBertConfigResources, MobileBertModelResources, MobileBertVocabResources,
         },
-        pipelines::{common::ModelType, token_classification::LabelAggregationOption},
+        pipelines::{
+            common::{ModelResource, ModelType},
+            token_classification::LabelAggregationOption,
+        },
         resources::RemoteResource,
     },
     tch::Device,
@@ -121,9 +124,9 @@ impl Default for POSConfig {
         POSConfig {
             token_classification_config: TokenClassificationConfig {
                 model_type: ModelType::MobileBert,
-                model_resource: Box::new(RemoteResource::from_pretrained(
+                model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                     MobileBertModelResources::MOBILEBERT_ENGLISH_POS,
-                )),
+                ))),
                 config_resource: Box::new(RemoteResource::from_pretrained(
                     MobileBertConfigResources::MOBILEBERT_ENGLISH_POS,
                 )),
@@ -138,6 +141,14 @@ impl Default for POSConfig {
                 label_aggregation_function: LabelAggregationOption::First,
                 batch_size: 64,
             },
+        }
+    }
+}
+
+impl From<TokenClassificationConfig> for POSConfig {
+    fn from(token_classification_config: TokenClassificationConfig) -> Self {
+        POSConfig {
+            token_classification_config,
         }
     }
 }

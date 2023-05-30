@@ -1,4 +1,4 @@
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::RemoteResource;
@@ -26,7 +26,7 @@ fn test_translation_t5() -> anyhow::Result<()> {
 
     let translation_config = TranslationConfig::new(
         ModelType::T5,
-        model_resource,
+        ModelResource::Torch(Box::new(model_resource)),
         config_resource,
         vocab_resource,
         None,
@@ -65,7 +65,9 @@ fn test_summarization_t5() -> anyhow::Result<()> {
     //    Set-up translation model
     let summarization_config = SummarizationConfig {
         model_type: ModelType::T5,
-        model_resource: Box::new(RemoteResource::from_pretrained(T5ModelResources::T5_SMALL)),
+        model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+            T5ModelResources::T5_SMALL,
+        ))),
         config_resource: Box::new(RemoteResource::from_pretrained(T5ConfigResources::T5_SMALL)),
         vocab_resource: Box::new(RemoteResource::from_pretrained(T5VocabResources::T5_SMALL)),
         merges_resource: None,

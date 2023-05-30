@@ -1594,11 +1594,11 @@ impl PrivateLanguageGenerator for XLNetGenerator {
     fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -1622,8 +1622,8 @@ impl PrivateLanguageGenerator for XLNetGenerator {
         self.decoder_start_id
     }
 
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn forward_t(

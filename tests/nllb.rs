@@ -1,14 +1,17 @@
 use rust_bert::nllb::{
     NLLBConfigResources, NLLBLanguages, NLLBMergeResources, NLLBResources, NLLBVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::RemoteResource;
 use tch::Device;
 
 #[test]
+// #[cfg_attr(not(feature = "all-tests"), ignore)]
 fn nllb_translation() -> anyhow::Result<()> {
-    let model_resource = RemoteResource::from_pretrained(NLLBResources::NLLB_600M_DISTILLED);
+    let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+        NLLBResources::NLLB_600M_DISTILLED,
+    )));
     let config_resource = RemoteResource::from_pretrained(NLLBConfigResources::NLLB_600M_DISTILLED);
     let vocab_resource = RemoteResource::from_pretrained(NLLBVocabResources::NLLB_600M_DISTILLED);
     let merges_resource = RemoteResource::from_pretrained(NLLBMergeResources::NLLB_600M_DISTILLED);

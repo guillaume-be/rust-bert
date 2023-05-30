@@ -22,13 +22,12 @@ use crate::pipelines::generation_utils::private_generation_utils::{
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::pipelines::translation::Language;
 use crate::{Activation, Config, RustBertError};
-use rust_tokenizers::tokenizer::TruncationStrategy;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use tch::kind::Kind::Int64;
 use tch::nn::{embedding, EmbeddingConfig, Init};
-use tch::{nn, Tensor};
+use tch::{nn, Device, Tensor};
 
 /// # MBART Pretrained model weight files
 pub struct MBartModelResources;
@@ -99,6 +98,7 @@ pub struct MBartConfig {
     pub bos_token_id: Option<i64>,
     pub eos_token_id: Option<i64>,
     pub pad_token_id: Option<i64>,
+    pub forced_bos_token_id: Option<i64>,
     pub forced_eos_token_id: Option<i64>,
     pub decoder_start_token_id: Option<i64>,
     pub id2label: Option<HashMap<i64, String>>,
@@ -138,6 +138,7 @@ impl Default for MBartConfig {
             bos_token_id: Some(0),
             eos_token_id: Some(2),
             pad_token_id: Some(1),
+            forced_bos_token_id: None,
             forced_eos_token_id: Some(2),
             decoder_start_token_id: None,
             id2label: None,
@@ -725,6 +726,7 @@ pub struct MBartGenerator {
     generate_config: GenerateConfig,
     bos_token_id: Option<i64>,
     eos_token_ids: Option<Vec<i64>>,
+    forced_eos_token_id: Option<i64>,
     pad_token_id: Option<i64>,
     is_encoder_decoder: bool,
     vocab_size: i64,
@@ -805,10 +807,11 @@ impl MBartGenerator {
             Some(value) => vec![value],
             None => vec![2],
         });
+        let forced_eos_token_id = config.forced_eos_token_id;
         let pad_token_id = Some(config.pad_token_id.unwrap_or(1));
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(2);
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(MBartGenerator {
@@ -818,20 +821,13 @@ impl MBartGenerator {
             generate_config,
             bos_token_id,
             eos_token_ids,
+            forced_eos_token_id,
             pad_token_id,
             is_encoder_decoder,
             vocab_size,
             decoder_start_id,
             max_position_embeddings,
         })
-    }
-
-    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
-            .filter(|pos| !token_ids.contains(pos))
-            .collect();
-        let impossible_tokens = Tensor::from_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
     }
 }
 
@@ -842,11 +838,11 @@ impl PrivateLanguageGenerator for MBartGenerator {
     fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -856,6 +852,9 @@ impl PrivateLanguageGenerator for MBartGenerator {
     }
     fn get_eos_ids(&self) -> Option<&Vec<i64>> {
         self.eos_token_ids.as_ref()
+    }
+    fn get_forced_eos_token_id(&self) -> Option<i64> {
+        self.forced_eos_token_id
     }
     fn get_pad_id(&self) -> Option<i64> {
         self.pad_token_id
@@ -915,24 +914,8 @@ impl PrivateLanguageGenerator for MBartGenerator {
         })
     }
 
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
-    }
-
-    fn prepare_scores_for_generation(
-        &self,
-        scores: &mut Tensor,
-        current_length: i64,
-        max_length: Option<i64>,
-        forced_bos_token_id: Option<i64>,
-    ) {
-        if current_length == 1 {
-            self.force_token_id_generation(scores, &[forced_bos_token_id.unwrap_or(250004)]);
-        } else if let Some(max_length) = max_length {
-            if current_length == max_length - 1 {
-                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
-            }
-        }
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn encode(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> Option<Tensor> {
@@ -965,48 +948,6 @@ impl PrivateLanguageGenerator for MBartGenerator {
             },
             _ => panic!("Cache type incompatible with MBart"),
         }
-    }
-
-    fn encode_prompt_text<S>(
-        &self,
-        prompt_text: &[S],
-        max_len: Option<i64>,
-        pad_token_id: Option<i64>,
-    ) -> Tensor
-    where
-        S: AsRef<str> + Sync,
-    {
-        let tokens = self._get_tokenizer().encode_list(
-            prompt_text,
-            max_len
-                .map(|max_len| max_len as usize)
-                .unwrap_or(usize::MAX),
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let token_ids = tokens
-            .into_iter()
-            .map(|tokenized_input| tokenized_input.token_ids)
-            .collect::<Vec<Vec<i64>>>();
-
-        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
-
-        let pad_token = match pad_token_id {
-            Some(value) => value,
-            None => self._get_tokenizer().get_unk_id(),
-        };
-
-        let token_ids = token_ids
-            .into_iter()
-            .map(|mut input| {
-                let temp = vec![pad_token; max_len - input.len()];
-                input.extend(temp);
-                input
-            })
-            .map(|tokens| Tensor::from_slice(&tokens).to(self.get_var_store().device()))
-            .collect::<Vec<Tensor>>();
-
-        Tensor::stack(&token_ids, 0)
     }
 
     fn reorder_cache(

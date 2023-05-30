@@ -13,9 +13,8 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
-use rust_tokenizers::tokenizer::TruncationStrategy;
 use serde::{Deserialize, Serialize};
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
@@ -83,7 +82,7 @@ pub struct ProphetNetConfig {
     pub activation_dropout: f64,
     pub attention_dropout: f64,
     pub decoder_ffn_dim: i64,
-    pub decoder_start_token_id: i64,
+    pub decoder_start_token_id: Option<i64>,
     pub disable_ngram_loss: bool,
     pub dropout: f64,
     pub encoder_ffn_dim: i64,
@@ -94,6 +93,8 @@ pub struct ProphetNetConfig {
     pub max_position_embeddings: i64,
     pub bos_token_id: i64,
     pub eos_token_id: i64,
+    pub forced_bos_token_id: Option<i64>,
+    pub forced_eos_token_id: Option<i64>,
     pub ngram: i64,
     pub id2label: Option<HashMap<i64, String>>,
     pub label2id: Option<HashMap<String, i64>>,
@@ -120,7 +121,7 @@ impl Default for ProphetNetConfig {
             activation_dropout: 0.1,
             attention_dropout: 0.1,
             decoder_ffn_dim: 4096,
-            decoder_start_token_id: 0,
+            decoder_start_token_id: Some(0),
             disable_ngram_loss: false,
             dropout: 0.1,
             encoder_ffn_dim: 4096,
@@ -131,6 +132,8 @@ impl Default for ProphetNetConfig {
             max_position_embeddings: 512,
             bos_token_id: 1,
             eos_token_id: 2,
+            forced_bos_token_id: None,
+            forced_eos_token_id: None,
             ngram: 2,
             id2label: None,
             label2id: None,
@@ -381,7 +384,11 @@ impl ProphetNetForConditionalGeneration {
             linear_config,
         );
 
-        let decoder_start_token_id = config.decoder_start_token_id;
+        let decoder_start_token_id = config.decoder_start_token_id.ok_or_else(|| {
+            RustBertError::InvalidConfigurationError(
+                "`decoder_start_token_id` must be provided for ProphetNet models".to_string(),
+            )
+        })?;
         let pad_token_id = config.pad_token_id;
         let ngram = config.ngram;
 
@@ -919,7 +926,7 @@ impl ProphetNetConditionalGenerator {
         let pad_token_id = Some(config.pad_token_id);
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id = Some(config.decoder_start_token_id);
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(ProphetNetConditionalGenerator {
@@ -945,11 +952,11 @@ impl PrivateLanguageGenerator for ProphetNetConditionalGenerator {
     fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -972,8 +979,8 @@ impl PrivateLanguageGenerator for ProphetNetConditionalGenerator {
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
     }
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn forward_t(
@@ -1058,48 +1065,6 @@ impl PrivateLanguageGenerator for ProphetNetConditionalGenerator {
             },
             _ => panic!("Cache type incompatible with ProphetNet"),
         }
-    }
-
-    fn encode_prompt_text<S>(
-        &self,
-        prompt_text: &[S],
-        max_len: Option<i64>,
-        pad_token_id: Option<i64>,
-    ) -> Tensor
-    where
-        S: AsRef<str> + Sync,
-    {
-        let tokens = self._get_tokenizer().encode_list(
-            prompt_text,
-            max_len
-                .map(|max_len| max_len as usize)
-                .unwrap_or(usize::MAX),
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let token_ids = tokens
-            .into_iter()
-            .map(|tokenized_input| tokenized_input.token_ids)
-            .collect::<Vec<Vec<i64>>>();
-
-        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
-
-        let pad_token = match pad_token_id {
-            Some(value) => value,
-            None => self._get_tokenizer().get_unk_id(),
-        };
-
-        let token_ids = token_ids
-            .into_iter()
-            .map(|mut input| {
-                let temp = vec![pad_token; max_len - input.len()];
-                input.extend(temp);
-                input
-            })
-            .map(|tokens| Tensor::from_slice(&tokens).to(self.get_var_store().device()))
-            .collect::<Vec<Tensor>>();
-
-        Tensor::stack(&token_ids, 0)
     }
 
     fn reorder_cache(

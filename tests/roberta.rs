@@ -1,4 +1,4 @@
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
@@ -319,7 +319,9 @@ fn roberta_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Roberta,
-        RemoteResource::from_pretrained(RobertaModelResources::ROBERTA_QA),
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+            RobertaModelResources::ROBERTA_QA,
+        ))),
         RemoteResource::from_pretrained(RobertaConfigResources::ROBERTA_QA),
         RemoteResource::from_pretrained(RobertaVocabResources::ROBERTA_QA),
         Some(RemoteResource::from_pretrained(
@@ -354,9 +356,9 @@ fn xlm_roberta_german_ner() -> anyhow::Result<()> {
     //    Set-up question answering model
     let ner_config = TokenClassificationConfig {
         model_type: ModelType::XLMRoberta,
-        model_resource: Box::new(RemoteResource::from_pretrained(
+        model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
             RobertaModelResources::XLM_ROBERTA_NER_DE,
-        )),
+        ))),
         config_resource: Box::new(RemoteResource::from_pretrained(
             RobertaConfigResources::XLM_ROBERTA_NER_DE,
         )),

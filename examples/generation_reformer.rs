@@ -14,7 +14,7 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::reformer::{
     ReformerConfigResources, ReformerModelResources, ReformerVocabResources,
@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     ));
     let generate_config = TextGenerationConfig {
         model_type: ModelType::Reformer,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,

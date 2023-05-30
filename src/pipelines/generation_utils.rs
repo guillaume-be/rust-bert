@@ -82,20 +82,24 @@ use crate::t5::LayerState as T5LayerState;
 use crate::xlnet::LayerState as XLNetLayerState;
 
 use self::ordered_float::OrderedFloat;
-use crate::pipelines::common::TokenizerOption;
+use crate::pipelines::common::{ModelResource, ModelType, TokenizerOption};
 
+extern crate ordered_float;
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::ONNXLayerCache;
+use crate::RustBertError;
 #[cfg(feature = "remote")]
 use crate::{
     gpt2::{Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources},
     resources::RemoteResource,
 };
 
-extern crate ordered_float;
-
 /// # Configuration for text generation
 pub struct GenerateConfig {
+    /// Model type used for generation
+    pub model_type: ModelType,
     /// Model weights resource (default: pretrained GPT2 model)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained GPT2 model)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained GPT2 model)
@@ -138,7 +142,10 @@ pub struct GenerateConfig {
 impl Default for GenerateConfig {
     fn default() -> GenerateConfig {
         GenerateConfig {
-            model_resource: Box::new(RemoteResource::from_pretrained(Gpt2ModelResources::GPT2)),
+            model_type: ModelType::GPT2,
+            model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+                Gpt2ModelResources::GPT2,
+            ))),
             config_resource: Box::new(RemoteResource::from_pretrained(Gpt2ConfigResources::GPT2)),
             vocab_resource: Box::new(RemoteResource::from_pretrained(Gpt2VocabResources::GPT2)),
             merges_resource: Some(Box::new(RemoteResource::from_pretrained(
@@ -223,17 +230,19 @@ pub enum Cache {
     ProphetNetCache(Option<Vec<(Option<ProphetNetLayerState>, Option<ProphetNetLayerState>)>>),
     GPTNeoCache(Option<Vec<Option<GPTNeoLayerState>>>),
     GPTJCache(Option<Vec<Option<GPTJLayerState>>>),
+    #[cfg(feature = "onnx")]
+    ONNXCache(ONNXLayerCache),
     None,
 }
 
 pub(crate) mod private_generation_utils {
+    use rust_tokenizers::TokenIdsWithOffsets;
     use std::cmp::{max, min};
     use std::collections::HashMap;
     use std::convert::TryFrom;
     use std::mem;
 
     use rust_tokenizers::tokenizer::{truncate_sequences, TruncationStrategy};
-    use rust_tokenizers::TokenIdsWithOffsets;
     use tch::{nn, Device, Kind, Tensor};
 
     use crate::pipelines::common::TokenizerOption;
@@ -242,7 +251,7 @@ pub(crate) mod private_generation_utils {
     };
 
     use super::ordered_float::OrderedFloat;
-    use crate::common::kind::get_positive_infinity;
+    use crate::common::kind::{get_negative_infinity, get_positive_infinity};
     use crate::RustBertError;
 
     pub struct InternalGenerateOptions<'a> {
@@ -283,17 +292,23 @@ pub(crate) mod private_generation_utils {
 
     pub trait PrivateLanguageGenerator {
         fn _get_tokenizer(&self) -> &TokenizerOption;
+        fn get_device(&self) -> Device;
+        fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError>;
         fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption;
-        fn get_var_store(&self) -> &nn::VarStore;
-        fn get_var_store_mut(&mut self) -> &mut nn::VarStore;
         fn get_config(&self) -> &GenerateConfig;
         fn get_bos_id(&self) -> Option<i64>;
         fn get_eos_ids(&self) -> Option<&Vec<i64>>;
+        fn get_forced_bos_token_id(&self) -> Option<i64> {
+            None
+        }
+        fn get_forced_eos_token_id(&self) -> Option<i64> {
+            None
+        }
         fn get_pad_id(&self) -> Option<i64>;
         fn is_encoder_decoder(&self) -> bool;
         fn get_vocab_size(&self) -> i64;
         fn get_decoder_start_id(&self) -> Option<i64>;
-        fn get_max_positions_embeddings(&self) -> i64;
+        fn get_max_positions_embeddings(&self) -> Option<i64>;
 
         fn forward_t(
             &self,
@@ -310,11 +325,32 @@ pub(crate) mod private_generation_utils {
 
         fn prepare_scores_for_generation(
             &self,
-            _scores: &mut Tensor,
-            _current_length: i64,
-            _max_length: Option<i64>,
-            _forced_bos_token_id: Option<i64>,
+            scores: &mut Tensor,
+            current_length: i64,
+            max_length: Option<i64>,
+            forced_bos_token_id: Option<i64>,
         ) {
+            if current_length == 1 {
+                if let Some(forced_bos_token_id) =
+                    forced_bos_token_id.or(self.get_forced_bos_token_id())
+                {
+                    force_token_id_generation(
+                        scores,
+                        &[forced_bos_token_id],
+                        self.get_vocab_size(),
+                    );
+                }
+            } else if let Some(max_length) = max_length {
+                if let Some(forced_eos_token_id) = self.get_forced_eos_token_id() {
+                    if current_length == max_length - 1 {
+                        force_token_id_generation(
+                            scores,
+                            &[forced_eos_token_id],
+                            self.get_vocab_size(),
+                        );
+                    }
+                }
+            }
         }
 
         fn encode(&self, _input_ids: &Tensor, _attention_mask: Option<&Tensor>) -> Option<Tensor> {
@@ -347,48 +383,66 @@ pub(crate) mod private_generation_utils {
         where
             S: AsRef<str> + Sync,
         {
-            let tokens = self._get_tokenizer().tokenize_list(prompt_text);
-            let token_ids = tokens
-                .into_iter()
-                .map(|prompt_tokens| self._get_tokenizer().convert_tokens_to_ids(&prompt_tokens))
-                .collect::<Vec<Vec<i64>>>();
-
-            let num_truncated_tokens = token_ids
-                .iter()
-                .map(|token_ids| {
+            let token_ids = if self.is_encoder_decoder() {
+                let tokens = self._get_tokenizer().encode_list(
+                    prompt_text,
                     max_len
-                        .map(|max_len| {
-                            if token_ids.len() > max_len as usize {
-                                token_ids.len() - max_len as usize
-                            } else {
-                                0
-                            }
-                        })
-                        .unwrap_or(0)
-                })
-                .collect::<Vec<usize>>();
+                        .map(|max_len| max_len as usize)
+                        .unwrap_or(usize::MAX),
+                    &TruncationStrategy::LongestFirst,
+                    0,
+                );
+                tokens
+                    .into_iter()
+                    .map(|tokenized_input| tokenized_input.token_ids)
+                    .collect::<Vec<Vec<i64>>>()
+            } else {
+                // Special tokens (e.g. BOS) are not added at the end of the prompt for causal generation
+                let tokens = self._get_tokenizer().tokenize_list(prompt_text);
+                let token_ids = tokens
+                    .into_iter()
+                    .map(|prompt_tokens| {
+                        self._get_tokenizer().convert_tokens_to_ids(&prompt_tokens)
+                    })
+                    .collect::<Vec<Vec<i64>>>();
 
-            let token_ids = token_ids
-                .into_iter()
-                .zip(num_truncated_tokens)
-                .map(|(tokens, num_truncated_tokens)| {
-                    truncate_sequences(
-                        TokenIdsWithOffsets {
-                            ids: tokens,
-                            offsets: vec![],
-                            reference_offsets: vec![],
-                            masks: vec![],
-                        },
-                        None,
-                        num_truncated_tokens,
-                        &TruncationStrategy::LongestFirst,
-                        0,
-                    )
-                    .unwrap()
-                    .0
-                    .ids
-                })
-                .collect::<Vec<Vec<i64>>>();
+                let num_truncated_tokens = token_ids
+                    .iter()
+                    .map(|token_ids| {
+                        max_len
+                            .map(|max_len| {
+                                if token_ids.len() > max_len as usize {
+                                    token_ids.len() - max_len as usize
+                                } else {
+                                    0
+                                }
+                            })
+                            .unwrap_or(0)
+                    })
+                    .collect::<Vec<usize>>();
+
+                token_ids
+                    .into_iter()
+                    .zip(num_truncated_tokens)
+                    .map(|(tokens, num_truncated_tokens)| {
+                        truncate_sequences(
+                            TokenIdsWithOffsets {
+                                ids: tokens,
+                                offsets: vec![],
+                                reference_offsets: vec![],
+                                masks: vec![],
+                            },
+                            None,
+                            num_truncated_tokens,
+                            &TruncationStrategy::LongestFirst,
+                            0,
+                        )
+                        .unwrap()
+                        .0
+                        .ids
+                    })
+                    .collect::<Vec<Vec<i64>>>()
+            };
 
             let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
 
@@ -399,13 +453,20 @@ pub(crate) mod private_generation_utils {
 
             let token_ids = token_ids
                 .into_iter()
-                .map(|input| {
+                .map(|mut input| {
                     let mut temp = vec![pad_token; max_len - input.len()];
-                    temp.extend(input);
-                    temp
+                    if self.is_encoder_decoder() {
+                        input.extend(temp);
+                        input
+                    } else {
+                        // Pad left for causal generation
+                        temp.extend(input);
+                        temp
+                    }
                 })
-                .map(|tokens| Tensor::from_slice(&tokens).to(self.get_var_store().device()))
+                .map(|tokens| Tensor::from_slice(&tokens).to(self.get_device()))
                 .collect::<Vec<Tensor>>();
+
             Tensor::stack(&token_ids, 0)
         }
 
@@ -767,9 +828,9 @@ pub(crate) mod private_generation_utils {
             output_scores: bool,
         ) -> GeneratedOutputWithScores {
             let mut unfinished_sentences =
-                Tensor::ones([batch_size], (Kind::Int64, self.get_var_store().device()));
+                Tensor::ones([batch_size], (Kind::Int64, self.get_device()));
             let mut sentence_lengths: Tensor =
-                Tensor::ones([batch_size], (Kind::Int64, self.get_var_store().device()));
+                Tensor::ones([batch_size], (Kind::Int64, self.get_device()));
             let (bad_word_ids_length_1, bad_word_ids_length_greater_than_1) =
                 self.split_bad_word_ids(gen_opt.bad_word_ids);
             let mut static_bad_words_mask: Option<Tensor> = None;
@@ -1024,7 +1085,7 @@ pub(crate) mod private_generation_utils {
             let vocab_size = self.get_vocab_size();
             let beam_scores = Tensor::ones(
                 [batch_size, gen_opt.num_beams],
-                (Kind::Float, self.get_var_store().device()),
+                (Kind::Float, self.get_device()),
             ) * -1e9;
             let _ = beam_scores
                 .slice(1, 0, *beam_scores.size().last().unwrap(), num_sub_beams)
@@ -1033,11 +1094,11 @@ pub(crate) mod private_generation_utils {
             let mut beam_scores = beam_scores.view_([-1]);
             let mut beam_tokens = Tensor::zeros(
                 [batch_size * gen_opt.num_beams],
-                (Kind::Int64, self.get_var_store().device()),
+                (Kind::Int64, self.get_device()),
             );
             let mut beam_indices = Tensor::zeros(
                 [batch_size * gen_opt.num_beams],
-                (Kind::Int64, self.get_var_store().device()),
+                (Kind::Int64, self.get_device()),
             );
             let mut saved_beam_scores: Option<Vec<Tensor>> =
                 if output_scores { Some(vec![]) } else { None };
@@ -1524,6 +1585,18 @@ pub(crate) mod private_generation_utils {
             }
         }
     }
+
+    pub fn force_token_id_generation(scores: &mut Tensor, token_ids: &[i64], vocab_size: i64) {
+        let impossible_tokens: Vec<i64> = (0..vocab_size)
+            .filter(|pos| !token_ids.contains(pos))
+            .collect();
+        let impossible_tokens = Tensor::from_slice(&impossible_tokens).to_device(scores.device());
+        let _ = scores.index_fill_(
+            1,
+            &impossible_tokens,
+            get_negative_infinity(scores.kind()).unwrap(),
+        );
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1805,7 +1878,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
             generate_options.max_length
         });
         let encoding_max_len = if self.is_encoder_decoder() {
-            Some(self.get_max_positions_embeddings())
+            self.get_max_positions_embeddings()
         } else {
             max_length
         };
@@ -1819,9 +1892,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                 self.encode_prompt_text(prompts, encoding_max_len, pad_token_id)
             }
             None => match self.get_bos_id() {
-                Some(bos_id) => {
-                    Tensor::ones([1, 1], (Int64, self.get_var_store().device())) * bos_id
-                }
+                Some(bos_id) => Tensor::ones([1, 1], (Int64, self.get_device())) * bos_id,
                 None => panic!(
                     "A model with a BOS token must be used to start generation with an empty input"
                 ),
@@ -2155,16 +2226,19 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         self._get_tokenizer_mut()
     }
 
-    fn half(&mut self) {
-        self.get_var_store_mut().half();
+    fn half(&mut self) -> Result<(), RustBertError> {
+        self.get_var_store_mut()?.half();
+        Ok(())
     }
 
-    fn float(&mut self) {
-        self.get_var_store_mut().float();
+    fn float(&mut self) -> Result<(), RustBertError> {
+        self.get_var_store_mut()?.float();
+        Ok(())
     }
 
-    fn set_device(&mut self, device: Device) {
-        self.get_var_store_mut().set_device(device);
+    fn set_device(&mut self, device: Device) -> Result<(), RustBertError> {
+        self.get_var_store_mut()?.set_device(device);
+        Ok(())
     }
 }
 

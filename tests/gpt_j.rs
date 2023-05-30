@@ -7,6 +7,7 @@ use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer};
 use rust_tokenizers::vocab::Vocab;
+use std::convert::TryFrom;
 use tch::{nn, Device, Tensor};
 
 /// Equivalent Python code:
@@ -105,7 +106,7 @@ fn gpt_j_correctness() -> anyhow::Result<()> {
             Tensor::from_slice(
                 &input
                     .iter()
-                    .map(|&e| i64::from(e != pad_token))
+                    .map(|&e| i64::try_from(e != pad_token).unwrap())
                     .collect::<Vec<_>>(),
             )
             .to(device)

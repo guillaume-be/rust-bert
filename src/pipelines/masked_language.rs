@@ -22,9 +22,10 @@
 //!use rust_bert::resources::RemoteResource;
 //! fn main() -> anyhow::Result<()> {
 //!
-//!     let config = MaskedLanguageConfig::new(
+//!     use rust_bert::pipelines::common::ModelResource;
+//! let config = MaskedLanguageConfig::new(
 //!         ModelType::Bert,
-//!         RemoteResource::from_pretrained(BertModelResources::BERT),
+//!         ModelResource::Torch(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT))),
 //!         RemoteResource::from_pretrained(BertConfigResources::BERT),
 //!         RemoteResource::from_pretrained(BertVocabResources::BERT),
 //!         None,
@@ -50,20 +51,23 @@ use crate::common::error::RustBertError;
 use crate::deberta::DebertaForMaskedLM;
 use crate::deberta_v2::DebertaV2ForMaskedLM;
 use crate::fnet::FNetForMaskedLM;
-use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::pipelines::common::{
+    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
+};
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForMaskedLM;
+use std::convert::TryFrom;
+
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
+
 #[cfg(feature = "remote")]
 use crate::{
     bert::{BertConfigResources, BertModelResources, BertVocabResources},
     resources::RemoteResource,
 };
-use rust_tokenizers::tokenizer::TruncationStrategy;
-use rust_tokenizers::TokenizedInput;
-use std::borrow::Borrow;
-use std::convert::TryFrom;
 use tch::nn::VarStore;
-use tch::{nn, no_grad, Device, Tensor};
+use tch::{no_grad, Device, Tensor};
 
 #[derive(Debug, Clone)]
 /// Output container for masked language model pipeline.
@@ -82,7 +86,7 @@ pub struct MaskedLanguageConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained BERT model on CoNLL)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
@@ -113,9 +117,9 @@ impl MaskedLanguageConfig {
     /// * vocab - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
     /// * mask_token - A token used for model to predict masking words..
-    pub fn new<RM, RC, RV>(
+    pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -125,13 +129,12 @@ impl MaskedLanguageConfig {
         mask_token: impl Into<Option<String>>,
     ) -> MaskedLanguageConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         MaskedLanguageConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -149,7 +152,9 @@ impl Default for MaskedLanguageConfig {
     fn default() -> MaskedLanguageConfig {
         MaskedLanguageConfig::new(
             ModelType::Bert,
-            RemoteResource::from_pretrained(BertModelResources::BERT),
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+                BertModelResources::BERT,
+            ))),
             RemoteResource::from_pretrained(BertConfigResources::BERT),
             RemoteResource::from_pretrained(BertVocabResources::BERT),
             None,
@@ -176,28 +181,39 @@ pub enum MaskedLanguageOption {
     XLMRoberta(RobertaForMaskedLM),
     /// FNet for Masked Language
     FNet(FNetForMaskedLM),
+    /// ONNX model for Masked Language
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXEncoder),
 }
 impl MaskedLanguageOption {
     /// Instantiate a new masked language model of the supplied type.
     ///
     /// # Arguments
     ///
-    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded)
-    /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
-    /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
-    /// `model_type`)
-    pub fn new<'p, P>(
-        model_type: ModelType,
-        p: P,
-        config: &ConfigOption,
-    ) -> Result<Self, RustBertError>
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        match model_type {
+    /// * `MaskedLanguageConfig` - Masked language model pipeline configuration. The type of model created will be inferred from the
+    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    pub fn new(config: &MaskedLanguageConfig) -> Result<Self, RustBertError> {
+        match config.model_resource {
+            ModelResource::Torch(_) => Self::new_torch(config),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Self::new_onnx(config),
+        }
+    }
+
+    fn new_torch(config: &MaskedLanguageConfig) -> Result<Self, RustBertError> {
+        let device = config.device;
+        let weights_path = config.model_resource.get_torch_local_path()?;
+        let mut var_store = VarStore::new(device);
+        let model_config =
+            &ConfigOption::from_file(config.model_type, config.config_resource.get_local_path()?);
+        let model_type = config.model_type;
+        let model = match model_type {
             ModelType::Bert => {
-                if let ConfigOption::Bert(config) = config {
-                    Ok(MaskedLanguageOption::Bert(BertForMaskedLM::new(p, config)))
+                if let ConfigOption::Bert(config) = model_config {
+                    Ok(MaskedLanguageOption::Bert(BertForMaskedLM::new(
+                        var_store.root(),
+                        config,
+                    )))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a BertConfig for Bert!".to_string(),
@@ -205,9 +221,10 @@ impl MaskedLanguageOption {
                 }
             }
             ModelType::Deberta => {
-                if let ConfigOption::Deberta(config) = config {
+                if let ConfigOption::Deberta(config) = model_config {
                     Ok(MaskedLanguageOption::Deberta(DebertaForMaskedLM::new(
-                        p, config,
+                        var_store.root(),
+                        config,
                     )))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -216,9 +233,10 @@ impl MaskedLanguageOption {
                 }
             }
             ModelType::DebertaV2 => {
-                if let ConfigOption::DebertaV2(config) = config {
+                if let ConfigOption::DebertaV2(config) = model_config {
                     Ok(MaskedLanguageOption::DebertaV2(DebertaV2ForMaskedLM::new(
-                        p, config,
+                        var_store.root(),
+                        config,
                     )))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -227,9 +245,10 @@ impl MaskedLanguageOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Roberta(config) = config {
+                if let ConfigOption::Roberta(config) = model_config {
                     Ok(MaskedLanguageOption::Roberta(RobertaForMaskedLM::new(
-                        p, config,
+                        var_store.root(),
+                        config,
                     )))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -238,9 +257,10 @@ impl MaskedLanguageOption {
                 }
             }
             ModelType::XLMRoberta => {
-                if let ConfigOption::Bert(config) = config {
+                if let ConfigOption::Bert(config) = model_config {
                     Ok(MaskedLanguageOption::XLMRoberta(RobertaForMaskedLM::new(
-                        p, config,
+                        var_store.root(),
+                        config,
                     )))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -249,8 +269,11 @@ impl MaskedLanguageOption {
                 }
             }
             ModelType::FNet => {
-                if let ConfigOption::FNet(config) = config {
-                    Ok(MaskedLanguageOption::FNet(FNetForMaskedLM::new(p, config)))
+                if let ConfigOption::FNet(config) = model_config {
+                    Ok(MaskedLanguageOption::FNet(FNetForMaskedLM::new(
+                        var_store.root(),
+                        config,
+                    )))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a FNetConfig for FNet!".to_string(),
@@ -260,9 +283,29 @@ impl MaskedLanguageOption {
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Masked Language is not implemented for {model_type:?}!",
             ))),
-        }
+        }?;
+        var_store.load(weights_path)?;
+        Ok(model)
     }
 
+    #[cfg(feature = "onnx")]
+    pub fn new_onnx(config: &MaskedLanguageConfig) -> Result<Self, RustBertError> {
+        let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
+        let environment = onnx_config.get_environment()?;
+        let encoder_file = config
+            .model_resource
+            .get_onnx_local_paths()?
+            .encoder_path
+            .ok_or(RustBertError::InvalidConfigurationError(
+                "An encoder file must be provided for masked language ONNX models.".to_string(),
+            ))?;
+
+        Ok(Self::ONNX(ONNXEncoder::new(
+            encoder_file,
+            &environment,
+            &onnx_config,
+        )?))
+    }
     /// Returns the `ModelType` for this MaskedLanguageOption
     pub fn model_type(&self) -> ModelType {
         match *self {
@@ -272,6 +315,8 @@ impl MaskedLanguageOption {
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
             Self::FNet(_) => ModelType::FNet,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => ModelType::ONNX,
         }
     }
 
@@ -350,6 +395,21 @@ impl MaskedLanguageOption {
                     .expect("Error in FNet forward pass.")
                     .prediction_scores
             }
+            #[cfg(feature = "onnx")]
+            Self::ONNX(ref model) => {
+                let attention_mask = input_ids.unwrap().ones_like();
+                model
+                    .forward(
+                        input_ids,
+                        Some(&attention_mask),
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                    )
+                    .expect("Error in ONNX forward pass.")
+                    .logits
+                    .unwrap()
+            }
         }
     }
 }
@@ -359,7 +419,7 @@ pub struct MaskedLanguageModel {
     tokenizer: TokenizerOption,
     language_encode: MaskedLanguageOption,
     mask_token: Option<String>,
-    var_store: VarStore,
+    device: Device,
     max_length: usize,
 }
 
@@ -428,25 +488,21 @@ impl MaskedLanguageModel {
         config: MaskedLanguageConfig,
         tokenizer: TokenizerOption,
     ) -> Result<MaskedLanguageModel, RustBertError> {
+        let language_encode = MaskedLanguageOption::new(&config)?;
         let config_path = config.config_resource.get_local_path()?;
-        let device = config.device;
-
-        let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let max_length = model_config
             .get_max_len()
             .map(|v| v as usize)
             .unwrap_or(usize::MAX);
 
-        let language_encode =
-            MaskedLanguageOption::new(config.model_type, var_store.root(), &model_config)?;
-        crate::resources::load_weights(&config.model_resource, &mut var_store)?;
         let mask_token = config.mask_token;
+        let device = get_device(config.model_resource, config.device);
         Ok(MaskedLanguageModel {
             tokenizer,
             language_encode,
             mask_token,
-            var_store,
+            device,
             max_length,
         })
     }
@@ -479,33 +535,6 @@ impl MaskedLanguageModel {
             .map(|&x| x.replace(mask_token, model_mask_token))
             .collect::<Vec<_>>();
         Ok(output)
-    }
-
-    fn prepare_for_model<'a, S>(&self, input: S) -> Tensor
-    where
-        S: AsRef<[&'a str]>,
-    {
-        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_list(
-            input.as_ref(),
-            self.max_length,
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let max_len = tokenized_input
-            .iter()
-            .map(|input| input.token_ids.len())
-            .max()
-            .unwrap();
-        let tokenized_input_tensors = tokenized_input
-            .iter()
-            .map(|input| input.token_ids.clone())
-            .map(|mut input| {
-                input.extend(vec![0; max_len - input.len()]);
-                input
-            })
-            .map(|input| Tensor::from_slice(&(input)))
-            .collect::<Vec<_>>();
-        Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())
     }
 
     /// Mask texts
@@ -544,30 +573,22 @@ impl MaskedLanguageModel {
     where
         S: AsRef<[&'a str]>,
     {
-        let input_tensor = if let Some(mask_token) = &self.mask_token {
+        let (input_ids, token_type_ids) = if let Some(mask_token) = &self.mask_token {
             let input_with_replaced_mask = self.replace_mask_token(input.as_ref(), mask_token)?;
-            self.prepare_for_model(
+            self.tokenizer.tokenize_and_pad(
                 input_with_replaced_mask
                     .iter()
                     .map(|w| w.as_str())
-                    .collect::<Vec<&str>>(),
+                    .collect::<Vec<&str>>()
+                    .as_slice(),
+                self.max_length,
+                self.device,
             )
         } else {
-            self.prepare_for_model(input.as_ref())
+            self.tokenizer
+                .tokenize_and_pad(input.as_ref(), self.max_length, self.device)
         };
 
-        let output = no_grad(|| {
-            self.language_encode.forward_t(
-                Some(&input_tensor),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                false,
-            )
-        });
         // get the position of mask_token in input texts
         let mask_token_id =
             self.tokenizer
@@ -575,7 +596,21 @@ impl MaskedLanguageModel {
                 .ok_or_else(|| RustBertError::InvalidConfigurationError(
                     "Tokenizer does not have a mask token id, Please use a tokenizer/model with a mask token.".into(),
                 ))?;
-        let mask_token_mask = input_tensor.eq(mask_token_id);
+        let mask_token_mask = input_ids.eq(mask_token_id);
+
+        let output = no_grad(|| {
+            self.language_encode.forward_t(
+                Some(&input_ids),
+                None,
+                Some(&token_type_ids),
+                None,
+                None,
+                None,
+                None,
+                false,
+            )
+        });
+
         let mut output_tokens = Vec::with_capacity(input.as_ref().len());
         for input_id in 0..input.as_ref().len() as i64 {
             let mut sequence_tokens = vec![];

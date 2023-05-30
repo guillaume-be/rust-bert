@@ -36,8 +36,10 @@ use crate::mbart::MBartConfig;
 use crate::mobilebert::MobileBertConfig;
 use crate::openai_gpt::OpenAiGptConfig;
 use crate::pegasus::PegasusConfig;
+use crate::pipelines::translation::Language;
 use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
+use crate::resources::{Resource, ResourceProvider};
 use crate::roberta::RobertaConfig;
 use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
@@ -52,9 +54,104 @@ use rust_tokenizers::tokenizer::{
 use rust_tokenizers::vocab::Vocab;
 use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
-use std::path::Path;
+use std::fmt::Debug;
+use std::path::{Path, PathBuf};
+use tch::{Device, Kind, Tensor};
+
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::ONNXModelConfig;
+
+#[derive(Debug, Default)]
+/// Container for ONNX model resources, containing 3 optional resources (Encoder, Decoder and Decoder with past)
+pub struct ONNXModelResources {
+    /// Model encoder resource
+    pub encoder_resource: Option<Box<dyn ResourceProvider + Send>>,
+    /// Model encoder resource
+    pub decoder_resource: Option<Box<dyn ResourceProvider + Send>>,
+    /// Model encoder resource
+    pub decoder_with_past_resource: Option<Box<dyn ResourceProvider + Send>>,
+}
+
+#[derive(Debug)]
+/// Variants to store either a Torch model resource or ONNX resources
+pub enum ModelResource {
+    Torch(Box<dyn ResourceProvider + Send>),
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXModelResources),
+}
+
+impl ResourceProvider for ModelResource {
+    fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
+        match self {
+            ModelResource::Torch(ref resource) => resource.get_local_path(),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Err(RustBertError::UnsupportedError),
+        }
+    }
+    fn get_resource(&self) -> Result<Resource, RustBertError> {
+        match self {
+            ModelResource::Torch(ref resource) => resource.get_resource(),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Err(RustBertError::UnsupportedError),
+        }
+    }
+}
+
+pub struct ONNXLocalPaths {
+    pub encoder_path: Option<PathBuf>,
+    pub decoder_path: Option<PathBuf>,
+    pub decoder_with_past_path: Option<PathBuf>,
+}
+
+impl ModelResource {
+    /// Provides the torch resource local path.
+    /// Returns an error if the variant is not a `ModelResources::TORCH`
+    pub fn get_torch_local_path(&self) -> Result<PathBuf, RustBertError> {
+        match self {
+            ModelResource::Torch(torch_resource) => torch_resource.get_local_path(),
+            #[cfg(feature = "onnx")]
+            _ => Err(RustBertError::InvalidConfigurationError(format!("Attempting to get the Torch local path but other weights variants were given: {:?}", self)))
+        }
+    }
+
+    #[cfg(feature = "onnx")]
+    pub fn get_onnx_local_paths(&self) -> Result<ONNXLocalPaths, RustBertError> {
+        let (encoder_path, decoder_path, decoder_with_past_path) = match self {
+            ModelResource::ONNX(onnx_model_resources) => Ok((
+                onnx_model_resources
+                    .encoder_resource.as_ref()
+                    .map(|r| r.get_local_path()),
+                onnx_model_resources
+                    .decoder_resource.as_ref()
+                    .map(|r| r.get_local_path()),
+                onnx_model_resources
+                    .decoder_with_past_resource.as_ref()
+                    .map(|r| r.get_local_path()),
+            )),
+            _ => Err(RustBertError::InvalidConfigurationError(format!("Attempting to get the ONNX local paths but other weights variants were given: {:?}", self)))
+        }?;
+        Ok(ONNXLocalPaths {
+            encoder_path: encoder_path.transpose()?,
+            decoder_path: decoder_path.transpose()?,
+            decoder_with_past_path: decoder_with_past_path.transpose()?,
+        })
+    }
+}
+
+pub(crate) fn get_device(_model_resource: ModelResource, device: Device) -> Device {
+    #[cfg(feature = "onnx")]
+    let device = if let ModelResource::ONNX(_) = _model_resource {
+        Device::Cpu
+    } else {
+        device
+    };
+
+    #[cfg(not(feature = "onnx"))]
+    let device = device;
+    device
+}
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
 /// # Identifies the type of model
@@ -92,6 +189,8 @@ pub enum ModelType {
     #[serde(alias = "m2m100")]
     NLLB,
     FNet,
+    #[cfg(feature = "onnx")]
+    ONNX,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -144,6 +243,9 @@ pub enum ConfigOption {
     M2M100(M2M100Config),
     /// FNet configuration
     FNet(FNetConfig),
+    /// ONNX Model configuration
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXModelConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -220,6 +322,8 @@ impl ConfigOption {
                 ConfigOption::M2M100(M2M100Config::from_file(path))
             }
             ModelType::FNet => ConfigOption::FNet(FNetConfig::from_file(path)),
+            #[cfg(feature = "onnx")]
+            ModelType::ONNX => ConfigOption::ONNX(ONNXModelConfig::from_file(path)),
         }
     }
 
@@ -293,6 +397,11 @@ impl ConfigOption {
                 .id2label
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
             Self::LongT5(_) => panic!("LongT5 does not use a label mapping"),
             Self::OpenAiGpt(_) => panic!("OpenAI GPT does not use a label mapping"),
@@ -329,6 +438,132 @@ impl ConfigOption {
             Self::M2M100(config) => Some(config.max_position_embeddings),
             Self::FNet(config) => Some(config.max_position_embeddings),
             Self::Roberta(config) => Some(config.max_position_embeddings),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.max_position_embeddings,
+        }
+    }
+
+    pub fn get_vocab_size(&self) -> i64 {
+        match self {
+            Self::Bart(config) => config.vocab_size,
+            Self::Bert(config) => config.vocab_size,
+            Self::Deberta(config) => config.vocab_size,
+            Self::DebertaV2(config) => config.vocab_size,
+            Self::DistilBert(config) => config.vocab_size,
+            Self::Electra(config) => config.vocab_size,
+            Self::Marian(config) => config.vocab_size,
+            Self::MobileBert(config) => config.vocab_size,
+            Self::T5(config) => config.vocab_size,
+            Self::LongT5(config) => config.vocab_size,
+            Self::Albert(config) => config.vocab_size,
+            Self::XLNet(config) => config.vocab_size,
+            Self::GPT2(config) => config.vocab_size,
+            Self::GPTJ(config) => config.vocab_size,
+            Self::Reformer(config) => config.vocab_size,
+            Self::ProphetNet(config) => config.vocab_size,
+            Self::Longformer(config) => config.vocab_size,
+            Self::Pegasus(config) => config.vocab_size,
+            Self::OpenAiGpt(config) => config.vocab_size,
+            Self::GPTNeo(config) => config.vocab_size,
+            Self::MBart(config) => config.vocab_size,
+            Self::M2M100(config) => config.vocab_size,
+            Self::FNet(config) => config.vocab_size,
+            Self::Roberta(config) => config.vocab_size,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.vocab_size,
+        }
+    }
+
+    pub fn get_decoder_start_token_id(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => config.decoder_start_token_id,
+            Self::Bert(_) => None,
+            Self::Deberta(_) => None,
+            Self::DebertaV2(_) => None,
+            Self::DistilBert(_) => None,
+            Self::Electra(_) => None,
+            Self::Marian(config) => config.decoder_start_token_id,
+            Self::MobileBert(_) => None,
+            Self::T5(config) => config.decoder_start_token_id,
+            Self::LongT5(config) => config.decoder_start_token_id,
+            Self::Albert(_) => None,
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => config.decoder_start_token_id,
+            Self::GPTJ(config) => config.decoder_start_token_id,
+            Self::Reformer(config) => config.decoder_start_token_id,
+            Self::ProphetNet(config) => config.decoder_start_token_id,
+            Self::Longformer(_) => None,
+            Self::Pegasus(config) => config.decoder_start_token_id,
+            Self::OpenAiGpt(config) => config.decoder_start_token_id,
+            Self::GPTNeo(config) => config.decoder_start_token_id,
+            Self::MBart(config) => config.decoder_start_token_id,
+            Self::M2M100(config) => config.decoder_start_token_id,
+            Self::FNet(config) => config.decoder_start_token_id,
+            Self::Roberta(_) => None,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.decoder_start_token_id,
+        }
+    }
+
+    pub fn get_forced_bos_token_id(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => config.forced_bos_token_id,
+            Self::Bert(_) => None,
+            Self::Deberta(_) => None,
+            Self::DebertaV2(_) => None,
+            Self::DistilBert(_) => None,
+            Self::Electra(_) => None,
+            Self::Marian(config) => config.forced_bos_token_id,
+            Self::MobileBert(_) => None,
+            Self::T5(config) => config.forced_bos_token_id,
+            Self::LongT5(config) => config.forced_bos_token_id,
+            Self::Albert(_) => None,
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => config.forced_bos_token_id,
+            Self::GPTJ(config) => config.forced_bos_token_id,
+            Self::Reformer(config) => config.forced_bos_token_id,
+            Self::ProphetNet(config) => config.forced_bos_token_id,
+            Self::Longformer(_) => None,
+            Self::Pegasus(config) => config.forced_bos_token_id,
+            Self::OpenAiGpt(config) => config.forced_bos_token_id,
+            Self::GPTNeo(config) => config.forced_bos_token_id,
+            Self::MBart(config) => config.forced_bos_token_id,
+            Self::M2M100(config) => config.forced_bos_token_id,
+            Self::FNet(_) => None,
+            Self::Roberta(_) => None,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.forced_bos_token_id,
+        }
+    }
+
+    pub fn get_forced_eos_token_id(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => config.forced_eos_token_id,
+            Self::Bert(_) => None,
+            Self::Deberta(_) => None,
+            Self::DebertaV2(_) => None,
+            Self::DistilBert(_) => None,
+            Self::Electra(_) => None,
+            Self::Marian(config) => config.forced_eos_token_id,
+            Self::MobileBert(_) => None,
+            Self::T5(config) => config.forced_eos_token_id,
+            Self::LongT5(config) => config.forced_eos_token_id,
+            Self::Albert(_) => None,
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => config.forced_eos_token_id,
+            Self::GPTJ(config) => config.forced_eos_token_id,
+            Self::Reformer(config) => config.forced_eos_token_id,
+            Self::ProphetNet(config) => config.forced_eos_token_id,
+            Self::Longformer(_) => None,
+            Self::Pegasus(config) => config.forced_eos_token_id,
+            Self::OpenAiGpt(config) => config.forced_eos_token_id,
+            Self::GPTNeo(config) => config.forced_eos_token_id,
+            Self::MBart(config) => config.forced_eos_token_id,
+            Self::M2M100(config) => config.forced_eos_token_id,
+            Self::FNet(_) => None,
+            Self::Roberta(_) => None,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.forced_eos_token_id,
         }
     }
 }
@@ -670,6 +905,10 @@ impl TokenizerOption {
                 lower_case,
                 strip_accents.unwrap_or(false),
             )?),
+            #[cfg(feature = "onnx")]
+            ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
+                "Default Tokenizer not defined for generic ONNX models.".to_string(),
+            ))?,
         };
         Ok(tokenizer)
     }
@@ -1311,6 +1550,167 @@ impl TokenizerOption {
         }
     }
 
+    /// Helper function to prepare the input for translation models
+    pub fn get_prefix_and_forced_bos_id(
+        &self,
+        source_language: Option<&Language>,
+        target_language: Option<&Language>,
+        supported_source_languages: &HashSet<Language>,
+        supported_target_languages: &HashSet<Language>,
+    ) -> Result<(Option<String>, Option<i64>), RustBertError> {
+        if let Some(source_language) = source_language {
+            if !supported_source_languages.contains(source_language) {
+                return Err(RustBertError::ValueError(format!(
+                        "{source_language} not in list of supported languages: {supported_source_languages:?}",
+                    )));
+            }
+        }
+
+        if let Some(target_language) = target_language {
+            if !supported_target_languages.contains(target_language) {
+                return Err(RustBertError::ValueError(format!(
+                        "{target_language} not in list of supported languages: {supported_target_languages:?}"
+                    )));
+            }
+        }
+
+        Ok(match *self {
+                Self::Marian(_) => {
+                    if supported_target_languages.len() > 1 {
+                        (
+                            Some(format!(
+                                ">>{}<< ",
+                                target_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
+                                    "Missing target language for Marian \
+                                        (multiple languages supported by model: {supported_target_languages:?}, \
+                                        need to specify target language)",
+                                )))?
+                            )),
+                            None,
+                        )
+                    } else {
+                        (None, None)
+                    }
+                }
+                Self::T5(_) => (
+                    Some(format!(
+                        "translate {} to {}:",
+                        source_language.ok_or_else(|| RustBertError::ValueError(
+                            "Missing source language for T5".to_string(),
+                        ))?,
+                        target_language.ok_or_else(|| RustBertError::ValueError(
+                            "Missing target language for T5".to_string(),
+                        ))?,
+                    )),
+                    None,
+                ),
+                Self::MBart50(_) => {
+                    (
+                        Some(format!(
+                            ">>{}<< ",
+                            source_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
+                                "Missing source language for MBart\
+                                (multiple languages supported by model: {supported_source_languages:?}, \
+                                need to specify target language)"
+                            )))?
+                        )),
+                        if let Some(target_language) = target_language {
+                            Some(
+                                self.convert_tokens_to_ids(&[format!(
+                                    ">>{}<<",
+                                    target_language.get_iso_639_1_code().ok_or_else(|| {
+                                        RustBertError::ValueError(format!(
+                                            "This language has no ISO639-I code. Languages supported by model: {supported_source_languages:?}."
+                                        ))
+                                    })?
+                                )])[0],
+                            )
+                        } else {
+                            return Err(RustBertError::ValueError(format!(
+                                "Missing target language for MBart\
+                        (multiple languages supported by model: {supported_target_languages:?}, \
+                        need to specify target language)"
+                            )));
+                        },
+                    )
+                }
+                Self::M2M100(_) => (
+                    Some(match source_language {
+                        Some(value) => {
+                            let language_code = value.get_iso_639_1_code().ok_or_else(|| {
+                                RustBertError::ValueError(format!(
+                                    "This language has no ISO639-I language code representation. \
+                                languages supported by the model: {supported_target_languages:?}"
+                                ))
+                            })?;
+                            match language_code.len() {
+                                2 => format!(">>{language_code}.<< "),
+                                3 => format!(">>{language_code}<< "),
+                                _ => {
+                                    return Err(RustBertError::ValueError(
+                                        "Invalid ISO 639-I code".to_string(),
+                                    ));
+                                }
+                            }
+                        }
+                        None => {
+                            return Err(RustBertError::ValueError(format!(
+                                "Missing source language for M2M100 \
+                            (multiple languages supported by model: {supported_source_languages:?}, \
+                            need to specify target language)"
+                            )));
+                        }
+                    }),
+                    if let Some(target_language) = target_language {
+                        let language_code = target_language.get_iso_639_1_code().ok_or_else(|| {
+                            RustBertError::ValueError(format!(
+                                "This language has no ISO639-I language code representation. \
+                            languages supported by the model: {supported_target_languages:?}"
+                            ))
+                        })?;
+                        Some(
+                            self.convert_tokens_to_ids(&[
+                                match language_code.len() {
+                                    2 => format!(">>{language_code}.<<"),
+                                    3 => format!(">>{language_code}<<"),
+                                    _ => {
+                                        return Err(RustBertError::ValueError(
+                                            "Invalid ISO 639-3 code".to_string(),
+                                        ));
+                                    }
+                                },
+                            ])[0],
+                        )
+                    } else {
+                        return Err(RustBertError::ValueError(format!(
+                            "Missing target language for M2M100 \
+                        (multiple languages supported by model: {supported_target_languages:?}, \
+                        need to specify target language)",
+                        )));
+                    },
+                ),
+                Self::NLLB(_) => {
+                    let source_language = source_language
+                        .and_then(Language::get_nllb_code)
+                        .map(str::to_string)
+                        .ok_or_else(|| RustBertError::ValueError(
+                            format!("Missing source language for NLLB. Need to specify one from: {supported_source_languages:?}")
+                        ))?;
+
+                    let target_language = target_language
+                        .and_then(Language::get_nllb_code)
+                        .map(str::to_string)
+                        .map(|code| self.convert_tokens_to_ids(&[code])[0])
+                        .ok_or_else(|| RustBertError::ValueError(
+                            format!("Missing target language for NLLB. Need to specify one from: {supported_target_languages:?}")
+                        ))?;
+
+                    (Some(source_language), Some(target_language))
+                }
+                _ => (None, None),
+            })
+    }
+
     /// Interface method to convert tokens to ids
     pub fn convert_tokens_to_ids<S>(&self, tokens: &[S]) -> Vec<i64>
     where
@@ -1791,6 +2191,55 @@ impl TokenizerOption {
             Self::ProphetNet(_) => None,
             Self::OpenAiGpt(_) => None,
         }
+    }
+
+    pub fn tokenize_and_pad<'a, S>(
+        &self,
+        input: S,
+        max_length: usize,
+        device: Device,
+    ) -> (Tensor, Tensor)
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let mut tokenized_input: Vec<TokenizedInput> = self.encode_list(
+            input.as_ref(),
+            max_length,
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
+        let max_len = tokenized_input
+            .iter()
+            .map(|input| input.token_ids.len())
+            .max()
+            .unwrap();
+        let pad_id = self
+            .get_pad_id()
+            .expect("The Tokenizer used for sequence classification should contain a PAD id");
+        let tokenized_input_tensors: Vec<Tensor> = tokenized_input
+            .iter_mut()
+            .map(|input| {
+                input.token_ids.resize(max_len, pad_id);
+                Tensor::from_slice(&(input.token_ids))
+            })
+            .collect::<Vec<_>>();
+
+        let token_type_ids: Vec<Tensor> = tokenized_input
+            .iter_mut()
+            .map(|input| {
+                input
+                    .segment_ids
+                    .resize(max_len, *input.segment_ids.last().unwrap_or(&0));
+                Tensor::from_slice(&(input.segment_ids))
+            })
+            .collect::<Vec<_>>();
+
+        (
+            Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(device),
+            Tensor::stack(token_type_ids.as_slice(), 0)
+                .to(device)
+                .to_kind(Kind::Int64),
+        )
     }
 
     /// Interface method

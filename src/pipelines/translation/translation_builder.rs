@@ -5,6 +5,7 @@ use tch::Device;
 
 #[cfg(feature = "remote")]
 use crate::{
+    pipelines::common::ModelResource,
     pipelines::translation::{TranslationConfig, TranslationModel},
     resources::ResourceProvider,
     RustBertError,
@@ -379,7 +380,7 @@ impl TranslationModelBuilder {
 
         let translation_config = TranslationConfig::new(
             translation_resources.model_type,
-            translation_resources.model_resource,
+            ModelResource::Torch(Box::new(translation_resources.model_resource)),
             translation_resources.config_resource,
             translation_resources.vocab_resource,
             Some(translation_resources.merges_resource),

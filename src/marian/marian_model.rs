@@ -14,15 +14,14 @@
 use crate::bart::{BartConfig, BartModel, BartModelOutput, LayerState};
 use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::{
-    PreparedInput, PrivateLanguageGenerator,
+    force_token_id_generation, PreparedInput, PrivateLanguageGenerator,
 };
 use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, LanguageGenerator};
 use crate::pipelines::translation::Language;
 use crate::{Config, RustBertError};
-use rust_tokenizers::tokenizer::TruncationStrategy;
 use std::borrow::Borrow;
 use tch::nn::Init;
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 /// # Marian Pretrained model weight files
 pub struct MarianModelResources;
@@ -773,10 +772,10 @@ impl MarianGenerator {
 
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = true;
-        let decoder_start_id =
-            Some(tokenizer.get_pad_id().ok_or(RustBertError::TokenizerError(
-                "The tokenizer must contain a pad token ID to be used as BOS".to_string(),
-            ))?);
+        let decoder_start_id = match config.decoder_start_token_id {
+            Some(start_token_id) => Some(start_token_id),
+            None => pad_token_id,
+        };
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(MarianGenerator {
@@ -793,14 +792,6 @@ impl MarianGenerator {
             max_position_embeddings,
         })
     }
-
-    fn force_token_id_generation(&self, scores: &mut Tensor, token_ids: &[i64]) {
-        let impossible_tokens: Vec<i64> = (0..self.get_vocab_size())
-            .filter(|pos| !token_ids.contains(pos))
-            .collect();
-        let impossible_tokens = Tensor::from_slice(&impossible_tokens).to_device(scores.device());
-        let _ = scores.index_fill_(1, &impossible_tokens, f64::NEG_INFINITY);
-    }
 }
 
 impl PrivateLanguageGenerator for MarianGenerator {
@@ -810,11 +801,11 @@ impl PrivateLanguageGenerator for MarianGenerator {
     fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -837,8 +828,8 @@ impl PrivateLanguageGenerator for MarianGenerator {
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
     }
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn forward_t(
@@ -901,7 +892,11 @@ impl PrivateLanguageGenerator for MarianGenerator {
         );
         if let Some(max_length) = max_length {
             if current_length == max_length - 1 {
-                self.force_token_id_generation(scores, self.get_eos_ids().as_ref().unwrap());
+                force_token_id_generation(
+                    scores,
+                    self.get_eos_ids().as_ref().unwrap(),
+                    self.get_vocab_size(),
+                );
             }
         }
     }
@@ -936,48 +931,6 @@ impl PrivateLanguageGenerator for MarianGenerator {
             },
             _ => panic!("Cache type incompatible with Marian"),
         }
-    }
-
-    fn encode_prompt_text<S>(
-        &self,
-        prompt_text: &[S],
-        max_len: Option<i64>,
-        pad_token_id: Option<i64>,
-    ) -> Tensor
-    where
-        S: AsRef<str> + Sync,
-    {
-        let tokens = self._get_tokenizer().encode_list(
-            prompt_text,
-            max_len
-                .map(|max_len| max_len as usize)
-                .unwrap_or(usize::MAX),
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let token_ids = tokens
-            .into_iter()
-            .map(|tokenized_input| tokenized_input.token_ids)
-            .collect::<Vec<Vec<i64>>>();
-
-        let max_len = token_ids.iter().map(|input| input.len()).max().unwrap();
-
-        let pad_token = match pad_token_id {
-            Some(value) => value,
-            None => self._get_tokenizer().get_unk_id(),
-        };
-
-        let token_ids = token_ids
-            .into_iter()
-            .map(|mut input| {
-                let temp = vec![pad_token; max_len - input.len()];
-                input.extend(temp);
-                input
-            })
-            .map(|tokens| Tensor::from_slice(&tokens).to(self.get_var_store().device()))
-            .collect::<Vec<Tensor>>();
-
-        Tensor::stack(&token_ids, 0)
     }
 
     fn reorder_cache(

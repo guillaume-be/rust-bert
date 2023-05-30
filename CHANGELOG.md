@@ -7,11 +7,22 @@ All notable changes to this project will be documented in this file. The format 
 - Addition of `add_tokens` and `add_extra_ids` interface methods to the `TokenizerOption`. Allow building most pipeline with custom tokenizer via `new_with_tokenizer`.
 - Addition of `get_tokenizer` and `get_tokenizer_mut` methods to all pipelines allowing to get a (mutable) reference to the pipeline tokenizer.
 - Addition of a `get_embedding_dim` method to get the dimension of the embeddings for sentence embeddings pipelines
+- `get_vocab_size`, `get_decoder_start_token_id` and `get_prefix_and_forced_bos_id`  for the `TokenizerOption` in pipelines
+- Addition of the [GPT-J](https://www.eleuther.ai/artifacts/gpt-j) model architecture
+- Addition of the [NLLB](https://arxiv.org/abs/2207.04672) model architecture and pretrained weights
+- Addition of support for ONNX models (encoder, decoders, encoder-decoders) via the [ort](https://github.com/pykeio/ort) onnxruntime bindings
+- Integration of ONNX models to the sequence classification, token classification, question answering, zero-shot classification, text generation, summarization and translation pipelines
 
 ## Changed
-- Bumped the tokenizers dependency from 7.x to 8.x, exposing additional options for special token mapping and adding the NLLBTokenizer.
+- Bumped the tokenizers dependency from 7.x to 8.x, exposing additional options for special token mapping and adding the NLLBTokenizer
 - (BREAKING) Simplified the generation traits (removal of LMHeadModel and elimination of unnecessary specification for LanguageGenerator)
 - (BREAKING) Upgraded to `torch` 2.0 (via `tch` 0.13.0). The process to automatically download the dependencies have changed, it must now be enabled via the `download-libtorch` feature flag.
+- Read the `decoder_start_token_id` from the provided configuration rather than using a hard-coded default value
+- (BREAKING) Changed the return type of the `LanguageGenerator` and pipelines functions `float`, `half`, `set_device` to `Result<(), RustBertError>` as these become fallible for ONNX models
+- (BREAKING) Wrapped the model resources specification for the pipeline `Config` objects into an `Enum` to allow handling both torch-based and ONNX models. 
+  The `model_resources` field now needs to be wrapped in the corresponding enum variant, e.g. `model_resources: ModelResources::TORCH(model_resource)` for Torch-based models
+- (BREAKING) Added the `forced_bos_token_id` and `forced_eos_token_id` fields to text generation models. 
+  If these are not None, this will trigger a forced BOS/EOS token generation at the first of `max_length` positions (aligns with the Pytorch Transformers library)
 
 ## Fixed
 - MIN/MAX computation for float-like (was set to infinity instead of min/max)

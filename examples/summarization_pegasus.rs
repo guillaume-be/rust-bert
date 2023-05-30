@@ -13,7 +13,7 @@
 extern crate anyhow;
 
 use rust_bert::pegasus::{PegasusConfigResources, PegasusModelResources, PegasusVocabResources};
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::resources::RemoteResource;
 use tch::Device;
@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
 
     let summarization_config = SummarizationConfig {
         model_type: ModelType::Pegasus,
-        model_resource: weights_resource,
+        model_resource: ModelResource::Torch(weights_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,

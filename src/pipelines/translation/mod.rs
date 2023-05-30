@@ -25,6 +25,7 @@
 //! use tch::Device;
 //!
 //! fn main() -> anyhow::Result<()> {
+//!     use rust_bert::pipelines::common::ModelResource;
 //!     let model_resource = RemoteResource::from_pretrained(M2M100ModelResources::M2M100_418M);
 //!     let config_resource = RemoteResource::from_pretrained(M2M100ConfigResources::M2M100_418M);
 //!     let vocab_resource = RemoteResource::from_pretrained(M2M100VocabResources::M2M100_418M);
@@ -35,7 +36,7 @@
 //!
 //!     let translation_config = TranslationConfig::new(
 //!         ModelType::M2M100,
-//!         model_resource,
+//!         ModelResource::Torch(Box::new(model_resource)),
 //!         config_resource,
 //!         vocab_resource,
 //!         Some(merges_resource),

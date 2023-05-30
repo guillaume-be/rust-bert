@@ -16,7 +16,7 @@ use rust_bert::m2m_100::{
     M2M100ConfigResources, M2M100MergesResources, M2M100ModelResources, M2M100SourceLanguages,
     M2M100TargetLanguages, M2M100VocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::RemoteResource;
 use tch::Device;
@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
 
     let translation_config = TranslationConfig::new(
         ModelType::M2M100,
-        model_resource,
+        ModelResource::Torch(Box::new(model_resource)),
         config_resource,
         vocab_resource,
         Some(merges_resource),

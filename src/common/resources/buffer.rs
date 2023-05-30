@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 /// # In-memory raw buffer resource
+#[derive(Debug)]
 pub struct BufferResource {
     /// The data representing the underlying resource
     pub data: Arc<RwLock<Vec<u8>>>,

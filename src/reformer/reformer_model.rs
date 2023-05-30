@@ -79,6 +79,8 @@ pub struct ReformerConfig {
     pub chunk_size_feed_forward: Option<i64>,
     pub eos_token_id: i64,
     pub pad_token_id: i64,
+    pub forced_bos_token_id: Option<i64>,
+    pub forced_eos_token_id: Option<i64>,
     pub feed_forward_size: i64,
     pub hash_seed: Option<i64>,
     pub hidden_act: Activation,
@@ -106,6 +108,7 @@ pub struct ReformerConfig {
     pub label2id: Option<HashMap<String, i64>>,
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
+    pub decoder_start_token_id: Option<i64>,
 }
 
 impl Config for ReformerConfig {}
@@ -130,6 +133,8 @@ impl Default for ReformerConfig {
             chunk_size_feed_forward: None,
             eos_token_id: 2,
             pad_token_id: 0,
+            forced_bos_token_id: None,
+            forced_eos_token_id: None,
             feed_forward_size: 512,
             hash_seed: None,
             hidden_act: Activation::gelu,
@@ -157,6 +162,7 @@ impl Default for ReformerConfig {
             label2id: None,
             output_attentions: None,
             output_hidden_states: None,
+            decoder_start_token_id: None,
         }
     }
 }
@@ -1057,7 +1063,7 @@ impl ReformerGenerator {
         let pad_token_id = Some(config.pad_token_id);
         let vocab_size = config.vocab_size;
         let is_encoder_decoder = false;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(ReformerGenerator {
@@ -1083,11 +1089,11 @@ impl PrivateLanguageGenerator for ReformerGenerator {
     fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -1110,8 +1116,8 @@ impl PrivateLanguageGenerator for ReformerGenerator {
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
     }
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn forward_t(

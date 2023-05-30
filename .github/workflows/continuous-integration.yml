@@ -140,6 +140,24 @@ jobs:
             --test nllb
             --features download-libtorch
 
+  test-onnx:
+    name: Integration tests (ONNX models)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --package rust-bert
+            --features onnx
+            --test onnx
+            --features download-libtorch
+
   convert-model:
     name: Model conversion test
     runs-on: ubuntu-latest

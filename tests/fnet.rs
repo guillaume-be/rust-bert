@@ -5,7 +5,7 @@ use rust_bert::fnet::{
     FNetConfig, FNetConfigResources, FNetForMaskedLM, FNetForMultipleChoice,
     FNetForQuestionAnswering, FNetForTokenClassification, FNetModelResources, FNetVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::sentiment::{SentimentConfig, SentimentModel, SentimentPolarity};
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
@@ -76,9 +76,8 @@ fn fnet_masked_lm() -> anyhow::Result<()> {
 
     assert_eq!("▁one", word_1);
     assert_eq!("▁the", word_2);
-    let value = (f64::try_from(model_output.prediction_scores.get(0).get(4).max()).unwrap()
-        - 13.1721)
-        .abs();
+    let value =
+        (f64::try_from(model_output.prediction_scores.get(0).get(4).max())? - 13.1721).abs();
     dbg!(value);
     assert!(value < 1e-3);
     Ok(())
@@ -93,9 +92,9 @@ fn fnet_for_sequence_classification() -> anyhow::Result<()> {
     let vocab_resource = Box::new(RemoteResource::from_pretrained(
         FNetVocabResources::BASE_SST2,
     ));
-    let model_resource = Box::new(RemoteResource::from_pretrained(
+    let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
         FNetModelResources::BASE_SST2,
-    ));
+    )));
 
     let sentiment_config = SentimentConfig {
         model_type: ModelType::FNet,

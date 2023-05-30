@@ -67,14 +67,15 @@ use tch::Device;
 use crate::bart::BartGenerator;
 use crate::common::error::RustBertError;
 use crate::pegasus::PegasusConditionalGenerator;
-use crate::pipelines::common::{ModelType, TokenizerOption};
+use crate::pipelines::common::{ModelResource, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::prophetnet::ProphetNetConditionalGenerator;
 use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 
 use crate::longt5::LongT5Generator;
-use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::ONNXConditionalGenerator;
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
@@ -88,7 +89,7 @@ pub struct SummarizationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BART model on CNN-DM)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained BART model on CNN-DM)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BART model on CNN-DM)
@@ -133,25 +134,24 @@ impl SummarizationConfig {
     /// # Arguments
     ///
     /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded!)
-    /// * model_resource - The `ResourceProvider` pointing to the model to load (e.g.  model.ot)
+    /// * model_resource - The `ModelResources` pointing to the model to load (e.g.  model.ot)
     /// * config_resource - The `ResourceProvider` pointing to the model configuration to load (e.g. config.json)
     /// * vocab_resource - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges_resource - The `ResourceProvider`  pointing to the tokenizer's merge file or SentencePiece model to load (e.g.  merges.txt).
-    pub fn new<RM, RC, RV>(
+    pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
     ) -> SummarizationConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         SummarizationConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -179,7 +179,9 @@ impl Default for SummarizationConfig {
     fn default() -> SummarizationConfig {
         SummarizationConfig::new(
             ModelType::Bart,
-            RemoteResource::from_pretrained(BartModelResources::BART_CNN),
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+                BartModelResources::BART_CNN,
+            ))),
             RemoteResource::from_pretrained(BartConfigResources::BART_CNN),
             RemoteResource::from_pretrained(BartVocabResources::BART_CNN),
             Some(RemoteResource::from_pretrained(
@@ -192,6 +194,7 @@ impl Default for SummarizationConfig {
 impl From<SummarizationConfig> for GenerateConfig {
     fn from(config: SummarizationConfig) -> GenerateConfig {
         GenerateConfig {
+            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -227,22 +230,29 @@ pub enum SummarizationOption {
     ProphetNet(ProphetNetConditionalGenerator),
     /// Summarizer based on Pegasus model
     Pegasus(PegasusConditionalGenerator),
+    /// Summarizer based on ONNX model
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXConditionalGenerator),
 }
 
 impl SummarizationOption {
     pub fn new(config: SummarizationConfig) -> Result<Self, RustBertError> {
-        match config.model_type {
-            ModelType::Bart => Ok(SummarizationOption::Bart(BartGenerator::new(
+        match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
+            (_, &ModelResource::ONNX(_)) => Ok(SummarizationOption::ONNX(
+                ONNXConditionalGenerator::new(config.into(), None, None)?,
+            )),
+            (ModelType::Bart, _) => Ok(SummarizationOption::Bart(BartGenerator::new(
                 config.into(),
             )?)),
-            ModelType::T5 => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
-            ModelType::LongT5 => Ok(SummarizationOption::LongT5(LongT5Generator::new(
+            (ModelType::T5, _) => Ok(SummarizationOption::T5(T5Generator::new(config.into())?)),
+            (ModelType::LongT5, _) => Ok(SummarizationOption::LongT5(LongT5Generator::new(
                 config.into(),
             )?)),
-            ModelType::ProphetNet => Ok(SummarizationOption::ProphetNet(
+            (ModelType::ProphetNet, _) => Ok(SummarizationOption::ProphetNet(
                 ProphetNetConditionalGenerator::new(config.into())?,
             )),
-            ModelType::Pegasus => Ok(SummarizationOption::Pegasus(
+            (ModelType::Pegasus, _) => Ok(SummarizationOption::Pegasus(
                 PegasusConditionalGenerator::new(config.into())?,
             )),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
@@ -256,21 +266,25 @@ impl SummarizationOption {
         config: SummarizationConfig,
         tokenizer: TokenizerOption,
     ) -> Result<Self, RustBertError> {
-        match config.model_type {
-            ModelType::Bart => Ok(SummarizationOption::Bart(
+        match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
+            (_, &ModelResource::ONNX(_)) => Ok(SummarizationOption::ONNX(
+                ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
+            )),
+            (ModelType::Bart, _) => Ok(SummarizationOption::Bart(
                 BartGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::T5 => Ok(SummarizationOption::T5(T5Generator::new_with_tokenizer(
+            (ModelType::T5, _) => Ok(SummarizationOption::T5(T5Generator::new_with_tokenizer(
                 config.into(),
                 tokenizer,
             )?)),
-            ModelType::LongT5 => Ok(SummarizationOption::LongT5(
+            (ModelType::LongT5, _) => Ok(SummarizationOption::LongT5(
                 LongT5Generator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::ProphetNet => Ok(SummarizationOption::ProphetNet(
+            (ModelType::ProphetNet, _) => Ok(SummarizationOption::ProphetNet(
                 ProphetNetConditionalGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::Pegasus => Ok(SummarizationOption::Pegasus(
+            (ModelType::Pegasus, _) => Ok(SummarizationOption::Pegasus(
                 PegasusConditionalGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
@@ -288,28 +302,34 @@ impl SummarizationOption {
             Self::LongT5(_) => ModelType::LongT5,
             Self::ProphetNet(_) => ModelType::ProphetNet,
             Self::Pegasus(_) => ModelType::Pegasus,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => ModelType::ONNX,
         }
     }
 
     /// Interface method to access tokenizer
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
-            Self::Bart(model_ref) => model_ref._get_tokenizer(),
-            Self::T5(model_ref) => model_ref._get_tokenizer(),
-            Self::LongT5(model_ref) => model_ref._get_tokenizer(),
-            Self::ProphetNet(model_ref) => model_ref._get_tokenizer(),
-            Self::Pegasus(model_ref) => model_ref._get_tokenizer(),
+            Self::Bart(model_ref) => model_ref.get_tokenizer(),
+            Self::T5(model_ref) => model_ref.get_tokenizer(),
+            Self::LongT5(model_ref) => model_ref.get_tokenizer(),
+            Self::ProphetNet(model_ref) => model_ref.get_tokenizer(),
+            Self::Pegasus(model_ref) => model_ref.get_tokenizer(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(model_ref) => model_ref.get_tokenizer(),
         }
     }
 
     /// Interface method to access tokenizer
     pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         match self {
-            Self::Bart(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::LongT5(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::ProphetNet(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::Pegasus(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::Bart(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::LongT5(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::ProphetNet(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::Pegasus(model_ref) => model_ref.get_tokenizer_mut(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(model_ref) => model_ref.get_tokenizer_mut(),
         }
     }
 
@@ -340,6 +360,12 @@ impl SummarizationOption {
                 .map(|output| output.text)
                 .collect(),
             Self::Pegasus(ref model) => model
+                .generate(prompt_texts, None)
+                .into_iter()
+                .map(|output| output.text)
+                .collect(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(ref model) => model
                 .generate(prompt_texts, None)
                 .into_iter()
                 .map(|output| output.text)

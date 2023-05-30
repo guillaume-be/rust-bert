@@ -2,7 +2,7 @@ use rust_bert::openai_gpt::{
     OpenAIGPTLMHeadModel, OpenAiGptConfig, OpenAiGptConfigResources, OpenAiGptMergesResources,
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::generation_utils::Cache;
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, ResourceProvider};
@@ -119,7 +119,7 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -161,7 +161,7 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -214,7 +214,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -283,7 +283,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),

@@ -3,7 +3,7 @@ use crate::resources::{Resource, ResourceProvider};
 use std::path::PathBuf;
 
 /// # Local resource
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct LocalResource {
     /// Local path for the resource
     pub local_path: PathBuf,

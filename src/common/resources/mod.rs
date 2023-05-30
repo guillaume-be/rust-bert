@@ -25,6 +25,7 @@ mod local;
 use crate::common::error::RustBertError;
 pub use buffer::BufferResource;
 pub use local::LocalResource;
+use std::fmt::Debug;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::sync::RwLockWriteGuard;
@@ -37,7 +38,7 @@ pub enum Resource<'a> {
 
 /// # Resource Trait that can provide the location or data for the model, and location of
 /// configuration or vocabulary resources
-pub trait ResourceProvider: Send + Sync {
+pub trait ResourceProvider: Debug + Send + Sync {
     /// Provides the local path for a resource.
     ///
     /// # Returns

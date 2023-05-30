@@ -74,12 +74,12 @@ fn mobilebert_masked_model() -> anyhow::Result<()> {
         .logits
         .get(0)
         .get(4)
-        .double_value(&[i64::try_from(&index_1).unwrap()]);
+        .double_value(&[i64::try_from(&index_1)?]);
     let score_2 = model_output
         .logits
         .get(1)
         .get(7)
-        .double_value(&[i64::try_from(&index_2).unwrap()]);
+        .double_value(&[i64::try_from(&index_2)?]);
 
     assert_eq!("thing", word_1); // Outputs "person" : "Looks like one [person] is missing"
     assert_eq!("sunny", word_2); // Outputs "sunny" : "It was a very nice and [sunny] day"

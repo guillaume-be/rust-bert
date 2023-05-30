@@ -7,7 +7,7 @@ use rust_bert::longformer::{
     LongformerForTokenClassification, LongformerMergesResources, LongformerModelResources,
     LongformerVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::question_answering::{
     QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
@@ -117,12 +117,12 @@ fn longformer_masked_lm() -> anyhow::Result<()> {
         .prediction_scores
         .get(0)
         .get(4)
-        .double_value(&[i64::try_from(&index_1).unwrap()]);
+        .double_value(&[i64::try_from(&index_1)?]);
     let score_2 = model_output
         .prediction_scores
         .get(1)
         .get(7)
-        .double_value(&[i64::try_from(&index_2).unwrap()]);
+        .double_value(&[i64::try_from(&index_2)?]);
 
     assert_eq!("Ġeye", word_1); // Outputs "person" : "Looks like one [eye] is missing"
     assert_eq!("Ġsunny", word_2); // Outputs "pear" : "It was a nice and [sunny] day"
@@ -384,7 +384,9 @@ fn longformer_for_question_answering() -> anyhow::Result<()> {
     //    Set-up Question Answering model
     let config = QuestionAnsweringConfig::new(
         ModelType::Longformer,
-        RemoteResource::from_pretrained(LongformerModelResources::LONGFORMER_BASE_SQUAD1),
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+            LongformerModelResources::LONGFORMER_BASE_SQUAD1,
+        ))),
         RemoteResource::from_pretrained(LongformerConfigResources::LONGFORMER_BASE_SQUAD1),
         RemoteResource::from_pretrained(LongformerVocabResources::LONGFORMER_BASE_SQUAD1),
         Some(RemoteResource::from_pretrained(

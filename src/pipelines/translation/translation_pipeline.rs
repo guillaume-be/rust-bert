@@ -1,3 +1,5 @@
+// Copyright 2018-2020 The HuggingFace Inc. team.
+// Copyright 2020 Marian Team Authors
 // Copyright 2019-2020 Guillaume Becquin
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +18,10 @@ use crate::m2m_100::M2M100Generator;
 use crate::marian::MarianGenerator;
 use crate::mbart::MBartGenerator;
 use crate::nllb::NLLBGenerator;
-use crate::pipelines::common::{ModelType, TokenizerOption};
-use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
+use crate::pipelines::common::{ModelResource, ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::{GenerateConfig, GenerateOptions, LanguageGenerator};
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::ONNXConditionalGenerator;
 use crate::resources::ResourceProvider;
 use crate::t5::T5Generator;
 use serde::{Deserialize, Serialize};
@@ -934,7 +937,7 @@ pub struct TranslationConfig {
     /// Model type used for translation
     pub model_type: ModelType,
     /// Model weights resource
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResource,
     /// Config resource
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource
@@ -993,12 +996,14 @@ impl TranslationConfig {
     ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     ///     MarianTargetLanguages, MarianVocabResources,
     /// };
-    /// use rust_bert::pipelines::common::ModelType;
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType};
     /// use rust_bert::pipelines::translation::TranslationConfig;
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
+    /// let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+    ///     MarianModelResources::ROMANCE2ENGLISH,
+    /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
     /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
     /// let spm_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
@@ -1019,9 +1024,9 @@ impl TranslationConfig {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new<RM, RC, RV, S, T>(
+    pub fn new<RC, RV, S, T>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -1030,7 +1035,6 @@ impl TranslationConfig {
         device: impl Into<Option<Device>>,
     ) -> TranslationConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
         S: AsRef<[Language]>,
@@ -1040,7 +1044,7 @@ impl TranslationConfig {
 
         TranslationConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -1068,6 +1072,7 @@ impl TranslationConfig {
 impl From<TranslationConfig> for GenerateConfig {
     fn from(config: TranslationConfig) -> GenerateConfig {
         GenerateConfig {
+            model_type: config.model_type,
             model_resource: config.model_resource,
             config_resource: config.config_resource,
             merges_resource: config.merges_resource,
@@ -1102,49 +1107,31 @@ pub enum TranslationOption {
     MBart(MBartGenerator),
     /// Translator based on M2M100 model
     M2M100(M2M100Generator),
+    /// Translator based on NLLB model
     NLLB(NLLBGenerator),
+    /// Translator based on ONNX model
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXConditionalGenerator),
 }
 
 impl TranslationOption {
     pub fn new(config: TranslationConfig) -> Result<Self, RustBertError> {
-        match config.model_type {
-            ModelType::Marian => Ok(TranslationOption::Marian(MarianGenerator::new(
+        match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
+            (_, &ModelResource::ONNX(_)) => Ok(TranslationOption::ONNX(
+                ONNXConditionalGenerator::new(config.into(), None, None)?,
+            )),
+            (ModelType::Marian, _) => Ok(TranslationOption::Marian(MarianGenerator::new(
                 config.into(),
             )?)),
-            ModelType::T5 => Ok(TranslationOption::T5(T5Generator::new(config.into())?)),
-            ModelType::MBart => Ok(TranslationOption::MBart(MBartGenerator::new(
+            (ModelType::T5, _) => Ok(TranslationOption::T5(T5Generator::new(config.into())?)),
+            (ModelType::MBart, _) => Ok(TranslationOption::MBart(MBartGenerator::new(
                 config.into(),
             )?)),
-            ModelType::M2M100 => Ok(TranslationOption::M2M100(M2M100Generator::new(
+            (ModelType::M2M100, _) => Ok(TranslationOption::M2M100(M2M100Generator::new(
                 config.into(),
             )?)),
-            ModelType::NLLB => {
-                let config: GenerateConfig = config.into();
-                let tokenizer = TokenizerOption::from_file(
-                    ModelType::NLLB,
-                    config.vocab_resource.get_local_path()?.to_str().unwrap(),
-                    Some(
-                        config
-                            .merges_resource
-                            .as_ref()
-                            .ok_or_else(|| {
-                                RustBertError::InvalidConfigurationError(
-                                    "M2M100 expects a merges resources to be provided".to_string(),
-                                )
-                            })?
-                            .get_local_path()?
-                            .to_str()
-                            .unwrap(),
-                    ),
-                    false,
-                    None,
-                    None,
-                )?;
-
-                Ok(TranslationOption::NLLB(NLLBGenerator::new_with_tokenizer(
-                    config, tokenizer,
-                )?))
-            }
+            (ModelType::NLLB, _) => Ok(TranslationOption::NLLB(NLLBGenerator::new(config.into())?)),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Translation not implemented for {:?}!",
                 config.model_type
@@ -1156,21 +1143,25 @@ impl TranslationOption {
         config: TranslationConfig,
         tokenizer: TokenizerOption,
     ) -> Result<Self, RustBertError> {
-        match config.model_type {
-            ModelType::Marian => Ok(TranslationOption::Marian(
+        match (config.model_type, &config.model_resource) {
+            #[cfg(feature = "onnx")]
+            (_, &ModelResource::ONNX(_)) => Ok(TranslationOption::ONNX(
+                ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
+            )),
+            (ModelType::Marian, _) => Ok(TranslationOption::Marian(
                 MarianGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::T5 => Ok(TranslationOption::T5(T5Generator::new_with_tokenizer(
+            (ModelType::T5, _) => Ok(TranslationOption::T5(T5Generator::new_with_tokenizer(
                 config.into(),
                 tokenizer,
             )?)),
-            ModelType::MBart => Ok(TranslationOption::MBart(
+            (ModelType::MBart, _) => Ok(TranslationOption::MBart(
                 MBartGenerator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::M2M100 => Ok(TranslationOption::M2M100(
+            (ModelType::M2M100, _) => Ok(TranslationOption::M2M100(
                 M2M100Generator::new_with_tokenizer(config.into(), tokenizer)?,
             )),
-            ModelType::NLLB => Ok(TranslationOption::NLLB(NLLBGenerator::new_with_tokenizer(
+            (ModelType::NLLB, _) => Ok(TranslationOption::NLLB(NLLBGenerator::new_with_tokenizer(
                 config.into(),
                 tokenizer,
             )?)),
@@ -1189,190 +1180,36 @@ impl TranslationOption {
             Self::MBart(_) => ModelType::MBart,
             Self::M2M100(_) => ModelType::M2M100,
             Self::NLLB(_) => ModelType::NLLB,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => ModelType::ONNX,
         }
     }
 
-    /// Interface method to access tokenizer
+    /// Returns the `Tokenizer` for this TranslationOption
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
-            Self::Marian(model_ref) => model_ref._get_tokenizer(),
-            Self::T5(model_ref) => model_ref._get_tokenizer(),
-            Self::MBart(model_ref) => model_ref._get_tokenizer(),
-            Self::M2M100(model_ref) => model_ref._get_tokenizer(),
-            Self::NLLB(model_ref) => model_ref._get_tokenizer(),
+            Self::Marian(ref generator) => generator.get_tokenizer(),
+            Self::T5(ref generator) => generator.get_tokenizer(),
+            Self::MBart(ref generator) => generator.get_tokenizer(),
+            Self::M2M100(ref generator) => generator.get_tokenizer(),
+            Self::NLLB(ref generator) => generator.get_tokenizer(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(ref generator) => generator.get_tokenizer(),
         }
     }
 
     /// Interface method to access tokenizer
     pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         match self {
-            Self::Marian(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::MBart(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::M2M100(model_ref) => model_ref._get_tokenizer_mut(),
-            Self::NLLB(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::Marian(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::MBart(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::M2M100(model_ref) => model_ref.get_tokenizer_mut(),
+            Self::NLLB(model_ref) => model_ref.get_tokenizer_mut(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(model_ref) => model_ref.get_tokenizer_mut(),
         }
     }
-
-    fn validate_and_get_prefix_and_forced_bos_id(
-        &self,
-        source_language: Option<&Language>,
-        target_language: Option<&Language>,
-        supported_source_languages: &HashSet<Language>,
-        supported_target_languages: &HashSet<Language>,
-    ) -> Result<(Option<String>, Option<i64>), RustBertError> {
-        if let Some(source_language) = source_language {
-            if !supported_source_languages.contains(source_language) {
-                return Err(RustBertError::ValueError(format!(
-                    "{source_language} not in list of supported languages: {supported_source_languages:?}",
-                )));
-            }
-        }
-
-        if let Some(target_language) = target_language {
-            if !supported_target_languages.contains(target_language) {
-                return Err(RustBertError::ValueError(format!(
-                    "{target_language} not in list of supported languages: {supported_target_languages:?}"
-                )));
-            }
-        }
-
-        Ok(match *self {
-            Self::Marian(_) => {
-                if supported_target_languages.len() > 1 {
-                    (
-                        Some(format!(
-                            ">>{}<< ",
-                            target_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
-                                        "Missing target language for Marian \
-                                        (multiple languages supported by model: {supported_target_languages:?}, \
-                                        need to specify target language)",
-                                    )))?
-                        )),
-                        None,
-                    )
-                } else {
-                    (None, None)
-                }
-            }
-            Self::T5(_) => (
-                Some(format!(
-                    "translate {} to {}:",
-                    source_language.ok_or_else(|| RustBertError::ValueError(
-                                "Missing source language for T5".to_string(),
-                            ))?,
-                    target_language.ok_or_else(|| RustBertError::ValueError(
-                                "Missing target language for T5".to_string(),
-                            ))?,
-                )),
-                None,
-            ),
-            Self::MBart(ref model) => {
-                (
-                    Some(format!(
-                        ">>{}<< ",
-                        source_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
-                                "Missing source language for MBart\
-                                (multiple languages supported by model: {supported_source_languages:?}, \
-                                need to specify target language)"
-                            )))?
-                    )),
-                    if let Some(target_language) = target_language {
-                        Some(
-                        model._get_tokenizer().convert_tokens_to_ids(&[format!(
-                            ">>{}<<",
-                            target_language.get_iso_639_1_code().ok_or_else(|| {
-                                RustBertError::ValueError(format!(
-                                    "This language has no ISO639-I code. Languages supported by model: {supported_source_languages:?}."
-                                ))
-                            })?
-                        )])[0],
-                    )
-                    } else {
-                        return Err(RustBertError::ValueError(format!(
-                            "Missing target language for MBart\
-                        (multiple languages supported by model: {supported_target_languages:?}, \
-                        need to specify target language)"
-                        )));
-                    },
-                )
-            }
-            Self::M2M100(ref model) => (
-                Some(match source_language {
-                    Some(value) => {
-                        let language_code = value.get_iso_639_1_code().ok_or_else(|| {
-                            RustBertError::ValueError(format!(
-                                "This language has no ISO639-I language code representation. \
-                                languages supported by the model: {supported_target_languages:?}"
-                            ))
-                        })?;
-                        match language_code.len() {
-                            2 => format!(">>{language_code}.<< "),
-                            3 => format!(">>{language_code}<< "),
-                            _ => {
-                                return Err(RustBertError::ValueError(
-                                    "Invalid ISO 639-I code".to_string(),
-                                ));
-                            }
-                        }
-                    }
-                    None => {
-                        return Err(RustBertError::ValueError(format!(
-                            "Missing source language for M2M100 \
-                            (multiple languages supported by model: {supported_source_languages:?}, \
-                            need to specify target language)"
-                        )));
-                    }
-                }),
-                if let Some(target_language) = target_language {
-                    let language_code = target_language.get_iso_639_1_code().ok_or_else(|| {
-                        RustBertError::ValueError(format!(
-                            "This language has no ISO639-I language code representation. \
-                            languages supported by the model: {supported_target_languages:?}"
-                        ))
-                    })?;
-                    Some(
-                        model._get_tokenizer().convert_tokens_to_ids(&[
-                            match language_code.len() {
-                                2 => format!(">>{language_code}.<<"),
-                                3 => format!(">>{language_code}<<"),
-                                _ => {
-                                    return Err(RustBertError::ValueError(
-                                        "Invalid ISO 639-3 code".to_string(),
-                                    ));
-                                }
-                            },
-                        ])[0],
-                    )
-                } else {
-                    return Err(RustBertError::ValueError(format!(
-                        "Missing target language for M2M100 \
-                        (multiple languages supported by model: {supported_target_languages:?}, \
-                        need to specify target language)",
-                    )));
-                },
-            ),
-            Self::NLLB(ref model) => {
-                let source_language = source_language
-                    .and_then(Language::get_nllb_code)
-                    .map(str::to_string)
-                    .ok_or_else(|| RustBertError::ValueError(
-                        format!("Missing source language for NLLB. Need to specify one from: {supported_source_languages:?}")
-                ))?;
-
-                let target_language = target_language
-                    .and_then(Language::get_nllb_code)
-                    .map(str::to_string)
-                    .map(|code| model._get_tokenizer().convert_tokens_to_ids(&[code])[0])
-                    .ok_or_else(|| RustBertError::ValueError(
-                        format!("Missing target language for NLLB. Need to specify one from: {supported_target_languages:?}")
-                ))?;
-
-                (Some(source_language), Some(target_language))
-            }
-        })
-    }
-
     /// Interface method to generate() of the particular models.
     pub fn generate<S>(
         &self,
@@ -1415,6 +1252,19 @@ impl TranslationOption {
                     .map(|output| output.text)
                     .collect()
             }
+            #[cfg(feature = "onnx")]
+            Self::ONNX(ref model) => {
+                let generate_options =
+                    forced_bos_token_id.map(|forced_bos_token_id| GenerateOptions {
+                        forced_bos_token_id: Some(forced_bos_token_id),
+                        ..Default::default()
+                    });
+                model
+                    .generate(prompt_texts, generate_options)
+                    .into_iter()
+                    .map(|output| output.text)
+                    .collect()
+            }
         }
     }
 }
@@ -1441,12 +1291,14 @@ impl TranslationModel {
     ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     ///     MarianTargetLanguages, MarianVocabResources,
     /// };
-    /// use rust_bert::pipelines::common::ModelType;
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType};
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
+    /// let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+    ///     MarianModelResources::ROMANCE2ENGLISH,
+    /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
     /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
     /// let spm_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
@@ -1496,12 +1348,14 @@ impl TranslationModel {
     ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     ///     MarianTargetLanguages, MarianVocabResources,
     /// };
-    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType, TokenizerOption};
     /// use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
     /// use rust_bert::resources::{RemoteResource, ResourceProvider};
     /// use tch::Device;
     ///
-    /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
+    /// let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+    ///     MarianModelResources::ROMANCE2ENGLISH,
+    /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
     /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);
     /// let spm_resource = RemoteResource::from_pretrained(MarianSpmResources::ROMANCE2ENGLISH);
@@ -1575,12 +1429,14 @@ impl TranslationModel {
     ///     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     ///     MarianTargetLanguages, MarianVocabResources,
     /// };
-    /// use rust_bert::pipelines::common::ModelType;
+    /// use rust_bert::pipelines::common::{ModelResource, ModelType};
     /// use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
     /// use rust_bert::resources::RemoteResource;
     /// use tch::Device;
     ///
-    /// let model_resource = RemoteResource::from_pretrained(MarianModelResources::ENGLISH2ROMANCE);
+    /// let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+    ///     MarianModelResources::ENGLISH2ROMANCE,
+    /// )));
     /// let config_resource = RemoteResource::from_pretrained(MarianConfigResources::ENGLISH2ROMANCE);
     /// let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ENGLISH2ROMANCE);
     /// let merges_resource = RemoteResource::from_pretrained(MarianSpmResources::ENGLISH2ROMANCE);
@@ -1616,12 +1472,13 @@ impl TranslationModel {
     where
         S: AsRef<str> + Sync,
     {
-        let (prefix, forced_bos_token_id) = self.model.validate_and_get_prefix_and_forced_bos_id(
-            source_language.into().as_ref(),
-            target_language.into().as_ref(),
-            &self.supported_source_languages,
-            &self.supported_target_languages,
-        )?;
+        let (prefix, forced_bos_token_id) =
+            self.model.get_tokenizer().get_prefix_and_forced_bos_id(
+                source_language.into().as_ref(),
+                target_language.into().as_ref(),
+                &self.supported_source_languages,
+                &self.supported_target_languages,
+            )?;
 
         Ok(match prefix {
             Some(value) => {
@@ -1648,7 +1505,9 @@ mod test {
     #[test]
     #[ignore] // no need to run, compilation is enough to verify it is Send
     fn test() {
-        let model_resource = RemoteResource::from_pretrained(MarianModelResources::ROMANCE2ENGLISH);
+        let model_resource = ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+            MarianModelResources::ROMANCE2ENGLISH,
+        )));
         let config_resource =
             RemoteResource::from_pretrained(MarianConfigResources::ROMANCE2ENGLISH);
         let vocab_resource = RemoteResource::from_pretrained(MarianVocabResources::ROMANCE2ENGLISH);

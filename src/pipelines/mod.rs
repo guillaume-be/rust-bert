@@ -490,3 +490,6 @@ pub mod text_generation;
 pub mod token_classification;
 pub mod translation;
 pub mod zero_shot_classification;
+
+#[cfg(feature = "onnx")]
+pub mod onnx;

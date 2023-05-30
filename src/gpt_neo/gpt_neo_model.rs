@@ -22,7 +22,7 @@ use crate::pipelines::generation_utils::{Cache, GenerateConfig, LMModelOutput, L
 use crate::{Activation, Config, RustBertError};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, BorrowMut};
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 /// # GPT-Neo Pretrained model weight files
 pub struct GptNeoModelResources;
@@ -127,6 +127,8 @@ pub struct GptNeoConfig {
     pub intermediate_size: Option<i64>,
     pub bos_token_id: i64,
     pub eos_token_id: i64,
+    pub forced_bos_token_id: Option<i64>,
+    pub forced_eos_token_id: Option<i64>,
     pub vocab_size: i64,
     pub num_layers: i64,
     pub num_heads: i64,
@@ -140,6 +142,7 @@ pub struct GptNeoConfig {
     pub output_attentions: Option<bool>,
     pub output_hidden_states: Option<bool>,
     pub resid_dropout: f64,
+    pub decoder_start_token_id: Option<i64>,
 }
 
 impl Config for GptNeoConfig {}
@@ -162,6 +165,8 @@ impl Default for GptNeoConfig {
             intermediate_size: None,
             bos_token_id: 50256,
             eos_token_id: 50256,
+            forced_bos_token_id: None,
+            forced_eos_token_id: None,
             vocab_size: 50257,
             num_layers: 24,
             num_heads: 16,
@@ -175,6 +180,7 @@ impl Default for GptNeoConfig {
             output_attentions: None,
             output_hidden_states: None,
             resid_dropout: 0.0,
+            decoder_start_token_id: None,
         }
     }
 }
@@ -673,7 +679,7 @@ impl GptNeoGenerator {
         let pad_token_id = tokenizer.get_pad_id();
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.max_position_embeddings;
 
         Ok(GptNeoGenerator {
@@ -699,11 +705,11 @@ impl PrivateLanguageGenerator for GptNeoGenerator {
     fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -727,8 +733,8 @@ impl PrivateLanguageGenerator for GptNeoGenerator {
         self.decoder_start_id
     }
 
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn forward_t(

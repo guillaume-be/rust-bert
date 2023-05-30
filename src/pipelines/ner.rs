@@ -90,11 +90,12 @@
 //! use tch::Device;
 //!
 //! # fn main() -> anyhow::Result<()> {
+//! use rust_bert::pipelines::common::ModelResource;
 //! let ner_config = TokenClassificationConfig {
 //!     model_type: ModelType::XLMRoberta,
-//!     model_resource: Box::new(RemoteResource::from_pretrained(
+//!     model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
 //!         RobertaModelResources::XLM_ROBERTA_NER_DE,
-//!     )),
+//!     ))),
 //!     config_resource: Box::new(RemoteResource::from_pretrained(
 //!         RobertaConfigResources::XLM_ROBERTA_NER_DE,
 //!     )),

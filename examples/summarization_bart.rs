@@ -15,6 +15,7 @@ extern crate anyhow;
 use rust_bert::bart::{
     BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
 };
+use rust_bert::pipelines::common::ModelResource;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::resources::RemoteResource;
 use tch::Device;
@@ -34,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     ));
 
     let summarization_config = SummarizationConfig {
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),

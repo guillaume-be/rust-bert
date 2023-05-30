@@ -26,6 +26,7 @@
 //! use tch::Device;
 //!
 //! fn main() -> anyhow::Result<()> {
+//!     use rust_bert::pipelines::common::ModelResource;
 //!     let config_resource = Box::new(RemoteResource::from_pretrained(
 //!         GptNeoConfigResources::GPT_NEO_1_3B,
 //!     ));
@@ -41,7 +42,7 @@
 //!
 //!     let text_generation_config = TextGenerationConfig {
 //!         model_type: ModelType::GPTNeo,
-//!         model_resource,
+//!         model_resource: ModelResource::Torch(model_resource),
 //!         config_resource,
 //!         vocab_resource,
 //!         merges_resource: Some(merges_resource),

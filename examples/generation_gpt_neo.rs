@@ -17,7 +17,7 @@ extern crate anyhow;
 use rust_bert::gpt_neo::{
     GptNeoConfigResources, GptNeoMergesResources, GptNeoModelResources, GptNeoVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::RemoteResource;
 use tch::Device;
@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
     ));
     let generate_config = TextGenerationConfig {
         model_type: ModelType::GPTNeo,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     let mut model = TextGenerationModel::new(generate_config)?;
-    model.set_device(Device::cuda_if_available());
+    model.set_device(Device::cuda_if_available())?;
 
     let input_context_1 = "It was a very nice and sunny";
     let input_context_2 = "It was a gloom winter night, and";

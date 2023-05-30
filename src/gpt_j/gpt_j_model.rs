@@ -135,6 +135,9 @@ pub struct GptJConfig {
     pub use_float16: bool,
     #[serde(default = "default_preload_on_cpu")]
     pub preload_on_cpu: bool,
+    pub decoder_start_token_id: Option<i64>,
+    pub forced_bos_token_id: Option<i64>,
+    pub forced_eos_token_id: Option<i64>,
 }
 
 impl Config for GptJConfig {}
@@ -163,6 +166,9 @@ impl Default for GptJConfig {
             scale_attn_weights: Some(true),
             use_float16: default_use_float16(),
             preload_on_cpu: default_preload_on_cpu(),
+            decoder_start_token_id: None,
+            forced_bos_token_id: None,
+            forced_eos_token_id: None,
         }
     }
 }
@@ -630,7 +636,7 @@ impl GptJGenerator {
         let max_position_embeddings = config.n_positions;
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
 
         Ok(GptJGenerator {
             model,
@@ -655,11 +661,11 @@ impl PrivateLanguageGenerator for GptJGenerator {
     fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -682,8 +688,8 @@ impl PrivateLanguageGenerator for GptJGenerator {
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
     }
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn forward_t(

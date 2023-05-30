@@ -12,7 +12,7 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::prophetnet::{
     ProphetNetConfigResources, ProphetNetModelResources, ProphetNetVocabResources,
@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
 
     let summarization_config = SummarizationConfig {
         model_type: ModelType::ProphetNet,
-        model_resource: weights_resource,
+        model_resource: ModelResource::Torch(weights_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,

@@ -22,8 +22,9 @@
 //! # fn main() -> anyhow::Result<()> {
 //!
 //! //Load a configuration
+//! use rust_bert::pipelines::common::ModelResource;
 //! let config = SequenceClassificationConfig::new(ModelType::DistilBert,
-//!    RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2),
+//!    ModelResource::Torch(Box::new(RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2))),
 //!    RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
 //!    RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
 //!    None, // Merge resources
@@ -66,20 +67,21 @@ use crate::distilbert::DistilBertModelClassifier;
 use crate::fnet::FNetForSequenceClassification;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
-use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::pipelines::common::{
+    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
+};
 use crate::reformer::ReformerForSequenceClassification;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
 use crate::xlnet::XLNetForSequenceClassification;
-use rust_tokenizers::tokenizer::TruncationStrategy;
-use rust_tokenizers::TokenizedInput;
 use serde::{Deserialize, Serialize};
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use tch::nn::VarStore;
-use tch::{nn, no_grad, Device, Kind, Tensor};
+use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::deberta_v2::DebertaV2ForSequenceClassification;
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
@@ -106,7 +108,7 @@ pub struct SequenceClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained BERT model on CoNLL)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
@@ -134,9 +136,9 @@ impl SequenceClassificationConfig {
     /// * vocab - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * vocab - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new<RM, RC, RV>(
+    pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -145,13 +147,12 @@ impl SequenceClassificationConfig {
         add_prefix_space: impl Into<Option<bool>>,
     ) -> SequenceClassificationConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         SequenceClassificationConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -169,7 +170,9 @@ impl Default for SequenceClassificationConfig {
     fn default() -> SequenceClassificationConfig {
         SequenceClassificationConfig::new(
             ModelType::DistilBert,
-            RemoteResource::from_pretrained(DistilBertModelResources::DISTIL_BERT_SST2),
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+                DistilBertModelResources::DISTIL_BERT_SST2,
+            ))),
             RemoteResource::from_pretrained(DistilBertConfigResources::DISTIL_BERT_SST2),
             RemoteResource::from_pretrained(DistilBertVocabResources::DISTIL_BERT_SST2),
             None,
@@ -209,6 +212,9 @@ pub enum SequenceClassificationOption {
     Longformer(LongformerForSequenceClassification),
     /// FNet for Sequence Classification
     FNet(FNetForSequenceClassification),
+    /// ONNX Model for Sequence Classification
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXEncoder),
 }
 
 impl SequenceClassificationOption {
@@ -216,23 +222,28 @@ impl SequenceClassificationOption {
     ///
     /// # Arguments
     ///
-    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded)
-    /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
-    /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
-    /// `model_type`)
-    pub fn new<'p, P>(
-        model_type: ModelType,
-        p: P,
-        config: &ConfigOption,
-    ) -> Result<Self, RustBertError>
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        match model_type {
+    /// * `SequenceClassificationConfig` - Sequence classification pipeline configuration. The type of model created will be inferred from the
+    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    pub fn new(config: &SequenceClassificationConfig) -> Result<Self, RustBertError> {
+        match config.model_resource {
+            ModelResource::Torch(_) => Self::new_torch(config),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Self::new_onnx(config),
+        }
+    }
+
+    fn new_torch(config: &SequenceClassificationConfig) -> Result<Self, RustBertError> {
+        let device = config.device;
+        let weights_path = config.model_resource.get_torch_local_path()?;
+        let mut var_store = VarStore::new(device);
+        let model_config =
+            &ConfigOption::from_file(config.model_type, config.config_resource.get_local_path()?);
+        let model_type = config.model_type;
+        let model = match model_type {
             ModelType::Bert => {
-                if let ConfigOption::Bert(config) = config {
-                    Ok(SequenceClassificationOption::Bert(
-                        BertForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Bert(config) = model_config {
+                    Ok(Self::Bert(
+                        BertForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -241,9 +252,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::Deberta => {
-                if let ConfigOption::Deberta(config) = config {
-                    Ok(SequenceClassificationOption::Deberta(
-                        DebertaForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Deberta(config) = model_config {
+                    Ok(Self::Deberta(
+                        DebertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -252,9 +263,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::DebertaV2 => {
-                if let ConfigOption::DebertaV2(config) = config {
-                    Ok(SequenceClassificationOption::DebertaV2(
-                        DebertaV2ForSequenceClassification::new(p, config)?,
+                if let ConfigOption::DebertaV2(config) = model_config {
+                    Ok(Self::DebertaV2(
+                        DebertaV2ForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -263,9 +274,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::DistilBert => {
-                if let ConfigOption::DistilBert(config) = config {
-                    Ok(SequenceClassificationOption::DistilBert(
-                        DistilBertModelClassifier::new(p, config)?,
+                if let ConfigOption::DistilBert(config) = model_config {
+                    Ok(Self::DistilBert(
+                        DistilBertModelClassifier::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -274,9 +285,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::MobileBert => {
-                if let ConfigOption::MobileBert(config) = config {
-                    Ok(SequenceClassificationOption::MobileBert(
-                        MobileBertForSequenceClassification::new(p, config)?,
+                if let ConfigOption::MobileBert(config) = model_config {
+                    Ok(Self::MobileBert(
+                        MobileBertForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -285,9 +296,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Roberta(config) = config {
-                    Ok(SequenceClassificationOption::Roberta(
-                        RobertaForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Roberta(config) = model_config {
+                    Ok(Self::Roberta(
+                        RobertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -296,9 +307,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::XLMRoberta => {
-                if let ConfigOption::Roberta(config) = config {
-                    Ok(SequenceClassificationOption::XLMRoberta(
-                        RobertaForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Roberta(config) = model_config {
+                    Ok(Self::XLMRoberta(
+                        RobertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -307,9 +318,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::Albert => {
-                if let ConfigOption::Albert(config) = config {
-                    Ok(SequenceClassificationOption::Albert(
-                        AlbertForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Albert(config) = model_config {
+                    Ok(Self::Albert(
+                        AlbertForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -318,9 +329,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::XLNet => {
-                if let ConfigOption::XLNet(config) = config {
-                    Ok(SequenceClassificationOption::XLNet(
-                        XLNetForSequenceClassification::new(p, config)?,
+                if let ConfigOption::XLNet(config) = model_config {
+                    Ok(Self::XLNet(
+                        XLNetForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -329,9 +340,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::Bart => {
-                if let ConfigOption::Bart(config) = config {
-                    Ok(SequenceClassificationOption::Bart(
-                        BartForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Bart(config) = model_config {
+                    Ok(Self::Bart(
+                        BartForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -340,9 +351,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::Reformer => {
-                if let ConfigOption::Reformer(config) = config {
-                    Ok(SequenceClassificationOption::Reformer(
-                        ReformerForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Reformer(config) = model_config {
+                    Ok(Self::Reformer(
+                        ReformerForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -351,9 +362,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::Longformer => {
-                if let ConfigOption::Longformer(config) = config {
-                    Ok(SequenceClassificationOption::Longformer(
-                        LongformerForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Longformer(config) = model_config {
+                    Ok(Self::Longformer(
+                        LongformerForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -362,9 +373,9 @@ impl SequenceClassificationOption {
                 }
             }
             ModelType::FNet => {
-                if let ConfigOption::FNet(config) = config {
-                    Ok(SequenceClassificationOption::FNet(
-                        FNetForSequenceClassification::new(p, config)?,
+                if let ConfigOption::FNet(config) = model_config {
+                    Ok(Self::FNet(
+                        FNetForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -372,10 +383,36 @@ impl SequenceClassificationOption {
                     ))
                 }
             }
+            #[cfg(feature = "onnx")]
+            ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
+                "A `ModelType::ONNX` ModelType was provided in the configuration with `ModelResources::TORCH`, these are incompatible".to_string(),
+            )),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Sequence Classification not implemented for {model_type:?}!",
             ))),
-        }
+        }?;
+        var_store.load(weights_path)?;
+        Ok(model)
+    }
+
+    #[cfg(feature = "onnx")]
+    pub fn new_onnx(config: &SequenceClassificationConfig) -> Result<Self, RustBertError> {
+        let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
+        let environment = onnx_config.get_environment()?;
+        let encoder_file = config
+            .model_resource
+            .get_onnx_local_paths()?
+            .encoder_path
+            .ok_or(RustBertError::InvalidConfigurationError(
+                "An encoder file must be provided for sequence classification ONNX models."
+                    .to_string(),
+            ))?;
+
+        Ok(Self::ONNX(ONNXEncoder::new(
+            encoder_file,
+            &environment,
+            &onnx_config,
+        )?))
     }
 
     /// Returns the `ModelType` for this SequenceClassificationOption
@@ -394,6 +431,8 @@ impl SequenceClassificationOption {
             Self::Reformer(_) => ModelType::Reformer,
             Self::Longformer(_) => ModelType::Longformer,
             Self::FNet(_) => ModelType::FNet,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => ModelType::ONNX,
         }
     }
 
@@ -534,6 +573,21 @@ impl SequenceClassificationOption {
                     .expect("Error in FNet forward pass.")
                     .logits
             }
+            #[cfg(feature = "onnx")]
+            Self::ONNX(ref model) => {
+                let attention_mask = input_ids.unwrap().ones_like();
+                model
+                    .forward(
+                        input_ids,
+                        Some(&attention_mask),
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                    )
+                    .expect("Error in ONNX forward pass.")
+                    .logits
+                    .unwrap()
+            }
         }
     }
 }
@@ -543,7 +597,7 @@ pub struct SequenceClassificationModel {
     tokenizer: TokenizerOption,
     sequence_classifier: SequenceClassificationOption,
     label_mapping: HashMap<i64, String>,
-    var_store: VarStore,
+    device: Device,
     max_length: usize,
 }
 
@@ -615,23 +669,20 @@ impl SequenceClassificationModel {
         tokenizer: TokenizerOption,
     ) -> Result<SequenceClassificationModel, RustBertError> {
         let config_path = config.config_resource.get_local_path()?;
-        let device = config.device;
+        let sequence_classifier = SequenceClassificationOption::new(&config)?;
 
-        let mut var_store = VarStore::new(device);
         let model_config = ConfigOption::from_file(config.model_type, config_path);
         let max_length = model_config
             .get_max_len()
             .map(|v| v as usize)
             .unwrap_or(usize::MAX);
-        let sequence_classifier =
-            SequenceClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
         let label_mapping = model_config.get_label_mapping().clone();
-        crate::resources::load_weights(&config.model_resource, &mut var_store)?;
+        let device = get_device(config.model_resource, config.device);
         Ok(SequenceClassificationModel {
             tokenizer,
             sequence_classifier,
             label_mapping,
-            var_store,
+            device,
             max_length,
         })
     }
@@ -645,36 +696,6 @@ impl SequenceClassificationModel {
     pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-
-    fn prepare_for_model<'a, S>(&self, input: S) -> Tensor
-    where
-        S: AsRef<[&'a str]>,
-    {
-        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_list(
-            input.as_ref(),
-            self.max_length,
-            &TruncationStrategy::LongestFirst,
-            0,
-        );
-        let max_len = tokenized_input
-            .iter()
-            .map(|input| input.token_ids.len())
-            .max()
-            .unwrap();
-        let pad_id = self
-            .tokenizer
-            .get_pad_id()
-            .expect("The Tokenizer used for sequence classification should contain a PAD id");
-        let tokenized_input_tensors: Vec<tch::Tensor> = tokenized_input
-            .into_iter()
-            .map(|mut input| {
-                input.token_ids.resize(max_len, pad_id);
-                Tensor::from_slice(&(input.token_ids))
-            })
-            .collect::<Vec<_>>();
-        Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device())
-    }
-
     /// Classify texts
     ///
     /// # Arguments
@@ -705,12 +726,14 @@ impl SequenceClassificationModel {
     where
         S: AsRef<[&'a str]>,
     {
-        let input_tensor = self.prepare_for_model(input.as_ref());
+        let (input_ids, token_type_ids) =
+            self.tokenizer
+                .tokenize_and_pad(input.as_ref(), self.max_length, self.device);
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
-                Some(&input_tensor),
+                Some(&input_ids),
                 None,
-                None,
+                Some(&token_type_ids),
                 None,
                 None,
                 false,
@@ -774,12 +797,14 @@ impl SequenceClassificationModel {
         input: &[&str],
         threshold: f64,
     ) -> Result<Vec<Vec<Label>>, RustBertError> {
-        let input_tensor = self.prepare_for_model(input);
+        let (input_ids, token_type_ids) =
+            self.tokenizer
+                .tokenize_and_pad(input.as_ref(), self.max_length, self.device);
         let output = no_grad(|| {
             let output = self.sequence_classifier.forward_t(
-                Some(&input_tensor),
+                Some(&input_ids),
                 None,
-                None,
+                Some(&token_type_ids),
                 None,
                 None,
                 false,

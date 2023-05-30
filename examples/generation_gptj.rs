@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use rust_bert::gpt_j::{GptJConfigResources, GptJMergesResources, GptJVocabResources};
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{LocalResource, RemoteResource};
 use tch::Device;
@@ -67,7 +67,7 @@ fn main() -> anyhow::Result<()> {
 
     let generation_config = TextGenerationConfig {
         model_type: ModelType::GPTJ,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),

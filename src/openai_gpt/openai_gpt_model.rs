@@ -24,7 +24,7 @@ use crate::{Config, RustBertError};
 use std::borrow::{Borrow, BorrowMut};
 use tch::kind::Kind::Int64;
 use tch::nn::embedding;
-use tch::{nn, Tensor};
+use tch::{nn, Device, Tensor};
 
 /// # GPT Pretrained model weight files
 pub struct OpenAiGptModelResources;
@@ -505,7 +505,7 @@ impl OpenAIGenerator {
         let pad_token_id = tokenizer.get_pad_id();
         let is_encoder_decoder = false;
         let vocab_size = config.vocab_size;
-        let decoder_start_id = None;
+        let decoder_start_id = config.decoder_start_token_id;
         let max_position_embeddings = config.n_positions;
 
         Ok(OpenAIGenerator {
@@ -531,11 +531,11 @@ impl PrivateLanguageGenerator for OpenAIGenerator {
     fn _get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         &mut self.tokenizer
     }
-    fn get_var_store(&self) -> &nn::VarStore {
-        &self.var_store
+    fn get_device(&self) -> Device {
+        self.var_store.device()
     }
-    fn get_var_store_mut(&mut self) -> &mut nn::VarStore {
-        &mut self.var_store
+    fn get_var_store_mut(&mut self) -> Result<&mut nn::VarStore, RustBertError> {
+        Ok(&mut self.var_store)
     }
     fn get_config(&self) -> &GenerateConfig {
         &self.generate_config
@@ -558,8 +558,8 @@ impl PrivateLanguageGenerator for OpenAIGenerator {
     fn get_decoder_start_id(&self) -> Option<i64> {
         self.decoder_start_id
     }
-    fn get_max_positions_embeddings(&self) -> i64 {
-        self.max_position_embeddings
+    fn get_max_positions_embeddings(&self) -> Option<i64> {
+        Some(self.max_position_embeddings)
     }
 
     fn forward_t(
