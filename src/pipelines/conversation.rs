@@ -12,7 +12,8 @@
 // limitations under the License.
 
 //! # Multi-turn dialogue
-//! Conversation model based on Microsoft's [DialoGPT](https://github.com/microsoft/DialoGPT).
+//! Conversation model based on Microsoft's [DialoGPT](https://github.com/microsoft/DialoGPT) or
+//! [GODEL](https://github.com/microsoft/GODEL).
 //! This pipeline allows the generation of single or multi-turn conversations between a human and a model.
 //! The DialoGPT's page states that
 //! > The human evaluation results indicate that the response generated from DialoGPT is comparable to human response quality
@@ -59,6 +60,7 @@ use crate::pipelines::common::{ModelType, TokenizerOption};
 use crate::pipelines::generation_utils::private_generation_utils::PrivateLanguageGenerator;
 use crate::pipelines::generation_utils::{GenerateConfig, LanguageGenerator};
 use crate::resources::ResourceProvider;
+use crate::t5::T5Generator;
 use std::collections::HashMap;
 use tch::{Device, Kind, Tensor};
 use uuid::Uuid;
@@ -695,14 +697,16 @@ impl Default for ConversationManager {
 pub enum ConversationOption {
     /// Conversation based on GPT2 model
     GPT2(GPT2Generator),
+    T5(T5Generator),
 }
 
 impl ConversationOption {
     pub fn new(config: ConversationConfig) -> Result<Self, RustBertError> {
         match config.model_type {
             ModelType::GPT2 => Ok(ConversationOption::GPT2(GPT2Generator::new(config.into())?)),
+            ModelType::T5 => Ok(ConversationOption::T5(T5Generator::new(config.into())?)),
             _ => Err(RustBertError::InvalidConfigurationError(
-                "GPT2 is currently the only supported model for conversation generation"
+                "GPT-2 and T5 are currently the only supported model for conversation generation"
                     .to_string(),
             )),
         }
@@ -717,8 +721,12 @@ impl ConversationOption {
                 config.into(),
                 tokenizer,
             )?)),
+            ModelType::T5 => Ok(ConversationOption::T5(T5Generator::new_with_tokenizer(
+                config.into(),
+                tokenizer,
+            )?)),
             _ => Err(RustBertError::InvalidConfigurationError(
-                "GPT2 is currently the only supported model for conversation generation"
+                "GPT-2 and T5 are currently the only supported model for conversation generation"
                     .to_string(),
             )),
         }
@@ -729,6 +737,7 @@ impl ConversationOption {
             Self::GPT2(model_ref) => {
                 Ok(*model_ref.get_eos_ids().as_ref().unwrap().first().unwrap())
             }
+            Self::T5(model_ref) => Ok(*model_ref.get_eos_ids().as_ref().unwrap().first().unwrap()),
         }
     }
 
@@ -736,6 +745,7 @@ impl ConversationOption {
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         match self {
             Self::GPT2(model_ref) => model_ref._get_tokenizer(),
+            Self::T5(model_ref) => model_ref._get_tokenizer(),
         }
     }
 
@@ -743,6 +753,7 @@ impl ConversationOption {
     pub fn get_tokenizer_mut(&mut self) -> &TokenizerOption {
         match self {
             Self::GPT2(model_ref) => model_ref._get_tokenizer_mut(),
+            Self::T5(model_ref) => model_ref._get_tokenizer_mut(),
         }
     }
 
@@ -750,6 +761,7 @@ impl ConversationOption {
     pub fn model_type(&self) -> ModelType {
         match *self {
             Self::GPT2(_) => ModelType::GPT2,
+            Self::T5(_) => ModelType::T5,
         }
     }
 
@@ -765,6 +777,19 @@ impl ConversationOption {
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
+            Self::T5(ref model) => model
+                .generate_from_ids_and_past(input_ids, attention_mask, None)
+                .into_iter()
+                .map(|output| output.indices)
+                .collect(),
+        }
+    }
+
+    /// Interface method to get the model family (encoder-decoder or decoder)
+    fn is_encoder_decoder(&self) -> bool {
+        match *self {
+            Self::GPT2(ref generator) => generator.is_encoder_decoder(),
+            Self::T5(ref generator) => generator.is_encoder_decoder(),
         }
     }
 }
@@ -915,7 +940,11 @@ impl ConversationModel {
                 .zip(active_uuid.into_iter())
                 .zip(removed_padding_quantities.into_iter())
             {
-                let generated_response = &generated_sequence[input_length - removed_padding.0..];
+                let generated_response = if self.model.is_encoder_decoder() {
+                    generated_sequence.as_slice()
+                } else {
+                    &generated_sequence[input_length - removed_padding.0..]
+                };
                 conversation
                     .generated_responses
                     .push(
@@ -1023,9 +1052,14 @@ impl ConversationModel {
                     .get(input_idx as i64)
                     .slice(0, 0, (max_len - input.len()) as i64, 1)
                     .fill_(0);
-                let mut padded_input = vec![pad_token; max_len - input.len()];
-                padded_input.extend(input);
-                padded_input
+                let padding = vec![pad_token; max_len - input.len()];
+                if self.model.is_encoder_decoder() {
+                    // right padding assumed for encoder-decoders
+                    [input, &padding].concat()
+                } else {
+                    // left padding assumed for decoders
+                    [&padding, input].concat()
+                }
             })
             .map(|tokens| Tensor::from_slice(&tokens).to(self.device))
             .collect::<Vec<Tensor>>();

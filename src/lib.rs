@@ -256,7 +256,8 @@
 //! <details>
 //! <summary> <b>4. Dialogue Model </b> </summary>
 //!
-//! Conversation model based on Microsoft's [DialoGPT](https://github.com/microsoft/DialoGPT).
+//! Conversation model based on Microsoft's [DialoGPT](https://github.com/microsoft/DialoGPT) or
+//! [GODEL](https://github.com/microsoft/GODEL).
 //! This pipeline allows the generation of single or multi-turn conversations between a human and a model.
 //! The DialoGPT's page states that
 //! > The human evaluation results indicate that the response generated from DialoGPT is comparable to human response quality

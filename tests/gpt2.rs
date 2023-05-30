@@ -723,6 +723,7 @@ fn gpt2_beam_search_token_scores() -> anyhow::Result<()> {
 fn dialogpt_single_multi_turn_conversation() -> anyhow::Result<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
+        model_type: ModelType::GPT2,
         do_sample: false,
         device: Device::Cpu,
         ..Default::default()
@@ -760,6 +761,7 @@ fn dialogpt_single_multi_turn_conversation() -> anyhow::Result<()> {
 fn dialogpt_multiple_multi_turn_conversation() -> anyhow::Result<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
+        model_type: ModelType::GPT2,
         do_sample: false,
         device: Device::Cpu,
         ..Default::default()
@@ -802,6 +804,7 @@ fn dialogpt_multiple_multi_turn_conversation() -> anyhow::Result<()> {
 fn dialogpt_multiple_multi_turn_conversation_with_truncation() -> anyhow::Result<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
+        model_type: ModelType::GPT2,
         max_length: Some(36),
         min_length_for_response: 24,
         do_sample: false,
@@ -851,6 +854,7 @@ fn dialogpt_multiple_multi_turn_conversation_with_truncation() -> anyhow::Result
 fn dialogpt_multiple_multi_turn_conversation_with_conversation_deletion() -> anyhow::Result<()> {
     //    Set-up conversation model
     let conversation_config = ConversationConfig {
+        model_type: ModelType::GPT2,
         do_sample: false,
         device: Device::Cpu,
         ..Default::default()
