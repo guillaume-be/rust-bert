@@ -326,6 +326,7 @@ impl RobertaForMaskedLM {
         RobertaForMaskedLM { roberta, lm_head }
     }
 
+    #[allow(rustdoc::invalid_html_tags)]
     /// Forward pass through the model
     ///
     /// # Arguments
@@ -517,6 +518,7 @@ impl RobertaForSequenceClassification {
         })
     }
 
+    #[allow(rustdoc::invalid_html_tags)]
     /// Forward pass through the model
     ///
     /// # Arguments
@@ -602,6 +604,7 @@ impl RobertaForSequenceClassification {
     }
 }
 
+#[allow(rustdoc::invalid_html_tags)]
 /// # RoBERTa for multiple choices
 /// Multiple choices model using a RoBERTa base model and a linear classifier.
 /// Input should be in the form `<s> Context </s> Possible choice </s>`. The choice is made along the batch axis,
@@ -653,6 +656,7 @@ impl RobertaForMultipleChoice {
         }
     }
 
+    #[allow(rustdoc::invalid_html_tags)]
     /// Forward pass through the model
     ///
     /// # Arguments
@@ -815,6 +819,7 @@ impl RobertaForTokenClassification {
         })
     }
 
+    #[allow(rustdoc::invalid_html_tags)]
     /// Forward pass through the model
     ///
     /// # Arguments
@@ -957,6 +962,7 @@ impl RobertaForQuestionAnswering {
         }
     }
 
+    #[allow(rustdoc::invalid_html_tags)]
     /// Forward pass through the model
     ///
     /// # Arguments

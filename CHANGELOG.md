@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file. The format 
   The `model_resources` field now needs to be wrapped in the corresponding enum variant, e.g. `model_resources: ModelResources::TORCH(model_resource)` for Torch-based models
 - (BREAKING) Added the `forced_bos_token_id` and `forced_eos_token_id` fields to text generation models. 
   If these are not None, this will trigger a forced BOS/EOS token generation at the first of `max_length` positions (aligns with the Pytorch Transformers library)
+- Project structure refactoring (torch-based models moved under common module). Non-breaking change via re-exports.
 
 ## Fixed
 - MIN/MAX computation for float-like (was set to infinity instead of min/max)
