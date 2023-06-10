@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
 const DEFAULT_REGEX_PATTERN: &str = r"(?u)\b\w+\b";
-const PUNCTUATION: [char; 6] = ['.', '!', '?', ',', ':', ';'];
+const PUNCTUATION: [char; 12] = ['.', '!', '?', ',', ':', ';', '(', ')', '[', ']', '[', ']'];
 
 pub struct StopWordsTokenizer<'a> {
     stopwords: HashSet<&'a str>,
