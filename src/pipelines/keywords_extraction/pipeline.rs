@@ -73,6 +73,8 @@ pub struct KeywordExtractionConfig<'a> {
     pub tokenizer_stopwords: Option<HashSet<&'a str>>,
     /// Optional tokenization regex pattern. Defaults to sequence of word characters.
     pub tokenizer_pattern: Option<Regex>,
+    /// Optional list of characters that should not be included in ngrams (useful to filter ngrams spanning over punctuation marks).
+    pub tokenizer_forbidden_ngram_chars: Option<&'a [char]>,
     /// `KeywordScorerType` used to rank keywords.
     pub scorer_type: KeywordScorerType,
     /// N-gram range (inclusive) for keywords. (1, 2) would consider all 1 and 2 word gram for keyword candidates.
@@ -99,6 +101,7 @@ impl Default for KeywordExtractionConfig<'_> {
             sentence_embeddings_config,
             tokenizer_stopwords: None,
             tokenizer_pattern: None,
+            tokenizer_forbidden_ngram_chars: None,
             scorer_type: KeywordScorerType::CosineSimilarity,
             ngram_range: (1, 1),
             num_keywords: 5,
@@ -167,6 +170,7 @@ impl<'a> KeywordExtractionModel<'a> {
             config.tokenizer_stopwords,
             config.tokenizer_pattern,
             do_lower_case,
+            config.tokenizer_forbidden_ngram_chars,
         );
         Ok(Self {
             sentence_embeddings_model,

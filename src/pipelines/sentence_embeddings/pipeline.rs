@@ -350,6 +350,13 @@ impl SentenceEmbeddingsModel {
             tokens_ids,
             tokens_masks,
         } = self.tokenize(inputs);
+        if tokens_ids.is_empty() {
+            return Err(RustBertError::ValueError(
+                "No n-gram found in the document. \
+                Try allowing smaller n-gram sizes or relax stopword/forbidden characters criteria."
+                    .to_string(),
+            ));
+        }
         let tokens_ids = Tensor::stack(&tokens_ids, 0).to(self.var_store.device());
         let tokens_masks = Tensor::stack(&tokens_masks, 0).to(self.var_store.device());
 
