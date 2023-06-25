@@ -4,12 +4,14 @@ use rust_tokenizers::{Offset, OffsetSize};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
-const DEFAULT_REGEX_PATTERN: &str = r"(?u)\b\w\w+\b";
+const DEFAULT_REGEX_PATTERN: &str = r"(?u)\b\w+\b";
+const PUNCTUATION: [char; 12] = ['.', '!', '?', ',', ':', ';', '(', ')', '[', ']', '[', ']'];
 
 pub struct StopWordsTokenizer<'a> {
     stopwords: HashSet<&'a str>,
     pattern: Regex,
     do_lower_case: bool,
+    forbidden_ngram_chars: &'a [char],
 }
 
 impl<'a> StopWordsTokenizer<'a> {
@@ -17,14 +19,17 @@ impl<'a> StopWordsTokenizer<'a> {
         stopwords: Option<HashSet<&'a str>>,
         pattern: Option<Regex>,
         do_lower_case: bool,
+        forbidden_ngram_patterns: Option<&'a [char]>,
     ) -> Self {
         let stopwords = stopwords.unwrap_or_else(|| HashSet::from(ENGLISH_STOPWORDS));
         let pattern = pattern.unwrap_or_else(|| Regex::new(DEFAULT_REGEX_PATTERN).unwrap());
+        let forbidden_ngram_chars = forbidden_ngram_patterns.unwrap_or(&PUNCTUATION);
 
         Self {
             stopwords,
             pattern,
             do_lower_case,
+            forbidden_ngram_chars,
         }
     }
 
@@ -50,6 +55,9 @@ impl<'a> StopWordsTokenizer<'a> {
                     end: ngram.last().unwrap().end,
                 };
                 let mut ngram_text = Cow::from(&text[pos.begin as usize..pos.end as usize]);
+                if ngram_text.contains(self.forbidden_ngram_chars) {
+                    continue 'ngram_loop;
+                }
                 if self.do_lower_case {
                     ngram_text = Cow::from(ngram_text.to_lowercase());
                 }
@@ -65,9 +73,6 @@ impl<'a> StopWordsTokenizer<'a> {
                         if self.stopwords.contains(&*token) {
                             continue 'ngram_loop;
                         }
-                    }
-                    if ngram.last().unwrap().begin > ngram[0].end + 1 {
-                        continue;
                     }
                 }
                 tokenized_text
