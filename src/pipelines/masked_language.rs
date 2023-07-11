@@ -170,21 +170,22 @@ impl Default for MaskedLanguageConfig {
 /// # Abstraction that holds one particular masked language model, for any of the supported models
 pub enum MaskedLanguageOption {
     /// Bert for Masked Language
-    Bert(BertForMaskedLM),
+    Bert(BertForMaskedLM, VarStore),
     /// DeBERTa for Masked Language
-    Deberta(DebertaForMaskedLM),
+    Deberta(DebertaForMaskedLM, VarStore),
     /// DeBERTa V2 for Masked Language
-    DebertaV2(DebertaV2ForMaskedLM),
+    DebertaV2(DebertaV2ForMaskedLM, VarStore),
     /// Roberta for Masked Language
-    Roberta(RobertaForMaskedLM),
+    Roberta(RobertaForMaskedLM, VarStore),
     /// XLMRoberta for Masked Language
-    XLMRoberta(RobertaForMaskedLM),
+    XLMRoberta(RobertaForMaskedLM, VarStore),
     /// FNet for Masked Language
-    FNet(FNetForMaskedLM),
+    FNet(FNetForMaskedLM, VarStore),
     /// ONNX model for Masked Language
     #[cfg(feature = "onnx")]
     ONNX(ONNXEncoder),
 }
+
 impl MaskedLanguageOption {
     /// Instantiate a new masked language model of the supplied type.
     ///
@@ -210,10 +211,9 @@ impl MaskedLanguageOption {
         let model = match model_type {
             ModelType::Bert => {
                 if let ConfigOption::Bert(config) = model_config {
-                    Ok(MaskedLanguageOption::Bert(BertForMaskedLM::new(
-                        var_store.root(),
-                        config,
-                    )))
+                    let model = BertForMaskedLM::new(var_store.root(), config);
+                    var_store.load(weights_path)?;
+                    Ok(MaskedLanguageOption::Bert(model, var_store))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a BertConfig for Bert!".to_string(),
@@ -222,10 +222,9 @@ impl MaskedLanguageOption {
             }
             ModelType::Deberta => {
                 if let ConfigOption::Deberta(config) = model_config {
-                    Ok(MaskedLanguageOption::Deberta(DebertaForMaskedLM::new(
-                        var_store.root(),
-                        config,
-                    )))
+                    let model = DebertaForMaskedLM::new(var_store.root(), config);
+                    var_store.load(weights_path)?;
+                    Ok(MaskedLanguageOption::Deberta(model, var_store))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a DebertaConfig for DeBERTa!".to_string(),
@@ -234,10 +233,9 @@ impl MaskedLanguageOption {
             }
             ModelType::DebertaV2 => {
                 if let ConfigOption::DebertaV2(config) = model_config {
-                    Ok(MaskedLanguageOption::DebertaV2(DebertaV2ForMaskedLM::new(
-                        var_store.root(),
-                        config,
-                    )))
+                    let model = DebertaV2ForMaskedLM::new(var_store.root(), config);
+                    var_store.load(weights_path)?;
+                    Ok(MaskedLanguageOption::DebertaV2(model, var_store))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a DebertaV2Config for DeBERTa V2!".to_string(),
@@ -246,10 +244,9 @@ impl MaskedLanguageOption {
             }
             ModelType::Roberta => {
                 if let ConfigOption::Roberta(config) = model_config {
-                    Ok(MaskedLanguageOption::Roberta(RobertaForMaskedLM::new(
-                        var_store.root(),
-                        config,
-                    )))
+                    let model = RobertaForMaskedLM::new(var_store.root(), config);
+                    var_store.load(weights_path)?;
+                    Ok(MaskedLanguageOption::Roberta(model, var_store))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a BertConfig for Roberta!".to_string(),
@@ -258,10 +255,9 @@ impl MaskedLanguageOption {
             }
             ModelType::XLMRoberta => {
                 if let ConfigOption::Bert(config) = model_config {
-                    Ok(MaskedLanguageOption::XLMRoberta(RobertaForMaskedLM::new(
-                        var_store.root(),
-                        config,
-                    )))
+                    let model = RobertaForMaskedLM::new(var_store.root(), config);
+                    var_store.load(weights_path)?;
+                    Ok(MaskedLanguageOption::XLMRoberta(model, var_store))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a BertConfig for Roberta!".to_string(),
@@ -270,10 +266,9 @@ impl MaskedLanguageOption {
             }
             ModelType::FNet => {
                 if let ConfigOption::FNet(config) = model_config {
-                    Ok(MaskedLanguageOption::FNet(FNetForMaskedLM::new(
-                        var_store.root(),
-                        config,
-                    )))
+                    let model = FNetForMaskedLM::new(var_store.root(), config);
+                    var_store.load(weights_path)?;
+                    Ok(MaskedLanguageOption::FNet(model, var_store))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a FNetConfig for FNet!".to_string(),
@@ -284,7 +279,6 @@ impl MaskedLanguageOption {
                 "Masked Language is not implemented for {model_type:?}!",
             ))),
         }?;
-        var_store.load(weights_path)?;
         Ok(model)
     }
 
@@ -309,12 +303,12 @@ impl MaskedLanguageOption {
     /// Returns the `ModelType` for this MaskedLanguageOption
     pub fn model_type(&self) -> ModelType {
         match *self {
-            Self::Bert(_) => ModelType::Bert,
-            Self::Deberta(_) => ModelType::Deberta,
-            Self::DebertaV2(_) => ModelType::DebertaV2,
-            Self::Roberta(_) => ModelType::Roberta,
-            Self::XLMRoberta(_) => ModelType::Roberta,
-            Self::FNet(_) => ModelType::FNet,
+            Self::Bert(_, _) => ModelType::Bert,
+            Self::Deberta(_, _) => ModelType::Deberta,
+            Self::DebertaV2(_, _) => ModelType::DebertaV2,
+            Self::Roberta(_, _) => ModelType::Roberta,
+            Self::XLMRoberta(_, _) => ModelType::Roberta,
+            Self::FNet(_, _) => ModelType::FNet,
             #[cfg(feature = "onnx")]
             Self::ONNX(_) => ModelType::ONNX,
         }
@@ -333,7 +327,7 @@ impl MaskedLanguageOption {
         train: bool,
     ) -> Tensor {
         match *self {
-            Self::Bert(ref model) => {
+            Self::Bert(ref model, _) => {
                 model
                     .forward_t(
                         input_ids,
@@ -348,7 +342,7 @@ impl MaskedLanguageOption {
                     .prediction_scores
             }
 
-            Self::Deberta(ref model) => {
+            Self::Deberta(ref model, _) => {
                 model
                     .forward_t(
                         input_ids,
@@ -361,7 +355,7 @@ impl MaskedLanguageOption {
                     .expect("Error in Deberta forward_t")
                     .logits
             }
-            Self::DebertaV2(ref model) => {
+            Self::DebertaV2(ref model, _) => {
                 model
                     .forward_t(
                         input_ids,
@@ -375,7 +369,7 @@ impl MaskedLanguageOption {
                     .logits
             }
 
-            Self::Roberta(ref model) | Self::XLMRoberta(ref model) => {
+            Self::Roberta(ref model, _) | Self::XLMRoberta(ref model, _) => {
                 model
                     .forward_t(
                         input_ids,
@@ -389,7 +383,7 @@ impl MaskedLanguageOption {
                     )
                     .prediction_scores
             }
-            Self::FNet(ref model) => {
+            Self::FNet(ref model, _) => {
                 model
                     .forward_t(input_ids, token_type_ids, position_ids, input_embeds, train)
                     .expect("Error in FNet forward pass.")
@@ -410,6 +404,36 @@ impl MaskedLanguageOption {
                     .logits
                     .unwrap()
             }
+        }
+    }
+
+    pub fn half(&mut self) -> Result<(), RustBertError> {
+        match self {
+            Self::Bert(_, varstore_ref) => Ok(varstore_ref.half()),
+            Self::Deberta(_, varstore_ref) => Ok(varstore_ref.half()),
+            Self::DebertaV2(_, varstore_ref) => Ok(varstore_ref.half()),
+            Self::Roberta(_, varstore_ref) => Ok(varstore_ref.half()),
+            Self::XLMRoberta(_, varstore_ref) => Ok(varstore_ref.half()),
+            Self::FNet(_, varstore_ref) => Ok(varstore_ref.half()),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => Err(RustBertError::OrtError(
+                "Type casting not supported for ONNX models.".to_string(),
+            )),
+        }
+    }
+
+    pub fn float(&mut self) -> Result<(), RustBertError> {
+        match self {
+            Self::Bert(_, varstore_ref) => Ok(varstore_ref.float()),
+            Self::Deberta(_, varstore_ref) => Ok(varstore_ref.float()),
+            Self::DebertaV2(_, varstore_ref) => Ok(varstore_ref.float()),
+            Self::Roberta(_, varstore_ref) => Ok(varstore_ref.float()),
+            Self::XLMRoberta(_, varstore_ref) => Ok(varstore_ref.float()),
+            Self::FNet(_, varstore_ref) => Ok(varstore_ref.float()),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => Err(RustBertError::OrtError(
+                "Type casting not supported for ONNX models.".to_string(),
+            )),
         }
     }
 }

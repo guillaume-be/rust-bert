@@ -549,18 +549,22 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
         (prefix, min_length, max_length)
     }
 
+    /// Get a reference to the model tokenizer.
     pub fn get_tokenizer(&self) -> &TokenizerOption {
         self.model.get_tokenizer()
     }
 
+    /// Get a mutable reference to the model tokenizer.
     pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         self.model.get_tokenizer_mut()
     }
 
+    /// Cast the model to half-precision (float16)
     pub fn half(&mut self) -> Result<(), RustBertError> {
         self.model.half()
     }
 
+    /// Cast the model to single-precision (float32)
     pub fn float(&mut self) -> Result<(), RustBertError> {
         self.model.float()
     }

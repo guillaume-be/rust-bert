@@ -747,6 +747,18 @@ impl ConversationOption {
         }
     }
 
+    pub fn half(&mut self) -> Result<(), RustBertError> {
+        match self {
+            Self::GPT2(model_ref) => model_ref.half(),
+        }
+    }
+
+    pub fn float(&mut self) -> Result<(), RustBertError> {
+        match self {
+            Self::GPT2(model_ref) => model_ref.float(),
+        }
+    }
+
     /// Returns the `ModelType` for this ConversationOption
     pub fn model_type(&self) -> ModelType {
         match *self {
@@ -854,6 +866,16 @@ impl ConversationModel {
             max_allowed_context_length: max_allowed_length,
             device,
         })
+    }
+
+    /// Cast the model to half-precision (float16)
+    pub fn half(&mut self) -> Result<(), RustBertError> {
+        self.model.half()
+    }
+
+    /// Cast the model to single-precision (float32)
+    pub fn float(&mut self) -> Result<(), RustBertError> {
+        self.model.float()
     }
 
     /// Perform a multi-turn conversation based on user input

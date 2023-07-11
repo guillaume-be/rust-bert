@@ -193,6 +193,16 @@ impl<'a> KeywordExtractionModel<'a> {
         self.sentence_embeddings_model.get_tokenizer_mut()
     }
 
+    /// Cast the model to half-precision (float16)
+    pub fn half(&mut self) -> Result<(), RustBertError> {
+        self.sentence_embeddings_model.half()
+    }
+
+    /// Cast the model to single-precision (float32)
+    pub fn float(&mut self) -> Result<(), RustBertError> {
+        self.sentence_embeddings_model.float()
+    }
+
     /// Extract keywords from a list of input texts.
     ///
     /// # Arguments

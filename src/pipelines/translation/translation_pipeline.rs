@@ -1210,6 +1210,35 @@ impl TranslationOption {
             Self::ONNX(model_ref) => model_ref.get_tokenizer_mut(),
         }
     }
+
+    pub fn half(&mut self) -> Result<(), RustBertError> {
+        match self {
+            Self::Marian(model_ref) => model_ref.half(),
+            Self::T5(model_ref) => model_ref.half(),
+            Self::MBart(model_ref) => model_ref.half(),
+            Self::M2M100(model_ref) => model_ref.half(),
+            Self::NLLB(model_ref) => model_ref.half(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => Err(RustBertError::OrtError(
+                "Type casting not supported for ONNX models.".to_string(),
+            )),
+        }
+    }
+
+    pub fn float(&mut self) -> Result<(), RustBertError> {
+        match self {
+            Self::Marian(model_ref) => model_ref.float(),
+            Self::T5(model_ref) => model_ref.float(),
+            Self::MBart(model_ref) => model_ref.float(),
+            Self::M2M100(model_ref) => model_ref.float(),
+            Self::NLLB(model_ref) => model_ref.float(),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => Err(RustBertError::OrtError(
+                "Type casting not supported for ONNX models.".to_string(),
+            )),
+        }
+    }
+
     /// Interface method to generate() of the particular models.
     pub fn generate<S>(
         &self,
@@ -1411,6 +1440,16 @@ impl TranslationModel {
     /// Get a mutable reference to the model tokenizer.
     pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
         self.model.get_tokenizer_mut()
+    }
+
+    /// Cast the model to half-precision (float16)
+    pub fn half(&mut self) -> Result<(), RustBertError> {
+        self.model.half()
+    }
+
+    /// Cast the model to single-precision (float32)
+    pub fn float(&mut self) -> Result<(), RustBertError> {
+        self.model.float()
     }
 
     /// Translates texts provided

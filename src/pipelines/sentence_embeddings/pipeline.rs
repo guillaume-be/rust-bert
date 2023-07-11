@@ -277,6 +277,24 @@ impl SentenceEmbeddingsModel {
         &mut self.tokenizer
     }
 
+    /// Cast the model to half-precision (float16)
+    pub fn half(&mut self) -> Result<(), RustBertError> {
+        self.var_store.half();
+        if let Some(ref mut dense) = &mut self.dense_layer {
+            dense.half()
+        };
+        Ok(())
+    }
+
+    /// Cast the model to single-precision (float32)
+    pub fn float(&mut self) -> Result<(), RustBertError> {
+        self.var_store.float();
+        if let Some(ref mut dense) = &mut self.dense_layer {
+            dense.float()
+        };
+        Ok(())
+    }
+
     /// Sets the tokenizer's truncation strategy
     pub fn set_tokenizer_truncation(&mut self, truncation_strategy: TruncationStrategy) {
         self.tokenizer_truncation_strategy = truncation_strategy;

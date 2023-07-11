@@ -150,4 +150,12 @@ impl Dense {
     pub fn forward(&self, x: &Tensor) -> Tensor {
         self.activation.get_fn()(&x.apply(&self.linear))
     }
+
+    pub fn half(&mut self) -> () {
+        self._var_store.half()
+    }
+
+    pub fn float(&mut self) -> () {
+        self._var_store.float()
+    }
 }
