@@ -121,7 +121,6 @@ use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
     resources::RemoteResource,
 };
-use std::ops::Deref;
 use tch::kind::Kind::{Bool, Float};
 use tch::nn::VarStore;
 use tch::{no_grad, Device, Kind, Tensor};
@@ -698,7 +697,7 @@ impl ZeroShotClassificationModel {
             .flat_map(|input| {
                 label_sentences
                     .iter()
-                    .map(move |label_sentence| (input.deref(), label_sentence.as_str()))
+                    .map(move |label_sentence| (*input, label_sentence.as_str()))
             })
             .collect::<Vec<(&str, &str)>>();
 

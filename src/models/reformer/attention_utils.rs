@@ -173,8 +173,8 @@ pub fn reverse_sort(
     let expanded_undo_sort_indices = undo_sorted_bucket_idx
         .unsqueeze(-1)
         .expand(out_vectors.size().as_slice(), true);
-    let out_vectors = out_vectors.gather(2, &expanded_undo_sort_indices, true);
-    let logits = logits.gather(2, undo_sorted_bucket_idx, true);
+    let out_vectors = out_vectors.gather(2, &expanded_undo_sort_indices, false);
+    let logits = logits.gather(2, undo_sorted_bucket_idx, false);
     (out_vectors, logits)
 }
 
