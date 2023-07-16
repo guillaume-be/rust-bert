@@ -162,7 +162,7 @@ fn _shift_tokens_right(input_ids: &Tensor, pad_token_id: i64) -> Tensor {
         - 1;
     output
         .select(1, 0)
-        .copy_(&input_ids.gather(1, &index_eos, true).squeeze());
+        .copy_(&input_ids.gather(1, &index_eos, false).squeeze());
     output
         .slice(1, 1, *output.size().last().unwrap(), 1)
         .copy_(&input_ids.slice(1, 0, *output.size().last().unwrap() - 1, 1));

@@ -712,7 +712,7 @@ impl ProphetNetNgramAttention {
             ]);
 
         rel_pos_embeddings
-            .gather(1, &predict_relative_position_buckets, true)
+            .gather(1, &predict_relative_position_buckets, false)
             .view([
                 self.ngram,
                 batch_size * self.num_attention_heads,
