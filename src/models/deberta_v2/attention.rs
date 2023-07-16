@@ -156,7 +156,7 @@ impl DebertaV2DisentangledSelfAttention {
                     ],
                     true,
                 ),
-                true,
+                false,
             );
             score = score + c2p_att / scale;
             Some(c2p_pos)
@@ -189,7 +189,7 @@ impl DebertaV2DisentangledSelfAttention {
                         [query_layer.size()[0], key_layer_size[1], key_layer_size[1]],
                         true,
                     ),
-                    true,
+                    false,
                 )
                 .transpose(-1, -2);
             score = score + p2c_att / scale;
@@ -211,7 +211,7 @@ impl DebertaV2DisentangledSelfAttention {
                     ],
                     true,
                 ),
-                true,
+                false,
             );
             score = score + p2p_att;
         }

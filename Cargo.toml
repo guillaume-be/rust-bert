@@ -87,7 +87,7 @@ regex = "1.6"
 cached-path = { version = "0.6", default-features = false, optional = true }
 dirs = { version = "4", optional = true }
 lazy_static = { version = "1", optional = true }
-ort = {version="1.14.8", optional = true, default-features = false, features = ["half"]}
+ort = {version="~1.14.8", optional = true, default-features = false, features = ["half"]}
 ndarray = {version="0.15", optional = true}
 
 [dev-dependencies]
@@ -99,4 +99,4 @@ torch-sys = "0.13.0"
 tempfile = "3"
 itertools = "0.10"
 tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt" ] }
-ort = {version="1.14.8", features = ["load-dynamic"]}
+ort = {version="~1.14.8", features = ["load-dynamic"]}

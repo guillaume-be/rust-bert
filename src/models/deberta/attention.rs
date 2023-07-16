@@ -192,7 +192,7 @@ impl DebertaDisentangledSelfAttention {
             let c2p_att = c2p_att.gather(
                 -1,
                 &self.c2p_dynamic_expand(&c2p_pos, query_layer, &relative_pos),
-                true,
+                false,
             );
             score = score + c2p_att;
         }
@@ -213,7 +213,7 @@ impl DebertaDisentangledSelfAttention {
                 .gather(
                     -1,
                     &self.p2c_dynamic_expand(&p2c_pos, query_layer, key_layer),
-                    true,
+                    false,
                 )
                 .transpose(-1, -2);
             if query_layer_size[1] != key_layer_size[1] {
@@ -221,7 +221,7 @@ impl DebertaDisentangledSelfAttention {
                 p2c_att = p2c_att.gather(
                     -2,
                     &self.pos_dynamic_expand(&pos_index, &p2c_att, key_layer),
-                    true,
+                    false,
                 );
             }
             score = score + p2c_att;

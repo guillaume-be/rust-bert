@@ -964,7 +964,7 @@ pub(crate) mod private_generation_utils {
                     prev_scores.push(
                         next_token_logits
                             .log_softmax(-1, next_token_logits.kind())
-                            .gather(1, &next_token.reshape([-1, 1]), true)
+                            .gather(1, &next_token.reshape([-1, 1]), false)
                             .squeeze()
                             .masked_fill(&finished_mask, 0),
                     );
