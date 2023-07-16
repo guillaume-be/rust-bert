@@ -192,8 +192,8 @@ impl DistilBertModel {
         P: Borrow<nn::Path<'p>>,
     {
         let p = p.borrow() / "distilbert";
-        let embeddings = DistilBertEmbedding::new(p.borrow() / "embeddings", config);
-        let transformer = Transformer::new(p.borrow() / "transformer", config);
+        let embeddings = DistilBertEmbedding::new(&p / "embeddings", config);
+        let transformer = Transformer::new(p / "transformer", config);
         DistilBertModel {
             embeddings,
             transformer,
