@@ -3,7 +3,7 @@ use crate::pipelines::onnx::config::{
     ONNXEnvironmentConfig, ATTENTION_MASK_NAME, END_LOGITS, INPUT_EMBEDS, INPUT_IDS_NAME,
     LAST_HIDDEN_STATE, LOGITS, POSITION_IDS, START_LOGITS, TOKEN_TYPE_IDS,
 };
-use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, tch_tensor_to_ort};
+use crate::pipelines::onnx::conversion::{array_to_ort, ort_tensor_to_tch, tch_tensor_to_ndarray};
 use crate::RustBertError;
 use ort::{Environment, Session};
 use std::collections::HashMap;
@@ -134,13 +134,13 @@ impl ONNXEncoder {
             input_dict.insert(INPUT_EMBEDS, input_embeds);
         }
 
-        let inputs = self
+        let inputs_arrays = self
             .name_mapping
             .input_names
             .iter()
             .map(|input_name| {
                 if let Some(tensor) = input_dict.remove(input_name.as_str()) {
-                    tch_tensor_to_ort(tensor)
+                    tch_tensor_to_ndarray(tensor)
                 } else {
                     Err(RustBertError::OrtError(format!(
                         "{input_name} not found but expected by model."
@@ -149,7 +149,12 @@ impl ONNXEncoder {
             })
             .collect::<Result<Vec<_>, RustBertError>>()?;
 
-        let outputs = self.session.run(inputs)?;
+        let input_values = inputs_arrays
+            .iter()
+            .map(|array| array_to_ort(&self.session, array).unwrap())
+            .collect::<Vec<_>>();
+
+        let outputs = self.session.run(input_values)?;
 
         let last_hidden_state = self
             .name_mapping
