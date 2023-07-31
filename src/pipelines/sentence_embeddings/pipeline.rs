@@ -186,7 +186,7 @@ impl SentenceEmbeddingsModel {
             tokenizer_config_resource.get_local_path()?,
         );
         let sentence_bert_config = SentenceEmbeddingsSentenceBertConfig::from_file(
-            &sentence_bert_config_resource.get_local_path()?,
+            sentence_bert_config_resource.get_local_path()?,
         );
 
         let tokenizer = TokenizerOption::from_file(
