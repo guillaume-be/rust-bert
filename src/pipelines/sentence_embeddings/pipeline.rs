@@ -181,7 +181,7 @@ impl SentenceEmbeddingsModel {
         let tokenizer_vocab_resource = &config.tokenizer_vocab_resource;
         let tokenizer_merges_resource = &config.tokenizer_merges_resource;
         let tokenizer_config_resource = &config.tokenizer_config_resource;
-        let sentence_bert_config_resource = &config.tokenizer_config_resource;
+        let sentence_bert_config_resource = &config.sentence_bert_config_resource;
         let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
             tokenizer_config_resource.get_local_path()?,
         );
