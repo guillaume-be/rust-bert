@@ -56,12 +56,15 @@ use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
+
 use std::fmt::Debug;
+
 use std::path::{Path, PathBuf};
 use tch::{Device, Kind, Tensor};
 
 #[cfg(feature = "onnx")]
 use crate::pipelines::onnx::ONNXModelConfig;
+use crate::pipelines::tokenizers::HFTokenizer;
 
 #[derive(Debug, Default)]
 /// Container for ONNX model resources, containing 3 optional resources (Encoder, Decoder and Decoder with past)
@@ -288,6 +291,8 @@ pub enum TokenizerOption {
     FNet(FNetTokenizer),
     /// Bart Tokenizer
     Bart(RobertaTokenizer),
+    /// HF Tokenizer
+    HFTokenizer(HFTokenizer),
 }
 
 impl ConfigOption {
@@ -913,28 +918,12 @@ impl TokenizerOption {
         Ok(tokenizer)
     }
 
-    /// Returns the model type
-    pub fn model_type(&self) -> ModelType {
-        match *self {
-            Self::Bert(_) => ModelType::Bert,
-            Self::Deberta(_) => ModelType::Deberta,
-            Self::DebertaV2(_) => ModelType::DebertaV2,
-            Self::Roberta(_) => ModelType::Roberta,
-            Self::Bart(_) => ModelType::Bart,
-            Self::XLMRoberta(_) => ModelType::XLMRoberta,
-            Self::Marian(_) => ModelType::Marian,
-            Self::T5(_) => ModelType::T5,
-            Self::Albert(_) => ModelType::Albert,
-            Self::XLNet(_) => ModelType::XLNet,
-            Self::GPT2(_) => ModelType::GPT2,
-            Self::OpenAiGpt(_) => ModelType::OpenAiGpt,
-            Self::Reformer(_) => ModelType::Reformer,
-            Self::ProphetNet(_) => ModelType::ProphetNet,
-            Self::Pegasus(_) => ModelType::Pegasus,
-            Self::MBart50(_) => ModelType::MBart,
-            Self::M2M100(_) | Self::NLLB(_) => ModelType::M2M100,
-            Self::FNet(_) => ModelType::FNet,
-        }
+    pub fn from_hf_tokenizer_file<P: AsRef<Path>, S: AsRef<Path>>(
+        tokenizer_file: P,
+        special_token_map: S,
+    ) -> Result<Self, RustBertError> {
+        let hf_tokenizer = HFTokenizer::from_file(tokenizer_file, special_token_map)?;
+        Ok(TokenizerOption::HFTokenizer(hf_tokenizer))
     }
 
     /// Interface method
