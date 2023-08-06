@@ -10,7 +10,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use tokenizers::tokenizer::Tokenizer as HFBaseTokenizer;
-use tokenizers::{EncodeInput, Encoding, InputSequence};
+use tokenizers::{AddedToken, EncodeInput, Encoding, InputSequence};
 
 impl From<tokenizers::tokenizer::Error> for RustBertError {
     fn from(error: tokenizers::tokenizer::Error) -> Self {
@@ -83,7 +83,7 @@ where
 
 pub struct HFTokenizer {
     tokenizer: HFBaseTokenizer,
-    special_token_map: SpecialTokenMap,
+    pub(crate) special_token_map: SpecialTokenMap,
 }
 
 impl HFTokenizer {
@@ -356,5 +356,53 @@ impl HFTokenizer {
             .post_process(encoding_1, encoding_2, true)
             .unwrap();
         Self::encoding_to_tokenized_input(encoding_output)
+    }
+
+    pub fn token_to_id(&self, token: &str) -> i64 {
+        self.tokenizer.token_to_id(token.as_ref()).unwrap_or(
+            self.tokenizer
+                .token_to_id(self.special_token_map.unk_token.as_str())
+                .unwrap(),
+        ) as i64
+    }
+
+    pub fn convert_tokens_to_ids<S>(&self, tokens: &[S]) -> Vec<i64>
+    where
+        S: AsRef<str>,
+    {
+        tokens
+            .iter()
+            .map(|token| self.token_to_id(token.as_ref()))
+            .collect()
+    }
+
+    pub fn add_tokens(&mut self, tokens: &[&str]) {
+        let added_tokens = tokens
+            .iter()
+            .map(|token| AddedToken {
+                content: token.to_string(),
+                single_word: false,
+                lstrip: false,
+                rstrip: false,
+                normalized: false,
+                special: false,
+            })
+            .collect::<Vec<AddedToken>>();
+        self.tokenizer.add_tokens(&added_tokens);
+    }
+
+    pub fn add_extra_ids(&mut self, num_extra_ids: i64) {
+        let mut added_tokens: Vec<AddedToken> = Vec::with_capacity(num_extra_ids as usize);
+        for extra_id in 0..num_extra_ids {
+            added_tokens.push(AddedToken {
+                content: format!("<extra_id_{extra_id}>"),
+                single_word: false,
+                lstrip: false,
+                rstrip: false,
+                normalized: false,
+                special: false,
+            });
+        }
+        self.tokenizer.add_tokens(&added_tokens);
     }
 }

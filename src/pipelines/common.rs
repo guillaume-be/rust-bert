@@ -1738,6 +1738,7 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::NLLB(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::FNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::HFTokenizer(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
 
@@ -1820,6 +1821,9 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 vocab.token_to_id(vocab.get_unknown_value())
             }
+            Self::HFTokenizer(ref tokenizer) => {
+                tokenizer.token_to_id(&tokenizer.special_token_map.unk_token)
+            }
         }
     }
 
@@ -1890,6 +1894,11 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_pad_value()))
             }
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .pad_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::Reformer(_) => None,
             Self::GPT2(_) => None,
             Self::OpenAiGpt(_) => None,
@@ -1951,6 +1960,11 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_sep_value()))
             }
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .sep_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::Marian(_) => None,
             Self::T5(_) => None,
             Self::GPT2(_) => None,
@@ -2011,6 +2025,11 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_mask_value()))
             }
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .mask_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::Marian(_) => None,
             Self::M2M100(_) => None,
             Self::NLLB(_) => None,
@@ -2060,6 +2079,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => {
                 Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
             }
+            Self::HFTokenizer(ref tokenizer) => tokenizer.special_token_map.mask_token.as_deref(),
             Self::M2M100(_) => None,
             Self::NLLB(_) => None,
             Self::Marian(_) => None,
@@ -2113,6 +2133,11 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_bos_value()))
             }
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .bos_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::MBart50(_) => Some(0),
             Self::FNet(_) => None,
             Self::Bert(_) => None,
@@ -2188,6 +2213,11 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_eos_value()))
             }
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .eos_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::FNet(_) => None,
             Self::Bert(_) => None,
             Self::ProphetNet(_) => None,
@@ -2266,6 +2296,7 @@ impl TokenizerOption {
             Self::M2M100(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
             Self::NLLB(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
             Self::FNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::HFTokenizer(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
         }
     }
 
@@ -2291,6 +2322,7 @@ impl TokenizerOption {
             Self::M2M100(ref mut tokenizer) => tokenizer.add_tokens(tokens),
             Self::NLLB(ref mut tokenizer) => tokenizer.add_tokens(tokens),
             Self::FNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::HFTokenizer(ref mut tokenizer) => tokenizer.add_tokens(tokens),
         }
     }
 }
