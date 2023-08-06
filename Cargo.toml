@@ -90,7 +90,7 @@ dirs = { version = "4", optional = true }
 lazy_static = { version = "1", optional = true }
 ort = {version="~1.14.8", optional = true, default-features = false, features = ["half"]}
 ndarray = {version="0.15", optional = true}
-tokenizers = {version="0.13.3", optional=true}
+tokenizers = {version="0.13.3", optional=true, default-features = false, features = ["onig"]}
 
 [dev-dependencies]
 anyhow = "1"
