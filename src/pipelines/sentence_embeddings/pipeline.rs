@@ -314,7 +314,7 @@ impl SentenceEmbeddingsModel {
     /// Tokenizes the inputs
     pub fn tokenize<S>(&self, inputs: &[S]) -> SentenceEmbeddingsTokenizerOutput
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let tokenized_input = self.tokenizer.encode_list(
             inputs,
@@ -368,7 +368,7 @@ impl SentenceEmbeddingsModel {
         inputs: &[S],
     ) -> Result<SentenceEmbeddingsModelOutput, RustBertError>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let SentenceEmbeddingsTokenizerOutput {
             tokens_ids,
@@ -413,7 +413,7 @@ impl SentenceEmbeddingsModel {
     /// Computes sentence embeddings.
     pub fn encode<S>(&self, inputs: &[S]) -> Result<Vec<Embedding>, RustBertError>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let SentenceEmbeddingsModelOutput { embeddings, .. } = self.encode_as_tensor(inputs)?;
         Ok(Vec::try_from(embeddings)?)
@@ -457,7 +457,7 @@ impl SentenceEmbeddingsModel {
         inputs: &[S],
     ) -> Result<(Vec<Embedding>, Vec<AttentionOutput>), RustBertError>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let SentenceEmbeddingsModelOutput {
             embeddings,

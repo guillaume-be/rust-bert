@@ -935,7 +935,7 @@ impl TokenizerOption {
         stride: usize,
     ) -> Vec<TokenizedInput>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         match *self {
             Self::Bert(ref tokenizer) => MultiThreadedTokenizer::encode_list(
@@ -1071,6 +1071,7 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::HFTokenizer(ref tokenizer) => tokenizer.encode_list(text_list).unwrap(),
         }
     }
 
@@ -1216,6 +1217,7 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::HFTokenizer(ref tokenizer) => tokenizer.encode_pair_list(text_pair_list).unwrap(),
         }
     }
 
@@ -1286,6 +1288,7 @@ impl TokenizerOption {
             Self::FNet(ref tokenizer) => {
                 tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
+            Self::HFTokenizer(ref tokenizer) => tokenizer.encode_pair(text_1, text_2).unwrap(),
         }
     }
 
@@ -1311,6 +1314,7 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => tokenizer.tokenize(text),
             Self::NLLB(ref tokenizer) => tokenizer.tokenize(text),
             Self::FNet(ref tokenizer) => tokenizer.tokenize(text),
+            Self::HFTokenizer(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
 
@@ -1336,13 +1340,14 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::NLLB(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::FNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::HFTokenizer(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
         }
     }
 
     /// Interface method to tokenization
     pub fn tokenize_list<S>(&self, text: &[S]) -> Vec<Vec<String>>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         match *self {
             Self::Bert(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
@@ -1372,6 +1377,7 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::NLLB(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::FNet(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::HFTokenizer(ref tokenizer) => tokenizer.tokenize_list(text),
         }
     }
 
@@ -1440,6 +1446,7 @@ impl TokenizerOption {
             Self::FNet(ref tokenizer) => {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
+            Self::HFTokenizer(ref tokenizer) => tokenizer.decode(token_ids, skip_special_tokens),
         }
     }
 
@@ -1526,6 +1533,12 @@ impl TokenizerOption {
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
             ),
+            Self::HFTokenizer(ref tokenizer) => {
+                return tokenizer.build_input_with_special_tokens(
+                    token_ids_with_offsets_1,
+                    token_ids_with_offsets_2,
+                )
+            }
         };
         TokenizedInput {
             token_ids: token_ids_with_special_tokens.token_ids,

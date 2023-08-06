@@ -1,13 +1,16 @@
 use crate::RustBertError;
-use rust_tokenizers::{Mask, Offset, OffsetSize, TokenizedInput};
+use rust_tokenizers::{
+    Mask, Offset, OffsetSize, TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets,
+};
 use serde::{de, Deserialize, Deserializer};
-use std::collections::HashSet;
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use tokenizers::tokenizer::Tokenizer as HFBaseTokenizer;
-use tokenizers::Encoding;
+use tokenizers::{EncodeInput, Encoding, InputSequence};
 
 impl From<tokenizers::tokenizer::Error> for RustBertError {
     fn from(error: tokenizers::tokenizer::Error) -> Self {
@@ -170,15 +173,188 @@ impl HFTokenizer {
 
     pub fn encode_list<S>(&self, text_list: &[S]) -> Result<Vec<TokenizedInput>, RustBertError>
     where
-        S: AsRef<str> + Sync + Send + Clone,
+        S: AsRef<str> + Sync + Send,
     {
         let encoding_inputs = text_list.iter().map(|text| text.as_ref()).collect();
-        let mut encodings = self.tokenizer.encode_batch(encoding_inputs, true)?;
+        let encodings = self.tokenizer.encode_batch(encoding_inputs, true)?;
         let mut tokenized_inputs: Vec<TokenizedInput> = Vec::with_capacity(encodings.len());
         for encoding in encodings {
             tokenized_inputs.push(Self::encoding_to_tokenized_input(encoding));
         }
 
         Ok(tokenized_inputs)
+    }
+
+    pub fn encode_pair_list(
+        &self,
+        text_pair_list: &[(&str, &str)],
+    ) -> Result<Vec<TokenizedInput>, RustBertError> {
+        let encoding_inputs: Vec<EncodeInput> = text_pair_list
+            .iter()
+            .map(|(text_1, text_2)| {
+                EncodeInput::Dual(
+                    InputSequence::Raw(Cow::Borrowed(text_1)),
+                    InputSequence::Raw(Cow::Borrowed(text_2)),
+                )
+            })
+            .collect();
+        let encodings = self.tokenizer.encode_batch(encoding_inputs, true)?;
+        let mut tokenized_inputs: Vec<TokenizedInput> = Vec::with_capacity(encodings.len());
+        for encoding in encodings {
+            tokenized_inputs.push(Self::encoding_to_tokenized_input(encoding));
+        }
+
+        Ok(tokenized_inputs)
+    }
+
+    pub fn encode_pair(
+        &self,
+        text_1: &str,
+        text_2: Option<&str>,
+    ) -> Result<TokenizedInput, RustBertError> {
+        let encoding_input = if let Some(text_2) = text_2 {
+            EncodeInput::Dual(
+                InputSequence::Raw(Cow::Borrowed(text_1)),
+                InputSequence::Raw(Cow::Borrowed(text_2)),
+            )
+        } else {
+            EncodeInput::Single(InputSequence::Raw(Cow::Borrowed(text_1)))
+        };
+        let encoding = self.tokenizer.encode(encoding_input, true)?;
+        Ok(Self::encoding_to_tokenized_input(encoding))
+    }
+
+    pub fn tokenize(&self, text: &str) -> Vec<String> {
+        self.tokenizer
+            .encode(text, false)
+            .unwrap()
+            .get_tokens()
+            .to_vec()
+    }
+
+    pub fn tokenize_list<S>(&self, text: &[S]) -> Vec<Vec<String>>
+    where
+        S: AsRef<str> + Send + Sync,
+    {
+        text.iter()
+            .map(|text| self.tokenize(text.as_ref()))
+            .collect()
+    }
+
+    pub fn tokenize_with_offsets(&self, text: &str) -> TokensWithOffsets {
+        let encoding = self.tokenizer.encode(text, false).unwrap();
+        let tokens = encoding.get_tokens().to_vec();
+        let offsets = encoding
+            .get_offsets()
+            .iter()
+            .map(|offset| {
+                Some(Offset {
+                    begin: offset.0 as OffsetSize,
+                    end: offset.1 as OffsetSize,
+                })
+            })
+            .collect();
+        let reference_offsets = encoding
+            .get_offsets()
+            .iter()
+            .map(|offset| (offset.0 as OffsetSize..offset.1 as OffsetSize).collect())
+            .collect();
+        let masks = encoding
+            .get_special_tokens_mask()
+            .into_iter()
+            .map(|segment_id| {
+                if *segment_id == 0 {
+                    Mask::None
+                } else {
+                    Mask::Special
+                }
+            })
+            .collect();
+        TokensWithOffsets {
+            tokens,
+            offsets,
+            reference_offsets,
+            masks,
+        }
+    }
+
+    pub fn decode(&self, token_ids: &[i64], skip_special_tokens: bool) -> String {
+        self.tokenizer
+            .decode(
+                token_ids.iter().map(|token_id| *token_id as u32).collect(),
+                skip_special_tokens,
+            )
+            .unwrap()
+    }
+
+    fn token_ids_with_offsets_to_encoding(
+        &self,
+        token_ids_with_offsets: TokenIdsWithOffsets,
+    ) -> Encoding {
+        let ids: Vec<u32> = token_ids_with_offsets
+            .ids
+            .iter()
+            .map(|token_id| *token_id as u32)
+            .collect();
+        let type_ids = token_ids_with_offsets
+            .ids
+            .iter()
+            .map(|segment_id| *segment_id as u32)
+            .collect();
+        let tokens = ids
+            .iter()
+            .map(|token_id| {
+                self.tokenizer
+                    .id_to_token(*token_id)
+                    .unwrap_or(self.tokenizer.decode(vec![*token_id], false).unwrap())
+            })
+            .collect();
+        let words = vec![None::<u32>; ids.len()];
+        let offsets = token_ids_with_offsets
+            .offsets
+            .iter()
+            .map(|offset| {
+                offset
+                    .map(|offset| (offset.begin as usize, offset.end as usize))
+                    .unwrap_or((0, 0))
+            })
+            .collect();
+        let special_tokens_mask = token_ids_with_offsets
+            .masks
+            .iter()
+            .map(|segment_id| match segment_id {
+                Mask::Special => 1,
+                _ => 0,
+            })
+            .collect();
+        let overflowing: Vec<Encoding> = vec![];
+        let attention_mask = vec![1; ids.len()];
+        let sequence_ranges = HashMap::new();
+        Encoding::new(
+            ids,
+            type_ids,
+            tokens,
+            words,
+            offsets,
+            special_tokens_mask,
+            attention_mask,
+            overflowing,
+            sequence_ranges,
+        )
+    }
+
+    pub fn build_input_with_special_tokens(
+        &self,
+        token_ids_with_offsets_1: TokenIdsWithOffsets,
+        token_ids_with_offsets_2: Option<TokenIdsWithOffsets>,
+    ) -> TokenizedInput {
+        let encoding_1 = self.token_ids_with_offsets_to_encoding(token_ids_with_offsets_1);
+        let encoding_2 = token_ids_with_offsets_2
+            .map(|encoding| self.token_ids_with_offsets_to_encoding(encoding));
+        let encoding_output = self
+            .tokenizer
+            .post_process(encoding_1, encoding_2, true)
+            .unwrap();
+        Self::encoding_to_tokenized_input(encoding_output)
     }
 }
