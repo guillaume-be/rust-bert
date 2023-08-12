@@ -98,8 +98,7 @@ where
             Ok(value)
         }
     }
-
-    Ok(deserializer.deserialize_any(StringOrStruct)?)
+    deserializer.deserialize_any(StringOrStruct)
 }
 
 /// Base class for a tokenizer from the Tokenizers library
@@ -157,24 +156,23 @@ impl HFTokenizer {
     fn encoding_to_tokenized_input(encoding: Encoding) -> TokenizedInput {
         let token_ids = encoding
             .get_ids()
-            .into_iter()
+            .iter()
             .map(|token_id| *token_id as i64)
             .collect();
         let segment_ids = encoding
             .get_type_ids()
-            .into_iter()
+            .iter()
             .map(|segment_id| *segment_id as i8)
             .collect();
         let special_tokens_mask = encoding
             .get_special_tokens_mask()
-            .into_iter()
+            .iter()
             .map(|segment_id| *segment_id as i8)
             .collect();
         let overflowing_tokens: Vec<i64> = encoding
             .get_overflowing()
             .iter()
-            .map(|encoding| encoding.get_ids())
-            .flatten()
+            .flat_map(|encoding| encoding.get_ids())
             .map(|token_id| *token_id as i64)
             .collect();
         let num_truncated_tokens = overflowing_tokens.len();
@@ -195,7 +193,7 @@ impl HFTokenizer {
             .collect();
         let mask = encoding
             .get_special_tokens_mask()
-            .into_iter()
+            .iter()
             .map(|segment_id| {
                 if *segment_id == 0 {
                     Mask::None
@@ -457,7 +455,7 @@ impl HFTokenizer {
             .collect();
         let masks = encoding
             .get_special_tokens_mask()
-            .into_iter()
+            .iter()
             .map(|segment_id| {
                 if *segment_id == 0 {
                     Mask::None
