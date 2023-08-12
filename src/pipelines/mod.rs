@@ -480,7 +480,9 @@
 //! Hugging Face's [Tokenizers](https://github.com/huggingface/tokenizers) library. In order to use the latter,
 //! the tokenizer needs to be created manually and passed as an argument to the pipeline's `new_with_tokenizer` method.
 //!
-//! Below is an example for GPT2 text generation:
+//! Note that the `special_token_maps` is required to create a `TokenizerOption` from a HFTokenizer. This file is sometimes not provided
+//! (the Python Transformers library provides the special token map information as part of the actual tokenizer loaded wrapping the rust-based
+//! tokenizer). If that is the case a temporary file with the special token map information can be created as illustrated below:
 //! ```no_run
 //! fn main() -> anyhow::Result<()> {
 //!   use std::fs::File;
