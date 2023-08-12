@@ -64,7 +64,9 @@ use tch::{Device, Kind, Tensor};
 
 #[cfg(feature = "onnx")]
 use crate::pipelines::onnx::ONNXModelConfig;
-use crate::pipelines::tokenizers::HFTokenizer;
+
+#[cfg(feature = "hf-tokenizers")]
+use crate::pipelines::hf_tokenizers::HFTokenizer;
 
 #[derive(Debug, Default)]
 /// Container for ONNX model resources, containing 3 optional resources (Encoder, Decoder and Decoder with past)
@@ -292,6 +294,7 @@ pub enum TokenizerOption {
     /// Bart Tokenizer
     Bart(RobertaTokenizer),
     /// HF Tokenizer
+    #[cfg(feature = "hf-tokenizers")]
     HFTokenizer(HFTokenizer),
 }
 
@@ -918,6 +921,7 @@ impl TokenizerOption {
         Ok(tokenizer)
     }
 
+    #[cfg(feature = "hf-tokenizers")]
     pub fn from_hf_tokenizer_file<P: AsRef<Path>, S: AsRef<Path>>(
         tokenizer_file: P,
         special_token_map: S,
@@ -1071,6 +1075,7 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer.encode_list(text_list).unwrap(),
         }
     }
@@ -1217,6 +1222,7 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer.encode_pair_list(text_pair_list).unwrap(),
         }
     }
@@ -1288,6 +1294,7 @@ impl TokenizerOption {
             Self::FNet(ref tokenizer) => {
                 tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer.encode_pair(text_1, text_2).unwrap(),
         }
     }
@@ -1314,6 +1321,7 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => tokenizer.tokenize(text),
             Self::NLLB(ref tokenizer) => tokenizer.tokenize(text),
             Self::FNet(ref tokenizer) => tokenizer.tokenize(text),
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
@@ -1340,6 +1348,7 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::NLLB(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::FNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
         }
     }
@@ -1377,6 +1386,7 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::NLLB(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::FNet(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer.tokenize_list(text),
         }
     }
@@ -1446,6 +1456,7 @@ impl TokenizerOption {
             Self::FNet(ref tokenizer) => {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer.decode(token_ids, skip_special_tokens),
         }
     }
@@ -1533,6 +1544,7 @@ impl TokenizerOption {
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
             ),
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => {
                 return tokenizer.build_input_with_special_tokens(
                     token_ids_with_offsets_1,
@@ -1738,6 +1750,7 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::NLLB(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::FNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
@@ -1821,6 +1834,7 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 vocab.token_to_id(vocab.get_unknown_value())
             }
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => {
                 tokenizer.token_to_id(&tokenizer.special_token_map.unk_token)
             }
@@ -1894,6 +1908,7 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_pad_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer
                 .special_token_map
                 .pad_token
@@ -1960,6 +1975,7 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_sep_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer
                 .special_token_map
                 .sep_token
@@ -2025,6 +2041,7 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_mask_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer
                 .special_token_map
                 .mask_token
@@ -2079,6 +2096,7 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => {
                 Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
             }
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer.special_token_map.mask_token.as_deref(),
             Self::M2M100(_) => None,
             Self::NLLB(_) => None,
@@ -2133,6 +2151,7 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_bos_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer
                 .special_token_map
                 .bos_token
@@ -2213,6 +2232,7 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_eos_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref tokenizer) => tokenizer
                 .special_token_map
                 .eos_token
@@ -2296,6 +2316,7 @@ impl TokenizerOption {
             Self::M2M100(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
             Self::NLLB(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
             Self::FNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
         }
     }
@@ -2322,6 +2343,7 @@ impl TokenizerOption {
             Self::M2M100(ref mut tokenizer) => tokenizer.add_tokens(tokens),
             Self::NLLB(ref mut tokenizer) => tokenizer.add_tokens(tokens),
             Self::FNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref mut tokenizer) => tokenizer.add_tokens(tokens),
         }
     }

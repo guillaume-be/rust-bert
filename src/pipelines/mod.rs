@@ -488,9 +488,11 @@ pub mod sequence_classification;
 pub mod summarization;
 pub mod text_generation;
 pub mod token_classification;
-pub mod tokenizers;
 pub mod translation;
 pub mod zero_shot_classification;
 
 #[cfg(feature = "onnx")]
 pub mod onnx;
+
+#[cfg(feature = "hf-tokenizers")]
+pub mod hf_tokenizers;
