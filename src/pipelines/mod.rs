@@ -473,6 +473,54 @@
 //! ]
 //! # ;
 //! ```
+//!
+//! # [Tokenizers](https://github.com/huggingface/tokenizers) support
+//!
+//! The pipelines support both the default [rust-tokenizers](https://github.com/guillaume-be/rust-tokenizers) and
+//! Hugging Face's [Tokenizers](https://github.com/huggingface/tokenizers) library. In order to use the latter,
+//! the tokenizer needs to be created manually and passed as an argument to the pipeline's `new_with_tokenizer` method.
+//!
+//! Below is an example for GPT2 text generation:
+//! ```no_run
+//! fn main() -> anyhow::Result<()> {
+//!   use std::fs::File;
+//!   use std::io::Write;
+//!   use tempfile::TempDir;
+//!   use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+//!   use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
+//!   use rust_bert::resources::{RemoteResource, ResourceProvider};
+//!  
+//!   let generate_config = TextGenerationConfig {
+//!           model_type: ModelType::GPT2,
+//!           ..Default::default()
+//!   };
+//!  
+//!    // Create tokenizer
+//!    let tmp_dir = TempDir::new()?;
+//!    let special_token_map_path = tmp_dir.path().join("special_token_map.json");
+//!    let mut tmp_file = File::create(&special_token_map_path)?;
+//!    writeln!(
+//!        tmp_file,
+//!        r#"{{"bos_token": "<|endoftext|>", "eos_token": "<|endoftext|>", "unk_token": "<|endoftext|>"}}"#
+//!    )?;
+//!    let tokenizer_path = RemoteResource::from_pretrained((
+//!        "gpt2/tokenizer",
+//!        "https://huggingface.co/gpt2/resolve/main/tokenizer.json",
+//!    )).get_local_path()?;
+//!   let tokenizer =
+//!        TokenizerOption::from_hf_tokenizer_file(tokenizer_path, special_token_map_path)?;
+//!  
+//!    // Create model
+//!    let model = TextGenerationModel::new_with_tokenizer(generate_config, tokenizer)?;
+//!  
+//!    let input_context = "The dog";
+//!    let output = model.generate(&[input_context], None);
+//!    for sentence in output {
+//!        println!("{sentence:?}");
+//!    }
+//!    Ok(())
+//! }
+//! ```
 
 pub mod common;
 pub mod conversation;
