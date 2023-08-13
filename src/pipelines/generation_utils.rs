@@ -381,7 +381,7 @@ pub(crate) mod private_generation_utils {
             pad_token_id: Option<i64>,
         ) -> Tensor
         where
-            S: AsRef<str> + Sync,
+            S: AsRef<str> + Send + Sync,
         {
             let token_ids = if self.is_encoder_decoder() {
                 let tokens = self._get_tokenizer().encode_list(
@@ -1774,7 +1774,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         generate_options: Option<GenerateOptions>,
     ) -> Vec<GeneratedTextOutput>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let indices_outputs = self.generate_indices(prompt_texts, generate_options);
         let mut output = Vec::with_capacity(indices_outputs.len());
@@ -1868,7 +1868,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         generate_options: Option<GenerateOptions>,
     ) -> Vec<GeneratedIndicesOutput>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let eos_token_ids = self.get_eos_ids();
 

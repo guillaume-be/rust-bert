@@ -114,7 +114,9 @@ fn make_global_fixed_block_ids(
     attention_mask: &Tensor,
     global_block_size: i64,
 ) -> (Tensor, Tensor) {
-    let &[batch_size, seq_length, ..] = attention_mask.size().as_slice() else {unreachable!()};
+    let &[batch_size, seq_length, ..] = attention_mask.size().as_slice() else {
+        unreachable!()
+    };
 
     let handle_orphan_tokens = |block_ids: Tensor| -> Tensor {
         let block_ends = Tensor::arange(seq_length, (Kind::Int64, block_ids.device()))

@@ -69,6 +69,7 @@ download-libtorch = ["tch/download-libtorch"]
 onnx = ["ort", "ndarray"]
 rustls-tls = ["cached-path/rustls-tls"]
 default-tls = ["cached-path/default-tls"]
+hf-tokenizers = ["tokenizers"]
 
 [package.metadata.docs.rs]
 features = ["doc-only"]
@@ -89,6 +90,7 @@ dirs = { version = "4", optional = true }
 lazy_static = { version = "1", optional = true }
 ort = {version="~1.14.8", optional = true, default-features = false, features = ["half"]}
 ndarray = {version="0.15", optional = true}
+tokenizers = {version="0.13.3", optional=true, default-features = false, features = ["onig"]}
 
 [dev-dependencies]
 anyhow = "1"

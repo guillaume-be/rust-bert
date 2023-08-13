@@ -1217,7 +1217,7 @@ impl TranslationOption {
         forced_bos_token_id: Option<i64>,
     ) -> Vec<String>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         match *self {
             Self::Marian(ref model) => model
@@ -1470,7 +1470,7 @@ impl TranslationModel {
         target_language: impl Into<Option<Language>>,
     ) -> Result<Vec<String>, RustBertError>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let (prefix, forced_bos_token_id) =
             self.model.get_tokenizer().get_prefix_and_forced_bos_id(

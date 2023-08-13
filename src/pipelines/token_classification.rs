@@ -128,7 +128,6 @@ use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForTokenClassification;
 use crate::xlnet::XLNetForTokenClassification;
 use ordered_float::OrderedFloat;
-use rust_tokenizers::tokenizer::Tokenizer;
 use rust_tokenizers::{
     ConsolidatableTokens, ConsolidatedTokenIterator, Mask, Offset, TokenIdsWithOffsets, TokenTrait,
     TokenizedInput,
@@ -1103,27 +1102,7 @@ impl TokenClassificationModel {
         let offsets = &sentence_tokens.offsets[position_idx as usize];
 
         let text = match offsets {
-            None => match self.tokenizer {
-                TokenizerOption::Bert(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, &[token_id], false, false)
-                }
-                TokenizerOption::Roberta(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, &[token_id], false, false)
-                }
-                TokenizerOption::XLMRoberta(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, &[token_id], false, false)
-                }
-                TokenizerOption::Albert(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, &[token_id], false, false)
-                }
-                TokenizerOption::XLNet(ref tokenizer) => {
-                    Tokenizer::decode(tokenizer, &[token_id], false, false)
-                }
-                _ => panic!(
-                    "Token classification not implemented for {:?}!",
-                    self.tokenizer.model_type()
-                ),
-            },
+            None => self.tokenizer.decode(&[token_id], false, false),
             Some(offsets) => {
                 let (start_char, end_char) = (offsets.begin as usize, offsets.end as usize);
                 let end_char = min(end_char, original_sentence_chars.len());

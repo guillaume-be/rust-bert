@@ -333,7 +333,7 @@ impl TextGenerationOption {
         max_length: Option<i64>,
     ) -> Vec<Vec<i64>>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let generate_options = Some(GenerateOptions {
             min_length,
@@ -597,7 +597,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
     /// ```
     pub fn generate<'a, S>(&self, texts: &[S], prefix: impl Into<Option<&'a str>>) -> Vec<String>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let (prefix, prefix_length) = match (prefix.into(), &self.prefix) {
             (Some(query_prefix), _) => (

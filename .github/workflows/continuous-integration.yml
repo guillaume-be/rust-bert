@@ -140,8 +140,8 @@ jobs:
             --test nllb
             --features download-libtorch
 
-  test-onnx:
-    name: Integration tests (ONNX models)
+  test-opt-features:
+    name: Integration tests (Optional features)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -155,7 +155,9 @@ jobs:
           command: test
           args: --package rust-bert
             --features onnx
+            --features hf-tokenizers
             --test onnx
+            --test hf_tokenizers
             --features download-libtorch
 
   convert-model:
