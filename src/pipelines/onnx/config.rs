@@ -1,5 +1,6 @@
 /// # Configuration for ONNX environment and sessions
 use crate::RustBertError;
+use ort::execution_providers::{CPUExecutionProviderOptions, CUDAExecutionProviderOptions};
 use ort::{
     AllocatorType, Environment, ExecutionProvider, GraphOptimizationLevel, MemType, SessionBuilder,
 };
@@ -37,10 +38,15 @@ impl ONNXEnvironmentConfig {
     /// This helper function maps torch device to ONNXRuntime execution providers
     pub fn from_device(device: Device) -> Self {
         let mut execution_providers = Vec::new();
-        if let Device::Cuda(_) = device {
-            execution_providers.push(ExecutionProvider::cuda());
+        if let Device::Cuda(device) = device {
+            execution_providers.push(ExecutionProvider::CUDA(CUDAExecutionProviderOptions {
+                device_id: device as u32,
+                ..Default::default()
+            }));
         };
-        execution_providers.push(ExecutionProvider::cpu());
+        execution_providers.push(ExecutionProvider::CPU(
+            CPUExecutionProviderOptions::default(),
+        ));
         ONNXEnvironmentConfig {
             execution_providers: Some(execution_providers),
             ..Default::default()
@@ -81,10 +87,10 @@ impl ONNXEnvironmentConfig {
             session_builder = session_builder.with_memory_pattern(enable_memory_pattern)?;
         }
         if let Some(allocator) = &self.allocator {
-            session_builder = session_builder.with_allocator(allocator.clone())?;
+            session_builder = session_builder.with_allocator(*allocator)?;
         }
         if let Some(memory_type) = &self.memory_type {
-            session_builder = session_builder.with_memory_type(memory_type.clone())?;
+            session_builder = session_builder.with_memory_type(*memory_type)?;
         }
         Ok(session_builder)
     }
@@ -94,11 +100,9 @@ impl ONNXEnvironmentConfig {
         Ok(Arc::new(
             Environment::builder()
                 .with_name("Default environment")
-                .with_execution_providers(
-                    self.execution_providers
-                        .clone()
-                        .unwrap_or(vec![ExecutionProvider::cpu()]),
-                )
+                .with_execution_providers(self.execution_providers.clone().unwrap_or(vec![
+                    ExecutionProvider::CPU(CPUExecutionProviderOptions::default()),
+                ]))
                 .build()?,
         ))
     }

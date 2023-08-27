@@ -152,7 +152,7 @@ impl Default for GptNeoConfig {
         GptNeoConfig {
             activation_function: Activation::gelu_new,
             attention_dropout: 0.0,
-            attention_layers: vec![AttentionLayerType::Global, AttentionLayerType::Local]
+            attention_layers: [AttentionLayerType::Global, AttentionLayerType::Local]
                 .iter()
                 .cycle()
                 .take(24)

@@ -4,7 +4,7 @@ use crate::pipelines::onnx::config::{
     ONNXEnvironmentConfig, ATTENTION_MASK_NAME, ENCODER_ATTENTION_MASK_NAME,
     ENCODER_HIDDEN_STATES_NAME, INPUT_IDS_NAME, POSITION_IDS,
 };
-use crate::pipelines::onnx::conversion::{ort_tensor_to_tch, tch_tensor_to_ort};
+use crate::pipelines::onnx::conversion::{array_to_ort, ort_tensor_to_tch, tch_tensor_to_ndarray};
 use crate::pipelines::onnx::models::ONNXLayerCache;
 use crate::RustBertError;
 use ort::{Environment, Session};
@@ -63,13 +63,13 @@ impl ONNXDecoder {
             input_dict.insert(POSITION_IDS, position_ids);
         }
 
-        let inputs = self
+        let inputs_arrays = self
             .name_mapping
             .input_names
             .iter()
             .map(|input_name| {
                 if let Some(tensor) = input_dict.remove(input_name.as_str()) {
-                    Ok(tch_tensor_to_ort(tensor)?)
+                    tch_tensor_to_ndarray(tensor)
                 } else {
                     let layer_states = layer_states.ok_or_else(|| {
                         RustBertError::OrtError(format!(
@@ -90,12 +90,17 @@ impl ONNXDecoder {
                                 "{input_name} not found in cache ({found_keys:?})."
                             ))
                         })?;
-                    tch_tensor_to_ort(input_pos)
+                    tch_tensor_to_ndarray(input_pos)
                 }
             })
             .collect::<Result<Vec<_>, RustBertError>>()?;
 
-        let outputs = self.session.run(inputs)?;
+        let input_values = inputs_arrays
+            .iter()
+            .map(|array| array_to_ort(&self.session, array).unwrap())
+            .collect::<Vec<_>>();
+
+        let outputs = self.session.run(input_values)?;
 
         let lm_logits =
             ort_tensor_to_tch(&outputs[*self.name_mapping.output_names.get("logits").unwrap()])?;

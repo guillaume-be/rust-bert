@@ -499,7 +499,11 @@ impl HFTokenizer {
     pub fn decode(&self, token_ids: &[i64], skip_special_tokens: bool) -> String {
         self.tokenizer
             .decode(
-                token_ids.iter().map(|token_id| *token_id as u32).collect(),
+                token_ids
+                    .iter()
+                    .map(|token_id| *token_id as u32)
+                    .collect::<Vec<u32>>()
+                    .as_slice(),
                 skip_special_tokens,
             )
             .unwrap()
@@ -524,7 +528,7 @@ impl HFTokenizer {
             .map(|token_id| {
                 self.tokenizer
                     .id_to_token(*token_id)
-                    .unwrap_or(self.tokenizer.decode(vec![*token_id], false).unwrap())
+                    .unwrap_or(self.tokenizer.decode(&[*token_id], false).unwrap())
             })
             .collect();
         let words = vec![None::<u32>; ids.len()];
