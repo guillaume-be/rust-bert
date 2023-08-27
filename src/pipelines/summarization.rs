@@ -336,7 +336,7 @@ impl SummarizationOption {
     /// Interface method to generate() of the particular models.
     pub fn generate<S>(&self, prompt_texts: Option<&[S]>) -> Vec<String>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         match *self {
             Self::Bart(ref model) => model
@@ -504,7 +504,7 @@ impl SummarizationModel {
     /// (New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
     pub fn summarize<S>(&self, texts: &[S]) -> Vec<String>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         match &self.prefix {
             None => self.model.generate(Some(texts)),

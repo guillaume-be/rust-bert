@@ -220,7 +220,7 @@ impl<'a> KeywordExtractionModel<'a> {
     /// ```
     pub fn predict<S>(&self, inputs: &[S]) -> Result<Vec<Vec<Keyword>>, RustBertError>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let words = self.tokenizer.tokenize_list(inputs, self.ngram_range);
         let (flat_word_list, document_boundaries) =
