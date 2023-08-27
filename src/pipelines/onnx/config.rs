@@ -87,10 +87,10 @@ impl ONNXEnvironmentConfig {
             session_builder = session_builder.with_memory_pattern(enable_memory_pattern)?;
         }
         if let Some(allocator) = &self.allocator {
-            session_builder = session_builder.with_allocator(allocator.clone())?;
+            session_builder = session_builder.with_allocator(*allocator)?;
         }
         if let Some(memory_type) = &self.memory_type {
-            session_builder = session_builder.with_memory_type(memory_type.clone())?;
+            session_builder = session_builder.with_memory_type(*memory_type)?;
         }
         Ok(session_builder)
     }
