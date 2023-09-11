@@ -102,6 +102,7 @@ use crate::albert::AlbertForSequenceClassification;
 use crate::bart::BartForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
 use crate::deberta::DebertaForSequenceClassification;
+use crate::deberta_v2::DebertaV2ForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
@@ -222,6 +223,8 @@ pub enum ZeroShotClassificationOption {
     Bart(BartForSequenceClassification),
     /// DeBERTa for Sequence Classification
     Deberta(DebertaForSequenceClassification),
+    /// DeBERTaV2 for Sequence Classification
+    DebertaV2(DebertaV2ForSequenceClassification),
     /// Bert for Sequence Classification
     Bert(BertForSequenceClassification),
     /// DistilBert for Sequence Classification
@@ -285,6 +288,17 @@ impl ZeroShotClassificationOption {
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
                         "You can only supply a DebertaConfig for DeBERTa!".to_string(),
+                    ))
+                }
+            }
+            ModelType::DebertaV2 => {
+                if let ConfigOption::DebertaV2(config) = model_config {
+                    Ok(Self::DebertaV2(
+                        DebertaV2ForSequenceClassification::new(var_store.root(), config)?,
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DebertaConfig for DeBERTaV2!".to_string(),
                     ))
                 }
             }
@@ -413,6 +427,7 @@ impl ZeroShotClassificationOption {
         match *self {
             Self::Bart(_) => ModelType::Bart,
             Self::Deberta(_) => ModelType::Deberta,
+            Self::DebertaV2(_) => ModelType::DebertaV2,
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
@@ -472,6 +487,19 @@ impl ZeroShotClassificationOption {
                         train,
                     )
                     .expect("Error in DeBERTa forward_t")
+                    .logits
+            }
+            Self::DebertaV2(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .expect("Error in DeBERTaV2 forward_t")
                     .logits
             }
             Self::DistilBert(ref model) => {
