@@ -322,7 +322,7 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Bert(config) = model_config {
+                if let ConfigOption::Roberta(config) = model_config {
                     Ok(Self::Roberta(
                         RobertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
@@ -491,7 +491,7 @@ impl ZeroShotClassificationOption {
                     .forward_t(
                         input_ids,
                         mask,
-                        token_type_ids,
+                        None,
                         position_ids,
                         input_embeds,
                         train,
