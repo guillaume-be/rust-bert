@@ -397,7 +397,7 @@ impl<T: BertEmbedding> BertModel<T> {
         )?;
 
         let extended_attention_mask: Tensor =
-            ((extended_attention_mask.ones_like() - extended_attention_mask) * -10000.0)
+            ((extended_attention_mask.ones_like().bitwise_xor_tensor(&extended_attention_mask)) * -10000.0)
                 .to_kind(embedding_output.kind());
 
         let encoder_extended_attention_mask: Option<Tensor> =
