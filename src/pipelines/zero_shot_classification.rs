@@ -643,7 +643,7 @@ impl ZeroShotClassificationModel {
     /// # Ok(())
     /// # }
     /// ```
-    fn new_with_tokenizer(
+    pub fn new_with_tokenizer(
         config: ZeroShotClassificationConfig,
         tokenizer: TokenizerOption,
     ) -> Result<ZeroShotClassificationModel, RustBertError> {
