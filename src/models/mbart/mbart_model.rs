@@ -450,7 +450,7 @@ impl MBartForConditionalGeneration {
     {
         let p = p.borrow();
 
-        let base_model = MBartModel::new(p.borrow() / "model", config);
+        let base_model = MBartModel::new(p / "model", config);
         let final_logits_bias = p.var(
             "final_logits_bias",
             &[1, config.vocab_size],
