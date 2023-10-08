@@ -865,9 +865,7 @@ impl QuestionAnsweringModel {
                         }
                     }
                     feature_id_start = max_feature_id;
-                    let example_answers = example_top_k_answers_map
-                        .entry(example_id)
-                        .or_insert_with(Vec::new);
+                    let example_answers = example_top_k_answers_map.entry(example_id).or_default();
                     example_answers.extend(answers);
                 }
             });
