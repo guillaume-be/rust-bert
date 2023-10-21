@@ -218,6 +218,7 @@ impl Default for ZeroShotClassificationConfig {
 /// The models are using a classification architecture that should be trained on Natural Language Inference.
 /// The models should output a Tensor of size > 2 in the label dimension, with the first logit corresponding
 /// to contradiction and the last logit corresponding to entailment.
+#[allow(clippy::large_enum_variant)]
 pub enum ZeroShotClassificationOption {
     /// Bart for Sequence Classification
     Bart(BartForSequenceClassification),
