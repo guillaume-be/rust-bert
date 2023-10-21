@@ -336,12 +336,10 @@ impl TranslationModelBuilder {
         ) {
             (Some(ModelType::M2M100), source_languages, target_languages) => {
                 match self.model_size {
-                    Some(value) if value == ModelSize::XLarge => {
-                        model_fetchers::get_m2m100_xlarge_resources(
-                            source_languages.as_ref(),
-                            target_languages.as_ref(),
-                        )?
-                    }
+                    Some(ModelSize::XLarge) => model_fetchers::get_m2m100_xlarge_resources(
+                        source_languages.as_ref(),
+                        target_languages.as_ref(),
+                    )?,
                     _ => model_fetchers::get_m2m100_large_resources(
                         source_languages.as_ref(),
                         target_languages.as_ref(),
@@ -447,7 +445,7 @@ mod model_fetchers {
         Ok(match get_marian_model(source_languages, target_languages) {
             Ok(marian_resources) => marian_resources,
             Err(_) => match model_size {
-                Some(value) if value == &ModelSize::XLarge => {
+                Some(ModelSize::XLarge) => {
                     get_m2m100_xlarge_resources(source_languages, target_languages)?
                 }
                 _ => get_m2m100_large_resources(source_languages, target_languages)?,
