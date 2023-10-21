@@ -322,13 +322,13 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Bert(config) = model_config {
+                if let ConfigOption::Roberta(config) = model_config {
                     Ok(Self::Roberta(
                         RobertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
-                        "You can only supply a BertConfig for Roberta!".to_string(),
+                        "You can only supply a RobertaConfig for Roberta!".to_string(),
                     ))
                 }
             }
