@@ -491,7 +491,7 @@ impl ZeroShotClassificationOption {
                     .forward_t(
                         input_ids,
                         mask,
-                        None,
+                        token_type_ids,
                         position_ids,
                         input_embeds,
                         train,
