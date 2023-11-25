@@ -191,15 +191,15 @@ impl T5Attention {
 
         let q: Tensor = self.shape(hidden_states.as_ref().apply(&self.query), bs);
 
-        let (mut k, mut v) = if key_value_states.is_none() {
+        let (mut k, mut v) = if let Some(key_value_states_value) = key_value_states {
             (
-                self.shape(hidden_states.apply(&self.key), bs),
-                self.shape(hidden_states.apply(&self.value), bs),
+                self.shape(key_value_states_value.apply(&self.key), bs),
+                self.shape(key_value_states_value.apply(&self.value), bs),
             )
         } else {
             (
-                self.shape(key_value_states.as_ref().unwrap().apply(&self.key), bs),
-                self.shape(key_value_states.as_ref().unwrap().apply(&self.value), bs),
+                self.shape(hidden_states.apply(&self.key), bs),
+                self.shape(hidden_states.apply(&self.value), bs),
             )
         };
 

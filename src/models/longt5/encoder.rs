@@ -288,8 +288,8 @@ impl LongT5Stack {
 
         let (batch_size, sequence_length) = (input_shape[0], input_shape[1]);
 
-        let mask_seq_length = if old_layer_states.is_some() {
-            if old_layer_states.as_ref().unwrap()[0].0.is_some() {
+        let mask_seq_length = if let Some(old_layer_states_value) = &old_layer_states {
+            if old_layer_states_value[0].0.is_some() {
                 old_layer_states.as_ref().unwrap()[0]
                     .0
                     .as_ref()
