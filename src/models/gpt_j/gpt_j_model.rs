@@ -625,7 +625,12 @@ impl GptJGenerator {
         if config.preload_on_cpu && device != Device::Cpu {
             var_store.set_device(Device::Cpu);
         }
-        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(
+            &generate_config.model_resource,
+            &mut var_store,
+            generate_config.kind,
+            device,
+        )?;
         if device != Device::Cpu {
             var_store.set_device(device);
         }

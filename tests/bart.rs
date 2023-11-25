@@ -2,7 +2,7 @@ use rust_bert::bart::{
     BartConfig, BartConfigResources, BartMergesResources, BartModel, BartModelResources,
     BartVocabResources,
 };
-use rust_bert::pipelines::common::ModelResource;
+use rust_bert::pipelines::common::{cast_var_store, ModelResource};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::pipelines::zero_shot_classification::{
     ZeroShotClassificationConfig, ZeroShotClassificationModel,
@@ -44,6 +44,7 @@ fn bart_lm_model() -> anyhow::Result<()> {
     let config = BartConfig::from_file(config_path);
     let bart_model = BartModel::new(&vs.root() / "model", &config);
     vs.load(weights_path)?;
+    cast_var_store(&mut vs, None, device);
 
     //    Define input
     let input = ["One two three four"];

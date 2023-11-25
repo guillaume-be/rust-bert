@@ -60,6 +60,7 @@ use std::convert::TryFrom;
 use std::fmt::Debug;
 
 use std::path::{Path, PathBuf};
+use tch::nn::VarStore;
 use tch::{Device, Kind, Tensor};
 
 #[cfg(feature = "onnx")]
@@ -2346,5 +2347,13 @@ impl TokenizerOption {
             #[cfg(feature = "hf-tokenizers")]
             Self::HFTokenizer(ref mut tokenizer) => tokenizer.add_tokens(tokens),
         }
+    }
+}
+
+pub fn cast_var_store(varstore: &mut VarStore, kind: Option<Kind>, device: Device) {
+    match (kind, device) {
+        (Some(kind), _) => varstore.set_kind(kind),
+        (None, Device::Cpu) => varstore.set_kind(Kind::Float),
+        (None, _) => {}
     }
 }

@@ -35,7 +35,7 @@ fn albert_masked_lm() -> anyhow::Result<()> {
         AlbertTokenizer::from_file(vocab_path.to_str().unwrap(), true, false)?;
     let config = AlbertConfig::from_file(config_path);
     let albert_model = AlbertForMaskedLM::new(vs.root(), &config);
-    load_weights(&weights_resource, &mut vs)?;
+    load_weights(&weights_resource, &mut vs, None, device)?;
 
     //    Define input
     let input = [

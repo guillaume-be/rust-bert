@@ -761,7 +761,12 @@ impl MarianGenerator {
 
         let config = BartConfig::from_file(config_path);
         let model = MarianForConditionalGeneration::new(var_store.root(), &config);
-        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(
+            &generate_config.model_resource,
+            &mut var_store,
+            generate_config.kind,
+            device,
+        )?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
         let eos_token_ids = Some(match config.eos_token_id {
