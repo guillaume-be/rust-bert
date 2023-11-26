@@ -30,6 +30,7 @@ use std::ops::DerefMut;
 use std::path::PathBuf;
 use std::sync::RwLockWriteGuard;
 use tch::nn::VarStore;
+use tch::{Device, Kind};
 
 pub enum Resource<'a> {
     PathBuf(PathBuf),
@@ -84,17 +85,19 @@ impl<T: ResourceProvider + ?Sized> ResourceProvider for Box<T> {
 pub fn load_weights(
     rp: &(impl ResourceProvider + ?Sized),
     vs: &mut VarStore,
+    kind: Option<Kind>,
+    device: Device,
 ) -> Result<(), RustBertError> {
     match rp.get_resource()? {
-        Resource::Buffer(mut data) => {
-            vs.load_from_stream(std::io::Cursor::new(data.deref_mut()))?;
-            Ok(())
-        }
-        Resource::PathBuf(path) => Ok(vs.load(path)?),
-    }
+        Resource::Buffer(mut data) => vs.load_from_stream(std::io::Cursor::new(data.deref_mut())),
+        Resource::PathBuf(path) => vs.load(path),
+    }?;
+    cast_var_store(vs, kind, device);
+    Ok(())
 }
 
 #[cfg(feature = "remote")]
 mod remote;
+use crate::pipelines::common::cast_var_store;
 #[cfg(feature = "remote")]
 pub use remote::RemoteResource;

@@ -1560,7 +1560,12 @@ impl XLNetGenerator {
 
         let config = XLNetConfig::from_file(config_path);
         let model = XLNetLMHeadModel::new(var_store.root(), &config);
-        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(
+            &generate_config.model_resource,
+            &mut var_store,
+            generate_config.kind,
+            device,
+        )?;
 
         let bos_token_id = Some(config.bos_token_id);
         let eos_token_ids = Some(vec![config.eos_token_id]);

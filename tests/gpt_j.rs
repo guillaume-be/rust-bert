@@ -3,12 +3,12 @@ use rust_bert::gpt_j::{
     GptJVocabResources,
 };
 use rust_bert::pipelines::generation_utils::Cache;
-use rust_bert::resources::{RemoteResource, ResourceProvider};
+use rust_bert::resources::{load_weights, RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer};
 use rust_tokenizers::vocab::Vocab;
 use std::convert::TryFrom;
-use tch::{nn, Device, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 /// Equivalent Python code:
 ///
@@ -67,14 +67,15 @@ fn gpt_j_correctness() -> anyhow::Result<()> {
 
     let mut vs = nn::VarStore::new(device);
     let config_path = config_resource.get_local_path()?;
-    let weights_path = model_resource.get_local_path()?;
-    let mut config = GptJConfig::from_file(config_path);
-    config.use_float16 = matches!(device, Device::Cuda(_));
+    let config = GptJConfig::from_file(config_path);
     let model = GptJLMHeadModel::new(vs.root(), &config);
-    vs.load(weights_path)?;
+    let kind = match device {
+        Device::Cpu => None,
+        _ => Some(Kind::Half),
+    };
+    load_weights(&model_resource, &mut vs, kind, device)?;
 
     // Tokenize prompts
-
     let prompts = [
         "It was a very nice and sunny",
         "It was a gloom winter night, and",

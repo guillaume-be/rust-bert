@@ -106,7 +106,9 @@ use crate::deberta_v2::DebertaV2ForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
-use crate::pipelines::common::{ConfigOption, ModelResource, ModelType, TokenizerOption};
+use crate::pipelines::common::{
+    cast_var_store, ConfigOption, ModelResource, ModelType, TokenizerOption,
+};
 use crate::pipelines::sequence_classification::Label;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
@@ -147,6 +149,8 @@ pub struct ZeroShotClassificationConfig {
     pub add_prefix_space: Option<bool>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 impl ZeroShotClassificationConfig {
@@ -184,6 +188,7 @@ impl ZeroShotClassificationConfig {
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
             device: Device::cuda_if_available(),
+            kind: None,
         }
     }
 }
@@ -210,6 +215,7 @@ impl Default for ZeroShotClassificationConfig {
             strip_accents: None,
             add_prefix_space: None,
             device: Device::cuda_if_available(),
+            kind: None,
         }
     }
 }
@@ -400,6 +406,7 @@ impl ZeroShotClassificationOption {
             ))),
         }?;
         var_store.load(weights_path)?;
+        cast_var_store(&mut var_store, config.kind, device);
         Ok(model)
     }
 

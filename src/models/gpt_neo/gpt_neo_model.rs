@@ -672,7 +672,12 @@ impl GptNeoGenerator {
         let mut var_store = nn::VarStore::new(device);
         let config = GptNeoConfig::from_file(config_path);
         let model = GptNeoForCausalLM::new(var_store.root(), &config)?;
-        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(
+            &generate_config.model_resource,
+            &mut var_store,
+            generate_config.kind,
+            device,
+        )?;
 
         let bos_token_id = tokenizer.get_bos_id();
         let eos_token_ids = tokenizer.get_eos_id().map(|id| vec![id]);

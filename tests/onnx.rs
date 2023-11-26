@@ -234,15 +234,15 @@ mod tests {
             ModelType::M2M100,
             ModelResource::ONNX(ONNXModelResources {
                 encoder_resource: Some(Box::new(RemoteResource::new(
-                    "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
+                    "https://huggingface.co/optimum/m2m100_418M/resolve/e775f50e63b178d82b8d736fc43fcf5ef15d2f6c/encoder_model.onnx",
                     "onnx-m2m100_418M",
                 ))),
                 decoder_resource: Some(Box::new(RemoteResource::new(
-                    "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
+                    "https://huggingface.co/optimum/m2m100_418M/resolve/e775f50e63b178d82b8d736fc43fcf5ef15d2f6c/decoder_model.onnx",
                     "onnx-m2m100_418M",
                 ))),
                 decoder_with_past_resource: Some(Box::new(RemoteResource::new(
-                    "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
+                    "https://huggingface.co/optimum/m2m100_418M/resolve/e775f50e63b178d82b8d736fc43fcf5ef15d2f6c/decoder_with_past_model.onnx",
                     "onnx-m2m100_418M",
                 ))),
             }),

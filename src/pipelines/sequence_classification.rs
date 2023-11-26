@@ -68,7 +68,7 @@ use crate::fnet::FNetForSequenceClassification;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
 use crate::pipelines::common::{
-    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
+    cast_var_store, get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
 };
 use crate::reformer::ReformerForSequenceClassification;
 use crate::resources::ResourceProvider;
@@ -123,6 +123,8 @@ pub struct SequenceClassificationConfig {
     pub add_prefix_space: Option<bool>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 impl SequenceClassificationConfig {
@@ -160,6 +162,7 @@ impl SequenceClassificationConfig {
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
             device: Device::cuda_if_available(),
+            kind: None,
         }
     }
 }
@@ -392,6 +395,7 @@ impl SequenceClassificationOption {
             ))),
         }?;
         var_store.load(weights_path)?;
+        cast_var_store(&mut var_store, config.kind, device);
         Ok(model)
     }
 

@@ -67,7 +67,7 @@
 //! ```
 
 use tch::kind::Kind::Int64;
-use tch::{no_grad, Device, Tensor};
+use tch::{no_grad, Device, Kind, Tensor};
 
 use crate::bart::LayerState as BartLayerState;
 use crate::common::resources::ResourceProvider;
@@ -136,6 +136,8 @@ pub struct GenerateConfig {
     pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 #[cfg(feature = "remote")]
@@ -166,6 +168,7 @@ impl Default for GenerateConfig {
             num_beam_groups: None,
             diversity_penalty: None,
             device: Device::cuda_if_available(),
+            kind: None,
         }
     }
 }

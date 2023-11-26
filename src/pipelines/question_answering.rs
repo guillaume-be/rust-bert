@@ -52,7 +52,7 @@ use crate::fnet::FNetForQuestionAnswering;
 use crate::longformer::LongformerForQuestionAnswering;
 use crate::mobilebert::MobileBertForQuestionAnswering;
 use crate::pipelines::common::{
-    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
+    cast_var_store, get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
 };
 use crate::reformer::ReformerForQuestionAnswering;
 use crate::resources::ResourceProvider;
@@ -158,6 +158,8 @@ pub struct QuestionAnsweringConfig {
     pub max_query_length: usize,
     /// Maximum length for the answer
     pub max_answer_length: usize,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 impl QuestionAnsweringConfig {
@@ -199,6 +201,7 @@ impl QuestionAnsweringConfig {
             doc_stride: 128,
             max_query_length: 64,
             max_answer_length: 15,
+            kind: None,
         }
     }
 
@@ -248,6 +251,7 @@ impl QuestionAnsweringConfig {
             doc_stride: doc_stride.into().unwrap_or(128),
             max_query_length: max_query_length.into().unwrap_or(64),
             max_answer_length: max_answer_length.into().unwrap_or(15),
+            kind: None,
         }
     }
 }
@@ -267,6 +271,7 @@ impl Default for QuestionAnsweringConfig {
             )),
             merges_resource: None,
             device: Device::cuda_if_available(),
+            kind: None,
             model_type: ModelType::DistilBert,
             lower_case: false,
             add_prefix_space: None,
@@ -474,6 +479,7 @@ impl QuestionAnsweringOption {
             ))),
         }?;
         var_store.load(weights_path)?;
+        cast_var_store(&mut var_store, config.kind, device);
         Ok(model)
     }
 

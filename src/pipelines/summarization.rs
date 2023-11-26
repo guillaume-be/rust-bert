@@ -62,7 +62,7 @@
 //! # ;
 //! ```
 
-use tch::Device;
+use tch::{Device, Kind};
 
 use crate::bart::BartGenerator;
 use crate::common::error::RustBertError;
@@ -126,6 +126,8 @@ pub struct SummarizationConfig {
     pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 impl SummarizationConfig {
@@ -170,6 +172,7 @@ impl SummarizationConfig {
             num_beam_groups: None,
             diversity_penalty: None,
             device: Device::cuda_if_available(),
+            kind: None,
         }
     }
 }
@@ -214,6 +217,7 @@ impl From<SummarizationConfig> for GenerateConfig {
             num_beam_groups: config.num_beam_groups,
             diversity_penalty: config.diversity_penalty,
             device: config.device,
+            kind: config.kind,
         }
     }
 }
