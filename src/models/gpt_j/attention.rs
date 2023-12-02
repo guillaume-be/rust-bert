@@ -68,11 +68,16 @@ impl GptJAttention {
         let p = p.borrow();
 
         let max_positions = config.n_positions;
-        let bias = Tensor::ones([max_positions, max_positions], (Kind::Uint8, p.device()))
+        let bias_value = Tensor::ones([max_positions, max_positions], (Kind::Uint8, p.device()))
             .tril(0)
             .view([1, 1, max_positions, max_positions])
             .requires_grad_(false);
-        let bias = p.var_copy("bias", &bias);
+        let mut bias = p
+            .f_ones_no_train("bias", &[1, 1, max_positions, max_positions])
+            .unwrap()
+            .to_kind(Kind::Uint8)
+            .to_device(p.device());
+        bias.copy_(&bias_value);
 
         let attn_pdrop = config.attn_pdrop.unwrap_or(0.1);
         let resid_pdrop = config.resid_pdrop.unwrap_or(0.1);
@@ -95,21 +100,9 @@ impl GptJAttention {
             ..Default::default()
         };
         let k_proj = nn::linear(p / "k_proj", config.n_embd, config.n_embd, linear_config);
-        if config.use_float16 {
-            (p / "k_proj").half();
-        }
         let v_proj = nn::linear(p / "v_proj", config.n_embd, config.n_embd, linear_config);
-        if config.use_float16 {
-            (p / "v_proj").half();
-        }
         let q_proj = nn::linear(p / "q_proj", config.n_embd, config.n_embd, linear_config);
-        if config.use_float16 {
-            (p / "q_proj").half();
-        }
         let out_proj = nn::linear(p / "out_proj", config.n_embd, config.n_embd, linear_config);
-        if config.use_float16 {
-            (p / "out_proj").half();
-        }
 
         GptJAttention {
             bias,

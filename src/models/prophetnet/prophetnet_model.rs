@@ -919,7 +919,12 @@ impl ProphetNetConditionalGenerator {
         let mut var_store = nn::VarStore::new(device);
         let config = ProphetNetConfig::from_file(config_path);
         let model = ProphetNetForConditionalGeneration::new(var_store.root(), &config)?;
-        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(
+            &generate_config.model_resource,
+            &mut var_store,
+            generate_config.kind,
+            device,
+        )?;
 
         let bos_token_id = Some(config.bos_token_id);
         let eos_token_ids = Some(vec![config.eos_token_id]);

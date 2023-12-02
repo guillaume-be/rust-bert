@@ -595,7 +595,12 @@ impl LongT5Generator {
 
         let config = LongT5Config::from_file(config_path);
         let model = LongT5ForConditionalGeneration::new(var_store.root(), &config);
-        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(
+            &generate_config.model_resource,
+            &mut var_store,
+            generate_config.kind,
+            device,
+        )?;
 
         let bos_token_id = config.bos_token_id;
         let eos_token_ids = Some(match config.eos_token_id {

@@ -138,6 +138,7 @@ impl Default for POSConfig {
                 strip_accents: Some(true),
                 add_prefix_space: None,
                 device: Device::cuda_if_available(),
+                kind: None,
                 label_aggregation_function: LabelAggregationOption::First,
                 batch_size: 64,
             },

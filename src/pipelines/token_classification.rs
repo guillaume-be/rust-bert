@@ -122,7 +122,7 @@ use crate::fnet::FNetForTokenClassification;
 use crate::longformer::LongformerForTokenClassification;
 use crate::mobilebert::MobileBertForTokenClassification;
 use crate::pipelines::common::{
-    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
+    cast_var_store, get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
 };
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForTokenClassification;
@@ -242,6 +242,8 @@ pub struct TokenClassificationConfig {
     pub add_prefix_space: Option<bool>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
     /// Sub-tokens aggregation method (default: `LabelAggregationOption::First`)
     pub label_aggregation_function: LabelAggregationOption,
     /// Batch size for predictions
@@ -284,6 +286,7 @@ impl TokenClassificationConfig {
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
             device: Device::cuda_if_available(),
+            kind: None,
             label_aggregation_function,
             batch_size: 64,
         }
@@ -506,6 +509,7 @@ impl TokenClassificationOption {
             ))),
         }?;
         var_store.load(weights_path)?;
+        cast_var_store(&mut var_store, config.kind, device);
         Ok(model)
     }
 

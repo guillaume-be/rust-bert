@@ -1368,8 +1368,8 @@ impl ReformerAttention {
         let new_layer_state = if self.use_past {
             let prev_buckets = if let Some(buckets_value) = &buckets {
                 if layer_state.is_none() | {
-                    if layer_state.is_some() {
-                        layer_state.as_ref().unwrap().prev_buckets.is_none()
+                    if let Some(layer_state_value) = &layer_state {
+                        layer_state_value.prev_buckets.is_none()
                     } else {
                         false
                     }

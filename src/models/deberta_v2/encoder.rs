@@ -235,7 +235,7 @@ impl DebertaV2Encoder {
                         .unsqueeze(-1)
                         .to_kind(Kind::Uint8)
             }
-            value if value == 3 => attention_mask.unsqueeze(1),
+            3 => attention_mask.unsqueeze(1),
             _ => attention_mask.shallow_clone(),
         }
     }

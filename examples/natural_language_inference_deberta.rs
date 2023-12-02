@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
     )?;
     let config = DebertaConfig::from_file(config_path);
     let model = DebertaForSequenceClassification::new(vs.root(), &config)?;
-    load_weights(&model_resource, &mut vs)?;
+    load_weights(&model_resource, &mut vs, None, device)?;
 
     //    Define input
     let input = [("I love you.", "I like you.")];

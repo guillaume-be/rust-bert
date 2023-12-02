@@ -52,7 +52,7 @@ use crate::fnet::FNetForQuestionAnswering;
 use crate::longformer::LongformerForQuestionAnswering;
 use crate::mobilebert::MobileBertForQuestionAnswering;
 use crate::pipelines::common::{
-    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
+    cast_var_store, get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
 };
 use crate::reformer::ReformerForQuestionAnswering;
 use crate::resources::ResourceProvider;
@@ -64,7 +64,6 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use tch::kind::Kind::Float;
 use tch::nn::VarStore;
 use tch::{no_grad, Device, Kind, Tensor};
 
@@ -72,6 +71,7 @@ use crate::deberta_v2::DebertaV2ForQuestionAnswering;
 #[cfg(feature = "onnx")]
 use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
 
+use crate::common::kind::get_min;
 #[cfg(feature = "remote")]
 use crate::{
     distilbert::{DistilBertConfigResources, DistilBertModelResources, DistilBertVocabResources},
@@ -158,6 +158,8 @@ pub struct QuestionAnsweringConfig {
     pub max_query_length: usize,
     /// Maximum length for the answer
     pub max_answer_length: usize,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 impl QuestionAnsweringConfig {
@@ -199,6 +201,7 @@ impl QuestionAnsweringConfig {
             doc_stride: 128,
             max_query_length: 64,
             max_answer_length: 15,
+            kind: None,
         }
     }
 
@@ -248,6 +251,7 @@ impl QuestionAnsweringConfig {
             doc_stride: doc_stride.into().unwrap_or(128),
             max_query_length: max_query_length.into().unwrap_or(64),
             max_answer_length: max_answer_length.into().unwrap_or(15),
+            kind: None,
         }
     }
 }
@@ -267,6 +271,7 @@ impl Default for QuestionAnsweringConfig {
             )),
             merges_resource: None,
             device: Device::cuda_if_available(),
+            kind: None,
             model_type: ModelType::DistilBert,
             lower_case: false,
             add_prefix_space: None,
@@ -474,6 +479,7 @@ impl QuestionAnsweringOption {
             ))),
         }?;
         var_store.load(weights_path)?;
+        cast_var_store(&mut var_store, config.kind, device);
         Ok(model)
     }
 
@@ -830,11 +836,15 @@ impl QuestionAnsweringModel {
                             .to_device(start_logits.device())
                             .eq(0);
 
-                        let start = start_logits.get(feature_idx).masked_fill(&p_mask, -10000);
-                        let end = end_logits.get(feature_idx).masked_fill(&p_mask, -10000);
+                        let start = start_logits
+                            .get(feature_idx)
+                            .masked_fill(&p_mask, get_min(start_logits.kind()).unwrap());
+                        let end = end_logits
+                            .get(feature_idx)
+                            .masked_fill(&p_mask, get_min(start_logits.kind()).unwrap());
 
-                        let start = start.exp() / start.exp().sum(Float);
-                        let end = end.exp() / end.exp().sum(Float);
+                        let start = start.softmax(0, start.kind());
+                        let end = end.softmax(0, end.kind());
 
                         let (starts, ends, scores) = self.decode(&start, &end, top_k);
 
@@ -861,9 +871,7 @@ impl QuestionAnsweringModel {
                         }
                     }
                     feature_id_start = max_feature_id;
-                    let example_answers = example_top_k_answers_map
-                        .entry(example_id)
-                        .or_insert_with(Vec::new);
+                    let example_answers = example_top_k_answers_map.entry(example_id).or_default();
                     example_answers.extend(answers);
                 }
             });
@@ -928,6 +936,20 @@ impl QuestionAnsweringModel {
             masks: encoded_query.masks,
         };
 
+        let sequence_added_tokens = self
+            .tokenizer
+            .build_input_with_special_tokens(
+                TokenIdsWithOffsets {
+                    ids: vec![],
+                    offsets: vec![],
+                    reference_offsets: vec![],
+                    masks: vec![],
+                },
+                None,
+            )
+            .token_ids
+            .len();
+
         let sequence_pair_added_tokens = self
             .tokenizer
             .build_input_with_special_tokens(
@@ -975,7 +997,10 @@ impl QuestionAnsweringModel {
             let encoded_span = self
                 .tokenizer
                 .build_input_with_special_tokens(encoded_query.clone(), Some(sub_encoded_context));
-            let p_mask = self.get_mask(&encoded_span);
+            let p_mask = self.get_mask(
+                &encoded_span,
+                encoded_query.ids.len() + sequence_added_tokens,
+            );
             let qa_feature = QaFeature {
                 input_ids: encoded_span.token_ids,
                 offsets: encoded_span.token_offsets,
@@ -1038,7 +1063,7 @@ impl QuestionAnsweringModel {
         (input_ids, attention_masks, token_type_ids)
     }
 
-    fn get_mask(&self, encoded_span: &TokenizedInput) -> Vec<i8> {
+    fn get_mask(&self, encoded_span: &TokenizedInput, question_length: usize) -> Vec<i8> {
         let sep_indices: Vec<usize> = encoded_span
             .token_ids
             .iter()
@@ -1047,12 +1072,9 @@ impl QuestionAnsweringModel {
             .map(|(position, _)| position)
             .collect();
 
-        let mut p_mask: Vec<i8> = encoded_span
-            .segment_ids
-            .iter()
-            .map(|v| min(v, &1i8))
-            .map(|&v| 1i8 - v)
-            .collect();
+        let mut p_mask: Vec<i8> = Vec::with_capacity(encoded_span.token_ids.len());
+        p_mask.extend(vec![1; question_length]);
+        p_mask.extend(vec![0; encoded_span.token_ids.len() - question_length]);
         for sep_position in sep_indices {
             p_mask[sep_position] = 1;
         }

@@ -450,7 +450,7 @@ impl MBartForConditionalGeneration {
     {
         let p = p.borrow();
 
-        let base_model = MBartModel::new(p.borrow() / "model", config);
+        let base_model = MBartModel::new(p / "model", config);
         let final_logits_bias = p.var(
             "final_logits_bias",
             &[1, config.vocab_size],
@@ -650,7 +650,7 @@ impl MBartForSequenceClassification {
     /// # let device = Device::Cpu;
     /// # let vs = nn::VarStore::new(device);
     /// # let config = MBartConfig::from_file(config_path);
-    /// # let mbart_model: MBartForSequenceClassification = MBartForSequenceClassification::new(&vs.root(), &config).unwrap();;
+    /// # let mbart_model: MBartForSequenceClassification = MBartForSequenceClassification::new(&vs.root(), &config).unwrap();
     ///  let (batch_size, source_sequence_length, target_sequence_length) = (64, 128, 56);
     ///  let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     ///  let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
@@ -800,7 +800,12 @@ impl MBartGenerator {
 
         let config = MBartConfig::from_file(config_path);
         let model = MBartForConditionalGeneration::new(var_store.root(), &config);
-        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(
+            &generate_config.model_resource,
+            &mut var_store,
+            generate_config.kind,
+            device,
+        )?;
 
         let bos_token_id = Some(config.bos_token_id.unwrap_or(0));
         let eos_token_ids = Some(match config.eos_token_id {

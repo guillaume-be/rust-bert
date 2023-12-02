@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use tch::Device;
+use tch::{Device, Kind};
 
 use crate::common::error::RustBertError;
 use crate::m2m_100::M2M100Generator;
@@ -978,6 +978,8 @@ pub struct TranslationConfig {
     pub num_beam_groups: Option<i64>,
     /// Diversity penalty for diverse beam search. High values will enforce more difference between beam groups (default: 5.5)
     pub diversity_penalty: Option<f64>,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 impl TranslationConfig {
@@ -1065,6 +1067,7 @@ impl TranslationConfig {
             num_return_sequences: 1,
             num_beam_groups: None,
             diversity_penalty: None,
+            kind: None,
         }
     }
 }
@@ -1092,6 +1095,7 @@ impl From<TranslationConfig> for GenerateConfig {
             num_beam_groups: config.num_beam_groups,
             diversity_penalty: config.diversity_penalty,
             device: config.device,
+            kind: config.kind,
         }
     }
 }

@@ -37,6 +37,7 @@ fn create_text_generation_model() -> TextGenerationModel {
         diversity_penalty: None,
         num_return_sequences: 5,
         device: Device::cuda_if_available(),
+        kind: None,
     };
     TextGenerationModel::new(config).unwrap()
 }

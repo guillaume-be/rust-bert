@@ -131,8 +131,6 @@ pub struct GptJConfig {
     pub rotary_dim: Option<i64>,
     pub vocab_size: i64,
     pub scale_attn_weights: Option<bool>,
-    #[serde(default = "default_use_float16")]
-    pub use_float16: bool,
     #[serde(default = "default_preload_on_cpu")]
     pub preload_on_cpu: bool,
     pub decoder_start_token_id: Option<i64>,
@@ -164,17 +162,12 @@ impl Default for GptJConfig {
             rotary_dim: Some(64),
             vocab_size: 50400,
             scale_attn_weights: Some(true),
-            use_float16: default_use_float16(),
             preload_on_cpu: default_preload_on_cpu(),
             decoder_start_token_id: None,
             forced_bos_token_id: None,
             forced_eos_token_id: None,
         }
     }
-}
-
-fn default_use_float16() -> bool {
-    true
 }
 
 fn default_preload_on_cpu() -> bool {
@@ -233,9 +226,6 @@ impl GptJModel {
             config.n_embd,
             Default::default(),
         );
-        if config.use_float16 {
-            (&(&p / "wte") / "weight").half()
-        };
 
         let embd_pdrop = config.embd_pdrop.unwrap_or(0.1);
         let drop = Dropout::new(embd_pdrop);
@@ -245,9 +235,6 @@ impl GptJModel {
             ..Default::default()
         };
         let ln_f = nn::layer_norm(&p / "ln_f", vec![config.n_embd], layer_norm_config);
-        if config.use_float16 {
-            (&p / "ln_f").half()
-        };
 
         let mut h: Vec<GptJBlock> = vec![];
         let h_path = &p / "h";
@@ -475,9 +462,6 @@ impl GptJLMHeadModel {
             config.vocab_size,
             Default::default(),
         );
-        if config.use_float16 {
-            (p / "lm_head").half();
-        }
 
         GptJLMHeadModel {
             transformer,
@@ -625,7 +609,12 @@ impl GptJGenerator {
         if config.preload_on_cpu && device != Device::Cpu {
             var_store.set_device(Device::Cpu);
         }
-        crate::resources::load_weights(&generate_config.model_resource, &mut var_store)?;
+        crate::resources::load_weights(
+            &generate_config.model_resource,
+            &mut var_store,
+            generate_config.kind,
+            device,
+        )?;
         if device != Device::Cpu {
             var_store.set_device(device);
         }

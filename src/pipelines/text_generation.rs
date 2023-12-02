@@ -31,7 +31,7 @@
 //!
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
 //! The dependencies will be downloaded to the user's home directory, e.g. under ~/.cache/.rustbert/gpt2
-use tch::Device;
+use tch::{Device, Kind};
 
 use crate::common::error::RustBertError;
 use crate::gpt2::GPT2Generator;
@@ -97,6 +97,8 @@ pub struct TextGenerationConfig {
     pub diversity_penalty: Option<f64>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 impl TextGenerationConfig {
@@ -141,6 +143,7 @@ impl TextGenerationConfig {
             num_beam_groups: None,
             diversity_penalty: None,
             device: Device::cuda_if_available(),
+            kind: None,
         }
     }
 }
@@ -185,6 +188,7 @@ impl From<TextGenerationConfig> for GenerateConfig {
             num_beam_groups: config.num_beam_groups,
             diversity_penalty: config.diversity_penalty,
             device: config.device,
+            kind: config.kind,
         }
     }
 }

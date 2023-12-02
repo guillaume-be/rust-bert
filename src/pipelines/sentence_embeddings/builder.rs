@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use serde::Deserialize;
-use tch::Device;
+use tch::{Device, Kind};
 
 use crate::pipelines::common::ModelType;
 use crate::pipelines::sentence_embeddings::{
@@ -21,12 +21,18 @@ use crate::{
 /// (configuration and weights).
 pub struct SentenceEmbeddingsBuilder<T> {
     device: Device,
+    kind: Option<Kind>,
     inner: T,
 }
 
 impl<T> SentenceEmbeddingsBuilder<T> {
     pub fn with_device(mut self, device: Device) -> Self {
         self.device = device;
+        self
+    }
+
+    pub fn with_kind(mut self, kind: Kind) -> Self {
+        self.kind = Some(kind);
         self
     }
 }
@@ -46,6 +52,7 @@ impl SentenceEmbeddingsBuilder<Local> {
     pub fn local<P: Into<PathBuf>>(model_dir: P) -> Self {
         Self {
             device: Device::cuda_if_available(),
+            kind: None,
             inner: Local {
                 model_dir: model_dir.into(),
             },
@@ -106,6 +113,7 @@ impl SentenceEmbeddingsBuilder<Local> {
             tokenizer_vocab_resource: tokenizer_vocab.into(),
             tokenizer_merges_resource: tokenizer_merges.map(|r| r.into()),
             device: self.device,
+            kind: self.kind,
         };
 
         SentenceEmbeddingsModel::new(config)
@@ -122,6 +130,7 @@ impl SentenceEmbeddingsBuilder<Remote> {
     pub fn remote(model_type: SentenceEmbeddingsModelType) -> Self {
         Self {
             device: Device::cuda_if_available(),
+            kind: None,
             inner: Remote {
                 config: SentenceEmbeddingsConfig::from(model_type),
             },

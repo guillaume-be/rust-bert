@@ -43,18 +43,12 @@ impl GptJMLP {
             intermediate_size,
             Default::default(),
         );
-        if config.use_float16 {
-            (p / "fc_in").half()
-        };
         let fc_out = nn::linear(
             p / "fc_out",
             intermediate_size,
             config.n_embd,
             Default::default(),
         );
-        if config.use_float16 {
-            (p / "fc_out").half()
-        };
 
         let activation = match &config.afn {
             Some(activation_enum) => match activation_enum {
@@ -100,9 +94,6 @@ impl GptJBlock {
             ..Default::default()
         };
         let ln_1 = nn::layer_norm(p / "ln_1", vec![config.n_embd], layer_norm_config);
-        if config.use_float16 {
-            (p / "ln_1").half()
-        };
         let attn = GptJAttention::new(p / "attn", config);
         let mlp = GptJMLP::new(p / "mlp", config);
 

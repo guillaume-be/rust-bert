@@ -52,7 +52,7 @@ use crate::deberta::DebertaForMaskedLM;
 use crate::deberta_v2::DebertaV2ForMaskedLM;
 use crate::fnet::FNetForMaskedLM;
 use crate::pipelines::common::{
-    get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
+    cast_var_store, get_device, ConfigOption, ModelResource, ModelType, TokenizerOption,
 };
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForMaskedLM;
@@ -67,7 +67,7 @@ use crate::{
     resources::RemoteResource,
 };
 use tch::nn::VarStore;
-use tch::{no_grad, Device, Tensor};
+use tch::{no_grad, Device, Kind, Tensor};
 
 #[derive(Debug, Clone)]
 /// Output container for masked language model pipeline.
@@ -103,6 +103,8 @@ pub struct MaskedLanguageConfig {
     pub mask_token: Option<String>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 impl MaskedLanguageConfig {
@@ -143,6 +145,7 @@ impl MaskedLanguageConfig {
             add_prefix_space: add_prefix_space.into(),
             mask_token: mask_token.into(),
             device: Device::cuda_if_available(),
+            kind: None,
         }
     }
 }
@@ -285,6 +288,7 @@ impl MaskedLanguageOption {
             ))),
         }?;
         var_store.load(weights_path)?;
+        cast_var_store(&mut var_store, config.kind, device);
         Ok(model)
     }
 
