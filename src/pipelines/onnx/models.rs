@@ -9,10 +9,9 @@ use crate::pipelines::onnx::encoder::ONNXEncoder;
 use crate::{Config, RustBertError};
 
 use crate::pipelines::onnx::conversion;
-use ort::{Environment, Value};
+use ort::Value;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use tch::{nn, Device, Kind, Tensor};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,7 +79,6 @@ impl ONNXCausalGenerator {
     /// # Example
     ///
     /// ```no_run
-    /// use ort::Environment;
     /// use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
@@ -114,15 +112,12 @@ impl ONNXCausalGenerator {
     ///     ))),
     ///     ..Default::default()
     /// };
-    /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let onnx_causal_generator =
-    ///     ONNXCausalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
-    ///         .unwrap();
+    ///     ONNXCausalGenerator::new(generate_config, onnx_config.as_ref()).unwrap();
     /// ```
     pub fn new(
         generate_config: GenerateConfig,
-        environment: Option<&Arc<Environment>>,
         onnx_config: Option<&ONNXEnvironmentConfig>,
     ) -> Result<Self, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
@@ -141,7 +136,7 @@ impl ONNXCausalGenerator {
             None,
         )?;
 
-        Self::new_with_tokenizer(generate_config, tokenizer, environment, onnx_config)
+        Self::new_with_tokenizer(generate_config, tokenizer, onnx_config)
     }
 
     /// Create a new `ONNXCausalGenerator` from a `GenerateConfig` and `TokenizerOption`.
@@ -156,7 +151,6 @@ impl ONNXCausalGenerator {
     /// # Example
     ///
     /// ```no_run
-    /// use ort::Environment;
     /// use rust_bert::pipelines::common::{
     ///     ModelResource, ModelType, ONNXModelResources, TokenizerOption,
     /// };
@@ -183,7 +177,6 @@ impl ONNXCausalGenerator {
     ///     )),
     ///     ..Default::default()
     /// };
-    /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let lower_case = false;
     /// let strip_accents = None;
@@ -197,18 +190,13 @@ impl ONNXCausalGenerator {
     ///     add_prefix_space,
     /// )
     /// .unwrap();
-    /// let onnx_causal_generator = ONNXCausalGenerator::new_with_tokenizer(
-    ///     generate_config,
-    ///     tokenizer,
-    ///     environment.as_ref(),
-    ///     onnx_config.as_ref(),
-    /// )
-    /// .unwrap();
+    /// let onnx_causal_generator =
+    ///     ONNXCausalGenerator::new_with_tokenizer(generate_config, tokenizer, onnx_config.as_ref())
+    ///         .unwrap();
     /// ```
     pub fn new_with_tokenizer(
         generate_config: GenerateConfig,
         tokenizer: TokenizerOption,
-        environment: Option<&Arc<Environment>>,
         onnx_config: Option<&ONNXEnvironmentConfig>,
     ) -> Result<Self, RustBertError> {
         let config_path = generate_config.config_resource.get_local_path()?;
@@ -231,30 +219,13 @@ impl ONNXCausalGenerator {
         };
         let onnx_config = onnx_config.unwrap_or_else(|| default_onnx_config.as_ref().unwrap());
 
-        let local_environment = if environment.is_none() {
-            Some(onnx_config.get_environment()?)
-        } else {
-            None
-        };
-        let environment = environment.unwrap_or_else(|| local_environment.as_ref().unwrap());
-
         let decoder_without_past = if let Some(model_file) = decoder_without_past_file {
-            Some(ONNXDecoder::new(
-                model_file,
-                true,
-                environment,
-                onnx_config,
-            )?)
+            Some(ONNXDecoder::new(model_file, true, onnx_config)?)
         } else {
             None
         };
         let decoder_with_past = if let Some(model_file) = decoder_with_past_file {
-            Some(ONNXDecoder::new(
-                model_file,
-                true,
-                environment,
-                onnx_config,
-            )?)
+            Some(ONNXDecoder::new(model_file, true, onnx_config)?)
         } else {
             None
         };
@@ -308,7 +279,6 @@ impl ONNXCausalGenerator {
     /// # Example
     ///
     /// ```no_run
-    /// use ort::Environment;
     /// use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
     /// use rust_bert::pipelines::generation_utils::{Cache, GenerateConfig};
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
@@ -344,11 +314,9 @@ impl ONNXCausalGenerator {
     ///     ))),
     ///     ..Default::default()
     /// };
-    /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let onnx_causal_generator =
-    ///     ONNXCausalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
-    ///         .unwrap();
+    ///     ONNXCausalGenerator::new(generate_config, onnx_config.as_ref()).unwrap();
     /// let past = Cache::None;
     /// let (batch_size, sequence_length) = (64, 128);
     /// let device = Device::cuda_if_available();
@@ -588,7 +556,6 @@ impl ONNXConditionalGenerator {
     /// # Example
     ///
     /// ```no_run
-    /// use ort::Environment;
     /// use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
@@ -625,15 +592,13 @@ impl ONNXConditionalGenerator {
     ///         ))),
     ///     ..Default::default()
     /// };
-    /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let onnx_conditional_generator =
-    ///     ONNXConditionalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///     ONNXConditionalGenerator::new(generate_config, onnx_config.as_ref())
     ///         .unwrap();
     /// ```
     pub fn new(
         generate_config: GenerateConfig,
-        environment: Option<&Arc<Environment>>,
         onnx_config: Option<&ONNXEnvironmentConfig>,
     ) -> Result<Self, RustBertError> {
         let vocab_path = generate_config.vocab_resource.get_local_path()?;
@@ -652,7 +617,7 @@ impl ONNXConditionalGenerator {
             None,
         )?;
 
-        Self::new_with_tokenizer(generate_config, tokenizer, environment, onnx_config)
+        Self::new_with_tokenizer(generate_config, tokenizer, onnx_config)
     }
 
     /// Create a new `ONNXConditionalGenerator` from a `GenerateConfig` and `TokenizerOption`.
@@ -667,7 +632,6 @@ impl ONNXConditionalGenerator {
     /// # Example
     ///
     /// ```no_run
-    /// use ort::Environment;
     /// use rust_bert::pipelines::common::{
     ///     ModelResource, ModelType, ONNXModelResources, TokenizerOption,
     /// };
@@ -697,7 +661,6 @@ impl ONNXConditionalGenerator {
     ///         )),
     ///     ..Default::default()
     /// };
-    /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let lower_case = false;
     /// let strip_accents = None;
@@ -714,7 +677,6 @@ impl ONNXConditionalGenerator {
     /// let onnx_conditional_generator = ONNXConditionalGenerator::new_with_tokenizer(
     ///     generate_config,
     ///     tokenizer,
-    ///     environment.as_ref(),
     ///     onnx_config.as_ref(),
     /// )
     /// .unwrap();
@@ -722,7 +684,6 @@ impl ONNXConditionalGenerator {
     pub fn new_with_tokenizer(
         generate_config: GenerateConfig,
         tokenizer: TokenizerOption,
-        environment: Option<&Arc<Environment>>,
         onnx_config: Option<&ONNXEnvironmentConfig>,
     ) -> Result<Self, RustBertError> {
         let config_path = generate_config.config_resource.get_local_path()?;
@@ -746,32 +707,16 @@ impl ONNXConditionalGenerator {
         };
         let onnx_config = onnx_config.unwrap_or_else(|| default_onnx_config.as_ref().unwrap());
 
-        let local_environment = if environment.is_none() {
-            Some(onnx_config.get_environment()?)
-        } else {
-            None
-        };
-        let environment = environment.unwrap_or_else(|| local_environment.as_ref().unwrap());
         let encoder_file = encoder_file.ok_or(RustBertError::InvalidConfigurationError(format!("ONNXConditionalGenerator requires an `encoder_path` to be provided in the `ModelResources`, got {:?}", generate_config.model_resource)))?;
 
-        let encoder = ONNXEncoder::new(encoder_file, environment, onnx_config)?;
+        let encoder = ONNXEncoder::new(encoder_file, onnx_config)?;
         let decoder_without_past = if let Some(model_file) = decoder_without_past_file {
-            Some(ONNXDecoder::new(
-                model_file,
-                true,
-                environment,
-                onnx_config,
-            )?)
+            Some(ONNXDecoder::new(model_file, true, onnx_config)?)
         } else {
             None
         };
         let decoder_with_past = if let Some(model_file) = decoder_with_past_file {
-            Some(ONNXDecoder::new(
-                model_file,
-                true,
-                environment,
-                onnx_config,
-            )?)
+            Some(ONNXDecoder::new(model_file, true, onnx_config)?)
         } else {
             None
         };
@@ -826,7 +771,6 @@ impl ONNXConditionalGenerator {
     /// # Example
     ///
     /// ```no_run
-    /// use ort::Environment;
     /// use rust_bert::pipelines::common::{ModelResource, ModelType, ONNXModelResources};
     /// use rust_bert::pipelines::generation_utils::{Cache, GenerateConfig};
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
@@ -865,10 +809,9 @@ impl ONNXConditionalGenerator {
     ///         ))),
     ///     ..Default::default()
     /// };
-    /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let onnx_conditional_generator =
-    ///     ONNXConditionalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///     ONNXConditionalGenerator::new(generate_config, onnx_config.as_ref())
     ///         .unwrap();
     /// let device = Device::cuda_if_available();
     /// let past = Cache::None;

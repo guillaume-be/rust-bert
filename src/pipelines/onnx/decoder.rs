@@ -7,10 +7,9 @@ use crate::pipelines::onnx::config::{
 use crate::pipelines::onnx::conversion::{array_to_ort, ort_tensor_to_tch, tch_tensor_to_ndarray};
 use crate::pipelines::onnx::models::ONNXLayerCache;
 use crate::RustBertError;
-use ort::{Environment, Session};
+use ort::Session;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tch::Tensor;
 
 pub struct ONNXDecoder {
@@ -23,11 +22,10 @@ impl ONNXDecoder {
     pub fn new(
         model_file: PathBuf,
         use_cache: bool,
-        environment: &Arc<Environment>,
         onnx_config: &ONNXEnvironmentConfig,
     ) -> Result<Self, RustBertError> {
         let session = onnx_config
-            .get_session_builder(environment)?
+            .get_session_builder()?
             .with_model_from_file(model_file)?;
         let name_mapping = get_input_output_mapping(&session);
         Ok(Self {

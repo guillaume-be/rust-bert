@@ -1,10 +1,9 @@
 /// # Configuration for ONNX environment and sessions
 use crate::RustBertError;
-use ort::execution_providers::{CPUExecutionProviderOptions, CUDAExecutionProviderOptions};
 use ort::{
-    AllocatorType, Environment, ExecutionProvider, GraphOptimizationLevel, MemType, SessionBuilder,
+    AllocatorType, CPUExecutionProvider, CUDAExecutionProvider, ExecutionProviderDispatch,
+    GraphOptimizationLevel, MemType, SessionBuilder,
 };
-use std::sync::Arc;
 use tch::Device;
 
 pub(crate) static INPUT_IDS_NAME: &str = "input_ids";
@@ -24,7 +23,7 @@ pub(crate) static END_LOGITS: &str = "end_logits";
 /// See <https://onnxruntime.ai/docs/api/python/api_summary.html#sessionoptions>
 pub struct ONNXEnvironmentConfig {
     pub optimization_level: Option<GraphOptimizationLevel>,
-    pub execution_providers: Option<Vec<ExecutionProvider>>,
+    pub execution_providers: Option<Vec<ExecutionProviderDispatch>>,
     pub num_intra_threads: Option<i16>,
     pub num_inter_threads: Option<i16>,
     pub parallel_execution: Option<bool>,
@@ -38,14 +37,13 @@ impl ONNXEnvironmentConfig {
     /// This helper function maps torch device to ONNXRuntime execution providers
     pub fn from_device(device: Device) -> Self {
         let mut execution_providers = Vec::new();
-        if let Device::Cuda(device) = device {
-            execution_providers.push(ExecutionProvider::CUDA(CUDAExecutionProviderOptions {
-                device_id: device as u32,
-                ..Default::default()
-            }));
+        if let Device::Cuda(device_id) = device {
+            CUDAExecutionProvider::default()
+                .with_device_id(device_id as i32)
+                .build()
         };
-        execution_providers.push(ExecutionProvider::CPU(
-            CPUExecutionProviderOptions::default(),
+        execution_providers.push(ExecutionProviderDispatch::CPU(
+            CPUExecutionProvider::default(),
         ));
         ONNXEnvironmentConfig {
             execution_providers: Some(execution_providers),
@@ -54,11 +52,9 @@ impl ONNXEnvironmentConfig {
     }
 
     ///Build a session builder from an `ONNXEnvironmentConfig`.
-    pub fn get_session_builder(
-        &self,
-        environment: &Arc<Environment>,
-    ) -> Result<SessionBuilder, RustBertError> {
-        let mut session_builder = SessionBuilder::new(environment)?;
+    pub fn get_session_builder(&self) -> Result<SessionBuilder, RustBertError> {
+        let mut session_builder =
+            SessionBuilder::new()?.with_execution_providers(&self.execution_providers)?;
         match &self.optimization_level {
             Some(GraphOptimizationLevel::Level3) | None => {}
             Some(GraphOptimizationLevel::Level2) => {
@@ -93,17 +89,5 @@ impl ONNXEnvironmentConfig {
             session_builder = session_builder.with_memory_type(*memory_type)?;
         }
         Ok(session_builder)
-    }
-
-    ///Build an ONNXEnvironment from an `ONNXEnvironmentConfig`.
-    pub fn get_environment(&self) -> Result<Arc<Environment>, RustBertError> {
-        Ok(Arc::new(
-            Environment::builder()
-                .with_name("Default environment")
-                .with_execution_providers(self.execution_providers.clone().unwrap_or(vec![
-                    ExecutionProvider::CPU(CPUExecutionProviderOptions::default()),
-                ]))
-                .build()?,
-        ))
     }
 }

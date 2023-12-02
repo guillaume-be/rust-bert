@@ -1,7 +1,7 @@
 #[cfg(feature = "onnx")]
 use ndarray::ShapeError;
 #[cfg(feature = "onnx")]
-use ort::OrtError;
+use ort::Error as OrtError;
 use rust_tokenizers::error::TokenizerError;
 use tch::TchError;
 use thiserror::Error;

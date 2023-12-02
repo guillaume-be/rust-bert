@@ -5,10 +5,9 @@ use crate::pipelines::onnx::config::{
 };
 use crate::pipelines::onnx::conversion::{array_to_ort, ort_tensor_to_tch, tch_tensor_to_ndarray};
 use crate::RustBertError;
-use ort::{Environment, Session};
+use ort::Session;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tch::Tensor;
 
 /// # ONNX Encoder model
@@ -26,24 +25,21 @@ impl ONNXEncoder {
     /// # Example
     ///
     /// ```no_run
-    /// use ort::Environment;
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
     /// use rust_bert::pipelines::onnx::ONNXEncoder;
     /// use std::path::PathBuf;
     /// use std::sync::Arc;
-    /// let environment = Arc::new(Environment::default());
     /// let onnx_config = ONNXEnvironmentConfig::default();
     /// let model_file = PathBuf::from("path/to/model.onnx");
     ///
-    /// let encoder = ONNXEncoder::new(model_file, &environment, &onnx_config).unwrap();
+    /// let encoder = ONNXEncoder::new(model_file, &onnx_config).unwrap();
     /// ```
     pub fn new(
         model_file: PathBuf,
-        environment: &Arc<Environment>,
         onnx_config: &ONNXEnvironmentConfig,
     ) -> Result<Self, RustBertError> {
         let session = onnx_config
-            .get_session_builder(environment)?
+            .get_session_builder()?
             .with_model_from_file(model_file)?;
         let name_mapping = get_input_output_mapping(&session);
         Ok(Self {
