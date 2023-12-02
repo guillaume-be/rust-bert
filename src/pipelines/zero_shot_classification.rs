@@ -413,7 +413,6 @@ impl ZeroShotClassificationOption {
     #[cfg(feature = "onnx")]
     pub fn new_onnx(config: &ZeroShotClassificationConfig) -> Result<Self, RustBertError> {
         let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
-        let environment = onnx_config.get_environment()?;
         let encoder_file = config
             .model_resource
             .get_onnx_local_paths()?
@@ -423,11 +422,7 @@ impl ZeroShotClassificationOption {
                     .to_string(),
             ))?;
 
-        Ok(Self::ONNX(ONNXEncoder::new(
-            encoder_file,
-            &environment,
-            &onnx_config,
-        )?))
+        Ok(Self::ONNX(ONNXEncoder::new(encoder_file, &onnx_config)?))
     }
 
     /// Returns the `ModelType` for this SequenceClassificationOption

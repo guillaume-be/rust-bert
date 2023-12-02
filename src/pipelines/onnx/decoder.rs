@@ -7,7 +7,7 @@ use crate::pipelines::onnx::config::{
 use crate::pipelines::onnx::conversion::{array_to_ort, ort_tensor_to_tch, tch_tensor_to_ndarray};
 use crate::pipelines::onnx::models::ONNXLayerCache;
 use crate::RustBertError;
-use ort::Session;
+use ort::{Session, SessionInputs};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tch::Tensor;
@@ -95,10 +95,12 @@ impl ONNXDecoder {
 
         let input_values = inputs_arrays
             .iter()
-            .map(|array| array_to_ort(&self.session, array).unwrap())
+            .map(|array| array_to_ort(array).unwrap())
             .collect::<Vec<_>>();
 
-        let outputs = self.session.run(input_values)?;
+        let outputs = self
+            .session
+            .run(SessionInputs::from(input_values.as_slice()))?;
 
         let lm_logits =
             ort_tensor_to_tch(&outputs[*self.name_mapping.output_names.get("logits").unwrap()])?;

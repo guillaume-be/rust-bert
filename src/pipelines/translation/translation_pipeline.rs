@@ -1123,7 +1123,7 @@ impl TranslationOption {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
             (_, &ModelResource::ONNX(_)) => Ok(TranslationOption::ONNX(
-                ONNXConditionalGenerator::new(config.into(), None, None)?,
+                ONNXConditionalGenerator::new(config.into(), None)?,
             )),
             (ModelType::Marian, _) => Ok(TranslationOption::Marian(MarianGenerator::new(
                 config.into(),
@@ -1150,7 +1150,7 @@ impl TranslationOption {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
             (_, &ModelResource::ONNX(_)) => Ok(TranslationOption::ONNX(
-                ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
+                ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None)?,
             )),
             (ModelType::Marian, _) => Ok(TranslationOption::Marian(
                 MarianGenerator::new_with_tokenizer(config.into(), tokenizer)?,

@@ -9,7 +9,7 @@ use crate::pipelines::onnx::encoder::ONNXEncoder;
 use crate::{Config, RustBertError};
 
 use crate::pipelines::onnx::conversion;
-use ort::Value;
+use ort::SessionOutputs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tch::{nn, Device, Kind, Tensor};
@@ -1054,7 +1054,7 @@ impl ONNXLayerCache {
     /// Helper function to create a cache layer from an ONNX model output.
     /// Assumes that the output names for cached keys and values contain `key` and `value` in their name, respectively.
     pub fn from_ort_output(
-        ort_output: &[Value],
+        ort_output: &SessionOutputs,
         key_value_names: &HashMap<String, usize>,
     ) -> Result<ONNXLayerCache, RustBertError> {
         let values = key_value_names

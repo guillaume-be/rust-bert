@@ -5,7 +5,7 @@ use crate::pipelines::onnx::config::{
 };
 use crate::pipelines::onnx::conversion::{array_to_ort, ort_tensor_to_tch, tch_tensor_to_ndarray};
 use crate::RustBertError;
-use ort::Session;
+use ort::{Session, SessionInputs};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tch::Tensor;
@@ -147,10 +147,11 @@ impl ONNXEncoder {
 
         let input_values = inputs_arrays
             .iter()
-            .map(|array| array_to_ort(&self.session, array).unwrap())
+            .map(|array| array_to_ort(array).unwrap())
             .collect::<Vec<_>>();
-
-        let outputs = self.session.run(input_values)?;
+        let outputs = self
+            .session
+            .run(SessionInputs::from(input_values.as_slice()))?;
 
         let last_hidden_state = self
             .name_mapping
@@ -183,7 +184,7 @@ impl ONNXEncoder {
                 .output_names
                 .iter()
                 .filter(|(name, _)| name.contains("hidden_states"))
-                .map(|(_, position)| outputs.get(*position))
+                .map(|(name, _)| outputs.get(name.as_str()))
                 .map(|array| array.map(|array_value| ort_tensor_to_tch(array_value).unwrap()))
                 .collect::<Option<Vec<_>>>();
 
@@ -192,7 +193,7 @@ impl ONNXEncoder {
                 .output_names
                 .iter()
                 .filter(|(name, _)| name.contains("attentions"))
-                .map(|(_, position)| outputs.get(*position))
+                .map(|(name, _)| outputs.get(name.as_str()))
                 .map(|array| array.map(|array_value| ort_tensor_to_tch(array_value).unwrap()))
                 .collect::<Option<Vec<_>>>();
             (hidden_states, attentions)

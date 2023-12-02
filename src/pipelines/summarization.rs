@@ -244,7 +244,7 @@ impl SummarizationOption {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
             (_, &ModelResource::ONNX(_)) => Ok(SummarizationOption::ONNX(
-                ONNXConditionalGenerator::new(config.into(), None, None)?,
+                ONNXConditionalGenerator::new(config.into(), None)?,
             )),
             (ModelType::Bart, _) => Ok(SummarizationOption::Bart(BartGenerator::new(
                 config.into(),
@@ -273,7 +273,7 @@ impl SummarizationOption {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
             (_, &ModelResource::ONNX(_)) => Ok(SummarizationOption::ONNX(
-                ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
+                ONNXConditionalGenerator::new_with_tokenizer(config.into(), tokenizer, None)?,
             )),
             (ModelType::Bart, _) => Ok(SummarizationOption::Bart(
                 BartGenerator::new_with_tokenizer(config.into(), tokenizer)?,

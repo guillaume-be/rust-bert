@@ -219,7 +219,7 @@ impl TextGenerationOption {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
             (_, &ModelResource::ONNX(_)) => Ok(TextGenerationOption::ONNX(
-                ONNXCausalGenerator::new(config.into(), None, None)?,
+                ONNXCausalGenerator::new(config.into(), None)?,
             )),
             (ModelType::GPT2, _) => Ok(TextGenerationOption::GPT2(GPT2Generator::new(
                 config.into(),
@@ -254,7 +254,7 @@ impl TextGenerationOption {
         match (config.model_type, &config.model_resource) {
             #[cfg(feature = "onnx")]
             (_, &ModelResource::ONNX(_)) => Ok(TextGenerationOption::ONNX(
-                ONNXCausalGenerator::new_with_tokenizer(config.into(), tokenizer, None, None)?,
+                ONNXCausalGenerator::new_with_tokenizer(config.into(), tokenizer, None)?,
             )),
             (ModelType::GPT2, _) => Ok(TextGenerationOption::GPT2(
                 GPT2Generator::new_with_tokenizer(config.into(), tokenizer)?,

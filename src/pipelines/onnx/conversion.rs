@@ -1,29 +1,26 @@
 use crate::RustBertError;
 use ndarray::{ArrayBase, ArrayD, CowArray, CowRepr, IxDyn};
 
-use ort::{Session, Value};
+use ort::Value;
 use std::convert::{TryFrom, TryInto};
 use tch::{Kind, Tensor};
 
 pub(crate) fn ort_tensor_to_tch(ort_tensor: &Value) -> Result<Tensor, RustBertError> {
-    let ort_tensor = ort_tensor.try_extract::<f32>()?.view().to_owned();
+    let ort_tensor = ort_tensor.extract_tensor::<f32>()?.view().to_owned();
     Ok(Tensor::try_from(ort_tensor)?)
 }
 
-pub(crate) fn array_to_ort<'a>(
-    session: &Session,
-    array: &'a TypedArray<'a>,
-) -> Result<Value<'a>, RustBertError> {
+pub(crate) fn array_to_ort<'a>(array: &'a TypedArray<'a>) -> Result<Value, RustBertError> {
     match &array {
-        TypedArray::I64(array) => Ok(Value::from_array(session.allocator(), array)?),
-        TypedArray::F32(array) => Ok(Value::from_array(session.allocator(), array)?),
-        TypedArray::I32(array) => Ok(Value::from_array(session.allocator(), array)?),
-        TypedArray::F64(array) => Ok(Value::from_array(session.allocator(), array)?),
-        TypedArray::F16(array) => Ok(Value::from_array(session.allocator(), array)?),
-        TypedArray::I16(array) => Ok(Value::from_array(session.allocator(), array)?),
-        TypedArray::I8(array) => Ok(Value::from_array(session.allocator(), array)?),
-        TypedArray::UI8(array) => Ok(Value::from_array(session.allocator(), array)?),
-        TypedArray::BF16(array) => Ok(Value::from_array(session.allocator(), array)?),
+        TypedArray::I64(array) => Ok(Value::from_array(array)?),
+        TypedArray::F32(array) => Ok(Value::from_array(array)?),
+        TypedArray::I32(array) => Ok(Value::from_array(array)?),
+        TypedArray::F64(array) => Ok(Value::from_array(array)?),
+        TypedArray::F16(array) => Ok(Value::from_array(array)?),
+        TypedArray::I16(array) => Ok(Value::from_array(array)?),
+        TypedArray::I8(array) => Ok(Value::from_array(array)?),
+        TypedArray::UI8(array) => Ok(Value::from_array(array)?),
+        TypedArray::BF16(array) => Ok(Value::from_array(array)?),
     }
 }
 

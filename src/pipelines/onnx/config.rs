@@ -38,9 +38,11 @@ impl ONNXEnvironmentConfig {
     pub fn from_device(device: Device) -> Self {
         let mut execution_providers = Vec::new();
         if let Device::Cuda(device_id) = device {
-            CUDAExecutionProvider::default()
-                .with_device_id(device_id as i32)
-                .build()
+            execution_providers.push(
+                CUDAExecutionProvider::default()
+                    .with_device_id(device_id as i32)
+                    .build(),
+            );
         };
         execution_providers.push(ExecutionProviderDispatch::CPU(
             CPUExecutionProvider::default(),
@@ -53,8 +55,10 @@ impl ONNXEnvironmentConfig {
 
     ///Build a session builder from an `ONNXEnvironmentConfig`.
     pub fn get_session_builder(&self) -> Result<SessionBuilder, RustBertError> {
-        let mut session_builder =
-            SessionBuilder::new()?.with_execution_providers(&self.execution_providers)?;
+        let mut session_builder = SessionBuilder::new()?;
+        if let Some(execution_providers) = &self.execution_providers {
+            session_builder = session_builder.with_execution_providers(execution_providers)?;
+        };
         match &self.optimization_level {
             Some(GraphOptimizationLevel::Level3) | None => {}
             Some(GraphOptimizationLevel::Level2) => {
