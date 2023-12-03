@@ -49,7 +49,7 @@ on K2-18b lasts 33 Earth days. According to The Guardian, astronomers were optim
 telescope — scheduled for launch in 2021 — and the European Space Agency's 2028 ARIEL program, could reveal more \
 about exoplanets like K2-18b."];
 
-    let output = model.summarize(&input);
+    let output = model.summarize(&input)?;
 
     assert_eq! (
         output[0],

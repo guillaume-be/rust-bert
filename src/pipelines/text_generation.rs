@@ -335,7 +335,7 @@ impl TextGenerationOption {
         prompt_texts: Option<&[S]>,
         min_length: Option<i64>,
         max_length: Option<i64>,
-    ) -> Vec<Vec<i64>>
+    ) -> Result<Vec<Vec<i64>>, RustBertError>
     where
         S: AsRef<str> + Send + Sync,
     {
@@ -344,49 +344,49 @@ impl TextGenerationOption {
             max_length,
             ..Default::default()
         });
-        match *self {
+        Ok(match *self {
             Self::GPT(ref model) => model
-                .generate_indices(prompt_texts, generate_options)
+                .generate_indices(prompt_texts, generate_options)?
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::GPT2(ref model) => model
-                .generate_indices(prompt_texts, generate_options)
+                .generate_indices(prompt_texts, generate_options)?
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::GPTNeo(ref model) => model
-                .generate_indices(prompt_texts, generate_options)
+                .generate_indices(prompt_texts, generate_options)?
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::GPTJ(ref model) => model
-                .generate_indices(prompt_texts, generate_options)
+                .generate_indices(prompt_texts, generate_options)?
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::XLNet(ref model) => model
-                .generate_indices(prompt_texts, generate_options)
+                .generate_indices(prompt_texts, generate_options)?
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::Reformer(ref model) => model
-                .generate_indices(prompt_texts, generate_options)
+                .generate_indices(prompt_texts, generate_options)?
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             Self::T5(ref model) => model
-                .generate_indices(prompt_texts, generate_options)
+                .generate_indices(prompt_texts, generate_options)?
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
             #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => model
-                .generate_indices(prompt_texts, generate_options)
+                .generate_indices(prompt_texts, generate_options)?
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
-        }
+        })
     }
 
     pub fn half(&mut self) -> Result<(), RustBertError> {
@@ -599,7 +599,11 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
     /// # Ok(())
     /// # }
     /// ```
-    pub fn generate<'a, S>(&self, texts: &[S], prefix: impl Into<Option<&'a str>>) -> Vec<String>
+    pub fn generate<'a, S>(
+        &self,
+        texts: &[S],
+        prefix: impl Into<Option<&'a str>>,
+    ) -> Result<Vec<String>, RustBertError>
     where
         S: AsRef<str> + Send + Sync,
     {
@@ -625,8 +629,10 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                     self.max_length.map(|max_length| max_length + prefix_length),
                 )
             }
-            _ => panic!("Prefix length not defined but prefix provided!"),
-        };
+            _ => Err(RustBertError::ValueError(
+                "Prefix length not defined but prefix provided!".to_string(),
+            )),
+        }?;
 
         let mut output = Vec::with_capacity(generated_indices.len());
         for generated_sequence in generated_indices {
@@ -636,7 +642,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"
                 true,
             ));
         }
-        output
+        Ok(output)
     }
 }
 

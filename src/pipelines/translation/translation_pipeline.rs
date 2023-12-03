@@ -1219,18 +1219,18 @@ impl TranslationOption {
         &self,
         prompt_texts: Option<&[S]>,
         forced_bos_token_id: Option<i64>,
-    ) -> Vec<String>
+    ) -> Result<Vec<String>, RustBertError>
     where
         S: AsRef<str> + Send + Sync,
     {
-        match *self {
+        Ok(match *self {
             Self::Marian(ref model) => model
-                .generate(prompt_texts, None)
+                .generate(prompt_texts, None)?
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::T5(ref model) => model
-                .generate(prompt_texts, None)
+                .generate(prompt_texts, None)?
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
@@ -1240,7 +1240,7 @@ impl TranslationOption {
                     ..Default::default()
                 };
                 model
-                    .generate(prompt_texts, Some(generate_options))
+                    .generate(prompt_texts, Some(generate_options))?
                     .into_iter()
                     .map(|output| output.text)
                     .collect()
@@ -1251,7 +1251,7 @@ impl TranslationOption {
                     ..Default::default()
                 };
                 model
-                    .generate(prompt_texts, Some(generate_options))
+                    .generate(prompt_texts, Some(generate_options))?
                     .into_iter()
                     .map(|output| output.text)
                     .collect()
@@ -1264,12 +1264,12 @@ impl TranslationOption {
                         ..Default::default()
                     });
                 model
-                    .generate(prompt_texts, generate_options)
+                    .generate(prompt_texts, generate_options)?
                     .into_iter()
                     .map(|output| output.text)
                     .collect()
             }
-        }
+        })
     }
 }
 
@@ -1484,7 +1484,7 @@ impl TranslationModel {
                 &self.supported_target_languages,
             )?;
 
-        Ok(match prefix {
+        match prefix {
             Some(value) => {
                 let texts = texts
                     .iter()
@@ -1493,7 +1493,7 @@ impl TranslationModel {
                 self.model.generate(Some(&texts), forced_bos_token_id)
             }
             None => self.model.generate(Some(texts), forced_bos_token_id),
-        })
+        }
     }
 }
 

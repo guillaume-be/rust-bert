@@ -1775,11 +1775,11 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         &self,
         prompt_texts: Option<&[S]>,
         generate_options: Option<GenerateOptions>,
-    ) -> Vec<GeneratedTextOutput>
+    ) -> Result<Vec<GeneratedTextOutput>, RustBertError>
     where
         S: AsRef<str> + Send + Sync,
     {
-        let indices_outputs = self.generate_indices(prompt_texts, generate_options);
+        let indices_outputs = self.generate_indices(prompt_texts, generate_options)?;
         let mut output = Vec::with_capacity(indices_outputs.len());
         for generated_sequence in indices_outputs {
             output.push(GeneratedTextOutput {
@@ -1789,7 +1789,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                 score: generated_sequence.score,
             });
         }
-        output
+        Ok(output)
     }
 
     /// Generate token indices without decoding (useful for token-level operations before returning final text or as validation step during training).
@@ -1869,7 +1869,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         &self,
         prompt_texts: Option<&[S]>,
         generate_options: Option<GenerateOptions>,
-    ) -> Vec<GeneratedIndicesOutput>
+    ) -> Result<Vec<GeneratedIndicesOutput>, RustBertError>
     where
         S: AsRef<str> + Send + Sync,
     {
@@ -1896,11 +1896,12 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
             }
             None => match self.get_bos_id() {
                 Some(bos_id) => Tensor::ones([1, 1], (Int64, self.get_device())) * bos_id,
-                None => panic!(
+                None => return Err(RustBertError::ValueError(
                     "A model with a BOS token must be used to start generation with an empty input"
-                ),
+                        .to_string(),
+                )),
             },
-            _ => return Vec::new(),
+            _ => return Ok(Vec::new()),
         };
         self.generate_from_ids_and_past(input_ids, None, generate_options)
     }
@@ -1960,7 +1961,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         mut input_ids: Tensor,
         mut attention_mask: Option<Tensor>,
         generate_options: Option<GenerateOptions>,
-    ) -> Vec<GeneratedIndicesOutput> {
+    ) -> Result<Vec<GeneratedIndicesOutput>, RustBertError> {
         let eos_token_ids = PrivateLanguageGenerator::get_eos_ids(self).cloned();
 
         let config = PrivateLanguageGenerator::get_config(self);
@@ -2033,7 +2034,9 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         };
 
         let encoder_outputs = if self.is_encoder_decoder() {
-            let encoder_outputs = self.encode(&input_ids, Some(&attention_mask)).unwrap();
+            let encoder_outputs = self
+                .encode(&input_ids, Some(&attention_mask))
+                .ok_or(RustBertError::UnsupportedError)?;
             let expanded_batch_indices = Tensor::arange(batch_size, (Int64, input_ids.device()))
                 .view((-1, 1))
                 .repeat([1, num_beams * effective_batch_mult])
@@ -2067,10 +2070,11 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                 (input_ids, attention_mask)
             }
         } else {
-            let decoder_start_token_id = decoder_start_token_id.unwrap_or_else(|| {
-                self.get_decoder_start_id()
-                    .expect("decoder start id must be specified for encoder decoders")
-            });
+            let decoder_start_token_id = decoder_start_token_id
+                .or(self.get_decoder_start_id())
+                .ok_or(RustBertError::ValueError(
+                    "decoder start id must be specified for encoder decoders".to_string(),
+                ))?;
             let input_ids = Tensor::full(
                 [effective_batch_size * num_beams, 1],
                 decoder_start_token_id,
@@ -2103,9 +2107,16 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
             config.max_length
         };
 
+        if let Some(max_length) = max_length {
+            if input_ids.size2()?.1 > max_length {
+                return Err(RustBertError::ValueError("The input ids exceeds the maximum length for generation.\
+                 Reduce the size of the provided input ids or increase the allowable maximum generation length.".to_string()));
+            }
+        }
+
         if max_length.is_none() & eos_token_ids.is_none() {
-            panic!("No maximum length given for a model without an EOS token. \
-            This would lead to an infinite generation loop. Please provide a `max_length` or `max_new_tokens`")
+            return Err(RustBertError::InvalidConfigurationError("No maximum length given for a model without an EOS token. \
+            This would lead to an infinite generation loop. Please provide a `max_length` or `max_new_tokens`".to_string()));
         }
 
         let gen_opt = InternalGenerateOptions {
@@ -2182,7 +2193,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
                 token_scores,
             });
         }
-        output
+        Ok(output)
     }
 
     /// Returns a reference to the text generator's tokenizer

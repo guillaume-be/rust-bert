@@ -143,7 +143,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
 
     let input_context_1 = "It was a very nice and sunny";
     let input_context_2 = "It was a gloom winter night, and";
-    let output = model.generate(&[input_context_1, input_context_2], None);
+    let output = model.generate(&[input_context_1, input_context_2], None)?;
 
     assert_eq!(output.len(), 2);
     assert_eq!(output[0], "It was a very nice and sunny day. The sun was shining through the clouds, and the sky was clear. The wind was blowing through the trees,");

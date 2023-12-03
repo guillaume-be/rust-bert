@@ -53,7 +53,7 @@ mod tests {
         let model = TextGenerationModel::new_with_tokenizer(generate_config, tokenizer)?;
 
         let input_context = "The dog";
-        let output = model.generate(&[input_context], None);
+        let output = model.generate(&[input_context], None)?;
 
         assert_eq!(output.len(), 3);
         assert_eq!(

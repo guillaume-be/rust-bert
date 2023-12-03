@@ -338,43 +338,43 @@ impl SummarizationOption {
     }
 
     /// Interface method to generate() of the particular models.
-    pub fn generate<S>(&self, prompt_texts: Option<&[S]>) -> Vec<String>
+    pub fn generate<S>(&self, prompt_texts: Option<&[S]>) -> Result<Vec<String>, RustBertError>
     where
         S: AsRef<str> + Send + Sync,
     {
-        match *self {
+        Ok(match *self {
             Self::Bart(ref model) => model
-                .generate(prompt_texts, None)
+                .generate(prompt_texts, None)?
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::T5(ref model) => model
-                .generate(prompt_texts, None)
+                .generate(prompt_texts, None)?
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::LongT5(ref model) => model
-                .generate(prompt_texts, None)
+                .generate(prompt_texts, None)?
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::ProphetNet(ref model) => model
-                .generate(prompt_texts, None)
+                .generate(prompt_texts, None)?
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             Self::Pegasus(ref model) => model
-                .generate(prompt_texts, None)
+                .generate(prompt_texts, None)?
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
             #[cfg(feature = "onnx")]
             Self::ONNX(ref model) => model
-                .generate(prompt_texts, None)
+                .generate(prompt_texts, None)?
                 .into_iter()
                 .map(|output| output.text)
                 .collect(),
-        }
+        })
     }
 }
 
@@ -506,7 +506,7 @@ impl SummarizationModel {
     /// # }
     /// ```
     /// (New sample credits: [WikiNews](https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b))
-    pub fn summarize<S>(&self, texts: &[S]) -> Vec<String>
+    pub fn summarize<S>(&self, texts: &[S]) -> Result<Vec<String>, RustBertError>
     where
         S: AsRef<str> + Send + Sync,
     {

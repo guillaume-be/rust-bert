@@ -763,14 +763,14 @@ impl ConversationOption {
         &self,
         input_ids: Tensor,
         attention_mask: Option<Tensor>,
-    ) -> Vec<Vec<i64>> {
-        match *self {
+    ) -> Result<Vec<Vec<i64>>, RustBertError> {
+        Ok(match *self {
             Self::GPT2(ref model) => model
-                .generate_from_ids_and_past(input_ids, attention_mask, None)
+                .generate_from_ids_and_past(input_ids, attention_mask, None)?
                 .into_iter()
                 .map(|output| output.indices)
                 .collect(),
-        }
+        })
     }
 }
 
@@ -887,9 +887,9 @@ impl ConversationModel {
     pub fn generate_responses<'a>(
         &self,
         conversation_manager: &'a mut ConversationManager,
-    ) -> HashMap<&'a Uuid, &'a str> {
+    ) -> Result<HashMap<&'a Uuid, &'a str>, RustBertError> {
         let (active_uuid, active_conversations) = conversation_manager.get_active_conversations();
-        if !active_uuid.is_empty() {
+        let updated_conversations = if !active_uuid.is_empty() {
             let texts = active_conversations
                 .iter()
                 .map(|c| c.new_user_input.as_ref().unwrap().as_str())
@@ -906,7 +906,7 @@ impl ConversationModel {
             let input_length = *input_tensor.size().last().unwrap() as usize;
             let mut generated = self
                 .model
-                .generate_from_ids_and_past(input_tensor, Some(attention_mask));
+                .generate_from_ids_and_past(input_tensor, Some(attention_mask))?;
             let removed_padding_quantities = self.clean_padding_indices(&mut generated);
 
             let mut output = HashMap::with_capacity(active_uuid.len());
@@ -936,7 +936,8 @@ impl ConversationModel {
             output
         } else {
             HashMap::new()
-        }
+        };
+        Ok(updated_conversations)
     }
 
     fn clean_padding_indices(&self, model_output: &mut Vec<Vec<i64>>) -> Vec<(usize, usize)> {

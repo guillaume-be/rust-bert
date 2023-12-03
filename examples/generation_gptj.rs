@@ -89,7 +89,7 @@ fn main() -> anyhow::Result<()> {
         "It was a very nice and sunny",
         "It was a gloom winter night, and",
     ];
-    let output = model.generate(&prompts, None);
+    let output = model.generate(&prompts, None)?;
 
     assert_eq!(output.len(), 2);
     assert_eq!(output[0], "It was a very nice and sunny day, and I was sitting in the garden of my house, enjoying the sun and the fresh air. I was thinking");
