@@ -222,7 +222,7 @@ mod tests {
             ..Default::default()
         })?;
         let prompts = ["It was a very nice and sunny"];
-        let output = text_generation_model.generate(&prompts, None);
+        let output = text_generation_model.generate(&prompts, None)?;
         assert_eq!(output.len(), 1);
         assert_eq!(output[0], "It was a very nice and sunny day. I was very happy with the weather. I was very happy with the weather. I was very happy with");
         Ok(())

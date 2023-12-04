@@ -64,7 +64,7 @@ fn test_generation_reformer() -> anyhow::Result<()> {
 
     let input_context_1 = "The really great men must, I think,";
     let input_context_2 = "It was a gloom winter night, and";
-    let output = model.generate(&[input_context_1, input_context_2], None);
+    let output = model.generate(&[input_context_1, input_context_2], None)?;
 
     assert_eq!(output.len(), 2);
     assert_eq!(output[0], " The really great men must, I think, anyway waiting for some unknown reason, but Nikodim Fomitch and Ilya Petrovitch looked at him anguish invitable incidently at him. He could not resist an impression which might be setting");

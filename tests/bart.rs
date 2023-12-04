@@ -128,7 +128,7 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let output = model.summarize(&input);
+    let output = model.summarize(&input)?;
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], " K2-18b is not too hot and not too cold for liquid water to exist. \
@@ -189,7 +189,7 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let output = model.summarize(&input);
+    let output = model.summarize(&input)?;
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], " K2-18b, a planet circling a star in the constellation Leo, is not too hot and not too cold for liquid water to exist. \

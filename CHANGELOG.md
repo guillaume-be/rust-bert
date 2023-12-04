@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Changed
 - (BREAKING) Upgraded to `torch` 2.1 (via `tch` 0.14.0).
+- (BREAKING) Text generation traits and pipelines (including conversation, summarization and translation) now return a `Result` for improved error handling
 
 ## [0.21.0] - 2023-06-03
 ## Added

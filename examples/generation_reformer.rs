@@ -52,7 +52,7 @@ fn main() -> anyhow::Result<()> {
 
     let input_context_1 = "The really great men must, I think,";
     let input_context_2 = "It was a gloom winter night, and";
-    let output = model.generate(&[input_context_1, input_context_2], None);
+    let output = model.generate(&[input_context_1, input_context_2], None)?;
 
     for sentence in output {
         println!("{sentence}");

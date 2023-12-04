@@ -30,7 +30,7 @@ fn main() -> anyhow::Result<()> {
 
     let input_context = "The dog";
     // let second_input_context = "The cat was";
-    let output = model.generate(&[input_context], None);
+    let output = model.generate(&[input_context], None)?;
 
     for sentence in output {
         println!("{sentence:?}");

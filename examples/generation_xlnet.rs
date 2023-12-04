@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
     let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "Once upon a time,";
-    let output = model.generate(&[input_context], None);
+    let output = model.generate(&[input_context], None)?;
 
     for sentence in output {
         println!("{sentence}");

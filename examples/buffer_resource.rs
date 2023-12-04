@@ -49,7 +49,7 @@ about exoplanets like K2-18b."];
     let summarization_model = SummarizationModel::new(config(Device::Cpu, weights.clone()))?;
 
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let output = summarization_model.summarize(&input);
+    let output = summarization_model.summarize(&input)?;
     for sentence in output {
         println!("{sentence}");
     }
@@ -58,7 +58,7 @@ about exoplanets like K2-18b."];
         SummarizationModel::new(config(Device::cuda_if_available(), weights))?;
 
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let output = summarization_model.summarize(&input);
+    let output = summarization_model.summarize(&input)?;
     for sentence in output {
         println!("{sentence}");
     }

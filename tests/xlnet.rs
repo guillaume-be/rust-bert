@@ -222,7 +222,7 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
     let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "Once upon a time,";
-    let output = model.generate(&[input_context], None);
+    let output = model.generate(&[input_context], None)?;
 
     assert_eq!(output.len(), 1);
     assert_eq!(

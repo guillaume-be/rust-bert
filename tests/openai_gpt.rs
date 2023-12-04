@@ -134,7 +134,7 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
     let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "It was an intense machine dialogue. ";
-    let output = model.generate(&[input_context], None);
+    let output = model.generate(&[input_context], None)?;
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], "it was an intense machine dialogue. \n \" i\'m sorry, but we have to go now! the police are on their way and they\'re going after you - or at least that\'s what my");
@@ -176,7 +176,7 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
     let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The dog is";
-    let output = model.generate(&[input_context], None);
+    let output = model.generate(&[input_context], None)?;
 
     assert_eq!(output.len(), 3);
     assert_eq!(
@@ -230,7 +230,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat";
-    let output = model.generate(&[input_context_1, input_context_2], None);
+    let output = model.generate(&[input_context_1, input_context_2], None)?;
 
     assert_eq!(output.len(), 6);
 
@@ -298,7 +298,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat was in";
-    let output = model.generate(&[input_context_1, input_context_2], None);
+    let output = model.generate(&[input_context_1, input_context_2], None)?;
 
     assert_eq!(output.len(), 6);
     //    Left padding impacts the generated sentences output
