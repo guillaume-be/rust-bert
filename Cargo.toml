@@ -1,6 +1,6 @@
 [package]
 name = "rust-bert"
-version = "0.21.0"
+version = "0.22.0"
 authors = ["Guillaume Becquin <guillaume.becquin@gmail.com>"]
 edition = "2018"
 description = "Ready-to-use NLP pipelines and language models"
@@ -86,19 +86,19 @@ half = "2"
 regex = "1.6"
 
 cached-path = { version = "0.6", default-features = false, optional = true }
-dirs = { version = "4", optional = true }
+dirs = { version = "5", optional = true }
 lazy_static = { version = "1", optional = true }
 ort = {version="~1.15.2", optional = true, default-features = false, features = ["half"]}
 ndarray = {version="0.15", optional = true}
-tokenizers = {version="0.13.3", optional=true, default-features = false, features = ["onig"]}
+tokenizers = {version="0.15", optional=true, default-features = false, features = ["onig"]}
 
 [dev-dependencies]
 anyhow = "1"
 csv = "1"
-criterion = "0.4"
-tokio = { version = "1.24", features = ["sync", "rt-multi-thread", "macros"] }
+criterion = "0.5"
+tokio = { version = "1.35", features = ["sync", "rt-multi-thread", "macros"] }
 torch-sys =  "0.14.0"
 tempfile = "3"
-itertools = "0.10"
+itertools = "0.12"
 tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt" ] }
-ort = {version="~1.15.2", features = ["load-dynamic"]}
+ort = {version="~1.15.5", features = ["load-dynamic"]}
