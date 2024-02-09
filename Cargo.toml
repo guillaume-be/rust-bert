@@ -102,3 +102,31 @@ tempfile = "3"
 itertools = "0.12"
 tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt" ] }
 ort = {version="~1.15.5", features = ["load-dynamic"]}
+
+[[example]]
+name = "onnx-masked-lm"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-question-answering"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-sequence-classification"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-text-generation"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-token-classification"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-translation"
+required-features = ["onnx"]
+
+[[example]]
+name = "generation_gpt2_hf_tokenizers"
+required-features = ["hf-tokenizers"]
