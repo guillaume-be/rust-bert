@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## Changed
+- (BREAKING) Upgraded to `torch` 2.2 (via `tch` 0.15.0).
+
 ## [0.22.0] - 2024-01-20
 ## Added
 - Addition of `new_with_tokenizer` constructor for `SentenceEmbeddingsModel` allowing passing custom tokenizers for sentence embeddings pipelines.
