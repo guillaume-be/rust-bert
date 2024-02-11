@@ -53,10 +53,6 @@ fn generation_forward_pass(iters: u64, model: &TextGenerationModel, data: &[&str
 }
 
 fn bench_generation(c: &mut Criterion) {
-    //    Set-up summarization model
-    unsafe {
-        torch_sys::dummy_cuda_dependency();
-    }
     let model = create_text_generation_model();
 
     //    Define input

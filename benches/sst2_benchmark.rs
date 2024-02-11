@@ -79,9 +79,7 @@ fn sst2_load_model(iters: u64) -> Duration {
 fn bench_sst2(c: &mut Criterion) {
     //    Set-up classifier
     let model = create_sentiment_model();
-    unsafe {
-        torch_sys::dummy_cuda_dependency();
-    }
+
     //    Define input
     let mut sst2_path = PathBuf::from(env::var("SST2_PATH").expect(
         "Please set the \"SST2_PATH\" environment variable pointing to the SST2 dataset folder",

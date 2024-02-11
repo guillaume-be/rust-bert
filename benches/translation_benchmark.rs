@@ -73,9 +73,6 @@ fn translation_load_model(iters: u64) -> Duration {
 
 fn bench_squad(c: &mut Criterion) {
     //    Set-up translation model
-    unsafe {
-        torch_sys::dummy_cuda_dependency();
-    }
     let model = create_translation_model();
 
     //    Define input
