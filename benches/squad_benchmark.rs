@@ -73,9 +73,7 @@ fn qa_load_model(iters: u64) -> Duration {
 fn bench_squad(c: &mut Criterion) {
     //    Set-up QA model
     let model = create_qa_model();
-    unsafe {
-        torch_sys::dummy_cuda_dependency();
-    }
+
     //    Define input
     let mut squad_path = PathBuf::from(env::var("squad_dataset")
         .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));

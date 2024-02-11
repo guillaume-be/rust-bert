@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## Changed
+- (BREAKING) Upgraded to `torch` 2.2 (via `tch` 0.15.0).
+
 ## [0.22.0] - 2024-01-20
 ## Added
 - Addition of `new_with_tokenizer` constructor for `SentenceEmbeddingsModel` allowing passing custom tokenizers for sentence embeddings pipelines.
@@ -10,7 +13,7 @@ All notable changes to this project will be documented in this file. The format 
 - (BREAKING) Most model configuration can now take an optional `kind` parameter to specify the model weight precision. If not provided, will default to full precision on CPU, or the serialized weights precision otherwise.
 
 ## Fixed
-- (BREAKING) Fixed the keyword extraction pipeline for n-gram sizes > 2. Add new configuration option `tokenizer_forbidden_ngram_chars` to specify characters that should be excluded from n-grams (allows filtering m-grams spanning multiple sentences).
+- (BREAKING) Fixed the keyword extraction pipeline for n-gram sizes > 2. Add new configuration option `tokenizer_forbidden_ngram_chars` to specify characters that should be excluded from n-grams (allows filtering n-grams spanning multiple sentences).
 - Improved MPS device compatibility setting the `sparse_grad` flag to false for `gather` operations
 - Updated ONNX runtime backend version to 1.15.x
 - Issue with incorrect results for QA models with a tokenizer not using segment ids
