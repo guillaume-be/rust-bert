@@ -20,7 +20,7 @@
 //! use rust_bert::pipelines::common::ModelType;
 //! use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
 //! use rust_bert::resources::RemoteResource;
-//! 
+//!
 //! fn main() -> anyhow::Result<()> {
 //!     use rust_bert::pipelines::common::ModelResource;
 //!     let config = MaskedLanguageConfig::new(
