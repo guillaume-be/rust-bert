@@ -180,7 +180,7 @@ if __name__ == "__main__":
     source = str(target_folder / "model.npz")
     target = str(target_folder / "rust_model.ot")
 
-    if os.environ["ON_DOCKER"]:
+    if os.getenv("ON_DOCKER") is not None:
         cargo_args = [
             "/convert-tensor",
             source,
