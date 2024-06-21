@@ -340,6 +340,7 @@ impl BartDecoder {
     }
 }
 
+#[allow(dead_code)]
 ///Container holding a BART decoder output
 pub struct BartDecoderOutput {
     /// last decoder layer hidden state
