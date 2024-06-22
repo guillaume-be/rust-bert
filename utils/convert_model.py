@@ -50,13 +50,20 @@ import sys
 import zipfile
 from pathlib import Path
 from typing import Dict
-
+import os
 import numpy as np
 import torch
 from numpy.lib.format import write_array
-from numpy.lib.npyio import zipfile_factory
+# from numpy.lib.npyio import zipfile_factory
 from torch import Tensor
 
+def zipfile_factory(file, *args, **kwargs):
+    if not hasattr(file, 'read'):
+        file = os.fspath(file)
+    import zipfile
+    kwargs['allowZip64'] = True
+    kwargs['compresslevel'] = 4
+    return zipfile.ZipFile(file, *args, **kwargs)
 
 def get_bf16_repr(input_tensor: torch.Tensor) -> np.ndarray:
     """Convert a bfloat16 tensor to an equivalent byte representation in Numpy.
@@ -125,6 +132,12 @@ if __name__ == "__main__":
         help="Use this flag to enable automatic download of the libtorch library.",
     )
     args = parser.parse_args()
+    
+    logger = logging.getLogger('convert_model')
+    logger.setLevel(logging.DEBUG)
+    fh = logging.FileHandler('convert_model.log')
+    fh.setLevel(logging.DEBUG)
+    logger.addHandler(fh)
 
     target_folder = Path(args.source_file[0]).parent
     with zipfile_factory(
@@ -133,7 +146,7 @@ if __name__ == "__main__":
         for source_file_or_pattern in args.source_file:
             source_files = glob.glob(source_file_or_pattern)
             for source_file in source_files:
-                logging.info(f"Processing source file {source_file}...")
+                logger.info(f"Processing source file {source_file}")
                 nps = {}
                 source_file = Path(source_file)
                 weights = torch.load(str(source_file), map_location="cpu")
@@ -168,11 +181,11 @@ if __name__ == "__main__":
                             )
                         else:
                             nps[k] = np.ascontiguousarray(tensor)
-                        logging.info(
+                        logger.info(
                             f"converted {k} - {str(sys.getsizeof(nps[k]))} bytes"
                         )
                     else:
-                        logging.info(f"skipped non-tensor object: {k}")
+                        logger.info(f"skipped non-tensor object: {k}")
             append_to_zipf(nps, output_zipfile)
 
     source = str(target_folder / "model.npz")
