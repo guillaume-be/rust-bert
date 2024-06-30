@@ -174,7 +174,7 @@ jobs:
         with:
           python-version: '3.10'
       - run: |
-          pip install -r requirements.txt --progress-bar off
+          pip install -r ./utils/requirements.txt --progress-bar off
           python ./utils/download-dependencies_distilbert.py
 
   fmt:
