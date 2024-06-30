@@ -76,10 +76,10 @@ features = ["doc-only"]
 
 [dependencies]
 rust_tokenizers = "8.1.1"
-tch = "0.15.0"
+tch = { version = "0.16.0", features = ["download-libtorch"] }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
-ordered-float = "3"
+ordered-float = "4.2.0"
 uuid = { version = "1", features = ["v4"] }
 thiserror = "1"
 half = "2"
@@ -88,9 +88,13 @@ regex = "1.6"
 cached-path = { version = "0.6", default-features = false, optional = true }
 dirs = { version = "5", optional = true }
 lazy_static = { version = "1", optional = true }
-ort = {version="~1.15.2", optional = true, default-features = false, features = ["half"]}
-ndarray = {version="0.15", optional = true}
-tokenizers = {version="0.15", optional=true, default-features = false, features = ["onig"]}
+ort = { version = "1.16.3", optional = true, default-features = false, features = [
+    "half",
+] }
+ndarray = { version = "0.15", optional = true }
+tokenizers = { version = "0.19.1", optional = true, default-features = false, features = [
+    "onig",
+] }
 
 [dev-dependencies]
 anyhow = "1"
@@ -98,9 +102,12 @@ csv = "1"
 criterion = "0.5"
 tokio = { version = "1.35", features = ["sync", "rt-multi-thread", "macros"] }
 tempfile = "3"
-itertools = "0.12"
-tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt" ] }
-ort = {version="~1.15.5", features = ["load-dynamic"]}
+itertools = "0.13.0"
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "env-filter",
+    "fmt",
+] }
+ort = { version = "1.16.3", features = ["load-dynamic"] }
 
 [[example]]
 name = "onnx-masked-lm"
