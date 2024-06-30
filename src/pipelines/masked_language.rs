@@ -15,15 +15,15 @@
 //! a masked word can be specified in the `MaskedLanguageConfig` (`mask_token`). and allows
 //! multiple masked tokens per input sequence.
 //!
-//!  ```no_run
-//!use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
-//!use rust_bert::pipelines::common::ModelType;
-//!use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
-//!use rust_bert::resources::RemoteResource;
-//! fn main() -> anyhow::Result<()> {
+//! ```no_run
+//! use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
+//! use rust_bert::pipelines::common::ModelType;
+//! use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
+//! use rust_bert::resources::RemoteResource;
 //!
+//! fn main() -> anyhow::Result<()> {
 //!     use rust_bert::pipelines::common::ModelResource;
-//! let config = MaskedLanguageConfig::new(
+//!     let config = MaskedLanguageConfig::new(
 //!         ModelType::Bert,
 //!         ModelResource::Torch(Box::new(RemoteResource::from_pretrained(BertModelResources::BERT))),
 //!         RemoteResource::from_pretrained(BertConfigResources::BERT),
