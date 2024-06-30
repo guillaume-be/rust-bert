@@ -210,6 +210,7 @@ impl ProphetNetEncoder {
     }
 }
 
+#[allow(dead_code)]
 /// Container for the ProphetNet encoder output.
 pub struct ProphetNetEncoderOutput {
     /// Last hidden states from the model

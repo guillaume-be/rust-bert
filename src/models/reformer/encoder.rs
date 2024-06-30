@@ -143,6 +143,7 @@ impl ChunkReformerFeedForward {
     }
 }
 
+#[allow(dead_code)]
 pub struct ReformerLayerOutput {
     pub attention_output: Tensor,
     pub hidden_states: Tensor,
