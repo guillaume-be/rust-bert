@@ -42,6 +42,11 @@ impl BertModelResources {
         "bert/model",
         "https://huggingface.co/bert-base-uncased/resolve/main/rust_model.ot",
     );
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/bert>. Modified with conversion to C-array format.
+    pub const BERT_LARGE: (&'static str, &'static str) = (
+        "bert-large/model",
+        "https://huggingface.co/bert-large-uncased/resolve/main/rust_model.ot",
+    );
     /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at <https://github.com/dbmdz/berts>. Modified with conversion to C-array format.
     pub const BERT_NER: (&'static str, &'static str) = (
         "bert-ner/model",
@@ -75,6 +80,11 @@ impl BertConfigResources {
         "bert/config",
         "https://huggingface.co/bert-base-uncased/resolve/main/config.json",
     );
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/bert>. Modified with conversion to C-array format.
+    pub const BERT_LARGE: (&'static str, &'static str) = (
+        "bert-large/config",
+        "https://huggingface.co/bert-large-uncased/resolve/main/config.json",
+    );
     /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at <https://github.com/dbmdz/berts>. Modified with conversion to C-array format.
     pub const BERT_NER: (&'static str, &'static str) = (
         "bert-ner/config",
@@ -107,6 +117,11 @@ impl BertVocabResources {
     pub const BERT: (&'static str, &'static str) = (
         "bert/vocab",
         "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt",
+    );
+    /// Shared under Apache 2.0 license by the Google team at <https://github.com/google-research/bert>. Modified with conversion to C-array format.
+    pub const BERT_LARGE: (&'static str, &'static str) = (
+        "bert-large/vocab",
+        "https://huggingface.co/bert-large-uncased/resolve/main/vocab.txt",
     );
     /// Shared under MIT license by the MDZ Digital Library team at the Bavarian State Library at <https://github.com/dbmdz/berts>. Modified with conversion to C-array format.
     pub const BERT_NER: (&'static str, &'static str) = (
