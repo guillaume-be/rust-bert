@@ -177,8 +177,8 @@ installation instructions/support.
 
 Most architectures (including encoders, decoders and encoder-decoders) are
 supported. the library aims at keeping compatibility with models exported using
-the [optimum](https://github.com/huggingface/optimum) library. A detailed guide
-on how to export a Transformer model to ONNX using optimum is available at
+the [Optimum](https://github.com/huggingface/optimum) library. A detailed guide
+on how to export a Transformer model to ONNX using Optimum is available at
 https://huggingface.co/docs/optimum/main/en/exporters/onnx/usage_guides/export_a_model
 The resources used to create ONNX models are similar to those based on Pytorch,
 replacing the pytorch by the ONNX model. Since ONNX models are less flexible
@@ -197,7 +197,7 @@ Note that the computational efficiency will drop when the `decoder with past`
 file is optional but not provided since the model will not used cached past keys
 and values for the attention mechanism, leading to a high number of redundant
 computations. The Optimum library offers export options to ensure such a
-`decoder with past` model file is created. he base encoder and decoder model
+`decoder with past` model file is created. The base encoder and decoder model
 architecture are available (and exposed for convenience) in the `encoder` and
 `decoder` modules, respectively.
 
