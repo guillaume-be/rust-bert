@@ -541,6 +541,7 @@ impl T5Stack {
     }
 }
 
+#[allow(dead_code)]
 pub struct T5BlockOutput {
     pub hidden_states: Tensor,
     pub self_attention_weights: Option<Tensor>,

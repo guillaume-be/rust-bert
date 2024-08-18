@@ -17,4 +17,6 @@ Cargo.lock
 
 /target
 #**/*.rs.bk
-/resources/
+/models/
+/.venv/
+convert_model.log
