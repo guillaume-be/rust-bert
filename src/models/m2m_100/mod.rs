@@ -12,6 +12,7 @@
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
 //! - `M2M100Tokenizer` using a `config.json` vocabulary and a `spiece.model` SentencePiece BPE model
+//!
 //! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
