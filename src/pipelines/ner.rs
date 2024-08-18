@@ -23,7 +23,7 @@
 //! All resources for this model can be downloaded using the Python utility script included in this repository.
 //! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
 //! 2. Run the conversion script python /utils/download-dependencies_bert_ner.py.
-//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/bert-ner
+//!     The dependencies will be downloaded to the user's home directory, under ~/rustbert/bert-ner
 //!
 //! The example below illustrate how to run the model for the default English NER model
 //! ```no_run
