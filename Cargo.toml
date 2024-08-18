@@ -76,14 +76,14 @@ features = ["doc-only"]
 
 [dependencies]
 rust_tokenizers = "8.1.1"
-tch = { version = "0.16.0", features = ["download-libtorch"] }
+tch = { version = "0.17.0", features = ["download-libtorch"] }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 ordered-float = "4.2.0"
 uuid = { version = "1", features = ["v4"] }
 thiserror = "1"
 half = "2"
-regex = "1.6"
+regex = "1.10"
 
 cached-path = { version = "0.6", default-features = false, optional = true }
 dirs = { version = "5", optional = true }
@@ -92,7 +92,7 @@ ort = { version = "1.16.3", optional = true, default-features = false, features 
     "half",
 ] }
 ndarray = { version = "0.15", optional = true }
-tokenizers = { version = "0.19.1", optional = true, default-features = false, features = [
+tokenizers = { version = "0.20", optional = true, default-features = false, features = [
     "onig",
 ] }
 
