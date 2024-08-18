@@ -10,6 +10,7 @@
 //! - Configuration file expected to have a structure following the [Transformers library](https://github.com/huggingface/transformers)
 //! - Model weights are expected to have a structure and parameter names following the [Transformers library](https://github.com/huggingface/transformers). A conversion using the Python utility scripts is required to convert the `.bin` weights to the `.ot` format.
 //! - `GptTokenizer` using a `vocab.txt` vocabulary and `merges.txt` 2-gram merges
+//!
 //! Pretrained models are available and can be downloaded using RemoteResources.
 //!
 //! ```no_run
