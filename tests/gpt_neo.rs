@@ -2,7 +2,7 @@ use rust_bert::gpt_neo::{
     GptNeoConfig, GptNeoConfigResources, GptNeoForCausalLM, GptNeoMergesResources,
     GptNeoModelResources, GptNeoVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
@@ -58,7 +58,7 @@ fn gpt_neo_lm() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -125,7 +125,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
     //    Set-up model
     let generation_config = TextGenerationConfig {
         model_type: ModelType::GPTNeo,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -143,7 +143,7 @@ fn test_generation_gpt_neo() -> anyhow::Result<()> {
 
     let input_context_1 = "It was a very nice and sunny";
     let input_context_2 = "It was a gloom winter night, and";
-    let output = model.generate(&[input_context_1, input_context_2], None);
+    let output = model.generate(&[input_context_1, input_context_2], None)?;
 
     assert_eq!(output.len(), 2);
     assert_eq!(output[0], "It was a very nice and sunny day. The sun was shining through the clouds, and the sky was clear. The wind was blowing through the trees,");

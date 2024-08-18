@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use std::path::PathBuf;
 
 /// # Remote resource that will be downloaded and cached locally on demand
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct RemoteResource {
     /// Remote path/url for the resource
     pub url: String,
@@ -31,7 +31,7 @@ impl RemoteResource {
     ///
     /// ```no_run
     /// use rust_bert::resources::RemoteResource;
-    /// let config_resource = RemoteResource::new("configs", "http://config_json_location");
+    /// let config_resource = RemoteResource::new("http://config_json_location", "configs");
     /// ```
     pub fn new(url: &str, cache_subdir: &str) -> RemoteResource {
         RemoteResource {
@@ -92,6 +92,23 @@ impl ResourceProvider for RemoteResource {
         let cached_path = CACHE
             .cached_path_with_options(&self.url, &Options::default().subdir(&self.cache_subdir))?;
         Ok(cached_path)
+    }
+
+    /// Gets a wrapper around the local path for a remote resource.
+    ///
+    /// # Returns
+    ///
+    /// * `Resource` wrapping a `PathBuf` pointing to the resource file
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rust_bert::resources::{RemoteResource, ResourceProvider};
+    /// let config_resource = RemoteResource::new("http://config_json_location", "configs");
+    /// let config_path = config_resource.get_resource();
+    /// ```
+    fn get_resource(&self) -> Result<Resource, RustBertError> {
+        Ok(Resource::PathBuf(self.get_local_path()?))
     }
 }
 

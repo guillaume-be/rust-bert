@@ -1,8 +1,8 @@
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 name: Build
 
@@ -20,6 +20,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
+          args: --features download-libtorch
 
   build-no-defaults:
     name: Build no defaults
@@ -34,7 +35,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --no-default-features
+          args: --no-default-features --features download-libtorch
 
   build-windows:
     name: Build Windows
@@ -49,6 +50,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
+          args: --features download-libtorch
 
   build-mac-os:
     name: Build macOS
@@ -63,6 +65,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
+          args: --features download-libtorch
 
   test-batch-0:
     name: Integration tests (batch 0)
@@ -89,6 +92,7 @@ jobs:
             --test fnet
             --test deberta
             --test deberta_v2
+            --features download-libtorch
 
   test-batch-1:
     name: Integration tests (batch 1)
@@ -114,6 +118,7 @@ jobs:
             --test longformer
             --test pegasus
             --test gpt_neo
+            --features download-libtorch
 
   test-batch-2:
     name: Integration tests (batch 2)
@@ -132,6 +137,28 @@ jobs:
             --test sentence_embeddings
             --test longt5
             --test gpt_j
+            --test nllb
+            --features download-libtorch
+
+  test-opt-features:
+    name: Integration tests (Optional features)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --package rust-bert
+            --features onnx
+            --features hf-tokenizers
+            --test onnx
+            --test hf_tokenizers
+            --features download-libtorch
 
   convert-model:
     name: Model conversion test
@@ -147,7 +174,7 @@ jobs:
         with:
           python-version: '3.10'
       - run: |
-          pip install -r requirements.txt --progress-bar off
+          pip install -r ./utils/requirements.txt --progress-bar off
           python ./utils/download-dependencies_distilbert.py
 
   fmt:

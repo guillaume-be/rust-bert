@@ -1,6 +1,6 @@
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::prophetnet::{
     ProphetNetConfigResources, ProphetNetModelResources, ProphetNetVocabResources,
 };
@@ -22,7 +22,7 @@ fn prophetnet_summarization_greedy() -> anyhow::Result<()> {
 
     let summarization_config = SummarizationConfig {
         model_type: ModelType::ProphetNet,
-        model_resource: weights_resource,
+        model_resource: ModelResource::Torch(weights_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,
@@ -57,7 +57,7 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let output = summarization_model.summarize(&input);
+    let output = summarization_model.summarize(&input)?;
 
     assert_eq!(output.len(), 1);
     assert_eq!(

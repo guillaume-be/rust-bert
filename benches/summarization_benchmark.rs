@@ -40,9 +40,6 @@ fn summarization_load_model(iters: u64) -> Duration {
 
 fn bench_squad(c: &mut Criterion) {
     //    Set-up summarization model
-    unsafe {
-        torch_sys::dummy_cuda_dependency();
-    }
     let model = create_summarization_model();
 
     //    Define input

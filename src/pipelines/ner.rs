@@ -23,7 +23,7 @@
 //! All resources for this model can be downloaded using the Python utility script included in this repository.
 //! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
 //! 2. Run the conversion script python /utils/download-dependencies_bert_ner.py.
-//! The dependencies will be downloaded to the user's home directory, under ~/rustbert/bert-ner
+//!     The dependencies will be downloaded to the user's home directory, under ~/rustbert/bert-ner
 //!
 //! The example below illustrate how to run the model for the default English NER model
 //! ```no_run
@@ -90,11 +90,12 @@
 //! use tch::Device;
 //!
 //! # fn main() -> anyhow::Result<()> {
+//! use rust_bert::pipelines::common::ModelResource;
 //! let ner_config = TokenClassificationConfig {
 //!     model_type: ModelType::XLMRoberta,
-//!     model_resource: Box::new(RemoteResource::from_pretrained(
+//!     model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
 //!         RobertaModelResources::XLM_ROBERTA_NER_DE,
-//!     )),
+//!     ))),
 //!     config_resource: Box::new(RemoteResource::from_pretrained(
 //!         RobertaConfigResources::XLM_ROBERTA_NER_DE,
 //!     )),
@@ -127,6 +128,7 @@
 //! Dutch| XLM_ROBERTA_NER_NL |
 
 use crate::common::error::RustBertError;
+use crate::pipelines::common::TokenizerOption;
 use crate::pipelines::token_classification::{
     Token, TokenClassificationConfig, TokenClassificationModel,
 };
@@ -176,6 +178,51 @@ impl NERModel {
         Ok(NERModel {
             token_classification_model: model,
         })
+    }
+
+    /// Build a new `NERModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `ner_config` - `NERConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for token classification
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::ner::NERModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Bert,
+    ///     "path/to/vocab.txt",
+    ///     None,
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let ner_model = NERModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        ner_config: NERConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<NERModel, RustBertError> {
+        let model = TokenClassificationModel::new_with_tokenizer(ner_config, tokenizer)?;
+        Ok(NERModel {
+            token_classification_model: model,
+        })
+    }
+
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        self.token_classification_model.get_tokenizer()
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        self.token_classification_model.get_tokenizer_mut()
     }
 
     /// Extract entities from a text

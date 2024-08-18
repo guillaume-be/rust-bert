@@ -3,7 +3,7 @@ extern crate criterion;
 
 use criterion::{black_box, Criterion};
 use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::question_answering::{
     squad_processor, QaInput, QuestionAnsweringConfig, QuestionAnsweringModel,
 };
@@ -17,7 +17,9 @@ static BATCH_SIZE: usize = 64;
 fn create_qa_model() -> QuestionAnsweringModel {
     let config = QuestionAnsweringConfig::new(
         ModelType::Bert,
-        RemoteResource::from_pretrained(BertModelResources::BERT_QA),
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+            BertModelResources::BERT_QA,
+        ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT_QA),
         RemoteResource::from_pretrained(BertVocabResources::BERT_QA),
         None,  //merges resource only relevant with ModelType::Roberta
@@ -52,7 +54,9 @@ fn qa_load_model(iters: u64) -> Duration {
         let start = Instant::now();
         let config = QuestionAnsweringConfig::new(
             ModelType::Bert,
-            RemoteResource::from_pretrained(BertModelResources::BERT_QA),
+            ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+                BertModelResources::BERT_QA,
+            ))),
             RemoteResource::from_pretrained(BertConfigResources::BERT_QA),
             RemoteResource::from_pretrained(BertVocabResources::BERT_QA),
             None,  //merges resource only relevant with ModelType::Roberta
@@ -69,9 +73,7 @@ fn qa_load_model(iters: u64) -> Duration {
 fn bench_squad(c: &mut Criterion) {
     //    Set-up QA model
     let model = create_qa_model();
-    unsafe {
-        torch_sys::dummy_cuda_dependency();
-    }
+
     //    Define input
     let mut squad_path = PathBuf::from(env::var("squad_dataset")
         .expect("Please set the \"squad_dataset\" environment variable pointing to the SQuAD dataset folder"));

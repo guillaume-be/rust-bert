@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use rust_bert::gpt_j::{GptJConfigResources, GptJMergesResources, GptJVocabResources};
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{LocalResource, RemoteResource};
 use tch::Device;
@@ -44,7 +44,6 @@ use tch::Device;
 /// ```
 ///
 /// [gpt-j-6B-float16]: https://huggingface.co/EleutherAI/gpt-j-6B/tree/float16
-///
 fn main() -> anyhow::Result<()> {
     // Resources paths
 
@@ -68,7 +67,7 @@ fn main() -> anyhow::Result<()> {
 
     let generation_config = TextGenerationConfig {
         model_type: ModelType::GPTJ,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -90,7 +89,7 @@ fn main() -> anyhow::Result<()> {
         "It was a very nice and sunny",
         "It was a gloom winter night, and",
     ];
-    let output = model.generate(&prompts, None);
+    let output = model.generate(&prompts, None)?;
 
     assert_eq!(output.len(), 2);
     assert_eq!(output[0], "It was a very nice and sunny day, and I was sitting in the garden of my house, enjoying the sun and the fresh air. I was thinking");

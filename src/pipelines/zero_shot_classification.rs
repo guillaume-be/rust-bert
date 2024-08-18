@@ -25,15 +25,15 @@
 //! # use rust_bert::pipelines::zero_shot_classification::ZeroShotClassificationModel;
 //! # fn main() -> anyhow::Result<()> {
 //! let sequence_classification_model = ZeroShotClassificationModel::new(Default::default())?;
-//!  let input_sentence = "Who are you voting for in 2020?";
-//!  let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
-//!  let candidate_labels = &["politics", "public health", "economics", "sports"];
-//!  let output = sequence_classification_model.predict_multilabel(
-//!      &[input_sentence, input_sequence_2],
-//!      candidate_labels,
-//!      None,
-//!      128,
-//!  );
+//! let input_sentence = "Who are you voting for in 2020?";
+//! let input_sequence_2 = "The prime minister has announced a stimulus package which was widely criticized by the opposition.";
+//! let candidate_labels = &["politics", "public health", "economics", "sports"];
+//! let output = sequence_classification_model.predict_multilabel(
+//!     &[input_sentence, input_sequence_2],
+//!     candidate_labels,
+//!     None,
+//!     128,
+//! );
 //! # Ok(())
 //! # }
 //! ```
@@ -102,10 +102,13 @@ use crate::albert::AlbertForSequenceClassification;
 use crate::bart::BartForSequenceClassification;
 use crate::bert::BertForSequenceClassification;
 use crate::deberta::DebertaForSequenceClassification;
+use crate::deberta_v2::DebertaV2ForSequenceClassification;
 use crate::distilbert::DistilBertModelClassifier;
 use crate::longformer::LongformerForSequenceClassification;
 use crate::mobilebert::MobileBertForSequenceClassification;
-use crate::pipelines::common::{ConfigOption, ModelType, TokenizerOption};
+use crate::pipelines::common::{
+    cast_var_store, ConfigOption, ModelResource, ModelType, TokenizerOption,
+};
 use crate::pipelines::sequence_classification::Label;
 use crate::resources::ResourceProvider;
 use crate::roberta::RobertaForSequenceClassification;
@@ -113,17 +116,17 @@ use crate::xlnet::XLNetForSequenceClassification;
 use crate::RustBertError;
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use rust_tokenizers::TokenizedInput;
-use std::borrow::Borrow;
-use std::ops::Deref;
-use tch::kind::Kind::{Bool, Float};
-use tch::nn::VarStore;
-use tch::{nn, no_grad, Device, Tensor};
 
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::{config::ONNXEnvironmentConfig, ONNXEncoder};
 #[cfg(feature = "remote")]
 use crate::{
     bart::{BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources},
     resources::RemoteResource,
 };
+use tch::kind::Kind::{Bool, Float};
+use tch::nn::VarStore;
+use tch::{no_grad, Device, Kind, Tensor};
 
 /// # Configuration for ZeroShotClassificationModel
 /// Contains information regarding the model to load and device to place the model on.
@@ -131,7 +134,7 @@ pub struct ZeroShotClassificationConfig {
     /// Model type
     pub model_type: ModelType,
     /// Model weights resource (default: pretrained BERT model on CoNLL)
-    pub model_resource: Box<dyn ResourceProvider + Send>,
+    pub model_resource: ModelResource,
     /// Config resource (default: pretrained BERT model on CoNLL)
     pub config_resource: Box<dyn ResourceProvider + Send>,
     /// Vocab resource (default: pretrained BERT model on CoNLL)
@@ -146,6 +149,8 @@ pub struct ZeroShotClassificationConfig {
     pub add_prefix_space: Option<bool>,
     /// Device to place the model on (default: CUDA/GPU when available)
     pub device: Device,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 impl ZeroShotClassificationConfig {
@@ -159,9 +164,9 @@ impl ZeroShotClassificationConfig {
     /// * vocab - The `ResourceProvider` pointing to the tokenizer's vocabulary to load (e.g.  vocab.txt/vocab.json)
     /// * merges - An optional `ResourceProvider` pointing to the tokenizer's merge file to load (e.g.  merges.txt), needed only for Roberta.
     /// * lower_case - A `bool` indicating whether the tokenizer should lower case all input (in case of a lower-cased model)
-    pub fn new<RM, RC, RV>(
+    pub fn new<RC, RV>(
         model_type: ModelType,
-        model_resource: RM,
+        model_resource: ModelResource,
         config_resource: RC,
         vocab_resource: RV,
         merges_resource: Option<RV>,
@@ -170,13 +175,12 @@ impl ZeroShotClassificationConfig {
         add_prefix_space: impl Into<Option<bool>>,
     ) -> ZeroShotClassificationConfig
     where
-        RM: ResourceProvider + Send + 'static,
         RC: ResourceProvider + Send + 'static,
         RV: ResourceProvider + Send + 'static,
     {
         ZeroShotClassificationConfig {
             model_type,
-            model_resource: Box::new(model_resource),
+            model_resource,
             config_resource: Box::new(config_resource),
             vocab_resource: Box::new(vocab_resource),
             merges_resource: merges_resource.map(|r| Box::new(r) as Box<_>),
@@ -184,19 +188,20 @@ impl ZeroShotClassificationConfig {
             strip_accents: strip_accents.into(),
             add_prefix_space: add_prefix_space.into(),
             device: Device::cuda_if_available(),
+            kind: None,
         }
     }
 }
 
 #[cfg(feature = "remote")]
 impl Default for ZeroShotClassificationConfig {
-    /// Provides a defaultSST-2 sentiment analysis model (English)
+    /// Provides a default zero-shot classification model (English)
     fn default() -> ZeroShotClassificationConfig {
         ZeroShotClassificationConfig {
             model_type: ModelType::Bart,
-            model_resource: Box::new(RemoteResource::from_pretrained(
+            model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
                 BartModelResources::BART_MNLI,
-            )),
+            ))),
             config_resource: Box::new(RemoteResource::from_pretrained(
                 BartConfigResources::BART_MNLI,
             )),
@@ -210,6 +215,7 @@ impl Default for ZeroShotClassificationConfig {
             strip_accents: None,
             add_prefix_space: None,
             device: Device::cuda_if_available(),
+            kind: None,
         }
     }
 }
@@ -218,11 +224,14 @@ impl Default for ZeroShotClassificationConfig {
 /// The models are using a classification architecture that should be trained on Natural Language Inference.
 /// The models should output a Tensor of size > 2 in the label dimension, with the first logit corresponding
 /// to contradiction and the last logit corresponding to entailment.
+#[allow(clippy::large_enum_variant)]
 pub enum ZeroShotClassificationOption {
     /// Bart for Sequence Classification
     Bart(BartForSequenceClassification),
     /// DeBERTa for Sequence Classification
     Deberta(DebertaForSequenceClassification),
+    /// DeBERTaV2 for Sequence Classification
+    DebertaV2(DebertaV2ForSequenceClassification),
     /// Bert for Sequence Classification
     Bert(BertForSequenceClassification),
     /// DistilBert for Sequence Classification
@@ -239,30 +248,38 @@ pub enum ZeroShotClassificationOption {
     XLNet(XLNetForSequenceClassification),
     /// Longformer for Sequence Classification
     Longformer(LongformerForSequenceClassification),
+    /// ONNX model for Sequence Classification
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXEncoder),
 }
 
 impl ZeroShotClassificationOption {
-    /// Instantiate a new zero shot classification model of the supplied type.
+    /// Instantiate a new zer-shot classification model of the supplied type.
     ///
     /// # Arguments
     ///
-    /// * `model_type` - `ModelType` indicating the model type to load (must match with the actual data to be loaded)
-    /// * `p` - `tch::nn::Path` path to the model file to load (e.g. model.ot)
-    /// * `config` - A configuration (the model type of the configuration must be compatible with the value for
-    /// `model_type`)
-    pub fn new<'p, P>(
-        model_type: ModelType,
-        p: P,
-        config: &ConfigOption,
-    ) -> Result<Self, RustBertError>
-    where
-        P: Borrow<nn::Path<'p>>,
-    {
-        match model_type {
+    /// * `ZeroShotClassificationConfig` - Zero-shot classification pipeline configuration. The type of model created will be inferred from the
+    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    pub fn new(config: &ZeroShotClassificationConfig) -> Result<Self, RustBertError> {
+        match config.model_resource {
+            ModelResource::Torch(_) => Self::new_torch(config),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Self::new_onnx(config),
+        }
+    }
+
+    fn new_torch(config: &ZeroShotClassificationConfig) -> Result<Self, RustBertError> {
+        let device = config.device;
+        let weights_path = config.model_resource.get_torch_local_path()?;
+        let mut var_store = VarStore::new(device);
+        let model_config =
+            &ConfigOption::from_file(config.model_type, config.config_resource.get_local_path()?);
+        let model_type = config.model_type;
+        let model = match model_type {
             ModelType::Bart => {
-                if let ConfigOption::Bart(config) = config {
-                    Ok(ZeroShotClassificationOption::Bart(
-                        BartForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Bart(config) = model_config {
+                    Ok(Self::Bart(
+                        BartForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -271,9 +288,9 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::Deberta => {
-                if let ConfigOption::Deberta(config) = config {
-                    Ok(ZeroShotClassificationOption::Deberta(
-                        DebertaForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Deberta(config) = model_config {
+                    Ok(Self::Deberta(
+                        DebertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -281,10 +298,21 @@ impl ZeroShotClassificationOption {
                     ))
                 }
             }
+            ModelType::DebertaV2 => {
+                if let ConfigOption::DebertaV2(config) = model_config {
+                    Ok(Self::DebertaV2(
+                        DebertaV2ForSequenceClassification::new(var_store.root(), config)?,
+                    ))
+                } else {
+                    Err(RustBertError::InvalidConfigurationError(
+                        "You can only supply a DebertaConfig for DeBERTaV2!".to_string(),
+                    ))
+                }
+            }
             ModelType::Bert => {
-                if let ConfigOption::Bert(config) = config {
-                    Ok(ZeroShotClassificationOption::Bert(
-                        BertForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Bert(config) = model_config {
+                    Ok(Self::Bert(
+                        BertForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -293,9 +321,9 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::DistilBert => {
-                if let ConfigOption::DistilBert(config) = config {
-                    Ok(ZeroShotClassificationOption::DistilBert(
-                        DistilBertModelClassifier::new(p, config)?,
+                if let ConfigOption::DistilBert(config) = model_config {
+                    Ok(Self::DistilBert(
+                        DistilBertModelClassifier::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -304,9 +332,9 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::MobileBert => {
-                if let ConfigOption::MobileBert(config) = config {
-                    Ok(ZeroShotClassificationOption::MobileBert(
-                        MobileBertForSequenceClassification::new(p, config)?,
+                if let ConfigOption::MobileBert(config) = model_config {
+                    Ok(Self::MobileBert(
+                        MobileBertForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -315,20 +343,20 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::Roberta => {
-                if let ConfigOption::Bert(config) = config {
-                    Ok(ZeroShotClassificationOption::Roberta(
-                        RobertaForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Roberta(config) = model_config {
+                    Ok(Self::Roberta(
+                        RobertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
-                        "You can only supply a BertConfig for Roberta!".to_string(),
+                        "You can only supply a RobertaConfig for Roberta!".to_string(),
                     ))
                 }
             }
             ModelType::XLMRoberta => {
-                if let ConfigOption::Bert(config) = config {
-                    Ok(ZeroShotClassificationOption::XLMRoberta(
-                        RobertaForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Bert(config) = model_config {
+                    Ok(Self::XLMRoberta(
+                        RobertaForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -337,9 +365,9 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::Albert => {
-                if let ConfigOption::Albert(config) = config {
-                    Ok(ZeroShotClassificationOption::Albert(
-                        AlbertForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Albert(config) = model_config {
+                    Ok(Self::Albert(
+                        AlbertForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -348,9 +376,9 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::XLNet => {
-                if let ConfigOption::XLNet(config) = config {
-                    Ok(ZeroShotClassificationOption::XLNet(
-                        XLNetForSequenceClassification::new(p, config)?,
+                if let ConfigOption::XLNet(config) = model_config {
+                    Ok(Self::XLNet(
+                        XLNetForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -359,9 +387,9 @@ impl ZeroShotClassificationOption {
                 }
             }
             ModelType::Longformer => {
-                if let ConfigOption::Longformer(config) = config {
-                    Ok(ZeroShotClassificationOption::Longformer(
-                        LongformerForSequenceClassification::new(p, config)?,
+                if let ConfigOption::Longformer(config) = model_config {
+                    Ok(Self::Longformer(
+                        LongformerForSequenceClassification::new(var_store.root(), config)?,
                     ))
                 } else {
                     Err(RustBertError::InvalidConfigurationError(
@@ -369,10 +397,37 @@ impl ZeroShotClassificationOption {
                     ))
                 }
             }
+            #[cfg(feature = "onnx")]
+            ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
+                "A `ModelType::ONNX` ModelType was provided in the configuration with `ModelResources::TORCH`, these are incompatible".to_string(),
+            )),
             _ => Err(RustBertError::InvalidConfigurationError(format!(
                 "Zero shot classification not implemented for {model_type:?}!",
             ))),
-        }
+        }?;
+        var_store.load(weights_path)?;
+        cast_var_store(&mut var_store, config.kind, device);
+        Ok(model)
+    }
+
+    #[cfg(feature = "onnx")]
+    pub fn new_onnx(config: &ZeroShotClassificationConfig) -> Result<Self, RustBertError> {
+        let onnx_config = ONNXEnvironmentConfig::from_device(config.device);
+        let environment = onnx_config.get_environment()?;
+        let encoder_file = config
+            .model_resource
+            .get_onnx_local_paths()?
+            .encoder_path
+            .ok_or(RustBertError::InvalidConfigurationError(
+                "An encoder file must be provided for zero-shot classification ONNX models."
+                    .to_string(),
+            ))?;
+
+        Ok(Self::ONNX(ONNXEncoder::new(
+            encoder_file,
+            &environment,
+            &onnx_config,
+        )?))
     }
 
     /// Returns the `ModelType` for this SequenceClassificationOption
@@ -380,6 +435,7 @@ impl ZeroShotClassificationOption {
         match *self {
             Self::Bart(_) => ModelType::Bart,
             Self::Deberta(_) => ModelType::Deberta,
+            Self::DebertaV2(_) => ModelType::DebertaV2,
             Self::Bert(_) => ModelType::Bert,
             Self::Roberta(_) => ModelType::Roberta,
             Self::XLMRoberta(_) => ModelType::Roberta,
@@ -388,6 +444,8 @@ impl ZeroShotClassificationOption {
             Self::Albert(_) => ModelType::Albert,
             Self::XLNet(_) => ModelType::XLNet,
             Self::Longformer(_) => ModelType::Longformer,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(_) => ModelType::ONNX,
         }
     }
 
@@ -437,6 +495,19 @@ impl ZeroShotClassificationOption {
                         train,
                     )
                     .expect("Error in DeBERTa forward_t")
+                    .logits
+            }
+            Self::DebertaV2(ref model) => {
+                model
+                    .forward_t(
+                        input_ids,
+                        mask,
+                        token_type_ids,
+                        position_ids,
+                        input_embeds,
+                        train,
+                    )
+                    .expect("Error in DeBERTaV2 forward_t")
                     .logits
             }
             Self::DistilBert(ref model) => {
@@ -503,6 +574,18 @@ impl ZeroShotClassificationOption {
                     .expect("Error in Longformer forward pass.")
                     .logits
             }
+            #[cfg(feature = "onnx")]
+            Self::ONNX(ref model) => model
+                .forward(
+                    input_ids,
+                    mask.map(|tensor| tensor.to_kind(Kind::Int64)).as_ref(),
+                    token_type_ids,
+                    position_ids,
+                    input_embeds,
+                )
+                .expect("Error in ONNX forward pass.")
+                .logits
+                .unwrap(),
         }
     }
 }
@@ -530,7 +613,7 @@ pub type ZeroShotTemplate = Box<dyn Fn(&str) -> String>;
 pub struct ZeroShotClassificationModel {
     tokenizer: TokenizerOption,
     zero_shot_classifier: ZeroShotClassificationOption,
-    var_store: VarStore,
+    device: Device,
 }
 
 impl ZeroShotClassificationModel {
@@ -553,15 +636,12 @@ impl ZeroShotClassificationModel {
     pub fn new(
         config: ZeroShotClassificationConfig,
     ) -> Result<ZeroShotClassificationModel, RustBertError> {
-        let config_path = config.config_resource.get_local_path()?;
         let vocab_path = config.vocab_resource.get_local_path()?;
-        let weights_path = config.model_resource.get_local_path()?;
-        let merges_path = if let Some(merges_resource) = &config.merges_resource {
-            Some(merges_resource.get_local_path()?)
-        } else {
-            None
-        };
-        let device = config.device;
+        let merges_path = config
+            .merges_resource
+            .as_ref()
+            .map(|resource| resource.get_local_path())
+            .transpose()?;
 
         let tokenizer = TokenizerOption::from_file(
             config.model_type,
@@ -571,16 +651,56 @@ impl ZeroShotClassificationModel {
             config.strip_accents,
             config.add_prefix_space,
         )?;
-        let mut var_store = VarStore::new(device);
-        let model_config = ConfigOption::from_file(config.model_type, config_path);
-        let zero_shot_classifier =
-            ZeroShotClassificationOption::new(config.model_type, var_store.root(), &model_config)?;
-        var_store.load(weights_path)?;
+        Self::new_with_tokenizer(config, tokenizer)
+    }
+
+    /// Build a new `ZeroShotClassificationModel` with a provided tokenizer.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - `SequenceClassificationConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for zero-shot classification.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn main() -> anyhow::Result<()> {
+    /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
+    /// use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
+    /// let tokenizer = TokenizerOption::from_file(
+    ///     ModelType::Bert,
+    ///     "path/to/vocab.txt",
+    ///     None,
+    ///     false,
+    ///     None,
+    ///     None,
+    /// )?;
+    /// let model = SequenceClassificationModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_tokenizer(
+        config: ZeroShotClassificationConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<ZeroShotClassificationModel, RustBertError> {
+        let device = config.device;
+        let zero_shot_classifier = ZeroShotClassificationOption::new(&config)?;
+
         Ok(ZeroShotClassificationModel {
             tokenizer,
             zero_shot_classifier,
-            var_store,
+            device,
         })
+    }
+
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
     }
 
     fn prepare_for_model<'a, S, T>(
@@ -589,7 +709,7 @@ impl ZeroShotClassificationModel {
         labels: T,
         template: Option<ZeroShotTemplate>,
         max_len: usize,
-    ) -> Result<(Tensor, Tensor), RustBertError>
+    ) -> Result<(Tensor, Tensor, Tensor), RustBertError>
     where
         S: AsRef<[&'a str]>,
         T: AsRef<[&'a str]>,
@@ -613,11 +733,11 @@ impl ZeroShotClassificationModel {
             .flat_map(|input| {
                 label_sentences
                     .iter()
-                    .map(move |label_sentence| (input.deref(), label_sentence.as_str()))
+                    .map(move |label_sentence| (*input, label_sentence.as_str()))
             })
             .collect::<Vec<(&str, &str)>>();
 
-        let tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_pair_list(
+        let mut tokenized_input: Vec<TokenizedInput> = self.tokenizer.encode_pair_list(
             text_pair_list.as_ref(),
             max_len,
             &TruncationStrategy::LongestFirst,
@@ -633,25 +753,35 @@ impl ZeroShotClassificationModel {
             .tokenizer
             .get_pad_id()
             .expect("The Tokenizer used for sequence classification should contain a PAD id");
-        let tokenized_input_tensors = tokenized_input
-            .into_iter()
-            .map(|mut input| {
+        let input_ids = tokenized_input
+            .iter_mut()
+            .map(|input| {
                 input.token_ids.resize(max_len, pad_id);
-                Tensor::of_slice(&(input.token_ids))
+                Tensor::from_slice(&(input.token_ids))
+            })
+            .collect::<Vec<_>>();
+        let token_type_ids = tokenized_input
+            .iter_mut()
+            .map(|input| {
+                input
+                    .segment_ids
+                    .resize(max_len, *input.segment_ids.last().unwrap_or(&0));
+                Tensor::from_slice(&(input.segment_ids))
             })
             .collect::<Vec<_>>();
 
-        let tokenized_input_tensors =
-            Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(self.var_store.device());
-
-        let mask = tokenized_input_tensors
+        let input_ids = Tensor::stack(input_ids.as_slice(), 0).to(self.device);
+        let token_type_ids = Tensor::stack(token_type_ids.as_slice(), 0)
+            .to(self.device)
+            .to_kind(Kind::Int64);
+        let mask = input_ids
             .ne(self
                 .tokenizer
                 .get_pad_id()
                 .expect("The Tokenizer used for zero shot classification should contain a PAD id"))
             .to_kind(Bool);
 
-        Ok((tokenized_input_tensors, mask))
+        Ok((input_ids, mask, token_type_ids))
     }
 
     /// Zero shot classification with 1 (and exactly 1) true label.
@@ -720,14 +850,14 @@ impl ZeroShotClassificationModel {
         T: AsRef<[&'a str]>,
     {
         let num_inputs = inputs.as_ref().len();
-        let (input_tensor, mask) =
+        let (input_tensor, mask, token_type_ids) =
             self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
 
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(&input_tensor),
                 Some(&mask),
-                None,
+                Some(&token_type_ids),
                 None,
                 None,
                 false,
@@ -862,14 +992,14 @@ impl ZeroShotClassificationModel {
         T: AsRef<[&'a str]>,
     {
         let num_inputs = inputs.as_ref().len();
-        let (input_tensor, mask) =
+        let (input_tensor, mask, token_type_ids) =
             self.prepare_for_model(inputs.as_ref(), labels.as_ref(), template, max_length)?;
 
         let output = no_grad(|| {
             let output = self.zero_shot_classifier.forward_t(
                 Some(&input_tensor),
                 Some(&mask),
-                None,
+                Some(&token_type_ids),
                 None,
                 None,
                 false,

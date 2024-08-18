@@ -2,12 +2,12 @@ use rust_bert::gpt_j::{
     GptJConfig, GptJConfigResources, GptJLMHeadModel, GptJMergesResources, GptJModelResources,
     GptJVocabResources,
 };
-use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
-use rust_bert::resources::{RemoteResource, ResourceProvider};
+use rust_bert::pipelines::generation_utils::Cache;
+use rust_bert::resources::{load_weights, RemoteResource, ResourceProvider};
 use rust_bert::Config;
 use rust_tokenizers::tokenizer::{Gpt2Tokenizer, Tokenizer};
 use rust_tokenizers::vocab::Vocab;
-use tch::{nn, Device, Tensor};
+use tch::{nn, Device, Kind, Tensor};
 
 /// Equivalent Python code:
 ///
@@ -66,14 +66,15 @@ fn gpt_j_correctness() -> anyhow::Result<()> {
 
     let mut vs = nn::VarStore::new(device);
     let config_path = config_resource.get_local_path()?;
-    let weights_path = model_resource.get_local_path()?;
-    let mut config = GptJConfig::from_file(config_path);
-    config.use_float16 = matches!(device, Device::Cuda(_));
+    let config = GptJConfig::from_file(config_path);
     let model = GptJLMHeadModel::new(vs.root(), &config);
-    vs.load(weights_path)?;
+    let kind = match device {
+        Device::Cpu => None,
+        _ => Some(Kind::Half),
+    };
+    load_weights(&model_resource, &mut vs, kind, device)?;
 
     // Tokenize prompts
-
     let prompts = [
         "It was a very nice and sunny",
         "It was a gloom winter night, and",
@@ -102,7 +103,7 @@ fn gpt_j_correctness() -> anyhow::Result<()> {
     let token_masks = token_ids
         .iter()
         .map(|input| {
-            Tensor::of_slice(
+            Tensor::from_slice(
                 &input
                     .iter()
                     .map(|&e| i64::from(e != pad_token))
@@ -114,7 +115,7 @@ fn gpt_j_correctness() -> anyhow::Result<()> {
 
     let token_ids = token_ids
         .into_iter()
-        .map(|tokens| Tensor::of_slice(&tokens).to(device))
+        .map(|tokens| Tensor::from_slice(&tokens).to(device))
         .collect::<Vec<Tensor>>();
 
     let input_tensor = Tensor::stack(&token_ids, 0);

@@ -1,4 +1,4 @@
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::xlnet::{
@@ -54,15 +54,15 @@ fn xlnet_base_model() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input[..input.len() - 2])))
+        .map(|input| Tensor::from_slice(&(input[..input.len() - 2])))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     // Forward pass
-    let perm_mask = Tensor::zeros(&[1, 4, 4], (Kind::Float, device));
+    let perm_mask = Tensor::zeros([1, 4, 4], (Kind::Float, device));
     let _ = perm_mask.narrow(2, 3, 1).fill_(1.0);
 
-    let target_mapping = Tensor::zeros(&[1, 1, 4], (Kind::Float, device));
+    let target_mapping = Tensor::zeros([1, 1, 4], (Kind::Float, device));
     let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     let model_output = no_grad(|| {
         xlnet_model
@@ -159,15 +159,15 @@ fn xlnet_lm_model() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input[..input.len() - 2])))
+        .map(|input| Tensor::from_slice(&(input[..input.len() - 2])))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
     // Forward pass
-    let perm_mask = Tensor::zeros(&[1, 4, 4], (Kind::Float, device));
+    let perm_mask = Tensor::zeros([1, 4, 4], (Kind::Float, device));
     let _ = perm_mask.narrow(2, 3, 1).fill_(1.0);
 
-    let target_mapping = Tensor::zeros(&[1, 1, 4], (Kind::Float, device));
+    let target_mapping = Tensor::zeros([1, 1, 4], (Kind::Float, device));
     let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     let model_output = no_grad(|| {
         xlnet_model
@@ -208,7 +208,7 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
 
     let generate_config = TextGenerationConfig {
         model_type: ModelType::XLNet,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,
@@ -222,7 +222,7 @@ fn xlnet_generation_beam_search() -> anyhow::Result<()> {
     let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "Once upon a time,";
-    let output = model.generate(&[input_context], None);
+    let output = model.generate(&[input_context], None)?;
 
     assert_eq!(output.len(), 1);
     assert_eq!(
@@ -274,7 +274,7 @@ fn xlnet_for_sequence_classification() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -348,7 +348,7 @@ fn xlnet_for_multiple_choice() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0)
         .to(device)
@@ -413,7 +413,7 @@ fn xlnet_for_token_classification() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -475,7 +475,7 @@ fn xlnet_for_question_answering() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 

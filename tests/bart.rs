@@ -2,6 +2,7 @@ use rust_bert::bart::{
     BartConfig, BartConfigResources, BartMergesResources, BartModel, BartModelResources,
     BartVocabResources,
 };
+use rust_bert::pipelines::common::{cast_var_store, ModelResource};
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::pipelines::zero_shot_classification::{
     ZeroShotClassificationConfig, ZeroShotClassificationModel,
@@ -43,6 +44,7 @@ fn bart_lm_model() -> anyhow::Result<()> {
     let config = BartConfig::from_file(config_path);
     let bart_model = BartModel::new(&vs.root() / "model", &config);
     vs.load(weights_path)?;
+    cast_var_store(&mut vs, None, device);
 
     //    Define input
     let input = ["One two three four"];
@@ -59,7 +61,7 @@ fn bart_lm_model() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -90,7 +92,7 @@ fn bart_summarization_greedy() -> anyhow::Result<()> {
         BartModelResources::DISTILBART_CNN_6_6,
     ));
     let summarization_config = SummarizationConfig {
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -126,7 +128,7 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let output = model.summarize(&input);
+    let output = model.summarize(&input)?;
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], " K2-18b is not too hot and not too cold for liquid water to exist. \
@@ -151,7 +153,7 @@ fn bart_summarization_beam_search() -> anyhow::Result<()> {
         BartModelResources::DISTILBART_CNN_6_6,
     ));
     let summarization_config = SummarizationConfig {
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -187,7 +189,7 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let output = model.summarize(&input);
+    let output = model.summarize(&input)?;
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], " K2-18b, a planet circling a star in the constellation Leo, is not too hot and not too cold for liquid water to exist. \

@@ -12,7 +12,7 @@
 
 extern crate anyhow;
 
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::RemoteResource;
 use rust_bert::t5::{T5ConfigResources, T5ModelResources, T5VocabResources};
@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
 
     let translation_config = TranslationConfig::new(
         ModelType::T5,
-        model_resource,
+        ModelResource::Torch(Box::new(model_resource)),
         config_resource,
         vocab_resource,
         None,

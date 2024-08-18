@@ -12,14 +12,16 @@
 
 extern crate anyhow;
 use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
 use rust_bert::resources::RemoteResource;
 fn main() -> anyhow::Result<()> {
     //    Set-up model
     let config = MaskedLanguageConfig::new(
         ModelType::Bert,
-        RemoteResource::from_pretrained(BertModelResources::BERT),
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+            BertModelResources::BERT,
+        ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT),
         RemoteResource::from_pretrained(BertVocabResources::BERT),
         None,

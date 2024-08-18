@@ -1,6 +1,6 @@
 [package]
 name = "rust-bert"
-version = "0.20.1-alpha"
+version = "0.22.0"
 authors = ["Guillaume Becquin <guillaume.becquin@gmail.com>"]
 edition = "2018"
 description = "Ready-to-use NLP pipelines and language models"
@@ -8,6 +8,7 @@ repository = "https://github.com/guillaume-be/rust-bert"
 documentation = "https://docs.rs/rust-bert"
 license = "Apache-2.0"
 readme = "README.md"
+build = "build.rs"
 keywords = [
     "nlp",
     "deep-learning",
@@ -60,34 +61,78 @@ harness = false
 opt-level = 3
 
 [features]
-default = ["remote"]
+default = ["remote", "default-tls"]
 doc-only = ["tch/doc-only"]
 all-tests = []
 remote = ["cached-path", "dirs", "lazy_static"]
+download-libtorch = ["tch/download-libtorch"]
+onnx = ["ort", "ndarray"]
+rustls-tls = ["cached-path/rustls-tls"]
+default-tls = ["cached-path/default-tls"]
+hf-tokenizers = ["tokenizers"]
 
 [package.metadata.docs.rs]
 features = ["doc-only"]
 
 [dependencies]
-rust_tokenizers = "8.0.0"
-tch = "~0.10.1"
+rust_tokenizers = "8.1.1"
+tch = { version = "0.16.0", features = ["download-libtorch"] }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
-ordered-float = "3"
+ordered-float = "4.2.0"
 uuid = { version = "1", features = ["v4"] }
 thiserror = "1"
 half = "2"
 regex = "1.6"
 
-cached-path = { version = "0.6", optional = true }
-dirs = { version = "4", optional = true }
+cached-path = { version = "0.6", default-features = false, optional = true }
+dirs = { version = "5", optional = true }
 lazy_static = { version = "1", optional = true }
+ort = { version = "1.16.3", optional = true, default-features = false, features = [
+    "half",
+] }
+ndarray = { version = "0.15", optional = true }
+tokenizers = { version = "0.19.1", optional = true, default-features = false, features = [
+    "onig",
+] }
 
 [dev-dependencies]
 anyhow = "1"
 csv = "1"
-criterion = "0.4"
-tokio = { version = "1.24", features = ["sync", "rt-multi-thread", "macros"] }
-torch-sys = "=0.10.0"
+criterion = "0.5"
+tokio = { version = "1.35", features = ["sync", "rt-multi-thread", "macros"] }
 tempfile = "3"
-itertools = "0.10"
+itertools = "0.13.0"
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "env-filter",
+    "fmt",
+] }
+ort = { version = "1.16.3", features = ["load-dynamic"] }
+
+[[example]]
+name = "onnx-masked-lm"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-question-answering"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-sequence-classification"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-text-generation"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-token-classification"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-translation"
+required-features = ["onnx"]
+
+[[example]]
+name = "generation_gpt2_hf_tokenizers"
+required-features = ["hf-tokenizers"]

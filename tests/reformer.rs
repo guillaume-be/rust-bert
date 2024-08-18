@@ -1,4 +1,4 @@
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::reformer::{
     ReformerConfig, ReformerConfigResources, ReformerForQuestionAnswering,
@@ -45,7 +45,7 @@ fn test_generation_reformer() -> anyhow::Result<()> {
     //    Set-up translation model
     let generation_config = TextGenerationConfig {
         model_type: ModelType::Reformer,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: None,
@@ -64,7 +64,7 @@ fn test_generation_reformer() -> anyhow::Result<()> {
 
     let input_context_1 = "The really great men must, I think,";
     let input_context_2 = "It was a gloom winter night, and";
-    let output = model.generate(&[input_context_1, input_context_2], None);
+    let output = model.generate(&[input_context_1, input_context_2], None)?;
 
     assert_eq!(output.len(), 2);
     assert_eq!(output[0], " The really great men must, I think, anyway waiting for some unknown reason, but Nikodim Fomitch and Ilya Petrovitch looked at him anguish invitable incidently at him. He could not resist an impression which might be setting");
@@ -118,7 +118,7 @@ fn reformer_for_sequence_classification() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -179,7 +179,7 @@ fn reformer_for_question_answering() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 

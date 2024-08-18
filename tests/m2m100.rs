@@ -2,7 +2,7 @@ use rust_bert::m2m_100::{
     M2M100Config, M2M100ConfigResources, M2M100MergesResources, M2M100Model, M2M100ModelResources,
     M2M100SourceLanguages, M2M100TargetLanguages, M2M100VocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::translation::{Language, TranslationConfig, TranslationModel};
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
@@ -48,7 +48,7 @@ fn m2m100_lm_model() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -78,7 +78,7 @@ fn m2m100_translation() -> anyhow::Result<()> {
 
     let translation_config = TranslationConfig::new(
         ModelType::M2M100,
-        model_resource,
+        ModelResource::Torch(Box::new(model_resource)),
         config_resource,
         vocab_resource,
         Some(merges_resource),

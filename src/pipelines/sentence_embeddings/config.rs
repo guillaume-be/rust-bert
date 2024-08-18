@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tch::Device;
+use tch::{Device, Kind};
 
 use crate::pipelines::common::ModelType;
 use crate::resources::ResourceProvider;
@@ -55,6 +55,8 @@ pub struct SentenceEmbeddingsConfig {
     pub tokenizer_merges_resource: Option<Box<dyn ResourceProvider + Send>>,
     /// Device to place the transformer model on
     pub device: Device,
+    /// Model weights precision. If not provided, will default to full precision on CPU, or the loaded weights precision otherwise
+    pub kind: Option<Kind>,
 }
 
 #[cfg(feature = "remote")]
@@ -92,6 +94,7 @@ impl From<SentenceEmbeddingsModelType> for SentenceEmbeddingsConfig {
                 )),
                 tokenizer_merges_resource: None,
                 device: Device::cuda_if_available(),
+                kind: None,
             },
 
             SentenceEmbeddingsModelType::BertBaseNliMeanTokens => SentenceEmbeddingsConfig {
@@ -121,6 +124,7 @@ impl From<SentenceEmbeddingsModelType> for SentenceEmbeddingsConfig {
                 )),
                 tokenizer_merges_resource: None,
                 device: Device::cuda_if_available(),
+                kind: None,
             },
 
             SentenceEmbeddingsModelType::AllMiniLmL12V2 => SentenceEmbeddingsConfig {
@@ -149,7 +153,7 @@ impl From<SentenceEmbeddingsModelType> for SentenceEmbeddingsConfig {
                     BertVocabResources::ALL_MINI_LM_L12_V2,
                 )),
                 tokenizer_merges_resource: None,
-                device: Device::cuda_if_available(),
+                device: Device::cuda_if_available(),                kind: None,
             },
 
             SentenceEmbeddingsModelType::AllMiniLmL6V2 => SentenceEmbeddingsConfig {
@@ -178,7 +182,7 @@ impl From<SentenceEmbeddingsModelType> for SentenceEmbeddingsConfig {
                     BertVocabResources::ALL_MINI_LM_L6_V2,
                 )),
                 tokenizer_merges_resource: None,
-                device: Device::cuda_if_available(),
+                device: Device::cuda_if_available(),                kind: None,
             },
 
             SentenceEmbeddingsModelType::AllDistilrobertaV1 => SentenceEmbeddingsConfig {
@@ -209,7 +213,7 @@ impl From<SentenceEmbeddingsModelType> for SentenceEmbeddingsConfig {
                 tokenizer_merges_resource: Some(Box::new(RemoteResource::from_pretrained(
                     RobertaMergesResources::ALL_DISTILROBERTA_V1,
                 ))),
-                device: Device::cuda_if_available(),
+                device: Device::cuda_if_available(),                kind: None,
             },
 
             SentenceEmbeddingsModelType::ParaphraseAlbertSmallV2 => SentenceEmbeddingsConfig {
@@ -238,7 +242,7 @@ impl From<SentenceEmbeddingsModelType> for SentenceEmbeddingsConfig {
                     AlbertVocabResources::PARAPHRASE_ALBERT_SMALL_V2,
                 )),
                 tokenizer_merges_resource: None,
-                device: Device::cuda_if_available(),
+                device: Device::cuda_if_available(),                kind: None,
             },
 
             SentenceEmbeddingsModelType::SentenceT5Base => SentenceEmbeddingsConfig {
@@ -271,7 +275,7 @@ impl From<SentenceEmbeddingsModelType> for SentenceEmbeddingsConfig {
                     T5VocabResources::SENTENCE_T5_BASE,
                 )),
                 tokenizer_merges_resource: None,
-                device: Device::cuda_if_available(),
+                device: Device::cuda_if_available(),                kind: None,
             },
         }
     }
@@ -305,7 +309,7 @@ impl Config for SentenceEmbeddingsModulesConfig {}
 
 impl SentenceEmbeddingsModulesConfig {
     pub fn validate(self) -> Result<Self, RustBertError> {
-        match self.get(0) {
+        match self.first() {
             Some(SentenceEmbeddingsModuleConfig {
                 module_type: SentenceEmbeddingsModuleType::Transformer,
                 ..
@@ -343,7 +347,7 @@ impl SentenceEmbeddingsModulesConfig {
     }
 
     pub fn transformer_module(&self) -> &SentenceEmbeddingsModuleConfig {
-        self.get(0).as_ref().unwrap()
+        self.first().as_ref().unwrap()
     }
 
     pub fn pooling_module(&self) -> &SentenceEmbeddingsModuleConfig {

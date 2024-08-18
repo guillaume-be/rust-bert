@@ -36,8 +36,10 @@ use crate::mbart::MBartConfig;
 use crate::mobilebert::MobileBertConfig;
 use crate::openai_gpt::OpenAiGptConfig;
 use crate::pegasus::PegasusConfig;
+use crate::pipelines::translation::Language;
 use crate::prophetnet::ProphetNetConfig;
 use crate::reformer::ReformerConfig;
+use crate::resources::{Resource, ResourceProvider};
 use crate::roberta::RobertaConfig;
 use crate::t5::T5Config;
 use crate::xlnet::XLNetConfig;
@@ -45,15 +47,117 @@ use crate::Config;
 use rust_tokenizers::tokenizer::{
     AlbertTokenizer, BertTokenizer, DeBERTaTokenizer, DeBERTaV2Tokenizer, FNetTokenizer,
     Gpt2Tokenizer, M2M100Tokenizer, MBart50Tokenizer, MarianTokenizer, MultiThreadedTokenizer,
-    OpenAiGptTokenizer, PegasusTokenizer, ProphetNetTokenizer, ReformerTokenizer, RobertaTokenizer,
-    T5Tokenizer, Tokenizer, TruncationStrategy, XLMRobertaTokenizer, XLNetTokenizer,
+    NLLBTokenizer, OpenAiGptTokenizer, PegasusTokenizer, ProphetNetTokenizer, ReformerTokenizer,
+    RobertaTokenizer, T5Tokenizer, Tokenizer, TruncationStrategy, XLMRobertaTokenizer,
+    XLNetTokenizer,
 };
 use rust_tokenizers::vocab::Vocab;
 use rust_tokenizers::{TokenIdsWithOffsets, TokenizedInput, TokensWithOffsets};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
-use std::path::Path;
+
+use std::fmt::Debug;
+
+use std::path::{Path, PathBuf};
+use tch::nn::VarStore;
+use tch::{Device, Kind, Tensor};
+
+#[cfg(feature = "onnx")]
+use crate::pipelines::onnx::ONNXModelConfig;
+
+#[cfg(feature = "hf-tokenizers")]
+use crate::pipelines::hf_tokenizers::HFTokenizer;
+
+#[derive(Debug, Default)]
+/// Container for ONNX model resources, containing 3 optional resources (Encoder, Decoder and Decoder with past)
+pub struct ONNXModelResources {
+    /// Model encoder resource
+    pub encoder_resource: Option<Box<dyn ResourceProvider + Send>>,
+    /// Model encoder resource
+    pub decoder_resource: Option<Box<dyn ResourceProvider + Send>>,
+    /// Model encoder resource
+    pub decoder_with_past_resource: Option<Box<dyn ResourceProvider + Send>>,
+}
+
+#[derive(Debug)]
+/// Variants to store either a Torch model resource or ONNX resources
+pub enum ModelResource {
+    Torch(Box<dyn ResourceProvider + Send>),
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXModelResources),
+}
+
+impl ResourceProvider for ModelResource {
+    fn get_local_path(&self) -> Result<PathBuf, RustBertError> {
+        match self {
+            ModelResource::Torch(ref resource) => resource.get_local_path(),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Err(RustBertError::UnsupportedError),
+        }
+    }
+    fn get_resource(&self) -> Result<Resource, RustBertError> {
+        match self {
+            ModelResource::Torch(ref resource) => resource.get_resource(),
+            #[cfg(feature = "onnx")]
+            ModelResource::ONNX(_) => Err(RustBertError::UnsupportedError),
+        }
+    }
+}
+
+pub struct ONNXLocalPaths {
+    pub encoder_path: Option<PathBuf>,
+    pub decoder_path: Option<PathBuf>,
+    pub decoder_with_past_path: Option<PathBuf>,
+}
+
+impl ModelResource {
+    /// Provides the torch resource local path.
+    /// Returns an error if the variant is not a `ModelResources::TORCH`
+    pub fn get_torch_local_path(&self) -> Result<PathBuf, RustBertError> {
+        match self {
+            ModelResource::Torch(torch_resource) => torch_resource.get_local_path(),
+            #[cfg(feature = "onnx")]
+            _ => Err(RustBertError::InvalidConfigurationError(format!("Attempting to get the Torch local path but other weights variants were given: {:?}", self)))
+        }
+    }
+
+    #[cfg(feature = "onnx")]
+    pub fn get_onnx_local_paths(&self) -> Result<ONNXLocalPaths, RustBertError> {
+        let (encoder_path, decoder_path, decoder_with_past_path) = match self {
+            ModelResource::ONNX(onnx_model_resources) => Ok((
+                onnx_model_resources
+                    .encoder_resource.as_ref()
+                    .map(|r| r.get_local_path()),
+                onnx_model_resources
+                    .decoder_resource.as_ref()
+                    .map(|r| r.get_local_path()),
+                onnx_model_resources
+                    .decoder_with_past_resource.as_ref()
+                    .map(|r| r.get_local_path()),
+            )),
+            _ => Err(RustBertError::InvalidConfigurationError(format!("Attempting to get the ONNX local paths but other weights variants were given: {:?}", self)))
+        }?;
+        Ok(ONNXLocalPaths {
+            encoder_path: encoder_path.transpose()?,
+            decoder_path: decoder_path.transpose()?,
+            decoder_with_past_path: decoder_with_past_path.transpose()?,
+        })
+    }
+}
+
+pub(crate) fn get_device(_model_resource: ModelResource, device: Device) -> Device {
+    #[cfg(feature = "onnx")]
+    let device = if let ModelResource::ONNX(_) = _model_resource {
+        Device::Cpu
+    } else {
+        device
+    };
+
+    #[cfg(not(feature = "onnx"))]
+    let device = device;
+    device
+}
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
 /// # Identifies the type of model
@@ -88,7 +192,11 @@ pub enum ModelType {
     GPTNeo,
     MBart,
     M2M100,
+    #[serde(alias = "m2m100")]
+    NLLB,
     FNet,
+    #[cfg(feature = "onnx")]
+    ONNX,
 }
 
 /// # Abstraction that holds a model configuration, can be of any of the supported models
@@ -141,6 +249,9 @@ pub enum ConfigOption {
     M2M100(M2M100Config),
     /// FNet configuration
     FNet(FNetConfig),
+    /// ONNX Model configuration
+    #[cfg(feature = "onnx")]
+    ONNX(ONNXModelConfig),
 }
 
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
@@ -177,10 +288,15 @@ pub enum TokenizerOption {
     MBart50(MBart50Tokenizer),
     /// M2M100 Tokenizer
     M2M100(M2M100Tokenizer),
+    /// NLLB tokenizer.
+    NLLB(NLLBTokenizer),
     /// FNet Tokenizer
     FNet(FNetTokenizer),
     /// Bart Tokenizer
     Bart(RobertaTokenizer),
+    /// HF Tokenizer
+    #[cfg(feature = "hf-tokenizers")]
+    HFTokenizer(HFTokenizer),
 }
 
 impl ConfigOption {
@@ -211,8 +327,12 @@ impl ConfigOption {
                 ConfigOption::Roberta(RobertaConfig::from_file(path))
             }
             ModelType::MBart => ConfigOption::MBart(MBartConfig::from_file(path)),
-            ModelType::M2M100 => ConfigOption::M2M100(M2M100Config::from_file(path)),
+            ModelType::M2M100 | ModelType::NLLB => {
+                ConfigOption::M2M100(M2M100Config::from_file(path))
+            }
             ModelType::FNet => ConfigOption::FNet(FNetConfig::from_file(path)),
+            #[cfg(feature = "onnx")]
+            ModelType::ONNX => ConfigOption::ONNX(ONNXModelConfig::from_file(path)),
         }
     }
 
@@ -286,6 +406,11 @@ impl ConfigOption {
                 .id2label
                 .as_ref()
                 .expect("No label dictionary (id2label) provided in configuration file"),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config
+                .id2label
+                .as_ref()
+                .expect("No label dictionary (id2label) provided in configuration file"),
             Self::T5(_) => panic!("T5 does not use a label mapping"),
             Self::LongT5(_) => panic!("LongT5 does not use a label mapping"),
             Self::OpenAiGpt(_) => panic!("OpenAI GPT does not use a label mapping"),
@@ -322,6 +447,132 @@ impl ConfigOption {
             Self::M2M100(config) => Some(config.max_position_embeddings),
             Self::FNet(config) => Some(config.max_position_embeddings),
             Self::Roberta(config) => Some(config.max_position_embeddings),
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.max_position_embeddings,
+        }
+    }
+
+    pub fn get_vocab_size(&self) -> i64 {
+        match self {
+            Self::Bart(config) => config.vocab_size,
+            Self::Bert(config) => config.vocab_size,
+            Self::Deberta(config) => config.vocab_size,
+            Self::DebertaV2(config) => config.vocab_size,
+            Self::DistilBert(config) => config.vocab_size,
+            Self::Electra(config) => config.vocab_size,
+            Self::Marian(config) => config.vocab_size,
+            Self::MobileBert(config) => config.vocab_size,
+            Self::T5(config) => config.vocab_size,
+            Self::LongT5(config) => config.vocab_size,
+            Self::Albert(config) => config.vocab_size,
+            Self::XLNet(config) => config.vocab_size,
+            Self::GPT2(config) => config.vocab_size,
+            Self::GPTJ(config) => config.vocab_size,
+            Self::Reformer(config) => config.vocab_size,
+            Self::ProphetNet(config) => config.vocab_size,
+            Self::Longformer(config) => config.vocab_size,
+            Self::Pegasus(config) => config.vocab_size,
+            Self::OpenAiGpt(config) => config.vocab_size,
+            Self::GPTNeo(config) => config.vocab_size,
+            Self::MBart(config) => config.vocab_size,
+            Self::M2M100(config) => config.vocab_size,
+            Self::FNet(config) => config.vocab_size,
+            Self::Roberta(config) => config.vocab_size,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.vocab_size,
+        }
+    }
+
+    pub fn get_decoder_start_token_id(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => config.decoder_start_token_id,
+            Self::Bert(_) => None,
+            Self::Deberta(_) => None,
+            Self::DebertaV2(_) => None,
+            Self::DistilBert(_) => None,
+            Self::Electra(_) => None,
+            Self::Marian(config) => config.decoder_start_token_id,
+            Self::MobileBert(_) => None,
+            Self::T5(config) => config.decoder_start_token_id,
+            Self::LongT5(config) => config.decoder_start_token_id,
+            Self::Albert(_) => None,
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => config.decoder_start_token_id,
+            Self::GPTJ(config) => config.decoder_start_token_id,
+            Self::Reformer(config) => config.decoder_start_token_id,
+            Self::ProphetNet(config) => config.decoder_start_token_id,
+            Self::Longformer(_) => None,
+            Self::Pegasus(config) => config.decoder_start_token_id,
+            Self::OpenAiGpt(config) => config.decoder_start_token_id,
+            Self::GPTNeo(config) => config.decoder_start_token_id,
+            Self::MBart(config) => config.decoder_start_token_id,
+            Self::M2M100(config) => config.decoder_start_token_id,
+            Self::FNet(config) => config.decoder_start_token_id,
+            Self::Roberta(_) => None,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.decoder_start_token_id,
+        }
+    }
+
+    pub fn get_forced_bos_token_id(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => config.forced_bos_token_id,
+            Self::Bert(_) => None,
+            Self::Deberta(_) => None,
+            Self::DebertaV2(_) => None,
+            Self::DistilBert(_) => None,
+            Self::Electra(_) => None,
+            Self::Marian(config) => config.forced_bos_token_id,
+            Self::MobileBert(_) => None,
+            Self::T5(config) => config.forced_bos_token_id,
+            Self::LongT5(config) => config.forced_bos_token_id,
+            Self::Albert(_) => None,
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => config.forced_bos_token_id,
+            Self::GPTJ(config) => config.forced_bos_token_id,
+            Self::Reformer(config) => config.forced_bos_token_id,
+            Self::ProphetNet(config) => config.forced_bos_token_id,
+            Self::Longformer(_) => None,
+            Self::Pegasus(config) => config.forced_bos_token_id,
+            Self::OpenAiGpt(config) => config.forced_bos_token_id,
+            Self::GPTNeo(config) => config.forced_bos_token_id,
+            Self::MBart(config) => config.forced_bos_token_id,
+            Self::M2M100(config) => config.forced_bos_token_id,
+            Self::FNet(_) => None,
+            Self::Roberta(_) => None,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.forced_bos_token_id,
+        }
+    }
+
+    pub fn get_forced_eos_token_id(&self) -> Option<i64> {
+        match self {
+            Self::Bart(config) => config.forced_eos_token_id,
+            Self::Bert(_) => None,
+            Self::Deberta(_) => None,
+            Self::DebertaV2(_) => None,
+            Self::DistilBert(_) => None,
+            Self::Electra(_) => None,
+            Self::Marian(config) => config.forced_eos_token_id,
+            Self::MobileBert(_) => None,
+            Self::T5(config) => config.forced_eos_token_id,
+            Self::LongT5(config) => config.forced_eos_token_id,
+            Self::Albert(_) => None,
+            Self::XLNet(_) => None,
+            Self::GPT2(config) => config.forced_eos_token_id,
+            Self::GPTJ(config) => config.forced_eos_token_id,
+            Self::Reformer(config) => config.forced_eos_token_id,
+            Self::ProphetNet(config) => config.forced_eos_token_id,
+            Self::Longformer(_) => None,
+            Self::Pegasus(config) => config.forced_eos_token_id,
+            Self::OpenAiGpt(config) => config.forced_eos_token_id,
+            Self::GPTNeo(config) => config.forced_eos_token_id,
+            Self::MBart(config) => config.forced_eos_token_id,
+            Self::M2M100(config) => config.forced_eos_token_id,
+            Self::FNet(_) => None,
+            Self::Roberta(_) => None,
+            #[cfg(feature = "onnx")]
+            Self::ONNX(config) => config.forced_eos_token_id,
         }
     }
 }
@@ -639,37 +890,45 @@ impl TokenizerOption {
                     lower_case,
                 )?)
             }
+            ModelType::NLLB => {
+                if add_prefix_space.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(
+                        format!("Optional input `add_prefix_space` set to value {} but cannot be used by {:?}",
+                                add_prefix_space.unwrap(),
+                                model_type)));
+                }
+                if strip_accents.is_some() {
+                    return Err(RustBertError::InvalidConfigurationError(format!(
+                        "Optional input `strip_accents` set to value {} but cannot be used by {:?}",
+                        strip_accents.unwrap(),
+                        model_type
+                    )));
+                }
+                TokenizerOption::NLLB(NLLBTokenizer::from_files(
+                    vocab_path,
+                    merges_path.expect("No merges specified."),
+                )?)
+            }
             ModelType::FNet => TokenizerOption::FNet(FNetTokenizer::from_file(
                 vocab_path,
                 lower_case,
                 strip_accents.unwrap_or(false),
             )?),
+            #[cfg(feature = "onnx")]
+            ModelType::ONNX => Err(RustBertError::InvalidConfigurationError(
+                "Default Tokenizer not defined for generic ONNX models.".to_string(),
+            ))?,
         };
         Ok(tokenizer)
     }
 
-    /// Returns the model type
-    pub fn model_type(&self) -> ModelType {
-        match *self {
-            Self::Bert(_) => ModelType::Bert,
-            Self::Deberta(_) => ModelType::Deberta,
-            Self::DebertaV2(_) => ModelType::DebertaV2,
-            Self::Roberta(_) => ModelType::Roberta,
-            Self::Bart(_) => ModelType::Bart,
-            Self::XLMRoberta(_) => ModelType::XLMRoberta,
-            Self::Marian(_) => ModelType::Marian,
-            Self::T5(_) => ModelType::T5,
-            Self::Albert(_) => ModelType::Albert,
-            Self::XLNet(_) => ModelType::XLNet,
-            Self::GPT2(_) => ModelType::GPT2,
-            Self::OpenAiGpt(_) => ModelType::OpenAiGpt,
-            Self::Reformer(_) => ModelType::Reformer,
-            Self::ProphetNet(_) => ModelType::ProphetNet,
-            Self::Pegasus(_) => ModelType::Pegasus,
-            Self::MBart50(_) => ModelType::MBart,
-            Self::M2M100(_) => ModelType::M2M100,
-            Self::FNet(_) => ModelType::FNet,
-        }
+    #[cfg(feature = "hf-tokenizers")]
+    pub fn from_hf_tokenizer_file<P: AsRef<Path>, S: AsRef<Path>>(
+        tokenizer_file: P,
+        special_token_map: S,
+    ) -> Result<Self, RustBertError> {
+        let hf_tokenizer = HFTokenizer::from_file(tokenizer_file, special_token_map)?;
+        Ok(TokenizerOption::HFTokenizer(hf_tokenizer))
     }
 
     /// Interface method
@@ -681,7 +940,7 @@ impl TokenizerOption {
         stride: usize,
     ) -> Vec<TokenizedInput>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         match *self {
             Self::Bert(ref tokenizer) => MultiThreadedTokenizer::encode_list(
@@ -810,6 +1069,15 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::NLLB(ref tokenizer) => MultiThreadedTokenizer::encode_list(
+                tokenizer,
+                text_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer.encode_list(text_list).unwrap(),
         }
     }
 
@@ -941,6 +1209,13 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            Self::NLLB(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
+                tokenizer,
+                text_pair_list,
+                max_len,
+                truncation_strategy,
+                stride,
+            ),
             Self::FNet(ref tokenizer) => MultiThreadedTokenizer::encode_pair_list(
                 tokenizer,
                 text_pair_list,
@@ -948,6 +1223,8 @@ impl TokenizerOption {
                 truncation_strategy,
                 stride,
             ),
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer.encode_pair_list(text_pair_list).unwrap(),
         }
     }
 
@@ -1012,9 +1289,14 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => {
                 tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
+            Self::NLLB(ref tokenizer) => {
+                tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
+            }
             Self::FNet(ref tokenizer) => {
                 tokenizer.encode(text_1, text_2, max_len, truncation_strategy, stride)
             }
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer.encode_pair(text_1, text_2).unwrap(),
         }
     }
 
@@ -1038,7 +1320,10 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => tokenizer.tokenize(text),
             Self::MBart50(ref tokenizer) => tokenizer.tokenize(text),
             Self::M2M100(ref tokenizer) => tokenizer.tokenize(text),
+            Self::NLLB(ref tokenizer) => tokenizer.tokenize(text),
             Self::FNet(ref tokenizer) => tokenizer.tokenize(text),
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer.tokenize(text),
         }
     }
 
@@ -1062,14 +1347,17 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::MBart50(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::M2M100(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            Self::NLLB(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
             Self::FNet(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer.tokenize_with_offsets(text),
         }
     }
 
     /// Interface method to tokenization
     pub fn tokenize_list<S>(&self, text: &[S]) -> Vec<Vec<String>>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         match *self {
             Self::Bert(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
@@ -1097,7 +1385,10 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::MBart50(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::M2M100(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            Self::NLLB(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
             Self::FNet(ref tokenizer) => MultiThreadedTokenizer::tokenize_list(tokenizer, text),
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer.tokenize_list(text),
         }
     }
 
@@ -1160,9 +1451,14 @@ impl TokenizerOption {
             Self::M2M100(ref tokenizer) => {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
+            Self::NLLB(ref tokenizer) => {
+                tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
+            }
             Self::FNet(ref tokenizer) => {
                 tokenizer.decode(token_ids, skip_special_tokens, clean_up_tokenization_spaces)
             }
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer.decode(token_ids, skip_special_tokens),
         }
     }
 
@@ -1241,10 +1537,21 @@ impl TokenizerOption {
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
             ),
+            Self::NLLB(ref tokenizer) => tokenizer.build_input_with_special_tokens(
+                token_ids_with_offsets_1,
+                token_ids_with_offsets_2,
+            ),
             Self::FNet(ref tokenizer) => tokenizer.build_input_with_special_tokens(
                 token_ids_with_offsets_1,
                 token_ids_with_offsets_2,
             ),
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => {
+                return tokenizer.build_input_with_special_tokens(
+                    token_ids_with_offsets_1,
+                    token_ids_with_offsets_2,
+                )
+            }
         };
         TokenizedInput {
             token_ids: token_ids_with_special_tokens.token_ids,
@@ -1256,6 +1563,167 @@ impl TokenizerOption {
             reference_offsets: token_ids_with_special_tokens.reference_offsets,
             mask: token_ids_with_special_tokens.mask,
         }
+    }
+
+    /// Helper function to prepare the input for translation models
+    pub fn get_prefix_and_forced_bos_id(
+        &self,
+        source_language: Option<&Language>,
+        target_language: Option<&Language>,
+        supported_source_languages: &HashSet<Language>,
+        supported_target_languages: &HashSet<Language>,
+    ) -> Result<(Option<String>, Option<i64>), RustBertError> {
+        if let Some(source_language) = source_language {
+            if !supported_source_languages.contains(source_language) {
+                return Err(RustBertError::ValueError(format!(
+                        "{source_language} not in list of supported languages: {supported_source_languages:?}",
+                    )));
+            }
+        }
+
+        if let Some(target_language) = target_language {
+            if !supported_target_languages.contains(target_language) {
+                return Err(RustBertError::ValueError(format!(
+                        "{target_language} not in list of supported languages: {supported_target_languages:?}"
+                    )));
+            }
+        }
+
+        Ok(match *self {
+                Self::Marian(_) => {
+                    if supported_target_languages.len() > 1 {
+                        (
+                            Some(format!(
+                                ">>{}<< ",
+                                target_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
+                                    "Missing target language for Marian \
+                                        (multiple languages supported by model: {supported_target_languages:?}, \
+                                        need to specify target language)",
+                                )))?
+                            )),
+                            None,
+                        )
+                    } else {
+                        (None, None)
+                    }
+                }
+                Self::T5(_) => (
+                    Some(format!(
+                        "translate {} to {}:",
+                        source_language.ok_or_else(|| RustBertError::ValueError(
+                            "Missing source language for T5".to_string(),
+                        ))?,
+                        target_language.ok_or_else(|| RustBertError::ValueError(
+                            "Missing target language for T5".to_string(),
+                        ))?,
+                    )),
+                    None,
+                ),
+                Self::MBart50(_) => {
+                    (
+                        Some(format!(
+                            ">>{}<< ",
+                            source_language.and_then(|l| l.get_iso_639_1_code()).ok_or_else(|| RustBertError::ValueError(format!(
+                                "Missing source language for MBart\
+                                (multiple languages supported by model: {supported_source_languages:?}, \
+                                need to specify target language)"
+                            )))?
+                        )),
+                        if let Some(target_language) = target_language {
+                            Some(
+                                self.convert_tokens_to_ids(&[format!(
+                                    ">>{}<<",
+                                    target_language.get_iso_639_1_code().ok_or_else(|| {
+                                        RustBertError::ValueError(format!(
+                                            "This language has no ISO639-I code. Languages supported by model: {supported_source_languages:?}."
+                                        ))
+                                    })?
+                                )])[0],
+                            )
+                        } else {
+                            return Err(RustBertError::ValueError(format!(
+                                "Missing target language for MBart\
+                        (multiple languages supported by model: {supported_target_languages:?}, \
+                        need to specify target language)"
+                            )));
+                        },
+                    )
+                }
+                Self::M2M100(_) => (
+                    Some(match source_language {
+                        Some(value) => {
+                            let language_code = value.get_iso_639_1_code().ok_or_else(|| {
+                                RustBertError::ValueError(format!(
+                                    "This language has no ISO639-I language code representation. \
+                                languages supported by the model: {supported_target_languages:?}"
+                                ))
+                            })?;
+                            match language_code.len() {
+                                2 => format!(">>{language_code}.<< "),
+                                3 => format!(">>{language_code}<< "),
+                                _ => {
+                                    return Err(RustBertError::ValueError(
+                                        "Invalid ISO 639-I code".to_string(),
+                                    ));
+                                }
+                            }
+                        }
+                        None => {
+                            return Err(RustBertError::ValueError(format!(
+                                "Missing source language for M2M100 \
+                            (multiple languages supported by model: {supported_source_languages:?}, \
+                            need to specify target language)"
+                            )));
+                        }
+                    }),
+                    if let Some(target_language) = target_language {
+                        let language_code = target_language.get_iso_639_1_code().ok_or_else(|| {
+                            RustBertError::ValueError(format!(
+                                "This language has no ISO639-I language code representation. \
+                            languages supported by the model: {supported_target_languages:?}"
+                            ))
+                        })?;
+                        Some(
+                            self.convert_tokens_to_ids(&[
+                                match language_code.len() {
+                                    2 => format!(">>{language_code}.<<"),
+                                    3 => format!(">>{language_code}<<"),
+                                    _ => {
+                                        return Err(RustBertError::ValueError(
+                                            "Invalid ISO 639-3 code".to_string(),
+                                        ));
+                                    }
+                                },
+                            ])[0],
+                        )
+                    } else {
+                        return Err(RustBertError::ValueError(format!(
+                            "Missing target language for M2M100 \
+                        (multiple languages supported by model: {supported_target_languages:?}, \
+                        need to specify target language)",
+                        )));
+                    },
+                ),
+                Self::NLLB(_) => {
+                    let source_language = source_language
+                        .and_then(Language::get_nllb_code)
+                        .map(str::to_string)
+                        .ok_or_else(|| RustBertError::ValueError(
+                            format!("Missing source language for NLLB. Need to specify one from: {supported_source_languages:?}")
+                        ))?;
+
+                    let target_language = target_language
+                        .and_then(Language::get_nllb_code)
+                        .map(str::to_string)
+                        .map(|code| self.convert_tokens_to_ids(&[code])[0])
+                        .ok_or_else(|| RustBertError::ValueError(
+                            format!("Missing target language for NLLB. Need to specify one from: {supported_target_languages:?}")
+                        ))?;
+
+                    (Some(source_language), Some(target_language))
+                }
+                _ => (None, None),
+            })
     }
 
     /// Interface method to convert tokens to ids
@@ -1281,7 +1749,10 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::MBart50(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::M2M100(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            Self::NLLB(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
             Self::FNet(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer.convert_tokens_to_ids(tokens),
         }
     }
 
@@ -1356,9 +1827,17 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 vocab.token_to_id(vocab.get_unknown_value())
             }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                vocab.token_to_id(vocab.get_unknown_value())
+            }
             Self::FNet(ref tokenizer) => {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 vocab.token_to_id(vocab.get_unknown_value())
+            }
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => {
+                tokenizer.token_to_id(&tokenizer.special_token_map.unk_token)
             }
         }
     }
@@ -1422,10 +1901,20 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_pad_value()))
             }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_pad_value()))
+            }
             Self::FNet(ref tokenizer) => {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_pad_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .pad_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::Reformer(_) => None,
             Self::GPT2(_) => None,
             Self::OpenAiGpt(_) => None,
@@ -1479,10 +1968,20 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_sep_value()))
             }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_sep_value()))
+            }
             Self::FNet(ref tokenizer) => {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_sep_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .sep_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::Marian(_) => None,
             Self::T5(_) => None,
             Self::GPT2(_) => None,
@@ -1543,8 +2042,15 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_mask_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .mask_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::Marian(_) => None,
             Self::M2M100(_) => None,
+            Self::NLLB(_) => None,
             Self::T5(_) => None,
             Self::GPT2(_) => None,
             Self::OpenAiGpt(_) => None,
@@ -1591,7 +2097,10 @@ impl TokenizerOption {
             Self::Pegasus(ref tokenizer) => {
                 Some(MultiThreadedTokenizer::vocab(tokenizer).get_mask_value())
             }
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer.special_token_map.mask_token.as_deref(),
             Self::M2M100(_) => None,
+            Self::NLLB(_) => None,
             Self::Marian(_) => None,
             Self::T5(_) => None,
             Self::GPT2(_) => None,
@@ -1631,6 +2140,10 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_bos_value()))
             }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_bos_value()))
+            }
             Self::GPT2(ref tokenizer) => {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_bos_value()))
@@ -1639,6 +2152,12 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_bos_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .bos_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::MBart50(_) => Some(0),
             Self::FNet(_) => None,
             Self::Bert(_) => None,
@@ -1686,6 +2205,10 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_eos_value()))
             }
+            Self::NLLB(ref tokenizer) => {
+                let vocab = MultiThreadedTokenizer::vocab(tokenizer);
+                Some(vocab.token_to_id(vocab.get_eos_value()))
+            }
             Self::GPT2(ref tokenizer) => {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_eos_value()))
@@ -1710,10 +2233,127 @@ impl TokenizerOption {
                 let vocab = MultiThreadedTokenizer::vocab(tokenizer);
                 Some(vocab.token_to_id(vocab.get_eos_value()))
             }
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref tokenizer) => tokenizer
+                .special_token_map
+                .eos_token
+                .as_ref()
+                .map(|token| tokenizer.token_to_id(token)),
             Self::FNet(_) => None,
             Self::Bert(_) => None,
             Self::ProphetNet(_) => None,
             Self::OpenAiGpt(_) => None,
         }
+    }
+
+    pub fn tokenize_and_pad<'a, S>(
+        &self,
+        input: S,
+        max_length: usize,
+        device: Device,
+    ) -> (Tensor, Tensor)
+    where
+        S: AsRef<[&'a str]>,
+    {
+        let mut tokenized_input: Vec<TokenizedInput> = self.encode_list(
+            input.as_ref(),
+            max_length,
+            &TruncationStrategy::LongestFirst,
+            0,
+        );
+        let max_len = tokenized_input
+            .iter()
+            .map(|input| input.token_ids.len())
+            .max()
+            .unwrap();
+        let pad_id = self
+            .get_pad_id()
+            .expect("The Tokenizer used for sequence classification should contain a PAD id");
+        let tokenized_input_tensors: Vec<Tensor> = tokenized_input
+            .iter_mut()
+            .map(|input| {
+                input.token_ids.resize(max_len, pad_id);
+                Tensor::from_slice(&(input.token_ids))
+            })
+            .collect::<Vec<_>>();
+
+        let token_type_ids: Vec<Tensor> = tokenized_input
+            .iter_mut()
+            .map(|input| {
+                input
+                    .segment_ids
+                    .resize(max_len, *input.segment_ids.last().unwrap_or(&0));
+                Tensor::from_slice(&(input.segment_ids))
+            })
+            .collect::<Vec<_>>();
+
+        (
+            Tensor::stack(tokenized_input_tensors.as_slice(), 0).to(device),
+            Tensor::stack(token_type_ids.as_slice(), 0)
+                .to(device)
+                .to_kind(Kind::Int64),
+        )
+    }
+
+    /// Interface method
+    pub fn add_extra_ids(&mut self, num_extra_ids: i64) {
+        match *self {
+            Self::Bert(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Deberta(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::DebertaV2(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Roberta(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Bart(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Marian(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::T5(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::XLMRoberta(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Albert(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::XLNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::GPT2(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::OpenAiGpt(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Reformer(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::ProphetNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::Pegasus(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::MBart50(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::M2M100(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::NLLB(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            Self::FNet(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref mut tokenizer) => tokenizer.add_extra_ids(num_extra_ids),
+        }
+    }
+
+    /// Interface method
+    pub fn add_tokens(&mut self, tokens: &[&str]) {
+        match *self {
+            Self::Bert(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Deberta(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::DebertaV2(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Roberta(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Bart(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Marian(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::T5(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::XLMRoberta(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Albert(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::XLNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::GPT2(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::OpenAiGpt(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Reformer(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::ProphetNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::Pegasus(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::MBart50(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::M2M100(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::NLLB(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            Self::FNet(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+            #[cfg(feature = "hf-tokenizers")]
+            Self::HFTokenizer(ref mut tokenizer) => tokenizer.add_tokens(tokens),
+        }
+    }
+}
+
+pub fn cast_var_store(varstore: &mut VarStore, kind: Option<Kind>, device: Device) {
+    match (kind, device) {
+        (Some(kind), _) => varstore.set_kind(kind),
+        (None, Device::Cpu) => varstore.set_kind(Kind::Float),
+        (None, _) => {}
     }
 }

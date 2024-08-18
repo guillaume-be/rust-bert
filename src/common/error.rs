@@ -1,3 +1,7 @@
+#[cfg(feature = "onnx")]
+use ndarray::ShapeError;
+#[cfg(feature = "onnx")]
+use ort::OrtError;
 use rust_tokenizers::error::TokenizerError;
 use tch::TchError;
 use thiserror::Error;
@@ -22,6 +26,17 @@ pub enum RustBertError {
 
     #[error("Value error: {0}")]
     ValueError(String),
+
+    #[error("Value error: {0}")]
+    #[cfg(feature = "onnx")]
+    OrtError(String),
+
+    #[error("Value error: {0}")]
+    #[cfg(feature = "onnx")]
+    NdArrayError(String),
+
+    #[error("Unsupported operation")]
+    UnsupportedError,
 }
 
 impl From<std::io::Error> for RustBertError {
@@ -39,5 +54,18 @@ impl From<TokenizerError> for RustBertError {
 impl From<TchError> for RustBertError {
     fn from(error: TchError) -> Self {
         RustBertError::TchError(error.to_string())
+    }
+}
+
+#[cfg(feature = "onnx")]
+impl From<OrtError> for RustBertError {
+    fn from(error: OrtError) -> Self {
+        RustBertError::OrtError(error.to_string())
+    }
+}
+#[cfg(feature = "onnx")]
+impl From<ShapeError> for RustBertError {
+    fn from(error: ShapeError) -> Self {
+        RustBertError::NdArrayError(error.to_string())
     }
 }

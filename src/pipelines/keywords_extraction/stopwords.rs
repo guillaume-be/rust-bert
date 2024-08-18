@@ -1,3 +1,4 @@
+#[allow(clippy::doc_lazy_continuation)]
 /// BSD 3-Clause License
 ///
 /// Copyright (c) 2007-2022 The scikit-learn developers.

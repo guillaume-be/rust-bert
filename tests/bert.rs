@@ -6,7 +6,7 @@ use rust_bert::bert::{
     BertForQuestionAnswering, BertForSequenceClassification, BertForTokenClassification,
     BertModelResources, BertVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::masked_language::{MaskedLanguageConfig, MaskedLanguageModel};
 use rust_bert::pipelines::ner::NERModel;
 use rust_bert::pipelines::question_answering::{
@@ -63,7 +63,7 @@ fn bert_masked_lm() -> anyhow::Result<()> {
     tokenized_input[1][6] = 103;
     let tokenized_input = tokenized_input
         .iter()
-        .map(|input| Tensor::of_slice(input))
+        .map(|input| Tensor::from_slice(input))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -106,7 +106,9 @@ fn bert_masked_lm_pipeline() -> anyhow::Result<()> {
     //    Set-up model
     let config = MaskedLanguageConfig::new(
         ModelType::Bert,
-        RemoteResource::from_pretrained(BertModelResources::BERT),
+        ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+            BertModelResources::BERT,
+        ))),
         RemoteResource::from_pretrained(BertConfigResources::BERT),
         RemoteResource::from_pretrained(BertVocabResources::BERT),
         None,
@@ -182,7 +184,7 @@ fn bert_for_sequence_classification() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -239,7 +241,7 @@ fn bert_for_multiple_choice() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0)
         .to(device)
@@ -303,7 +305,7 @@ fn bert_for_token_classification() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -360,7 +362,7 @@ fn bert_for_question_answering() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -452,7 +454,9 @@ fn bert_question_answering() -> anyhow::Result<()> {
     //    Set-up question answering model
     let config = QuestionAnsweringConfig {
         model_type: ModelType::Bert,
-        model_resource: Box::new(RemoteResource::from_pretrained(BertModelResources::BERT_QA)),
+        model_resource: ModelResource::Torch(Box::new(RemoteResource::from_pretrained(
+            BertModelResources::BERT_QA,
+        ))),
         config_resource: Box::new(RemoteResource::from_pretrained(
             BertConfigResources::BERT_QA,
         )),

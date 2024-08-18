@@ -10,6 +10,7 @@ use rust_bert::Config;
 use rust_tokenizers::tokenizer::{BertTokenizer, MultiThreadedTokenizer, TruncationStrategy};
 use rust_tokenizers::vocab::Vocab;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use tch::{nn, no_grad, Device, Tensor};
 
 #[test]
@@ -56,7 +57,7 @@ fn mobilebert_masked_model() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -73,12 +74,12 @@ fn mobilebert_masked_model() -> anyhow::Result<()> {
         .logits
         .get(0)
         .get(4)
-        .double_value(&[i64::from(&index_1)]);
+        .double_value(&[i64::try_from(&index_1)?]);
     let score_2 = model_output
         .logits
         .get(1)
         .get(7)
-        .double_value(&[i64::from(&index_2)]);
+        .double_value(&[i64::try_from(&index_2)?]);
 
     assert_eq!("thing", word_1); // Outputs "person" : "Looks like one [person] is missing"
     assert_eq!("sunny", word_2); // Outputs "sunny" : "It was a very nice and [sunny] day"
@@ -147,7 +148,7 @@ fn mobilebert_for_sequence_classification() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -202,7 +203,7 @@ fn mobilebert_for_multiple_choice() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0)
         .to(device)
@@ -257,7 +258,7 @@ fn mobilebert_for_token_classification() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -309,7 +310,7 @@ fn mobilebert_for_question_answering() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 

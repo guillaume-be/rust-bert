@@ -2,8 +2,8 @@ use rust_bert::openai_gpt::{
     OpenAIGPTLMHeadModel, OpenAiGptConfig, OpenAiGptConfigResources, OpenAiGptMergesResources,
     OpenAiGptModelResources, OpenAiGptVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
-use rust_bert::pipelines::generation_utils::{Cache, LMHeadModel};
+use rust_bert::pipelines::common::{ModelResource, ModelType};
+use rust_bert::pipelines::generation_utils::Cache;
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::{RemoteResource, ResourceProvider};
 use rust_bert::Config;
@@ -57,7 +57,7 @@ fn openai_gpt_lm_model() -> anyhow::Result<()> {
             input.extend(vec![0; max_len - input.len()]);
             input
         })
-        .map(|input| Tensor::of_slice(&(input)))
+        .map(|input| Tensor::from_slice(&(input)))
         .collect::<Vec<_>>();
     let input_tensor = Tensor::stack(tokenized_input.as_slice(), 0).to(device);
 
@@ -119,7 +119,7 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -134,7 +134,7 @@ fn openai_gpt_generation_greedy() -> anyhow::Result<()> {
     let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "It was an intense machine dialogue. ";
-    let output = model.generate(&[input_context], None);
+    let output = model.generate(&[input_context], None)?;
 
     assert_eq!(output.len(), 1);
     assert_eq!(output[0], "it was an intense machine dialogue. \n \" i\'m sorry, but we have to go now! the police are on their way and they\'re going after you - or at least that\'s what my");
@@ -161,7 +161,7 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -176,7 +176,7 @@ fn openai_gpt_generation_beam_search() -> anyhow::Result<()> {
     let model = TextGenerationModel::new(generate_config)?;
 
     let input_context = "The dog is";
-    let output = model.generate(&[input_context], None);
+    let output = model.generate(&[input_context], None)?;
 
     assert_eq!(output.len(), 3);
     assert_eq!(
@@ -214,7 +214,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -230,7 +230,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_without_padding() -> anyho
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat";
-    let output = model.generate(&[input_context_1, input_context_2], None);
+    let output = model.generate(&[input_context_1, input_context_2], None)?;
 
     assert_eq!(output.len(), 6);
 
@@ -283,7 +283,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
     //    Set-up model
     let generate_config = TextGenerationConfig {
         model_type: ModelType::OpenAiGpt,
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -298,7 +298,7 @@ fn openai_gpt_generation_beam_search_multiple_prompts_with_padding() -> anyhow::
 
     let input_context_1 = "The dog is";
     let input_context_2 = "The cat was in";
-    let output = model.generate(&[input_context_1, input_context_2], None);
+    let output = model.generate(&[input_context_1, input_context_2], None)?;
 
     assert_eq!(output.len(), 6);
     //    Left padding impacts the generated sentences output

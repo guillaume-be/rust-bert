@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 use rust_tokenizers::tokenizer::TruncationStrategy;
 use tch::{nn, Tensor};
@@ -167,6 +167,7 @@ pub struct SentenceEmbeddingsModel {
     pooling_layer: Pooling,
     dense_layer: Option<Dense>,
     normalize_embeddings: bool,
+    embeddings_dim: i64,
 }
 
 impl SentenceEmbeddingsModel {
@@ -176,33 +177,18 @@ impl SentenceEmbeddingsModel {
     ///
     /// * `config` - `SentenceEmbeddingsConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
     pub fn new(config: SentenceEmbeddingsConfig) -> Result<Self, RustBertError> {
-        let SentenceEmbeddingsConfig {
-            modules_config_resource,
-            sentence_bert_config_resource,
-            tokenizer_config_resource,
-            tokenizer_vocab_resource,
-            tokenizer_merges_resource,
-            transformer_type,
-            transformer_config_resource,
-            transformer_weights_resource,
-            pooling_config_resource,
-            dense_config_resource,
-            dense_weights_resource,
-            device,
-        } = config;
-
-        let modules =
-            SentenceEmbeddingsModulesConfig::from_file(modules_config_resource.get_local_path()?)
-                .validate()?;
-
-        // Setup tokenizer
-
+        let transformer_type = config.transformer_type;
+        let tokenizer_vocab_resource = &config.tokenizer_vocab_resource;
+        let tokenizer_merges_resource = &config.tokenizer_merges_resource;
+        let tokenizer_config_resource = &config.tokenizer_config_resource;
+        let sentence_bert_config_resource = &config.sentence_bert_config_resource;
         let tokenizer_config = SentenceEmbeddingsTokenizerConfig::from_file(
             tokenizer_config_resource.get_local_path()?,
         );
         let sentence_bert_config = SentenceEmbeddingsSentenceBertConfig::from_file(
             sentence_bert_config_resource.get_local_path()?,
         );
+
         let tokenizer = TokenizerOption::from_file(
             transformer_type,
             tokenizer_vocab_resource
@@ -222,8 +208,46 @@ impl SentenceEmbeddingsModel {
             tokenizer_config.add_prefix_space,
         )?;
 
-        // Setup transformer
+        Self::new_with_tokenizer(config, tokenizer)
+    }
 
+    /// Build a new `ONNXCausalGenerator` from a `GenerateConfig` and `TokenizerOption`.
+    ///
+    /// A tokenizer must be provided by the user and can be customized to use non-default settings.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - `SentenceEmbeddingsConfig` object containing the resource references (model, vocabulary, configuration) and device placement (CPU/GPU)
+    /// * `tokenizer` - `TokenizerOption` tokenizer to use for question answering.
+    pub fn new_with_tokenizer(
+        config: SentenceEmbeddingsConfig,
+        tokenizer: TokenizerOption,
+    ) -> Result<Self, RustBertError> {
+        let SentenceEmbeddingsConfig {
+            modules_config_resource,
+            sentence_bert_config_resource,
+            tokenizer_config_resource: _,
+            tokenizer_vocab_resource: _,
+            tokenizer_merges_resource: _,
+            transformer_type,
+            transformer_config_resource,
+            transformer_weights_resource,
+            pooling_config_resource,
+            dense_config_resource,
+            dense_weights_resource,
+            device,
+            kind,
+        } = config;
+
+        let modules =
+            SentenceEmbeddingsModulesConfig::from_file(modules_config_resource.get_local_path()?)
+                .validate()?;
+
+        let sentence_bert_config = SentenceEmbeddingsSentenceBertConfig::from_file(
+            sentence_bert_config_resource.get_local_path()?,
+        );
+
+        // Setup transformer
         let mut var_store = nn::VarStore::new(device);
         let transformer_config = ConfigOption::from_file(
             transformer_type,
@@ -231,18 +255,23 @@ impl SentenceEmbeddingsModel {
         );
         let transformer =
             SentenceEmbeddingsOption::new(transformer_type, var_store.root(), &transformer_config)?;
-        var_store.load(transformer_weights_resource.get_local_path()?)?;
+        crate::resources::load_weights(
+            &transformer_weights_resource,
+            &mut var_store,
+            kind,
+            device,
+        )?;
 
         // Setup pooling layer
-
         let pooling_config = PoolingConfig::from_file(pooling_config_resource.get_local_path()?);
+        let mut embeddings_dim = pooling_config.word_embedding_dimension;
         let pooling_layer = Pooling::new(pooling_config);
 
         // Setup dense layer
-
         let dense_layer = if modules.dense_module().is_some() {
             let dense_config =
                 DenseConfig::from_file(dense_config_resource.unwrap().get_local_path()?);
+            embeddings_dim = dense_config.out_features;
             Some(Dense::new(
                 dense_config,
                 dense_weights_resource.unwrap().get_local_path()?,
@@ -264,7 +293,18 @@ impl SentenceEmbeddingsModel {
             pooling_layer,
             dense_layer,
             normalize_embeddings,
+            embeddings_dim,
         })
+    }
+
+    /// Get a reference to the model tokenizer.
+    pub fn get_tokenizer(&self) -> &TokenizerOption {
+        &self.tokenizer
+    }
+
+    /// Get a mutable reference to the model tokenizer.
+    pub fn get_tokenizer_mut(&mut self) -> &mut TokenizerOption {
+        &mut self.tokenizer
     }
 
     /// Sets the tokenizer's truncation strategy
@@ -272,10 +312,15 @@ impl SentenceEmbeddingsModel {
         self.tokenizer_truncation_strategy = truncation_strategy;
     }
 
+    /// Return the embedding output dimension
+    pub fn get_embedding_dim(&self) -> Result<i64, RustBertError> {
+        Ok(self.embeddings_dim)
+    }
+
     /// Tokenizes the inputs
-    pub fn tokenize<S>(&self, inputs: &[S]) -> SentenceEmbeddingsTokenizerOuput
+    pub fn tokenize<S>(&self, inputs: &[S]) -> SentenceEmbeddingsTokenizerOutput
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
         let tokenized_input = self.tokenizer.encode_list(
             inputs,
@@ -303,7 +348,7 @@ impl SentenceEmbeddingsModel {
         let tokens_masks = tokens_ids
             .iter()
             .map(|input| {
-                Tensor::of_slice(
+                Tensor::from_slice(
                     &input
                         .iter()
                         .map(|&e| i64::from(e != pad_token_id))
@@ -314,10 +359,10 @@ impl SentenceEmbeddingsModel {
 
         let tokens_ids = tokens_ids
             .into_iter()
-            .map(|input| Tensor::of_slice(&(input)))
+            .map(|input| Tensor::from_slice(&(input)))
             .collect::<Vec<_>>();
 
-        SentenceEmbeddingsTokenizerOuput {
+        SentenceEmbeddingsTokenizerOutput {
             tokens_ids,
             tokens_masks,
         }
@@ -327,14 +372,21 @@ impl SentenceEmbeddingsModel {
     pub fn encode_as_tensor<S>(
         &self,
         inputs: &[S],
-    ) -> Result<SentenceEmbeddingsModelOuput, RustBertError>
+    ) -> Result<SentenceEmbeddingsModelOutput, RustBertError>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
-        let SentenceEmbeddingsTokenizerOuput {
+        let SentenceEmbeddingsTokenizerOutput {
             tokens_ids,
             tokens_masks,
         } = self.tokenize(inputs);
+        if tokens_ids.is_empty() {
+            return Err(RustBertError::ValueError(
+                "No n-gram found in the document. \
+                Try allowing smaller n-gram sizes or relax stopword/forbidden characters criteria."
+                    .to_string(),
+            ));
+        }
         let tokens_ids = Tensor::stack(&tokens_ids, 0).to(self.var_store.device());
         let tokens_masks = Tensor::stack(&tokens_masks, 0).to(self.var_store.device());
 
@@ -350,7 +402,7 @@ impl SentenceEmbeddingsModel {
         };
         let maybe_normalized = if self.normalize_embeddings {
             let norm = &maybe_linear
-                .norm_scalaropt_dim(2, &[1], true)
+                .norm_scalaropt_dim(2, [1], true)
                 .clamp_min(1e-12)
                 .expand_as(&maybe_linear);
             maybe_linear / norm
@@ -358,7 +410,7 @@ impl SentenceEmbeddingsModel {
             maybe_linear
         };
 
-        Ok(SentenceEmbeddingsModelOuput {
+        Ok(SentenceEmbeddingsModelOutput {
             embeddings: maybe_normalized,
             all_attentions,
         })
@@ -367,10 +419,10 @@ impl SentenceEmbeddingsModel {
     /// Computes sentence embeddings.
     pub fn encode<S>(&self, inputs: &[S]) -> Result<Vec<Embedding>, RustBertError>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
-        let SentenceEmbeddingsModelOuput { embeddings, .. } = self.encode_as_tensor(inputs)?;
-        Ok(Vec::from(embeddings))
+        let SentenceEmbeddingsModelOutput { embeddings, .. } = self.encode_as_tensor(inputs)?;
+        Ok(Vec::try_from(embeddings)?)
     }
 
     fn nb_layers(&self) -> usize {
@@ -411,14 +463,14 @@ impl SentenceEmbeddingsModel {
         inputs: &[S],
     ) -> Result<(Vec<Embedding>, Vec<AttentionOutput>), RustBertError>
     where
-        S: AsRef<str> + Sync,
+        S: AsRef<str> + Send + Sync,
     {
-        let SentenceEmbeddingsModelOuput {
+        let SentenceEmbeddingsModelOutput {
             embeddings,
             all_attentions,
         } = self.encode_as_tensor(inputs)?;
 
-        let embeddings = Vec::from(embeddings);
+        let embeddings = Vec::try_from(embeddings)?;
         let all_attentions = all_attentions.ok_or_else(|| {
             RustBertError::InvalidConfigurationError("No attention outputted".into())
         })?;
@@ -433,7 +485,7 @@ impl SentenceEmbeddingsModel {
                             .slice(0, i, i + 1, 1)
                             .slice(1, head as i64, head as i64 + 1, 1)
                             .squeeze();
-                        let attention_head = AttentionHead::from(attention_slice);
+                        let attention_head = AttentionHead::try_from(attention_slice).unwrap();
                         attention_layer.push(attention_head);
                     }
                     attention_output.push(attention_layer);
@@ -447,13 +499,13 @@ impl SentenceEmbeddingsModel {
 }
 
 /// Container for the SentenceEmbeddings tokenizer output.
-pub struct SentenceEmbeddingsTokenizerOuput {
+pub struct SentenceEmbeddingsTokenizerOutput {
     pub tokens_ids: Vec<Tensor>,
     pub tokens_masks: Vec<Tensor>,
 }
 
 /// Container for the SentenceEmbeddings model output.
-pub struct SentenceEmbeddingsModelOuput {
+pub struct SentenceEmbeddingsModelOutput {
     pub embeddings: Tensor,
     pub all_attentions: Option<Vec<Tensor>>,
 }

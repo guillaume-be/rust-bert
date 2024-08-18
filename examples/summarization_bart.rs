@@ -15,6 +15,7 @@ extern crate anyhow;
 use rust_bert::bart::{
     BartConfigResources, BartMergesResources, BartModelResources, BartVocabResources,
 };
+use rust_bert::pipelines::common::ModelResource;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
 use rust_bert::resources::RemoteResource;
 use tch::Device;
@@ -34,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     ));
 
     let summarization_config = SummarizationConfig {
-        model_resource,
+        model_resource: ModelResource::Torch(model_resource),
         config_resource,
         vocab_resource,
         merges_resource: Some(merges_resource),
@@ -71,7 +72,7 @@ telescope — scheduled for launch in 2021 — and the European Space Agency's 2
 about exoplanets like K2-18b."];
 
     //    Credits: WikiNews, CC BY 2.5 license (https://en.wikinews.org/wiki/Astronomers_find_water_vapour_in_atmosphere_of_exoplanet_K2-18b)
-    let _output = summarization_model.summarize(&input);
+    let _output = summarization_model.summarize(&input)?;
     for sentence in _output {
         println!("{sentence}");
     }

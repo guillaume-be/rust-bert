@@ -17,7 +17,7 @@ use rust_bert::marian::{
     MarianConfigResources, MarianModelResources, MarianSourceLanguages, MarianSpmResources,
     MarianTargetLanguages, MarianVocabResources,
 };
-use rust_bert::pipelines::common::ModelType;
+use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::translation::{TranslationConfig, TranslationModel};
 use rust_bert::resources::RemoteResource;
 use tch::Device;
@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
 
     let translation_config = TranslationConfig::new(
         ModelType::Marian,
-        model_resource,
+        ModelResource::Torch(Box::new(model_resource)),
         config_resource,
         vocab_resource,
         Some(merges_resource),

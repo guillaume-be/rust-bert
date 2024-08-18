@@ -5,6 +5,7 @@ use tch::Device;
 
 #[cfg(feature = "remote")]
 use crate::{
+    pipelines::common::ModelResource,
     pipelines::translation::{TranslationConfig, TranslationModel},
     resources::ResourceProvider,
     RustBertError,
@@ -29,12 +30,12 @@ enum ModelSize {
 /// The logic for selecting the most appropriate model is as follows:
 /// - If not specified, the model will be executed on a CUDA device if available, otherwise on the CPU
 /// - If the model type is specified (e.g. `Marian`), a model with this architecture will be created. The compatibility of the model
-/// with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
+///     with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
 /// - If the model size is specified, a model of the corresponding size class (computational budget) will be created. The compatibility of the model
-/// with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
+///     with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
 /// - If no source or target languages are provided, a multilingual M2M100 model will be returned
 /// - If no model type is provided, an average sized-model (Marian) will be returned if a pretrained model exists that covers the requested source/target languages provided.
-/// Otherwise a M2M100 multi-lingual model will be returned.
+///     Otherwise a M2M100 multi-lingual model will be returned.
 ///
 /// The options for the builder are provided with dedicated "builder function", the call to `create_model()` creates a model
 /// from the builder.
@@ -335,12 +336,10 @@ impl TranslationModelBuilder {
         ) {
             (Some(ModelType::M2M100), source_languages, target_languages) => {
                 match self.model_size {
-                    Some(value) if value == ModelSize::XLarge => {
-                        model_fetchers::get_m2m100_xlarge_resources(
-                            source_languages.as_ref(),
-                            target_languages.as_ref(),
-                        )?
-                    }
+                    Some(ModelSize::XLarge) => model_fetchers::get_m2m100_xlarge_resources(
+                        source_languages.as_ref(),
+                        target_languages.as_ref(),
+                    )?,
                     _ => model_fetchers::get_m2m100_large_resources(
                         source_languages.as_ref(),
                         target_languages.as_ref(),
@@ -379,7 +378,7 @@ impl TranslationModelBuilder {
 
         let translation_config = TranslationConfig::new(
             translation_resources.model_type,
-            translation_resources.model_resource,
+            ModelResource::Torch(Box::new(translation_resources.model_resource)),
             translation_resources.config_resource,
             translation_resources.vocab_resource,
             Some(translation_resources.merges_resource),
@@ -446,7 +445,7 @@ mod model_fetchers {
         Ok(match get_marian_model(source_languages, target_languages) {
             Ok(marian_resources) => marian_resources,
             Err(_) => match model_size {
-                Some(value) if value == &ModelSize::XLarge => {
+                Some(ModelSize::XLarge) => {
                     get_m2m100_xlarge_resources(source_languages, target_languages)?
                 }
                 _ => get_m2m100_large_resources(source_languages, target_languages)?,
