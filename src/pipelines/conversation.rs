@@ -421,6 +421,7 @@ impl Conversation {
     /// # Arguments
     /// - texts: sequence of strings, alternating between past user inputs and past generated responses.
     /// - ids: sequence of sequence of ids, alternating between past user inputs and past generated responses.
+    ///
     /// These can be generated via a `ConversationModel`'s `encode_prompts`.
     ///
     /// # Example:

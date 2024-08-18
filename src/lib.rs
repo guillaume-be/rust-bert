@@ -91,7 +91,7 @@
 //! ### Manual installation (recommended)
 //!
 //! 1. Download `libtorch` from <https://pytorch.org/get-started/locally/>. This package requires `v2.2`: if this version is no longer available on the "get started" page,
-//! the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.2.0%2Bcu121.zip` for a Linux version with CUDA12.
+//!     the file should be accessible by modifying the target link, for example `https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.2.0%2Bcu121.zip` for a Linux version with CUDA12.
 //! 2. Extract the library to a location of your choice
 //! 3. Set the following environment variables
 //! ##### Linux:

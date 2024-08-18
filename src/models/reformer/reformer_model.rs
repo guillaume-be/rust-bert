@@ -221,7 +221,7 @@ pub struct PaddedReformerInput {
 /// It is made of the following blocks:
 /// - `embeddings`: `ReformerEmbeddings` Reformer embeddings, combining word and position embeddings
 /// - `encoder`: `ReformerEncoder` (transformer) made of a vector of Reformer layer with local or LSH attention.
-/// caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
+///     caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
 /// - `least_common_mult_chunk_length`: least common chunk length for all attention layers
 /// - `min_chunk_length`: minimum chunk length for all attention layers
 /// - `pad_token_id`: padding token id used to pad to chunk length multiple if input is long enough to be chunked.
