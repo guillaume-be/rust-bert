@@ -207,6 +207,7 @@ impl ReformerLMHead {
     }
 }
 
+#[allow(dead_code)]
 pub struct PaddedReformerInput {
     pub input_ids: Option<Tensor>,
     pub input_embeds: Option<Tensor>,

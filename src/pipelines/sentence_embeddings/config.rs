@@ -309,7 +309,7 @@ impl Config for SentenceEmbeddingsModulesConfig {}
 
 impl SentenceEmbeddingsModulesConfig {
     pub fn validate(self) -> Result<Self, RustBertError> {
-        match self.get(0) {
+        match self.first() {
             Some(SentenceEmbeddingsModuleConfig {
                 module_type: SentenceEmbeddingsModuleType::Transformer,
                 ..
@@ -347,7 +347,7 @@ impl SentenceEmbeddingsModulesConfig {
     }
 
     pub fn transformer_module(&self) -> &SentenceEmbeddingsModuleConfig {
-        self.get(0).as_ref().unwrap()
+        self.first().as_ref().unwrap()
     }
 
     pub fn pooling_module(&self) -> &SentenceEmbeddingsModuleConfig {

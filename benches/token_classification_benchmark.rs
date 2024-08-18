@@ -14,9 +14,6 @@ fn create_model() -> TokenClassificationModel {
 
 fn bench_token_classification_predict(c: &mut Criterion) {
     //    Set-up model
-    unsafe {
-        torch_sys::dummy_cuda_dependency();
-    }
     let model = create_model();
 
     //    Define input
