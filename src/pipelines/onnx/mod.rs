@@ -7,7 +7,7 @@
 //! installation is to use dynamic linking by pointing to an existing library location:
 //! - Use the `load-dynamic` cargo feature for `ort`
 //! - set the `ORT_DYLIB_PATH` to point to the location of downloaded onnxruntime library (`onnxruntime.dll`/`libonnxruntime.so`/`libonnxruntime.dylib`
-//! depending on the operating system). These can be downloaded from the [release page](https://github.com/microsoft/onnxruntime/releases) of the onnxruntime project
+//!     depending on the operating system). These can be downloaded from the [release page](https://github.com/microsoft/onnxruntime/releases) of the onnxruntime project
 //!
 //! For troubleshooting  issues when using an ONNX model, it is recommended to add the `tracing-subscriber = { version = "0.3", default-features = false, features = [ "env-filter", "fmt" ] }`
 //! dependency, and use the `tracing_subscriber::fmt::init();` instruction in the `main` binary.
