@@ -103,7 +103,7 @@ models used by this library are in the order of the 100s of MBs to GBs.
    package requires `v2.4`: if this version is no longer available on the "get
    started" page, the file should be accessible by modifying the target link,
    for example
-   `https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu124.zip`
+   `https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu121.zip`
    for a Linux version with CUDA12. **NOTE:** When using `rust-bert` as
    dependency from [crates.io](https://crates.io), please check the required
    `LIBTORCH` on the published package
