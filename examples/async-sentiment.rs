@@ -2,7 +2,10 @@ use std::sync::mpsc;
 
 use anyhow::Result;
 use rust_bert::pipelines::sentiment::{Sentiment, SentimentConfig, SentimentModel};
-use tokio::{sync::oneshot, task::{self, JoinHandle}};
+use tokio::{
+    sync::oneshot,
+    task::{self, JoinHandle},
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
