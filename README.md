@@ -103,7 +103,7 @@ models used by this library are in the order of the 100s of MBs to GBs.
    package requires `v2.2`: if this version is no longer available on the "get
    started" page, the file should be accessible by modifying the target link,
    for example
-   `https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.2.0%2Bcu121.zip`
+   `https://download.pytorch.org/libtorch/cu124/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcu124.zip`
    for a Linux version with CUDA12. **NOTE:** When using `rust-bert` as
    dependency from [crates.io](https://crates.io), please check the required
    `LIBTORCH` on the published package
@@ -140,7 +140,7 @@ Alternatively, you can let the `build` script automatically download the
 `libtorch` library for you. The `download-libtorch` feature flag needs to be
 enabled. The CPU version of libtorch will be downloaded by default. To download
 a CUDA version, please set the environment variable `TORCH_CUDA_VERSION` to
-`cu118`. Note that the libtorch library is large (order of several GBs for the
+`cu124`. Note that the libtorch library is large (order of several GBs for the
 CUDA-enabled version) and the first build may therefore take several minutes to
 complete.
 
