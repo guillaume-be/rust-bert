@@ -1,11 +1,11 @@
-use std::{
-    sync::mpsc,
-    thread::{self, JoinHandle},
-};
+use std::sync::mpsc;
 
 use anyhow::Result;
 use rust_bert::pipelines::sentiment::{Sentiment, SentimentConfig, SentimentModel};
-use tokio::{sync::oneshot, task};
+use tokio::{
+    sync::oneshot,
+    task::{self, JoinHandle},
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -36,7 +36,7 @@ impl SentimentClassifier {
     /// to interact with it
     pub fn spawn() -> (JoinHandle<Result<()>>, SentimentClassifier) {
         let (sender, receiver) = mpsc::sync_channel(100);
-        let handle = thread::spawn(move || Self::runner(receiver));
+        let handle = task::spawn_blocking(move || Self::runner(receiver));
         (handle, SentimentClassifier { sender })
     }
 
@@ -57,7 +57,7 @@ impl SentimentClassifier {
     /// Make the runner predict a sample and return the result
     pub async fn predict(&self, texts: Vec<String>) -> Result<Vec<Sentiment>> {
         let (sender, receiver) = oneshot::channel();
-        task::block_in_place(|| self.sender.send((texts, sender)))?;
+        self.sender.send((texts, sender))?;
         Ok(receiver.await?)
     }
 }
