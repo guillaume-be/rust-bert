@@ -1,6 +1,6 @@
 [package]
 name = "rust-bert"
-version = "0.22.0"
+version = "0.23.0"
 authors = ["Guillaume Becquin <guillaume.becquin@gmail.com>"]
 edition = "2018"
 description = "Ready-to-use NLP pipelines and language models"
