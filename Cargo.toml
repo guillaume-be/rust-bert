@@ -75,7 +75,7 @@ hf-tokenizers = ["tokenizers"]
 features = ["doc-only"]
 
 [dependencies]
-rust_tokenizers = "8.1.1"
+rust_tokenizers = { path = "../rust-tokenizers/main" }
 tch = { version = "0.17.0", features = ["download-libtorch"] }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
