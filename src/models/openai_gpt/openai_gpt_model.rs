@@ -189,19 +189,19 @@ impl OpenAiGptModel {
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     gpt_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&attention_mask),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  gpt_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&attention_mask),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -371,15 +371,15 @@ impl OpenAIGPTLMHeadModel {
     ///
     ///  let model_output = no_grad(|| {
     ///    gpt_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Cache::None,
-    ///                    Some(&attention_mask),
-    ///                    Some(&token_type_ids),
-    ///                    Some(&position_ids),
-    ///                    None,
-    ///                    None,
-    ///                    None,
-    ///                    false).unwrap()
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Cache::None,
+    ///                 Some(&attention_mask),
+    ///                 Some(&token_type_ids),
+    ///                 Some(&position_ids),
+    ///                 None,
+    ///                 None,
+    ///                 None,
+    ///                 false).unwrap()
     ///    });
     /// ```
     pub fn forward_t(
@@ -451,12 +451,12 @@ impl OpenAIGenerator {
     /// use rust_bert::openai_gpt::OpenAIGenerator;
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let gpt_generator = OpenAIGenerator::new(generate_config)?;
     /// # Ok(())

@@ -434,19 +434,19 @@ impl MobileBertModel {
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             Some(&attention_mask),
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          Some(&attention_mask),
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -612,19 +612,19 @@ impl MobileBertForMaskedLM {
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             Some(&attention_mask),
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          Some(&attention_mask),
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -761,19 +761,19 @@ impl MobileBertForSequenceClassification {
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             Some(&attention_mask),
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          Some(&attention_mask),
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -894,19 +894,19 @@ impl MobileBertForQuestionAnswering {
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             Some(&attention_mask),
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          Some(&attention_mask),
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -1031,19 +1031,19 @@ impl MobileBertForMultipleChoice {
     /// let attention_mask = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[num_choices, sequence_length], true);
+    ///  .expand(&[num_choices, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             Some(&attention_mask),
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          Some(&attention_mask),
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -1206,19 +1206,19 @@ impl MobileBertForTokenClassification {
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             Some(&attention_mask),
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          Some(&attention_mask),
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(

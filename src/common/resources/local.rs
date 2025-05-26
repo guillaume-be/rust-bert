@@ -22,7 +22,7 @@ impl ResourceProvider for LocalResource {
     /// use rust_bert::resources::{LocalResource, ResourceProvider};
     /// use std::path::PathBuf;
     /// let config_resource = LocalResource {
-    ///     local_path: PathBuf::from("path/to/config.json"),
+    ///  local_path: PathBuf::from("path/to/config.json"),
     /// };
     /// let config_path = config_resource.get_local_path();
     /// ```
@@ -42,7 +42,7 @@ impl ResourceProvider for LocalResource {
     /// use rust_bert::resources::{LocalResource, ResourceProvider};
     /// use std::path::PathBuf;
     /// let config_resource = LocalResource {
-    ///     local_path: PathBuf::from("path/to/config.json"),
+    ///  local_path: PathBuf::from("path/to/config.json"),
     /// };
     /// let config_path = config_resource.get_resource();
     /// ```

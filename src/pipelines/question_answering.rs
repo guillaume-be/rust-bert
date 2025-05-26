@@ -322,7 +322,7 @@ impl QuestionAnsweringOption {
     /// # Arguments
     ///
     /// * `QuestionAnsweringConfig` - Question answering pipeline configuration. The type of model created will be inferred from the
-    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    ///   `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &QuestionAnsweringConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResource::Torch(_) => Self::new_torch(config),
@@ -673,12 +673,12 @@ impl QuestionAnsweringModel {
     /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
     /// use rust_bert::pipelines::question_answering::QuestionAnsweringModel;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::Bert,
-    ///     "path/to/vocab.txt",
-    ///     None,
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::Bert,
+    ///  "path/to/vocab.txt",
+    ///  None,
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let qa_model = QuestionAnsweringModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())
@@ -763,12 +763,12 @@ impl QuestionAnsweringModel {
     /// let context_2 = String::from("While Amy lives in Amsterdam, Eric is in The Hague.");
     ///
     /// let qa_input_1 = QaInput {
-    ///     question: question_1,
-    ///     context: context_1,
+    ///  question: question_1,
+    ///  context: context_1,
     /// };
     /// let qa_input_2 = QaInput {
-    ///     question: question_2,
-    ///     context: context_2,
+    ///  question: question_2,
+    ///  context: context_2,
     /// };
     /// let answers = qa_model.predict(&[qa_input_1, qa_input_2], 1, 32);
     ///

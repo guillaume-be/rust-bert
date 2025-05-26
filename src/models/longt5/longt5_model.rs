@@ -174,7 +174,7 @@ impl From<&LongT5Config> for T5Config {
 /// It is made of the following blocks:
 /// - `encoder`: `T5Stack` (transformer) made of a vector of encoding layers
 /// - `decoder`: `T5Stack` (transformer)  made of a vector of decoding layers with self attention and encoder cross-attention.
-///     caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
+///   caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
 /// - `embeddings`: `nn::Embedding` Shared embeddings for the encoder and decoder.
 pub struct LongT5Model {
     pub(crate) encoder: LongT5Stack,
@@ -248,7 +248,7 @@ impl LongT5Model {
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). This or `input_embeds` must be provided.
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). This or `decoder_input_embeds` must be provided.
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `input_embeds` - Optional input tensor of shape (*batch size*, *source_sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
@@ -285,22 +285,22 @@ impl LongT5Model {
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     /// let encoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     /// let decoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longt5_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&encoder_attention_mask),
-    ///         None,
-    ///         Some(&target_tensor),
-    ///         Some(&decoder_attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false,
-    ///     )
+    ///  longt5_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&encoder_attention_mask),
+    ///      None,
+    ///      Some(&target_tensor),
+    ///      Some(&decoder_attention_mask),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -436,7 +436,7 @@ impl LongT5ForConditionalGeneration {
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). This or `input_embeds` must be provided.
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). This or `decoder_input_embeds` must be provided.
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `input_embeds` - Optional input tensor of shape (*batch size*, *source_sequence_length*, *embeddings dimension*). This or `input_ids` must be provided.
@@ -473,22 +473,22 @@ impl LongT5ForConditionalGeneration {
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     /// let encoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     /// let decoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longt5_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&encoder_attention_mask),
-    ///         None,
-    ///         Some(&target_tensor),
-    ///         Some(&decoder_attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false,
-    ///     )
+    ///  longt5_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&encoder_attention_mask),
+    ///      None,
+    ///      Some(&target_tensor),
+    ///      Some(&decoder_attention_mask),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -755,8 +755,8 @@ impl PrivateLanguageGenerator for LongT5Generator {
         beam_indices: &Tensor,
     ) -> Option<Tensor> {
         match past {
-            Cache::LongT5Cache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
+            Cache::LongT5Cache(old_cache_option) => {
+                if let Some(old_cache) = old_cache_option {
                     for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
                         if self_layer_state.is_some() {
                             self_layer_state
@@ -772,8 +772,7 @@ impl PrivateLanguageGenerator for LongT5Generator {
                         };
                     }
                 }
-                None => {}
-            },
+            }
             Cache::None => {}
             _ => {
                 panic!("Invalid cache for LongT5 model");

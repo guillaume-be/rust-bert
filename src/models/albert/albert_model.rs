@@ -229,19 +229,19 @@ impl AlbertModel {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     albert_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&mask),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  albert_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&mask),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -430,17 +430,17 @@ impl AlbertForMaskedLM {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let masked_lm_output = no_grad(|| {
-    ///     albert_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  albert_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -505,7 +505,7 @@ impl AlbertForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForSequenceClassification =
-    ///     AlbertForSequenceClassification::new(&p.root(), &config).unwrap();
+    ///  AlbertForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -581,12 +581,12 @@ impl AlbertForSequenceClassification {
     ///
     ///  let classification_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&mask),
-    ///                    Some(&token_type_ids),
-    ///                    Some(&position_ids),
-    ///                    None,
-    ///                    false)
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Some(&mask),
+    ///                 Some(&token_type_ids),
+    ///                 Some(&position_ids),
+    ///                 None,
+    ///                 false)
     ///    });
     /// ```
     pub fn forward_t(
@@ -655,7 +655,7 @@ impl AlbertForTokenClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = AlbertConfig::from_file(config_path);
     /// let albert: AlbertForTokenClassification =
-    ///     AlbertForTokenClassification::new(&p.root(), &config).unwrap();
+    ///  AlbertForTokenClassification::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -730,12 +730,12 @@ impl AlbertForTokenClassification {
     ///
     ///  let model_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&mask),
-    ///                    Some(&token_type_ids),
-    ///                    Some(&position_ids),
-    ///                    None,
-    ///                    false)
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Some(&mask),
+    ///                 Some(&token_type_ids),
+    ///                 Some(&position_ids),
+    ///                 None,
+    ///                 false)
     ///    });
     /// ```
     pub fn forward_t(
@@ -862,12 +862,12 @@ impl AlbertForQuestionAnswering {
     ///
     ///  let model_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&mask),
-    ///                    Some(&token_type_ids),
-    ///                    Some(&position_ids),
-    ///                    None,
-    ///                    false)
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Some(&mask),
+    ///                 Some(&token_type_ids),
+    ///                 Some(&position_ids),
+    ///                 None,
+    ///                 false)
     ///    });
     /// ```
     pub fn forward_t(
@@ -1005,12 +1005,12 @@ impl AlbertForMultipleChoice {
     ///
     ///  let model_output = no_grad(|| {
     ///    albert_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&mask),
-    ///                    Some(&token_type_ids),
-    ///                    Some(&position_ids),
-    ///                    None,
-    ///                    false).unwrap()
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Some(&mask),
+    ///                 Some(&token_type_ids),
+    ///                 Some(&position_ids),
+    ///                 None,
+    ///                 false).unwrap()
     ///    });
     /// ```
     pub fn forward_t(

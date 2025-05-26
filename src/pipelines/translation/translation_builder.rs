@@ -30,12 +30,12 @@ enum ModelSize {
 /// The logic for selecting the most appropriate model is as follows:
 /// - If not specified, the model will be executed on a CUDA device if available, otherwise on the CPU
 /// - If the model type is specified (e.g. `Marian`), a model with this architecture will be created. The compatibility of the model
-///     with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
+///   with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
 /// - If the model size is specified, a model of the corresponding size class (computational budget) will be created. The compatibility of the model
-///     with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
+///   with the source and target languages will be verified, and the builder will error if the settings provided are not supported.
 /// - If no source or target languages are provided, a multilingual M2M100 model will be returned
 /// - If no model type is provided, an average sized-model (Marian) will be returned if a pretrained model exists that covers the requested source/target languages provided.
-///     Otherwise a M2M100 multi-lingual model will be returned.
+///   Otherwise a M2M100 multi-lingual model will be returned.
 ///
 /// The options for the builder are provided with dedicated "builder function", the call to `create_model()` creates a model
 /// from the builder.
@@ -45,21 +45,21 @@ enum ModelSize {
 /// ```no_run
 /// use rust_bert::pipelines::translation::{Language, TranslationModelBuilder};
 /// fn main() -> anyhow::Result<()> {
-///     let model = TranslationModelBuilder::new()
-///         .with_source_languages(vec![Language::English])
-///         .with_target_languages(vec![Language::Spanish, Language::French, Language::Italian])
-///         .create_model()?;
+///  let model = TranslationModelBuilder::new()
+///      .with_source_languages(vec![Language::English])
+///      .with_target_languages(vec![Language::Spanish, Language::French, Language::Italian])
+///      .create_model()?;
 ///
-///     let input_context_1 = "This is a sentence to be translated";
-///     let input_context_2 = "The dog did not wake up.";
+///  let input_context_1 = "This is a sentence to be translated";
+///  let input_context_2 = "The dog did not wake up.";
 ///
-///     let output =
-///         model.translate(&[input_context_1, input_context_2], None, Language::Spanish)?;
+///  let output =
+///      model.translate(&[input_context_1, input_context_2], None, Language::Spanish)?;
 ///
-///     for sentence in output {
-///         println!("{}", sentence);
-///     }
-///     Ok(())
+///  for sentence in output {
+///      println!("{}", sentence);
+///  }
+///  Ok(())
 /// }
 /// ```
 pub struct TranslationModelBuilder {
@@ -87,8 +87,8 @@ impl TranslationModelBuilder {
     /// ```no_run
     /// use rust_bert::pipelines::translation::TranslationModelBuilder;
     /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new().create_model();
-    ///     Ok(())
+    ///  let model = TranslationModelBuilder::new().create_model();
+    ///  Ok(())
     /// }
     /// ```
     pub fn new() -> TranslationModelBuilder {
@@ -115,10 +115,10 @@ impl TranslationModelBuilder {
     /// use rust_bert::pipelines::translation::TranslationModelBuilder;
     /// use tch::Device;
     /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new()
-    ///         .with_device(Device::Cuda(0))
-    ///         .create_model();
-    ///     Ok(())
+    ///  let model = TranslationModelBuilder::new()
+    ///      .with_device(Device::Cuda(0))
+    ///      .create_model();
+    ///  Ok(())
     /// }
     /// ```
     pub fn with_device(&mut self, device: Device) -> &mut Self {
@@ -140,10 +140,10 @@ impl TranslationModelBuilder {
     /// use rust_bert::pipelines::common::ModelType;
     /// use rust_bert::pipelines::translation::TranslationModelBuilder;
     /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new()
-    ///         .with_model_type(ModelType::M2M100)
-    ///         .create_model();
-    ///     Ok(())
+    ///  let model = TranslationModelBuilder::new()
+    ///      .with_model_type(ModelType::M2M100)
+    ///      .create_model();
+    ///  Ok(())
     /// }
     /// ```
     pub fn with_model_type(&mut self, model_type: ModelType) -> &mut Self {
@@ -161,10 +161,10 @@ impl TranslationModelBuilder {
     /// ```no_run
     /// use rust_bert::pipelines::translation::TranslationModelBuilder;
     /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new()
-    ///         .with_medium_model()
-    ///         .create_model();
-    ///     Ok(())
+    ///  let model = TranslationModelBuilder::new()
+    ///      .with_medium_model()
+    ///      .create_model();
+    ///  Ok(())
     /// }
     /// ```
     pub fn with_medium_model(&mut self) -> &mut Self {
@@ -192,10 +192,10 @@ impl TranslationModelBuilder {
     /// ```no_run
     /// use rust_bert::pipelines::translation::TranslationModelBuilder;
     /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new()
-    ///         .with_large_model()
-    ///         .create_model();
-    ///     Ok(())
+    ///  let model = TranslationModelBuilder::new()
+    ///      .with_large_model()
+    ///      .create_model();
+    ///  Ok(())
     /// }
     /// ```
     pub fn with_large_model(&mut self) -> &mut Self {
@@ -223,10 +223,10 @@ impl TranslationModelBuilder {
     /// ```no_run
     /// use rust_bert::pipelines::translation::TranslationModelBuilder;
     /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new()
-    ///         .with_xlarge_model()
-    ///         .create_model();
-    ///     Ok(())
+    ///  let model = TranslationModelBuilder::new()
+    ///      .with_xlarge_model()
+    ///      .create_model();
+    ///  Ok(())
     /// }
     /// ```
     pub fn with_xlarge_model(&mut self) -> &mut Self {
@@ -258,10 +258,10 @@ impl TranslationModelBuilder {
     /// use rust_bert::pipelines::translation::Language;
     /// use rust_bert::pipelines::translation::TranslationModelBuilder;
     /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new()
-    ///         .with_source_languages([Language::French, Language::Italian])
-    ///         .create_model();
-    ///     Ok(())
+    ///  let model = TranslationModelBuilder::new()
+    ///      .with_source_languages([Language::French, Language::Italian])
+    ///      .create_model();
+    ///  Ok(())
     /// }
     /// ```
     pub fn with_source_languages<S>(&mut self, source_languages: S) -> &mut Self
@@ -286,14 +286,14 @@ impl TranslationModelBuilder {
     /// use rust_bert::pipelines::translation::Language;
     /// use rust_bert::pipelines::translation::TranslationModelBuilder;
     /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new()
-    ///         .with_target_languages([
-    ///             Language::Japanese,
-    ///             Language::Korean,
-    ///             Language::ChineseMandarin,
-    ///         ])
-    ///         .create_model();
-    ///     Ok(())
+    ///  let model = TranslationModelBuilder::new()
+    ///      .with_target_languages([
+    ///          Language::Japanese,
+    ///          Language::Korean,
+    ///          Language::ChineseMandarin,
+    ///      ])
+    ///      .create_model();
+    ///  Ok(())
     /// }
     /// ```
     pub fn with_target_languages<T>(&mut self, target_languages: T) -> &mut Self
@@ -315,14 +315,14 @@ impl TranslationModelBuilder {
     /// use rust_bert::pipelines::translation::Language;
     /// use rust_bert::pipelines::translation::TranslationModelBuilder;
     /// fn main() -> anyhow::Result<()> {
-    ///     let model = TranslationModelBuilder::new()
-    ///         .with_target_languages([
-    ///             Language::Japanese,
-    ///             Language::Korean,
-    ///             Language::ChineseMandarin,
-    ///         ])
-    ///         .create_model();
-    ///     Ok(())
+    ///  let model = TranslationModelBuilder::new()
+    ///      .with_target_languages([
+    ///          Language::Japanese,
+    ///          Language::Korean,
+    ///          Language::ChineseMandarin,
+    ///      ])
+    ///      .create_model();
+    ///  Ok(())
     /// }
     /// ```
     #[cfg(feature = "remote")]

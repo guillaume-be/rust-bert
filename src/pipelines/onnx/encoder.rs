@@ -92,21 +92,21 @@ impl ONNXEncoder {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     bert_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&mask),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  bert_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&mask),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          None,
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward(

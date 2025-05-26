@@ -351,7 +351,7 @@ impl TokenClassificationOption {
     /// # Arguments
     ///
     /// * `TokenClassificationConfig` - Token classification pipeline configuration. The type of model created will be inferred from the
-    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    ///   `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &TokenClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResource::Torch(_) => Self::new_torch(config),
@@ -756,12 +756,12 @@ impl TokenClassificationModel {
     /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
     /// use rust_bert::pipelines::token_classification::TokenClassificationModel;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::Bert,
-    ///     "path/to/vocab.txt",
-    ///     None,
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::Bert,
+    ///  "path/to/vocab.txt",
+    ///  None,
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let model = TokenClassificationModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())
@@ -947,8 +947,8 @@ impl TokenClassificationModel {
     ///
     /// let ner_model = TokenClassificationModel::new(Default::default())?;
     /// let input = [
-    ///     "My name is Amy. I live in Paris.",
-    ///     "Paris is a city in France.",
+    ///  "My name is Amy. I live in Paris.",
+    ///  "Paris is a city in France.",
     /// ];
     /// let output = ner_model.predict(&input, true, true);
     /// # Ok(())

@@ -235,9 +235,9 @@ impl DistilBertModel {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     distilbert_model
-    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
-    ///         .unwrap()
+    ///  distilbert_model
+    ///      .forward_t(Some(&input_tensor), Some(&mask), None, false)
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -287,7 +287,7 @@ impl DistilBertModelClassifier {
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert: DistilBertModelClassifier =
-    ///     DistilBertModelClassifier::new(&p.root() / "distilbert", &config).unwrap();
+    ///  DistilBertModelClassifier::new(&p.root() / "distilbert", &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -363,10 +363,10 @@ impl DistilBertModelClassifier {
     ///
     ///  let model_output = no_grad(|| {
     ///    distilbert_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&mask),
-    ///                    None,
-    ///                    false).unwrap()
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Some(&mask),
+    ///                 None,
+    ///                 false).unwrap()
     ///    });
     /// ```
     pub fn forward_t(
@@ -501,9 +501,9 @@ impl DistilBertModelMaskedLM {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     distilbert_model
-    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
-    ///         .unwrap()
+    ///  distilbert_model
+    ///      .forward_t(Some(&input_tensor), Some(&mask), None, false)
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -620,9 +620,9 @@ impl DistilBertForQuestionAnswering {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     distilbert_model
-    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
-    ///         .unwrap()
+    ///  distilbert_model
+    ///      .forward_t(Some(&input_tensor), Some(&mask), None, false)
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -688,7 +688,7 @@ impl DistilBertForTokenClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = DistilBertConfig::from_file(config_path);
     /// let distil_bert =
-    ///     DistilBertForTokenClassification::new(&p.root() / "distilbert", &config).unwrap();
+    ///  DistilBertForTokenClassification::new(&p.root() / "distilbert", &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -756,9 +756,9 @@ impl DistilBertForTokenClassification {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     distilbert_model
-    ///         .forward_t(Some(&input_tensor), Some(&mask), None, false)
-    ///         .unwrap()
+    ///  distilbert_model
+    ///      .forward_t(Some(&input_tensor), Some(&mask), None, false)
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(

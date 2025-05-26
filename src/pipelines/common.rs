@@ -148,15 +148,15 @@ impl ModelResource {
 
 pub(crate) fn get_device(_model_resource: ModelResource, device: Device) -> Device {
     #[cfg(feature = "onnx")]
-    let device = if let ModelResource::ONNX(_) = _model_resource {
+    let updated_device = if let ModelResource::ONNX(_) = _model_resource {
         Device::Cpu
     } else {
         device
     };
 
     #[cfg(not(feature = "onnx"))]
-    let device = device;
-    device
+    let updated_device = device;
+    updated_device
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -254,6 +254,7 @@ pub enum ConfigOption {
     ONNX(ONNXModelConfig),
 }
 
+#[allow(clippy::large_enum_variant)]
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
 pub enum TokenizerOption {
     /// Bert Tokenizer

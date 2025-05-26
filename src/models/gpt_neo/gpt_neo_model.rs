@@ -315,15 +315,15 @@ impl GptNeoModel {
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     gpt_neo_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false,
-    ///     )
+    ///  gpt_neo_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -528,15 +528,15 @@ impl GptNeoForCausalLM {
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     gpt_neo_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false,
-    ///     )
+    ///  gpt_neo_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -626,12 +626,12 @@ impl GptNeoGenerator {
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     ///
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let gpt_neo_generator = GptNeoGenerator::new(generate_config)?;
     /// # Ok(())

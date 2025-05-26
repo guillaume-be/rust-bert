@@ -430,7 +430,7 @@ mod serde_sentence_embeddings_module_type {
 
             fn visit_str<E: de::Error>(self, s: &str) -> Result<Self::Value, E> {
                 s.split('.')
-                    .last()
+                    .next_back()
                     .map(|s| serde_json::from_value(serde_json::Value::String(s.to_string())))
                     .transpose()
                     .map_err(de::Error::custom)?

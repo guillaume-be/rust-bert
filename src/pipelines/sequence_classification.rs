@@ -226,7 +226,7 @@ impl SequenceClassificationOption {
     /// # Arguments
     ///
     /// * `SequenceClassificationConfig` - Sequence classification pipeline configuration. The type of model created will be inferred from the
-    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    ///   `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &SequenceClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResource::Torch(_) => Self::new_torch(config),
@@ -657,12 +657,12 @@ impl SequenceClassificationModel {
     /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
     /// use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::Bert,
-    ///     "path/to/vocab.txt",
-    ///     None,
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::Bert,
+    ///  "path/to/vocab.txt",
+    ///  None,
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let model = SequenceClassificationModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())
@@ -718,9 +718,9 @@ impl SequenceClassificationModel {
     ///
     /// let sequence_classification_model =  SequenceClassificationModel::new(Default::default())?;
     /// let input = [
-    ///     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
-    ///     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
-    ///     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
+    ///  "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
+    ///  "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
+    ///  "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
     /// ];
     /// let output = sequence_classification_model.predict(&input);
     /// # Ok(())
@@ -788,9 +788,9 @@ impl SequenceClassificationModel {
     ///
     /// let sequence_classification_model =  SequenceClassificationModel::new(Default::default())?;
     /// let input = [
-    ///     "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
-    ///     "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
-    ///     "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
+    ///  "Probably my all-time favorite movie, a story of selflessness, sacrifice and dedication to a noble cause, but it's not preachy or boring.",
+    ///  "This film tried to be too many things all at once: stinging political satire, Hollywood blockbuster, sappy romantic comedy, family values promo...",
+    ///  "If you like original gut wrenching laughter you will like this movie. If you are young or old then you will love this movie, hell even my mom liked it.",
     /// ];
     /// let output = sequence_classification_model.predict_multilabel(&input, 0.5);
     /// # Ok(())

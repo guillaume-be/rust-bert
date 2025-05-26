@@ -88,37 +88,37 @@ impl ONNXCausalGenerator {
     /// use rust_bert::resources::RemoteResource;
     /// use std::sync::Arc;
     /// let generate_config = GenerateConfig {
-    ///     model_type: ModelType::GPT2,
-    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
-    ///         encoder_resource: None,
-    ///         decoder_resource: Some(Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
-    ///             "onnx-gpt2",
-    ///         ))),
-    ///         decoder_with_past_resource: Some(Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_with_past_model.onnx",
-    ///             "onnx-gpt2",
-    ///         ))),
-    ///     }),
-    ///     config_resource: Box::new(RemoteResource::new(
-    ///         "https://huggingface.co/optimum/gpt2/resolve/main/config.json",
-    ///         "onnx-gpt2",
-    ///     )),
-    ///     vocab_resource: Box::new(RemoteResource::new(
-    ///         "https://huggingface.co/gpt2/resolve/main/vocab.json",
-    ///         "onnx-gpt2",
-    ///     )),
-    ///     merges_resource: Some(Box::new(RemoteResource::new(
-    ///         "https://huggingface.co/gpt2/resolve/main/merges.txt",
-    ///         "onnx-gpt2",
-    ///     ))),
-    ///     ..Default::default()
+    ///  model_type: ModelType::GPT2,
+    ///  model_resource: ModelResource::ONNX(ONNXModelResources {
+    ///      encoder_resource: None,
+    ///      decoder_resource: Some(Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
+    ///          "onnx-gpt2",
+    ///      ))),
+    ///      decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/gpt2/resolve/main/decoder_with_past_model.onnx",
+    ///          "onnx-gpt2",
+    ///      ))),
+    ///  }),
+    ///  config_resource: Box::new(RemoteResource::new(
+    ///      "https://huggingface.co/optimum/gpt2/resolve/main/config.json",
+    ///      "onnx-gpt2",
+    ///  )),
+    ///  vocab_resource: Box::new(RemoteResource::new(
+    ///      "https://huggingface.co/gpt2/resolve/main/vocab.json",
+    ///      "onnx-gpt2",
+    ///  )),
+    ///  merges_resource: Some(Box::new(RemoteResource::new(
+    ///      "https://huggingface.co/gpt2/resolve/main/merges.txt",
+    ///      "onnx-gpt2",
+    ///  ))),
+    ///  ..Default::default()
     /// };
     /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let onnx_causal_generator =
-    ///     ONNXCausalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
-    ///         .unwrap();
+    ///  ONNXCausalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///      .unwrap();
     /// ```
     pub fn new(
         generate_config: GenerateConfig,
@@ -158,7 +158,7 @@ impl ONNXCausalGenerator {
     /// ```no_run
     /// use ort::Environment;
     /// use rust_bert::pipelines::common::{
-    ///     ModelResource, ModelType, ONNXModelResources, TokenizerOption,
+    ///  ModelResource, ModelType, ONNXModelResources, TokenizerOption,
     /// };
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
@@ -166,22 +166,22 @@ impl ONNXCausalGenerator {
     /// use rust_bert::resources::RemoteResource;
     /// use std::sync::Arc;
     /// let generate_config = GenerateConfig {
-    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
-    ///         encoder_resource: None,
-    ///         decoder_resource: Some(Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
-    ///             "onnx-gpt2",
-    ///         ))),
-    ///         decoder_with_past_resource: Some(Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_with_past_model.onnx",
-    ///             "onnx-gpt2",
-    ///         ))),
-    ///     }),
-    ///     config_resource: Box::new(RemoteResource::new(
-    ///         "https://huggingface.co/optimum/gpt2/resolve/main/config.json",
-    ///         "onnx-gpt2",
-    ///     )),
-    ///     ..Default::default()
+    ///  model_resource: ModelResource::ONNX(ONNXModelResources {
+    ///      encoder_resource: None,
+    ///      decoder_resource: Some(Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
+    ///          "onnx-gpt2",
+    ///      ))),
+    ///      decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/gpt2/resolve/main/decoder_with_past_model.onnx",
+    ///          "onnx-gpt2",
+    ///      ))),
+    ///  }),
+    ///  config_resource: Box::new(RemoteResource::new(
+    ///      "https://huggingface.co/optimum/gpt2/resolve/main/config.json",
+    ///      "onnx-gpt2",
+    ///  )),
+    ///  ..Default::default()
     /// };
     /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
@@ -189,19 +189,19 @@ impl ONNXCausalGenerator {
     /// let strip_accents = None;
     /// let add_prefix_space = None;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::GPT2,
-    ///     "path/to/vocab.json",
-    ///     Some("path/to/merges.txt"),
-    ///     lower_case,
-    ///     strip_accents,
-    ///     add_prefix_space,
+    ///  ModelType::GPT2,
+    ///  "path/to/vocab.json",
+    ///  Some("path/to/merges.txt"),
+    ///  lower_case,
+    ///  strip_accents,
+    ///  add_prefix_space,
     /// )
     /// .unwrap();
     /// let onnx_causal_generator = ONNXCausalGenerator::new_with_tokenizer(
-    ///     generate_config,
-    ///     tokenizer,
-    ///     environment.as_ref(),
-    ///     onnx_config.as_ref(),
+    ///  generate_config,
+    ///  tokenizer,
+    ///  environment.as_ref(),
+    ///  onnx_config.as_ref(),
     /// )
     /// .unwrap();
     /// ```
@@ -318,37 +318,37 @@ impl ONNXCausalGenerator {
     /// use tch::Kind::Int64;
     /// use tch::{Device, Tensor};
     /// let generate_config = GenerateConfig {
-    ///     model_type: ModelType::GPT2,
-    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
-    ///         encoder_resource: None,
-    ///         decoder_resource: Some(Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
-    ///             "onnx-gpt2",
-    ///         ))),
-    ///         decoder_with_past_resource: Some(Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/gpt2/resolve/main/decoder_with_past_model.onnx",
-    ///             "onnx-gpt2",
-    ///         ))),
-    ///     }),
-    ///     config_resource: Box::new(RemoteResource::new(
-    ///         "https://huggingface.co/optimum/gpt2/resolve/main/config.json",
-    ///         "onnx-gpt2",
-    ///     )),
-    ///     vocab_resource: Box::new(RemoteResource::new(
-    ///         "https://huggingface.co/gpt2/resolve/main/vocab.json",
-    ///         "onnx-gpt2",
-    ///     )),
-    ///     merges_resource: Some(Box::new(RemoteResource::new(
-    ///         "https://huggingface.co/gpt2/resolve/main/merges.txt",
-    ///         "onnx-gpt2",
-    ///     ))),
-    ///     ..Default::default()
+    ///  model_type: ModelType::GPT2,
+    ///  model_resource: ModelResource::ONNX(ONNXModelResources {
+    ///      encoder_resource: None,
+    ///      decoder_resource: Some(Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/gpt2/resolve/main/decoder_model.onnx",
+    ///          "onnx-gpt2",
+    ///      ))),
+    ///      decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/gpt2/resolve/main/decoder_with_past_model.onnx",
+    ///          "onnx-gpt2",
+    ///      ))),
+    ///  }),
+    ///  config_resource: Box::new(RemoteResource::new(
+    ///      "https://huggingface.co/optimum/gpt2/resolve/main/config.json",
+    ///      "onnx-gpt2",
+    ///  )),
+    ///  vocab_resource: Box::new(RemoteResource::new(
+    ///      "https://huggingface.co/gpt2/resolve/main/vocab.json",
+    ///      "onnx-gpt2",
+    ///  )),
+    ///  merges_resource: Some(Box::new(RemoteResource::new(
+    ///      "https://huggingface.co/gpt2/resolve/main/merges.txt",
+    ///      "onnx-gpt2",
+    ///  ))),
+    ///  ..Default::default()
     /// };
     /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let onnx_causal_generator =
-    ///     ONNXCausalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
-    ///         .unwrap();
+    ///  ONNXCausalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///      .unwrap();
     /// let past = Cache::None;
     /// let (batch_size, sequence_length) = (64, 128);
     /// let device = Device::cuda_if_available();
@@ -356,18 +356,18 @@ impl ONNXCausalGenerator {
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = onnx_causal_generator
-    ///     .forward(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         None,
-    ///         Some(&position_ids),
-    ///         Some(&past),
-    ///     )
-    ///     .unwrap();
+    ///  .forward(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      None,
+    ///      Some(&position_ids),
+    ///      Some(&past),
+    ///  )
+    ///  .unwrap();
     /// ```
     pub fn forward(
         &self,
@@ -596,40 +596,40 @@ impl ONNXConditionalGenerator {
     /// use rust_bert::resources::RemoteResource;
     /// use std::sync::Arc;
     /// let generate_config = GenerateConfig {
-    ///     model_type: ModelType::M2M100,
-    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
-    ///              encoder_resource: Some(Box::new(RemoteResource::new(
-    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
-    ///                 "onnx-m2m100_418M",
-    ///             ))),
-    ///             decoder_resource: Some(Box::new(RemoteResource::new(
-    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
-    ///                 "onnx-m2m100_418M",
-    ///             ))),
-    ///             decoder_with_past_resource: Some(Box::new(RemoteResource::new(
-    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
-    ///                 "onnx-m2m100_418M",
-    ///             ))),
-    ///         }),
-    ///         config_resource: Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/config.json",
-    ///             "onnx-m2m100_418M",
-    ///         )),
-    ///         vocab_resource: Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/vocab.json",
-    ///             "onnx-m2m100_418M",
-    ///         )),
-    ///         merges_resource: Some(Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/sentencepiece.bpe.model",
-    ///             "onnx-m2m100_418M",
-    ///         ))),
-    ///     ..Default::default()
+    ///  model_type: ModelType::M2M100,
+    ///  model_resource: ModelResource::ONNX(ONNXModelResources {
+    ///           encoder_resource: Some(Box::new(RemoteResource::new(
+    ///              "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
+    ///              "onnx-m2m100_418M",
+    ///          ))),
+    ///          decoder_resource: Some(Box::new(RemoteResource::new(
+    ///              "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
+    ///              "onnx-m2m100_418M",
+    ///          ))),
+    ///          decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///              "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
+    ///              "onnx-m2m100_418M",
+    ///          ))),
+    ///      }),
+    ///      config_resource: Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/m2m100_418M/resolve/main/config.json",
+    ///          "onnx-m2m100_418M",
+    ///      )),
+    ///      vocab_resource: Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/m2m100_418M/resolve/main/vocab.json",
+    ///          "onnx-m2m100_418M",
+    ///      )),
+    ///      merges_resource: Some(Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/m2m100_418M/resolve/main/sentencepiece.bpe.model",
+    ///          "onnx-m2m100_418M",
+    ///      ))),
+    ///  ..Default::default()
     /// };
     /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let onnx_conditional_generator =
-    ///     ONNXConditionalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
-    ///         .unwrap();
+    ///  ONNXConditionalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///      .unwrap();
     /// ```
     pub fn new(
         generate_config: GenerateConfig,
@@ -669,7 +669,7 @@ impl ONNXConditionalGenerator {
     /// ```no_run
     /// use ort::Environment;
     /// use rust_bert::pipelines::common::{
-    ///     ModelResource, ModelType, ONNXModelResources, TokenizerOption,
+    ///  ModelResource, ModelType, ONNXModelResources, TokenizerOption,
     /// };
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     /// use rust_bert::pipelines::onnx::config::ONNXEnvironmentConfig;
@@ -677,25 +677,25 @@ impl ONNXConditionalGenerator {
     /// use rust_bert::resources::RemoteResource;
     /// use std::sync::Arc;
     /// let generate_config = GenerateConfig {
-    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
-    ///              encoder_resource: Some(Box::new(RemoteResource::new(
-    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
-    ///                 "onnx-m2m100_418M",
-    ///             ))),
-    ///             decoder_resource: Some(Box::new(RemoteResource::new(
-    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
-    ///                 "onnx-m2m100_418M",
-    ///             ))),
-    ///             decoder_with_past_resource: Some(Box::new(RemoteResource::new(
-    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
-    ///                 "onnx-m2m100_418M",
-    ///             ))),
-    ///         }),
-    ///         config_resource: Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/config.json",
-    ///             "onnx-m2m100_418M",
-    ///         )),
-    ///     ..Default::default()
+    ///  model_resource: ModelResource::ONNX(ONNXModelResources {
+    ///           encoder_resource: Some(Box::new(RemoteResource::new(
+    ///              "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
+    ///              "onnx-m2m100_418M",
+    ///          ))),
+    ///          decoder_resource: Some(Box::new(RemoteResource::new(
+    ///              "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
+    ///              "onnx-m2m100_418M",
+    ///          ))),
+    ///          decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///              "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
+    ///              "onnx-m2m100_418M",
+    ///          ))),
+    ///      }),
+    ///      config_resource: Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/m2m100_418M/resolve/main/config.json",
+    ///          "onnx-m2m100_418M",
+    ///      )),
+    ///  ..Default::default()
     /// };
     /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
@@ -703,19 +703,19 @@ impl ONNXConditionalGenerator {
     /// let strip_accents = None;
     /// let add_prefix_space = None;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::M2M100,
-    ///     "path/to/vocab.json",
-    ///     Some("path/to/merges.txt"),
-    ///     lower_case,
-    ///     strip_accents,
-    ///     add_prefix_space,
+    ///  ModelType::M2M100,
+    ///  "path/to/vocab.json",
+    ///  Some("path/to/merges.txt"),
+    ///  lower_case,
+    ///  strip_accents,
+    ///  add_prefix_space,
     /// )
     /// .unwrap();
     /// let onnx_conditional_generator = ONNXConditionalGenerator::new_with_tokenizer(
-    ///     generate_config,
-    ///     tokenizer,
-    ///     environment.as_ref(),
-    ///     onnx_config.as_ref(),
+    ///  generate_config,
+    ///  tokenizer,
+    ///  environment.as_ref(),
+    ///  onnx_config.as_ref(),
     /// )
     /// .unwrap();
     /// ```
@@ -836,40 +836,40 @@ impl ONNXConditionalGenerator {
     /// use tch::Kind::{Float, Int64};
     /// use tch::{Device, Tensor};
     /// let generate_config = GenerateConfig {
-    ///     model_type: ModelType::M2M100,
-    ///     model_resource: ModelResource::ONNX(ONNXModelResources {
-    ///              encoder_resource: Some(Box::new(RemoteResource::new(
-    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
-    ///                 "onnx-m2m100_418M",
-    ///             ))),
-    ///             decoder_resource: Some(Box::new(RemoteResource::new(
-    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
-    ///                 "onnx-m2m100_418M",
-    ///             ))),
-    ///             decoder_with_past_resource: Some(Box::new(RemoteResource::new(
-    ///                 "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
-    ///                 "onnx-m2m100_418M",
-    ///             ))),
-    ///         }),
-    ///         config_resource: Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/config.json",
-    ///             "onnx-m2m100_418M",
-    ///         )),
-    ///         vocab_resource: Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/vocab.json",
-    ///             "onnx-m2m100_418M",
-    ///         )),
-    ///         merges_resource: Some(Box::new(RemoteResource::new(
-    ///             "https://huggingface.co/optimum/m2m100_418M/resolve/main/sentencepiece.bpe.model",
-    ///             "onnx-m2m100_418M",
-    ///         ))),
-    ///     ..Default::default()
+    ///  model_type: ModelType::M2M100,
+    ///  model_resource: ModelResource::ONNX(ONNXModelResources {
+    ///           encoder_resource: Some(Box::new(RemoteResource::new(
+    ///              "https://huggingface.co/optimum/m2m100_418M/resolve/main/encoder_model.onnx",
+    ///              "onnx-m2m100_418M",
+    ///          ))),
+    ///          decoder_resource: Some(Box::new(RemoteResource::new(
+    ///              "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_model.onnx",
+    ///              "onnx-m2m100_418M",
+    ///          ))),
+    ///          decoder_with_past_resource: Some(Box::new(RemoteResource::new(
+    ///              "https://huggingface.co/optimum/m2m100_418M/resolve/main/decoder_with_past_model.onnx",
+    ///              "onnx-m2m100_418M",
+    ///          ))),
+    ///      }),
+    ///      config_resource: Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/m2m100_418M/resolve/main/config.json",
+    ///          "onnx-m2m100_418M",
+    ///      )),
+    ///      vocab_resource: Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/m2m100_418M/resolve/main/vocab.json",
+    ///          "onnx-m2m100_418M",
+    ///      )),
+    ///      merges_resource: Some(Box::new(RemoteResource::new(
+    ///          "https://huggingface.co/optimum/m2m100_418M/resolve/main/sentencepiece.bpe.model",
+    ///          "onnx-m2m100_418M",
+    ///      ))),
+    ///  ..Default::default()
     /// };
     /// let environment = Some(Arc::new(Environment::default()));
     /// let onnx_config = Some(ONNXEnvironmentConfig::default());
     /// let onnx_conditional_generator =
-    ///     ONNXConditionalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
-    ///         .unwrap();
+    ///  ONNXConditionalGenerator::new(generate_config, environment.as_ref(), onnx_config.as_ref())
+    ///      .unwrap();
     /// let device = Device::cuda_if_available();
     /// let past = Cache::None;
     /// let device = Device::cuda_if_available();
@@ -881,15 +881,15 @@ impl ONNXConditionalGenerator {
     /// let encoder_attention_mask = Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = onnx_conditional_generator
-    ///     .forward(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         Some(&encoder_hidden_states),
-    ///         Some(&encoder_attention_mask),
-    ///         Some(&target_tensor),
-    ///         Some(&past),
-    ///     )
-    ///     .unwrap();
+    ///  .forward(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      Some(&encoder_hidden_states),
+    ///      Some(&encoder_attention_mask),
+    ///      Some(&target_tensor),
+    ///      Some(&past),
+    ///  )
+    ///  .unwrap();
     /// ```
     pub fn forward(
         &self,

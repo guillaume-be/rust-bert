@@ -229,7 +229,7 @@ impl MBartClassificationHead {
 /// It is made of the following blocks:
 /// - `encoder`: `MBartEncoder` (transformer) made of a vector of encoding layers
 /// - `decoder`: `MBartDecoder` (transformer)  made of a vector of decoding layers with self attention and encoder cross-attention.
-///     caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
+///   caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
 /// - `pad_token_id`: padding token id
 pub struct MBartModel {
     pub(crate) encoder: MBartEncoder,
@@ -297,7 +297,7 @@ impl MBartModel {
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
     ///
@@ -330,20 +330,20 @@ impl MBartModel {
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     /// let encoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     /// let decoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     mbart_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&encoder_attention_mask),
-    ///         Some(&target_tensor),
-    ///         None,
-    ///         Some(&decoder_attention_mask),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  mbart_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&encoder_attention_mask),
+    ///      Some(&target_tensor),
+    ///      None,
+    ///      Some(&decoder_attention_mask),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -442,7 +442,7 @@ impl MBartForConditionalGeneration {
     /// let p = nn::VarStore::new(device);
     /// let config = MBartConfig::from_file(config_path);
     /// let mbart: MBartForConditionalGeneration =
-    ///     MBartForConditionalGeneration::new(&p.root(), &config);
+    ///  MBartForConditionalGeneration::new(&p.root(), &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &MBartConfig) -> MBartForConditionalGeneration
     where
@@ -470,7 +470,7 @@ impl MBartForConditionalGeneration {
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). Must be provided when not running in generation mode
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -508,13 +508,13 @@ impl MBartForConditionalGeneration {
     ///
     ///  let model_output = no_grad(|| {
     ///    mbart_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&encoder_attention_mask),
-    ///                    None,
-    ///                    Some(&target_tensor),
-    ///                    Some(&decoder_attention_mask),
-    ///                    None,
-    ///                    false)
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Some(&encoder_attention_mask),
+    ///                 None,
+    ///                 Some(&target_tensor),
+    ///                 Some(&decoder_attention_mask),
+    ///                 None,
+    ///                 false)
     ///    });
     /// ```
     pub fn forward_t(
@@ -593,7 +593,7 @@ impl MBartForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = MBartConfig::from_file(config_path);
     /// let mbart: MBartForSequenceClassification =
-    ///     MBartForSequenceClassification::new(&p.root(), &config).unwrap();
+    ///  MBartForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -621,7 +621,7 @@ impl MBartForSequenceClassification {
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). Must be provided when not running in generation mode
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -659,12 +659,12 @@ impl MBartForSequenceClassification {
     ///
     ///  let model_output = no_grad(|| {
     ///    mbart_model
-    ///         .forward_t(&input_tensor,
-    ///                    Some(&encoder_attention_mask),
-    ///                    None,
-    ///                    Some(&target_tensor),
-    ///                    Some(&decoder_attention_mask),
-    ///                    false)
+    ///      .forward_t(&input_tensor,
+    ///                 Some(&encoder_attention_mask),
+    ///                 None,
+    ///                 Some(&target_tensor),
+    ///                 Some(&decoder_attention_mask),
+    ///                 false)
     ///    });
     /// ```
     pub fn forward_t(
@@ -762,12 +762,12 @@ impl MBartGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let mbart_generator = MBartGenerator::new(generate_config)?;
     /// # Ok(())
@@ -963,8 +963,8 @@ impl PrivateLanguageGenerator for MBartGenerator {
     ) -> Option<Tensor> {
         let encoder_outputs = encoder_outputs.map(|value| value.index_select(0, beam_indices));
         match past {
-            Cache::BARTCache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
+            Cache::BARTCache(old_cache_option) => {
+                if let Some(old_cache) = old_cache_option {
                     for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
                         if self_layer_state.is_some() {
                             self_layer_state
@@ -980,8 +980,7 @@ impl PrivateLanguageGenerator for MBartGenerator {
                         };
                     }
                 }
-                None => {}
-            },
+            }
             Cache::None => {}
             _ => {
                 panic!("Invalid cache for MBart model");

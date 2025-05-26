@@ -27,7 +27,7 @@ use tch::{nn, Device, Kind, Tensor};
 /// inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
 ///
 /// with torch.no_grad():
-///     model.forward(**inputs).logits
+///  model.forward(**inputs).logits
 /// ```
 #[test]
 fn gpt_j_correctness() -> anyhow::Result<()> {

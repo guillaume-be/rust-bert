@@ -579,7 +579,7 @@ impl MarianForConditionalGeneration {
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). Must be provided when not running in generation mode
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -611,20 +611,20 @@ impl MarianForConditionalGeneration {
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     /// let encoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     /// let decoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     marian_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&encoder_attention_mask),
-    ///         None,
-    ///         Some(&target_tensor),
-    ///         Some(&decoder_attention_mask),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  marian_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&encoder_attention_mask),
+    ///      None,
+    ///      Some(&target_tensor),
+    ///      Some(&decoder_attention_mask),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -713,12 +713,12 @@ impl MarianGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(512),
-    ///     do_sample: true,
-    ///     num_beams: 6,
-    ///     temperature: 1.0,
-    ///     num_return_sequences: 1,
-    ///     ..Default::default()
+    ///  max_length: Some(512),
+    ///  do_sample: true,
+    ///  num_beams: 6,
+    ///  temperature: 1.0,
+    ///  num_return_sequences: 1,
+    ///  ..Default::default()
     /// };
     /// let marian_generator = MarianGenerator::new(generate_config)?;
     /// # Ok(())
@@ -947,8 +947,8 @@ impl PrivateLanguageGenerator for MarianGenerator {
         let encoder_outputs = encoder_outputs.map(|value| value.index_select(0, beam_indices));
 
         match past {
-            Cache::BARTCache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
+            Cache::BARTCache(old_cache_option) => {
+                if let Some(old_cache) = old_cache_option {
                     for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
                         if self_layer_state.is_some() {
                             self_layer_state
@@ -964,8 +964,7 @@ impl PrivateLanguageGenerator for MarianGenerator {
                         };
                     }
                 }
-                None => {}
-            },
+            }
             Cache::None => {}
             _ => {
                 panic!("Invalid cache for BART model");

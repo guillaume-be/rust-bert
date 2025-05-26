@@ -427,15 +427,15 @@ impl SummarizationModel {
     /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
     /// use rust_bert::pipelines::summarization::SummarizationModel;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::Bart,
-    ///     "path/to/vocab.json",
-    ///     Some("path/to/merges.txt"),
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::Bart,
+    ///  "path/to/vocab.json",
+    ///  Some("path/to/merges.txt"),
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let mut summarization_model =
-    ///     SummarizationModel::new_with_tokenizer(Default::default(), tokenizer)?;
+    ///  SummarizationModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())
     /// # }
     /// ```

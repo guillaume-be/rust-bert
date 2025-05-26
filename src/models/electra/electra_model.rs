@@ -238,19 +238,19 @@ impl ElectraModel {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     electra_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&mask),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  electra_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&mask),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -397,8 +397,8 @@ impl ElectraDiscriminatorHead {
     /// # let discriminator_head = ElectraDiscriminatorHead::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(
-    ///     &[batch_size, sequence_length, config.hidden_size],
-    ///     (Float, device),
+    ///  &[batch_size, sequence_length, config.hidden_size],
+    ///  (Float, device),
     /// );
     ///
     /// let output = no_grad(|| discriminator_head.forward(&input_tensor));
@@ -496,8 +496,8 @@ impl ElectraGeneratorHead {
     /// # let generator_head = ElectraGeneratorHead::new(&vs.root(), &config);
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(
-    ///     &[batch_size, sequence_length, config.hidden_size],
-    ///     (Float, device),
+    ///  &[batch_size, sequence_length, config.hidden_size],
+    ///  (Float, device),
     /// );
     ///
     /// let output = no_grad(|| generator_head.forward(&input_tensor));
@@ -602,17 +602,17 @@ impl ElectraForMaskedLM {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     electra_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  electra_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -733,12 +733,12 @@ impl ElectraDiscriminator {
     ///
     ///  let model_output = no_grad(|| {
     ///    electra_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&mask),
-    ///                    Some(&token_type_ids),
-    ///                    Some(&position_ids),
-    ///                    None,
-    ///                    false)
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Some(&mask),
+    ///                 Some(&token_type_ids),
+    ///                 Some(&position_ids),
+    ///                 None,
+    ///                 false)
     ///    });
     /// ```
     pub fn forward_t(
@@ -806,7 +806,7 @@ impl ElectraForTokenClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = ElectraConfig::from_file(config_path);
     /// let electra_model: ElectraForTokenClassification =
-    ///     ElectraForTokenClassification::new(&p.root(), &config).unwrap();
+    ///  ElectraForTokenClassification::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -881,12 +881,12 @@ impl ElectraForTokenClassification {
     ///
     ///  let model_output = no_grad(|| {
     ///    electra_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&mask),
-    ///                    Some(&token_type_ids),
-    ///                    Some(&position_ids),
-    ///                    None,
-    ///                    false)
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Some(&mask),
+    ///                 Some(&token_type_ids),
+    ///                 Some(&position_ids),
+    ///                 None,
+    ///                 false)
     ///    });
     /// ```
     pub fn forward_t(
