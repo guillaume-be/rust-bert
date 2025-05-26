@@ -413,16 +413,16 @@ impl XLNetModel {
     /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     ///
     /// let model_output = no_grad(|| {
-    ///     xlnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&target_mapping),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false,
-    ///     )
+    ///  xlnet_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      Some(&target_mapping),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -748,16 +748,16 @@ impl XLNetLMHeadModel {
     /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     ///
     /// let model_output = no_grad(|| {
-    ///     xlnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&target_mapping),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false,
-    ///     )
+    ///  xlnet_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      Some(&target_mapping),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -905,16 +905,16 @@ impl XLNetForSequenceClassification {
     /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     ///
     /// let model_output = no_grad(|| {
-    ///     xlnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&target_mapping),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     )
+    ///  xlnet_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      Some(&target_mapping),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false
+    ///  )
     /// });
     /// # Ok(())
     /// # }
@@ -1067,16 +1067,16 @@ impl XLNetForTokenClassification {
     /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     ///
     /// let model_output = no_grad(|| {
-    ///     xlnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&target_mapping),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     )
+    ///  xlnet_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      Some(&target_mapping),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false
+    ///  )
     /// });
     /// # Ok(())
     /// # }
@@ -1216,16 +1216,16 @@ impl XLNetForMultipleChoice {
     /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     ///
     /// let model_output = no_grad(|| {
-    ///     xlnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&target_mapping),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     )
+    ///  xlnet_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      Some(&target_mapping),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false
+    ///  )
     /// });
     /// # Ok(())
     /// # }
@@ -1387,16 +1387,16 @@ impl XLNetForQuestionAnswering {
     /// let _ = target_mapping.narrow(2, 3, 1).fill_(1.0);
     ///
     /// let model_output = no_grad(|| {
-    ///     xlnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&target_mapping),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     )
+    ///  xlnet_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      Some(&target_mapping),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false
+    ///  )
     /// });
     /// # Ok(())
     /// # }
@@ -1522,12 +1522,12 @@ impl XLNetGenerator {
     /// use rust_bert::xlnet::XLNetGenerator;
     ///
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let xlnet_generator = XLNetGenerator::new(generate_config)?;
     /// # Ok(())

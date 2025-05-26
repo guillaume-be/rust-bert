@@ -126,7 +126,7 @@ fn _shift_tokens_right(
 /// It is made of the following blocks:
 /// - `encoder`: `M2M100Encoder` (transformer) made of a vector of encoding layers
 /// - `decoder`: `M2M100Decoder` (transformer)  made of a vector of decoding layers with self attention and encoder cross-attention.
-///     caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
+///   caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
 /// - `pad_token_id`: padding token id
 pub struct M2M100Model {
     pub(crate) encoder: M2M100Encoder,
@@ -197,7 +197,7 @@ impl M2M100Model {
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
     ///
@@ -230,20 +230,20 @@ impl M2M100Model {
     /// let input_tensor = Tensor::rand(&[batch_size, source_sequence_length], (Int64, device));
     /// let target_tensor = Tensor::rand(&[batch_size, target_sequence_length], (Int64, device));
     /// let encoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     /// let decoder_attention_mask =
-    ///     Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
+    ///  Tensor::ones(&[batch_size, source_sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     m2m100_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&encoder_attention_mask),
-    ///         Some(&target_tensor),
-    ///         None,
-    ///         Some(&decoder_attention_mask),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  m2m100_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&encoder_attention_mask),
+    ///      Some(&target_tensor),
+    ///      None,
+    ///      Some(&decoder_attention_mask),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -348,7 +348,7 @@ impl M2M100ForConditionalGeneration {
     /// let p = nn::VarStore::new(device);
     /// let config = M2M100Config::from_file(config_path);
     /// let m2m100: M2M100ForConditionalGeneration =
-    ///     M2M100ForConditionalGeneration::new(&p.root(), &config);
+    ///  M2M100ForConditionalGeneration::new(&p.root(), &config);
     /// ```
     pub fn new<'p, P>(p: P, config: &M2M100Config) -> M2M100ForConditionalGeneration
     where
@@ -365,7 +365,7 @@ impl M2M100ForConditionalGeneration {
     /// * `input_ids` - Optional input tensor of shape (*batch size*, *source_sequence_length*). Must be provided when not running in generation mode
     /// * `attention_mask` - Optional attention mask of shape (*batch size*, *source_sequence_length*) for the encoder positions. Positions with a mask with value 0 will be masked.
     /// * `encoder_outputs` - Optional tuple made of a tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) and optional vectors of tensors of length *num_encoder_layers* with shape (*batch size*, *source_sequence_length*, *hidden_size*).
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -403,13 +403,13 @@ impl M2M100ForConditionalGeneration {
     ///
     ///  let model_output = no_grad(|| {
     ///    m2m100_model
-    ///         .forward_t(Some(&input_tensor),
-    ///                    Some(&encoder_attention_mask),
-    ///                    None,
-    ///                    Some(&target_tensor),
-    ///                    Some(&decoder_attention_mask),
-    ///                    None,
-    ///                    false)
+    ///      .forward_t(Some(&input_tensor),
+    ///                 Some(&encoder_attention_mask),
+    ///                 None,
+    ///                 Some(&target_tensor),
+    ///                 Some(&decoder_attention_mask),
+    ///                 None,
+    ///                 false)
     ///    });
     /// ```
     pub fn forward_t(
@@ -497,12 +497,12 @@ impl M2M100Generator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let m2m100_generator = M2M100Generator::new(generate_config)?;
     /// # Ok(())

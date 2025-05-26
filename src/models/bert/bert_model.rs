@@ -276,7 +276,7 @@ impl<T: BertEmbedding> BertModel<T> {
     /// let p = nn::VarStore::new(device);
     /// let config = BertConfig::from_file(config_path);
     /// let bert: BertModel<BertEmbeddings> =
-    ///     BertModel::new_with_optional_pooler(&p.root() / "bert", &config, false);
+    ///  BertModel::new_with_optional_pooler(&p.root() / "bert", &config, false);
     /// ```
     pub fn new_with_optional_pooler<'p, P>(
         p: P,
@@ -346,21 +346,21 @@ impl<T: BertEmbedding> BertModel<T> {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     bert_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&mask),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  bert_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&mask),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          None,
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -619,19 +619,19 @@ impl BertForMaskedLM {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     bert_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false,
-    ///     )
+    ///  bert_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -770,17 +770,17 @@ impl BertForSequenceClassification {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     bert_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  bert_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -906,16 +906,16 @@ impl BertForMultipleChoice {
     /// let mask = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[num_choices, sequence_length], true);
+    ///  .expand(&[num_choices, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     bert_model.forward_t(
-    ///         &input_tensor,
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         false,
-    ///     )
+    ///  bert_model.forward_t(
+    ///      &input_tensor,
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -1067,17 +1067,17 @@ impl BertForTokenClassification {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     bert_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  bert_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -1204,17 +1204,17 @@ impl BertForQuestionAnswering {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     bert_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  bert_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(

@@ -355,34 +355,34 @@ impl Gpt2Model {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mut past: Vec<Tensor> = Vec::with_capacity(config.n_layer as usize);
     /// for _ in 0..config.n_layer as usize {
-    ///     past.push(Tensor::rand(
-    ///         &[
-    ///             2,
-    ///             batch_size,
-    ///             config.n_head,
-    ///             past_sequence_length,
-    ///             config.n_embd / config.n_head,
-    ///         ],
-    ///         (Double, device),
-    ///     ))
+    ///  past.push(Tensor::rand(
+    ///      &[
+    ///          2,
+    ///          batch_size,
+    ///          config.n_head,
+    ///          past_sequence_length,
+    ///          config.n_embd / config.n_head,
+    ///      ],
+    ///      (Double, device),
+    ///  ))
     /// }
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     gpt2_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&past),
-    ///             Some(&attention_mask),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  gpt2_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&past),
+    ///          Some(&attention_mask),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -605,12 +605,12 @@ impl GPT2Generator {
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     ///
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     /// # Ok(())

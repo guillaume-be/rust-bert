@@ -295,42 +295,42 @@ impl GptJModel {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let mut past: Vec<Option<LayerState>> = Vec::with_capacity(config.n_layer as usize);
     /// for _ in 0..config.n_layer as usize {
-    ///     past.push(Some(LayerState {
-    ///         prev_key: Tensor::rand(
-    ///             &[
-    ///                 batch_size,
-    ///                 config.n_head,
-    ///                 past_sequence_length,
-    ///                 config.n_embd / config.n_head,
-    ///             ],
-    ///             (Double, device),
-    ///         ),
-    ///         prev_value: Tensor::rand(
-    ///             &[
-    ///                 batch_size,
-    ///                 config.n_head,
-    ///                 past_sequence_length,
-    ///                 config.n_embd / config.n_head,
-    ///             ],
-    ///             (Double, device),
-    ///         ),
-    ///     }))
+    ///  past.push(Some(LayerState {
+    ///      prev_key: Tensor::rand(
+    ///          &[
+    ///              batch_size,
+    ///              config.n_head,
+    ///              past_sequence_length,
+    ///              config.n_embd / config.n_head,
+    ///          ],
+    ///          (Double, device),
+    ///      ),
+    ///      prev_value: Tensor::rand(
+    ///          &[
+    ///              batch_size,
+    ///              config.n_head,
+    ///              past_sequence_length,
+    ///              config.n_embd / config.n_head,
+    ///          ],
+    ///          (Double, device),
+    ///      ),
+    ///  }))
     /// }
     /// let attention_mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     gpt_j_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(past),
-    ///             Some(&attention_mask),
-    ///             Some(&token_type_ids),
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  gpt_j_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(past),
+    ///          Some(&attention_mask),
+    ///          Some(&token_type_ids),
+    ///          None,
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -559,12 +559,12 @@ impl GptJGenerator {
     /// use rust_bert::pipelines::generation_utils::GenerateConfig;
     ///
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let gpt_j_generator = GptJGenerator::new(generate_config)?;
     /// # Ok(())

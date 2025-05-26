@@ -138,9 +138,7 @@ impl FromStr for PositionAttentionTypes {
 
 impl PositionAttentionTypes {
     pub fn has_type(&self, attention_type: PositionAttentionType) -> bool {
-        self.types
-            .iter()
-            .any(|self_type| *self_type == attention_type)
+        self.types.contains(&attention_type)
     }
 
     pub fn len(&self) -> usize {
@@ -398,19 +396,19 @@ impl DebertaModel {
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&attention_mask),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&attention_mask),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -611,17 +609,17 @@ impl DebertaForMaskedLM {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -810,17 +808,17 @@ impl DebertaForSequenceClassification {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -959,17 +957,17 @@ impl DebertaForTokenClassification {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Kind::Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Kind::Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -1095,17 +1093,17 @@ impl DebertaForQuestionAnswering {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(

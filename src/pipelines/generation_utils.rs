@@ -1703,7 +1703,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::gpt2::GPT2Generator;
     /// use rust_bert::pipelines::generation_utils::{
-    ///     GenerateConfig, GenerateOptions, LanguageGenerator,
+    ///  GenerateConfig, GenerateOptions, LanguageGenerator,
     /// };
     /// use tch::Tensor;
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
@@ -1715,12 +1715,12 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
@@ -1728,32 +1728,32 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
-    ///     let paragraph_tokens = [198, 628];
+    ///  let paragraph_tokens = [198, 628];
     ///
-    ///     for paragraph_token in paragraph_tokens.iter() {
-    ///         if previous_token_ids
-    ///             .iter::<i64>()
-    ///             .unwrap()
-    ///             .collect::<Vec<i64>>()
-    ///             .contains(paragraph_token)
-    ///         {
-    ///             return vec![50256];
-    ///         }
-    ///     }
-    ///     (0..50255).collect()
+    ///  for paragraph_token in paragraph_tokens.iter() {
+    ///      if previous_token_ids
+    ///          .iter::<i64>()
+    ///          .unwrap()
+    ///          .collect::<Vec<i64>>()
+    ///          .contains(paragraph_token)
+    ///      {
+    ///          return vec![50256];
+    ///      }
+    ///  }
+    ///  (0..50255).collect()
     /// }
     ///
     /// let generate_options = GenerateOptions {
-    ///     min_length: Some(32),
-    ///     max_length: Some(128),
-    ///     output_scores: true,
-    ///     prefix_allowed_tokens_fn: Some(&force_one_paragraph),
-    ///     ..Default::default()
+    ///  min_length: Some(32),
+    ///  max_length: Some(128),
+    ///  output_scores: true,
+    ///  prefix_allowed_tokens_fn: Some(&force_one_paragraph),
+    ///  ..Default::default()
     /// };
     ///
     /// let output = gpt2_generator.generate(
-    ///     Some(&[input_context, second_input_context]),
-    ///     Some(generate_options),
+    ///  Some(&[input_context, second_input_context]),
+    ///  Some(generate_options),
     /// );
     /// # Ok(())
     /// # }
@@ -1762,12 +1762,12 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     /// ```no_run
     /// # let output =
     /// [
-    ///     "The dog's owners, however, did not want to be named. According to the lawsuit, the animal's owner, a 29-year",
-    ///     "The dog has always been part of the family. \"He was always going to be my dog and he was always looking out for me",
-    ///     "The dog has been able to stay in the home for more than three months now. \"It's a very good dog. She's",
-    ///     "The cat was discovered earlier this month in the home of a relative of the deceased. The cat\'s owner, who wished to remain anonymous,",
-    ///     "The cat was pulled from the street by two-year-old Jazmine.\"I didn't know what to do,\" she said",
-    ///     "The cat was attacked by two stray dogs and was taken to a hospital. Two other cats were also injured in the attack and are being treated."
+    ///  "The dog's owners, however, did not want to be named. According to the lawsuit, the animal's owner, a 29-year",
+    ///  "The dog has always been part of the family. \"He was always going to be my dog and he was always looking out for me",
+    ///  "The dog has been able to stay in the home for more than three months now. \"It's a very good dog. She's",
+    ///  "The cat was discovered earlier this month in the home of a relative of the deceased. The cat\'s owner, who wished to remain anonymous,",
+    ///  "The cat was pulled from the street by two-year-old Jazmine.\"I didn't know what to do,\" she said",
+    ///  "The cat was attacked by two stray dogs and was taken to a hospital. Two other cats were also injured in the attack and are being treated."
     /// ]
     /// # ;
     /// ```
@@ -1810,7 +1810,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::gpt2::GPT2Generator;
     /// use rust_bert::pipelines::generation_utils::{
-    ///     GenerateConfig, GenerateOptions, LanguageGenerator,
+    ///  GenerateConfig, GenerateOptions, LanguageGenerator,
     /// };
     /// use tch::Tensor;
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
@@ -1822,12 +1822,12 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let input_context = "The dog";
@@ -1835,32 +1835,32 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     ///
     /// //Example custom function for fine-grained generation control
     /// fn force_one_paragraph(_batch_id: i64, previous_token_ids: &Tensor) -> Vec<i64> {
-    ///     let paragraph_tokens = [198, 628];
+    ///  let paragraph_tokens = [198, 628];
     ///
-    ///     for paragraph_token in paragraph_tokens.iter() {
-    ///         if previous_token_ids
-    ///             .iter::<i64>()
-    ///             .unwrap()
-    ///             .collect::<Vec<i64>>()
-    ///             .contains(paragraph_token)
-    ///         {
-    ///             return vec![50256];
-    ///         }
-    ///     }
-    ///     (0..50255).collect()
+    ///  for paragraph_token in paragraph_tokens.iter() {
+    ///      if previous_token_ids
+    ///          .iter::<i64>()
+    ///          .unwrap()
+    ///          .collect::<Vec<i64>>()
+    ///          .contains(paragraph_token)
+    ///      {
+    ///          return vec![50256];
+    ///      }
+    ///  }
+    ///  (0..50255).collect()
     /// }
     ///
     /// let generate_options = GenerateOptions {
-    ///     min_length: Some(32),
-    ///     max_length: Some(128),
-    ///     output_scores: true,
-    ///     prefix_allowed_tokens_fn: Some(&force_one_paragraph),
-    ///     ..Default::default()
+    ///  min_length: Some(32),
+    ///  max_length: Some(128),
+    ///  output_scores: true,
+    ///  prefix_allowed_tokens_fn: Some(&force_one_paragraph),
+    ///  ..Default::default()
     /// };
     ///
     /// let output = gpt2_generator.generate_indices(
-    ///     Some(&[input_context, second_input_context]),
-    ///     Some(generate_options),
+    ///  Some(&[input_context, second_input_context]),
+    ///  Some(generate_options),
     /// );
     /// # Ok(())
     /// # }
@@ -1925,7 +1925,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     /// # fn main() -> anyhow::Result<()> {
     /// use rust_bert::gpt2::GPT2Generator;
     /// use rust_bert::pipelines::generation_utils::{
-    ///     GenerateConfig, GenerateOptions, LanguageGenerator,
+    ///  GenerateConfig, GenerateOptions, LanguageGenerator,
     /// };
     /// use tch::{Kind, Tensor};
     /// # let mut home: PathBuf = dirs::home_dir().unwrap();
@@ -1942,16 +1942,16 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     /// let input_mask = Tensor::ones(&[32, 128], (Kind::Int64, Device::Cpu));
     ///
     /// let generate_options = GenerateOptions {
-    ///     min_length: Some(32),
-    ///     max_length: Some(128),
-    ///     output_scores: true,
-    ///     ..Default::default()
+    ///  min_length: Some(32),
+    ///  max_length: Some(128),
+    ///  output_scores: true,
+    ///  ..Default::default()
     /// };
     ///
     /// let output = gpt2_generator.generate_from_ids_and_past(
-    ///     input_tensor,
-    ///     Some(input_mask),
-    ///     Some(generate_options),
+    ///  input_tensor,
+    ///  Some(input_mask),
+    ///  Some(generate_options),
     /// );
     /// # Ok(())
     /// # }
@@ -1990,7 +1990,7 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
         let bad_word_ids = generate_options.and_then(|opts| opts.bad_word_ids);
         let prefix_allowed_tokens_fn =
             generate_options.and_then(|opts| opts.prefix_allowed_tokens_fn);
-        let output_scores = generate_options.map_or(false, |opts| opts.output_scores);
+        let output_scores = generate_options.is_some_and(|opts| opts.output_scores);
 
         let pad_token_id = match self.get_pad_id() {
             Some(value) => Some(value),
@@ -2219,12 +2219,12 @@ pub trait LanguageGenerator: PrivateLanguageGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let gpt2_generator = GPT2Generator::new(generate_config)?;
     /// let tokenizer = gpt2_generator.get_tokenizer();

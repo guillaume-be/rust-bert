@@ -203,12 +203,12 @@ impl POSModel {
     /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
     /// use rust_bert::pipelines::pos_tagging::POSModel;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::Bert,
-    ///     "path/to/vocab.txt",
-    ///     None,
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::Bert,
+    ///  "path/to/vocab.txt",
+    ///  None,
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let pos_model = POSModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())
@@ -252,8 +252,8 @@ impl POSModel {
     ///
     /// let pos_model = POSModel::new(Default::default())?;
     /// let input = [
-    ///     "My name is Amy. I live in Paris.",
-    ///     "Paris is a city in France.",
+    ///  "My name is Amy. I live in Paris.",
+    ///  "Paris is a city in France.",
     /// ];
     /// let output = pos_model.predict(&input);
     /// # Ok(())

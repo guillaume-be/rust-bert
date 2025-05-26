@@ -98,7 +98,7 @@ where
     let activation = String::deserialize(deserializer)?;
     activation
         .split('.')
-        .last()
+        .next_back()
         .map(|s| serde_json::from_value(serde_json::Value::String(s.to_lowercase())))
         .transpose()
         .map_err(de::Error::custom)?

@@ -25,8 +25,8 @@
 //! Two APIs exist to build text generation models:
 //! - `TextGenerationModel` is a high-level module that exposes text generation capabilities with a set of reasonable defaults
 //! - the `LanguageGenerator` trait exposes lower-level text generation capabilities allowing the user to provide additional
-//!     generation options when building the model (via `GenerateConfig`) and at each query (via `GenerateOptions`). Please check the
-//!     [`generation_utils` module](../generation_utils/index.html) for more details
+//!   generation options when building the model (via `GenerateConfig`) and at each query (via `GenerateOptions`). Please check the
+//!   [`generation_utils` module](../generation_utils/index.html) for more details
 //!
 //!
 //! Customized text generation models models can be loaded by overwriting the resources in the configuration.
@@ -498,12 +498,12 @@ impl TextGenerationModel {
     /// use rust_bert::pipelines::text_generation::TextGenerationModel;
     ///
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::GPT2,
-    ///     "path/to/vocab.json",
-    ///     Some("path/to/merges.txt"),
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::GPT2,
+    ///  "path/to/vocab.json",
+    ///  Some("path/to/merges.txt"),
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let generation_model = TextGenerationModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())

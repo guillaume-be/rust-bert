@@ -12,7 +12,7 @@
 //! - LocalResource: points to a local file
 //! - RemoteResource: points to a remote file via a URL
 //! - BufferResource: refers to a buffer that contains file contents for a resource (currently only
-//!                   usable for weights)
+//!   usable for weights)
 //!
 //! For `LocalResource` and `RemoteResource`, the local location of the file can be retrieved using
 //! `get_local_path`, allowing to reference the resource file location regardless if it is a remote
@@ -52,7 +52,7 @@ pub trait ResourceProvider: Debug + Send + Sync {
     /// use rust_bert::resources::{LocalResource, ResourceProvider};
     /// use std::path::PathBuf;
     /// let config_resource = LocalResource {
-    ///     local_path: PathBuf::from("path/to/config.json"),
+    ///  local_path: PathBuf::from("path/to/config.json"),
     /// };
     /// let config_path = config_resource.get_local_path();
     /// ```

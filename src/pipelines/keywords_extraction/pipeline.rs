@@ -212,8 +212,8 @@ impl<'a> KeywordExtractionModel<'a> {
     ///
     /// let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
     /// let input = [
-    ///     "This is a first sentence to extract keywords from.",
-    ///     "Some keywords will be extracted from this text too.",
+    ///  "This is a first sentence to extract keywords from.",
+    ///  "Some keywords will be extracted from this text too.",
     /// ];
     /// let output = keyword_extraction_model.predict(&input);
     /// # Ok(())

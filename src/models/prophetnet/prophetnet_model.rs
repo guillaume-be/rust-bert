@@ -224,7 +224,7 @@ impl ProphetNetModel {
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `encoder_hidden_states` - Optional tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) corresponding to pre-calculated encoder hidden states (useful for conditional generation)
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `old_layer_states` - Optional Vector `Option<Vec<Option<&LayerState>, Option<&LayerState>>>` of length *n_layer* containing tuples with the past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
     /// * `decoder_input_embeds` - Optional input tensor of shape (*batch size*, *target_sequence_length*, *embeddings dimension*). This or `decoder_input_ids` must be provided.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -262,17 +262,17 @@ impl ProphetNetModel {
     /// let decoder_input_ids = Tensor::ones(&[batch_size, target_sequence_length], (Kind::Float, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     prophetnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&decoder_input_ids),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     )
+    ///  prophetnet_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      Some(&decoder_input_ids),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -431,7 +431,7 @@ impl ProphetNetForConditionalGeneration {
     /// * `decoder_input_ids` - Optional input tensor of shape (*batch size*, *target_sequence_length*). Must be provided when running in generation mode (e.g. initialized with a BOS token)
     /// * `decoder_attention_mask` - Optional attention mask of shape (*batch size*, *target_sequence_length*) for the decoder positions. Positions with a mask with value 0 will be masked.
     /// * `encoder_hidden_states` - Optional tensor of shape (*batch size*, *source_sequence_length*, *encoder_hidden_dim*) corresponding to pre-calculated encoder hidden states (useful for conditional generation)
-    ///     These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
+    ///   These correspond to the encoder last hidden state and optional hidden states/attention weights for encoder layers. When provided, the encoder hidden state will not be recalculated. Useful for generation tasks.
     /// * `old_layer_states` - Optional Vector `Option<Vec<Option<&LayerState>, Option<&LayerState>>>` of length *n_layer* containing tuples with the past keys and values for both the self attention and the encoder cross attention of each layer of the decoder.
     /// * `decoder_input_embeds` - Optional input tensor of shape (*batch size*, *target_sequence_length*, *embeddings dimension*). This or `decoder_input_ids` must be provided.
     /// * `train` - boolean flag to turn on/off the dropout layers in the model. Should be set to false for inference.
@@ -469,17 +469,17 @@ impl ProphetNetForConditionalGeneration {
     /// let decoder_input_ids = Tensor::ones(&[batch_size, target_sequence_length], (Kind::Float, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     prophetnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&decoder_input_ids),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false
-    ///     )
+    ///  prophetnet_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      Some(&decoder_input_ids),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -716,15 +716,15 @@ impl ProphetNetForCausalGeneration {
     /// let decoder_input_ids = Tensor::ones(&[batch_size, target_sequence_length], (Kind::Float, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     prophetnet_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&attention_mask),
-    ///         None,
-    ///         Some(&decoder_input_ids),
-    ///         None,
-    ///         None,
-    ///         false
-    ///     )
+    ///  prophetnet_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&attention_mask),
+    ///      None,
+    ///      Some(&decoder_input_ids),
+    ///      None,
+    ///      None,
+    ///      false
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -880,12 +880,12 @@ impl ProphetNetConditionalGenerator {
     /// # let weights_path = &home.as_path().join("model.ot");
     /// let device = Device::cuda_if_available();
     /// let generate_config = GenerateConfig {
-    ///     max_length: Some(30),
-    ///     do_sample: true,
-    ///     num_beams: 5,
-    ///     temperature: 1.1,
-    ///     num_return_sequences: 3,
-    ///     ..Default::default()
+    ///  max_length: Some(30),
+    ///  do_sample: true,
+    ///  num_beams: 5,
+    ///  temperature: 1.1,
+    ///  num_return_sequences: 3,
+    ///  ..Default::default()
     /// };
     /// let prophetnet_generator = ProphetNetConditionalGenerator::new(generate_config)?;
     /// # Ok(())

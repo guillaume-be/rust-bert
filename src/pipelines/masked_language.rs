@@ -194,7 +194,7 @@ impl MaskedLanguageOption {
     /// # Arguments
     ///
     /// * `MaskedLanguageConfig` - Masked language model pipeline configuration. The type of model created will be inferred from the
-    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    ///   `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &MaskedLanguageConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResource::Torch(_) => Self::new_torch(config),
@@ -477,12 +477,12 @@ impl MaskedLanguageModel {
     /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
     /// use rust_bert::pipelines::masked_language::MaskedLanguageModel;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::Bert,
-    ///     "path/to/vocab.txt",
-    ///     None,
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::Bert,
+    ///  "path/to/vocab.txt",
+    ///  None,
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let model = MaskedLanguageModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())
@@ -561,14 +561,14 @@ impl MaskedLanguageModel {
     ///
     /// //    Define input
     /// let input = [
-    ///     "Looks like one [MASK] is missing",
-    ///     "It was a very nice and [MASK] day",
+    ///  "Looks like one [MASK] is missing",
+    ///  "It was a very nice and [MASK] day",
     /// ];
     ///
     /// //    Run model
     /// let output = mask_language_model.predict(&input)?;
     /// for word in output {
-    ///     println!("{:?}", word);
+    ///  println!("{:?}", word);
     /// }
     /// # Ok(())
     /// # }

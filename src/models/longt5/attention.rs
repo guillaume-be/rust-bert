@@ -28,7 +28,7 @@ fn pad_to_multiple(x: &Tensor, block_length: i64, dim: usize, pad_value: f64) ->
     let mut x_size = x.size();
     let pad_length = (-x_size[dim]).rem_euclid(block_length);
 
-    if x_size.iter().any(|&el| el == 0) {
+    if x_size.contains(&0) {
         x_size[dim] += pad_length;
         Tensor::zeros(x_size.as_slice(), (x.kind(), x.device()))
     } else {
@@ -52,7 +52,7 @@ fn split_into_blocks(x: &Tensor, block_length: i64, dim: usize) -> Tensor {
     x_size.remove(dim);
     x_size.insert(dim, block_length);
     x_size.insert(dim, num_blocks);
-    if x_size.iter().any(|&el| el == 0) {
+    if x_size.contains(&0) {
         Tensor::empty(x_size.as_slice(), (x.kind(), x.device()))
     } else {
         x.reshape(x_size.as_slice())

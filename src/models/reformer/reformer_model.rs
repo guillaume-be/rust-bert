@@ -221,7 +221,7 @@ pub struct PaddedReformerInput {
 /// It is made of the following blocks:
 /// - `embeddings`: `ReformerEmbeddings` Reformer embeddings, combining word and position embeddings
 /// - `encoder`: `ReformerEncoder` (transformer) made of a vector of Reformer layer with local or LSH attention.
-///     caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
+///   caching is implemented for the decoder to avoid recalculating static states (encoder key/values and previously calculated decoder key/values)
 /// - `least_common_mult_chunk_length`: least common chunk length for all attention layers
 /// - `min_chunk_length`: minimum chunk length for all attention layers
 /// - `pad_token_id`: padding token id used to pad to chunk length multiple if input is long enough to be chunked.
@@ -254,7 +254,7 @@ impl ReformerModel {
     /// let p = nn::VarStore::new(device);
     /// let config = ReformerConfig::from_file(config_path);
     /// let reformer_model: ReformerModel =
-    ///     ReformerModel::new(&p.root() / "reformer", &config).unwrap();
+    ///  ReformerModel::new(&p.root() / "reformer", &config).unwrap();
     /// ```
     pub fn new<'p, P>(p: P, config: &ReformerConfig) -> Result<ReformerModel, RustBertError>
     where
@@ -324,20 +324,20 @@ impl ReformerModel {
     /// let (batch_size, sequence_length) = (64, 128);
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let input_positions = Tensor::arange(sequence_length, (Kind::Int64, device))
-    ///     .unsqueeze(0)
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .unsqueeze(0)
+    ///  .expand(&[batch_size, sequence_length], true);
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     reformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&input_positions),
-    ///         None,
-    ///         Some(&attention_mask),
-    ///         Some(4),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  reformer_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&input_positions),
+    ///      None,
+    ///      Some(&attention_mask),
+    ///      Some(4),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -533,7 +533,7 @@ impl ReformerModelWithLMHead {
     /// let p = nn::VarStore::new(device);
     /// let config = ReformerConfig::from_file(config_path);
     /// let reformer_model: ReformerModelWithLMHead =
-    ///     ReformerModelWithLMHead::new(&p.root(), &config).unwrap();
+    ///  ReformerModelWithLMHead::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -610,15 +610,15 @@ impl ReformerModelWithLMHead {
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     reformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&input_positions),
-    ///         None,
-    ///         Some(&attention_mask),
-    ///         Some(4),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  reformer_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&input_positions),
+    ///      None,
+    ///      Some(&attention_mask),
+    ///      Some(4),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -740,7 +740,7 @@ impl ReformerForSequenceClassification {
     /// let p = nn::VarStore::new(device);
     /// let config = ReformerConfig::from_file(config_path);
     /// let reformer_model: ReformerForSequenceClassification =
-    ///     ReformerForSequenceClassification::new(&p.root(), &config).unwrap();
+    ///  ReformerForSequenceClassification::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -798,14 +798,14 @@ impl ReformerForSequenceClassification {
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     reformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&input_positions),
-    ///         None,
-    ///         Some(&attention_mask),
-    ///         Some(4),
-    ///         false,
-    ///     )
+    ///  reformer_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&input_positions),
+    ///      None,
+    ///      Some(&attention_mask),
+    ///      Some(4),
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -872,7 +872,7 @@ impl ReformerForQuestionAnswering {
     /// let p = nn::VarStore::new(device);
     /// let config = ReformerConfig::from_file(config_path);
     /// let reformer_model: ReformerForQuestionAnswering =
-    ///     ReformerForQuestionAnswering::new(&p.root(), &config).unwrap();
+    ///  ReformerForQuestionAnswering::new(&p.root(), &config).unwrap();
     /// ```
     pub fn new<'p, P>(
         p: P,
@@ -936,14 +936,14 @@ impl ReformerForQuestionAnswering {
     /// let attention_mask = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     reformer_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&input_positions),
-    ///         None,
-    ///         Some(&attention_mask),
-    ///         Some(4),
-    ///         false,
-    ///     )
+    ///  reformer_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&input_positions),
+    ///      None,
+    ///      Some(&attention_mask),
+    ///      Some(4),
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
