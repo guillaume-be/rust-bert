@@ -1,7 +1,8 @@
 #[macro_use]
 extern crate criterion;
 
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
+use std::hint::black_box;
 // use rust_bert::pipelines::common::ModelType;
 // use rust_bert::pipelines::translation::TranslationOption::{Marian, T5};
 use rust_bert::pipelines::common::ModelType;

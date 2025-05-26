@@ -1,8 +1,9 @@
 #[macro_use]
 extern crate criterion;
 
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rust_bert::pipelines::summarization::{SummarizationConfig, SummarizationModel};
+use std::hint::black_box;
 use std::time::{Duration, Instant};
 use tch::Device;
 

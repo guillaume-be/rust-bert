@@ -1,13 +1,14 @@
 #[macro_use]
 extern crate criterion;
 
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rust_bert::gpt2::{
     Gpt2ConfigResources, Gpt2MergesResources, Gpt2ModelResources, Gpt2VocabResources,
 };
 use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::text_generation::{TextGenerationConfig, TextGenerationModel};
 use rust_bert::resources::RemoteResource;
+use std::hint::black_box;
 use std::time::{Duration, Instant};
 use tch::Device;
 

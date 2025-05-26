@@ -1,7 +1,8 @@
 #[macro_use]
 extern crate criterion;
 
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
+use std::hint::black_box;
 use std::time::{Duration, Instant};
 use tch::kind::Kind;
 use tch::{Device, Tensor};

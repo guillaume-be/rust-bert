@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate criterion;
 
-use criterion::{black_box, Criterion};
+use criterion::Criterion;
 use rust_bert::bert::{BertConfigResources, BertModelResources, BertVocabResources};
 use rust_bert::pipelines::common::{ModelResource, ModelType};
 use rust_bert::pipelines::question_answering::{
@@ -9,6 +9,7 @@ use rust_bert::pipelines::question_answering::{
 };
 use rust_bert::resources::RemoteResource;
 use std::env;
+use std::hint::black_box;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
