@@ -254,6 +254,7 @@ pub enum ConfigOption {
     ONNX(ONNXModelConfig),
 }
 
+#[allow(clippy::large_enum_variant)]
 /// # Abstraction that holds a particular tokenizer, can be of any of the supported models
 pub enum TokenizerOption {
     /// Bert Tokenizer
