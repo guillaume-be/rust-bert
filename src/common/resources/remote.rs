@@ -57,8 +57,8 @@ impl RemoteResource {
     /// ```no_run
     /// use rust_bert::resources::RemoteResource;
     /// let model_resource = RemoteResource::from_pretrained((
-    ///     "distilbert-sst2",
-    ///     "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
+    ///  "distilbert-sst2",
+    ///  "https://huggingface.co/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/rust_model.ot",
     /// ));
     /// ```
     pub fn from_pretrained(name_url_tuple: (&str, &str)) -> RemoteResource {
@@ -84,7 +84,7 @@ impl ResourceProvider for RemoteResource {
     /// use rust_bert::resources::{LocalResource, ResourceProvider};
     /// use std::path::PathBuf;
     /// let config_resource = LocalResource {
-    ///     local_path: PathBuf::from("path/to/config.json"),
+    ///  local_path: PathBuf::from("path/to/config.json"),
     /// };
     /// let config_path = config_resource.get_local_path();
     /// ```

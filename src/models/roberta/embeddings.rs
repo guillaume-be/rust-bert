@@ -155,18 +155,18 @@ impl BertEmbedding for RobertaEmbeddings {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let embedded_output = no_grad(|| {
-    ///     roberta_embeddings
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  roberta_embeddings
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     fn forward_t(

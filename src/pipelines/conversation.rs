@@ -285,8 +285,8 @@ impl Conversation {
     ///
     /// let mut conversation = Conversation::new_empty();
     /// conversation
-    ///     .add_user_input("This input will not be used")
-    ///     .unwrap();
+    ///  .add_user_input("This input will not be used")
+    ///  .unwrap();
     /// let unused_string = conversation.add_user_input_with_overwrite("Hi there!");
     /// ```
     pub fn add_user_input_with_overwrite(&mut self, text: &str) -> Option<String> {
@@ -313,8 +313,8 @@ impl Conversation {
     /// let mut conversation = Conversation::new_empty();
     /// let false_value = conversation.contains_new_input();
     /// conversation
-    ///     .add_user_input("This input will not be used")
-    ///     .unwrap();
+    ///  .add_user_input("This input will not be used")
+    ///  .unwrap();
     /// let true_value = conversation.contains_new_input();
     /// ```
     pub fn contains_new_input(&self) -> bool {
@@ -332,8 +332,8 @@ impl Conversation {
     /// let mut conversation = Conversation::new_empty();
     /// let false_value = conversation.contains_new_input();
     /// conversation
-    ///     .add_user_input("This input will not be used")
-    ///     .unwrap();
+    ///  .add_user_input("This input will not be used")
+    ///  .unwrap();
     /// let true_value = conversation.contains_new_input();
     /// conversation.mark_processed();
     /// let false_value = conversation.contains_new_input();
@@ -361,8 +361,8 @@ impl Conversation {
     /// let mut conversation = Conversation::new_empty();
     /// let none_value = conversation.get_last_input();
     /// conversation
-    ///     .add_user_input("This input will not be used")
-    ///     .unwrap();
+    ///  .add_user_input("This input will not be used")
+    ///  .unwrap();
     /// let last_provided_input = conversation.get_last_input();
     /// assert_eq!(last_provided_input, Some("This input will not be used"));
     /// ```
@@ -434,17 +434,17 @@ impl Conversation {
     ///
     /// let mut conversation_manager = ConversationManager::new();
     /// let history = [
-    ///     "Going to the movies tonight - any suggestions?",
-    ///     "The Big Lebowski",
-    ///     "Is it an action movie?",
+    ///  "Going to the movies tonight - any suggestions?",
+    ///  "The Big Lebowski",
+    ///  "Is it an action movie?",
     /// ];
     /// let encoded_history = model.encode_prompts(&history);
     ///
     /// let conversation_1_id = conversation_manager.create_empty();
     /// let _ = conversation_manager
-    ///     .get(&conversation_1_id)
-    ///     .unwrap()
-    ///     .load_from_history(&history, &encoded_history);
+    ///  .get(&conversation_1_id)
+    ///  .unwrap()
+    ///  .load_from_history(&history, &encoded_history);
     /// # Ok(())
     /// # }
     /// ```
@@ -832,12 +832,12 @@ impl ConversationModel {
     /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
     /// use rust_bert::pipelines::conversation::ConversationModel;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::GPT2,
-    ///     "path/to/vocab.json",
-    ///     Some("path/to/merges.txt"),
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::GPT2,
+    ///  "path/to/vocab.json",
+    ///  Some("path/to/merges.txt"),
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let conversation_model = ConversationModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())
@@ -1074,9 +1074,9 @@ impl ConversationModel {
     /// use rust_bert::pipelines::generation_utils::LanguageGenerator;
     /// let model = ConversationModel::new(Default::default())?;
     /// let history = [
-    ///     "Going to the movies tonight - any suggestions?",
-    ///     "The Big Lebowski",
-    ///     "Is it an action movie?",
+    ///  "Going to the movies tonight - any suggestions?",
+    ///  "The Big Lebowski",
+    ///  "Is it an action movie?",
     /// ];
     /// let encoded_history = model.encode_prompts(&history);
     /// # Ok(())

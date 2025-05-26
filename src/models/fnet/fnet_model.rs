@@ -309,18 +309,18 @@ impl FNetModel {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -430,18 +430,18 @@ impl FNetForMaskedLM {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -570,18 +570,18 @@ impl FNetForSequenceClassification {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -699,18 +699,18 @@ impl FNetForMultipleChoice {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -857,18 +857,18 @@ impl FNetForTokenClassification {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -979,18 +979,18 @@ impl FNetForQuestionAnswering {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(

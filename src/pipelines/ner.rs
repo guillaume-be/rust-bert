@@ -23,7 +23,7 @@
 //! All resources for this model can be downloaded using the Python utility script included in this repository.
 //! 1. Set-up a Python virtual environment and install dependencies (in ./requirements.txt)
 //! 2. Run the conversion script python /utils/download-dependencies_bert_ner.py.
-//!     The dependencies will be downloaded to the user's home directory, under ~/rustbert/bert-ner
+//!    The dependencies will be downloaded to the user's home directory, under ~/rustbert/bert-ner
 //!
 //! The example below illustrate how to run the model for the default English NER model
 //! ```no_run
@@ -194,12 +194,12 @@ impl NERModel {
     /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
     /// use rust_bert::pipelines::ner::NERModel;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::Bert,
-    ///     "path/to/vocab.txt",
-    ///     None,
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::Bert,
+    ///  "path/to/vocab.txt",
+    ///  None,
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let ner_model = NERModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())
@@ -243,8 +243,8 @@ impl NERModel {
     ///
     /// let ner_model = NERModel::new(Default::default())?;
     /// let input = [
-    ///     "My name is Amy. I live in Paris.",
-    ///     "Paris is a city in France.",
+    ///  "My name is Amy. I live in Paris.",
+    ///  "Paris is a city in France.",
     /// ];
     /// let output = ner_model.predict(&input);
     /// # Ok(())
@@ -306,18 +306,18 @@ impl NERModel {
     /// # use rust_tokenizers::Offset;
     /// # let output =
     /// [[
-    ///     Entity {
-    ///         word: String::from("John Smith"),
-    ///         score: 0.9747,
-    ///         label: String::from("PER"),
-    ///         offset: Offset { begin: 6, end: 16 },
-    ///     },
-    ///     Entity {
-    ///         word: String::from("Acme Corp"),
-    ///         score: 0.8847,
-    ///         label: String::from("I-LOC"),
-    ///         offset: Offset { begin: 23, end: 32 },
-    ///     },
+    ///  Entity {
+    ///      word: String::from("John Smith"),
+    ///      score: 0.9747,
+    ///      label: String::from("PER"),
+    ///      offset: Offset { begin: 6, end: 16 },
+    ///  },
+    ///  Entity {
+    ///      word: String::from("Acme Corp"),
+    ///      score: 0.8847,
+    ///      label: String::from("I-LOC"),
+    ///      offset: Offset { begin: 23, end: 32 },
+    ///  },
     /// ]]
     /// # ;
     /// ```

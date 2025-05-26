@@ -149,18 +149,18 @@ impl BertEmbedding for BertEmbeddings {
     /// let input_tensor = Tensor::rand(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let embedded_output = no_grad(|| {
-    ///     bert_embeddings
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&token_type_ids),
-    ///             Some(&position_ids),
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  bert_embeddings
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&token_type_ids),
+    ///          Some(&position_ids),
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     fn forward_t(

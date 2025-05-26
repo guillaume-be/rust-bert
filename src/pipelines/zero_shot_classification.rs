@@ -1,15 +1,15 @@
-// Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
-// Copyright 2019-2020 Guillaume Becquin
-// Copyright 2020 Maarten van Gompel
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+//! Copyright 2019-present, the HuggingFace Inc. team, The Google AI Language Team and Facebook, Inc.
+//! Copyright 2019-2020 Guillaume Becquin
+//! Copyright 2020 Maarten van Gompel
+//! Licensed under the Apache License, Version 2.0 (the "License");
+//! you may not use this file except in compliance with the License.
+//! You may obtain a copy of the License at
+//!     http://www.apache.org/licenses/LICENSE-2.0
+//! Unless required by applicable law or agreed to in writing, software
+//! distributed under the License is distributed on an "AS IS" BASIS,
+//! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//! See the License for the specific language governing permissions and
+//! limitations under the License.
 
 //! # Zero-shot classification pipeline
 //! Performs zero-shot classification on input sentences with provided labels using a model fine-tuned for Natural Language Inference.
@@ -259,7 +259,7 @@ impl ZeroShotClassificationOption {
     /// # Arguments
     ///
     /// * `ZeroShotClassificationConfig` - Zero-shot classification pipeline configuration. The type of model created will be inferred from the
-    ///     `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
+    ///   `ModelResources` (Torch or ONNX) and `ModelType` (Architecture for Torch models) variants provided and
     pub fn new(config: &ZeroShotClassificationConfig) -> Result<Self, RustBertError> {
         match config.model_resource {
             ModelResource::Torch(_) => Self::new_torch(config),
@@ -590,7 +590,6 @@ impl ZeroShotClassificationOption {
     }
 }
 
-pub type ZeroShotTemplate = Box<dyn Fn(&str) -> String>;
 /// Template used to transform the zero-shot classification labels into a set of
 /// natural language hypotheses for natural language inference.
 ///
@@ -605,9 +604,10 @@ pub type ZeroShotTemplate = Box<dyn Fn(&str) -> String>;
 ///
 /// ```rust
 /// fn default_template(label: &str) -> String {
-///     format!("This example is about {}.", label)
+///  format!("This example is about {}.", label)
 /// }
 /// ```
+pub type ZeroShotTemplate = Box<dyn Fn(&str) -> String>;
 
 /// # ZeroShotClassificationModel for Zero Shot Classification
 pub struct ZeroShotClassificationModel {
@@ -668,12 +668,12 @@ impl ZeroShotClassificationModel {
     /// use rust_bert::pipelines::common::{ModelType, TokenizerOption};
     /// use rust_bert::pipelines::sequence_classification::SequenceClassificationModel;
     /// let tokenizer = TokenizerOption::from_file(
-    ///     ModelType::Bert,
-    ///     "path/to/vocab.txt",
-    ///     None,
-    ///     false,
-    ///     None,
-    ///     None,
+    ///  ModelType::Bert,
+    ///  "path/to/vocab.txt",
+    ///  None,
+    ///  false,
+    ///  None,
+    ///  None,
     /// )?;
     /// let model = SequenceClassificationModel::new_with_tokenizer(Default::default(), tokenizer)?;
     /// # Ok(())
@@ -810,10 +810,10 @@ impl ZeroShotClassificationModel {
     /// let candidate_labels = &["politics", "public health", "economics", "sports"];
     ///
     /// let output = sequence_classification_model.predict(
-    ///     &[input_sentence, input_sequence_2],
-    ///     candidate_labels,
-    ///     None,
-    ///     128,
+    ///  &[input_sentence, input_sequence_2],
+    ///  candidate_labels,
+    ///  None,
+    ///  128,
     /// );
     /// # Ok(())
     /// # }
@@ -823,18 +823,18 @@ impl ZeroShotClassificationModel {
     /// ```no_run
     /// # use rust_bert::pipelines::sequence_classification::Label;
     /// let output = [
-    ///     Label {
-    ///         text: "politics".to_string(),
-    ///         score: 0.959,
-    ///         id: 0,
-    ///         sentence: 0,
-    ///     },
-    ///     Label {
-    ///         text: "economy".to_string(),
-    ///         score: 0.642,
-    ///         id: 2,
-    ///         sentence: 1,
-    ///     },
+    ///  Label {
+    ///      text: "politics".to_string(),
+    ///      score: 0.959,
+    ///      id: 0,
+    ///      sentence: 0,
+    ///  },
+    ///  Label {
+    ///      text: "economy".to_string(),
+    ///      score: 0.642,
+    ///      id: 2,
+    ///      sentence: 1,
+    ///  },
     /// ]
     /// .to_vec();
     /// ```
@@ -913,10 +913,10 @@ impl ZeroShotClassificationModel {
     /// let candidate_labels = &["politics", "public health", "economics", "sports"];
     ///
     /// let output = sequence_classification_model.predict_multilabel(
-    ///     &[input_sentence, input_sequence_2],
-    ///     candidate_labels,
-    ///     None,
-    ///     128,
+    ///  &[input_sentence, input_sequence_2],
+    ///  candidate_labels,
+    ///  None,
+    ///  128,
     /// );
     /// # Ok(())
     /// # }
@@ -925,58 +925,58 @@ impl ZeroShotClassificationModel {
     /// ```no_run
     /// # use rust_bert::pipelines::sequence_classification::Label;
     /// let output = [
-    ///     [
-    ///         Label {
-    ///             text: "politics".to_string(),
-    ///             score: 0.972,
-    ///             id: 0,
-    ///             sentence: 0,
-    ///         },
-    ///         Label {
-    ///             text: "public health".to_string(),
-    ///             score: 0.032,
-    ///             id: 1,
-    ///             sentence: 0,
-    ///         },
-    ///         Label {
-    ///             text: "economy".to_string(),
-    ///             score: 0.006,
-    ///             id: 2,
-    ///             sentence: 0,
-    ///         },
-    ///         Label {
-    ///             text: "sports".to_string(),
-    ///             score: 0.004,
-    ///             id: 3,
-    ///             sentence: 0,
-    ///         },
-    ///     ],
-    ///     [
-    ///         Label {
-    ///             text: "politics".to_string(),
-    ///             score: 0.975,
-    ///             id: 0,
-    ///             sentence: 1,
-    ///         },
-    ///         Label {
-    ///             text: "economy".to_string(),
-    ///             score: 0.852,
-    ///             id: 2,
-    ///             sentence: 1,
-    ///         },
-    ///         Label {
-    ///             text: "public health".to_string(),
-    ///             score: 0.0818,
-    ///             id: 1,
-    ///             sentence: 1,
-    ///         },
-    ///         Label {
-    ///             text: "sports".to_string(),
-    ///             score: 0.001,
-    ///             id: 3,
-    ///             sentence: 1,
-    ///         },
-    ///     ],
+    ///  [
+    ///      Label {
+    ///          text: "politics".to_string(),
+    ///          score: 0.972,
+    ///          id: 0,
+    ///          sentence: 0,
+    ///      },
+    ///      Label {
+    ///          text: "public health".to_string(),
+    ///          score: 0.032,
+    ///          id: 1,
+    ///          sentence: 0,
+    ///      },
+    ///      Label {
+    ///          text: "economy".to_string(),
+    ///          score: 0.006,
+    ///          id: 2,
+    ///          sentence: 0,
+    ///      },
+    ///      Label {
+    ///          text: "sports".to_string(),
+    ///          score: 0.004,
+    ///          id: 3,
+    ///          sentence: 0,
+    ///      },
+    ///  ],
+    ///  [
+    ///      Label {
+    ///          text: "politics".to_string(),
+    ///          score: 0.975,
+    ///          id: 0,
+    ///          sentence: 1,
+    ///      },
+    ///      Label {
+    ///          text: "economy".to_string(),
+    ///          score: 0.852,
+    ///          id: 2,
+    ///          sentence: 1,
+    ///      },
+    ///      Label {
+    ///          text: "public health".to_string(),
+    ///          score: 0.0818,
+    ///          id: 1,
+    ///          sentence: 1,
+    ///      },
+    ///      Label {
+    ///          text: "sports".to_string(),
+    ///          score: 0.001,
+    ///          id: 3,
+    ///          sentence: 1,
+    ///      },
+    ///  ],
     /// ]
     /// .to_vec();
     /// ```

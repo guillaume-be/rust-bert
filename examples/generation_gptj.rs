@@ -23,15 +23,15 @@ use tch::Device;
 /// inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
 ///
 /// with torch.no_grad():
-///     gen_tokens = model.generate(
-///         **inputs,
-///         min_length=0,
-///         max_length=32,
-///         do_sample=False,
-///         early_stopping=True,
-///         num_beams=1,
-///         num_return_sequences=1
-///     )
+///  gen_tokens = model.generate(
+///      **inputs,
+///      min_length=0,
+///      max_length=32,
+///      do_sample=False,
+///      early_stopping=True,
+///      num_beams=1,
+///      num_return_sequences=1
+///  )
 ///
 /// gen_texts = tokenizer.batch_decode(gen_tokens, skip_special_tokens=True)
 /// ````

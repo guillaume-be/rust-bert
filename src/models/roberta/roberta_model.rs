@@ -366,19 +366,19 @@ impl RobertaForMaskedLM {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     roberta_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         None,
-    ///         None,
-    ///         false,
-    ///     )
+    ///  roberta_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      None,
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -557,17 +557,17 @@ impl RobertaForSequenceClassification {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     roberta_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  roberta_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -694,16 +694,16 @@ impl RobertaForMultipleChoice {
     /// let mask = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[num_choices, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[num_choices, sequence_length], true);
+    ///  .expand(&[num_choices, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     roberta_model.forward_t(
-    ///         &input_tensor,
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         false,
-    ///     )
+    ///  roberta_model.forward_t(
+    ///      &input_tensor,
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -858,17 +858,17 @@ impl RobertaForTokenClassification {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     roberta_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  roberta_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(
@@ -1002,17 +1002,17 @@ impl RobertaForQuestionAnswering {
     /// let mask = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let token_type_ids = Tensor::zeros(&[batch_size, sequence_length], (Int64, device));
     /// let position_ids = Tensor::arange(sequence_length, (Int64, device))
-    ///     .expand(&[batch_size, sequence_length], true);
+    ///  .expand(&[batch_size, sequence_length], true);
     ///
     /// let model_output = no_grad(|| {
-    ///     roberta_model.forward_t(
-    ///         Some(&input_tensor),
-    ///         Some(&mask),
-    ///         Some(&token_type_ids),
-    ///         Some(&position_ids),
-    ///         None,
-    ///         false,
-    ///     )
+    ///  roberta_model.forward_t(
+    ///      Some(&input_tensor),
+    ///      Some(&mask),
+    ///      Some(&token_type_ids),
+    ///      Some(&position_ids),
+    ///      None,
+    ///      false,
+    ///  )
     /// });
     /// ```
     pub fn forward_t(

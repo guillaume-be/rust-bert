@@ -459,17 +459,17 @@ impl LongformerModel {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&attention_mask),
-    ///             Some(&global_attention_mask),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  longformer_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&attention_mask),
+    ///          Some(&global_attention_mask),
+    ///          None,
+    ///          None,
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -737,17 +737,17 @@ impl LongformerForMaskedLM {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&attention_mask),
-    ///             Some(&global_attention_mask),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  longformer_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&attention_mask),
+    ///          Some(&global_attention_mask),
+    ///          None,
+    ///          None,
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -932,17 +932,17 @@ impl LongformerForSequenceClassification {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&attention_mask),
-    ///             Some(&global_attention_mask),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  longformer_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&attention_mask),
+    ///          Some(&global_attention_mask),
+    ///          None,
+    ///          None,
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -1103,17 +1103,17 @@ impl LongformerForQuestionAnswering {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&attention_mask),
-    ///             Some(&global_attention_mask),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  longformer_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&attention_mask),
+    ///          Some(&global_attention_mask),
+    ///          None,
+    ///          None,
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -1284,17 +1284,17 @@ impl LongformerForTokenClassification {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&attention_mask),
-    ///             Some(&global_attention_mask),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  longformer_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&attention_mask),
+    ///          Some(&global_attention_mask),
+    ///          None,
+    ///          None,
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(
@@ -1427,17 +1427,17 @@ impl LongformerForMultipleChoice {
     /// let target_tensor = Tensor::ones(&[batch_size, sequence_length], (Int64, device));
     ///
     /// let model_output = no_grad(|| {
-    ///     longformer_model
-    ///         .forward_t(
-    ///             Some(&input_tensor),
-    ///             Some(&attention_mask),
-    ///             Some(&global_attention_mask),
-    ///             None,
-    ///             None,
-    ///             None,
-    ///             false,
-    ///         )
-    ///         .unwrap()
+    ///  longformer_model
+    ///      .forward_t(
+    ///          Some(&input_tensor),
+    ///          Some(&attention_mask),
+    ///          Some(&global_attention_mask),
+    ///          None,
+    ///          None,
+    ///          None,
+    ///          false,
+    ///      )
+    ///      .unwrap()
     /// });
     /// ```
     pub fn forward_t(

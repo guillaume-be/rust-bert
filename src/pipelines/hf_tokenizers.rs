@@ -270,14 +270,14 @@ impl HFTokenizer {
     /// # let special_token_map_path = PathBuf::from("path/to/special_token_map.json");
     /// let tokenizer = HFTokenizer::from_file(tokenizer_file_path, special_token_map_path)?;
     /// let texts = &[
-    ///     (
-    ///         "first text of first pair to encode",
-    ///         "second text of first pair to encode",
-    ///     ),
-    ///     (
-    ///         "first text of second pair to encode",
-    ///         "second text of second pair to encode",
-    ///     ),
+    ///  (
+    ///      "first text of first pair to encode",
+    ///      "second text of first pair to encode",
+    ///  ),
+    ///  (
+    ///      "first text of second pair to encode",
+    ///      "second text of second pair to encode",
+    ///  ),
     /// ];
     /// let output = tokenizer.encode_pair_list(texts);
     /// # Ok(())
@@ -587,27 +587,27 @@ impl HFTokenizer {
     /// # let special_token_map_path = PathBuf::from("path/to/special_token_map.json");
     /// let tokenizer = HFTokenizer::from_file(tokenizer_file_path, special_token_map_path)?;
     /// let token_ids_with_offsets_1 = TokenIdsWithOffsets {
-    ///     ids: vec![0, 1, 2],
-    ///     offsets: vec![
-    ///         Some(Offset { begin: 0, end: 1 }),
-    ///         Some(Offset { begin: 1, end: 2 }),
-    ///         Some(Offset { begin: 2, end: 3 }),
-    ///     ],
-    ///     reference_offsets: vec![vec![0], vec![1], vec![2]],
-    ///     masks: vec![],
+    ///  ids: vec![0, 1, 2],
+    ///  offsets: vec![
+    ///      Some(Offset { begin: 0, end: 1 }),
+    ///      Some(Offset { begin: 1, end: 2 }),
+    ///      Some(Offset { begin: 2, end: 3 }),
+    ///  ],
+    ///  reference_offsets: vec![vec![0], vec![1], vec![2]],
+    ///  masks: vec![],
     /// };
     /// let token_ids_with_offsets_2 = TokenIdsWithOffsets {
-    ///     ids: vec![8, 9, 10],
-    ///     offsets: vec![
-    ///         Some(Offset { begin: 3, end: 4 }),
-    ///         Some(Offset { begin: 4, end: 5 }),
-    ///         Some(Offset { begin: 5, end: 6 }),
-    ///     ],
-    ///     reference_offsets: vec![vec![3], vec![4], vec![5]],
-    ///     masks: vec![],
+    ///  ids: vec![8, 9, 10],
+    ///  offsets: vec![
+    ///      Some(Offset { begin: 3, end: 4 }),
+    ///      Some(Offset { begin: 4, end: 5 }),
+    ///      Some(Offset { begin: 5, end: 6 }),
+    ///  ],
+    ///  reference_offsets: vec![vec![3], vec![4], vec![5]],
+    ///  masks: vec![],
     /// };
     /// let output = tokenizer
-    ///     .build_input_with_special_tokens(token_ids_with_offsets_1, Some(token_ids_with_offsets_2));
+    ///  .build_input_with_special_tokens(token_ids_with_offsets_1, Some(token_ids_with_offsets_2));
     /// # Ok(())
     /// # }
     /// ```
