@@ -91,7 +91,7 @@ lazy_static = { version = "1", optional = true }
 ort = { version = "1.16.3", optional = true, default-features = false, features = [
     "half",
 ] }
-ndarray = { version = "0.16", optional = true }
+ndarray = { version = "0.15", optional = true }
 tokenizers = { version = "0.21", optional = true, default-features = false, features = [
     "onig",
 ] }

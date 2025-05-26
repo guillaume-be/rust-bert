@@ -155,7 +155,8 @@ pub(crate) fn get_device(_model_resource: ModelResource, device: Device) -> Devi
     };
 
     #[cfg(not(feature = "onnx"))]
-    device
+    let updated_device = device;
+    updated_device
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
