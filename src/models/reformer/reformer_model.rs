@@ -1200,15 +1200,12 @@ impl PrivateLanguageGenerator for ReformerGenerator {
         beam_indices: &Tensor,
     ) -> Option<Tensor> {
         match past {
-            Cache::ReformerCache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
-                    for layer_state in old_cache.iter_mut() {
-                        if layer_state.is_some() {
-                            layer_state.as_mut().unwrap().reorder_cache(beam_indices)
-                        };
-                    }
+            Cache::ReformerCache(old_cache_option) => if let Some(old_cache) = old_cache_option {
+                for layer_state in old_cache.iter_mut() {
+                    if layer_state.is_some() {
+                        layer_state.as_mut().unwrap().reorder_cache(beam_indices)
+                    };
                 }
-                None => {}
             },
             Cache::None => {}
             _ => {

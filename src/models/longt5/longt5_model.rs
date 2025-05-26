@@ -755,24 +755,21 @@ impl PrivateLanguageGenerator for LongT5Generator {
         beam_indices: &Tensor,
     ) -> Option<Tensor> {
         match past {
-            Cache::LongT5Cache(old_cache_option) => match old_cache_option {
-                Some(old_cache) => {
-                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
-                        if self_layer_state.is_some() {
-                            self_layer_state
-                                .as_mut()
-                                .unwrap()
-                                .reorder_cache(beam_indices)
-                        };
-                        if encoder_layer_state.is_some() {
-                            encoder_layer_state
-                                .as_mut()
-                                .unwrap()
-                                .reorder_cache(beam_indices)
-                        };
-                    }
+            Cache::LongT5Cache(old_cache_option) => if let Some(old_cache) = old_cache_option {
+                for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
+                    if self_layer_state.is_some() {
+                        self_layer_state
+                            .as_mut()
+                            .unwrap()
+                            .reorder_cache(beam_indices)
+                    };
+                    if encoder_layer_state.is_some() {
+                        encoder_layer_state
+                            .as_mut()
+                            .unwrap()
+                            .reorder_cache(beam_indices)
+                    };
                 }
-                None => {}
             },
             Cache::None => {}
             _ => {
