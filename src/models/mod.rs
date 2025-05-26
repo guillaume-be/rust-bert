@@ -14,6 +14,7 @@ pub mod gpt_neo;
 pub mod longformer;
 pub mod longt5;
 pub mod m2m_100;
+pub mod mamba2;
 pub mod marian;
 pub mod mbart;
 pub mod mobilebert;
