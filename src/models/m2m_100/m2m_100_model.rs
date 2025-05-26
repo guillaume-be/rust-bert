@@ -701,22 +701,24 @@ impl PrivateLanguageGenerator for M2M100Generator {
     ) -> Option<Tensor> {
         let encoder_outputs = encoder_outputs.map(|value| value.index_select(0, beam_indices));
         match past {
-            Cache::BARTCache(old_cache_option) => if let Some(old_cache) = old_cache_option {
-                for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
-                    if self_layer_state.is_some() {
-                        self_layer_state
-                            .as_mut()
-                            .unwrap()
-                            .reorder_cache(beam_indices)
-                    };
-                    if encoder_layer_state.is_some() {
-                        encoder_layer_state
-                            .as_mut()
-                            .unwrap()
-                            .reorder_cache(beam_indices)
-                    };
+            Cache::BARTCache(old_cache_option) => {
+                if let Some(old_cache) = old_cache_option {
+                    for (self_layer_state, encoder_layer_state) in old_cache.iter_mut() {
+                        if self_layer_state.is_some() {
+                            self_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
+                        };
+                        if encoder_layer_state.is_some() {
+                            encoder_layer_state
+                                .as_mut()
+                                .unwrap()
+                                .reorder_cache(beam_indices)
+                        };
+                    }
                 }
-            },
+            }
             Cache::None => {}
             _ => {
                 panic!("Invalid cache for M2M100 model");
