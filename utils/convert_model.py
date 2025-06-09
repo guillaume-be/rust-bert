@@ -48,6 +48,8 @@ import logging
 import subprocess
 import sys
 import zipfile
+import os
+
 from pathlib import Path
 from typing import Dict
 import os
@@ -191,16 +193,25 @@ if __name__ == "__main__":
     source = str(target_folder / "model.npz")
     target = str(target_folder / "rust_model.ot")
 
-    toml_location = (Path(__file__).resolve() / ".." / ".." / "Cargo.toml").resolve()
-    cargo_args = [
-        "cargo",
-        "run",
-        "--bin=convert-tensor",
-        "--manifest-path=%s" % toml_location,
-        "--",
-        source,
-        target,
-    ]
-    if args.download_libtorch:
-        cargo_args += ["--features", "download-libtorch"]
+    if os.getenv("ON_DOCKER") is not None:
+        cargo_args = [
+            "/convert-tensor",
+            source,
+            target,
+        ]
+    else:
+        toml_location = (
+            Path(__file__).resolve() / ".." / ".." / "Cargo.toml"
+        ).resolve()
+        cargo_args = [
+            "cargo",
+            "run",
+            "--bin=convert-tensor",
+            "--manifest-path=%s" % toml_location,
+            "--",
+            source,
+            target,
+        ]
+        if args.download_libtorch:
+            cargo_args += ["--features", "download-libtorch"]
     subprocess.run(cargo_args)
