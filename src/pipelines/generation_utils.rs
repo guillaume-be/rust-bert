@@ -233,6 +233,7 @@ pub enum Cache {
     ProphetNetCache(Option<Vec<(Option<ProphetNetLayerState>, Option<ProphetNetLayerState>)>>),
     GPTNeoCache(Option<Vec<Option<GPTNeoLayerState>>>),
     GPTJCache(Option<Vec<Option<GPTJLayerState>>>),
+    Mamba2Cache(crate::models::mamba2::Mamba2Cache),
     #[cfg(feature = "onnx")]
     ONNXCache(ONNXLayerCache),
     None,

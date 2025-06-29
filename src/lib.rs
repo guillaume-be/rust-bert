@@ -736,6 +736,6 @@ pub use common::resources;
 pub use common::{Activation, Config};
 pub use models::{
     albert, bart, bert, deberta, deberta_v2, distilbert, electra, fnet, gpt2, gpt_j, gpt_neo,
-    longformer, longt5, m2m_100, marian, mbart, mobilebert, nllb, openai_gpt, pegasus, prophetnet,
-    reformer, roberta, t5, xlnet,
+    longformer, longt5, m2m_100, mamba2, marian, mbart, mobilebert, nllb, openai_gpt, pegasus,
+    prophetnet, reformer, roberta, t5, xlnet,
 };

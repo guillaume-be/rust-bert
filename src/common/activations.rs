@@ -56,6 +56,8 @@ pub enum Activation {
     relu,
     /// Swish ([Ramachandran, 2017](https://arxiv.org/abs/1710.05941))
     swish,
+    /// SiLU (Sigmoid Linear Unit - same as Swish)
+    silu,
     /// Mish ([Misra, 2019](https://arxiv.org/abs/1908.08681))
     mish,
     /// Gaussian Error Linear Unit (New) ([Hendrycks et al., 2016,](https://arxiv.org/abs/1606.08415))
@@ -72,6 +74,7 @@ impl Activation {
             Activation::gelu => _gelu,
             Activation::relu => _relu,
             Activation::swish => _swish,
+            Activation::silu => _swish,
             Activation::gelu_new => _gelu_new,
             Activation::mish => _mish,
             Activation::tanh => _tanh,
