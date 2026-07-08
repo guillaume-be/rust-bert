@@ -76,7 +76,7 @@ features = ["doc-only"]
 
 [dependencies]
 rust_tokenizers = "8.1.1"
-tch = { version = "0.24.0", features = ["download-libtorch"] }
+tch = "0.24.0"
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 ordered-float = "5"
